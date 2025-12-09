@@ -616,7 +616,7 @@
 
         // Define Upgrade Pool for Level Ups
         const UPGRADE_POOL = [
-            { id: 'health', title: 'Vitality', desc: 'Increase Max HP by 25 and Heal completely.', icon: '❤️' },
+            { id: 'health', title: 'Vitality', desc: 'Increase Max HP by 25 and Heal 20%.', icon: '❤️' }, // Changed description
             { id: 'radius', title: 'Blast Radius', desc: 'Increase Melee Area of Effect by 25%.', icon: '💥' },
             { id: 'projectile', title: 'Multishot', desc: 'Fire +1 subsequent straight shot.', icon: '🏹' },
             { id: 'speed', title: 'Swiftness', desc: 'Increase Movement Speed by 10%.', icon: '👟' },
@@ -979,6 +979,10 @@
                 this.maskChance = 0.01;
                 this.speedMultiplier = 1;
                 this.cooldownMultiplier = 1;
+
+                // Transformation Logic
+                this.transformActive = false;
+                this.currentForm = 'NONE';
             }
 
             gainXp(amount) {
@@ -994,33 +998,76 @@
                 this.maxXp = Math.floor(this.maxXp * 1.2);
                 isLevelingUp = true;
 
-                // Generate 2 random options
                 const container = document.getElementById('upgrade-options');
                 container.innerHTML = '';
 
-                // Shuffle pool
-                const pool = [...UPGRADE_POOL].sort(() => 0.5 - Math.random());
-                const options = pool.slice(0, 2);
+                // Check for Transformation Level (Every 10 levels)
+                if (this.level % 10 === 0) {
+                    const formName = this.getFormName();
+                    const transformOption = {
+                        id: 'transform',
+                        title: 'ULTIMATE FORM',
+                        desc: `Transform into ${formName}! Lasts until you take damage.`,
+                        icon: '🌟'
+                    };
 
-                options.forEach(opt => {
-                    const card = document.createElement('div');
-                    card.className = 'upgrade-card';
-                    card.innerHTML = `
-                        <div class="upgrade-icon">${opt.icon}</div>
-                        <div class="upgrade-title">${opt.title}</div>
-                        <div class="upgrade-desc">${opt.desc}</div>
-                    `;
-                    card.onclick = () => chooseUpgrade(opt.id);
-                    container.appendChild(card);
-                });
+                    // Show Transform option + 1 random regular option
+                    const pool = [...UPGRADE_POOL].sort(() => 0.5 - Math.random());
+                    const options = [transformOption, pool[0]];
+
+                    options.forEach(opt => this.createUpgradeCard(opt, container));
+                } else {
+                    // Standard Level Up
+                    const pool = [...UPGRADE_POOL].sort(() => 0.5 - Math.random());
+                    const options = pool.slice(0, 2);
+                    options.forEach(opt => this.createUpgradeCard(opt, container));
+                }
 
                 document.getElementById('levelup-screen').style.display = 'flex';
+            }
+
+            createUpgradeCard(opt, container) {
+                const card = document.createElement('div');
+                card.className = 'upgrade-card';
+                card.innerHTML = `
+                    <div class="upgrade-icon">${opt.icon}</div>
+                    <div class="upgrade-title">${opt.title}</div>
+                    <div class="upgrade-desc">${opt.desc}</div>
+                `;
+                card.onclick = () => chooseUpgrade(opt.id);
+                container.appendChild(card);
+            }
+
+            getFormName() {
+                if this.type === 'ice' return 'BLACK ICE';
+                if (this.type === 'fire') return 'LAVA';
+                if (this.type === 'metal') return 'IRON';
+                if (this.type === 'plant') return 'CREEPER';
+                if (this.type === 'water') return 'OCEAN';
+                return 'ULTIMATE';
             }
 
             update() {
                 if (this.buffs.speed > 0) this.buffs.speed--;
                 if (this.buffs.multi > 0) this.buffs.multi--;
                 if (this.buffs.autoaim > 0) this.buffs.autoaim--;
+
+                // Transformation Updates
+                if (this.transformActive) {
+                    if (this.currentForm === 'IRON') {
+                        // Iron Aura: Damage and Knockback nearby enemies
+                        enemies.forEach(e => {
+                            const d = Math.hypot(e.x - this.x, e.y - this.y);
+                            if (d < 150) {
+                                const angle = Math.atan2(e.y - this.y, e.x - this.x);
+                                e.x += Math.cos(angle) * 5; // Knockback
+                                e.y += Math.sin(angle) * 5;
+                                e.hp -= 2; // Aura Damage
+                                if (frame % 10 === 0) createExplosion(e.x, e.y, '#aaa');
+                            }
+                        });
+                    }
+                }
 
                 if (this.weapon !== 'STANDARD') {
                     this.weaponTimer--;
@@ -1038,6 +1085,12 @@
 
                 let currentSpeed = this.stats.speed * this.speedMultiplier;
                 if (this.buffs.speed > 0) currentSpeed *= 1.5;
+
+                // Form Speed Modifiers
+                if (this.transformActive) {
+                    if (this.currentForm === 'OCEAN') currentSpeed *= 2.0;
+                    if (this.currentForm === 'IRON') currentSpeed *= 0.6;
+                }
 
                 if (dx !== 0 || dy !== 0) {
                     const len = Math.sqrt(dx * dx + dy * dy);
@@ -1065,6 +1118,25 @@
                 const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
                 ctx.rotate(angle);
 
+                // Transformation Visuals
+                if (this.transformActive) {
+                    ctx.beginPath(); ctx.arc(0, 0, this.radius + 15, 0, Math.PI * 2);
+                    ctx.lineWidth = 4;
+                    if (this.currentForm === 'BLACK ICE') ctx.strokeStyle = '#000';
+                    if (this.currentForm === 'LAVA') ctx.strokeStyle = '#e74c3c';
+                    if (this.currentForm === 'IRON') {
+                        ctx.strokeStyle = '#7f8c8d';
+                        // Draw Aura Range
+                        ctx.save(); ctx.rotate(-angle); // Cancel rotation for aura
+                        ctx.beginPath(); ctx.arc(0, 0, 150, 0, Math.PI * 2);
+                        ctx.strokeStyle = 'rgba(127, 140, 141, 0.3)'; ctx.lineWidth = 2; ctx.stroke();
+                        ctx.restore();
+                    }
+                    if (this.currentForm === 'CREEPER') ctx.strokeStyle = '#27ae60';
+                    if (this.currentForm === 'OCEAN') ctx.strokeStyle = '#2980b9';
+                    ctx.stroke();
+                }
+
                 if (this.buffs.speed > 0) {
                     ctx.beginPath(); ctx.arc(0, 0, this.radius + 5, 0, Math.PI * 2);
                     ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2; ctx.stroke();
@@ -1091,8 +1163,12 @@
                 if (this.rangeCooldown > 0) return;
 
                 let angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+                let autoAimActive = this.buffs.autoaim > 0;
 
-                if (this.buffs.autoaim > 0) {
+                // Ocean Form Auto-Aim
+                if (this.transformActive && this.currentForm === 'OCEAN') autoAimActive = true;
+
+                if (autoAimActive) {
                     let nearest = null;
                     let minDst = Infinity;
                     enemies.forEach(e => {
@@ -1110,29 +1186,59 @@
                 let size = this.stats.projectileSize;
                 let cooldown = this.stats.rangeCd * this.cooldownMultiplier;
                 let isExplosive = false;
+                let pierce = 0;
+                let color = this.stats.color;
 
-                if (this.weapon === 'SCATTER') {
-                    shots.push(angle - 0.3, angle - 0.15, angle, angle + 0.15, angle + 0.3);
-                    cooldown = 30 * this.cooldownMultiplier; dmg = this.stats.rangeDmg * 0.6 * this.damageMultiplier;
-                } else if (this.weapon === 'MINIGUN') {
-                    shots.push(angle + (Math.random() - 0.5) * 0.2);
-                    cooldown = 4 * this.cooldownMultiplier; dmg = this.stats.rangeDmg * 0.4 * this.damageMultiplier;
-                } else if (this.weapon === 'BAZOOKA') {
-                    shots.push(angle); speed = 8; size = 10; dmg = this.stats.rangeDmg * 2 * this.damageMultiplier;
-                    cooldown = 60 * this.cooldownMultiplier; isExplosive = true;
+                // Transformation Overrides
+                if (this.transformActive) {
+                    if (this.currentForm === 'BLACK ICE') {
+                        // Devastating Ice Crystals (8-way)
+                        for (let i = 0; i < 8; i++) shots.push(angle + (Math.PI / 4) * i);
+                        dmg *= 1.5; color = '#000'; cooldown = 20;
+                    } else if (this.currentForm === 'LAVA') {
+                        // Lava Streams (Rapid fire)
+                        shots.push(angle + (Math.random() - 0.5) * 0.1);
+                        cooldown = 3; dmg *= 0.8; color = '#e67e22';
+                    } else if (this.currentForm === 'CREEPER') {
+                        // Vines (Plow through)
+                        shots.push(angle);
+                        size = 15; pierce = 100; dmg *= 2; cooldown = 40; color = '#27ae60';
+                    } else if (this.currentForm === 'OCEAN') {
+                        // Water Blasts (Fast, Auto-aimed)
+                        shots.push(angle);
+                        speed *= 1.5; cooldown = 8; color = '#3498db';
+                    } else if (this.currentForm === 'IRON') {
+                        // Iron throws heavy stuff
+                        shots.push(angle);
+                        size = 12; dmg *= 3; speed *= 0.8; cooldown = 50; color = '#7f8c8d';
+                    }
                 } else {
-                    if (this.type === 'plant') { shots.push(angle - 0.2, angle, angle + 0.2); }
-                    else { shots.push(angle); }
-                    if (this.buffs.multi > 0) {
-                        shots.push(angle - 0.25, angle + 0.25);
+                    // Standard Weapon Logic
+                    if (this.weapon === 'SCATTER') {
+                        shots.push(angle - 0.3, angle - 0.15, angle, angle + 0.15, angle + 0.3);
+                        cooldown = 30 * this.cooldownMultiplier; dmg = this.stats.rangeDmg * 0.6 * this.damageMultiplier;
+                    } else if (this.weapon === 'MINIGUN') {
+                        shots.push(angle + (Math.random() - 0.5) * 0.2);
+                        cooldown = 4 * this.cooldownMultiplier; dmg = this.stats.rangeDmg * 0.4 * this.damageMultiplier;
+                    } else if (this.weapon === 'BAZOOKA') {
+                        shots.push(angle); speed = 8; size = 10; dmg = this.stats.rangeDmg * 2 * this.damageMultiplier;
+                        cooldown = 60 * this.cooldownMultiplier; isExplosive = true;
+                    } else {
+                        if (this.type === 'plant') { shots.push(angle - 0.2, angle, angle + 0.2); }
+                        else { shots.push(angle); }
+                        if (this.buffs.multi > 0) {
+                            shots.push(angle - 0.25, angle + 0.25);
+                        }
                     }
                 }
 
                 shots.forEach(a => {
                     const vel = { x: Math.cos(a) * speed, y: Math.sin(a) * speed };
-                    projectiles.push(new Projectile(this.x, this.y, vel, dmg, this.stats.color, size, this.type, this.stats.knockback, false, isExplosive));
+                    const proj = new Projectile(this.x, this.y, vel, dmg, color, size, this.type, this.stats.knockback, false, isExplosive);
+                    if (pierce > 0) proj.pierce = pierce;
+                    projectiles.push(proj);
 
-                    if (this.weapon === 'STANDARD') {
+                    if (this.weapon === 'STANDARD' && !this.transformActive) {
                         for (let i = 1; i <= this.extraProjectiles; i++) {
                             const offsetX = this.x - (vel.x * (i * 3));
                             const offsetY = this.y - (vel.y * (i * 3));
@@ -1503,7 +1609,10 @@
         }
 
         function chooseUpgrade(type) {
-            if (type === 'health') { player.maxHp += 25; player.hp = player.maxHp; }
+            if (type === 'health') {
+                player.maxHp += 25;
+                player.hp = Math.min(player.maxHp, player.hp + (player.maxHp * 0.2)); // Heal 20%
+            }
             else if (type === 'radius') { player.meleeRadius *= 1.25; }
             else if (type === 'projectile') { player.extraProjectiles += 1; }
             else if (type === 'speed') { player.speedMultiplier += 0.1; }
@@ -1511,6 +1620,12 @@
             else if (type === 'defense') { player.damageReduction = Math.min(0.5, player.damageReduction + 0.05); }
             else if (type === 'damage') { player.damageMultiplier += 0.1; }
             else if (type === 'luck') { player.maskChance += 0.005; }
+            else if (type === 'transform') {
+                player.transformActive = true;
+                player.currentForm = player.getFormName();
+                showNotification(`${player.currentForm} ACTIVATED!`);
+                createExplosion(player.x, player.y, '#fff');
+            }
 
             isLevelingUp = false;
             document.getElementById('levelup-screen').style.display = 'none';
@@ -1672,6 +1787,14 @@
                     const dmgTaken = 1 * (1 - player.damageReduction);
                     player.hp -= dmgTaken;
                     createExplosion(player.x, player.y, '#fff');
+
+                    // Lose Transformation on Damage
+                    if (player.transformActive) {
+                        player.transformActive = false;
+                        player.currentForm = 'NONE';
+                        showNotification("FORM BROKEN!");
+                    }
+
                     const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
                     if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20; }
                 }
@@ -1683,6 +1806,13 @@
                             const dmgTaken = proj.damage * (1 - player.damageReduction);
                             player.hp -= dmgTaken;
                             createExplosion(player.x, player.y, proj.color); projectiles.splice(pIndex, 1);
+
+                            // Lose Transformation on Damage
+                            if (player.transformActive) {
+                                player.transformActive = false;
+                                player.currentForm = 'NONE';
+                                showNotification("FORM BROKEN!");
+                            }
                         }
                     } else {
                         const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
