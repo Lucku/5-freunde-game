@@ -809,11 +809,47 @@
         const SKILL_TREE_SIZE = 100;
 
         const ACHIEVEMENTS = [
-            { id: 'kill_100', title: 'Novice Slayer', desc: 'Kill 100 enemies total.', req: 100, stat: 'totalKills', bonus: { type: 'damage', val: 0.02, text: '+2% Damage' } },
-            { id: 'kill_1000', title: 'Master Slayer', desc: 'Kill 1000 enemies total.', req: 1000, stat: 'totalKills', bonus: { type: 'damage', val: 0.05, text: '+5% Damage' } },
-            { id: 'wave_10', title: 'Survivor', desc: 'Reach Wave 10.', req: 10, stat: 'maxWave', bonus: { type: 'health', val: 0.1, text: '+10% HP' } },
-            { id: 'gold_1000', title: 'Rich', desc: 'Collect 1000 Gold total.', req: 1000, stat: 'totalGold', bonus: { type: 'gold', val: 0.1, text: '+10% Gold Gain' } }
+            // Kills
+            { id: 'kill_100', title: 'Novice Slayer', desc: 'Kill 100 enemies total.', req: 100, stat: 'totalKills', bonus: { type: 'damage', val: 0.01, text: '+1% Damage' } },
+            { id: 'kill_500', title: 'Adept Slayer', desc: 'Kill 500 enemies total.', req: 500, stat: 'totalKills', bonus: { type: 'damage', val: 0.01, text: '+1% Damage' } },
+            { id: 'kill_1000', title: 'Master Slayer', desc: 'Kill 1000 enemies total.', req: 1000, stat: 'totalKills', bonus: { type: 'damage', val: 0.01, text: '+1% Damage' } },
+            { id: 'kill_5000', title: 'Genocide', desc: 'Kill 5000 enemies total.', req: 5000, stat: 'totalKills', bonus: { type: 'damage', val: 0.02, text: '+2% Damage' } },
+            { id: 'kill_10000', title: 'Extinction', desc: 'Kill 10000 enemies total.', req: 10000, stat: 'totalKills', bonus: { type: 'damage', val: 0.02, text: '+2% Damage' } },
+            { id: 'kill_50000', title: 'Apocalypse', desc: 'Kill 50000 enemies total.', req: 50000, stat: 'totalKills', bonus: { type: 'damage', val: 0.05, text: '+5% Damage' } },
+
+            // Gold
+            { id: 'gold_1000', title: 'Pocket Change', desc: 'Collect 1000 Gold total.', req: 1000, stat: 'totalGold', bonus: { type: 'gold', val: 0.05, text: '+5% Gold' } },
+            { id: 'gold_5000', title: 'Piggy Bank', desc: 'Collect 5000 Gold total.', req: 5000, stat: 'totalGold', bonus: { type: 'gold', val: 0.05, text: '+5% Gold' } },
+            { id: 'gold_10000', title: 'Merchant', desc: 'Collect 10000 Gold total.', req: 10000, stat: 'totalGold', bonus: { type: 'gold', val: 0.05, text: '+5% Gold' } },
+            { id: 'gold_50000', title: 'Treasurer', desc: 'Collect 50000 Gold total.', req: 50000, stat: 'totalGold', bonus: { type: 'gold', val: 0.1, text: '+10% Gold' } },
+            { id: 'gold_100000', title: 'Tycoon', desc: 'Collect 100000 Gold total.', req: 100000, stat: 'totalGold', bonus: { type: 'gold', val: 0.1, text: '+10% Gold' } },
+            { id: 'gold_1000000', title: 'Dragon Hoard', desc: 'Collect 1000000 Gold total.', req: 1000000, stat: 'totalGold', bonus: { type: 'gold', val: 0.2, text: '+20% Gold' } },
+
+            // Waves
+            { id: 'wave_10', title: 'Survivor', desc: 'Reach Wave 10.', req: 10, stat: 'maxWave', bonus: { type: 'health', val: 0.05, text: '+5% HP' } },
+            { id: 'wave_20', title: 'Veteran', desc: 'Reach Wave 20.', req: 20, stat: 'maxWave', bonus: { type: 'health', val: 0.05, text: '+5% HP' } },
+            { id: 'wave_30', title: 'Elite', desc: 'Reach Wave 30.', req: 30, stat: 'maxWave', bonus: { type: 'health', val: 0.05, text: '+5% HP' } },
+            { id: 'wave_40', title: 'Champion', desc: 'Reach Wave 40.', req: 40, stat: 'maxWave', bonus: { type: 'health', val: 0.1, text: '+10% HP' } },
+            { id: 'wave_50', title: 'Legend', desc: 'Reach Wave 50.', req: 50, stat: 'maxWave', bonus: { type: 'health', val: 0.1, text: '+10% HP' } },
+
+            // Bosses
+            { id: 'boss_5', title: 'Boss Killer', desc: 'Kill 5 Bosses total.', req: 5, stat: 'totalBosses', bonus: { type: 'damage', val: 0.02, text: '+2% Dmg' } },
+            { id: 'boss_10', title: 'Giant Slayer', desc: 'Kill 10 Bosses total.', req: 10, stat: 'totalBosses', bonus: { type: 'damage', val: 0.02, text: '+2% Dmg' } },
+            { id: 'boss_25', title: 'Titan Hunter', desc: 'Kill 25 Bosses total.', req: 25, stat: 'totalBosses', bonus: { type: 'damage', val: 0.03, text: '+3% Dmg' } },
+            { id: 'boss_50', title: 'God Slayer', desc: 'Kill 50 Bosses total.', req: 50, stat: 'totalBosses', bonus: { type: 'damage', val: 0.05, text: '+5% Dmg' } },
+
+            // Damage
+            { id: 'dmg_10k', title: 'Ouch', desc: 'Deal 10k Damage total.', req: 10000, stat: 'totalDamage', bonus: { type: 'damage', val: 0.01, text: '+1% Dmg' } },
+            { id: 'dmg_100k', title: 'Hurts', desc: 'Deal 100k Damage total.', req: 100000, stat: 'totalDamage', bonus: { type: 'damage', val: 0.01, text: '+1% Dmg' } },
+            { id: 'dmg_1m', title: 'Pain', desc: 'Deal 1M Damage total.', req: 1000000, stat: 'totalDamage', bonus: { type: 'damage', val: 0.02, text: '+2% Dmg' } },
+            { id: 'dmg_10m', title: 'Agony', desc: 'Deal 10M Damage total.', req: 10000000, stat: 'totalDamage', bonus: { type: 'damage', val: 0.02, text: '+2% Dmg' } },
+            { id: 'dmg_100m', title: 'Destruction', desc: 'Deal 100M Damage total.', req: 100000000, stat: 'totalDamage', bonus: { type: 'damage', val: 0.05, text: '+5% Dmg' } }
         ];
+
+        // Generate Combo Achievements
+        for (let i = 1; i <= 25; i++) {
+            ACHIEVEMENTS.push({ id: `combo_${i * 50}`, title: `Combo Master ${i}`, desc: `Reach ${i * 50} Max Combo ever.`, req: i * 50, stat: 'maxCombo', bonus: { type: 'gold', val: 0.01, text: '+1% Gold' } });
+        }
 
         const WEATHER_TYPES = [
             { id: 'BLIZZARD', name: 'BLIZZARD', color: 'rgba(200, 230, 255, 0.3)', duration: 600 },
@@ -838,7 +874,7 @@
             ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
             plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
             metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
-            global: { totalKills: 0, maxWave: 0, totalGold: 0, unlockedAchievements: [] },
+            global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, unlockedAchievements: [] },
             stats: {
                 missilesFired: 0,
                 timeSurvived: 0,
@@ -849,7 +885,8 @@
                 moneyGained: 0,
                 moneySpent: 0,
                 enemiesKilled: 0,
-                bossesKilled: 0
+                bossesKilled: 0,
+                maxCombo: 0
             }
         };
 
@@ -862,7 +899,8 @@
             moneyGained: 0,
             moneySpent: 0,
             enemiesKilled: 0,
-            bossesKilled: 0
+            bossesKilled: 0,
+            maxCombo: 0
         };
 
         function loadSave() {
@@ -874,6 +912,10 @@
                         if (parsed[key]) {
                             if (key === 'global') {
                                 saveData.global = { ...saveData.global, ...parsed.global };
+                                // Ensure new fields exist
+                                if (!saveData.global.totalBosses) saveData.global.totalBosses = 0;
+                                if (!saveData.global.totalDamage) saveData.global.totalDamage = 0;
+                                if (!saveData.global.maxCombo) saveData.global.maxCombo = 0;
                             } else if (key === 'stats') {
                                 saveData.stats = { ...saveData.stats, ...parsed.stats };
                             } else {
@@ -1165,7 +1207,7 @@
 
         // Weather
         let currentWeather = null;
-        let weatherTimer = 1200; // Time until next weather
+        let weatherTimer = 3600; // Time until next weather
         let weatherDuration = 0;
 
         let player;
@@ -1294,6 +1336,7 @@
 
             addCombo() {
                 this.combo++;
+                if (this.combo > currentRunStats.maxCombo) currentRunStats.maxCombo = this.combo;
                 this.comboTimer = 240; // 4 seconds
 
                 // Combo Buffs
@@ -1398,6 +1441,7 @@
                                 e.y += Math.sin(angle) * 5;
                                 e.hp -= 2;
                                 currentRunStats.damageDealt += 2; // Track Damage
+                                saveData.global.totalDamage += 2;
                                 if (frame % 10 === 0) createExplosion(e.x, e.y, '#aaa');
                             }
                         });
@@ -1469,15 +1513,6 @@
                     ctx.lineWidth = 4;
                     if (this.currentForm === 'BLACK ICE') ctx.strokeStyle = '#000';
                     if (this.currentForm === 'LAVA') ctx.strokeStyle = '#e74c3c';
-                    if (this.currentForm === 'IRON') {
-                        ctx.strokeStyle = '#7f8c8d';
-                        ctx.save(); ctx.rotate(-angle);
-                        ctx.beginPath(); ctx.arc(0, 0, 150, 0, Math.PI * 2);
-                        ctx.strokeStyle = 'rgba(127, 140, 141, 0.3)'; ctx.lineWidth = 2; ctx.stroke();
-                        ctx.restore();
-                    }
-                    if (this.currentForm === 'CREEPER') ctx.strokeStyle = '#27ae60';
-                    if (this.currentForm === 'OCEAN') ctx.strokeStyle = '#2980b9';
                     ctx.stroke();
                 }
 
@@ -1647,7 +1682,7 @@
         }
 
         class Enemy {
-            constructor(isBossMinion = false) {
+            constructor(isBossMinion = false, forcedType = null) {
                 let safe = false;
                 while (!safe) {
                     if (Math.random() < 0.5) {
@@ -1663,14 +1698,58 @@
                 const prestige = saveData[player.type].prestige;
                 const difficultyMult = (1 + (wave * 0.2)) * (1 + (prestige * 0.5));
 
-                this.isShooter = (!isBossMinion && Math.random() < 0.3 && wave > 1);
-                this.radius = this.isShooter ? 18 : (15 + Math.random() * 10);
+                // Enemy Types: BASIC, SHOOTER, BRUTE, SPEEDSTER, SWARM, SUMMONER
+                this.subType = forcedType;
+                if (!this.subType) {
+                    const rand = Math.random();
+                    if (wave > 5 && rand < 0.1) this.subType = 'BRUTE';
+                    else if (wave > 3 && rand < 0.2) this.subType = 'SPEEDSTER';
+                    else if (wave > 8 && rand < 0.25) this.subType = 'SUMMONER';
+                    else if (wave > 1 && rand < 0.3) this.subType = 'SHOOTER';
+                    else this.subType = 'BASIC';
+                }
+
+                this.radius = 15 + Math.random() * 10;
                 this.hp = (20 + Math.random() * 20) * difficultyMult;
                 this.speed = (1 + Math.random() * 1.5) * (1 + (wave * 0.1));
-                this.color = this.isShooter ? '#f1c40f' : '#555';
+                this.color = '#555';
                 this.damage = 20 * difficultyMult;
-                this.sides = this.isShooter ? 3 : (Math.floor(Math.random() * 3) + 4);
+                this.sides = Math.floor(Math.random() * 3) + 4;
                 this.shootCooldown = 0;
+                this.summonCooldown = 0;
+
+                // Type Specific Overrides
+                if (this.subType === 'SHOOTER') {
+                    this.radius = 18;
+                    this.color = '#f1c40f';
+                    this.sides = 3;
+                } else if (this.subType === 'BRUTE') {
+                    this.radius = 30;
+                    this.hp *= 4;
+                    this.speed *= 0.5;
+                    this.color = '#5d4037'; // Brown
+                    this.damage *= 2;
+                    this.sides = 4; // Square
+                } else if (this.subType === 'SPEEDSTER') {
+                    this.radius = 12;
+                    this.hp *= 0.5;
+                    this.speed *= 2.5;
+                    this.color = '#e74c3c'; // Red
+                    this.sides = 3;
+                } else if (this.subType === 'SWARM') {
+                    this.radius = 8;
+                    this.hp = 1; // One hit kill
+                    this.speed *= 1.2;
+                    this.color = '#8e44ad'; // Purple
+                    this.sides = 0; // Circle
+                } else if (this.subType === 'SUMMONER') {
+                    this.radius = 25;
+                    this.hp *= 2;
+                    this.speed *= 0.8;
+                    this.color = '#2980b9'; // Blue
+                    this.sides = 5; // Pentagon
+                    this.summonCooldown = 200;
+                }
             }
 
             update() {
@@ -1681,7 +1760,7 @@
                 let currentSpeed = this.speed;
                 if (currentWeather && currentWeather.id === 'BLIZZARD') currentSpeed *= 0.5;
 
-                if (this.isShooter) {
+                if (this.subType === 'SHOOTER') {
                     if (dist > 250) {
                         moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
                     } else {
@@ -1693,7 +1772,29 @@
                         }
                     }
                     if (this.shootCooldown > 0) this.shootCooldown--;
+                } else if (this.subType === 'SUMMONER') {
+                    // Stay away from player
+                    if (dist < 400) {
+                        moveX = -Math.cos(angle) * currentSpeed; moveY = -Math.sin(angle) * currentSpeed;
+                    } else if (dist > 600) {
+                        moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
+                    } else {
+                        // Strafe
+                        moveX = Math.cos(angle + Math.PI / 2) * currentSpeed; moveY = Math.sin(angle + Math.PI / 2) * currentSpeed;
+                    }
+
+                    if (this.summonCooldown <= 0) {
+                        // Spawn a basic enemy
+                        const minion = new Enemy(true, 'BASIC');
+                        minion.x = this.x; minion.y = this.y;
+                        enemies.push(minion);
+                        createExplosion(this.x, this.y, '#2980b9');
+                        this.summonCooldown = 300; // 5 seconds
+                    }
+                    if (this.summonCooldown > 0) this.summonCooldown--;
+
                 } else {
+                    // Basic, Brute, Speedster, Swarm just chase
                     moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
                 }
 
@@ -1706,13 +1807,32 @@
             }
 
             draw() {
-                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(frame * 0.05);
+                ctx.save(); ctx.translate(this.x, this.y);
+                if (this.subType !== 'BRUTE') ctx.rotate(frame * 0.05);
+
                 ctx.fillStyle = this.color; ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
                 ctx.beginPath();
-                for (let i = 0; i < this.sides; i++) {
-                    ctx.lineTo(this.radius * Math.cos(i * 2 * Math.PI / this.sides), this.radius * Math.sin(i * 2 * Math.PI / this.sides));
+
+                if (this.sides === 0) { // Circle (Swarm)
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                } else {
+                    for (let i = 0; i < this.sides; i++) {
+                        ctx.lineTo(this.radius * Math.cos(i * 2 * Math.PI / this.sides), this.radius * Math.sin(i * 2 * Math.PI / this.sides));
+                    }
                 }
+
                 ctx.closePath(); ctx.fill(); ctx.stroke();
+
+                // Special visual markers
+                if (this.subType === 'SPEEDSTER') {
+                    ctx.fillStyle = `rgba(255, 255, 0, ${0.5 + Math.sin(frame * 0.5) * 0.5})`;
+                    ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+                }
+                if (this.subType === 'SUMMONER') {
+                    ctx.strokeStyle = '#fff';
+                    ctx.beginPath(); ctx.arc(0, 0, this.radius * 0.5, 0, Math.PI * 2); ctx.stroke();
+                }
+
                 ctx.fillStyle = 'red'; ctx.fillRect(-5, -5, 10, 2);
                 ctx.restore();
             }
@@ -2076,8 +2196,9 @@
 
         function checkAchievements() {
             saveData.global.totalKills++;
-            saveData.global.totalGold = (saveData.global.totalGold || 0) + 1; // Approximate tracking
+            saveData.global.totalGold = (saveData.global.totalGold || 0) + 1;
             if (wave > saveData.global.maxWave) saveData.global.maxWave = wave;
+            if (currentRunStats.maxCombo > (saveData.global.maxCombo || 0)) saveData.global.maxCombo = currentRunStats.maxCombo;
 
             ACHIEVEMENTS.forEach(ach => {
                 if (!saveData.global.unlockedAchievements.includes(ach.id)) {
@@ -2085,6 +2206,9 @@
                     if (ach.stat === 'totalKills' && saveData.global.totalKills >= ach.req) unlocked = true;
                     if (ach.stat === 'maxWave' && saveData.global.maxWave >= ach.req) unlocked = true;
                     if (ach.stat === 'totalGold' && saveData.global.totalGold >= ach.req) unlocked = true;
+                    if (ach.stat === 'totalBosses' && saveData.global.totalBosses >= ach.req) unlocked = true;
+                    if (ach.stat === 'totalDamage' && saveData.global.totalDamage >= ach.req) unlocked = true;
+                    if (ach.stat === 'maxCombo' && saveData.global.maxCombo >= ach.req) unlocked = true;
 
                     if (unlocked) {
                         saveData.global.unlockedAchievements.push(ach.id);
@@ -2116,7 +2240,7 @@
             isLevelingUp = false;
             isShopping = false;
             currentWeather = null;
-            weatherTimer = 1200;
+            weatherTimer = 3600; // Start with 1 minute clear weather
 
             // Reset Stats
             currentRunStats = {
@@ -2127,7 +2251,8 @@
                 moneyGained: 0,
                 moneySpent: 0,
                 enemiesKilled: 0,
-                bossesKilled: 0
+                bossesKilled: 0,
+                maxCombo: 0
             };
 
             generateArena();
@@ -2170,7 +2295,8 @@
                 moneyGained: currentRunStats.moneyGained,
                 moneySpent: currentRunStats.moneySpent,
                 enemiesKilled: currentRunStats.enemiesKilled,
-                bossesKilled: currentRunStats.bossesKilled
+                bossesKilled: currentRunStats.bossesKilled,
+                maxCombo: currentRunStats.maxCombo
             };
 
             const labels = {
@@ -2183,7 +2309,8 @@
                 moneyGained: "Gold Gained",
                 moneySpent: "Gold Spent",
                 enemiesKilled: "Enemies Killed",
-                bossesKilled: "Bosses Killed"
+                bossesKilled: "Bosses Killed",
+                maxCombo: "Max Combo"
             };
 
             let tableHtml = `<table class="stats-table">
@@ -2241,7 +2368,7 @@
                     currentWeather = null;
                     document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
                     document.getElementById('weather-display').style.display = 'none';
-                    weatherTimer = 1200 + Math.random() * 600;
+                    weatherTimer = 3600 + Math.random() * 2400; // 1-1.5 minutes break
                 } else {
                     // Weather Effects
                     if (currentWeather.id === 'HEATWAVE' && frame % 60 === 0) {
@@ -2291,7 +2418,20 @@
 
             if (!bossActive) {
                 let spawnRate = Math.max(5, 40 - (wave * 2));
-                if (frame % spawnRate === 0) enemies.push(new Enemy());
+                if (frame % spawnRate === 0) {
+                    // Swarm Logic
+                    if (wave > 2 && Math.random() < 0.1) {
+                        for (let i = 0; i < 5; i++) {
+                            const swarm = new Enemy(false, 'SWARM');
+                            // Offset slightly
+                            swarm.x += (Math.random() - 0.5) * 50;
+                            swarm.y += (Math.random() - 0.5) * 50;
+                            enemies.push(swarm);
+                        }
+                    } else {
+                        enemies.push(new Enemy());
+                    }
+                }
             } else {
                 if (frame % 150 === 0) enemies.push(new Enemy(true));
             }
@@ -2362,6 +2502,7 @@
                             if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) {
                                 e.hp -= proj.damage;
                                 currentRunStats.damageDealt += proj.damage; // Track Damage
+                                saveData.global.totalDamage += proj.damage;
                             }
                         });
                         createExplosion(proj.x, proj.y, '#e67e22');
@@ -2387,7 +2528,15 @@
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
 
                 if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
-                    const dmgTaken = 1 * (1 - player.damageReduction);
+                    let dmgTaken = 1 * (1 - player.damageReduction);
+
+                    // Speedster Explosion
+                    if (enemy.subType === 'SPEEDSTER') {
+                        dmgTaken = 20 * (1 - player.damageReduction); // Huge damage
+                        createExplosion(player.x, player.y, '#e74c3c');
+                        enemy.hp = 0; // Suicide
+                    }
+
                     player.hp -= dmgTaken;
                     currentRunStats.damageTaken += dmgTaken; // Track Damage
                     player.resetCombo(); // Reset Combo on Damage
@@ -2424,12 +2573,14 @@
                         if (pDist - enemy.radius - proj.radius < 0) {
                             enemy.hp -= proj.damage;
                             currentRunStats.damageDealt += proj.damage; // Track Damage
+                            saveData.global.totalDamage += proj.damage;
                             createExplosion(enemy.x, enemy.y, proj.color);
                             if (proj.isExplosive) {
                                 enemies.forEach(nearby => {
                                     if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
                                         nearby.hp -= proj.damage;
                                         currentRunStats.damageDealt += proj.damage; // Track Damage
+                                        saveData.global.totalDamage += proj.damage;
                                     }
                                 });
                                 projectiles.splice(pIndex, 1);
@@ -2455,6 +2606,7 @@
                         if (Math.abs(diff) < Math.PI / 3) {
                             enemy.hp -= att.damage;
                             currentRunStats.damageDealt += att.damage; // Track Damage
+                            saveData.global.totalDamage += att.damage;
                             createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(eIndex);
                             if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
                         }
@@ -2467,6 +2619,7 @@
 
                     if (enemy instanceof Boss) {
                         currentRunStats.bossesKilled++; // Track Boss Kill
+                        saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
                         score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
                         weaponDrops.push(new WeaponDrop(enemy.x, enemy.y));
                         enemies.splice(eIndex, 1);
