@@ -344,6 +344,57 @@
             padding: 20px;
         }
 
+        /* Stats Table */
+        .stats-table {
+            width: 100%;
+            max-width: 600px;
+            margin: 10px 0;
+            border-collapse: collapse;
+            font-size: 14px;
+            background: #222;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }
+
+        .stats-table th,
+        .stats-table td {
+            padding: 8px 15px;
+            border-bottom: 1px solid #444;
+            text-align: left;
+            color: #ddd;
+        }
+
+        .stats-table th {
+            background: #333;
+            color: #f1c40f;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+
+        .stats-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .stats-val {
+            text-align: right;
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .new-record {
+            color: #2ecc71;
+        }
+
+        .new-record::after {
+            content: ' NEW!';
+            font-size: 10px;
+            vertical-align: super;
+            color: #2ecc71;
+        }
+
         .achievement-row {
             display: flex;
             justify-content: space-between;
@@ -722,6 +773,10 @@
             <h1 style="color: #e74c3c">GAME OVER</h1>
             <h2>Final Score: <span id="finalScore">0</span></h2>
             <h3 id="new-highscore-msg" style="color: #f1c40f; display: none;">NEW HIGH SCORE!</h3>
+            <div id="run-stats-container">
+                <!-- Stats table generated via JS -->
+            </div>
+
             <button class="btn" onclick="location.reload()">Play Again</button>
         </div>
     </div>
@@ -783,7 +838,31 @@
             ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
             plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
             metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
-            global: { totalKills: 0, maxWave: 0, totalGold: 0, unlockedAchievements: [] }
+            global: { totalKills: 0, maxWave: 0, totalGold: 0, unlockedAchievements: [] },
+            stats: {
+                missilesFired: 0,
+                timeSurvived: 0,
+                wavesCleared: 0,
+                damageTaken: 0,
+                damageDealt: 0,
+                levelReached: 0,
+                moneyGained: 0,
+                moneySpent: 0,
+                enemiesKilled: 0,
+                bossesKilled: 0
+            }
+        };
+
+        // Runtime stats tracker
+        let currentRunStats = {
+            missilesFired: 0,
+            startTime: 0,
+            damageTaken: 0,
+            damageDealt: 0,
+            moneyGained: 0,
+            moneySpent: 0,
+            enemiesKilled: 0,
+            bossesKilled: 0
         };
 
         function loadSave() {
@@ -795,6 +874,8 @@
                         if (parsed[key]) {
                             if (key === 'global') {
                                 saveData.global = { ...saveData.global, ...parsed.global };
+                            } else if (key === 'stats') {
+                                saveData.stats = { ...saveData.stats, ...parsed.stats };
                             } else {
                                 saveData[key] = { ...saveData[key], ...parsed[key] };
                             }
@@ -1316,6 +1397,7 @@
                                 e.x += Math.cos(angle) * 5;
                                 e.y += Math.sin(angle) * 5;
                                 e.hp -= 2;
+                                currentRunStats.damageDealt += 2; // Track Damage
                                 if (frame % 10 === 0) createExplosion(e.x, e.y, '#aaa');
                             }
                         });
@@ -1505,15 +1587,19 @@
                     const proj = new Projectile(this.x, this.y, vel, dmg, color, size, this.type, this.stats.knockback, false, isExplosive);
                     if (pierce > 0) proj.pierce = pierce;
                     projectiles.push(proj);
+                    currentRunStats.missilesFired++; // Track Missiles
 
                     if (this.weapon === 'STANDARD' && !this.transformActive) {
                         for (let i = 1; i <= this.extraProjectiles; i++) {
                             const offsetX = this.x - (vel.x * (i * 3));
                             const offsetY = this.y - (vel.y * (i * 3));
                             projectiles.push(new Projectile(offsetX, offsetY, vel, dmg, this.stats.color, size, this.type, this.stats.knockback, false, false));
+                            currentRunStats.missilesFired++; // Track Missiles
                         }
                     }
                 });
+
+                this.rangeCooldown = cooldown;
 
                 this.rangeCooldown = cooldown;
             }
@@ -1967,6 +2053,7 @@
                 div.onclick = () => {
                     if (player.gold >= item.cost) {
                         player.gold -= item.cost;
+                        currentRunStats.moneySpent += item.cost; // Track Spent
                         item.action();
                         document.getElementById('shopGoldVal').innerText = player.gold;
                         showNotification("Purchased!");
@@ -2031,6 +2118,18 @@
             currentWeather = null;
             weatherTimer = 1200;
 
+            // Reset Stats
+            currentRunStats = {
+                missilesFired: 0,
+                startTime: Date.now(),
+                damageTaken: 0,
+                damageDealt: 0,
+                moneyGained: 0,
+                moneySpent: 0,
+                enemiesKilled: 0,
+                bossesKilled: 0
+            };
+
             generateArena();
 
             document.getElementById('menu-overlay').style.display = 'none';
@@ -2049,14 +2148,78 @@
             document.getElementById('game-over-screen').style.display = 'flex';
             document.getElementById('finalScore').innerText = score;
 
-            const heroData = saveData[player.type];
+            cconst heroData = saveData[player.type];
             if (score > heroData.highScore) {
                 heroData.highScore = score;
-                saveGame();
                 document.getElementById('new-highscore-msg').style.display = 'block';
             } else {
                 document.getElementById('new-highscore-msg').style.display = 'none';
             }
+
+            // --- Statistics Processing ---
+            const timeSurvivedMs = Date.now() - currentRunStats.startTime;
+            const timeSurvivedSec = Math.floor(timeSurvivedMs / 1000);
+
+            const runStats = {
+                missilesFired: currentRunStats.missilesFired,
+                timeSurvived: timeSurvivedSec,
+                wavesCleared: wave - 1,
+                damageTaken: Math.floor(currentRunStats.damageTaken),
+                damageDealt: Math.floor(currentRunStats.damageDealt),
+                levelReached: player.level,
+                moneyGained: currentRunStats.moneyGained,
+                moneySpent: currentRunStats.moneySpent,
+                enemiesKilled: currentRunStats.enemiesKilled,
+                bossesKilled: currentRunStats.bossesKilled
+            };
+
+            const labels = {
+                missilesFired: "Missiles Fired",
+                timeSurvived: "Time Survived (s)",
+                wavesCleared: "Waves Cleared",
+                damageTaken: "Damage Taken",
+                damageDealt: "Damage Dealt",
+                levelReached: "Level Reached",
+                moneyGained: "Gold Gained",
+                moneySpent: "Gold Spent",
+                enemiesKilled: "Enemies Killed",
+                bossesKilled: "Bosses Killed"
+            };
+
+            let tableHtml = `<table class="stats-table">
+            <thead><tr><th>Statistic</th><th style="text-align:right">Run</th><th style="text-align:right">Best</th></tr></thead>
+            <tbody>`;
+
+            for (let key in runStats) {
+                const currentVal = runStats[key];
+                const bestVal = saveData.stats[key] || 0;
+                let isNewRecord = false;
+
+                if (currentVal > bestVal) {
+                    saveData.stats[key] = currentVal;
+                    isNewRecord = true;
+                }
+
+                let displayCurrent = currentVal;
+                let displayBest = isNewRecord ? currentVal : bestVal;
+
+                // Format Time
+                if (key === 'timeSurvived') {
+                    const fmt = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+                    displayCurrent = fmt(currentVal);
+                    displayBest = fmt(displayBest);
+                }
+
+                tableHtml += `<tr>
+                <td>${labels[key]}</td>
+                <td class="stats-val ${isNewRecord ? 'new-record' : ''}">${displayCurrent}</td>
+                <td class="stats-val">${displayBest}</td>
+            </tr>`;
+            }
+            tableHtml += `</tbody></table>`;
+            document.getElementById('run-stats-container').innerHTML = tableHtml;
+
+            saveGame();
         }
 
         function animate() {
@@ -2083,6 +2246,7 @@
                     // Weather Effects
                     if (currentWeather.id === 'HEATWAVE' && frame % 60 === 0) {
                         player.hp -= 1;
+                        currentRunStats.damageTaken += 1; // Track Damage
                         enemies.forEach(e => e.hp -= 1);
                     }
                     if (currentWeather.id === 'MAGNETIC') {
@@ -2156,7 +2320,9 @@
                 drop.draw();
                 const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
                 if (dist < player.radius + 20) {
-                    player.gold += Math.floor(drop.value * player.goldMultiplier);
+                    const amount = Math.floor(drop.value * player.goldMultiplier);
+                    player.gold += amount;
+                    currentRunStats.moneyGained += amount; // Track Gold
                     saveData.global.totalGold += drop.value; // Track for achievement
                     goldDrops.splice(index, 1);
                 }
@@ -2192,7 +2358,12 @@
                 proj.update(); proj.draw();
                 if (checkWallCollision(proj.x, proj.y, proj.radius)) {
                     if (proj.isExplosive) {
-                        enemies.forEach(e => { if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) e.hp -= proj.damage; });
+                        enemies.forEach(e => {
+                            if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) {
+                                e.hp -= proj.damage;
+                                currentRunStats.damageDealt += proj.damage; // Track Damage
+                            }
+                        });
                         createExplosion(proj.x, proj.y, '#e67e22');
                     }
                     projectiles.splice(index, 1);
@@ -2218,6 +2389,7 @@
                 if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
                     const dmgTaken = 1 * (1 - player.damageReduction);
                     player.hp -= dmgTaken;
+                    currentRunStats.damageTaken += dmgTaken; // Track Damage
                     player.resetCombo(); // Reset Combo on Damage
                     createExplosion(player.x, player.y, '#fff');
 
@@ -2237,6 +2409,7 @@
                         if (pDist < player.radius + proj.radius) {
                             const dmgTaken = proj.damage * (1 - player.damageReduction);
                             player.hp -= dmgTaken;
+                            currentRunStats.damageTaken += dmgTaken; // Track Damage
                             player.resetCombo(); // Reset Combo on Damage
                             createExplosion(player.x, player.y, proj.color); projectiles.splice(pIndex, 1);
 
@@ -2249,9 +2422,16 @@
                     } else {
                         const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
                         if (pDist - enemy.radius - proj.radius < 0) {
-                            enemy.hp -= proj.damage; createExplosion(enemy.x, enemy.y, proj.color);
+                            enemy.hp -= proj.damage;
+                            currentRunStats.damageDealt += proj.damage; // Track Damage
+                            createExplosion(enemy.x, enemy.y, proj.color);
                             if (proj.isExplosive) {
-                                enemies.forEach(nearby => { if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) nearby.hp -= proj.damage; });
+                                enemies.forEach(nearby => {
+                                    if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
+                                        nearby.hp -= proj.damage;
+                                        currentRunStats.damageDealt += proj.damage; // Track Damage
+                                    }
+                                });
                                 projectiles.splice(pIndex, 1);
                             } else {
                                 if (proj.pierce > 0) { proj.pierce--; } else { projectiles.splice(pIndex, 1); }
@@ -2273,7 +2453,9 @@
                         let diff = angleToEnemy - att.angle;
                         while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
                         if (Math.abs(diff) < Math.PI / 3) {
-                            enemy.hp -= att.damage; createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(eIndex);
+                            enemy.hp -= att.damage;
+                            currentRunStats.damageDealt += att.damage; // Track Damage
+                            createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(eIndex);
                             if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
                         }
                     }
@@ -2284,6 +2466,7 @@
                     checkAchievements(); // Check achievements on kill
 
                     if (enemy instanceof Boss) {
+                        currentRunStats.bossesKilled++; // Track Boss Kill
                         score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
                         weaponDrops.push(new WeaponDrop(enemy.x, enemy.y));
                         enemies.splice(eIndex, 1);
@@ -2298,6 +2481,7 @@
                             }
                         }
                     } else {
+                        currentRunStats.enemiesKilled++; // Track Kill
                         score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
                         if (Math.random() < player.maskChance) holyMasks.push(new HolyMask(enemy.x, enemy.y));
                         if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y)); // Gold Drop
