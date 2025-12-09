@@ -1010,7 +1010,7 @@
             const tree = [];
             // Specific weights for each hero identity
             const weights = {
-                fire: { DAMAGE: 0.25, BLAST: 0.30, SPEED: 0.10, COOLDOWN: 0.15, HEALTH: 0.10, ULT_DAMAGE: 0.10 },
+                fire: { DAMAGE: 0.25, EXPLODE_CHANCE: 0.30, SPEED: 0.10, COOLDOWN: 0.15, HEALTH: 0.10, ULT_DAMAGE: 0.10 },
                 water: { COOLDOWN: 0.30, KNOCK: 0.30, SPEED: 0.20, HEALTH: 0.10, ULT_SPEED: 0.10 },
                 ice: { PIERCE: 0.30, COOLDOWN: 0.15, DAMAGE: 0.20, HEALTH: 0.15, ULT_DAMAGE: 0.10, ULT_SPEED: 0.10 },
                 plant: { SPLIT: 0.25, HEALTH: 0.30, DAMAGE: 0.10, COOLDOWN: 0.15, ULT_DAMAGE: 0.20 },
@@ -1049,6 +1049,7 @@
 
                 // Specific
                 if (t === 'BLAST') { val = 0.05; desc = "+5% Blast Radius"; }
+                if (t === 'EXPLODE_CHANCE') { val = 0.05; desc = "+5% Explode Chance"; }
                 if (t === 'KNOCK') { val = 0.05; desc = "+5% Knockback"; }
                 if (t === 'PIERCE') { val = 1; desc = "+1 Pierce Count"; }
                 if (t === 'SPLIT') { val = 1; desc = "+1 Proj / -20% Dmg"; }
@@ -1221,7 +1222,8 @@
                 cooldown: { tree: 0, ach: 0 },
                 defense: { tree: 0, ach: 0 },
                 projectiles: { tree: 0, ach: 0 },
-                luck: { tree: 0, ach: 0 }
+                luck: { tree: 0, ach: 0 },
+                explodeChance: { tree: 0, ach: 0 }
             };
 
             // New Stats Defaults
@@ -1231,6 +1233,7 @@
             base.defense = 0;
             base.extraProjectiles = 0;
             base.meleeRadiusMult = 1;
+            base.explodeChance = 0;
 
             const prestigeMult = 1 + (heroData.prestige * 0.5);
             base.hp *= prestigeMult;
@@ -1253,6 +1256,7 @@
 
                 // Specifics
                 if (node.type === 'BLAST') base.blastRadiusMult += node.value;
+                if (node.type === 'EXPLODE_CHANCE') { base.explodeChance += node.value; base.breakdown.explodeChance.tree += node.value; }
                 if (node.type === 'KNOCK') base.knockbackMult += node.value;
                 if (node.type === 'PIERCE') base.pierce += node.value;
                 if (node.type === 'SPLIT') {
@@ -1382,7 +1386,8 @@
                 { label: 'Cooldown Red.', tree: (bd.cooldown.tree * 100).toFixed(0) + '%', ach: (bd.cooldown.ach * 100).toFixed(0) + '%', run: (run.cooldown * 100).toFixed(0) + '%' },
                 { label: 'Defense', tree: (bd.defense.tree * 100).toFixed(0) + '%', ach: (bd.defense.ach * 100).toFixed(0) + '%', run: (run.defense * 100).toFixed(0) + '%' },
                 { label: 'Projectiles', tree: '+' + bd.projectiles.tree, ach: '+' + bd.projectiles.ach, run: '+' + run.projectiles },
-                { label: 'Luck', tree: (bd.luck.tree * 100).toFixed(0) + '%', ach: (bd.luck.ach * 100).toFixed(0) + '%', run: (run.luck * 100).toFixed(1) + '%' }
+                { label: 'Luck', tree: (bd.luck.tree * 100).toFixed(0) + '%', ach: (bd.luck.ach * 100).toFixed(0) + '%', run: (run.luck * 100).toFixed(1) + '%' },
+                { label: 'Explode Chance', tree: (bd.explodeChance.tree * 100).toFixed(0) + '%', ach: '-', run: '-' }
             ];
 
             let html = `
@@ -1790,6 +1795,14 @@
                         else { shots.push(angle); }
                         if (this.buffs.multi > 0) {
                             shots.push(angle - 0.25, angle + 0.25);
+                        }
+
+                        // Fire Hero Special Trait
+                        if (this.type === 'fire' && Math.random() < (this.stats.explodeChance || 0)) {
+                            isExplosive = true;
+                            color = '#e67e22'; // Orange tint for explosive shots
+                            size *= 1.5; // Increase size for explosion
+                            dmg *= 1.2; // Slightly increase damage
                         }
                     }
                 }
