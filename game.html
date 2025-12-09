@@ -48,6 +48,34 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
         }
 
+        #gold-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #f1c40f;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            margin-left: 20px;
+        }
+
+        #combo-display {
+            font-size: 40px;
+            font-weight: 900;
+            color: #e67e22;
+            text-shadow: 0 0 10px #d35400;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        #weather-display {
+            position: absolute;
+            top: 80px;
+            width: 100%;
+            text-align: center;
+            font-size: 30px;
+            font-weight: bold;
+            text-shadow: 0 0 10px black;
+            display: none;
+        }
+
         #event-text {
             position: absolute;
             top: 20%;
@@ -190,7 +218,9 @@
         #menu-overlay,
         #pause-screen,
         #levelup-screen,
-        #skill-tree-screen {
+        #skill-tree-screen,
+        #shop-screen,
+        #achievements-screen {
             position: absolute;
             top: 0;
             left: 0;
@@ -206,13 +236,15 @@
         }
 
         #pause-screen,
-        #levelup-screen {
+        #levelup-screen,
+        #shop-screen {
             display: none;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(5px);
         }
 
-        #skill-tree-screen {
+        #skill-tree-screen,
+        #achievements-screen {
             display: none;
             background: #111;
         }
@@ -273,6 +305,76 @@
         .upgrade-desc {
             font-size: 14px;
             color: #ecf0f1;
+        }
+
+        /* Shop */
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .shop-item {
+            background: #333;
+            border: 2px solid #f1c40f;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .shop-item:hover {
+            background: #444;
+            transform: scale(1.05);
+        }
+
+        .shop-cost {
+            color: #f1c40f;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        /* Achievements */
+        #achievements-list {
+            width: 70%;
+            height: 60%;
+            overflow-y: auto;
+            border: 1px solid #444;
+            padding: 20px;
+        }
+
+        .achievement-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #222;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 5px solid #555;
+        }
+
+        .achievement-row.unlocked {
+            border-left-color: #2ecc71;
+            background: #2c3e50;
+        }
+
+        .ach-info h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #fff;
+        }
+
+        .ach-info p {
+            margin: 5px 0 0;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .ach-reward {
+            font-weight: bold;
+            color: #f1c40f;
         }
 
         /* Hero Select */
@@ -483,19 +585,37 @@
                 transform: translateY(-50px);
             }
         }
+
+        /* Weather Overlay */
+        #weather-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            transition: background 1s;
+        }
     </style>
 </head>
 
 <body>
 
     <canvas id="gameCanvas"></canvas>
+    <div id="weather-overlay"></div>
 
     <div id="ui-layer">
         <div id="top-ui">
-            <div id="score-board">Score: <span id="scoreVal">0</span> | Wave: <span id="waveVal">1</span></div>
+            <div style="display:flex;">
+                <div id="score-board">Score: <span id="scoreVal">0</span> | Wave: <span id="waveVal">1</span></div>
+                <div id="gold-display">Gold: <span id="goldVal">0</span></div>
+            </div>
+            <div id="combo-display">COMBO x0</div>
         </div>
         <div id="notification-area"></div>
         <div id="event-text">TWIN EVENT!</div>
+        <div id="weather-display"></div>
 
         <div id="boss-hp-container">
             <div id="boss-label">BOSS FIGHT</div>
@@ -538,6 +658,25 @@
         </div>
     </div>
 
+    <!-- Shop Screen -->
+    <div id="shop-screen">
+        <h1 style="color: #f1c40f;">MERCHANT</h1>
+        <h2 style="margin-bottom: 20px;">Spend your Gold (Current: <span id="shopGoldVal">0</span>)</h2>
+        <div class="shop-grid" id="shop-container">
+            <!-- Generated via JS -->
+        </div>
+        <button class="btn" onclick="closeShop()" style="margin-top: 30px;">Next Wave</button>
+    </div>
+
+    <!-- Achievements Screen -->
+    <div id="achievements-screen">
+        <h1>ACHIEVEMENTS</h1>
+        <div id="achievements-list">
+            <!-- Generated via JS -->
+        </div>
+        <button class="btn" onclick="closeAchievements()">Back to Menu</button>
+    </div>
+
     <!-- Skill Tree Screen -->
     <div id="skill-tree-screen">
         <h1 id="skill-tree-title">SKILL TREE</h1>
@@ -568,6 +707,8 @@
                 <button class="btn" onclick="startGame()">Start Game</button>
                 <button class="btn btn-blue" onclick="openSkillTree()">Skill Tree</button>
             </div>
+            <button class="btn btn-gold" onclick="openAchievements()"
+                style="font-size: 14px; padding: 10px 20px; margin-top: 5px;">Achievements</button>
             <div style="margin-top: 20px;">
                 <button class="btn btn-blue" style="font-size: 14px; padding: 10px 20px;" onclick="exportSave()">Export
                     Save</button>
@@ -610,13 +751,23 @@
         const WEAPON_TYPES = ['SCATTER', 'MINIGUN', 'BAZOOKA'];
         const BOSS_TYPES = ['TANK', 'SPEEDSTER', 'SUMMONER'];
         const ENEMIES_PER_WAVE = 30;
-
-        // --- Persistence & Skill Tree ---
         const SKILL_TREE_SIZE = 100;
 
-        // Define Upgrade Pool for Level Ups
+        const ACHIEVEMENTS = [
+            { id: 'kill_100', title: 'Novice Slayer', desc: 'Kill 100 enemies total.', req: 100, stat: 'totalKills', bonus: { type: 'damage', val: 0.02, text: '+2% Damage' } },
+            { id: 'kill_1000', title: 'Master Slayer', desc: 'Kill 1000 enemies total.', req: 1000, stat: 'totalKills', bonus: { type: 'damage', val: 0.05, text: '+5% Damage' } },
+            { id: 'wave_10', title: 'Survivor', desc: 'Reach Wave 10.', req: 10, stat: 'maxWave', bonus: { type: 'health', val: 0.1, text: '+10% HP' } },
+            { id: 'gold_1000', title: 'Rich', desc: 'Collect 1000 Gold total.', req: 1000, stat: 'totalGold', bonus: { type: 'gold', val: 0.1, text: '+10% Gold Gain' } }
+        ];
+
+        const WEATHER_TYPES = [
+            { id: 'BLIZZARD', name: 'BLIZZARD', color: 'rgba(200, 230, 255, 0.3)', duration: 600 },
+            { id: 'HEATWAVE', name: 'HEATWAVE', color: 'rgba(255, 100, 50, 0.2)', duration: 600 },
+            { id: 'MAGNETIC', name: 'MAGNETIC STORM', color: 'rgba(142, 68, 173, 0.2)', duration: 400 }
+        ];
+
         const UPGRADE_POOL = [
-            { id: 'health', title: 'Vitality', desc: 'Increase Max HP by 25 and Heal 20%.', icon: '❤️' }, // Changed description
+            { id: 'health', title: 'Vitality', desc: 'Increase Max HP by 25 and Heal 20%.', icon: '❤️' },
             { id: 'radius', title: 'Blast Radius', desc: 'Increase Melee Area of Effect by 25%.', icon: '💥' },
             { id: 'projectile', title: 'Multishot', desc: 'Fire +1 subsequent straight shot.', icon: '🏹' },
             { id: 'speed', title: 'Swiftness', desc: 'Increase Movement Speed by 10%.', icon: '👟' },
@@ -631,7 +782,8 @@
             water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
             ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
             plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
-            metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 }
+            metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
+            global: { totalKills: 0, maxWave: 0, totalGold: 0, unlockedAchievements: [] }
         };
 
         function loadSave() {
@@ -639,10 +791,13 @@
             if (stored) {
                 try {
                     const parsed = JSON.parse(stored);
-                    // Merge to ensure new keys exist if updated
                     for (let key in saveData) {
                         if (parsed[key]) {
-                            saveData[key] = { ...saveData[key], ...parsed[key] };
+                            if (key === 'global') {
+                                saveData.global = { ...saveData.global, ...parsed.global };
+                            } else {
+                                saveData[key] = { ...saveData[key], ...parsed[key] };
+                            }
                         }
                     }
                 } catch (e) { console.error("Save file corrupted"); }
@@ -682,7 +837,6 @@
         // --- Hero Specific Skill Trees ---
         function generateHeroSkillTree(type) {
             const tree = [];
-            // Added ULT_DAMAGE and ULT_SPEED to weights
             const weights = {
                 fire: { DAMAGE: 0.35, SPEED: 0.15, COOLDOWN: 0.15, HEALTH: 0.15, ULT_DAMAGE: 0.2 },
                 water: { COOLDOWN: 0.35, SPEED: 0.25, HEALTH: 0.15, DAMAGE: 0.1, ULT_SPEED: 0.15 },
@@ -715,7 +869,6 @@
                 if (t === 'HEALTH') { val = 0.02; desc = "+2% Max HP"; }
                 if (t === 'SPEED') { val = 0.01; desc = "+1% Move Speed"; }
                 if (t === 'COOLDOWN') { val = 0.01; desc = "-1% Cooldowns"; }
-                // New Ultimate Nodes
                 if (t === 'ULT_DAMAGE') { val = 0.05; desc = "+5% Ult Dmg"; }
                 if (t === 'ULT_SPEED') { val = 0.05; desc = "+5% Ult Spd"; }
 
@@ -770,6 +923,8 @@
             document.getElementById('skill-tree-screen').style.display = 'none';
             document.getElementById('pause-screen').style.display = 'none';
             document.getElementById('levelup-screen').style.display = 'none';
+            document.getElementById('shop-screen').style.display = 'none';
+            document.getElementById('achievements-screen').style.display = 'none';
             renderHeroSelect();
         }
 
@@ -781,6 +936,32 @@
 
         function closeSkillTree() {
             document.getElementById('skill-tree-screen').style.display = 'none';
+            initMenu();
+        }
+
+        function openAchievements() {
+            document.getElementById('menu-overlay').style.display = 'none';
+            document.getElementById('achievements-screen').style.display = 'flex';
+            const list = document.getElementById('achievements-list');
+            list.innerHTML = '';
+
+            ACHIEVEMENTS.forEach(ach => {
+                const unlocked = saveData.global.unlockedAchievements.includes(ach.id);
+                const div = document.createElement('div');
+                div.className = `achievement-row ${unlocked ? 'unlocked' : ''}`;
+                div.innerHTML = `
+                    <div class="ach-info">
+                        <h3>${ach.title} ${unlocked ? '✅' : '🔒'}</h3>
+                        <p>${ach.desc}</p>
+                    </div>
+                    <div class="ach-reward">${ach.bonus.text}</div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function closeAchievements() {
+            document.getElementById('achievements-screen').style.display = 'none';
             initMenu();
         }
 
@@ -822,7 +1003,6 @@
                 container.appendChild(el);
             });
 
-            // Prestige Button
             const prestigeBtn = document.getElementById('prestige-container');
             if (heroData.unlocked >= SKILL_TREE_SIZE) {
                 prestigeBtn.style.display = 'block';
@@ -847,7 +1027,6 @@
             const heroData = saveData[type];
             const treeData = generateHeroSkillTree(type);
 
-            // Container for Ultimate specific modifiers
             base.ultModifiers = { damage: 1, speed: 1 };
 
             const prestigeMult = 1 + (heroData.prestige * 0.5);
@@ -865,10 +1044,19 @@
                     base.rangeCd *= (1 - node.value);
                     base.meleeCd *= (1 - node.value);
                 }
-                // Apply Ultimate Modifiers
                 if (node.type === 'ULT_DAMAGE') base.ultModifiers.damage += node.value;
                 if (node.type === 'ULT_SPEED') base.ultModifiers.speed += node.value;
             }
+
+            // Apply Achievement Bonuses
+            saveData.global.unlockedAchievements.forEach(id => {
+                const ach = ACHIEVEMENTS.find(a => a.id === id);
+                if (ach) {
+                    if (ach.bonus.type === 'damage') base.rangeDmg *= (1 + ach.bonus.val);
+                    if (ach.bonus.type === 'health') base.hp *= (1 + ach.bonus.val);
+                }
+            });
+
             base.hp = Math.floor(base.hp);
             return base;
         }
@@ -886,12 +1074,18 @@
         let gameRunning = false;
         let gamePaused = false;
         let isLevelingUp = false;
+        let isShopping = false;
 
         let score = 0;
         let wave = 1;
         let frame = 0;
         let enemiesKilledInWave = 0;
         let bossActive = false;
+
+        // Weather
+        let currentWeather = null;
+        let weatherTimer = 1200; // Time until next weather
+        let weatherDuration = 0;
 
         let player;
         let projectiles = [];
@@ -901,6 +1095,7 @@
         let powerUps = [];
         let weaponDrops = [];
         let holyMasks = [];
+        let goldDrops = [];
         let obstacles = [];
 
         // Input
@@ -911,20 +1106,20 @@
         window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
         window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
         window.addEventListener('mousedown', e => {
-            if (!gameRunning || gamePaused || isLevelingUp) return;
+            if (!gameRunning || gamePaused || isLevelingUp || isShopping) return;
             if (e.button === 0) player.shoot();
             if (e.button === 2) player.melee();
         });
         window.addEventListener('contextmenu', e => e.preventDefault());
 
         window.addEventListener('keydown', e => {
-            if (e.code === 'Escape' && gameRunning && !isLevelingUp) {
+            if (e.code === 'Escape' && gameRunning && !isLevelingUp && !isShopping) {
                 togglePause();
             }
-            if (e.code === 'Space' && gameRunning && !gamePaused && !isLevelingUp) {
+            if (e.code === 'Space' && gameRunning && !gamePaused && !isLevelingUp && !isShopping) {
                 player.melee();
             }
-            if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && gameRunning && !gamePaused) {
+            if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && gameRunning && !gamePaused && !isShopping) {
                 player.dash();
             }
         });
@@ -984,6 +1179,12 @@
                 this.maskChance = 0.01;
                 this.speedMultiplier = 1;
                 this.cooldownMultiplier = 1;
+                this.gold = 0;
+                this.goldMultiplier = 1;
+
+                // Combo
+                this.combo = 0;
+                this.comboTimer = 0;
 
                 // Transformation Logic
                 this.transformActive = false;
@@ -991,9 +1192,15 @@
 
                 // Dash Properties
                 this.dashCooldown = 0;
-                this.dashMaxCooldown = 180; // 3 seconds
+                this.dashMaxCooldown = 180;
                 this.isDashing = false;
                 this.dashFrames = 0;
+
+                // Apply Achievement Gold Bonus
+                saveData.global.unlockedAchievements.forEach(id => {
+                    const ach = ACHIEVEMENTS.find(a => a.id === id);
+                    if (ach && ach.bonus.type === 'gold') this.goldMultiplier += ach.bonus.val;
+                });
             }
 
             gainXp(amount) {
@@ -1004,6 +1211,22 @@
                 }
             }
 
+            addCombo() {
+                this.combo++;
+                this.comboTimer = 240; // 4 seconds
+
+                // Combo Buffs
+                if (this.combo > 50) this.goldMultiplier = 2;
+                else if (this.combo > 25) this.goldMultiplier = 1.5;
+                else this.goldMultiplier = 1;
+            }
+
+            resetCombo() {
+                this.combo = 0;
+                this.comboTimer = 0;
+                this.goldMultiplier = 1;
+            }
+
             levelUp() {
                 this.level++;
                 this.maxXp = Math.floor(this.maxXp * 1.2);
@@ -1012,7 +1235,6 @@
                 const container = document.getElementById('upgrade-options');
                 container.innerHTML = '';
 
-                // Check for Transformation Level (Every 10 levels)
                 if (this.level % 10 === 0) {
                     const formName = this.getFormName();
                     const transformOption = {
@@ -1021,14 +1243,10 @@
                         desc: `Transform into ${formName}! Lasts until you take damage.`,
                         icon: '🌟'
                     };
-
-                    // Show Transform option + 1 random regular option
                     const pool = [...UPGRADE_POOL].sort(() => 0.5 - Math.random());
                     const options = [transformOption, pool[0]];
-
                     options.forEach(opt => this.createUpgradeCard(opt, container));
                 } else {
-                    // Standard Level Up
                     const pool = [...UPGRADE_POOL].sort(() => 0.5 - Math.random());
                     const options = pool.slice(0, 2);
                     options.forEach(opt => this.createUpgradeCard(opt, container));
@@ -1050,7 +1268,7 @@
             }
 
             getFormName() {
-                if this.type === 'ice' return 'BLACK ICE';
+                if (this.type === 'ice') return 'BLACK ICE';
                 if (this.type === 'fire') return 'LAVA';
                 if (this.type === 'metal') return 'IRON';
                 if (this.type === 'plant') return 'CREEPER';
@@ -1067,12 +1285,11 @@
                 if (keys['a'] || keys['arrowleft']) dx = -1;
                 if (keys['d'] || keys['arrowright']) dx = 1;
 
-                // Only dash if moving
                 if (dx !== 0 || dy !== 0) {
                     this.isDashing = true;
-                    this.dashFrames = 10; // Dash duration
+                    this.dashFrames = 10;
                     this.dashCooldown = this.dashMaxCooldown;
-                    createExplosion(this.x, this.y, '#fff'); // Visual effect
+                    createExplosion(this.x, this.y, '#fff');
                 }
             }
 
@@ -1083,17 +1300,22 @@
 
                 if (this.dashCooldown > 0) this.dashCooldown--;
 
+                // Combo Decay
+                if (this.comboTimer > 0) {
+                    this.comboTimer--;
+                    if (this.comboTimer <= 0) this.resetCombo();
+                }
+
                 // Transformation Updates
                 if (this.transformActive) {
                     if (this.currentForm === 'IRON') {
-                        // Iron Aura: Damage and Knockback nearby enemies
                         enemies.forEach(e => {
                             const d = Math.hypot(e.x - this.x, e.y - this.y);
                             if (d < 150) {
                                 const angle = Math.atan2(e.y - this.y, e.x - this.x);
-                                e.x += Math.cos(angle) * 5; // Knockback
+                                e.x += Math.cos(angle) * 5;
                                 e.y += Math.sin(angle) * 5;
-                                e.hp -= 2; // Aura Damage
+                                e.hp -= 2;
                                 if (frame % 10 === 0) createExplosion(e.x, e.y, '#aaa');
                             }
                         });
@@ -1117,23 +1339,20 @@
                 let currentSpeed = this.stats.speed * this.speedMultiplier;
                 if (this.buffs.speed > 0) currentSpeed *= 1.5;
 
-                // Form Speed Modifiers + Skill Tree Ult Speed
+                // Weather Slow
+                if (currentWeather && currentWeather.id === 'BLIZZARD') currentSpeed *= 0.8;
+
                 if (this.transformActive) {
-                    currentSpeed *= this.stats.ultModifiers.speed; // Apply Skill Tree Ult Speed
+                    currentSpeed *= this.stats.ultModifiers.speed;
                     if (this.currentForm === 'OCEAN') currentSpeed *= 2.0;
                     if (this.currentForm === 'IRON') currentSpeed *= 0.6;
                 }
 
-                // Dash Logic override
                 if (this.isDashing) {
-                    currentSpeed *= 4; // Dash speed burst
+                    currentSpeed *= 4;
                     this.dashFrames--;
                     if (this.dashFrames <= 0) this.isDashing = false;
-
-                    // Create trail effect
-                    if (frame % 2 === 0) {
-                        particles.push(new Particle(this.x, this.y, this.stats.color));
-                    }
+                    if (frame % 2 === 0) particles.push(new Particle(this.x, this.y, this.stats.color));
                 }
 
                 if (dx !== 0 || dy !== 0) {
@@ -1170,8 +1389,7 @@
                     if (this.currentForm === 'LAVA') ctx.strokeStyle = '#e74c3c';
                     if (this.currentForm === 'IRON') {
                         ctx.strokeStyle = '#7f8c8d';
-                        // Draw Aura Range
-                        ctx.save(); ctx.rotate(-angle); // Cancel rotation for aura
+                        ctx.save(); ctx.rotate(-angle);
                         ctx.beginPath(); ctx.arc(0, 0, 150, 0, Math.PI * 2);
                         ctx.strokeStyle = 'rgba(127, 140, 141, 0.3)'; ctx.lineWidth = 2; ctx.stroke();
                         ctx.restore();
@@ -1201,6 +1419,12 @@
                 ctx.fillStyle = shadeColor(this.stats.color, -40);
                 ctx.beginPath(); ctx.arc(0, -15, 8, 0, Math.PI * 2); ctx.arc(0, 15, 8, 0, Math.PI * 2); ctx.fill();
                 ctx.restore();
+
+                if (this.dashCooldown > 0) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    const w = 40 * (1 - (this.dashCooldown / this.dashMaxCooldown));
+                    ctx.fillRect(-20, 30, w, 4);
+                }
             }
 
             shoot() {
@@ -1209,7 +1433,6 @@
                 let angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
                 let autoAimActive = this.buffs.autoaim > 0;
 
-                // Ocean Form Auto-Aim
                 if (this.transformActive && this.currentForm === 'OCEAN') autoAimActive = true;
 
                 if (autoAimActive) {
@@ -1226,42 +1449,39 @@
 
                 let shots = [];
                 let speed = this.stats.projectileSpeed;
-                // Apply multipliers to base stats first so skill tree affects everything
                 let dmg = this.stats.rangeDmg * this.damageMultiplier;
                 let size = this.stats.projectileSize;
                 let cooldown = this.stats.rangeCd * this.cooldownMultiplier;
+
+                // Combo Fire Rate Buff
+                if (this.combo > 10) cooldown *= 0.9;
+                if (this.combo > 25) cooldown *= 0.9;
+                if (this.combo > 50) cooldown *= 0.9;
+
                 let isExplosive = false;
                 let pierce = 0;
                 let color = this.stats.color;
 
-                // Transformation Overrides - Now applying multipliers ON TOP of base stats (which include skill tree)
                 if (this.transformActive) {
-                    // Apply Skill Tree Ult Damage
                     dmg *= this.stats.ultModifiers.damage;
 
                     if (this.currentForm === 'BLACK ICE') {
-                        // Devastating Ice Crystals (8-way)
                         for (let i = 0; i < 8; i++) shots.push(angle + (Math.PI / 4) * i);
-                        dmg *= 1.5; color = '#000'; cooldown = 20 * this.cooldownMultiplier; // Ensure cooldown mult applies
+                        dmg *= 1.5; color = '#000'; cooldown = 20 * this.cooldownMultiplier;
                     } else if (this.currentForm === 'LAVA') {
-                        // Lava Streams (Rapid fire)
                         shots.push(angle + (Math.random() - 0.5) * 0.1);
                         cooldown = 3 * this.cooldownMultiplier; dmg *= 0.8; color = '#e67e22';
                     } else if (this.currentForm === 'CREEPER') {
-                        // Vines (Plow through)
                         shots.push(angle);
                         size = 15; pierce = 100; dmg *= 2; cooldown = 40 * this.cooldownMultiplier; color = '#27ae60';
                     } else if (this.currentForm === 'OCEAN') {
-                        // Water Blasts (Fast, Auto-aimed)
                         shots.push(angle);
                         speed *= 1.5; cooldown = 8 * this.cooldownMultiplier; color = '#3498db';
                     } else if (this.currentForm === 'IRON') {
-                        // Iron throws heavy stuff
                         shots.push(angle);
                         size = 12; dmg *= 3; speed *= 0.8; cooldown = 50 * this.cooldownMultiplier; color = '#7f8c8d';
                     }
                 } else {
-                    // Standard Weapon Logic
                     if (this.weapon === 'SCATTER') {
                         shots.push(angle - 0.3, angle - 0.15, angle, angle + 0.15, angle + 0.3);
                         cooldown = 30 * this.cooldownMultiplier; dmg = this.stats.rangeDmg * 0.6 * this.damageMultiplier;
@@ -1354,7 +1574,6 @@
                     if (!checkWallCollision(this.x, this.y, 20)) safe = true;
                 }
 
-                // Difficulty Scaling: Wave + Prestige
                 const prestige = saveData[player.type].prestige;
                 const difficultyMult = (1 + (wave * 0.2)) * (1 + (prestige * 0.5));
 
@@ -1373,11 +1592,14 @@
                 const angle = Math.atan2(player.y - this.y, player.x - this.x);
                 let moveX = 0, moveY = 0;
 
+                let currentSpeed = this.speed;
+                if (currentWeather && currentWeather.id === 'BLIZZARD') currentSpeed *= 0.5;
+
                 if (this.isShooter) {
                     if (dist > 250) {
-                        moveX = Math.cos(angle) * this.speed; moveY = Math.sin(angle) * this.speed;
+                        moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
                     } else {
-                        if (dist < 150) { moveX = -Math.cos(angle) * (this.speed * 0.5); moveY = -Math.sin(angle) * (this.speed * 0.5); }
+                        if (dist < 150) { moveX = -Math.cos(angle) * (currentSpeed * 0.5); moveY = -Math.sin(angle) * (currentSpeed * 0.5); }
                         if (this.shootCooldown <= 0) {
                             const vel = { x: Math.cos(angle) * 6, y: Math.sin(angle) * 6 };
                             projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#e74c3c', 5, 'enemy', 0, true));
@@ -1386,7 +1608,7 @@
                     }
                     if (this.shootCooldown > 0) this.shootCooldown--;
                 } else {
-                    moveX = Math.cos(angle) * this.speed; moveY = Math.sin(angle) * this.speed;
+                    moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
                 }
 
                 let nextX = this.x + moveX; let nextY = this.y + moveY;
@@ -1497,6 +1719,22 @@
             }
         }
 
+        class GoldDrop {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.radius = 10; this.angle = 0;
+                this.value = Math.floor(Math.random() * 10) + 5;
+            }
+            draw() {
+                this.angle += 0.1;
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+                ctx.fillStyle = '#f1c40f';
+                ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#f39c12'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.fillStyle = 'black'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('$', 0, 1); ctx.restore();
+            }
+        }
+
         class HolyMask {
             constructor(x, y) {
                 this.x = x; this.y = y; this.radius = 20; this.angle = 0;
@@ -1575,31 +1813,24 @@
             const layout = Math.floor(Math.random() * 3);
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
-            const safeZone = 150; // Radius around player start to keep clear
+            const safeZone = 150;
 
             if (layout === 0) {
-                // Four corners
                 obstacles.push(new Obstacle(canvas.width * 0.2, canvas.height * 0.2, 100, 100));
                 obstacles.push(new Obstacle(canvas.width * 0.8 - 100, canvas.height * 0.2, 100, 100));
                 obstacles.push(new Obstacle(canvas.width * 0.2, canvas.height * 0.8 - 100, 100, 100));
                 obstacles.push(new Obstacle(canvas.width * 0.8 - 100, canvas.height * 0.8 - 100, 100, 100));
             } else if (layout === 1) {
-                // Center block - moved slightly if it covers center, or split
-                // Instead of one big block in center, let's make two side blocks to ensure center is free
                 obstacles.push(new Obstacle(cx - 300, cy - 50, 100, 100));
                 obstacles.push(new Obstacle(cx + 200, cy - 50, 100, 100));
             } else {
-                // Vertical bars
                 obstacles.push(new Obstacle(canvas.width * 0.3, 0, 50, canvas.height * 0.4));
                 obstacles.push(new Obstacle(canvas.width * 0.7, canvas.height * 0.6, 50, canvas.height * 0.4));
             }
 
-            // Double check and remove any obstacle colliding with start position
             obstacles = obstacles.filter(obs => {
-                // Simple AABB vs Point check with margin
-                const margin = 60; // Player radius + buffer
+                const margin = 60;
                 const playerRect = { x: cx - margin, y: cy - margin, w: margin * 2, h: margin * 2 };
-
                 return !(playerRect.x < obs.x + obs.w &&
                     playerRect.x + playerRect.w > obs.x &&
                     playerRect.y < obs.y + obs.h &&
@@ -1635,7 +1866,17 @@
         function updateUI() {
             document.getElementById('scoreVal').innerText = score;
             document.getElementById('waveVal').innerText = wave;
+            document.getElementById('goldVal').innerText = player.gold;
             document.getElementById('weapon-display').innerText = player.weapon;
+
+            const comboEl = document.getElementById('combo-display');
+            if (player.combo > 0) {
+                comboEl.innerText = `COMBO x${player.combo}`;
+                comboEl.style.opacity = 1;
+                comboEl.style.transform = `scale(${1 + Math.min(0.5, player.combo / 100)})`;
+            } else {
+                comboEl.style.opacity = 0;
+            }
 
             const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
             document.getElementById('health-fill').style.width = hpPercent + '%';
@@ -1680,7 +1921,7 @@
         function chooseUpgrade(type) {
             if (type === 'health') {
                 player.maxHp += 25;
-                player.hp = Math.min(player.maxHp, player.hp + (player.maxHp * 0.2)); // Heal 20%
+                player.hp = Math.min(player.maxHp, player.hp + (player.maxHp * 0.2));
             }
             else if (type === 'radius') { player.meleeRadius *= 1.25; }
             else if (type === 'projectile') { player.extraProjectiles += 1; }
@@ -1700,6 +1941,73 @@
             document.getElementById('levelup-screen').style.display = 'none';
         }
 
+        // --- Shop Logic ---
+        function openShop() {
+            isShopping = true;
+            document.getElementById('shop-screen').style.display = 'flex';
+            document.getElementById('shopGoldVal').innerText = player.gold;
+            const container = document.getElementById('shop-container');
+            container.innerHTML = '';
+
+            const items = [
+                { id: 'heal', name: 'Health Potion', cost: 100, desc: 'Heal 50 HP', action: () => { player.hp = Math.min(player.hp + 50, player.maxHp); } },
+                { id: 'dmg', name: 'Sharpening Stone', cost: 250, desc: '+5% Damage', action: () => { player.damageMultiplier += 0.05; } },
+                { id: 'spd', name: 'Light Boots', cost: 200, desc: '+5% Speed', action: () => { player.speedMultiplier += 0.05; } },
+                { id: 'hp', name: 'Heart Container', cost: 300, desc: '+20 Max HP', action: () => { player.maxHp += 20; player.hp += 20; } }
+            ];
+
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'shop-item';
+                div.innerHTML = `
+                    <div style="font-size: 24px; font-weight: bold; color: #fff;">${item.name}</div>
+                    <div style="color: #aaa; margin: 5px 0;">${item.desc}</div>
+                    <div class="shop-cost">${item.cost} Gold</div>
+                `;
+                div.onclick = () => {
+                    if (player.gold >= item.cost) {
+                        player.gold -= item.cost;
+                        item.action();
+                        document.getElementById('shopGoldVal').innerText = player.gold;
+                        showNotification("Purchased!");
+                    } else {
+                        showNotification("Not enough Gold!");
+                    }
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function closeShop() {
+            isShopping = false;
+            document.getElementById('shop-screen').style.display = 'none';
+            wave++;
+            enemiesKilledInWave = 0;
+            enemies = [];
+            generateArena();
+        }
+
+        function checkAchievements() {
+            saveData.global.totalKills++;
+            saveData.global.totalGold = (saveData.global.totalGold || 0) + 1; // Approximate tracking
+            if (wave > saveData.global.maxWave) saveData.global.maxWave = wave;
+
+            ACHIEVEMENTS.forEach(ach => {
+                if (!saveData.global.unlockedAchievements.includes(ach.id)) {
+                    let unlocked = false;
+                    if (ach.stat === 'totalKills' && saveData.global.totalKills >= ach.req) unlocked = true;
+                    if (ach.stat === 'maxWave' && saveData.global.maxWave >= ach.req) unlocked = true;
+                    if (ach.stat === 'totalGold' && saveData.global.totalGold >= ach.req) unlocked = true;
+
+                    if (unlocked) {
+                        saveData.global.unlockedAchievements.push(ach.id);
+                        showNotification(`ACHIEVEMENT: ${ach.title}`);
+                        saveGame();
+                    }
+                }
+            });
+        }
+
         // --- Main Loop ---
 
         function startGame() {
@@ -1715,9 +2023,13 @@
             powerUps = [];
             weaponDrops = [];
             holyMasks = [];
+            goldDrops = [];
             gameRunning = true;
             gamePaused = false;
             isLevelingUp = false;
+            isShopping = false;
+            currentWeather = null;
+            weatherTimer = 1200;
 
             generateArena();
 
@@ -1726,6 +2038,7 @@
             document.getElementById('game-over-screen').style.display = 'none';
             document.getElementById('pause-screen').style.display = 'none';
             document.getElementById('levelup-screen').style.display = 'none';
+            document.getElementById('shop-screen').style.display = 'none';
 
             animate();
         }
@@ -1736,7 +2049,6 @@
             document.getElementById('game-over-screen').style.display = 'flex';
             document.getElementById('finalScore').innerText = score;
 
-            // High Score Logic
             const heroData = saveData[player.type];
             if (score > heroData.highScore) {
                 heroData.highScore = score;
@@ -1749,16 +2061,56 @@
 
         function animate() {
             if (!gameRunning) return;
-            if (gamePaused || isLevelingUp) {
+            if (gamePaused || isLevelingUp || isShopping) {
                 requestAnimationFrame(animate);
                 return;
-
             }
 
             requestAnimationFrame(animate);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawArena();
             frame++;
+
+            // Weather Logic
+            if (currentWeather) {
+                weatherDuration--;
+                if (weatherDuration <= 0) {
+                    currentWeather = null;
+                    document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
+                    document.getElementById('weather-display').style.display = 'none';
+                    weatherTimer = 1200 + Math.random() * 600;
+                } else {
+                    // Weather Effects
+                    if (currentWeather.id === 'HEATWAVE' && frame % 60 === 0) {
+                        player.hp -= 1;
+                        enemies.forEach(e => e.hp -= 1);
+                    }
+                    if (currentWeather.id === 'MAGNETIC') {
+                        enemies.forEach(e1 => {
+                            enemies.forEach(e2 => {
+                                if (e1 !== e2) {
+                                    const d = Math.hypot(e1.x - e2.x, e1.y - e2.y);
+                                    if (d < 200) {
+                                        const a = Math.atan2(e2.y - e1.y, e2.x - e1.x);
+                                        e1.x += Math.cos(a) * 0.5; e1.y += Math.sin(a) * 0.5;
+                                    }
+                                }
+                            });
+                        });
+                    }
+                }
+            } else {
+                weatherTimer--;
+                if (weatherTimer <= 0) {
+                    currentWeather = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
+                    weatherDuration = currentWeather.duration;
+                    document.getElementById('weather-overlay').style.backgroundColor = currentWeather.color;
+                    const wDisplay = document.getElementById('weather-display');
+                    wDisplay.innerText = `WARNING: ${currentWeather.name}`;
+                    wDisplay.style.color = currentWeather.id === 'HEATWAVE' ? '#e74c3c' : (currentWeather.id === 'BLIZZARD' ? '#3498db' : '#9b59b6');
+                    wDisplay.style.display = 'block';
+                }
+            }
 
             // --- Spawning Logic ---
             if (!bossActive && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
@@ -1793,9 +2145,20 @@
                 const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
                 if (dist < player.radius + 20) {
                     player.weapon = drop.type;
-                    player.weaponTimer = 900; // 15 Seconds (60fps * 15)
+                    player.weaponTimer = 900;
                     createExplosion(player.x, player.y, '#8e44ad');
                     weaponDrops.splice(index, 1);
+                }
+            });
+
+            // Gold Drops
+            goldDrops.forEach((drop, index) => {
+                drop.draw();
+                const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
+                if (dist < player.radius + 20) {
+                    player.gold += Math.floor(drop.value * player.goldMultiplier);
+                    saveData.global.totalGold += drop.value; // Track for achievement
+                    goldDrops.splice(index, 1);
                 }
             });
 
@@ -1804,7 +2167,6 @@
                 mask.draw();
                 const dist = Math.hypot(player.x - mask.x, player.y - mask.y);
                 if (dist < player.radius + 20) {
-                    // Permanent Level Up
                     saveData[player.type].level++;
                     saveGame();
                     showNotification("PERMANENT LEVEL UP!");
@@ -1853,14 +2215,12 @@
                 enemy.update(); enemy.draw();
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
 
-                // Invulnerable during Dash
                 if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
-                    // Apply Damage Reduction
                     const dmgTaken = 1 * (1 - player.damageReduction);
                     player.hp -= dmgTaken;
+                    player.resetCombo(); // Reset Combo on Damage
                     createExplosion(player.x, player.y, '#fff');
 
-                    // Lose Transformation on Damage
                     if (player.transformActive) {
                         player.transformActive = false;
                         player.currentForm = 'NONE';
@@ -1877,9 +2237,9 @@
                         if (pDist < player.radius + proj.radius) {
                             const dmgTaken = proj.damage * (1 - player.damageReduction);
                             player.hp -= dmgTaken;
+                            player.resetCombo(); // Reset Combo on Damage
                             createExplosion(player.x, player.y, proj.color); projectiles.splice(pIndex, 1);
 
-                            // Lose Transformation on Damage
                             if (player.transformActive) {
                                 player.transformActive = false;
                                 player.currentForm = 'NONE';
@@ -1920,18 +2280,27 @@
                 });
 
                 if (enemy.hp <= 0) {
+                    player.addCombo(); // Add Combo
+                    checkAchievements(); // Check achievements on kill
+
                     if (enemy instanceof Boss) {
                         score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
                         weaponDrops.push(new WeaponDrop(enemy.x, enemy.y));
                         enemies.splice(eIndex, 1);
                         const remainingBosses = enemies.filter(e => e instanceof Boss).length;
                         if (remainingBosses === 0) {
-                            bossActive = false; wave++; enemiesKilledInWave = 0; enemies = enemies.filter(e => false); generateArena();
+                            bossActive = false;
+                            // Shop Check
+                            if (wave % 5 === 0) {
+                                openShop();
+                            } else {
+                                wave++; enemiesKilledInWave = 0; enemies = []; generateArena();
+                            }
                         }
                     } else {
                         score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
-                        // Chance for Holy Mask (Very Rare)
                         if (Math.random() < player.maskChance) holyMasks.push(new HolyMask(enemy.x, enemy.y));
+                        if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y)); // Gold Drop
                         enemies.splice(eIndex, 1);
                         if (!bossActive) enemiesKilledInWave++;
                     }
