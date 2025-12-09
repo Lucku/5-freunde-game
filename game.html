@@ -685,13 +685,14 @@
         }
 
         function openSkillTree() {
-            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('menu-overlay').style.display = 'none';
             document.getElementById('skill-tree-screen').style.display = 'flex';
             renderSkillTree();
         }
 
         function closeSkillTree() {
             document.getElementById('skill-tree-screen').style.display = 'none';
+            document.getElementById('menu-overlay').style.display = 'flex';
             document.getElementById('start-screen').style.display = 'flex';
         }
 
@@ -762,7 +763,7 @@
             metal: { color: '#95a5a6', hp: 100, speed: 3, rangeDmg: 40, meleeDmg: 150, rangeCd: 40, meleeCd: 180, projectileSpeed: 18, projectileSize: 8, knockback: 12 }
         };
 
-        const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI'];
+        const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI', 'AUTOAIM'];
         const WEAPON_TYPES = ['SCATTER', 'MINIGUN', 'BAZOOKA'];
         const BOSS_TYPES = ['TANK', 'SPEEDSTER', 'SUMMONER'];
         const ENEMIES_PER_WAVE = 30;
@@ -856,8 +857,9 @@
                 this.xp = 0;
                 this.maxXp = 100;
                 this.extraProjectiles = 0;
-                this.buffs = { speed: 0, multi: 0 };
+                this.buffs = { speed: 0, multi: 0, autoaim: 0 };
                 this.weapon = 'STANDARD';
+                this.weaponTimer = 0;
             }
 
             gainXp(amount) {
@@ -878,6 +880,14 @@
             update() {
                 if (this.buffs.speed > 0) this.buffs.speed--;
                 if (this.buffs.multi > 0) this.buffs.multi--;
+                if (this.buffs.autoaim > 0) this.buffs.autoaim--;
+
+                if (this.weapon !== 'STANDARD') {
+                    this.weaponTimer--;
+                    if (this.weaponTimer <= 0) {
+                        this.weapon = 'STANDARD';
+                    }
+                }
 
                 let dx = 0; let dy = 0;
                 if (keys['w'] || keys['arrowup']) dy = -1;
@@ -922,6 +932,10 @@
                     ctx.beginPath(); ctx.arc(0, 0, this.radius + 8, 0, Math.PI * 2);
                     ctx.strokeStyle = '#3498db'; ctx.lineWidth = 2; ctx.stroke();
                 }
+                if (this.buffs.autoaim > 0) {
+                    ctx.beginPath(); ctx.arc(0, 0, this.radius + 11, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#9b59b6'; ctx.lineWidth = 2; ctx.stroke();
+                }
 
                 ctx.fillStyle = this.stats.color;
                 ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
@@ -935,7 +949,21 @@
             shoot() {
                 if (this.rangeCooldown > 0) return;
 
-                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+                let angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+
+                // Auto-Aim Logic
+                if (this.buffs.autoaim > 0) {
+                    let nearest = null;
+                    let minDst = Infinity;
+                    enemies.forEach(e => {
+                        const d = Math.hypot(e.x - this.x, e.y - this.y);
+                        if (d < minDst) { minDst = d; nearest = e; }
+                    });
+                    if (nearest) {
+                        angle = Math.atan2(nearest.y - this.y, nearest.x - this.x);
+                    }
+                }
+
                 let shots = [];
                 let speed = this.stats.projectileSpeed;
                 let dmg = this.stats.rangeDmg;
@@ -953,8 +981,14 @@
                     shots.push(angle); speed = 8; size = 10; dmg = this.stats.rangeDmg * 2;
                     cooldown = 60; isExplosive = true;
                 } else {
+                    // STANDARD
                     if (this.type === 'plant') { shots.push(angle - 0.2, angle, angle + 0.2); }
                     else { shots.push(angle); }
+
+                    // Multi Pickup -> Scatter
+                    if (this.buffs.multi > 0) {
+                        shots.push(angle - 0.15, angle + 0.15);
+                    }
                 }
 
                 shots.forEach(a => {
@@ -962,8 +996,8 @@
                     projectiles.push(new Projectile(this.x, this.y, vel, dmg, this.stats.color, size, this.type, this.stats.knockback, false, isExplosive));
 
                     if (this.weapon === 'STANDARD') {
-                        let totalExtras = this.extraProjectiles + (this.buffs.multi > 0 ? 1 : 0);
-                        for (let i = 1; i <= totalExtras; i++) {
+                        // Extra Projectiles (Upgrade) -> Stream
+                        for (let i = 1; i <= this.extraProjectiles; i++) {
                             const offsetX = this.x - (vel.x * (i * 3));
                             const offsetY = this.y - (vel.y * (i * 3));
                             projectiles.push(new Projectile(offsetX, offsetY, vel, dmg, this.stats.color, size, this.type, this.stats.knockback, false, false));
@@ -1204,6 +1238,7 @@
                 else if (this.type === 'MAXHP') { color = '#e74c3c'; symbol = '♥'; }
                 else if (this.type === 'SPEED') { color = '#f1c40f'; symbol = '⚡'; }
                 else if (this.type === 'MULTI') { color = '#3498db'; symbol = '⁙'; }
+                else if (this.type === 'AUTOAIM') { color = '#9b59b6'; symbol = '🎯'; }
                 ctx.fillStyle = color; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
                 ctx.fillStyle = 'white'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText(symbol, 0, 1); ctx.restore();
@@ -1316,6 +1351,11 @@
                 div.style.backgroundColor = '#3498db'; div.style.color = 'white'; div.innerText = '⁙';
                 buffContainer.appendChild(div);
             }
+            if (player.buffs.autoaim > 0) {
+                const div = document.createElement('div'); div.className = 'buff-icon';
+                div.style.backgroundColor = '#9b59b6'; div.style.color = 'white'; div.innerText = '🎯';
+                buffContainer.appendChild(div);
+            }
         }
 
         function chooseUpgrade(type) {
@@ -1408,6 +1448,7 @@
                 const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
                 if (dist < player.radius + 20) {
                     player.weapon = drop.type;
+                    player.weaponTimer = 900; // 15 seconds
                     createExplosion(player.x, player.y, '#8e44ad');
                     weaponDrops.splice(index, 1);
                 }
@@ -1435,6 +1476,7 @@
                     else if (pup.type === 'MAXHP') { player.maxHp += 20; player.hp += 20; createExplosion(player.x, player.y, '#e74c3c'); }
                     else if (pup.type === 'SPEED') { player.buffs.speed = 600; createExplosion(player.x, player.y, '#f1c40f'); }
                     else if (pup.type === 'MULTI') { player.buffs.multi = 600; createExplosion(player.x, player.y, '#3498db'); }
+                    else if (pup.type === 'AUTOAIM') { player.buffs.autoaim = 600; createExplosion(player.x, player.y, '#9b59b6'); }
                     powerUps.splice(index, 1);
                 } else if (pup.timer <= 0) powerUps.splice(index, 1);
             });
