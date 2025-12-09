@@ -1182,6 +1182,7 @@
 
                 let shots = [];
                 let speed = this.stats.projectileSpeed;
+                // Apply multipliers to base stats first so skill tree affects everything
                 let dmg = this.stats.rangeDmg * this.damageMultiplier;
                 let size = this.stats.projectileSize;
                 let cooldown = this.stats.rangeCd * this.cooldownMultiplier;
@@ -1189,28 +1190,28 @@
                 let pierce = 0;
                 let color = this.stats.color;
 
-                // Transformation Overrides
+                // Transformation Overrides - Now applying multipliers ON TOP of base stats (which include skill tree)
                 if (this.transformActive) {
                     if (this.currentForm === 'BLACK ICE') {
                         // Devastating Ice Crystals (8-way)
                         for (let i = 0; i < 8; i++) shots.push(angle + (Math.PI / 4) * i);
-                        dmg *= 1.5; color = '#000'; cooldown = 20;
+                        dmg *= 1.5; color = '#000'; cooldown = 20 * this.cooldownMultiplier; // Ensure cooldown mult applies
                     } else if (this.currentForm === 'LAVA') {
                         // Lava Streams (Rapid fire)
                         shots.push(angle + (Math.random() - 0.5) * 0.1);
-                        cooldown = 3; dmg *= 0.8; color = '#e67e22';
+                        cooldown = 3 * this.cooldownMultiplier; dmg *= 0.8; color = '#e67e22';
                     } else if (this.currentForm === 'CREEPER') {
                         // Vines (Plow through)
                         shots.push(angle);
-                        size = 15; pierce = 100; dmg *= 2; cooldown = 40; color = '#27ae60';
+                        size = 15; pierce = 100; dmg *= 2; cooldown = 40 * this.cooldownMultiplier; color = '#27ae60';
                     } else if (this.currentForm === 'OCEAN') {
                         // Water Blasts (Fast, Auto-aimed)
                         shots.push(angle);
-                        speed *= 1.5; cooldown = 8; color = '#3498db';
+                        speed *= 1.5; cooldown = 8 * this.cooldownMultiplier; color = '#3498db';
                     } else if (this.currentForm === 'IRON') {
                         // Iron throws heavy stuff
                         shots.push(angle);
-                        size = 12; dmg *= 3; speed *= 0.8; cooldown = 50; color = '#7f8c8d';
+                        size = 12; dmg *= 3; speed *= 0.8; cooldown = 50 * this.cooldownMultiplier; color = '#7f8c8d';
                     }
                 } else {
                     // Standard Weapon Logic
@@ -1525,17 +1526,38 @@
         function generateArena() {
             obstacles = [];
             const layout = Math.floor(Math.random() * 3);
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const safeZone = 150; // Radius around player start to keep clear
+
             if (layout === 0) {
+                // Four corners
                 obstacles.push(new Obstacle(canvas.width * 0.2, canvas.height * 0.2, 100, 100));
                 obstacles.push(new Obstacle(canvas.width * 0.8 - 100, canvas.height * 0.2, 100, 100));
                 obstacles.push(new Obstacle(canvas.width * 0.2, canvas.height * 0.8 - 100, 100, 100));
                 obstacles.push(new Obstacle(canvas.width * 0.8 - 100, canvas.height * 0.8 - 100, 100, 100));
             } else if (layout === 1) {
-                obstacles.push(new Obstacle(canvas.width / 2 - 150, canvas.height / 2 - 50, 300, 100));
+                // Center block - moved slightly if it covers center, or split
+                // Instead of one big block in center, let's make two side blocks to ensure center is free
+                obstacles.push(new Obstacle(cx - 300, cy - 50, 100, 100));
+                obstacles.push(new Obstacle(cx + 200, cy - 50, 100, 100));
             } else {
+                // Vertical bars
                 obstacles.push(new Obstacle(canvas.width * 0.3, 0, 50, canvas.height * 0.4));
                 obstacles.push(new Obstacle(canvas.width * 0.7, canvas.height * 0.6, 50, canvas.height * 0.4));
             }
+
+            // Double check and remove any obstacle colliding with start position
+            obstacles = obstacles.filter(obs => {
+                // Simple AABB vs Point check with margin
+                const margin = 60; // Player radius + buffer
+                const playerRect = { x: cx - margin, y: cy - margin, w: margin * 2, h: margin * 2 };
+
+                return !(playerRect.x < obs.x + obs.w &&
+                    playerRect.x + playerRect.w > obs.x &&
+                    playerRect.y < obs.y + obs.h &&
+                    playerRect.y + playerRect.h > obs.y);
+            });
         }
 
         function checkWallCollision(x, y, r) {
@@ -1683,6 +1705,7 @@
             if (gamePaused || isLevelingUp) {
                 requestAnimationFrame(animate);
                 return;
+
             }
 
             requestAnimationFrame(animate);
