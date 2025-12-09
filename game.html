@@ -49,7 +49,6 @@
 
         #boss-hp-container {
             display: none;
-            /* Hidden until boss appears */
             width: 50%;
             height: 30px;
             background: #333;
@@ -110,6 +109,13 @@
             height: 100%;
             background: #9b59b6;
             transition: width 0.2s;
+        }
+
+        #melee-fill {
+            width: 100%;
+            height: 100%;
+            background: #f39c12;
+            transition: width 0.1s;
         }
 
         .bar-text {
@@ -335,6 +341,11 @@
                     <div id="xp-fill"></div>
                     <div id="xp-text" class="bar-text">Level 1</div>
                 </div>
+                <!-- Melee Cooldown -->
+                <div class="bar-wrap" style="border-color: #f39c12;">
+                    <div id="melee-fill"></div>
+                    <div id="melee-text" class="bar-text">Melee Ready</div>
+                </div>
             </div>
         </div>
     </div>
@@ -357,15 +368,15 @@
                 <div class="upgrade-title">Vitality</div>
                 <div class="upgrade-desc">Increase Max HP by 25 and Heal completely.</div>
             </div>
-            <div class="upgrade-card" onclick="chooseUpgrade('speed')">
-                <div class="upgrade-icon">⚡</div>
-                <div class="upgrade-title">Agility</div>
-                <div class="upgrade-desc">Increase Movement Speed by 10%.</div>
+            <div class="upgrade-card" onclick="chooseUpgrade('radius')">
+                <div class="upgrade-icon">💥</div>
+                <div class="upgrade-title">Blast Radius</div>
+                <div class="upgrade-desc">Increase Melee Area of Effect by 25%.</div>
             </div>
             <div class="upgrade-card" onclick="chooseUpgrade('projectile')">
                 <div class="upgrade-icon">🏹</div>
                 <div class="upgrade-title">Multishot</div>
-                <div class="upgrade-desc">Fire +1 extra projectile permanently.</div>
+                <div class="upgrade-desc">Fire +1 subsequent straight shot.</div>
             </div>
         </div>
     </div>
@@ -428,16 +439,19 @@
         resize();
 
         // --- Configuration ---
+        // HP Reduced significantly (was ~100, now ~60)
+        // Melee Damage Tripled (was ~30, now ~100)
+        // Melee Cooldown Increased (was ~40, now 120 = 2 seconds)
         const HERO_STATS = {
-            fire: { color: '#e74c3c', hp: 100, speed: 4, rangeDmg: 25, meleeDmg: 30, rangeCd: 15, meleeCd: 40, projectileSpeed: 12, projectileSize: 6, knockback: 4 },
-            water: { color: '#3498db', hp: 100, speed: 4.5, rangeDmg: 12, meleeDmg: 20, rangeCd: 8, meleeCd: 30, projectileSpeed: 10, projectileSize: 5, knockback: 20 },
-            ice: { color: '#ecf0f1', hp: 90, speed: 4, rangeDmg: 15, meleeDmg: 25, rangeCd: 25, meleeCd: 45, projectileSpeed: 15, projectileSize: 4, knockback: 2 },
-            plant: { color: '#2ecc71', hp: 110, speed: 3.5, rangeDmg: 10, meleeDmg: 40, rangeCd: 30, meleeCd: 50, projectileSpeed: 9, projectileSize: 7, knockback: 8 },
-            metal: { color: '#95a5a6', hp: 180, speed: 3, rangeDmg: 40, meleeDmg: 60, rangeCd: 40, meleeCd: 60, projectileSpeed: 18, projectileSize: 8, knockback: 12 }
+            fire: { color: '#e74c3c', hp: 60, speed: 4, rangeDmg: 25, meleeDmg: 100, rangeCd: 15, meleeCd: 120, projectileSpeed: 12, projectileSize: 6, knockback: 4 },
+            water: { color: '#3498db', hp: 60, speed: 4.5, rangeDmg: 12, meleeDmg: 80, rangeCd: 8, meleeCd: 100, projectileSpeed: 10, projectileSize: 5, knockback: 20 },
+            ice: { color: '#ecf0f1', hp: 50, speed: 4, rangeDmg: 15, meleeDmg: 90, rangeCd: 25, meleeCd: 130, projectileSpeed: 15, projectileSize: 4, knockback: 2 },
+            plant: { color: '#2ecc71', hp: 70, speed: 3.5, rangeDmg: 10, meleeDmg: 120, rangeCd: 30, meleeCd: 140, projectileSpeed: 9, projectileSize: 7, knockback: 8 },
+            metal: { color: '#95a5a6', hp: 100, speed: 3, rangeDmg: 40, meleeDmg: 150, rangeCd: 40, meleeCd: 180, projectileSpeed: 18, projectileSize: 8, knockback: 12 }
         };
 
         const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI'];
-        const ENEMIES_PER_WAVE = 20; // Kills needed to spawn boss
+        const ENEMIES_PER_WAVE = 30; // Increased
 
         // --- Game State ---
         let gameRunning = false;
@@ -498,6 +512,8 @@
                 this.hp = this.maxHp;
                 this.rangeCooldown = 0;
                 this.meleeCooldown = 0;
+                this.meleeMaxCooldown = this.stats.meleeCd;
+                this.meleeRadius = 80; // Base blast radius
 
                 // Leveling
                 this.level = 1;
@@ -592,24 +608,21 @@
                     shots.push(angle);
                 }
 
-                // Add Extra Projectiles (Level Up)
-                if (this.extraProjectiles > 0) {
-                    for (let i = 1; i <= this.extraProjectiles; i++) {
-                        shots.push(angle + (i * 0.1));
-                        shots.push(angle - (i * 0.1));
-                    }
-                }
-
-                // Add Buff Projectiles
-                if (this.buffs.multi > 0) {
-                    let extraShots = [];
-                    shots.forEach(a => { extraShots.push(a - 0.15); extraShots.push(a + 0.15); });
-                    shots = shots.concat(extraShots);
-                }
-
+                // Base Shots
                 shots.forEach(a => {
                     const vel = { x: Math.cos(a) * this.stats.projectileSpeed, y: Math.sin(a) * this.stats.projectileSpeed };
                     projectiles.push(new Projectile(this.x, this.y, vel, this.stats.rangeDmg, this.stats.color, this.stats.projectileSize, this.type, this.stats.knockback, false));
+
+                    // Extra Projectiles (Level Up & Buff) - "Subsequent Straight Shot"
+                    // We spawn them slightly behind the player so they travel in a line
+                    let totalExtras = this.extraProjectiles + (this.buffs.multi > 0 ? 1 : 0);
+
+                    for (let i = 1; i <= totalExtras; i++) {
+                        // Offset starting position backwards based on velocity
+                        const offsetX = this.x - (vel.x * (i * 3));
+                        const offsetY = this.y - (vel.y * (i * 3));
+                        projectiles.push(new Projectile(offsetX, offsetY, vel, this.stats.rangeDmg, this.stats.color, this.stats.projectileSize, this.type, this.stats.knockback, false));
+                    }
                 });
 
                 this.rangeCooldown = this.stats.rangeCd;
@@ -618,22 +631,16 @@
             melee() {
                 if (this.meleeCooldown > 0) return;
                 const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
-                meleeAttacks.push(new MeleeSwipe(this.x, this.y, angle, this.stats.meleeDmg, this.stats.color));
-                this.meleeCooldown = this.stats.meleeCd;
+                meleeAttacks.push(new MeleeSwipe(this.x, this.y, angle, this.stats.meleeDmg, this.stats.color, this.meleeRadius));
+                this.meleeCooldown = this.meleeMaxCooldown;
             }
         }
 
         class Projectile {
             constructor(x, y, velocity, damage, color, radius, type, knockback, isEnemy) {
-                this.x = x;
-                this.y = y;
-                this.velocity = velocity;
-                this.damage = damage;
-                this.color = color;
-                this.radius = radius;
-                this.type = type;
-                this.knockback = knockback;
-                this.isEnemy = isEnemy;
+                this.x = x; this.y = y; this.velocity = velocity;
+                this.damage = damage; this.color = color; this.radius = radius;
+                this.type = type; this.knockback = knockback; this.isEnemy = isEnemy;
                 this.pierce = (type === 'ice' && !isEnemy) ? 2 : 0;
             }
             update() { this.x += this.velocity.x; this.y += this.velocity.y; }
@@ -645,10 +652,12 @@
         }
 
         class MeleeSwipe {
-            constructor(x, y, angle, damage, color) {
+            constructor(x, y, angle, damage, color, radius) {
                 this.x = x; this.y = y; this.angle = angle;
                 this.damage = damage; this.color = color;
-                this.life = 10; this.maxLife = 10; this.radius = 60; this.hitList = [];
+                this.life = 15; this.maxLife = 15;
+                this.radius = radius; // Dynamic radius
+                this.hitList = [];
             }
             update() { this.x = player.x; this.y = player.y; this.life--; }
             draw() {
@@ -674,14 +683,14 @@
                 const difficultyMult = 1 + (wave * 0.2);
 
                 // Determine Type
-                this.isShooter = (!isBossMinion && Math.random() < 0.3 && wave > 1); // 30% chance for shooter after wave 1
+                this.isShooter = (!isBossMinion && Math.random() < 0.3 && wave > 1);
 
                 this.radius = this.isShooter ? 18 : (15 + Math.random() * 10);
                 this.hp = (20 + Math.random() * 20) * difficultyMult;
                 this.speed = (1 + Math.random() * 1.5) * (1 + (wave * 0.1));
-                this.color = this.isShooter ? '#f1c40f' : '#555'; // Yellow for shooters
-                this.damage = 10;
-                this.sides = this.isShooter ? 3 : (Math.floor(Math.random() * 3) + 4); // Shooters are triangles
+                this.color = this.isShooter ? '#f1c40f' : '#555';
+                this.damage = 20; // Increased Damage
+                this.sides = this.isShooter ? 3 : (Math.floor(Math.random() * 3) + 4);
 
                 this.shootCooldown = 0;
             }
@@ -691,27 +700,22 @@
                 const angle = Math.atan2(player.y - this.y, player.x - this.x);
 
                 if (this.isShooter) {
-                    // Shooter Logic: Stop at distance and shoot
                     if (dist > 250) {
                         this.x += Math.cos(angle) * this.speed;
                         this.y += Math.sin(angle) * this.speed;
                     } else {
-                        // Retreat slightly if too close
                         if (dist < 150) {
                             this.x -= Math.cos(angle) * (this.speed * 0.5);
                             this.y -= Math.sin(angle) * (this.speed * 0.5);
                         }
-
-                        // Shoot
                         if (this.shootCooldown <= 0) {
                             const vel = { x: Math.cos(angle) * 6, y: Math.sin(angle) * 6 };
-                            projectiles.push(new Projectile(this.x, this.y, vel, 10, '#e74c3c', 5, 'enemy', 0, true));
-                            this.shootCooldown = 120; // 2 seconds
+                            projectiles.push(new Projectile(this.x, this.y, vel, 20, '#e74c3c', 5, 'enemy', 0, true)); // Dmg 20
+                            this.shootCooldown = 120;
                         }
                     }
                     if (this.shootCooldown > 0) this.shootCooldown--;
                 } else {
-                    // Melee Logic
                     this.x += Math.cos(angle) * this.speed;
                     this.y += Math.sin(angle) * this.speed;
                 }
@@ -743,7 +747,7 @@
                 this.hp = this.maxHp;
                 this.speed = 1.5 + (wave * 0.1);
                 this.color = '#c0392b';
-                this.damage = 20;
+                this.damage = 30;
                 this.attackCooldown = 100;
             }
 
@@ -758,9 +762,9 @@
                     for (let i = 0; i < 12; i++) {
                         const a = (Math.PI * 2 / 12) * i + (frame * 0.1);
                         const vel = { x: Math.cos(a) * 5, y: Math.sin(a) * 5 };
-                        projectiles.push(new Projectile(this.x, this.y, vel, 15, '#e74c3c', 8, 'enemy', 0, true));
+                        projectiles.push(new Projectile(this.x, this.y, vel, 20, '#e74c3c', 8, 'enemy', 0, true));
                     }
-                    this.attackCooldown = 180 - (wave * 10); // Faster attacks per wave
+                    this.attackCooldown = 180 - (wave * 10);
                 } else {
                     this.attackCooldown--;
                 }
@@ -874,6 +878,11 @@
             document.getElementById('xp-fill').style.width = xpPercent + '%';
             document.getElementById('xp-text').innerText = "Level " + player.level;
 
+            // Melee Bar
+            const meleePercent = Math.max(0, 100 - (player.meleeCooldown / player.meleeMaxCooldown * 100));
+            document.getElementById('melee-fill').style.width = meleePercent + '%';
+            document.getElementById('melee-text').innerText = player.meleeCooldown <= 0 ? "MELEE READY" : "RECHARGING";
+
             // Boss UI
             const bossContainer = document.getElementById('boss-hp-container');
             if (bossActive && enemies.length > 0 && enemies[0] instanceof Boss) {
@@ -904,8 +913,8 @@
             if (type === 'health') {
                 player.maxHp += 25;
                 player.hp = player.maxHp;
-            } else if (type === 'speed') {
-                player.stats.speed *= 1.1;
+            } else if (type === 'radius') {
+                player.meleeRadius *= 1.25;
             } else if (type === 'projectile') {
                 player.extraProjectiles += 1;
             }
@@ -968,14 +977,15 @@
                 for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
             }
 
-            // Normal Spawning
+            // Normal Spawning - MUCH FASTER NOW
             if (!bossActive) {
-                let spawnRate = Math.max(15, 80 - (wave * 5)); // Faster spawns per wave
+                // Start at 40 frames, decrease by 2 per wave, min 5 frames
+                let spawnRate = Math.max(5, 40 - (wave * 2));
                 if (frame % spawnRate === 0) {
                     enemies.push(new Enemy());
                 }
             } else {
-                // Boss Minion Spawning (Slow trickle)
+                // Boss Minion Spawning
                 if (frame % 150 === 0) {
                     enemies.push(new Enemy(true));
                 }
@@ -1023,7 +1033,7 @@
                 // Enemy vs Player Collision
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
                 if (dist - enemy.radius - player.radius < 0) {
-                    player.hp -= 1;
+                    player.hp -= 1; // Contact damage (rapid)
                     createExplosion(player.x, player.y, '#fff');
                     // Knockback
                     const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
@@ -1075,8 +1085,8 @@
                             createExplosion(enemy.x, enemy.y, att.color);
                             att.hitList.push(eIndex);
                             if (!(enemy instanceof Boss)) {
-                                enemy.x += Math.cos(angleToEnemy) * 30;
-                                enemy.y += Math.sin(angleToEnemy) * 30;
+                                enemy.x += Math.cos(angleToEnemy) * 50; // Massive knockback
+                                enemy.y += Math.sin(angleToEnemy) * 50;
                             }
                         }
                     }
