@@ -31,6 +31,7 @@
             justify-content: space-between;
             padding: 20px;
             box-sizing: border-box;
+            z-index: 5;
         }
 
         #score-board {
@@ -56,7 +57,8 @@
         }
 
         /* Menu Styles */
-        #menu-overlay {
+        #menu-overlay,
+        #pause-screen {
             position: absolute;
             top: 0;
             left: 0;
@@ -69,6 +71,14 @@
             justify-content: center;
             pointer-events: auto;
             z-index: 10;
+        }
+
+        #pause-screen {
+            display: none;
+            /* Hidden by default */
+            background: rgba(0, 0, 0, 0.6);
+            /* Semi-transparent for pause */
+            backdrop-filter: blur(5px);
         }
 
         h1 {
@@ -177,6 +187,14 @@
         </div>
     </div>
 
+    <!-- Pause Screen -->
+    <div id="pause-screen">
+        <h1>PAUSED</h1>
+        <button class="restart-btn" onclick="togglePause()">Resume</button>
+        <button class="restart-btn" onclick="location.reload()"
+            style="margin-top: 20px; background-color: #e74c3c; color: white;">Quit Game</button>
+    </div>
+
     <div id="menu-overlay">
         <div id="start-screen">
             <h1>Freunde</h1>
@@ -245,6 +263,7 @@
 
         // --- Game State ---
         let gameRunning = false;
+        let gamePaused = false;
         let score = 0;
         let wave = 1;
         let frame = 0;
@@ -263,14 +282,31 @@
         window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
         window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
         window.addEventListener('mousedown', e => {
-            if (!gameRunning) return;
+            if (!gameRunning || gamePaused) return;
             if (e.button === 0) player.shoot(); // Left Click
             if (e.button === 2) player.melee(); // Right Click
         });
         window.addEventListener('contextmenu', e => e.preventDefault()); // Block context menu
+
+        // Key Listeners (Pause & Abilities)
         window.addEventListener('keydown', e => {
-            if (e.code === 'Space' && gameRunning) player.melee();
+            if (e.code === 'Escape' && gameRunning) {
+                togglePause();
+            }
+            if (e.code === 'Space' && gameRunning && !gamePaused) {
+                player.melee();
+            }
         });
+
+        function togglePause() {
+            gamePaused = !gamePaused;
+            const pauseScreen = document.getElementById('pause-screen');
+            if (gamePaused) {
+                pauseScreen.style.display = 'flex';
+            } else {
+                pauseScreen.style.display = 'none';
+            }
+        }
 
         // --- Classes ---
 
@@ -289,7 +325,8 @@
 
             update() {
                 // Movement
-                let dx = 0; let dy = 0;
+                let dx = 0;
+                let dy = 0;
                 if (keys['w'] || keys['arrowup']) dy = -1;
                 if (keys['s'] || keys['arrowdown']) dy = 1;
                 if (keys['a'] || keys['arrowleft']) dx = -1;
@@ -546,6 +583,49 @@
             }
         }
 
+        function drawArena() {
+            // 1. Base Floor (Dark Stone)
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 2. Stone Tiles Pattern
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            const tileSize = 80;
+
+            ctx.beginPath();
+            // Vertical lines
+            for (let x = 0; x <= canvas.width; x += tileSize) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+            }
+            // Horizontal lines
+            for (let y = 0; y <= canvas.height; y += tileSize) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+            }
+            ctx.stroke();
+
+            // 3. Center Emblem (Arena Circle)
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+
+            // Outer Ring
+            ctx.beginPath();
+            ctx.arc(0, 0, 120, 0, Math.PI * 2);
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 15;
+            ctx.stroke();
+
+            // Inner Decoration
+            ctx.beginPath();
+            ctx.arc(0, 0, 30, 0, Math.PI * 2);
+            ctx.fillStyle = '#444';
+            ctx.fill();
+
+            ctx.restore();
+        }
+
         // --- Main Loop ---
 
         function startGame(heroType) {
@@ -557,10 +637,12 @@
             particles = [];
             meleeAttacks = [];
             gameRunning = true;
+            gamePaused = false;
 
             document.getElementById('menu-overlay').style.display = 'none';
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('game-over-screen').style.display = 'none';
+            document.getElementById('pause-screen').style.display = 'none';
 
             animate();
         }
@@ -574,8 +656,18 @@
 
         function animate() {
             if (!gameRunning) return;
+
+            // Pause Logic
+            if (gamePaused) {
+                requestAnimationFrame(animate);
+                return;
+            }
+
             requestAnimationFrame(animate);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawArena(); // Draw the new background
+
             frame++;
 
             // --- Spawning ---
@@ -696,16 +788,7 @@
             const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
             document.getElementById('health-fill').style.width = hpPercent + '%';
 
-            // Flashing effect when taking damage
-            if (frame % 10 < 5) {
-                document.getElementById('health-fill').style.background = '#e74c3c';
-            } else {
-                document.getElementById('health-fill').style.background = '#c0392b';
-            }
-
-            // Game Over check
             if (player.hp <= 0) {
-                player.hp = 0;
                 gameOver();
             }
         }
