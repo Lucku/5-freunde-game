@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freunde: Elemental Arena</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            font-family: 'Helvetica Neue', sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #score-board {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        #health-bar-container {
+            width: 300px;
+            height: 20px;
+            background: #333;
+            border: 2px solid #fff;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #health-fill {
+            width: 100%;
+            height: 100%;
+            background: #e74c3c;
+            transition: width 0.2s;
+        }
+
+        /* Menu Styles */
+        #menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 60px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+
+        h2 {
+            font-size: 24px;
+            color: #aaa;
+            margin-bottom: 40px;
+        }
+
+        .hero-select {
+            display: flex;
+            gap: 20px;
+        }
+
+        .hero-card {
+            width: 150px;
+            height: 200px;
+            background: #333;
+            border: 2px solid #555;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .hero-card:hover {
+            transform: scale(1.05);
+            border-color: white;
+        }
+
+        .hero-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            position: relative;
+        }
+
+        /* Visor look */
+        .hero-icon::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 10px;
+            width: 40px;
+            height: 6px;
+            background: black;
+            border-radius: 2px;
+        }
+
+        .hero-name {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .hero-desc {
+            font-size: 12px;
+            color: #ccc;
+            text-align: center;
+            padding: 0 10px;
+        }
+
+        #game-over-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        button.restart-btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            background: white;
+            color: black;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        button.restart-btn:hover {
+            background: #ddd;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div id="score-board">Score: <span id="scoreVal">0</span> | Wave: <span id="waveVal">1</span></div>
+        <div id="health-bar-container">
+            <div id="health-fill"></div>
+        </div>
+    </div>
+
+    <div id="menu-overlay">
+        <div id="start-screen">
+            <h1>Freunde</h1>
+            <h2>Select your Elemental Hero</h2>
+            <div class="hero-select">
+                <!-- Fire -->
+                <div class="hero-card" onclick="startGame('fire')">
+                    <div class="hero-icon" style="background: #e74c3c;"></div>
+                    <div class="hero-name" style="color: #e74c3c">FIRE</div>
+                    <div class="hero-desc">High Dmg<br>Fast Shots</div>
+                </div>
+                <!-- Water -->
+                <div class="hero-card" onclick="startGame('water')">
+                    <div class="hero-icon" style="background: #3498db;"></div>
+                    <div class="hero-name" style="color: #3498db">WATER</div>
+                    <div class="hero-desc">Rapid Fire<br>Pushback</div>
+                </div>
+                <!-- Ice -->
+                <div class="hero-card" onclick="startGame('ice')">
+                    <div class="hero-icon" style="background: #ecf0f1;"></div>
+                    <div class="hero-name" style="color: #ecf0f1">ICE</div>
+                    <div class="hero-desc">Piercing<br>Slows Enemies</div>
+                </div>
+                <!-- Plants -->
+                <div class="hero-card" onclick="startGame('plant')">
+                    <div class="hero-icon" style="background: #2ecc71;"></div>
+                    <div class="hero-name" style="color: #2ecc71">PLANT</div>
+                    <div class="hero-desc">Wide Melee<br>Shotgun Spores</div>
+                </div>
+                <!-- Metal -->
+                <div class="hero-card" onclick="startGame('metal')">
+                    <div class="hero-icon" style="background: #95a5a6;"></div>
+                    <div class="hero-name" style="color: #95a5a6">METAL</div>
+                    <div class="hero-desc">Tanky HP<br>Heavy Hits</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="game-over-screen">
+            <h1 style="color: #e74c3c">GAME OVER</h1>
+            <h2>Final Score: <span id="finalScore">0</span></h2>
+            <button class="restart-btn" onclick="location.reload()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Resize canvas
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- Game Configuration ---
+        const HERO_STATS = {
+            fire: { color: '#e74c3c', hp: 100, speed: 4, rangeDmg: 25, meleeDmg: 30, rangeCd: 15, meleeCd: 40, projectileSpeed: 12, projectileSize: 6 },
+            water: { color: '#3498db', hp: 100, speed: 4.5, rangeDmg: 12, meleeDmg: 20, rangeCd: 8, meleeCd: 30, projectileSpeed: 10, projectileSize: 5 },
+            ice: { color: '#ecf0f1', hp: 90, speed: 4, rangeDmg: 15, meleeDmg: 25, rangeCd: 25, meleeCd: 45, projectileSpeed: 15, projectileSize: 4 }, // Piercing
+            plant: { color: '#2ecc71', hp: 110, speed: 3.5, rangeDmg: 10, meleeDmg: 40, rangeCd: 30, meleeCd: 50, projectileSpeed: 9, projectileSize: 7 }, // Shotgun
+            metal: { color: '#95a5a6', hp: 180, speed: 3, rangeDmg: 40, meleeDmg: 60, rangeCd: 40, meleeCd: 60, projectileSpeed: 18, projectileSize: 8 }
+        };
+
+        // --- Game State ---
+        let gameRunning = false;
+        let score = 0;
+        let wave = 1;
+        let frame = 0;
+
+        let player;
+        let projectiles = [];
+        let enemies = [];
+        let particles = [];
+        let meleeAttacks = [];
+
+        // Input
+        const keys = {};
+        const mouse = { x: 0, y: 0 };
+
+        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('mousedown', e => {
+            if (!gameRunning) return;
+            if (e.button === 0) player.shoot(); // Left Click
+            if (e.button === 2) player.melee(); // Right Click
+        });
+        window.addEventListener('contextmenu', e => e.preventDefault()); // Block context menu
+        window.addEventListener('keydown', e => {
+            if (e.code === 'Space' && gameRunning) player.melee();
+        });
+
+        // --- Classes ---
+
+        class Player {
+            constructor(type) {
+                this.type = type;
+                this.stats = HERO_STATS[type];
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
+                this.radius = 20;
+                this.maxHp = this.stats.hp;
+                this.hp = this.maxHp;
+                this.rangeCooldown = 0;
+                this.meleeCooldown = 0;
+            }
+
+            update() {
+                // Movement
+                let dx = 0; let dy = 0;
+                if (keys['w'] || keys['arrowup']) dy = -1;
+                if (keys['s'] || keys['arrowdown']) dy = 1;
+                if (keys['a'] || keys['arrowleft']) dx = -1;
+                if (keys['d'] || keys['arrowright']) dx = 1;
+
+                // Normalize vector
+                if (dx !== 0 || dy !== 0) {
+                    const len = Math.sqrt(dx * dx + dy * dy);
+                    this.x += (dx / len) * this.stats.speed;
+                    this.y += (dy / len) * this.stats.speed;
+                }
+
+                // Boundaries
+                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+
+                // Cooldowns
+                if (this.rangeCooldown > 0) this.rangeCooldown--;
+                if (this.meleeCooldown > 0) this.meleeCooldown--;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Rotate towards mouse
+                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+                ctx.rotate(angle);
+
+                // Body (Armor)
+                ctx.fillStyle = this.stats.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#111';
+                ctx.stroke();
+
+                // Visor (The Knight Look)
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, -4, 16, 8); // Visor slit
+
+                // Shoulder pads (visual flair)
+                ctx.fillStyle = shadeColor(this.stats.color, -40);
+                ctx.beginPath();
+                ctx.arc(0, -15, 8, 0, Math.PI * 2); // Left shoulder
+                ctx.arc(0, 15, 8, 0, Math.PI * 2); // Right shoulder
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            shoot() {
+                if (this.rangeCooldown > 0) return;
+
+                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+
+                if (this.type === 'plant') {
+                    // Plant Shotgun: 3 pellets
+                    for (let i = -1; i <= 1; i++) {
+                        const spread = angle + (i * 0.2);
+                        const vel = { x: Math.cos(spread) * this.stats.projectileSpeed, y: Math.sin(spread) * this.stats.projectileSpeed };
+                        projectiles.push(new Projectile(this.x, this.y, vel, this.stats.rangeDmg, this.stats.color, this.stats.projectileSize, this.type));
+                    }
+                } else {
+                    const vel = { x: Math.cos(angle) * this.stats.projectileSpeed, y: Math.sin(angle) * this.stats.projectileSpeed };
+                    projectiles.push(new Projectile(this.x, this.y, vel, this.stats.rangeDmg, this.stats.color, this.stats.projectileSize, this.type));
+                }
+
+                this.rangeCooldown = this.stats.rangeCd;
+            }
+
+            melee() {
+                if (this.meleeCooldown > 0) return;
+
+                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+                meleeAttacks.push(new MeleeSwipe(this.x, this.y, angle, this.stats.meleeDmg, this.stats.color));
+                this.meleeCooldown = this.stats.meleeCd;
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, velocity, damage, color, radius, type) {
+                this.x = x;
+                this.y = y;
+                this.velocity = velocity;
+                this.damage = damage;
+                this.color = color;
+                this.radius = radius;
+                this.type = type;
+                this.pierce = (type === 'ice') ? 2 : 0; // Ice pierces 2 enemies
+            }
+
+            update() {
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                // Glow effect
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class MeleeSwipe {
+            constructor(x, y, angle, damage, color) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.damage = damage;
+                this.color = color;
+                this.life = 10; // Frames to live
+                this.maxLife = 10;
+                this.radius = 60;
+                this.hitList = []; // Enemies already hit by this swing
+            }
+
+            update() {
+                this.x = player.x;
+                this.y = player.y;
+                this.life--;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                ctx.beginPath();
+                // Draw a swipe arc
+                ctx.arc(0, 0, this.radius, -Math.PI / 3, Math.PI / 3);
+                ctx.lineWidth = 5 * (this.life / this.maxLife);
+                ctx.strokeStyle = 'white';
+                ctx.stroke();
+
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = 0.5 * (this.life / this.maxLife);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        class Enemy {
+            constructor() {
+                // Spawn at edge
+                if (Math.random() < 0.5) {
+                    this.x = Math.random() < 0.5 ? -30 : canvas.width + 30;
+                    this.y = Math.random() * canvas.height;
+                } else {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() < 0.5 ? -30 : canvas.height + 30;
+                }
+
+                // Difficulty scaling
+                const difficultyMult = 1 + (score / 500);
+
+                this.radius = 15 + Math.random() * 10;
+                this.hp = (20 + Math.random() * 20) * difficultyMult;
+                this.speed = (1 + Math.random() * 1.5) * (1 + (score / 2000));
+                this.color = '#555';
+                this.damage = 10;
+
+                // Visual variation
+                this.sides = Math.floor(Math.random() * 3) + 3; // Triangle, Square, Pentagon
+            }
+
+            update() {
+                const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                this.x += Math.cos(angle) * this.speed;
+                this.y += Math.sin(angle) * this.speed;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(frame * 0.05); // Spin
+                ctx.fillStyle = this.color;
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 2;
+
+                ctx.beginPath();
+                // Draw polygon
+                for (let i = 0; i < this.sides; i++) {
+                    ctx.lineTo(this.radius * Math.cos(i * 2 * Math.PI / this.sides), this.radius * Math.sin(i * 2 * Math.PI / this.sides));
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Eyes (to look like a generic bad guy)
+                ctx.fillStyle = 'red';
+                ctx.fillRect(-5, -5, 10, 2);
+
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.velocity = {
+                    x: (Math.random() - 0.5) * 5,
+                    y: (Math.random() - 0.5) * 5
+                };
+                this.alpha = 1;
+                this.life = Math.random() * 0.05 + 0.02; // Decay rate
+            }
+            update() {
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                this.alpha -= this.life;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // --- Helper Functions ---
+        function shadeColor(color, percent) {
+            var R = parseInt(color.substring(1, 3), 16);
+            var G = parseInt(color.substring(3, 5), 16);
+            var B = parseInt(color.substring(5, 7), 16);
+            R = parseInt(R * (100 + percent) / 100);
+            G = parseInt(G * (100 + percent) / 100);
+            B = parseInt(B * (100 + percent) / 100);
+            R = (R < 255) ? R : 255;
+            G = (G < 255) ? G : 255;
+            B = (B < 255) ? B : 255;
+            var RR = ((R.toString(16).length == 1) ? "0" + R.toString(16) : R.toString(16));
+            var GG = ((G.toString(16).length == 1) ? "0" + G.toString(16) : G.toString(16));
+            var BB = ((B.toString(16).length == 1) ? "0" + B.toString(16) : B.toString(16));
+            return "#" + RR + GG + BB;
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        // --- Main Loop ---
+
+        function startGame(heroType) {
+            player = new Player(heroType);
+            score = 0;
+            wave = 1;
+            enemies = [];
+            projectiles = [];
+            particles = [];
+            meleeAttacks = [];
+            gameRunning = true;
+
+            document.getElementById('menu-overlay').style.display = 'none';
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-over-screen').style.display = 'none';
+
+            animate();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('menu-overlay').style.display = 'flex';
+            document.getElementById('game-over-screen').style.display = 'flex';
+            document.getElementById('finalScore').innerText = score;
+        }
+
+        function animate() {
+            if (!gameRunning) return;
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            frame++;
+
+            // --- Spawning ---
+            // Spawn rate increases with score
+            let spawnRate = Math.max(20, 100 - Math.floor(score / 50));
+            if (frame % spawnRate === 0) {
+                enemies.push(new Enemy());
+            }
+
+            // --- Updates & Drawing ---
+
+            // Player
+            player.update();
+            player.draw();
+
+            // Projectiles
+            projectiles.forEach((proj, index) => {
+                proj.update();
+                proj.draw();
+
+                // Remove off screen
+                if (proj.x < 0 || proj.x > canvas.width || proj.y < 0 || proj.y > canvas.height) {
+                    projectiles.splice(index, 1);
+                }
+            });
+
+            // Melee Attacks
+            meleeAttacks.forEach((att, index) => {
+                att.update();
+                att.draw();
+                if (att.life <= 0) meleeAttacks.splice(index, 1);
+            });
+
+            // Particles
+            particles.forEach((part, index) => {
+                part.update();
+                part.draw();
+                if (part.alpha <= 0) particles.splice(index, 1);
+            });
+
+            // Enemies
+            enemies.forEach((enemy, eIndex) => {
+                enemy.update();
+                enemy.draw();
+
+                // Collision: Enemy vs Player
+                const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+                if (dist - enemy.radius - player.radius < 0) {
+                    player.hp -= 1; // Take damage
+                    createExplosion(player.x, player.y, '#fff');
+                    // Push enemy back slightly
+                    const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                    enemy.x += Math.cos(angle) * 20;
+                    enemy.y += Math.sin(angle) * 20;
+                }
+
+                // Collision: Enemy vs Projectile
+                projectiles.forEach((proj, pIndex) => {
+                    const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
+                    if (pDist - enemy.radius - proj.radius < 0) {
+                        enemy.hp -= proj.damage;
+                        createExplosion(enemy.x, enemy.y, proj.color);
+
+                        // Handle Pierce
+                        if (proj.pierce > 0) {
+                            proj.pierce--;
+                        } else {
+                            projectiles.splice(pIndex, 1);
+                        }
+
+                        // Knockback
+                        const angle = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);
+                        enemy.x += Math.cos(angle) * 5;
+                        enemy.y += Math.sin(angle) * 5;
+                    }
+                });
+
+                // Collision: Enemy vs Melee
+                meleeAttacks.forEach(att => {
+                    if (att.hitList.includes(eIndex)) return; // Don't hit same enemy twice per swing
+
+                    // Simple check: is enemy within radius and within angle arc?
+                    const dx = enemy.x - att.x;
+                    const dy = enemy.y - att.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < att.radius + enemy.radius) {
+                        const angleToEnemy = Math.atan2(dy, dx);
+                        // Normalize angles
+                        let diff = angleToEnemy - att.angle;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+
+                        if (Math.abs(diff) < Math.PI / 3) { // 60 degree cone
+                            enemy.hp -= att.damage;
+                            createExplosion(enemy.x, enemy.y, att.color);
+                            att.hitList.push(eIndex);
+
+                            // Heavy Knockback for melee
+                            enemy.x += Math.cos(angleToEnemy) * 30;
+                            enemy.y += Math.sin(angleToEnemy) * 30;
+                        }
+                    }
+                });
+
+                // Death
+                if (enemy.hp <= 0) {
+                    score += 10;
+                    createExplosion(enemy.x, enemy.y, '#aaa');
+                    enemies.splice(eIndex, 1);
+                }
+            });
+
+            // --- UI Updates ---
+            document.getElementById('scoreVal').innerText = score;
+            document.getElementById('waveVal').innerText = Math.floor(score / 500) + 1;
+
+            const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
+            document.getElementById('health-fill').style.width = hpPercent + '%';
+
+            // Flashing effect when taking damage
+            if (frame % 10 < 5) {
+                document.getElementById('health-fill').style.background = '#e74c3c';
+            } else {
+                document.getElementById('health-fill').style.background = '#c0392b';
+            }
+
+            // Game Over check
+            if (player.hp <= 0) {
+                player.hp = 0;
+                gameOver();
+            }
+        }
+    </script>
+</body>
+
+</html>
