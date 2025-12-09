@@ -682,25 +682,23 @@
         // --- Hero Specific Skill Trees ---
         function generateHeroSkillTree(type) {
             const tree = [];
+            // Added ULT_DAMAGE and ULT_SPEED to weights
             const weights = {
-                fire: { DAMAGE: 0.4, SPEED: 0.2, COOLDOWN: 0.2, HEALTH: 0.2 },
-                water: { COOLDOWN: 0.4, SPEED: 0.3, HEALTH: 0.15, DAMAGE: 0.15 },
-                ice: { COOLDOWN: 0.3, HEALTH: 0.3, DAMAGE: 0.2, SPEED: 0.2 },
-                plant: { HEALTH: 0.5, DAMAGE: 0.2, SPEED: 0.15, COOLDOWN: 0.15 },
-                metal: { DAMAGE: 0.3, HEALTH: 0.4, COOLDOWN: 0.15, SPEED: 0.15 }
+                fire: { DAMAGE: 0.35, SPEED: 0.15, COOLDOWN: 0.15, HEALTH: 0.15, ULT_DAMAGE: 0.2 },
+                water: { COOLDOWN: 0.35, SPEED: 0.25, HEALTH: 0.15, DAMAGE: 0.1, ULT_SPEED: 0.15 },
+                ice: { COOLDOWN: 0.25, HEALTH: 0.25, DAMAGE: 0.15, SPEED: 0.15, ULT_DAMAGE: 0.1, ULT_SPEED: 0.1 },
+                plant: { HEALTH: 0.4, DAMAGE: 0.15, SPEED: 0.15, COOLDOWN: 0.15, ULT_DAMAGE: 0.15 },
+                metal: { DAMAGE: 0.25, HEALTH: 0.35, COOLDOWN: 0.15, SPEED: 0.1, ULT_DAMAGE: 0.15 }
             };
 
             const w = weights[type];
             const types = [];
-            // Create a weighted pool
             for (let k in w) {
                 const count = Math.floor(w[k] * 100);
                 for (let i = 0; i < count; i++) types.push(k);
             }
-            // Fill rest if rounding errors
             while (types.length < 100) types.push('DAMAGE');
 
-            // Shuffle deterministically based on type string length (simple seed)
             let seed = type.length;
             const random = () => {
                 const x = Math.sin(seed++) * 10000;
@@ -717,6 +715,9 @@
                 if (t === 'HEALTH') { val = 0.02; desc = "+2% Max HP"; }
                 if (t === 'SPEED') { val = 0.01; desc = "+1% Move Speed"; }
                 if (t === 'COOLDOWN') { val = 0.01; desc = "-1% Cooldowns"; }
+                // New Ultimate Nodes
+                if (t === 'ULT_DAMAGE') { val = 0.05; desc = "+5% Ult Dmg"; }
+                if (t === 'ULT_SPEED') { val = 0.05; desc = "+5% Ult Spd"; }
 
                 if ((i + 1) % 10 === 0) {
                     val *= 5;
@@ -842,19 +843,18 @@
         }
 
         function getHeroStats(type) {
-            // Base Stats
             const base = JSON.parse(JSON.stringify(BASE_HERO_STATS[type]));
             const heroData = saveData[type];
             const treeData = generateHeroSkillTree(type);
 
-            // Apply Prestige Multiplier (Permanent Boost to counter difficulty)
-            // +50% stats per prestige level
+            // Container for Ultimate specific modifiers
+            base.ultModifiers = { damage: 1, speed: 1 };
+
             const prestigeMult = 1 + (heroData.prestige * 0.5);
             base.hp *= prestigeMult;
             base.rangeDmg *= prestigeMult;
             base.meleeDmg *= prestigeMult;
 
-            // Apply Skill Tree
             const unlockedCount = heroData.unlocked;
             for (let i = 0; i < unlockedCount; i++) {
                 const node = treeData[i];
@@ -865,8 +865,10 @@
                     base.rangeCd *= (1 - node.value);
                     base.meleeCd *= (1 - node.value);
                 }
+                // Apply Ultimate Modifiers
+                if (node.type === 'ULT_DAMAGE') base.ultModifiers.damage += node.value;
+                if (node.type === 'ULT_SPEED') base.ultModifiers.speed += node.value;
             }
-            // Cap HP to int
             base.hp = Math.floor(base.hp);
             return base;
         }
@@ -921,6 +923,9 @@
             }
             if (e.code === 'Space' && gameRunning && !gamePaused && !isLevelingUp) {
                 player.melee();
+            }
+            if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && gameRunning && !gamePaused) {
+                player.dash();
             }
         });
 
@@ -983,6 +988,12 @@
                 // Transformation Logic
                 this.transformActive = false;
                 this.currentForm = 'NONE';
+
+                // Dash Properties
+                this.dashCooldown = 0;
+                this.dashMaxCooldown = 180; // 3 seconds
+                this.isDashing = false;
+                this.dashFrames = 0;
             }
 
             gainXp(amount) {
@@ -1047,10 +1058,30 @@
                 return 'ULTIMATE';
             }
 
+            dash() {
+                if (this.dashCooldown > 0 || this.isDashing) return;
+
+                let dx = 0; let dy = 0;
+                if (keys['w'] || keys['arrowup']) dy = -1;
+                if (keys['s'] || keys['arrowdown']) dy = 1;
+                if (keys['a'] || keys['arrowleft']) dx = -1;
+                if (keys['d'] || keys['arrowright']) dx = 1;
+
+                // Only dash if moving
+                if (dx !== 0 || dy !== 0) {
+                    this.isDashing = true;
+                    this.dashFrames = 10; // Dash duration
+                    this.dashCooldown = this.dashMaxCooldown;
+                    createExplosion(this.x, this.y, '#fff'); // Visual effect
+                }
+            }
+
             update() {
                 if (this.buffs.speed > 0) this.buffs.speed--;
                 if (this.buffs.multi > 0) this.buffs.multi--;
                 if (this.buffs.autoaim > 0) this.buffs.autoaim--;
+
+                if (this.dashCooldown > 0) this.dashCooldown--;
 
                 // Transformation Updates
                 if (this.transformActive) {
@@ -1086,10 +1117,23 @@
                 let currentSpeed = this.stats.speed * this.speedMultiplier;
                 if (this.buffs.speed > 0) currentSpeed *= 1.5;
 
-                // Form Speed Modifiers
+                // Form Speed Modifiers + Skill Tree Ult Speed
                 if (this.transformActive) {
+                    currentSpeed *= this.stats.ultModifiers.speed; // Apply Skill Tree Ult Speed
                     if (this.currentForm === 'OCEAN') currentSpeed *= 2.0;
                     if (this.currentForm === 'IRON') currentSpeed *= 0.6;
+                }
+
+                // Dash Logic override
+                if (this.isDashing) {
+                    currentSpeed *= 4; // Dash speed burst
+                    this.dashFrames--;
+                    if (this.dashFrames <= 0) this.isDashing = false;
+
+                    // Create trail effect
+                    if (frame % 2 === 0) {
+                        particles.push(new Particle(this.x, this.y, this.stats.color));
+                    }
                 }
 
                 if (dx !== 0 || dy !== 0) {
@@ -1192,6 +1236,9 @@
 
                 // Transformation Overrides - Now applying multipliers ON TOP of base stats (which include skill tree)
                 if (this.transformActive) {
+                    // Apply Skill Tree Ult Damage
+                    dmg *= this.stats.ultModifiers.damage;
+
                     if (this.currentForm === 'BLACK ICE') {
                         // Devastating Ice Crystals (8-way)
                         for (let i = 0; i < 8; i++) shots.push(angle + (Math.PI / 4) * i);
@@ -1805,7 +1852,9 @@
             enemies.forEach((enemy, eIndex) => {
                 enemy.update(); enemy.draw();
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
-                if (dist - enemy.radius - player.radius < 0) {
+
+                // Invulnerable during Dash
+                if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
                     // Apply Damage Reduction
                     const dmgTaken = 1 * (1 - player.damageReduction);
                     player.hp -= dmgTaken;
