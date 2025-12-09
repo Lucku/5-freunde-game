@@ -960,12 +960,13 @@
         // --- Hero Specific Skill Trees ---
         function generateHeroSkillTree(type) {
             const tree = [];
+            // Specific weights for each hero identity
             const weights = {
-                fire: { DAMAGE: 0.35, SPEED: 0.15, COOLDOWN: 0.15, HEALTH: 0.15, ULT_DAMAGE: 0.2 },
-                water: { COOLDOWN: 0.35, SPEED: 0.25, HEALTH: 0.15, DAMAGE: 0.1, ULT_SPEED: 0.15 },
-                ice: { COOLDOWN: 0.25, HEALTH: 0.25, DAMAGE: 0.15, SPEED: 0.15, ULT_DAMAGE: 0.1, ULT_SPEED: 0.1 },
-                plant: { HEALTH: 0.4, DAMAGE: 0.15, SPEED: 0.15, COOLDOWN: 0.15, ULT_DAMAGE: 0.15 },
-                metal: { DAMAGE: 0.25, HEALTH: 0.35, COOLDOWN: 0.15, SPEED: 0.1, ULT_DAMAGE: 0.15 }
+                fire: { DAMAGE: 0.25, BLAST: 0.30, SPEED: 0.10, COOLDOWN: 0.15, HEALTH: 0.10, ULT_DAMAGE: 0.10 },
+                water: { COOLDOWN: 0.30, KNOCK: 0.30, SPEED: 0.20, HEALTH: 0.10, ULT_SPEED: 0.10 },
+                ice: { PIERCE: 0.30, COOLDOWN: 0.15, DAMAGE: 0.20, HEALTH: 0.15, ULT_DAMAGE: 0.10, ULT_SPEED: 0.10 },
+                plant: { SPLIT: 0.25, HEALTH: 0.30, DAMAGE: 0.10, COOLDOWN: 0.15, ULT_DAMAGE: 0.20 },
+                metal: { MELEE: 0.25, ARMOR: 0.30, HEALTH: 0.25, DAMAGE: 0.10, ULT_DAMAGE: 0.10 }
             };
 
             const w = weights[type];
@@ -974,6 +975,7 @@
                 const count = Math.floor(w[k] * 100);
                 for (let i = 0; i < count; i++) types.push(k);
             }
+            // Fill remaining with generic damage if rounding errors
             while (types.length < 100) types.push('DAMAGE');
 
             let seed = type.length;
@@ -988,6 +990,8 @@
 
                 let val = 0;
                 let desc = "";
+
+                // Generic
                 if (t === 'DAMAGE') { val = 0.02; desc = "+2% Damage"; }
                 if (t === 'HEALTH') { val = 0.02; desc = "+2% Max HP"; }
                 if (t === 'SPEED') { val = 0.01; desc = "+1% Move Speed"; }
@@ -995,8 +999,17 @@
                 if (t === 'ULT_DAMAGE') { val = 0.05; desc = "+5% Ult Dmg"; }
                 if (t === 'ULT_SPEED') { val = 0.05; desc = "+5% Ult Spd"; }
 
+                // Specific
+                if (t === 'BLAST') { val = 0.05; desc = "+5% Blast Radius"; }
+                if (t === 'KNOCK') { val = 0.05; desc = "+5% Knockback"; }
+                if (t === 'PIERCE') { val = 1; desc = "+1 Pierce Count"; }
+                if (t === 'SPLIT') { val = 1; desc = "+1 Proj / -20% Dmg"; }
+                if (t === 'ARMOR') { val = 0.01; desc = "+1% Dmg Reduction"; }
+                if (t === 'MELEE') { val = 0.05; desc = "+5% Melee Size"; }
+
                 if ((i + 1) % 10 === 0) {
-                    val *= 5;
+                    if (t === 'PIERCE' || t === 'SPLIT') val += 1; // +2 for major
+                    else val *= 5;
                     desc = "MAJOR: " + desc.replace('+', '+').replace('-', '-');
                 }
                 tree.push({ id: i, type: t, value: val, desc: desc });
@@ -1152,6 +1165,14 @@
 
             base.ultModifiers = { damage: 1, speed: 1 };
 
+            // New Stats Defaults
+            base.pierce = (type === 'ice') ? 2 : 0;
+            base.blastRadiusMult = 1;
+            base.knockbackMult = 1;
+            base.defense = 0;
+            base.extraProjectiles = 0;
+            base.meleeRadiusMult = 1;
+
             const prestigeMult = 1 + (heroData.prestige * 0.5);
             base.hp *= prestigeMult;
             base.rangeDmg *= prestigeMult;
@@ -1169,6 +1190,20 @@
                 }
                 if (node.type === 'ULT_DAMAGE') base.ultModifiers.damage += node.value;
                 if (node.type === 'ULT_SPEED') base.ultModifiers.speed += node.value;
+
+                // Specifics
+                if (node.type === 'BLAST') base.blastRadiusMult += node.value;
+                if (node.type === 'KNOCK') base.knockbackMult += node.value;
+                if (node.type === 'PIERCE') base.pierce += node.value;
+                if (node.type === 'SPLIT') {
+                    base.extraProjectiles += node.value;
+                    // Nerf damage for each split node taken (compounding 20% reduction)
+                    for (let k = 0; k < node.value; k++) {
+                        base.rangeDmg *= 0.8;
+                    }
+                }
+                if (node.type === 'ARMOR') base.defense += node.value;
+                if (node.type === 'MELEE') base.meleeRadiusMult += node.value;
             }
 
             // Apply Achievement Bonuses
@@ -1287,17 +1322,17 @@
                 this.rangeCooldown = 0;
                 this.meleeCooldown = 0;
                 this.meleeMaxCooldown = this.stats.meleeCd;
-                this.meleeRadius = 80;
+                this.meleeRadius = 80 * (this.stats.meleeRadiusMult || 1);
                 this.level = 1;
                 this.xp = 0;
                 this.maxXp = 100;
-                this.extraProjectiles = 0;
+                this.extraProjectiles = this.stats.extraProjectiles || 0;
                 this.buffs = { speed: 0, multi: 0, autoaim: 0 };
                 this.weapon = 'STANDARD';
                 this.weaponTimer = 0;
 
                 // New Stats
-                this.damageReduction = 0;
+                this.damageReduction = this.stats.defense || 0;
                 this.damageMultiplier = 1;
                 this.maskChance = 0.01;
                 this.speedMultiplier = 1;
@@ -1570,14 +1605,20 @@
                 let size = this.stats.projectileSize;
                 let cooldown = this.stats.rangeCd * this.cooldownMultiplier;
 
+                // Apply Blast Radius to size for Fire/Explosive
+                if (this.type === 'fire' || this.weapon === 'BAZOOKA') {
+                    size *= (this.stats.blastRadiusMult || 1);
+                }
+
                 // Combo Fire Rate Buff
                 if (this.combo > 10) cooldown *= 0.9;
                 if (this.combo > 25) cooldown *= 0.9;
                 if (this.combo > 50) cooldown *= 0.9;
 
                 let isExplosive = false;
-                let pierce = 0;
+                let pierce = this.stats.pierce || 0;
                 let color = this.stats.color;
+                let knockback = this.stats.knockback * (this.stats.knockbackMult || 1);
 
                 if (this.transformActive) {
                     dmg *= this.stats.ultModifiers.damage;
@@ -1585,6 +1626,7 @@
                     if (this.currentForm === 'BLACK ICE') {
                         for (let i = 0; i < 8; i++) shots.push(angle + (Math.PI / 4) * i);
                         dmg *= 1.5; color = '#000'; cooldown = 20 * this.cooldownMultiplier;
+                        pierce += 10; // Ult pierce
                     } else if (this.currentForm === 'LAVA') {
                         shots.push(angle + (Math.random() - 0.5) * 0.1);
                         cooldown = 3 * this.cooldownMultiplier; dmg *= 0.8; color = '#e67e22';
@@ -1619,7 +1661,7 @@
 
                 shots.forEach(a => {
                     const vel = { x: Math.cos(a) * speed, y: Math.sin(a) * speed };
-                    const proj = new Projectile(this.x, this.y, vel, dmg, color, size, this.type, this.stats.knockback, false, isExplosive);
+                    const proj = new Projectile(this.x, this.y, vel, dmg, color, size, this.type, knockback, false, isExplosive);
                     if (pierce > 0) proj.pierce = pierce;
                     projectiles.push(proj);
                     currentRunStats.missilesFired++; // Track Missiles
@@ -1628,7 +1670,9 @@
                         for (let i = 1; i <= this.extraProjectiles; i++) {
                             const offsetX = this.x - (vel.x * (i * 3));
                             const offsetY = this.y - (vel.y * (i * 3));
-                            projectiles.push(new Projectile(offsetX, offsetY, vel, dmg, this.stats.color, size, this.type, this.stats.knockback, false, false));
+                            const extraProj = new Projectile(offsetX, offsetY, vel, dmg, this.stats.color, size, this.type, knockback, false, false);
+                            if (pierce > 0) extraProj.pierce = pierce;
+                            projectiles.push(extraProj);
                             currentRunStats.missilesFired++; // Track Missiles
                         }
                     }
@@ -1702,6 +1746,7 @@
                 this.subType = forcedType;
                 if (!this.subType) {
                     const rand = Math.random();
+
                     if (wave > 5 && rand < 0.1) this.subType = 'BRUTE';
                     else if (wave > 3 && rand < 0.2) this.subType = 'SPEEDSTER';
                     else if (wave > 8 && rand < 0.25) this.subType = 'SUMMONER';
@@ -2273,7 +2318,7 @@
             document.getElementById('game-over-screen').style.display = 'flex';
             document.getElementById('finalScore').innerText = score;
 
-            cconst heroData = saveData[player.type];
+            const heroData = saveData[player.type];
             if (score > heroData.highScore) {
                 heroData.highScore = score;
                 document.getElementById('new-highscore-msg').style.display = 'block';
