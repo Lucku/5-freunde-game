@@ -684,6 +684,17 @@
             event.currentTarget.style.borderColor = 'white';
         }
 
+        function initMenu() {
+            document.getElementById('menu-overlay').style.display = 'flex';
+            document.getElementById('start-screen').style.display = 'flex';
+            document.getElementById('start-screen').style.flexDirection = 'column';
+            document.getElementById('start-screen').style.alignItems = 'center';
+            document.getElementById('game-over-screen').style.display = 'none';
+            document.getElementById('skill-tree-screen').style.display = 'none';
+            document.getElementById('pause-screen').style.display = 'none';
+            document.getElementById('levelup-screen').style.display = 'none';
+        }
+
         function openSkillTree() {
             document.getElementById('menu-overlay').style.display = 'none';
             document.getElementById('skill-tree-screen').style.display = 'flex';
@@ -692,8 +703,7 @@
 
         function closeSkillTree() {
             document.getElementById('skill-tree-screen').style.display = 'none';
-            document.getElementById('menu-overlay').style.display = 'flex';
-            document.getElementById('start-screen').style.display = 'flex';
+            initMenu(); // Reset to main menu state
         }
 
         function renderSkillTree() {
@@ -763,6 +773,7 @@
             metal: { color: '#95a5a6', hp: 100, speed: 3, rangeDmg: 40, meleeDmg: 150, rangeCd: 40, meleeCd: 180, projectileSpeed: 18, projectileSize: 8, knockback: 12 }
         };
 
+        // Added AUTOAIM to powerups
         const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI', 'AUTOAIM'];
         const WEAPON_TYPES = ['SCATTER', 'MINIGUN', 'BAZOOKA'];
         const BOSS_TYPES = ['TANK', 'SPEEDSTER', 'SUMMONER'];
@@ -843,7 +854,7 @@
         class Player {
             constructor(type) {
                 this.type = type;
-                this.stats = getHeroStats(type); // Load stats with skill tree
+                this.stats = getHeroStats(type);
                 this.x = canvas.width / 2;
                 this.y = canvas.height / 2;
                 this.radius = 20;
@@ -857,9 +868,9 @@
                 this.xp = 0;
                 this.maxXp = 100;
                 this.extraProjectiles = 0;
-                this.buffs = { speed: 0, multi: 0, autoaim: 0 };
+                this.buffs = { speed: 0, multi: 0, autoaim: 0 }; // Added autoaim
                 this.weapon = 'STANDARD';
-                this.weaponTimer = 0;
+                this.weaponTimer = 0; // Timer for boss weapons
             }
 
             gainXp(amount) {
@@ -882,10 +893,12 @@
                 if (this.buffs.multi > 0) this.buffs.multi--;
                 if (this.buffs.autoaim > 0) this.buffs.autoaim--;
 
+                // Weapon Timer Logic
                 if (this.weapon !== 'STANDARD') {
                     this.weaponTimer--;
                     if (this.weaponTimer <= 0) {
                         this.weapon = 'STANDARD';
+                        showNotification("WEAPON EXPIRED");
                     }
                 }
 
@@ -985,9 +998,9 @@
                     if (this.type === 'plant') { shots.push(angle - 0.2, angle, angle + 0.2); }
                     else { shots.push(angle); }
 
-                    // Multi Pickup -> Scatter
+                    // Multi Pickup -> Now Scatters
                     if (this.buffs.multi > 0) {
-                        shots.push(angle - 0.15, angle + 0.15);
+                        shots.push(angle - 0.25, angle + 0.25);
                     }
                 }
 
@@ -996,7 +1009,7 @@
                     projectiles.push(new Projectile(this.x, this.y, vel, dmg, this.stats.color, size, this.type, this.stats.knockback, false, isExplosive));
 
                     if (this.weapon === 'STANDARD') {
-                        // Extra Projectiles (Upgrade) -> Stream
+                        // Permanent Upgrades -> Stream (Straight shots)
                         for (let i = 1; i <= this.extraProjectiles; i++) {
                             const offsetX = this.x - (vel.x * (i * 3));
                             const offsetY = this.y - (vel.y * (i * 3));
@@ -1238,7 +1251,7 @@
                 else if (this.type === 'MAXHP') { color = '#e74c3c'; symbol = '♥'; }
                 else if (this.type === 'SPEED') { color = '#f1c40f'; symbol = '⚡'; }
                 else if (this.type === 'MULTI') { color = '#3498db'; symbol = '⁙'; }
-                else if (this.type === 'AUTOAIM') { color = '#9b59b6'; symbol = '🎯'; }
+                else if (this.type === 'AUTOAIM') { color = '#9b59b6'; symbol = '🎯'; } // Autoaim Icon
                 ctx.fillStyle = color; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
                 ctx.fillStyle = 'white'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText(symbol, 0, 1); ctx.restore();
@@ -1448,7 +1461,7 @@
                 const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
                 if (dist < player.radius + 20) {
                     player.weapon = drop.type;
-                    player.weaponTimer = 900; // 15 seconds
+                    player.weaponTimer = 900; // 15 Seconds (60fps * 15)
                     createExplosion(player.x, player.y, '#8e44ad');
                     weaponDrops.splice(index, 1);
                 }
@@ -1576,6 +1589,9 @@
                 gameOver();
             }
         }
+
+        // Initialize Menu on Load
+        initMenu();
     </script>
 </body>
 
