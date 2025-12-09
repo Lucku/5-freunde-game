@@ -47,6 +47,7 @@
             border: 2px solid #fff;
             border-radius: 10px;
             overflow: hidden;
+            position: relative;
         }
 
         #health-fill {
@@ -54,6 +55,37 @@
             height: 100%;
             background: #e74c3c;
             transition: width 0.2s;
+        }
+
+        #health-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            line-height: 20px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        #buff-container {
+            position: absolute;
+            bottom: 60px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .buff-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            box-shadow: 0 0 5px white;
         }
 
         /* Menu Styles */
@@ -75,9 +107,7 @@
 
         #pause-screen {
             display: none;
-            /* Hidden by default */
             background: rgba(0, 0, 0, 0.6);
-            /* Semi-transparent for pause */
             backdrop-filter: blur(5px);
         }
 
@@ -182,8 +212,10 @@
 
     <div id="ui-layer">
         <div id="score-board">Score: <span id="scoreVal">0</span> | Wave: <span id="waveVal">1</span></div>
+        <div id="buff-container"></div>
         <div id="health-bar-container">
             <div id="health-fill"></div>
+            <div id="health-text"></div>
         </div>
     </div>
 
@@ -210,7 +242,7 @@
                 <div class="hero-card" onclick="startGame('water')">
                     <div class="hero-icon" style="background: #3498db;"></div>
                     <div class="hero-name" style="color: #3498db">WATER</div>
-                    <div class="hero-desc">Rapid Fire<br>Pushback</div>
+                    <div class="hero-desc">Rapid Fire<br>High Pushback</div>
                 </div>
                 <!-- Ice -->
                 <div class="hero-card" onclick="startGame('ice')">
@@ -243,6 +275,7 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const buffContainer = document.getElementById('buff-container');
 
         // Resize canvas
         function resize() {
@@ -253,13 +286,16 @@
         resize();
 
         // --- Game Configuration ---
+        // Added 'knockback' property to stats
         const HERO_STATS = {
-            fire: { color: '#e74c3c', hp: 100, speed: 4, rangeDmg: 25, meleeDmg: 30, rangeCd: 15, meleeCd: 40, projectileSpeed: 12, projectileSize: 6 },
-            water: { color: '#3498db', hp: 100, speed: 4.5, rangeDmg: 12, meleeDmg: 20, rangeCd: 8, meleeCd: 30, projectileSpeed: 10, projectileSize: 5 },
-            ice: { color: '#ecf0f1', hp: 90, speed: 4, rangeDmg: 15, meleeDmg: 25, rangeCd: 25, meleeCd: 45, projectileSpeed: 15, projectileSize: 4 }, // Piercing
-            plant: { color: '#2ecc71', hp: 110, speed: 3.5, rangeDmg: 10, meleeDmg: 40, rangeCd: 30, meleeCd: 50, projectileSpeed: 9, projectileSize: 7 }, // Shotgun
-            metal: { color: '#95a5a6', hp: 180, speed: 3, rangeDmg: 40, meleeDmg: 60, rangeCd: 40, meleeCd: 60, projectileSpeed: 18, projectileSize: 8 }
+            fire: { color: '#e74c3c', hp: 100, speed: 4, rangeDmg: 25, meleeDmg: 30, rangeCd: 15, meleeCd: 40, projectileSpeed: 12, projectileSize: 6, knockback: 4 },
+            water: { color: '#3498db', hp: 100, speed: 4.5, rangeDmg: 12, meleeDmg: 20, rangeCd: 8, meleeCd: 30, projectileSpeed: 10, projectileSize: 5, knockback: 20 }, // High Knockback
+            ice: { color: '#ecf0f1', hp: 90, speed: 4, rangeDmg: 15, meleeDmg: 25, rangeCd: 25, meleeCd: 45, projectileSpeed: 15, projectileSize: 4, knockback: 2 },
+            plant: { color: '#2ecc71', hp: 110, speed: 3.5, rangeDmg: 10, meleeDmg: 40, rangeCd: 30, meleeCd: 50, projectileSpeed: 9, projectileSize: 7, knockback: 8 },
+            metal: { color: '#95a5a6', hp: 180, speed: 3, rangeDmg: 40, meleeDmg: 60, rangeCd: 40, meleeCd: 60, projectileSpeed: 18, projectileSize: 8, knockback: 12 }
         };
+
+        const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI'];
 
         // --- Game State ---
         let gameRunning = false;
@@ -273,6 +309,7 @@
         let enemies = [];
         let particles = [];
         let meleeAttacks = [];
+        let powerUps = [];
 
         // Input
         const keys = {};
@@ -321,9 +358,19 @@
                 this.hp = this.maxHp;
                 this.rangeCooldown = 0;
                 this.meleeCooldown = 0;
+
+                // Buffs
+                this.buffs = {
+                    speed: 0,
+                    multi: 0
+                };
             }
 
             update() {
+                // Handle Buff Timers
+                if (this.buffs.speed > 0) this.buffs.speed--;
+                if (this.buffs.multi > 0) this.buffs.multi--;
+
                 // Movement
                 let dx = 0;
                 let dy = 0;
@@ -332,11 +379,15 @@
                 if (keys['a'] || keys['arrowleft']) dx = -1;
                 if (keys['d'] || keys['arrowright']) dx = 1;
 
+                // Calculate Speed (Apply Buff)
+                let currentSpeed = this.stats.speed;
+                if (this.buffs.speed > 0) currentSpeed *= 1.5;
+
                 // Normalize vector
                 if (dx !== 0 || dy !== 0) {
                     const len = Math.sqrt(dx * dx + dy * dy);
-                    this.x += (dx / len) * this.stats.speed;
-                    this.y += (dy / len) * this.stats.speed;
+                    this.x += (dx / len) * currentSpeed;
+                    this.y += (dy / len) * currentSpeed;
                 }
 
                 // Boundaries
@@ -355,6 +406,22 @@
                 // Rotate towards mouse
                 const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
                 ctx.rotate(angle);
+
+                // Buff Aura
+                if (this.buffs.speed > 0) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 5, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#f1c40f';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                if (this.buffs.multi > 0) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 8, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#3498db';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
 
                 // Body (Armor)
                 ctx.fillStyle = this.stats.color;
@@ -384,17 +451,39 @@
 
                 const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
 
+                // Determine shot count based on buffs
+                let shots = [];
+
                 if (this.type === 'plant') {
-                    // Plant Shotgun: 3 pellets
-                    for (let i = -1; i <= 1; i++) {
-                        const spread = angle + (i * 0.2);
-                        const vel = { x: Math.cos(spread) * this.stats.projectileSpeed, y: Math.sin(spread) * this.stats.projectileSpeed };
-                        projectiles.push(new Projectile(this.x, this.y, vel, this.stats.rangeDmg, this.stats.color, this.stats.projectileSize, this.type));
-                    }
+                    // Plant Shotgun base
+                    shots.push(angle - 0.2, angle, angle + 0.2);
                 } else {
-                    const vel = { x: Math.cos(angle) * this.stats.projectileSpeed, y: Math.sin(angle) * this.stats.projectileSpeed };
-                    projectiles.push(new Projectile(this.x, this.y, vel, this.stats.rangeDmg, this.stats.color, this.stats.projectileSize, this.type));
+                    shots.push(angle);
                 }
+
+                // Apply Multishot Buff (Triples output roughly)
+                if (this.buffs.multi > 0) {
+                    let extraShots = [];
+                    shots.forEach(a => {
+                        extraShots.push(a - 0.15);
+                        extraShots.push(a + 0.15);
+                    });
+                    shots = shots.concat(extraShots);
+                }
+
+                shots.forEach(a => {
+                    const vel = { x: Math.cos(a) * this.stats.projectileSpeed, y: Math.sin(a) * this.stats.projectileSpeed };
+                    projectiles.push(new Projectile(
+                        this.x,
+                        this.y,
+                        vel,
+                        this.stats.rangeDmg,
+                        this.stats.color,
+                        this.stats.projectileSize,
+                        this.type,
+                        this.stats.knockback // Pass knockback
+                    ));
+                });
 
                 this.rangeCooldown = this.stats.rangeCd;
             }
@@ -409,7 +498,7 @@
         }
 
         class Projectile {
-            constructor(x, y, velocity, damage, color, radius, type) {
+            constructor(x, y, velocity, damage, color, radius, type, knockback) {
                 this.x = x;
                 this.y = y;
                 this.velocity = velocity;
@@ -417,6 +506,7 @@
                 this.color = color;
                 this.radius = radius;
                 this.type = type;
+                this.knockback = knockback;
                 this.pierce = (type === 'ice') ? 2 : 0; // Ice pierces 2 enemies
             }
 
@@ -532,6 +622,62 @@
             }
         }
 
+        class PowerUp {
+            constructor() {
+                this.x = Math.random() * (canvas.width - 100) + 50;
+                this.y = Math.random() * (canvas.height - 100) + 50;
+                this.type = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+                this.radius = 15;
+                this.timer = 600; // 10 seconds lifetime
+                this.oscillation = Math.random() * Math.PI;
+            }
+
+            update() {
+                this.timer--;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y + Math.sin(frame * 0.1 + this.oscillation) * 5);
+
+                // Glow
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = 'white';
+
+                if (this.type === 'HEAL') {
+                    ctx.fillStyle = '#2ecc71';
+                    ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(-8, -3, 16, 6);
+                    ctx.fillRect(-3, -8, 6, 16);
+                } else if (this.type === 'MAXHP') {
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('HP+', 0, 1);
+                } else if (this.type === 'SPEED') {
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.moveTo(-2, -8); ctx.lineTo(6, 0); ctx.lineTo(0, 0); ctx.lineTo(2, 8); ctx.lineTo(-6, 0); ctx.lineTo(0, 0);
+                    ctx.fill();
+                } else if (this.type === 'MULTI') {
+                    ctx.fillStyle = '#3498db';
+                    ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath(); ctx.arc(-5, -5, 3, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(5, -5, 3, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(0, 5, 3, 0, Math.PI * 2); ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
         class Particle {
             constructor(x, y, color) {
                 this.x = x;
@@ -626,6 +772,34 @@
             ctx.restore();
         }
 
+        function updateUI() {
+            document.getElementById('scoreVal').innerText = score;
+            document.getElementById('waveVal').innerText = Math.floor(score / 500) + 1;
+
+            const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
+            document.getElementById('health-fill').style.width = hpPercent + '%';
+            document.getElementById('health-text').innerText = Math.ceil(player.hp) + " / " + player.maxHp;
+
+            // Buff Icons
+            buffContainer.innerHTML = '';
+            if (player.buffs.speed > 0) {
+                const div = document.createElement('div');
+                div.className = 'buff-icon';
+                div.style.backgroundColor = '#f1c40f';
+                div.style.color = 'black';
+                div.innerText = '⚡';
+                buffContainer.appendChild(div);
+            }
+            if (player.buffs.multi > 0) {
+                const div = document.createElement('div');
+                div.className = 'buff-icon';
+                div.style.backgroundColor = '#3498db';
+                div.style.color = 'white';
+                div.innerText = '⁙';
+                buffContainer.appendChild(div);
+            }
+        }
+
         // --- Main Loop ---
 
         function startGame(heroType) {
@@ -636,6 +810,7 @@
             projectiles = [];
             particles = [];
             meleeAttacks = [];
+            powerUps = [];
             gameRunning = true;
             gamePaused = false;
 
@@ -677,11 +852,45 @@
                 enemies.push(new Enemy());
             }
 
+            // Spawn Powerups (Every ~10 seconds)
+            if (frame % 600 === 0) {
+                powerUps.push(new PowerUp());
+            }
+
             // --- Updates & Drawing ---
 
             // Player
             player.update();
             player.draw();
+
+            // Powerups
+            powerUps.forEach((pup, index) => {
+                pup.update();
+                pup.draw();
+
+                // Collision with Player
+                const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
+                if (dist < player.radius + pup.radius) {
+                    // Apply Effect
+                    if (pup.type === 'HEAL') {
+                        player.hp = Math.min(player.hp + 30, player.maxHp);
+                        createExplosion(player.x, player.y, '#2ecc71');
+                    } else if (pup.type === 'MAXHP') {
+                        player.maxHp += 20;
+                        player.hp += 20;
+                        createExplosion(player.x, player.y, '#e74c3c');
+                    } else if (pup.type === 'SPEED') {
+                        player.buffs.speed = 600; // 10s
+                        createExplosion(player.x, player.y, '#f1c40f');
+                    } else if (pup.type === 'MULTI') {
+                        player.buffs.multi = 600; // 10s
+                        createExplosion(player.x, player.y, '#3498db');
+                    }
+                    powerUps.splice(index, 1);
+                } else if (pup.timer <= 0) {
+                    powerUps.splice(index, 1);
+                }
+            });
 
             // Projectiles
             projectiles.forEach((proj, index) => {
@@ -738,10 +947,10 @@
                             projectiles.splice(pIndex, 1);
                         }
 
-                        // Knockback
+                        // Knockback (FIXED: Uses proj.knockback)
                         const angle = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);
-                        enemy.x += Math.cos(angle) * 5;
-                        enemy.y += Math.sin(angle) * 5;
+                        enemy.x += Math.cos(angle) * proj.knockback;
+                        enemy.y += Math.sin(angle) * proj.knockback;
                     }
                 });
 
@@ -782,11 +991,7 @@
             });
 
             // --- UI Updates ---
-            document.getElementById('scoreVal').innerText = score;
-            document.getElementById('waveVal').innerText = Math.floor(score / 500) + 1;
-
-            const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
-            document.getElementById('health-fill').style.width = hpPercent + '%';
+            updateUI();
 
             if (player.hp <= 0) {
                 gameOver();
