@@ -1,3 +1,14 @@
+const isElectron = typeof process !== 'undefined' && process.versions && process.versions.electron;
+let fs, path, saveFilePath;
+
+if (isElectron) {
+    fs = require('fs');
+    path = require('path');
+    // Use the path we set in index.js
+    saveFilePath = path.join(process.env.APP_SAVE_PATH, 'save_data.json');
+    console.log("Save File Location:", saveFilePath); // Useful for debugging
+}
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const buffContainer = document.getElementById('buff-container');
@@ -128,37 +139,56 @@ let currentRunStats = {
     maxCombo: 0
 };
 
-function loadSave() {
-    const stored = localStorage.getItem('freunde_save_data');
-    if (stored) {
+function saveGame() {
+    if (!saveData) return;
+
+    if (isElectron) {
         try {
-            const parsed = JSON.parse(stored);
-            for (let key in saveData) {
-                if (parsed[key]) {
-                    if (key === 'global') {
-                        saveData.global = { ...saveData.global, ...parsed.global };
-                        // Ensure new fields exist
-                        if (!saveData.global.totalBosses) saveData.global.totalBosses = 0;
-                        if (!saveData.global.totalDamage) saveData.global.totalDamage = 0;
-                        if (!saveData.global.maxCombo) saveData.global.maxCombo = 0;
-                    } else if (key === 'stats') {
-                        saveData.stats = { ...saveData.stats, ...parsed.stats };
-                    } else if (key === 'metaUpgrades') {
-                        saveData.metaUpgrades = { ...saveData.metaUpgrades, ...parsed.metaUpgrades };
-                    } else {
-                        saveData[key] = { ...saveData[key], ...parsed[key] };
-                    }
-                }
-            }
-            // Init meta if missing from old save
-            if (!saveData.metaUpgrades) saveData.metaUpgrades = { health: 0, greed: 0, power: 0, swift: 0 };
-        } catch (e) { console.error("Save file corrupted"); }
+            fs.writeFileSync(saveFilePath, JSON.stringify(saveData, null, 2)); // Pretty print for readability
+        } catch (e) {
+            console.error("Failed to save game to disk:", e);
+        }
+    } else {
+        // Fallback for Web Browser
+        localStorage.setItem('5FreundeSave', JSON.stringify(saveData));
     }
 }
 
-function saveGame() {
-    localStorage.setItem('freunde_save_data', JSON.stringify(saveData));
+function loadGame() {
+    let data = null;
+
+    if (isElectron) {
+        try {
+            if (fs.existsSync(saveFilePath)) {
+                const raw = fs.readFileSync(saveFilePath, 'utf8');
+                data = JSON.parse(raw);
+            }
+        } catch (e) {
+            console.error("Failed to load save file:", e);
+        }
+    } else {
+        // Fallback for Web Browser
+        const raw = localStorage.getItem('5FreundeSave');
+        if (raw) data = JSON.parse(raw);
+    }
+
+    if (data) {
+        // Merge loaded data with default structure to ensure new updates don't break old saves
+        saveData = { ...defaultSaveData, ...data, global: { ...defaultSaveData.global, ...data.global } };
+    } else {
+        saveData = JSON.parse(JSON.stringify(defaultSaveData));
+    }
 }
+
+// Ensure you call loadGame() at startup!
+loadGame();
+
+// OPTIONAL: Auto-save every 30 seconds
+setInterval(() => {
+    if (gameRunning && !gamePaused) {
+        saveGame();
+    }
+}, 30000);
 
 function exportSave() {
     const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
@@ -183,8 +213,6 @@ function importSave(input) {
     };
     reader.readAsText(file);
 }
-
-loadSave();
 
 // --- Hero Specific Skill Trees ---
 function generateHeroSkillTree(type) {
@@ -305,13 +333,15 @@ function getFocusables() {
     else if (uiState === 'GAMEOVER') screenId = 'game-over-screen';
     else if (uiState === 'ACHIEVEMENTS') screenId = 'achievements-screen';
     else if (uiState === 'HIGHSCORE') screenId = 'highscore-screen';
+    else if (uiState === 'SKILLTREE') screenId = 'skill-tree-screen';
 
     if (!screenId) return [];
     const screen = document.getElementById(screenId);
     if (!screen) return [];
 
     // Select all interactive elements
-    const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item'));
+    // REMOVED .achievement-row from here
+    const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item, .skill-node'));
     // Filter out hidden elements
     return elements.filter(el => el.offsetParent !== null);
 }
@@ -324,6 +354,12 @@ function updateUIHighlight() {
     document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
 
     if (focusables.length > 0) {
+        // Auto-select first available node in Skill Tree if at start
+        if (uiState === 'SKILLTREE' && uiSelectionIndex === 0) {
+            const firstAvailable = focusables.findIndex(el => el.classList.contains('available'));
+            if (firstAvailable !== -1) uiSelectionIndex = firstAvailable;
+        }
+
         // Clamp index
         if (uiSelectionIndex >= focusables.length) uiSelectionIndex = 0;
         if (uiSelectionIndex < 0) uiSelectionIndex = focusables.length - 1;
@@ -356,8 +392,38 @@ function handleGamepadMenu() {
 
     if (uiState === 'GAME') return;
 
+    // --- SCROLLING LOGIC (Right Stick) ---
+    if (uiState === 'ACHIEVEMENTS') {
+        const list = document.getElementById('achievements-list');
+        // Axis 3 is usually Right Stick Y
+        if (list && Math.abs(gp.axes[3]) > 0.1) {
+            list.scrollTop += gp.axes[3] * 15; // Scroll speed
+        }
+    } else if (uiState === 'SKILLTREE') {
+        const treeContainer = document.getElementById('skill-tree-container');
+        if (treeContainer && Math.abs(gp.axes[3]) > 0.1) {
+            treeContainer.scrollTop += gp.axes[3] * 15; // Scroll speed
+        }
+    }
+
+    // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
+    if (b && !lastGamepadState.b) {
+        if (uiState === 'PERMSHOP') closePermShop();
+        else if (uiState === 'SHOP') closeShop();
+        else if (uiState === 'PAUSE') togglePause();
+        else if (uiState === 'ACHIEVEMENTS') closeAchievements();
+        else if (uiState === 'HIGHSCORE') closeHighScores();
+        else if (uiState === 'SKILLTREE') closeSkillTree();
+        uiDebounce = 30;
+    }
+
     const focusables = getFocusables();
-    if (focusables.length === 0) return;
+
+    // If nothing to focus, just update state and return
+    if (focusables.length === 0) {
+        lastGamepadState = { a, b };
+        return;
+    }
 
     let moved = false;
 
@@ -374,7 +440,7 @@ function handleGamepadMenu() {
         if (uiSelectionIndex >= focusables.length) uiSelectionIndex = 0;
         if (uiSelectionIndex < 0) uiSelectionIndex = focusables.length - 1;
         updateUIHighlight();
-        uiDebounce = 15; // Increased from 10 to 15 (approx 0.25s at 60fps)
+        uiDebounce = 15;
     }
 
     // Select Action (A Button)
@@ -390,6 +456,7 @@ function handleGamepadMenu() {
         else if (uiState === 'PAUSE') togglePause();
         else if (uiState === 'ACHIEVEMENTS') closeAchievements();
         else if (uiState === 'HIGHSCORE') closeHighScores();
+        else if (uiState === 'SKILLTREE') closeSkillTree(); // Added SKILLTREE
         uiDebounce = 30; // Increased from 20 to 30
     }
 
@@ -467,6 +534,7 @@ function openSkillTree() {
     document.getElementById('menu-overlay').style.display = 'none';
     document.getElementById('skill-tree-screen').style.display = 'flex';
     renderSkillTree();
+    setUIState('SKILLTREE');
 }
 
 function closeSkillTree() {
@@ -493,6 +561,7 @@ function openAchievements() {
         `;
         list.appendChild(div);
     });
+    setUIState('ACHIEVEMENTS');
 }
 
 function closeAchievements() {
