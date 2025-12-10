@@ -35,48 +35,101 @@ const BOSS_TYPES = ['TANK', 'SPEEDSTER', 'SUMMONER', 'NOVA', 'RHINO', 'HYDRA'];
 const ENEMIES_PER_WAVE = 30;
 const SKILL_TREE_SIZE = 100;
 
-const ACHIEVEMENTS = [
-    // Kills
-    { id: 'kill_100', title: 'Novice Slayer', desc: 'Kill 100 enemies total.', req: 100, stat: 'totalKills', bonus: { type: 'damage', val: 0.01, text: '+1% Damage' } },
-    { id: 'kill_500', title: 'Adept Slayer', desc: 'Kill 500 enemies total.', req: 500, stat: 'totalKills', bonus: { type: 'damage', val: 0.01, text: '+1% Damage' } },
-    { id: 'kill_1000', title: 'Master Slayer', desc: 'Kill 1000 enemies total.', req: 1000, stat: 'totalKills', bonus: { type: 'damage', val: 0.01, text: '+1% Damage' } },
-    { id: 'kill_5000', title: 'Genocide', desc: 'Kill 5000 enemies total.', req: 5000, stat: 'totalKills', bonus: { type: 'damage', val: 0.02, text: '+2% Damage' } },
-    { id: 'kill_10000', title: 'Extinction', desc: 'Kill 10000 enemies total.', req: 10000, stat: 'totalKills', bonus: { type: 'damage', val: 0.02, text: '+2% Damage' } },
-    { id: 'kill_50000', title: 'Apocalypse', desc: 'Kill 50000 enemies total.', req: 50000, stat: 'totalKills', bonus: { type: 'damage', val: 0.05, text: '+5% Damage' } },
+const defaultSaveData = {
+    fire: { level: 0, unlocked: 1, highScore: 0, prestige: 0 },
+    water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
+    ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
+    plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
+    metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
+    global: {
+        totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0,
+        totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0,
+        totalVoidGoldSpent: 0, unlockedAchievements: []
+    },
+    metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
+    stats: {}
+};
 
-    // Gold
-    { id: 'gold_1000', title: 'Pocket Change', desc: 'Collect 1000 Gold total.', req: 1000, stat: 'totalGold', bonus: { type: 'gold', val: 0.05, text: '+5% Gold' } },
-    { id: 'gold_5000', title: 'Piggy Bank', desc: 'Collect 5000 Gold total.', req: 5000, stat: 'totalGold', bonus: { type: 'gold', val: 0.05, text: '+5% Gold' } },
-    { id: 'gold_10000', title: 'Merchant', desc: 'Collect 10000 Gold total.', req: 10000, stat: 'totalGold', bonus: { type: 'gold', val: 0.05, text: '+5% Gold' } },
-    { id: 'gold_50000', title: 'Treasurer', desc: 'Collect 50000 Gold total.', req: 50000, stat: 'totalGold', bonus: { type: 'gold', val: 0.1, text: '+10% Gold' } },
-    { id: 'gold_100000', title: 'Tycoon', desc: 'Collect 100000 Gold total.', req: 100000, stat: 'totalGold', bonus: { type: 'gold', val: 0.1, text: '+10% Gold' } },
-    { id: 'gold_1000000', title: 'Dragon Hoard', desc: 'Collect 1000000 Gold total.', req: 1000000, stat: 'totalGold', bonus: { type: 'gold', val: 0.2, text: '+20% Gold' } },
+// --- ACHIEVEMENTS GENERATOR ---
+const ACHIEVEMENTS = [];
 
-    // Waves
-    { id: 'wave_10', title: 'Survivor', desc: 'Reach Wave 10.', req: 10, stat: 'maxWave', bonus: { type: 'health', val: 0.05, text: '+5% HP' } },
-    { id: 'wave_20', title: 'Veteran', desc: 'Reach Wave 20.', req: 20, stat: 'maxWave', bonus: { type: 'health', val: 0.05, text: '+5% HP' } },
-    { id: 'wave_30', title: 'Elite', desc: 'Reach Wave 30.', req: 30, stat: 'maxWave', bonus: { type: 'health', val: 0.05, text: '+5% HP' } },
-    { id: 'wave_40', title: 'Champion', desc: 'Reach Wave 40.', req: 40, stat: 'maxWave', bonus: { type: 'health', val: 0.1, text: '+10% HP' } },
-    { id: 'wave_50', title: 'Legend', desc: 'Reach Wave 50.', req: 50, stat: 'maxWave', bonus: { type: 'health', val: 0.1, text: '+10% HP' } },
-
-    // Bosses
-    { id: 'boss_5', title: 'Boss Killer', desc: 'Kill 5 Bosses total.', req: 5, stat: 'totalBosses', bonus: { type: 'damage', val: 0.02, text: '+2% Dmg' } },
-    { id: 'boss_10', title: 'Giant Slayer', desc: 'Kill 10 Bosses total.', req: 10, stat: 'totalBosses', bonus: { type: 'damage', val: 0.02, text: '+2% Dmg' } },
-    { id: 'boss_25', title: 'Titan Hunter', desc: 'Kill 25 Bosses total.', req: 25, stat: 'totalBosses', bonus: { type: 'damage', val: 0.03, text: '+3% Dmg' } },
-    { id: 'boss_50', title: 'God Slayer', desc: 'Kill 50 Bosses total.', req: 50, stat: 'totalBosses', bonus: { type: 'damage', val: 0.05, text: '+5% Dmg' } },
-
-    // Damage
-    { id: 'dmg_10k', title: 'Ouch', desc: 'Deal 10k Damage total.', req: 10000, stat: 'totalDamage', bonus: { type: 'damage', val: 0.01, text: '+1% Dmg' } },
-    { id: 'dmg_100k', title: 'Hurts', desc: 'Deal 100k Damage total.', req: 100000, stat: 'totalDamage', bonus: { type: 'damage', val: 0.01, text: '+1% Dmg' } },
-    { id: 'dmg_1m', title: 'Pain', desc: 'Deal 1M Damage total.', req: 1000000, stat: 'totalDamage', bonus: { type: 'damage', val: 0.02, text: '+2% Dmg' } },
-    { id: 'dmg_10m', title: 'Agony', desc: 'Deal 10M Damage total.', req: 10000000, stat: 'totalDamage', bonus: { type: 'damage', val: 0.02, text: '+2% Dmg' } },
-    { id: 'dmg_100m', title: 'Destruction', desc: 'Deal 100M Damage total.', req: 100000000, stat: 'totalDamage', bonus: { type: 'damage', val: 0.05, text: '+5% Dmg' } }
-];
-
-// Generate Combo Achievements
-for (let i = 1; i <= 25; i++) {
-    ACHIEVEMENTS.push({ id: `combo_${i * 50}`, title: `Combo Master ${i}`, desc: `Reach ${i * 50} Max Combo ever.`, req: i * 50, stat: 'maxCombo', bonus: { type: 'gold', val: 0.01, text: '+1% Gold' } });
+function addAch(id, title, desc, req, stat, type, val, text) {
+    ACHIEVEMENTS.push({ id, title, desc, req, stat, bonus: { type, val, text } });
 }
+
+// 1. Kills (Total)
+const killTiers = [
+    [100, 'Novice Slayer', 0.01], [500, 'Adept Slayer', 0.01], [1000, 'Master Slayer', 0.01],
+    [5000, 'Genocide', 0.02], [10000, 'Extinction', 0.02], [50000, 'Apocalypse', 0.05],
+    [100000, 'Cataclysm', 0.05], [250000, 'Oblivion', 0.05], [500000, 'Entropy', 0.10], [1000000, 'Death Incarnate', 0.10]
+];
+killTiers.forEach(t => addAch(`kill_${t[0]}`, t[1], `Kill ${t[0]} enemies.`, t[0], 'totalKills', 'damage', t[2], `+${(t[2] * 100).toFixed(0)}% Dmg`));
+
+// 2. Gold (Total)
+const goldTiers = [
+    [1000, 'Pocket Change', 0.05], [5000, 'Piggy Bank', 0.05], [10000, 'Merchant', 0.05],
+    [50000, 'Treasurer', 0.10], [100000, 'Tycoon', 0.10], [500000, 'Baron', 0.10],
+    [1000000, 'Dragon Hoard', 0.20], [5000000, 'Midas Touch', 0.20], [10000000, 'Economy', 0.25], [100000000, 'Infinite Wealth', 0.50]
+];
+goldTiers.forEach(t => addAch(`gold_${t[0]}`, t[1], `Collect ${t[0]} Gold.`, t[0], 'totalGold', 'gold', t[2], `+${(t[2] * 100).toFixed(0)}% Gold`));
+
+// 3. Waves (Max Reached)
+const waveTiers = [
+    [10, 'Survivor', 0.05], [20, 'Veteran', 0.05], [30, 'Elite', 0.05], [40, 'Champion', 0.10], [50, 'Legend', 0.10],
+    [60, 'Mythic', 0.10], [70, 'Immortal', 0.15], [80, 'Divine', 0.15], [90, 'Eternal', 0.20], [100, 'The End', 0.25]
+];
+waveTiers.forEach(t => addAch(`wave_${t[0]}`, t[1], `Reach Wave ${t[0]}.`, t[0], 'maxWave', 'health', t[2], `+${(t[2] * 100).toFixed(0)}% HP`));
+
+// 4. Bosses (Total)
+const bossTiers = [
+    [5, 'Boss Killer', 0.02], [10, 'Giant Slayer', 0.02], [25, 'Titan Hunter', 0.03], [50, 'God Slayer', 0.05],
+    [100, 'Kingslayer', 0.05], [250, 'Regicide', 0.05], [500, 'Deicide', 0.10], [1000, 'Pantheon Fall', 0.10]
+];
+bossTiers.forEach(t => addAch(`boss_${t[0]}`, t[1], `Kill ${t[0]} Bosses.`, t[0], 'totalBosses', 'damage', t[2], `+${(t[2] * 100).toFixed(0)}% Dmg`));
+
+// 5. Damage Dealt (Total)
+const dmgTiers = [
+    [10000, 'Ouch', 0.01], [100000, 'Hurts', 0.01], [1000000, 'Pain', 0.02], [10000000, 'Agony', 0.02],
+    [100000000, 'Destruction', 0.05], [500000000, 'Devastation', 0.05], [1000000000, 'Annihilation', 0.10]
+];
+dmgTiers.forEach(t => addAch(`dmg_${t[0]}`, t[1], `Deal ${t[0]} Damage.`, t[0], 'totalDamage', 'damage', t[2], `+${(t[2] * 100).toFixed(0)}% Dmg`));
+
+// 6. Combo (Max) - 50 Levels
+for (let i = 1; i <= 50; i++) {
+    addAch(`combo_${i * 50}`, `Combo Master ${i}`, `Reach ${i * 50} Combo.`, i * 50, 'maxCombo', 'gold', 0.01, '+1% Gold');
+}
+
+// 7. Games Played (Total)
+const gameTiers = [
+    [1, 'First Step', 0.01], [10, 'Regular', 0.01], [50, 'Addict', 0.02], [100, 'Dedicated', 0.02],
+    [250, 'Veteran Player', 0.05], [500, 'No Life', 0.05], [1000, 'Time Traveler', 0.10]
+];
+gameTiers.forEach(t => addAch(`games_${t[0]}`, t[1], `Play ${t[0]} Games.`, t[0], 'totalGames', 'speed', t[2], `+${(t[2] * 100).toFixed(0)}% Speed`));
+
+// 8. Deaths (Total)
+const deathTiers = [
+    [1, 'Oof', 0.01], [10, 'Try Again', 0.01], [50, 'Determination', 0.02], [100, 'Undying Will', 0.05]
+];
+deathTiers.forEach(t => addAch(`death_${t[0]}`, t[1], `Die ${t[0]} times.`, t[0], 'totalDeaths', 'health', t[2], `+${(t[2] * 100).toFixed(0)}% HP`));
+
+// 9. Skill Tree Progress (Total Unlocked Nodes across all heroes)
+const skillTiers = [
+    [10, 'Student', 0.01], [50, 'Learner', 0.01], [100, 'Scholar', 0.02], [200, 'Professor', 0.02],
+    [300, 'Sage', 0.05], [400, 'Archmage', 0.05], [500, 'Omniscient', 0.10]
+];
+skillTiers.forEach(t => addAch(`skill_${t[0]}`, t[1], `Unlock ${t[0]} Skill Nodes.`, t[0], 'calculated_skills', 'cooldown', t[2], `-${(t[2] * 100).toFixed(0)}% CD`));
+
+// 10. Prestige Levels (Total Prestige across all heroes)
+const prestigeTiers = [
+    [1, 'Ascension', 0.02], [5, 'High Ascendant', 0.02], [10, 'Demigod', 0.05], [20, 'Godhood', 0.05], [50, 'Beyond', 0.10]
+];
+prestigeTiers.forEach(t => addAch(`prestige_${t[0]}`, t[1], `Earn ${t[0]} Prestige Levels.`, t[0], 'calculated_prestige', 'damage', t[2], `+${(t[2] * 100).toFixed(0)}% Dmg`));
+
+// 11. Void Shop Spending (Total Gold Spent in Void Shop)
+const voidTiers = [
+    [1000, 'Void Walker', 0.01], [10000, 'Void Trader', 0.02], [100000, 'Void Investor', 0.05], [1000000, 'Void Lord', 0.10]
+];
+voidTiers.forEach(t => addAch(`void_${t[0]}`, t[1], `Spend ${t[0]} Gold in Void Shop.`, t[0], 'totalVoidGoldSpent', 'damage', t[2], `+${(t[2] * 100).toFixed(0)}% Dmg`));
 
 const WEATHER_TYPES = [
     { id: 'BLIZZARD', name: 'BLIZZARD', color: 'rgba(200, 230, 255, 0.3)', duration: 600 },
@@ -109,7 +162,7 @@ let saveData = {
     ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
-    global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, unlockedAchievements: [] },
+    global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0, totalVoidGoldSpent: 0, unlockedAchievements: [] },
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
     stats: {
         missilesFired: 0,
@@ -179,16 +232,6 @@ function loadGame() {
         saveData = JSON.parse(JSON.stringify(defaultSaveData));
     }
 }
-
-// Ensure you call loadGame() at startup!
-loadGame();
-
-// OPTIONAL: Auto-save every 30 seconds
-setInterval(() => {
-    if (gameRunning && !gamePaused) {
-        saveGame();
-    }
-}, 30000);
 
 function exportSave() {
     const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
@@ -517,9 +560,16 @@ function buyPermUpgrade(key, cost) {
     if (saveData.global.totalGold >= cost) {
         saveData.global.totalGold -= cost;
         saveData.metaUpgrades[key]++;
+
+        // Track Void Spending
+        saveData.global.totalVoidGoldSpent = (saveData.global.totalVoidGoldSpent || 0) + cost;
+
         saveGame();
         renderPermShop();
         showNotification("Upgrade Purchased!");
+
+        // Check for Void Shop achievements
+        checkAchievements();
     } else {
         showNotification("Not enough Total Gold!");
     }
@@ -760,6 +810,18 @@ function getHeroStats(type) {
         if (ach) {
             if (ach.bonus.type === 'damage') { base.rangeDmg *= (1 + ach.bonus.val); base.breakdown.damage.ach += ach.bonus.val; }
             if (ach.bonus.type === 'health') { base.hp *= (1 + ach.bonus.val); base.breakdown.health.ach += ach.bonus.val; }
+            if (ach.bonus.type === 'gold') { base.goldMultiplier += ach.bonus.val; } // Note: Gold isn't in breakdown yet, but works
+
+            // NEW TYPES
+            if (ach.bonus.type === 'speed') {
+                base.speed *= (1 + ach.bonus.val);
+                base.breakdown.speed.ach += ach.bonus.val;
+            }
+            if (ach.bonus.type === 'cooldown') {
+                base.rangeCd *= (1 - ach.bonus.val);
+                base.meleeCd *= (1 - ach.bonus.val);
+                base.breakdown.cooldown.ach += ach.bonus.val;
+            }
         }
     });
 
@@ -1713,15 +1775,28 @@ function checkAchievements() {
     if (wave > saveData.global.maxWave) saveData.global.maxWave = wave;
     if (currentRunStats.maxCombo > (saveData.global.maxCombo || 0)) saveData.global.maxCombo = currentRunStats.maxCombo;
 
+    // Calculate Dynamic Stats
+    const totalSkills = ['fire', 'water', 'ice', 'plant', 'metal'].reduce((acc, h) => acc + (saveData[h].unlocked || 0), 0);
+    const totalPrestige = ['fire', 'water', 'ice', 'plant', 'metal'].reduce((acc, h) => acc + (saveData[h].prestige || 0), 0);
+
     ACHIEVEMENTS.forEach(ach => {
         if (!saveData.global.unlockedAchievements.includes(ach.id)) {
             let unlocked = false;
+
+            // Direct Global Stats
             if (ach.stat === 'totalKills' && saveData.global.totalKills >= ach.req) unlocked = true;
             if (ach.stat === 'maxWave' && saveData.global.maxWave >= ach.req) unlocked = true;
             if (ach.stat === 'totalGold' && saveData.global.totalGold >= ach.req) unlocked = true;
             if (ach.stat === 'totalBosses' && saveData.global.totalBosses >= ach.req) unlocked = true;
             if (ach.stat === 'totalDamage' && saveData.global.totalDamage >= ach.req) unlocked = true;
             if (ach.stat === 'maxCombo' && saveData.global.maxCombo >= ach.req) unlocked = true;
+            if (ach.stat === 'totalGames' && (saveData.global.totalGames || 0) >= ach.req) unlocked = true;
+            if (ach.stat === 'totalDeaths' && (saveData.global.totalDeaths || 0) >= ach.req) unlocked = true;
+            if (ach.stat === 'totalVoidGoldSpent' && (saveData.global.totalVoidGoldSpent || 0) >= ach.req) unlocked = true;
+
+            // Calculated Stats
+            if (ach.stat === 'calculated_skills' && totalSkills >= ach.req) unlocked = true;
+            if (ach.stat === 'calculated_prestige' && totalPrestige >= ach.req) unlocked = true;
 
             if (unlocked) {
                 saveData.global.unlockedAchievements.push(ach.id);
@@ -1783,6 +1858,14 @@ function startGame() {
 
 function gameOver() {
     gameRunning = false;
+
+    // Track Games and Deaths
+    saveData.global.totalGames = (saveData.global.totalGames || 0) + 1;
+    saveData.global.totalDeaths = (saveData.global.totalDeaths || 0) + 1;
+
+    // Check achievements immediately to catch "Death" and "Games Played" achievements
+    checkAchievements();
+
     document.getElementById('menu-overlay').style.display = 'flex';
     document.getElementById('game-over-screen').style.display = 'flex';
     document.getElementById('finalScore').innerText = score;
@@ -2240,6 +2323,16 @@ function masterLoop(timestamp) {
     }
 }
 
+// Ensure you call loadGame() at startup!
+loadGame();
+
 // Initialize Menu on Load
 initMenu();
 masterLoop();
+
+// OPTIONAL: Auto-save every 30 seconds
+setInterval(() => {
+    if (gameRunning && !gamePaused) {
+        saveGame();
+    }
+}, 30000);
