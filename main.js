@@ -85,6 +85,13 @@ const UPGRADE_POOL = [
     { id: 'crit', title: 'Lethality', desc: '+5% Crit Chance & +20% Crit Damage.', icon: '🎯' } // New Upgrade
 ];
 
+const PERM_UPGRADES = {
+    health: { name: "Void Heart", desc: "+5 Starting HP", baseCost: 1000, costMult: 1.2 },
+    greed: { name: "Void Coin", desc: "+5% Gold Gain", baseCost: 2000, costMult: 1.3 },
+    power: { name: "Void Strength", desc: "+1% Damage", baseCost: 5000, costMult: 1.4 },
+    swift: { name: "Void Step", desc: "+1% Speed", baseCost: 3000, costMult: 1.3 }
+};
+
 let saveData = {
     fire: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
@@ -92,6 +99,7 @@ let saveData = {
     plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, unlockedAchievements: [] },
+    metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
     stats: {
         missilesFired: 0,
         timeSurvived: 0,
@@ -135,11 +143,15 @@ function loadSave() {
                         if (!saveData.global.maxCombo) saveData.global.maxCombo = 0;
                     } else if (key === 'stats') {
                         saveData.stats = { ...saveData.stats, ...parsed.stats };
+                    } else if (key === 'metaUpgrades') {
+                        saveData.metaUpgrades = { ...saveData.metaUpgrades, ...parsed.metaUpgrades };
                     } else {
                         saveData[key] = { ...saveData[key], ...parsed[key] };
                     }
                 }
             }
+            // Init meta if missing from old save
+            if (!saveData.metaUpgrades) saveData.metaUpgrades = { health: 0, greed: 0, power: 0, swift: 0 };
         } catch (e) { console.error("Save file corrupted"); }
     }
 }
@@ -278,9 +290,57 @@ function initMenu() {
     document.getElementById('pause-screen').style.display = 'none';
     document.getElementById('levelup-screen').style.display = 'none';
     document.getElementById('shop-screen').style.display = 'none';
+    document.getElementById('perm-shop-screen').style.display = 'none'; // Hide perm shop
     document.getElementById('achievements-screen').style.display = 'none';
     document.getElementById('highscore-screen').style.display = 'none'; /* Hide highscore screen */
     renderHeroSelect();
+}
+
+// --- Permanent Shop Logic ---
+function openPermShop() {
+    document.getElementById('menu-overlay').style.display = 'none';
+    document.getElementById('perm-shop-screen').style.display = 'flex';
+    renderPermShop();
+}
+
+function renderPermShop() {
+    document.getElementById('permGoldVal').innerText = saveData.global.totalGold;
+    const container = document.getElementById('perm-shop-container');
+    container.innerHTML = '';
+
+    for (let key in PERM_UPGRADES) {
+        const up = PERM_UPGRADES[key];
+        const level = saveData.metaUpgrades[key] || 0;
+        const cost = Math.floor(up.baseCost * Math.pow(up.costMult, level));
+
+        const div = document.createElement('div');
+        div.className = 'shop-item';
+        div.innerHTML = `
+            <div style="font-size: 20px; font-weight: bold; color: #9b59b6;">${up.name}</div>
+            <div style="color: #aaa; margin: 5px 0;">${up.desc}</div>
+            <div style="color: #fff;">Level: ${level}</div>
+            <div class="shop-cost">${cost} Total Gold</div>
+        `;
+        div.onclick = () => buyPermUpgrade(key, cost);
+        container.appendChild(div);
+    }
+}
+
+function buyPermUpgrade(key, cost) {
+    if (saveData.global.totalGold >= cost) {
+        saveData.global.totalGold -= cost;
+        saveData.metaUpgrades[key]++;
+        saveGame();
+        renderPermShop();
+        showNotification("Upgrade Purchased!");
+    } else {
+        showNotification("Not enough Total Gold!");
+    }
+}
+
+function closePermShop() {
+    document.getElementById('perm-shop-screen').style.display = 'none';
+    initMenu();
 }
 
 function openSkillTree() {
@@ -430,6 +490,12 @@ function getHeroStats(type) {
     const treeData = generateHeroSkillTree(type);
 
     base.ultModifiers = { damage: 1, speed: 1 };
+
+    // Apply Meta Upgrades (Permanent Shop)
+    base.hp += (saveData.metaUpgrades.health || 0) * 5;
+    base.rangeDmg *= (1 + (saveData.metaUpgrades.power || 0) * 0.01);
+    base.meleeDmg *= (1 + (saveData.metaUpgrades.power || 0) * 0.01);
+    base.speed *= (1 + (saveData.metaUpgrades.swift || 0) * 0.01);
 
     // Breakdown tracking
     base.breakdown = {
@@ -691,6 +757,7 @@ class Player {
         this.buffs = { speed: 0, multi: 0, autoaim: 0 };
         this.weapon = 'STANDARD';
         this.weaponTimer = 0;
+        this.weaponTier = 1; // Weapon Tier System
 
         // New Stats
         this.damageReduction = this.stats.defense || 0;
@@ -700,6 +767,9 @@ class Player {
         this.cooldownMultiplier = 1;
         this.gold = 0;
         this.goldMultiplier = 1;
+
+        // Apply Meta Greed
+        this.goldMultiplier += (saveData.metaUpgrades.greed || 0) * 0.05;
 
         // Crit Stats
         this.critChance = 0.05; // 5% base
@@ -1137,6 +1207,13 @@ class Player {
         let dmg = this.stats.rangeDmg * this.damageMultiplier;
         let size = this.stats.projectileSize;
         let cooldown = this.stats.rangeCd * this.cooldownMultiplier;
+
+        // Apply Weapon Tier Bonuses
+        if (this.weapon !== 'STANDARD') {
+            const tierMult = 1 + (this.weaponTier - 1) * 0.25; // +25% damage per tier
+            dmg *= tierMult;
+            size *= (1 + (this.weaponTier - 1) * 0.1); // +10% size per tier
+        }
 
         // Crit Calculation per shot batch (or per projectile)
         // We'll calculate it per projectile in the loop for variety
@@ -1724,7 +1801,12 @@ function updateUI() {
     document.getElementById('scoreVal').innerText = score;
     document.getElementById('waveVal').innerText = wave;
     document.getElementById('goldVal').innerText = player.gold;
-    document.getElementById('weapon-display').innerText = player.weapon;
+
+    let weaponText = player.weapon;
+    if (player.weapon !== 'STANDARD') {
+        weaponText += ` (LVL ${player.weaponTier})`;
+    }
+    document.getElementById('weapon-display').innerText = weaponText;
 
     // Update Special Ability UI
     const specialPercent = Math.max(0, (player.specialCooldown / player.specialMaxCooldown) * 100);
@@ -2124,8 +2206,16 @@ function animate() {
         drop.draw();
         const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
         if (dist < player.radius + 20) {
-            player.weapon = drop.type;
-            player.weaponTimer = 900;
+            if (player.weapon === drop.type) {
+                player.weaponTier++;
+                player.weaponTimer = 900;
+                showNotification(`WEAPON UPGRADED! (LVL ${player.weaponTier})`);
+            } else {
+                player.weapon = drop.type;
+                player.weaponTier = 1;
+                player.weaponTimer = 900;
+                showNotification(`WEAPON EQUIPPED!`);
+            }
             createExplosion(player.x, player.y, '#8e44ad');
             weaponDrops.splice(index, 1);
         }

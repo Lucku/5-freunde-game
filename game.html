@@ -91,6 +91,16 @@
         <button class="btn" onclick="closeShop()" style="margin-top: 30px;">Next Wave</button>
     </div>
 
+    <!-- Permanent Shop Screen (Void Shop) -->
+    <div id="perm-shop-screen">
+        <h1 style="color: #9b59b6;">VOID MERCHANT</h1>
+        <h2 style="margin-bottom: 20px;">Spend Total Gold (Available: <span id="permGoldVal">0</span>)</h2>
+        <div class="shop-grid" id="perm-shop-container">
+            <!-- Generated via JS -->
+        </div>
+        <button class="btn" onclick="closePermShop()" style="margin-top: 30px;">Back to Menu</button>
+    </div>
+
     <!-- Achievements Screen -->
     <div id="achievements-screen">
         <h1>ACHIEVEMENTS</h1>
@@ -155,6 +165,12 @@
                 <button class="btn btn-gold" onclick="openHighScores()"
                     style="font-size: 14px; padding: 10px 20px;">High Scores</button>
             </div>
+            <!-- New Button for Void Shop -->
+            <div style="margin-top: 10px;">
+                <button class="btn" style="background: #9b59b6; color: white; font-size: 14px; padding: 10px 20px;"
+                    onclick="openPermShop()">Void Shop</button>
+            </div>
+
             <div style="margin-top: 20px;">
                 <button class="btn btn-blue" style="font-size: 14px; padding: 10px 20px;" onclick="exportSave()">Export
                     Save</button>

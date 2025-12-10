@@ -268,6 +268,8 @@ canvas {
 #levelup-screen,
 #skill-tree-screen,
 #shop-screen,
+#perm-shop-screen,
+/* Added perm-shop-screen */
 #achievements-screen,
 #highscore-screen {
     position: absolute;
@@ -286,7 +288,9 @@ canvas {
 
 #pause-screen,
 #levelup-screen,
-#shop-screen {
+#shop-screen,
+#perm-shop-screen {
+    /* Added perm-shop-screen */
     display: none;
     background: rgba(0, 0, 0, 0.85);
     backdrop-filter: blur(5px);
