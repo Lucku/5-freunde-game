@@ -1647,357 +1647,375 @@ function gameOver() {
     setUIState('GAMEOVER');
 }
 
-function masterLoop() {
+// --- Fixed Time Step Loop ---
+let lastTime = 0;
+const FPS = 60;
+const frameDelay = 1000 / FPS;
+
+function masterLoop(timestamp) {
+
     requestAnimationFrame(masterLoop);
 
-    // Always handle UI input
-    handleGamepadMenu();
+    // Ensure timestamp is valid (for the first manual call)
+    if (!timestamp) timestamp = performance.now();
 
-    if (gameRunning && !gamePaused && !isLevelingUp && !isShopping) {
+    if (!lastTime) lastTime = timestamp;
+    const deltaTime = timestamp - lastTime;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawArena();
-        frame++;
+    // Only run logic if enough time has passed (cap at 60 FPS)
+    if (deltaTime >= frameDelay) {
+        // Adjust lastTime to account for the extra time (smooths out the jitter)
+        lastTime = timestamp - (deltaTime % frameDelay);
 
-        // Weather Logic
-        if (currentWeather) {
-            weatherDuration--;
-            if (weatherDuration <= 0) {
-                currentWeather = null;
-                document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
-                document.getElementById('weather-display').style.display = 'none';
-                weatherTimer = 3600 + Math.random() * 2400; // 1-1.5 minutes break
-            } else {
-                // Weather Effects
-                if (currentWeather.id === 'HEATWAVE' && frame % 60 === 0) {
-                    player.hp -= 1;
-                    currentRunStats.damageTaken += 1; // Track Damage
-                    enemies.forEach(e => e.hp -= 1);
-                }
-                if (currentWeather.id === 'MAGNETIC') {
-                    enemies.forEach(e1 => {
-                        enemies.forEach(e2 => {
-                            if (e1 !== e2) {
-                                const d = Math.hypot(e1.x - e2.x, e1.y - e2.y);
-                                if (d < 200) {
-                                    const a = Math.atan2(e2.y - e1.y, e2.x - e1.x);
-                                    e1.x += Math.cos(a) * 0.5; e1.y += Math.sin(a) * 0.5;
-                                }
-                            }
-                        });
-                    });
-                }
-            }
-        } else {
-            weatherTimer--;
-            if (weatherTimer <= 0) {
-                currentWeather = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
-                weatherDuration = currentWeather.duration;
-                document.getElementById('weather-overlay').style.backgroundColor = currentWeather.color;
-                const wDisplay = document.getElementById('weather-display');
-                wDisplay.innerText = `WARNING: ${currentWeather.name}`;
-                wDisplay.style.color = currentWeather.id === 'HEATWAVE' ? '#e74c3c' : (currentWeather.id === 'BLIZZARD' ? '#3498db' : '#9b59b6');
-                wDisplay.style.display = 'block';
-            }
-        }
+        // Always handle UI input
+        handleGamepadMenu();
 
-        // --- Spawning Logic ---
-        if (!bossActive && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
-            bossActive = true;
-            if (Math.random() < 0.2) {
-                document.getElementById('event-text').style.display = 'block';
-                setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
-                enemies.unshift(new Boss(), new Boss());
-            } else {
-                enemies.unshift(new Boss());
-            }
-            for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
-        }
+        if (gameRunning && !gamePaused && !isLevelingUp && !isShopping) {
 
-        if (!bossActive) {
-            let spawnRate = Math.max(5, 40 - (wave * 2));
-            if (frame % spawnRate === 0) {
-                // Swarm Logic
-                if (wave > 2 && Math.random() < 0.1) {
-                    for (let i = 0; i < 5; i++) {
-                        const swarm = new Enemy(false, 'SWARM');
-                        // Offset slightly
-                        swarm.x += (Math.random() - 0.5) * 50;
-                        swarm.y += (Math.random() - 0.5) * 50;
-                        enemies.push(swarm);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawArena();
+            frame++;
+
+            // Weather Logic
+            if (currentWeather) {
+                weatherDuration--;
+                if (weatherDuration <= 0) {
+                    currentWeather = null;
+                    document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
+                    document.getElementById('weather-display').style.display = 'none';
+                    weatherTimer = 3600 + Math.random() * 2400; // 1-1.5 minutes break
+                } else {
+                    // Weather Effects
+                    if (currentWeather.id === 'HEATWAVE' && frame % 60 === 0) {
+                        player.hp -= 1;
+                        currentRunStats.damageTaken += 1; // Track Damage
+                        enemies.forEach(e => e.hp -= 1);
                     }
-                } else {
-                    enemies.push(new Enemy());
-                }
-            }
-        } else {
-            if (frame % 150 === 0) enemies.push(new Enemy(true));
-        }
-
-        if (frame % 600 === 0) powerUps.push(new PowerUp());
-
-        // --- Updates ---
-
-        player.update();
-        player.draw();
-
-        // Weapon Drops
-        weaponDrops.forEach((drop, index) => {
-            drop.draw();
-            const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
-            if (dist < player.radius + 20) {
-                if (player.weapon === drop.type) {
-                    player.weaponTier++;
-                    player.weaponTimer = 900;
-                    showNotification(`WEAPON UPGRADED! (LVL ${player.weaponTier})`);
-                } else {
-                    player.weapon = drop.type;
-                    player.weaponTier = 1;
-                    player.weaponTimer = 900;
-                    showNotification(`WEAPON EQUIPPED!`);
-                }
-                createExplosion(player.x, player.y, '#8e44ad');
-                weaponDrops.splice(index, 1);
-            }
-        });
-
-        // Gold Drops
-        goldDrops.forEach((drop, index) => {
-            drop.draw();
-            const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
-            if (dist < player.radius + 20) {
-                const amount = Math.floor(drop.value * player.goldMultiplier);
-                player.gold += amount;
-                currentRunStats.moneyGained += amount; // Track Gold
-                saveData.global.totalGold += drop.value; // Track for achievement
-                goldDrops.splice(index, 1);
-            }
-        });
-
-        // Holy Masks
-        holyMasks.forEach((mask, index) => {
-            mask.draw();
-            const dist = Math.hypot(player.x - mask.x, player.y - mask.y);
-            if (dist < player.radius + 20) {
-                saveData[player.type].level++;
-                saveGame();
-                showNotification("PERMANENT LEVEL UP!");
-                createExplosion(player.x, player.y, '#f1c40f');
-                holyMasks.splice(index, 1);
-            }
-        });
-
-        powerUps.forEach((pup, index) => {
-            pup.update(); pup.draw();
-            const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
-            if (dist < player.radius + pup.radius) {
-                if (pup.type === 'HEAL') { player.hp = Math.min(player.hp + 30, player.maxHp); createExplosion(player.x, player.y, '#2ecc71'); }
-                else if (pup.type === 'MAXHP') { player.maxHp += 20; player.hp += 20; createExplosion(player.x, player.y, '#e74c3c'); }
-                else if (pup.type === 'SPEED') { player.buffs.speed = 600; createExplosion(player.x, player.y, '#f1c40f'); }
-                else if (pup.type === 'MULTI') { player.buffs.multi = 600; createExplosion(player.x, player.y, '#3498db'); }
-                else if (pup.type === 'AUTOAIM') { player.buffs.autoaim = 600; createExplosion(player.x, player.y, '#9b59b6'); }
-                powerUps.splice(index, 1);
-            } else if (pup.timer <= 0) powerUps.splice(index, 1);
-        });
-
-        projectiles.forEach((proj, index) => {
-            proj.update(); proj.draw();
-            if (checkWallCollision(proj.x, proj.y, proj.radius)) {
-                if (proj.isExplosive) {
-                    enemies.forEach(e => {
-                        if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) {
-                            e.hp -= proj.damage;
-                            currentRunStats.damageDealt += proj.damage; // Track Damage
-                            saveData.global.totalDamage += proj.damage;
-                        }
-                    });
-                    createExplosion(proj.x, proj.y, '#e67e22');
-                }
-                projectiles.splice(index, 1);
-                return;
-            }
-            if (proj.x < 0 || proj.x > canvas.width || proj.y < 0 || proj.y > canvas.height) projectiles.splice(index, 1);
-        });
-
-        meleeAttacks.forEach((att, index) => {
-            att.update(); att.draw();
-            if (att.life <= 0) meleeAttacks.splice(index, 1);
-        });
-
-        particles.forEach((part, index) => {
-            part.update(); part.draw();
-            if (part.alpha <= 0) particles.splice(index, 1);
-        });
-
-        // Update and Draw Floating Texts
-        floatingTexts.forEach((ft, index) => {
-            ft.update(); ft.draw();
-            if (ft.life <= 0) floatingTexts.splice(index, 1);
-        });
-
-        enemies.forEach((enemy, eIndex) => {
-            enemy.update(); enemy.draw();
-            const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
-
-            if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
-                // Invincibility Check
-                if (player.invincibleTimer > 0) {
-                    // Reflect damage?
-                    enemy.hp -= 5;
-                    createExplosion(player.x, player.y, '#95a5a6');
-                    const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                    enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20;
-                    return; // Skip damage
-                }
-
-                let dmgTaken = 1 * (1 - player.damageReduction);
-
-                // Speedster Explosion
-                if (enemy.subType === 'SPEEDSTER') {
-                    dmgTaken = 20 * (1 - player.damageReduction); // Huge damage
-                    createExplosion(player.x, player.y, '#e74c3c');
-                    enemy.hp = 0; // Suicide
-                }
-
-                player.hp -= dmgTaken;
-                currentRunStats.damageTaken += dmgTaken; // Track Damage
-                player.resetCombo(); // Reset Combo on Damage
-                createExplosion(player.x, player.y, '#fff');
-
-                if (player.transformActive) {
-                    player.transformActive = false;
-                    player.currentForm = 'NONE';
-                    showNotification("FORM BROKEN!");
-                }
-
-                const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20; }
-            }
-
-            projectiles.forEach((proj, pIndex) => {
-                if (proj.isEnemy) {
-                    const pDist = Math.hypot(proj.x - player.x, proj.y - player.y);
-                    if (pDist < player.radius + proj.radius) {
-                        const dmgTaken = proj.damage * (1 - player.damageReduction);
-                        player.hp -= dmgTaken;
-
-                        // Player takes damage number
-                        floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.floor(dmgTaken), '#e74c3c', 20));
-
-                        currentRunStats.damageTaken += dmgTaken; // Track Damage
-                        player.resetCombo(); // Reset Combo on Damage
-                        createExplosion(player.x, player.y, proj.color); projectiles.splice(pIndex, 1);
-
-                        if (player.transformActive) {
-                            player.transformActive = false;
-                            player.currentForm = 'NONE';
-                            showNotification("FORM BROKEN!");
-                        }
-                    }
-                } else {
-                    const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
-                    if (pDist - enemy.radius - proj.radius < 0) {
-                        enemy.hp -= proj.damage;
-
-                        // Enemy takes damage number
-                        const isCrit = proj.isCrit;
-                        floatingTexts.push(new FloatingText(
-                            enemy.x,
-                            enemy.y - 20,
-                            Math.floor(proj.damage) + (isCrit ? '!' : ''),
-                            isCrit ? '#f1c40f' : '#fff',
-                            isCrit ? 30 : 16
-                        ));
-
-                        currentRunStats.damageDealt += proj.damage; // Track Damage
-                        saveData.global.totalDamage += proj.damage;
-                        createExplosion(enemy.x, enemy.y, proj.color);
-                        if (proj.isExplosive) {
-                            enemies.forEach(nearby => {
-                                if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
-                                    nearby.hp -= proj.damage;
-                                    // Explosion damage number
-                                    floatingTexts.push(new FloatingText(nearby.x, nearby.y - 20, Math.floor(proj.damage), '#e67e22', 16));
-
-                                    currentRunStats.damageDealt += proj.damage; // Track Damage
-                                    saveData.global.totalDamage += proj.damage;
+                    if (currentWeather.id === 'MAGNETIC') {
+                        enemies.forEach(e1 => {
+                            enemies.forEach(e2 => {
+                                if (e1 !== e2) {
+                                    const d = Math.hypot(e1.x - e2.x, e1.y - e2.y);
+                                    if (d < 200) {
+                                        const a = Math.atan2(e2.y - e1.y, e2.x - e1.x);
+                                        e1.x += Math.cos(a) * 0.5; e1.y += Math.sin(a) * 0.5;
+                                    }
                                 }
                             });
-                            projectiles.splice(pIndex, 1);
-                        } else {
-                            if (proj.pierce > 0) { proj.pierce--; } else { projectiles.splice(pIndex, 1); }
-                        }
-                        if (!(enemy instanceof Boss)) {
-                            const angle = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);
-                            enemy.x += Math.cos(angle) * proj.knockback; enemy.y += Math.sin(angle) * proj.knockback;
-                        }
+                        });
                     }
                 }
-            });
-
-            meleeAttacks.forEach(att => {
-                if (att.hitList.includes(eIndex)) return;
-                const dx = enemy.x - att.x; const dy = enemy.y - att.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < att.radius + enemy.radius) {
-                    const angleToEnemy = Math.atan2(dy, dx);
-                    let diff = angleToEnemy - att.angle;
-                    while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
-                    if (Math.abs(diff) < Math.PI / 3) {
-                        enemy.hp -= att.damage;
-
-                        // Melee damage number
-                        const isCrit = att.isCrit;
-                        floatingTexts.push(new FloatingText(
-                            enemy.x,
-                            enemy.y - 20,
-                            Math.floor(att.damage) + (isCrit ? '!' : ''),
-                            isCrit ? '#f1c40f' : '#fff',
-                            isCrit ? 35 : 20
-                        ));
-
-                        currentRunStats.damageDealt += att.damage; // Track Damage
-                        saveData.global.totalDamage += att.damage;
-                        createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(eIndex);
-                        if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
-                    }
-                }
-            });
-
-            if (enemy.hp <= 0) {
-                player.addCombo(); // Add Combo
-                checkAchievements(); // Check achievements on kill
-
-                if (enemy instanceof Boss) {
-                    currentRunStats.bossesKilled++; // Track Boss Kill
-                    saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
-                    score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
-                    weaponDrops.push(new WeaponDrop(enemy.x, enemy.y));
-                    enemies.splice(eIndex, 1);
-                    const remainingBosses = enemies.filter(e => e instanceof Boss).length;
-                    if (remainingBosses === 0) {
-                        bossActive = false;
-                        // Shop Check - Changed to every 2 waves
-                        if (wave % 2 === 0) {
-                            openShop();
-                        } else {
-                            wave++; enemiesKilledInWave = 0; enemies = []; generateArena();
-                        }
-                    }
-                } else {
-                    currentRunStats.enemiesKilled++; // Track Kill
-                    score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
-                    if (Math.random() < player.maskChance) holyMasks.push(new HolyMask(enemy.x, enemy.y));
-                    if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y)); // Gold Drop
-                    enemies.splice(eIndex, 1);
-                    if (!bossActive) enemiesKilledInWave++;
+            } else {
+                weatherTimer--;
+                if (weatherTimer <= 0) {
+                    currentWeather = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
+                    weatherDuration = currentWeather.duration;
+                    document.getElementById('weather-overlay').style.backgroundColor = currentWeather.color;
+                    const wDisplay = document.getElementById('weather-display');
+                    wDisplay.innerText = `WARNING: ${currentWeather.name}`;
+                    wDisplay.style.color = currentWeather.id === 'HEATWAVE' ? '#e74c3c' : (currentWeather.id === 'BLIZZARD' ? '#3498db' : '#9b59b6');
+                    wDisplay.style.display = 'block';
                 }
             }
-        });
 
-        updateUI();
-        if (player.hp <= 0) {
-            gameOver();
+            // --- Spawning Logic ---
+            if (!bossActive && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
+                bossActive = true;
+                if (Math.random() < 0.2) {
+                    document.getElementById('event-text').style.display = 'block';
+                    setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
+                    enemies.unshift(new Boss(), new Boss());
+                } else {
+                    enemies.unshift(new Boss());
+                }
+                for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
+            }
+
+            if (!bossActive) {
+                let spawnRate = Math.max(5, 40 - (wave * 2));
+                if (frame % spawnRate === 0) {
+                    // Swarm Logic
+                    if (wave > 2 && Math.random() < 0.1) {
+                        for (let i = 0; i < 5; i++) {
+                            const swarm = new Enemy(false, 'SWARM');
+                            // Offset slightly
+                            swarm.x += (Math.random() - 0.5) * 50;
+                            swarm.y += (Math.random() - 0.5) * 50;
+                            enemies.push(swarm);
+                        }
+                    } else {
+                        enemies.push(new Enemy());
+                    }
+                }
+            } else {
+                if (frame % 150 === 0) enemies.push(new Enemy(true));
+            }
+
+            if (frame % 600 === 0) powerUps.push(new PowerUp());
+
+            // --- Updates ---
+
+            player.update();
+            player.draw();
+
+            // Weapon Drops
+            weaponDrops.forEach((drop, index) => {
+                drop.draw();
+                const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
+                if (dist < player.radius + 20) {
+                    if (player.weapon === drop.type) {
+                        player.weaponTier++;
+                        player.weaponTimer = 900;
+                        showNotification(`WEAPON UPGRADED! (LVL ${player.weaponTier})`);
+                    } else {
+                        player.weapon = drop.type;
+                        player.weaponTier = 1;
+                        player.weaponTimer = 900;
+                        showNotification(`WEAPON EQUIPPED!`);
+                    }
+                    createExplosion(player.x, player.y, '#8e44ad');
+                    weaponDrops.splice(index, 1);
+                }
+            });
+
+            // Gold Drops
+            goldDrops.forEach((drop, index) => {
+                drop.draw();
+                const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
+                if (dist < player.radius + 20) {
+                    const amount = Math.floor(drop.value * player.goldMultiplier);
+                    player.gold += amount;
+                    currentRunStats.moneyGained += amount; // Track Gold
+                    saveData.global.totalGold += drop.value; // Track for achievement
+                    goldDrops.splice(index, 1);
+                }
+            });
+
+            // Holy Masks
+            holyMasks.forEach((mask, index) => {
+                mask.draw();
+                const dist = Math.hypot(player.x - mask.x, player.y - mask.y);
+                if (dist < player.radius + 20) {
+                    saveData[player.type].level++;
+                    saveGame();
+                    showNotification("PERMANENT LEVEL UP!");
+                    createExplosion(player.x, player.y, '#f1c40f');
+                    holyMasks.splice(index, 1);
+                }
+            });
+
+            powerUps.forEach((pup, index) => {
+                pup.update(); pup.draw();
+                const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
+                if (dist < player.radius + pup.radius) {
+                    if (pup.type === 'HEAL') { player.hp = Math.min(player.hp + 30, player.maxHp); createExplosion(player.x, player.y, '#2ecc71'); }
+                    else if (pup.type === 'MAXHP') { player.maxHp += 20; player.hp += 20; createExplosion(player.x, player.y, '#e74c3c'); }
+                    else if (pup.type === 'SPEED') { player.buffs.speed = 600; createExplosion(player.x, player.y, '#f1c40f'); }
+                    else if (pup.type === 'MULTI') { player.buffs.multi = 600; createExplosion(player.x, player.y, '#3498db'); }
+                    else if (pup.type === 'AUTOAIM') { player.buffs.autoaim = 600; createExplosion(player.x, player.y, '#9b59b6'); }
+                    powerUps.splice(index, 1);
+                } else if (pup.timer <= 0) powerUps.splice(index, 1);
+            });
+
+            projectiles.forEach((proj, index) => {
+                proj.update(); proj.draw();
+                if (checkWallCollision(proj.x, proj.y, proj.radius)) {
+                    if (proj.isExplosive) {
+                        enemies.forEach(e => {
+                            if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) {
+                                e.hp -= proj.damage;
+                                currentRunStats.damageDealt += proj.damage; // Track Damage
+                                saveData.global.totalDamage += proj.damage;
+                            }
+                        });
+                        createExplosion(proj.x, proj.y, '#e67e22');
+                    }
+                    projectiles.splice(index, 1);
+                    return;
+                }
+                if (proj.x < 0 || proj.x > canvas.width || proj.y < 0 || proj.y > canvas.height) projectiles.splice(index, 1);
+            });
+
+            meleeAttacks.forEach((att, index) => {
+                att.update(); att.draw();
+                if (att.life <= 0) meleeAttacks.splice(index, 1);
+            });
+
+            particles.forEach((part, index) => {
+                part.update(); part.draw();
+                if (part.alpha <= 0) particles.splice(index, 1);
+            });
+
+            // Update and Draw Floating Texts
+            floatingTexts.forEach((ft, index) => {
+                ft.update(); ft.draw();
+                if (ft.life <= 0) floatingTexts.splice(index, 1);
+            });
+
+            enemies.forEach((enemy, eIndex) => {
+                enemy.update(); enemy.draw();
+                const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+
+                if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
+                    // Invincibility Check
+                    if (player.invincibleTimer > 0) {
+                        // Reflect damage?
+                        enemy.hp -= 5;
+                        createExplosion(player.x, player.y, '#95a5a6');
+                        const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                        enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20;
+                        return; // Skip damage
+                    }
+
+                    let dmgTaken = 1 * (1 - player.damageReduction);
+
+                    // Speedster Explosion
+                    if (enemy.subType === 'SPEEDSTER') {
+                        dmgTaken = 20 * (1 - player.damageReduction); // Huge damage
+                        createExplosion(player.x, player.y, '#e74c3c');
+                        enemy.hp = 0; // Suicide
+                    }
+
+                    player.hp -= dmgTaken;
+                    currentRunStats.damageTaken += dmgTaken; // Track Damage
+                    player.resetCombo(); // Reset Combo on Damage
+                    createExplosion(player.x, player.y, '#fff');
+
+                    if (player.transformActive) {
+                        player.transformActive = false;
+                        player.currentForm = 'NONE';
+                        showNotification("FORM BROKEN!");
+                    }
+
+                    const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                    if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20; }
+                }
+
+                projectiles.forEach((proj, pIndex) => {
+                    if (proj.isEnemy) {
+                        const pDist = Math.hypot(proj.x - player.x, proj.y - player.y);
+                        if (pDist < player.radius + proj.radius) {
+                            const dmgTaken = proj.damage * (1 - player.damageReduction);
+                            player.hp -= dmgTaken;
+
+                            // Player takes damage number
+                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.floor(dmgTaken), '#e74c3c', 20));
+
+                            currentRunStats.damageTaken += dmgTaken; // Track Damage
+                            player.resetCombo(); // Reset Combo on Damage
+                            createExplosion(player.x, player.y, proj.color); projectiles.splice(pIndex, 1);
+
+                            if (player.transformActive) {
+                                player.transformActive = false;
+                                player.currentForm = 'NONE';
+                                showNotification("FORM BROKEN!");
+                            }
+                        }
+                    } else {
+                        const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
+                        if (pDist - enemy.radius - proj.radius < 0) {
+                            enemy.hp -= proj.damage;
+
+                            // Enemy takes damage number
+                            const isCrit = proj.isCrit;
+                            floatingTexts.push(new FloatingText(
+                                enemy.x,
+                                enemy.y - 20,
+                                Math.floor(proj.damage) + (isCrit ? '!' : ''),
+                                isCrit ? '#f1c40f' : '#fff',
+                                isCrit ? 30 : 16
+                            ));
+
+                            currentRunStats.damageDealt += proj.damage; // Track Damage
+                            saveData.global.totalDamage += proj.damage;
+                            createExplosion(enemy.x, enemy.y, proj.color);
+                            if (proj.isExplosive) {
+                                enemies.forEach(nearby => {
+                                    if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
+                                        nearby.hp -= proj.damage;
+                                        // Explosion damage number
+                                        floatingTexts.push(new FloatingText(nearby.x, nearby.y - 20, Math.floor(proj.damage), '#e67e22', 16));
+
+                                        currentRunStats.damageDealt += proj.damage; // Track Damage
+                                        saveData.global.totalDamage += proj.damage;
+                                    }
+                                });
+                                projectiles.splice(pIndex, 1);
+                            } else {
+                                if (proj.pierce > 0) { proj.pierce--; } else { projectiles.splice(pIndex, 1); }
+                            }
+                            if (!(enemy instanceof Boss)) {
+                                const angle = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);
+                                enemy.x += Math.cos(angle) * proj.knockback; enemy.y += Math.sin(angle) * proj.knockback;
+                            }
+                        }
+                    }
+                });
+
+                meleeAttacks.forEach(att => {
+                    if (att.hitList.includes(eIndex)) return;
+                    const dx = enemy.x - att.x; const dy = enemy.y - att.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < att.radius + enemy.radius) {
+                        const angleToEnemy = Math.atan2(dy, dx);
+                        let diff = angleToEnemy - att.angle;
+                        while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
+                        if (Math.abs(diff) < Math.PI / 3) {
+                            enemy.hp -= att.damage;
+
+                            // Melee damage number
+                            const isCrit = att.isCrit;
+                            floatingTexts.push(new FloatingText(
+                                enemy.x,
+                                enemy.y - 20,
+                                Math.floor(att.damage) + (isCrit ? '!' : ''),
+                                isCrit ? '#f1c40f' : '#fff',
+                                isCrit ? 35 : 20
+                            ));
+
+                            currentRunStats.damageDealt += att.damage; // Track Damage
+                            saveData.global.totalDamage += att.damage;
+                            createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(eIndex);
+                            if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
+                        }
+                    }
+                });
+
+                if (enemy.hp <= 0) {
+                    player.addCombo(); // Add Combo
+                    checkAchievements(); // Check achievements on kill
+
+                    if (enemy instanceof Boss) {
+                        currentRunStats.bossesKilled++; // Track Boss Kill
+                        saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
+                        score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
+                        weaponDrops.push(new WeaponDrop(enemy.x, enemy.y));
+                        enemies.splice(eIndex, 1);
+                        const remainingBosses = enemies.filter(e => e instanceof Boss).length;
+                        if (remainingBosses === 0) {
+                            bossActive = false;
+                            // Shop Check - Changed to every 2 waves
+                            if (wave % 2 === 0) {
+                                openShop();
+                            } else {
+                                wave++; enemiesKilledInWave = 0; enemies = []; generateArena();
+                            }
+                        }
+                    } else {
+                        currentRunStats.enemiesKilled++; // Track Kill
+                        score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
+                        if (Math.random() < player.maskChance) holyMasks.push(new HolyMask(enemy.x, enemy.y));
+                        if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y)); // Gold Drop
+                        enemies.splice(eIndex, 1);
+                        if (!bossActive) enemiesKilledInWave++;
+                    }
+                }
+            });
+
+            updateUI();
+            if (player.hp <= 0) {
+                gameOver();
+            }
         }
     }
 }
