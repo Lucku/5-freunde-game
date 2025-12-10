@@ -138,6 +138,45 @@
             width: 300px;
         }
 
+        /* Special Ability UI */
+        #special-container {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            background: #333;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            margin-left: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        #special-cooldown-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            background: rgba(0, 0, 0, 0.7);
+            transition: height 0.1s linear;
+        }
+
+        #special-key {
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            background: #fff;
+            color: #000;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
         /* New Stats Row */
         #stats-row {
             display: flex;
@@ -262,7 +301,9 @@
         }
 
         #skill-tree-screen,
-        #achievements-screen {
+        #achievements-screen,
+        #highscore-screen {
+            /* Added highscore-screen */
             display: none;
             background: #111;
         }
@@ -728,8 +769,19 @@
         </div>
 
         <div id="bottom-ui">
-            <div id="weapon-display" class="weapon-icon">STANDARD</div>
-            <div id="buff-container"></div>
+            <div style="display: flex; align-items: flex-end;">
+                <div>
+                    <div id="weapon-display" class="weapon-icon">STANDARD</div>
+                    <div id="buff-container"></div>
+                </div>
+                <!-- Special Ability Icon -->
+                <div id="special-container">
+                    <div id="special-icon">★</div>
+                    <div id="special-cooldown-overlay"></div>
+                    <div id="special-key">E</div>
+                </div>
+            </div>
+
             <div id="bars-container">
                 <div class="bar-wrap">
                     <div id="health-fill"></div>
@@ -784,6 +836,15 @@
         <button class="btn" onclick="closeAchievements()">Back to Menu</button>
     </div>
 
+    <!-- High Score Screen -->
+    <div id="highscore-screen">
+        <h1 style="color: #f1c40f;">HIGH SCORES</h1>
+        <div id="highscore-content" style="width: 80%; max-width: 600px;">
+            <!-- Generated via JS -->
+        </div>
+        <button class="btn" onclick="closeHighScores()">Back to Menu</button>
+    </div>
+
     <!-- Stats Screen -->
     <div id="stats-screen">
         <h1 style="color: #3498db;">CURRENT STATS</h1>
@@ -824,8 +885,12 @@
                 <button class="btn" onclick="startGame()">Start Game</button>
                 <button class="btn btn-blue" onclick="openSkillTree()">Skill Tree</button>
             </div>
-            <button class="btn btn-gold" onclick="openAchievements()"
-                style="font-size: 14px; padding: 10px 20px; margin-top: 5px;">Achievements</button>
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <button class="btn btn-gold" onclick="openAchievements()"
+                    style="font-size: 14px; padding: 10px 20px;">Achievements</button>
+                <button class="btn btn-gold" onclick="openHighScores()"
+                    style="font-size: 14px; padding: 10px 20px;">High Scores</button>
+            </div>
             <div style="margin-top: 20px;">
                 <button class="btn btn-blue" style="font-size: 14px; padding: 10px 20px;" onclick="exportSave()">Export
                     Save</button>
@@ -932,7 +997,8 @@
             { id: 'cooldown', title: 'Haste', desc: 'Reduce Blast Cooldown by 10%.', icon: '⏳' },
             { id: 'defense', title: 'Iron Skin', desc: 'Reduce incoming damage by 5%.', icon: '🛡️' },
             { id: 'damage', title: 'Power', desc: 'Increase all damage dealt by 10%.', icon: '⚔️' },
-            { id: 'luck', title: 'Fortune', desc: 'Increase Holy Mask drop chance.', icon: '🍀' }
+            { id: 'luck', title: 'Fortune', desc: 'Increase Holy Mask drop chance.', icon: '🍀' },
+            { id: 'crit', title: 'Lethality', desc: '+5% Crit Chance & +20% Crit Damage.', icon: '🎯' } // New Upgrade
         ];
 
         let saveData = {
@@ -1169,6 +1235,53 @@
             initMenu();
         }
 
+        // --- High Score Logic ---
+        function openHighScores() {
+            document.getElementById('menu-overlay').style.display = 'none';
+            document.getElementById('highscore-screen').style.display = 'flex';
+
+            const labels = {
+                missilesFired: "Missiles Fired",
+                timeSurvived: "Longest Run (s)",
+                wavesCleared: "Max Waves",
+                damageTaken: "Damage Taken",
+                damageDealt: "Damage Dealt",
+                levelReached: "Max Level",
+                moneyGained: "Total Gold Looted",
+                moneySpent: "Total Gold Spent",
+                enemiesKilled: "Enemies Killed",
+                bossesKilled: "Bosses Killed",
+                maxCombo: "Max Combo"
+            };
+
+            let html = `<table class="stats-table">
+                <thead><tr><th>Statistic</th><th style="text-align:right">Best Record</th></tr></thead>
+                <tbody>`;
+
+            for (let key in saveData.stats) {
+                let val = saveData.stats[key];
+                if (key === 'timeSurvived') {
+                    val = `${Math.floor(val / 60)}:${(val % 60).toString().padStart(2, '0')}`;
+                }
+                html += `<tr><td>${labels[key] || key}</td><td class="stats-val" style="color:#f1c40f">${val}</td></tr>`;
+            }
+            html += `</tbody></table>`;
+
+            // Add Global Totals
+            html += `<h3 style="margin-top:20px; color:#aaa;">Lifetime Totals</h3><table class="stats-table"><tbody>`;
+            html += `<tr><td>Total Kills</td><td class="stats-val">${saveData.global.totalKills}</td></tr>`;
+            html += `<tr><td>Total Gold</td><td class="stats-val">${saveData.global.totalGold}</td></tr>`;
+            html += `<tr><td>Total Bosses</td><td class="stats-val">${saveData.global.totalBosses}</td></tr>`;
+            html += `</tbody></table>`;
+
+            document.getElementById('highscore-content').innerHTML = html;
+        }
+
+        function closeHighScores() {
+            document.getElementById('highscore-screen').style.display = 'none';
+            initMenu();
+        }
+
         function renderSkillTree() {
             const container = document.getElementById('skill-tree-container');
             container.innerHTML = '';
@@ -1366,6 +1479,9 @@
             if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && gameRunning && !gamePaused && !isShopping) {
                 player.dash();
             }
+            if (e.code === 'KeyE' && gameRunning && !gamePaused && !isShopping) {
+                player.useSpecial();
+            }
         });
 
         function togglePause() {
@@ -1518,6 +1634,12 @@
                 this.isDashing = false;
                 this.dashFrames = 0;
 
+                // Special Ability
+                this.specialCooldown = 0;
+                this.specialMaxCooldown = 600; // 10 seconds default
+                this.invincibleTimer = 0;
+                this.setupSpecial();
+
                 // Apply Achievement Gold Bonus
                 saveData.global.unlockedAchievements.forEach(id => {
                     const ach = ACHIEVEMENTS.find(a => a.id === id);
@@ -1616,10 +1738,90 @@
                 }
             }
 
+            setupSpecial() {
+                const iconEl = document.getElementById('special-icon');
+                if (this.type === 'fire') {
+                    this.specialName = "INFERNO";
+                    this.specialMaxCooldown = 900; // 15s
+                    iconEl.innerText = "🔥";
+                } else if (this.type === 'water') {
+                    this.specialName = "TIDAL WAVE";
+                    this.specialMaxCooldown = 600; // 10s
+                    iconEl.innerText = "🌊";
+                } else if (this.type === 'ice') {
+                    this.specialName = "DEEP FREEZE";
+                    this.specialMaxCooldown = 1200; // 20s
+                    iconEl.innerText = "❄️";
+                } else if (this.type === 'plant') {
+                    this.specialName = "OVERGROWTH";
+                    this.specialMaxCooldown = 1800; // 30s
+                    iconEl.innerText = "🌿";
+                } else if (this.type === 'metal') {
+                    this.specialName = "IRON WILL";
+                    this.specialMaxCooldown = 1200; // 20s
+                    iconEl.innerText = "🛡️";
+                }
+            }
+
+            useSpecial() {
+                if (this.specialCooldown > 0) return;
+
+                showNotification(`${this.specialName}!`);
+                this.specialCooldown = this.specialMaxCooldown * this.cooldownMultiplier;
+
+                if (this.type === 'fire') {
+                    // Ring of explosions
+                    for (let i = 0; i < 12; i++) {
+                        const angle = (Math.PI * 2 / 12) * i;
+                        const ex = this.x + Math.cos(angle) * 150;
+                        const ey = this.y + Math.sin(angle) * 150;
+                        setTimeout(() => {
+                            createExplosion(ex, ey, '#e74c3c');
+                            enemies.forEach(e => {
+                                if (Math.hypot(e.x - ex, e.y - ey) < 80) {
+                                    e.hp -= 50 * this.damageMultiplier;
+                                    floatingTexts.push(new FloatingText(e.x, e.y - 20, "50", "#e74c3c", 20));
+                                }
+                            });
+                        }, i * 50);
+                    }
+                } else if (this.type === 'water') {
+                    // Pushback
+                    createExplosion(this.x, this.y, '#3498db');
+                    enemies.forEach(e => {
+                        const angle = Math.atan2(e.y - this.y, e.x - this.x);
+                        e.x += Math.cos(angle) * 200;
+                        e.y += Math.sin(angle) * 200;
+                        e.hp -= 20 * this.damageMultiplier;
+                    });
+                } else if (this.type === 'ice') {
+                    // Freeze
+                    enemies.forEach(e => {
+                        e.frozenTimer = 180; // 3 seconds
+                        floatingTexts.push(new FloatingText(e.x, e.y - 40, "FROZEN", "#aaddff", 16));
+                    });
+                } else if (this.type === 'plant') {
+                    // Heal + Turret (Simulated by just spawning projectiles for now)
+                    this.hp = Math.min(this.maxHp, this.hp + (this.maxHp * 0.3));
+                    floatingTexts.push(new FloatingText(this.x, this.y - 40, "HEAL", "#2ecc71", 20));
+                    // Burst of thorns
+                    for (let i = 0; i < 20; i++) {
+                        const angle = (Math.PI * 2 / 20) * i;
+                        projectiles.push(new Projectile(this.x, this.y, { x: Math.cos(angle) * 10, y: Math.sin(angle) * 10 }, 30 * this.damageMultiplier, '#2ecc71', 5, 'plant', 10, false));
+                    }
+                } else if (this.type === 'metal') {
+                    // Invincible
+                    this.invincibleTimer = 300; // 5 seconds
+                    floatingTexts.push(new FloatingText(this.x, this.y - 40, "INVINCIBLE", "#95a5a6", 20));
+                }
+            }
+
             update() {
                 if (this.buffs.speed > 0) this.buffs.speed--;
                 if (this.buffs.multi > 0) this.buffs.multi--;
                 if (this.buffs.autoaim > 0) this.buffs.autoaim--;
+                if (this.specialCooldown > 0) this.specialCooldown--;
+                if (this.invincibleTimer > 0) this.invincibleTimer--;
 
                 if (this.dashCooldown > 0) this.dashCooldown--;
 
@@ -1961,6 +2163,7 @@
                 this.sides = Math.floor(Math.random() * 3) + 4;
                 this.shootCooldown = 0;
                 this.summonCooldown = 0;
+                this.frozenTimer = 0; // New property
 
                 // Type Specific Overrides
                 if (this.subType === 'SHOOTER') {
@@ -1997,6 +2200,13 @@
             }
 
             update() {
+                if (this.frozenTimer > 0) {
+                    this.frozenTimer--;
+                    // Visual freeze effect
+                    if (frame % 10 === 0) particles.push(new Particle(this.x, this.y, '#aaddff'));
+                    return; // Skip movement and attacking
+                }
+
                 const angle = Math.atan2(player.y - this.y, player.x - this.x);
                 let moveX = 0, moveY = 0;
 
@@ -2348,6 +2558,17 @@
             document.getElementById('waveVal').innerText = wave;
             document.getElementById('goldVal').innerText = player.gold;
             document.getElementById('weapon-display').innerText = player.weapon;
+
+            // Update Special Ability UI
+            const specialPercent = Math.max(0, (player.specialCooldown / player.specialMaxCooldown) * 100);
+            document.getElementById('special-cooldown-overlay').style.height = specialPercent + '%';
+            if (player.specialCooldown <= 0) {
+                document.getElementById('special-icon').style.opacity = 1;
+                document.getElementById('special-container').style.borderColor = '#f1c40f';
+            } else {
+                document.getElementById('special-icon').style.opacity = 0.5;
+                document.getElementById('special-container').style.borderColor = '#555';
+            }
 
             // Update Stats Row
             document.getElementById('stats-row').innerHTML = `
@@ -2822,6 +3043,16 @@
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
 
                 if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
+                    // Invincibility Check
+                    if (player.invincibleTimer > 0) {
+                        // Reflect damage?
+                        enemy.hp -= 5;
+                        createExplosion(player.x, player.y, '#95a5a6');
+                        const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                        enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20;
+                        return; // Skip damage
+                    }
+
                     let dmgTaken = 1 * (1 - player.damageReduction);
 
                     // Speedster Explosion
