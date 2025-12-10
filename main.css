@@ -737,3 +737,21 @@ button.btn-gold:hover {
     z-index: 2;
     transition: background 1s;
 }
+
+/* Gamepad Navigation Highlight */
+.selected {
+    border: 3px solid #f1c40f !important;
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(241, 196, 15, 0.6);
+    z-index: 100;
+    position: relative;
+}
+
+/* Ensure smooth transitions for interactive elements */
+.hero-card,
+.upgrade-card,
+.shop-item,
+.btn {
+    transition: all 0.1s ease-in-out;
+    cursor: pointer;
+}

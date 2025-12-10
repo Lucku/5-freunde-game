@@ -131,6 +131,9 @@ class Player {
         }
 
         document.getElementById('levelup-screen').style.display = 'flex';
+
+        // Trigger UI State for Controller
+        if (window.setUIState) window.setUIState('LEVELUP');
     }
 
     createUpgradeCard(opt, container) {
