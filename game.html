@@ -722,15 +722,26 @@
 
         // Input
         const keys = {};
-        const mouse = { x: 0, y: 0 };
+        const mouse = { x: 0, y: 0, leftDown: false, rightDown: false }; // Updated mouse object
 
         window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
         window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('mousemove', e => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            // If mouse moves, switch back to mouse aiming
+            if (player) player.usingGamepad = false;
+        });
+
+        // Updated Mouse Listeners for Auto-Fire support
         window.addEventListener('mousedown', e => {
             if (!gameRunning || gamePaused || isLevelingUp || isShopping) return;
-            if (e.button === 0) player.shoot();
-            if (e.button === 2) player.melee();
+            if (e.button === 0) mouse.leftDown = true;
+            if (e.button === 2) mouse.rightDown = true;
+        });
+        window.addEventListener('mouseup', e => {
+            if (e.button === 0) mouse.leftDown = false;
+            if (e.button === 2) mouse.rightDown = false;
         });
         window.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -905,6 +916,12 @@
                 this.invincibleTimer = 0;
                 this.setupSpecial();
 
+                // Controller Support
+                this.aimAngle = 0;
+                this.usingGamepad = false;
+                this.pauseDebounce = 0;
+                this.moveInput = { x: 0, y: 0 };
+
                 // Apply Achievement Gold Bonus
                 saveData.global.unlockedAchievements.forEach(id => {
                     const ach = ACHIEVEMENTS.find(a => a.id === id);
@@ -989,13 +1006,18 @@
             dash() {
                 if (this.dashCooldown > 0 || this.isDashing) return;
 
-                let dx = 0; let dy = 0;
-                if (keys['w'] || keys['arrowup']) dy = -1;
-                if (keys['s'] || keys['arrowdown']) dy = 1;
-                if (keys['a'] || keys['arrowleft']) dx = -1;
-                if (keys['d'] || keys['arrowright']) dx = 1;
+                let dx = this.moveInput.x;
+                let dy = this.moveInput.y;
 
-                if (dx !== 0 || dy !== 0) {
+                // Keyboard fallback if moveInput is zero (though update handles this)
+                if (dx === 0 && dy === 0) {
+                    if (keys['w'] || keys['arrowup']) dy = -1;
+                    if (keys['s'] || keys['arrowdown']) dy = 1;
+                    if (keys['a'] || keys['arrowleft']) dx = -1;
+                    if (keys['d'] || keys['arrowright']) dx = 1;
+                }
+
+                if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
                     this.isDashing = true;
                     this.dashFrames = 10;
                     this.dashCooldown = this.dashMaxCooldown;
@@ -1087,6 +1109,7 @@
                 if (this.buffs.autoaim > 0) this.buffs.autoaim--;
                 if (this.specialCooldown > 0) this.specialCooldown--;
                 if (this.invincibleTimer > 0) this.invincibleTimer--;
+                if (this.pauseDebounce > 0) this.pauseDebounce--;
 
                 if (this.dashCooldown > 0) this.dashCooldown--;
 
@@ -1122,11 +1145,61 @@
                     }
                 }
 
+                // --- Input Handling (Keyboard & Controller) ---
                 let dx = 0; let dy = 0;
+
+                // Keyboard
                 if (keys['w'] || keys['arrowup']) dy = -1;
                 if (keys['s'] || keys['arrowdown']) dy = 1;
                 if (keys['a'] || keys['arrowleft']) dx = -1;
                 if (keys['d'] || keys['arrowright']) dx = 1;
+
+                // Gamepad Polling
+                const gamepads = navigator.getGamepads();
+                console.log(gamepads);
+                let gp = null;
+                for (let g of gamepads) { if (g && g.connected) { gp = g; break; } }
+
+                if (gp) {
+                    // Movement (Left Stick)
+                    if (Math.abs(gp.axes[0]) > 0.1) dx = gp.axes[0];
+                    if (Math.abs(gp.axes[1]) > 0.1) dy = gp.axes[1];
+
+                    // Aiming (Right Stick)
+                    if (Math.abs(gp.axes[2]) > 0.1 || Math.abs(gp.axes[3]) > 0.1) {
+                        this.aimAngle = Math.atan2(gp.axes[3], gp.axes[2]);
+                        this.usingGamepad = true;
+                    }
+
+                    // Actions
+                    // Shoot: RT (Button 7) or R1 (Button 5)
+                    if (gp.buttons[7].pressed || gp.buttons[5].pressed) this.shoot();
+
+                    // Melee: B (Button 1) or X (Button 2)
+                    if (gp.buttons[1].pressed || gp.buttons[2].pressed) this.melee();
+
+                    // Dash: LT (Button 6) or LB (Button 4) or A (Button 0)
+                    if ((gp.buttons[6].pressed || gp.buttons[4].pressed || gp.buttons[0].pressed) && !this.isDashing) this.dash();
+
+                    // Special: Y (Button 3)
+                    if (gp.buttons[3].pressed) this.useSpecial();
+
+                    // Pause: Start (Button 9)
+                    if (gp.buttons[9].pressed && this.pauseDebounce <= 0) {
+                        togglePause();
+                        this.pauseDebounce = 30;
+                    }
+                }
+
+                // Mouse Fallback & Auto-fire
+                if (!this.usingGamepad) {
+                    this.aimAngle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+                    if (mouse.leftDown) this.shoot();
+                    if (mouse.rightDown) this.melee();
+                }
+
+                // Store input for dash direction
+                this.moveInput = { x: dx, y: dy };
 
                 let currentSpeed = this.stats.speed * this.speedMultiplier;
                 if (this.buffs.speed > 0) currentSpeed *= 1.5;
@@ -1148,9 +1221,18 @@
                 }
 
                 if (dx !== 0 || dy !== 0) {
-                    const len = Math.sqrt(dx * dx + dy * dy);
-                    let nextX = this.x + (dx / len) * currentSpeed;
-                    let nextY = this.y + (dy / len) * currentSpeed;
+                    // Normalize vector if using keyboard (gamepad axes are usually 0-1)
+                    let len = Math.sqrt(dx * dx + dy * dy);
+                    // Cap length at 1 for gamepad to allow slow walking, but normalize keyboard
+                    if (len > 1) len = 1;
+                    // For keyboard diagonal, len is 1.414, so we normalize. 
+                    // For gamepad, we want to keep the analog value if it's < 1.
+
+                    // Simple normalization for direction calculation
+                    const moveLen = Math.sqrt(dx * dx + dy * dy);
+
+                    let nextX = this.x + (dx / (moveLen || 1)) * currentSpeed * (moveLen > 1 ? 1 : moveLen);
+                    let nextY = this.y + (dy / (moveLen || 1)) * currentSpeed * (moveLen > 1 ? 1 : moveLen);
 
                     if (!checkWallCollision(nextX, nextY, this.radius)) {
                         this.x = nextX; this.y = nextY;
@@ -1170,8 +1252,8 @@
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
-                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
-                ctx.rotate(angle);
+                // Use stored aimAngle instead of calculating from mouse every frame
+                ctx.rotate(this.aimAngle);
 
                 // Transformation Visuals
                 if (this.transformActive) {
@@ -1213,7 +1295,7 @@
             shoot() {
                 if (this.rangeCooldown > 0) return;
 
-                let angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+                let angle = this.aimAngle; // Use stored aim angle
                 let autoAimActive = this.buffs.autoaim > 0;
 
                 if (this.transformActive && this.currentForm === 'OCEAN') autoAimActive = true;
@@ -1333,7 +1415,7 @@
 
             melee() {
                 if (this.meleeCooldown > 0) return;
-                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+                const angle = this.aimAngle; // Use stored aim angle
 
                 const isCrit = Math.random() < this.critChance;
                 const finalDmg = this.stats.meleeDmg * this.damageMultiplier * (isCrit ? this.critMultiplier : 1);
