@@ -20,7 +20,7 @@ const BASE_HERO_STATS = {
 
 const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI', 'AUTOAIM'];
 const WEAPON_TYPES = ['SCATTER', 'MINIGUN', 'BAZOOKA'];
-const BOSS_TYPES = ['TANK', 'SPEEDSTER', 'SUMMONER'];
+const BOSS_TYPES = ['TANK', 'SPEEDSTER', 'SUMMONER', 'NOVA', 'RHINO', 'HYDRA'];
 const ENEMIES_PER_WAVE = 30;
 const SKILL_TREE_SIZE = 100;
 
@@ -507,39 +507,50 @@ function openHighScores() {
 
     const labels = {
         missilesFired: "Missiles Fired",
-        timeSurvived: "Longest Run (s)",
+        timeSurvived: "Longest Run",
         wavesCleared: "Max Waves",
         damageTaken: "Damage Taken",
         damageDealt: "Damage Dealt",
         levelReached: "Max Level",
-        moneyGained: "Total Gold Looted",
-        moneySpent: "Total Gold Spent",
-        enemiesKilled: "Enemies Killed",
-        bossesKilled: "Bosses Killed",
+        moneyGained: "Max Gold (Run)",
+        moneySpent: "Max Spent (Run)",
+        enemiesKilled: "Max Kills (Run)",
+        bossesKilled: "Max Bosses (Run)",
         maxCombo: "Max Combo"
     };
 
-    let html = `<table class="stats-table">
+    let html = `
+    <h2 style="color:#f1c40f; margin-bottom:10px;">BEST RUN RECORDS</h2>
+    <table class="stats-table">
         <thead><tr><th>Statistic</th><th style="text-align:right">Best Record</th></tr></thead>
         <tbody>`;
 
-    for (let key in saveData.stats) {
-        let val = saveData.stats[key];
+    // 1. Best Run Stats
+    for (let key in labels) {
+        let val = saveData.stats[key] || 0;
         if (key === 'timeSurvived') {
             val = `${Math.floor(val / 60)}:${(val % 60).toString().padStart(2, '0')}`;
         }
-        html += `<tr><td>${labels[key] || key}</td><td class="stats-val" style="color:#f1c40f">${val}</td></tr>`;
+        html += `<tr><td>${labels[key]}</td><td class="stats-val" style="color:#fff">${val}</td></tr>`;
     }
     html += `</tbody></table>`;
 
-    // Add Global Totals
-    html += `<h3 style="margin-top:20px; color:#aaa;">Lifetime Totals</h3><table class="stats-table"><tbody>`;
-    html += `<tr><td>Total Kills</td><td class="stats-val">${saveData.global.totalKills}</td></tr>`;
-    html += `<tr><td>Total Gold</td><td class="stats-val">${saveData.global.totalGold}</td></tr>`;
-    html += `<tr><td>Total Bosses</td><td class="stats-val">${saveData.global.totalBosses}</td></tr>`;
-    html += `</tbody></table>`;
+    // 2. Lifetime Totals
+    html += `
+    <h2 style="color:#3498db; margin-top:30px; margin-bottom:10px;">LIFETIME TOTALS</h2>
+    <table class="stats-table">
+        <thead><tr><th>Statistic</th><th style="text-align:right">Total</th></tr></thead>
+        <tbody>
+            <tr><td>Total Kills</td><td class="stats-val" style="color:#3498db">${saveData.global.totalKills}</td></tr>
+            <tr><td>Total Gold Collected</td><td class="stats-val" style="color:#f1c40f">${saveData.global.totalGold}</td></tr>
+            <tr><td>Total Bosses Slain</td><td class="stats-val" style="color:#e74c3c">${saveData.global.totalBosses}</td></tr>
+            <tr><td>Total Damage Dealt</td><td class="stats-val" style="color:#9b59b6">${(saveData.global.totalDamage / 1000000).toFixed(2)}M</td></tr>
+            <tr><td>Highest Wave Ever</td><td class="stats-val" style="color:#2ecc71">${saveData.global.maxWave}</td></tr>
+        </tbody>
+    </table>`;
 
     document.getElementById('highscore-content').innerHTML = html;
+    setUIState('HIGHSCORE');
 }
 
 function closeHighScores() {
@@ -924,14 +935,19 @@ class Enemy {
         const difficultyMult = (1 + (wave * 0.2)) * (1 + (prestige * 0.5));
 
         // Enemy Types: BASIC, SHOOTER, BRUTE, SPEEDSTER, SWARM, SUMMONER
+        // NEW: GHOST, SNIPER, BOMBER, TOXIC, SHIELDER
         this.subType = forcedType;
         if (!this.subType) {
             const rand = Math.random();
-
-            if (wave > 5 && rand < 0.1) this.subType = 'BRUTE';
-            else if (wave > 3 && rand < 0.2) this.subType = 'SPEEDSTER';
-            else if (wave > 8 && rand < 0.25) this.subType = 'SUMMONER';
-            else if (wave > 1 && rand < 0.3) this.subType = 'SHOOTER';
+            if (wave > 10 && rand < 0.05) this.subType = 'SNIPER';
+            else if (wave > 8 && rand < 0.1) this.subType = 'BOMBER';
+            else if (wave > 6 && rand < 0.15) this.subType = 'GHOST';
+            else if (wave > 5 && rand < 0.2) this.subType = 'BRUTE';
+            else if (wave > 4 && rand < 0.25) this.subType = 'TOXIC';
+            else if (wave > 3 && rand < 0.3) this.subType = 'SPEEDSTER';
+            else if (wave > 8 && rand < 0.35) this.subType = 'SUMMONER';
+            else if (wave > 12 && rand < 0.4) this.subType = 'SHIELDER';
+            else if (wave > 1 && rand < 0.45) this.subType = 'SHOOTER';
             else this.subType = 'BASIC';
         }
 
@@ -943,57 +959,98 @@ class Enemy {
         this.sides = Math.floor(Math.random() * 3) + 4;
         this.shootCooldown = 0;
         this.summonCooldown = 0;
-        this.frozenTimer = 0; // New property
+        this.frozenTimer = 0;
+        this.alpha = 1; // For Ghost
 
         // Type Specific Overrides
         if (this.subType === 'SHOOTER') {
-            this.radius = 18;
-            this.color = '#f1c40f';
-            this.sides = 3;
+            this.radius = 18; this.color = '#f1c40f'; this.sides = 3;
         } else if (this.subType === 'BRUTE') {
-            this.radius = 30;
-            this.hp *= 4;
-            this.speed *= 0.5;
-            this.color = '#5d4037'; // Brown
-            this.damage *= 2;
-            this.sides = 4; // Square
+            this.radius = 30; this.hp *= 4; this.speed *= 0.5; this.color = '#5d4037'; this.damage *= 2; this.sides = 4;
         } else if (this.subType === 'SPEEDSTER') {
-            this.radius = 12;
-            this.hp *= 0.5;
-            this.speed *= 2.5;
-            this.color = '#e74c3c'; // Red
-            this.sides = 3;
+            this.radius = 12; this.hp *= 0.5; this.speed *= 2.5; this.color = '#e74c3c'; this.sides = 3;
         } else if (this.subType === 'SWARM') {
-            this.radius = 8;
-            this.hp = 1; // One hit kill
-            this.speed *= 1.2;
-            this.color = '#8e44ad'; // Purple
-            this.sides = 0; // Circle
+            this.radius = 8; this.hp = 1; this.speed *= 1.2; this.color = '#8e44ad'; this.sides = 0;
         } else if (this.subType === 'SUMMONER') {
-            this.radius = 25;
-            this.hp *= 2;
-            this.speed *= 0.8;
-            this.color = '#2980b9'; // Blue
-            this.sides = 5; // Pentagon
-            this.summonCooldown = 200;
+            this.radius = 25; this.hp *= 2; this.speed *= 0.8; this.color = '#2980b9'; this.sides = 5; this.summonCooldown = 200;
+        }
+        // --- NEW ENEMIES ---
+        else if (this.subType === 'GHOST') {
+            this.radius = 15; this.hp *= 0.8; this.speed *= 1.2; this.color = '#bdc3c7'; this.sides = 0; this.alpha = 0.1;
+        } else if (this.subType === 'SNIPER') {
+            this.radius = 15; this.hp *= 0.6; this.speed *= 0.7; this.color = '#16a085'; this.sides = 3; this.shootCooldown = 180;
+        } else if (this.subType === 'BOMBER') {
+            this.radius = 22; this.hp *= 1.5; this.speed *= 0.6; this.color = '#2c3e50'; this.sides = 8;
+        } else if (this.subType === 'TOXIC') {
+            this.radius = 18; this.color = '#27ae60'; this.sides = 6; this.shootCooldown = 20; // Trail timer
+        } else if (this.subType === 'SHIELDER') {
+            this.radius = 25; this.hp *= 3; this.speed *= 0.4; this.color = '#7f8c8d'; this.sides = 4;
         }
     }
 
     update() {
         if (this.frozenTimer > 0) {
             this.frozenTimer--;
-            // Visual freeze effect
             if (frame % 10 === 0) particles.push(new Particle(this.x, this.y, '#aaddff'));
-            return; // Skip movement and attacking
+            return;
         }
 
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
         let moveX = 0, moveY = 0;
-
         let currentSpeed = this.speed;
         if (currentWeather && currentWeather.id === 'BLIZZARD') currentSpeed *= 0.5;
 
-        if (this.subType === 'SHOOTER') {
+        // --- Behavior Logic ---
+        if (this.subType === 'GHOST') {
+            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            // Become visible when close or taking damage
+            if (dist < 150 || this.hp < this.maxHp) this.alpha = Math.min(1, this.alpha + 0.05);
+            else this.alpha = Math.max(0.1, this.alpha - 0.02);
+            moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
+        }
+        else if (this.subType === 'SNIPER') {
+            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            if (dist > 400) {
+                moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
+            } else if (dist < 200) {
+                moveX = -Math.cos(angle) * currentSpeed; moveY = -Math.sin(angle) * currentSpeed;
+            }
+
+            if (this.shootCooldown <= 0) {
+                // High velocity, high damage shot
+                const vel = { x: Math.cos(angle) * 15, y: Math.sin(angle) * 15 };
+                projectiles.push(new Projectile(this.x, this.y, vel, this.damage * 2, '#16a085', 4, 'enemy', 0, true));
+                this.shootCooldown = 240; // 4 seconds
+            }
+            if (this.shootCooldown > 0) this.shootCooldown--;
+        }
+        else if (this.subType === 'BOMBER') {
+            moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
+            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            if (dist < 60) {
+                // Explode
+                this.hp = 0;
+                createExplosion(this.x, this.y, '#e74c3c');
+                // Explosion damage area
+                if (Math.hypot(player.x - this.x, player.y - this.y) < 100) {
+                    player.hp -= 40 * (1 - player.damageReduction);
+                    floatingTexts.push(new FloatingText(player.x, player.y - 20, "40", "#e74c3c", 20));
+                }
+            }
+        }
+        else if (this.subType === 'TOXIC') {
+            moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
+            if (this.shootCooldown <= 0) {
+                // Leave a stationary projectile (puddle)
+                const puddle = new Projectile(this.x, this.y, { x: 0, y: 0 }, 5, '#2ecc71', 10, 'enemy', 0, true);
+                puddle.life = 180; // Custom life property needed in Projectile or handle cleanup
+                // Since Projectile doesn't have life, we'll just use a slow projectile
+                projectiles.push(puddle);
+                this.shootCooldown = 30;
+            }
+            if (this.shootCooldown > 0) this.shootCooldown--;
+        }
+        else if (this.subType === 'SHOOTER') {
             const dist = Math.hypot(player.x - this.x, player.y - this.y);
             if (dist > 250) {
                 moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
@@ -1043,32 +1100,57 @@ class Enemy {
 
     draw() {
         ctx.save(); ctx.translate(this.x, this.y);
-        if (this.subType !== 'BRUTE') ctx.rotate(frame * 0.05);
 
+        // Rotate to face player so eyes look at you
+        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+        ctx.rotate(angle);
+
+        ctx.globalAlpha = this.alpha; // For Ghost
         ctx.fillStyle = this.color; ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
         ctx.beginPath();
 
-        if (this.sides === 0) { // Circle (Swarm)
+        if (this.sides === 0) { // Circle
             ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
         } else {
-            for (let i = 0; i < this.sides; i++) {
+            // Draw Polygon
+            ctx.moveTo(this.radius, 0);
+            for (let i = 1; i <= this.sides; i++) {
                 ctx.lineTo(this.radius * Math.cos(i * 2 * Math.PI / this.sides), this.radius * Math.sin(i * 2 * Math.PI / this.sides));
             }
         }
-
         ctx.closePath(); ctx.fill(); ctx.stroke();
 
-        // Special visual markers
-        if (this.subType === 'SPEEDSTER') {
-            ctx.fillStyle = `rgba(255, 255, 0, ${0.5 + Math.sin(frame * 0.5) * 0.5})`;
-            ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+        // --- RESTORED RED EYES ---
+        // White Sclera
+        ctx.fillStyle = 'white';
+        ctx.beginPath(); ctx.arc(this.radius * 0.3, -this.radius * 0.3, this.radius * 0.25, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(this.radius * 0.3, this.radius * 0.3, this.radius * 0.25, 0, Math.PI * 2); ctx.fill();
+        // Red Pupils
+        ctx.fillStyle = 'red';
+        ctx.beginPath(); ctx.arc(this.radius * 0.4, -this.radius * 0.3, this.radius * 0.1, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(this.radius * 0.4, this.radius * 0.3, this.radius * 0.1, 0, Math.PI * 2); ctx.fill();
+
+        // Visual Markers
+        if (this.subType === 'SNIPER') {
+            // Laser sight
+            ctx.globalAlpha = 0.3;
+            ctx.strokeStyle = 'red'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(0, 0);
+            const angle = Math.atan2(player.y - this.y, player.x - this.x);
+            ctx.lineTo(Math.cos(angle) * 400, Math.sin(angle) * 400);
+            ctx.stroke();
         }
-        if (this.subType === 'SUMMONER') {
-            ctx.strokeStyle = '#fff';
-            ctx.beginPath(); ctx.arc(0, 0, this.radius * 0.5, 0, Math.PI * 2); ctx.stroke();
+        if (this.subType === 'BOMBER') {
+            // Pulsing effect
+            const pulse = Math.sin(frame * 0.2) * 5;
+            ctx.strokeStyle = 'orange'; ctx.beginPath(); ctx.arc(0, 0, this.radius + pulse, 0, Math.PI * 2); ctx.stroke();
+        }
+        if (this.subType === 'SHIELDER') {
+            // Rotating Shield
+            ctx.rotate(frame * 0.1);
+            ctx.fillStyle = '#95a5a6'; ctx.fillRect(this.radius + 5, -10, 10, 20);
         }
 
-        ctx.fillStyle = 'red'; ctx.fillRect(-5, -5, 10, 2);
         ctx.restore();
     }
 }
@@ -1089,15 +1171,53 @@ class Boss {
         this.color = '#c0392b';
         this.damage = 30 * difficultyMult;
         this.attackCooldown = 100;
+        this.state = 0; // For complex bosses like Rhino
 
         if (this.type === 'TANK') { this.maxHp *= 1.5; this.hp = this.maxHp; this.speed *= 0.5; }
         else if (this.type === 'SPEEDSTER') { this.maxHp *= 0.7; this.hp = this.maxHp; this.speed *= 1.5; }
+        else if (this.type === 'NOVA') { this.maxHp *= 0.8; this.color = '#8e44ad'; this.speed *= 0.2; }
+        else if (this.type === 'RHINO') { this.maxHp *= 1.2; this.color = '#7f8c8d'; this.speed *= 0.5; }
+        else if (this.type === 'HYDRA') { this.maxHp *= 1.0; this.color = '#27ae60'; }
     }
 
     update() {
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
-        let nextX = this.x + Math.cos(angle) * this.speed;
-        let nextY = this.y + Math.sin(angle) * this.speed;
+        let nextX = this.x;
+        let nextY = this.y;
+
+        // Movement Logic
+        if (this.type === 'RHINO') {
+            // State 0: Aiming, State 1: Charging, State 2: Cooldown
+            if (this.state === 0) {
+                // Slowly turn towards player
+                nextX += Math.cos(angle) * this.speed;
+                nextY += Math.sin(angle) * this.speed;
+                if (this.attackCooldown <= 0) {
+                    this.state = 1;
+                    this.chargeAngle = angle;
+                    this.attackCooldown = 60; // Charge duration
+                }
+            } else if (this.state === 1) {
+                // Charge fast
+                nextX += Math.cos(this.chargeAngle) * (this.speed * 8);
+                nextY += Math.sin(this.chargeAngle) * (this.speed * 8);
+                if (this.attackCooldown <= 0) {
+                    this.state = 2;
+                    this.attackCooldown = 120; // Rest time
+                }
+            } else {
+                // Rest
+                if (this.attackCooldown <= 0) {
+                    this.state = 0;
+                    this.attackCooldown = 100;
+                }
+            }
+            this.attackCooldown--;
+        } else {
+            // Standard movement
+            nextX += Math.cos(angle) * this.speed;
+            nextY += Math.sin(angle) * this.speed;
+        }
 
         if (!checkWallCollision(nextX, nextY, this.radius)) { this.x = nextX; this.y = nextY; }
         else {
@@ -1105,24 +1225,44 @@ class Boss {
             else if (!checkWallCollision(this.x, nextY, this.radius)) this.y = nextY;
         }
 
-        if (this.attackCooldown <= 0) {
-            if (this.type === 'TANK') {
-                for (let i = 0; i < 12; i++) {
-                    const a = (Math.PI * 2 / 12) * i + (frame * 0.1);
-                    const vel = { x: Math.cos(a) * 5, y: Math.sin(a) * 5 };
-                    projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#e74c3c', 8, 'enemy', 0, true));
+        // Attack Logic
+        if (this.type !== 'RHINO') { // Rhino handles cooldown in movement
+            if (this.attackCooldown <= 0) {
+                if (this.type === 'TANK') {
+                    for (let i = 0; i < 12; i++) {
+                        const a = (Math.PI * 2 / 12) * i + (frame * 0.1);
+                        const vel = { x: Math.cos(a) * 5, y: Math.sin(a) * 5 };
+                        projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#e74c3c', 8, 'enemy', 0, true));
+                    }
+                    this.attackCooldown = 180;
+                } else if (this.type === 'SPEEDSTER') {
+                    const a = Math.atan2(player.y - this.y, player.x - this.x);
+                    const vel = { x: Math.cos(a) * 10, y: Math.sin(a) * 10 };
+                    projectiles.push(new Projectile(this.x, this.y, vel, this.damage * 0.8, '#f1c40f', 5, 'enemy', 0, true));
+                    this.attackCooldown = 10;
+                } else if (this.type === 'SUMMONER') {
+                    for (let i = 0; i < 3; i++) enemies.push(new Enemy(true));
+                    this.attackCooldown = 200;
+                } else if (this.type === 'NOVA') {
+                    // Spiral Pattern
+                    for (let i = 0; i < 3; i++) {
+                        const a = (frame * 0.1) + (Math.PI * 2 / 3) * i;
+                        const vel = { x: Math.cos(a) * 4, y: Math.sin(a) * 4 };
+                        projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#8e44ad', 6, 'enemy', 0, true));
+                    }
+                    this.attackCooldown = 5; // Very fast fire rate
+                } else if (this.type === 'HYDRA') {
+                    // Triple Shot
+                    const baseAngle = Math.atan2(player.y - this.y, player.x - this.x);
+                    for (let i = -1; i <= 1; i++) {
+                        const a = baseAngle + (i * 0.3);
+                        const vel = { x: Math.cos(a) * 7, y: Math.sin(a) * 7 };
+                        projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#27ae60', 10, 'enemy', 0, true));
+                    }
+                    this.attackCooldown = 60;
                 }
-                this.attackCooldown = 180;
-            } else if (this.type === 'SPEEDSTER') {
-                const a = Math.atan2(player.y - this.y, player.x - this.x);
-                const vel = { x: Math.cos(a) * 10, y: Math.sin(a) * 10 };
-                projectiles.push(new Projectile(this.x, this.y, vel, this.damage * 0.8, '#f1c40f', 5, 'enemy', 0, true));
-                this.attackCooldown = 10;
-            } else if (this.type === 'SUMMONER') {
-                for (let i = 0; i < 3; i++) enemies.push(new Enemy(true));
-                this.attackCooldown = 200;
-            }
-        } else { this.attackCooldown--; }
+            } else { this.attackCooldown--; }
+        }
     }
 
     draw() {
@@ -1132,14 +1272,25 @@ class Boss {
         let sides = 6;
         if (this.type === 'SPEEDSTER') sides = 3;
         if (this.type === 'SUMMONER') sides = 4;
+        if (this.type === 'NOVA') sides = 8;
+        if (this.type === 'HYDRA') sides = 5;
+
         for (let i = 0; i < sides; i++) {
             ctx.lineTo(this.radius * Math.cos(i * 2 * Math.PI / sides), this.radius * Math.sin(i * 2 * Math.PI / sides));
         }
         ctx.closePath(); ctx.fill(); ctx.stroke();
+
+        // Boss Eyes
         ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(-20, -10, 10, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(20, -10, 10, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(-20, -10, 4, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(20, -10, 4, 0, Math.PI * 2); ctx.fill();
+
+        if (this.type === 'RHINO' && this.state === 1) {
+            // Charge effect
+            ctx.strokeStyle = 'orange'; ctx.lineWidth = 5; ctx.stroke();
+        }
+
         ctx.restore();
     }
 }
