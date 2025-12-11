@@ -1797,7 +1797,30 @@ function masterLoop(timestamp) {
                             createExplosion(player.x, player.y, '#e74c3c');
                             showNotification("BURNING!");
                         }
+
+                        if (zone.type === 'MAGNET') {
+                            // Pull Player towards center
+                            const cx = zone.x + zone.w / 2;
+                            const cy = zone.y + zone.h / 2;
+                            const angle = Math.atan2(cy - player.y, cx - player.x);
+                            player.x += Math.cos(angle) * 2; // Strong pull
+                            player.y += Math.sin(angle) * 2;
+                        }
                     }
+                }
+
+                // Biome Effects on Enemies (Always active, no immunity for them)
+                if (zone.type === 'MAGNET') {
+                    const cx = zone.x + zone.w / 2;
+                    const cy = zone.y + zone.h / 2;
+                    enemies.forEach(e => {
+                        if (e.x > zone.x && e.x < zone.x + zone.w &&
+                            e.y > zone.y && e.y < zone.y + zone.h) {
+                            const angle = Math.atan2(cy - e.y, cx - e.x);
+                            e.x += Math.cos(angle) * 3; // Enemies get pulled harder
+                            e.y += Math.sin(angle) * 3;
+                        }
+                    });
                 }
             });
             player.biomeSpeedMod = biomeSpeedMod;
