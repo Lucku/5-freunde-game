@@ -34,7 +34,8 @@ const defaultSaveData = {
     collection: [],
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
     stats: {},
-    daily: { lastCompleted: null }
+    daily: { lastCompleted: null },
+    story: { unlockedChapters: [] }
 };
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
@@ -60,7 +61,8 @@ let saveData = {
         bossesKilled: 0,
         maxCombo: 0
     },
-    daily: { lastCompleted: null }
+    daily: { lastCompleted: null },
+    story: { unlockedChapters: [] }
 };
 
 // Runtime stats tracker
@@ -661,6 +663,7 @@ function handleGamepadMenu() {
         else if (uiState === 'HIGHSCORE') closeHighScores();
         else if (uiState === 'SKILLTREE') closeSkillTree(); // Added SKILLTREE
         else if (uiState === 'STATS') closeStats(); // Added STATS
+        else if (uiState === 'STORY') closeStory(); // Added STORY
         uiDebounce = 30; // Increased from 20 to 30
     }
 
@@ -1062,6 +1065,10 @@ let holyMasks = [];
 let goldDrops = [];
 let obstacles = [];
 let biomeZones = [];
+
+// Story Manager
+const storyManager = new StoryManager();
+let isStoryOpen = false;
 
 // Input
 const keys = {};
@@ -1717,6 +1724,48 @@ function openShop() {
 function closeShop() {
     isShopping = false;
     document.getElementById('shop-screen').style.display = 'none';
+
+    advanceWave();
+}
+
+// --- Story Logic ---
+function triggerStory(completedWave) {
+    const story = storyManager.getStoryForWave(completedWave);
+    if (story) {
+        openStory(story);
+    } else {
+        // Fallback if no story (shouldn't happen with procedural)
+        advanceWave();
+    }
+}
+
+function openStory(story) {
+    isStoryOpen = true;
+    document.getElementById('story-screen').style.display = 'flex';
+    document.getElementById('story-title').innerText = story.title;
+    document.getElementById('story-text').innerText = story.text;
+    setUIState('STORY');
+
+    // Save progress
+    if (!saveData.story.unlockedChapters.includes(story.wave)) {
+        saveData.story.unlockedChapters.push(story.wave);
+        saveGame();
+    }
+}
+
+function closeStory() {
+    isStoryOpen = false;
+    document.getElementById('story-screen').style.display = 'none';
+
+    // Proceed to Shop or Next Wave
+    if (wave % 2 === 0) {
+        openShop();
+    } else {
+        advanceWave();
+    }
+}
+
+function advanceWave() {
     wave++;
     enemiesKilledInWave = 0;
     enemies = [];
@@ -1733,7 +1782,6 @@ function closeShop() {
         player.x = canvas.width / 2;
         player.y = canvas.height / 2;
     }
-
     setUIState('GAME');
 }
 
@@ -2427,21 +2475,8 @@ function masterLoop(timestamp) {
                             }
 
                             // Shop Check - Changed to every 2 waves
-                            if (wave % 2 === 0) {
-                                openShop();
-                            } else {
-                                wave++; enemiesKilledInWave = 0; enemies = [];
-                                // Randomize Biome
-                                const types = ['fire', 'water', 'ice', 'plant', 'metal'];
-                                currentBiomeType = types[Math.floor(Math.random() * types.length)];
-                                showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
-                                generateArena();
-                                // Reset Player Position to Center
-                                if (player) {
-                                    player.x = canvas.width / 2;
-                                    player.y = canvas.height / 2;
-                                }
-                            }
+                            // Trigger Story before Shop or Next Wave
+                            triggerStory(wave);
                         }
                     } else {
                         // Swarm Explosion (Tier 4)
