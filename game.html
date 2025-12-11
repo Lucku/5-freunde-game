@@ -100,9 +100,11 @@
     </div>
 
     <!-- Story Screen -->
-    <div id="story-screen" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); flex-direction: column; justify-content: center; align-items: center; z-index: 200;">
+    <div id="story-screen"
+        style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); flex-direction: column; justify-content: center; align-items: center; z-index: 200;">
         <h1 id="story-title" style="color: #3498db; font-size: 40px; margin-bottom: 20px;">STORY TITLE</h1>
-        <div id="story-text" style="color: #fff; font-size: 20px; max-width: 600px; text-align: center; line-height: 1.6; margin-bottom: 40px;">
+        <div id="story-text"
+            style="color: #fff; font-size: 20px; max-width: 600px; text-align: center; line-height: 1.6; margin-bottom: 40px;">
             Story text goes here...
         </div>
         <button class="btn" onclick="closeStory()">Continue</button>
@@ -196,8 +198,18 @@
 
             <div style="display: flex; gap: 10px;">
                 <button class="btn" onclick="startGame()">Start Game</button>
-                <button id="daily-challenge-btn" class="btn btn-gold" onclick="startDailyChallenge()">Daily Challenge</button>
+                <button id="daily-challenge-btn" class="btn btn-gold" onclick="startDailyChallenge()">Daily
+                    Challenge</button>
                 <button class="btn btn-blue" onclick="openSkillTree()">Skill Tree</button>
+            </div>
+
+            <!-- Story Toggle -->
+            <div style="margin-top: 15px; display: flex; align-items: center; gap: 10px;">
+                <label class="switch">
+                    <input type="checkbox" id="story-toggle" onchange="toggleStoryMode(this)">
+                    <span class="slider round"></span>
+                </label>
+                <span style="color: #fff; font-size: 14px;">Enable Story Mode</span>
             </div>
             <div style="display: flex; gap: 10px; margin-top: 5px;">
                 <button class="btn btn-gold" onclick="openAchievements()"

@@ -35,7 +35,7 @@ const defaultSaveData = {
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
     stats: {},
     daily: { lastCompleted: null },
-    story: { unlockedChapters: [] }
+    story: { unlockedChapters: [], enabled: true }
 };
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
@@ -62,7 +62,7 @@ let saveData = {
         maxCombo: 0
     },
     daily: { lastCompleted: null },
-    story: { unlockedChapters: [] }
+    story: { unlockedChapters: [], enabled: true }
 };
 
 // Runtime stats tracker
@@ -114,6 +114,13 @@ function loadGame() {
     if (data) {
         // Merge loaded data with default structure to ensure new updates don't break old saves
         saveData = { ...defaultSaveData, ...data, global: { ...defaultSaveData.global, ...data.global } };
+
+        // Ensure story object exists and has enabled property (Migration for old saves)
+        if (!saveData.story) {
+            saveData.story = { unlockedChapters: [], enabled: true };
+        } else if (saveData.story.enabled === undefined) {
+            saveData.story.enabled = true;
+        }
     } else {
         saveData = JSON.parse(JSON.stringify(defaultSaveData));
     }
@@ -253,7 +260,7 @@ window.setUIState = function (newState) {
 };
 
 // --- Collection Logic ---
-window.checkDrop = function (enemyType) {
+window.checkDrop = function (enemyType, x, y) {
     // Check for all 4 tiers
     for (let i = 1; i <= 4; i++) {
         const cardKey = `${enemyType}_${i}`;
@@ -263,27 +270,8 @@ window.checkDrop = function (enemyType) {
         if (saveData.collection.includes(cardKey)) continue; // Already collected
 
         if (Math.random() < card.chance) {
-            saveData.collection.push(cardKey);
-            saveGame();
-
-            // Show notification
-            const notif = document.createElement('div');
-            notif.className = 'achievement-popup'; // Reuse achievement style
-            notif.style.borderColor = card.color;
-            notif.innerHTML = `
-                <div style="font-size: 12px; color: #aaa;">NEW CARD FOUND!</div>
-                <div style="color: ${card.color}; font-weight: bold; font-size: 16px; margin: 5px 0;">${card.name}</div>
-                <div style="font-size: 12px;">${card.desc}</div>
-            `;
-            document.body.appendChild(notif);
-
-            // Trigger animation
-            setTimeout(() => notif.classList.add('show'), 10);
-
-            setTimeout(() => {
-                notif.classList.remove('show');
-                setTimeout(() => notif.remove(), 1000);
-            }, 4000);
+            // Spawn a physical drop instead of instant collection
+            cardDrops.push(new CardDrop(x, y, cardKey));
 
             // Only one card per kill to avoid spam
             return;
@@ -672,6 +660,15 @@ function handleGamepadMenu() {
 
 // --- Update Existing Functions to use setUIState ---
 
+function toggleStoryMode(checkbox) {
+    if (!saveData.story) {
+        saveData.story = { unlockedChapters: [], enabled: true };
+    }
+    saveData.story.enabled = checkbox.checked;
+    saveGame();
+    console.log("Story Mode " + (saveData.story.enabled ? "Enabled" : "Disabled"));
+}
+
 function initMenu() {
     document.getElementById('menu-overlay').style.display = 'flex';
     document.getElementById('start-screen').style.display = 'flex';
@@ -703,6 +700,19 @@ function initMenu() {
             dailyBtn.style.opacity = 1;
             dailyBtn.style.cursor = 'pointer';
         }
+    }
+
+    // Update Story Toggle Checkbox
+    const storyToggle = document.getElementById('story-toggle');
+    if (storyToggle) {
+        if (!saveData.story) {
+            saveData.story = { unlockedChapters: [], enabled: true };
+        }
+        // Default to true if undefined
+        if (saveData.story.enabled === undefined) {
+            saveData.story.enabled = true;
+        }
+        storyToggle.checked = saveData.story.enabled;
     }
 
     renderHeroSelect();
@@ -1063,6 +1073,7 @@ let powerUps = [];
 let weaponDrops = [];
 let holyMasks = [];
 let goldDrops = [];
+let cardDrops = [];
 let obstacles = [];
 let biomeZones = [];
 
@@ -1372,6 +1383,46 @@ class GoldDrop {
         ctx.strokeStyle = '#f39c12'; ctx.lineWidth = 2; ctx.stroke();
         ctx.fillStyle = 'black'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('$', 0, 1); ctx.restore();
+    }
+}
+
+class CardDrop {
+    constructor(x, y, cardKey) {
+        this.x = x; this.y = y; this.cardKey = cardKey;
+        this.angle = 0;
+        this.scale = 1;
+        this.scaleDir = 0.01;
+    }
+    draw() {
+        this.angle += 0.02;
+        this.scale += this.scaleDir;
+        if (this.scale > 1.1 || this.scale < 0.9) this.scaleDir *= -1;
+
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.scale(this.scale, this.scale);
+
+        // Card Body
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(-10, -14, 20, 28);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-10, -14, 20, 28);
+
+        // Inner Design
+        const card = COLLECTOR_CARDS[this.cardKey];
+        ctx.fillStyle = card ? card.color : '#333';
+        ctx.fillRect(-8, -12, 16, 24);
+
+        // Icon/Text
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('C', 0, 1);
+
+        ctx.restore();
     }
 }
 
@@ -1730,6 +1781,17 @@ function closeShop() {
 
 // --- Story Logic ---
 function triggerStory(completedWave) {
+    // Check if story mode is enabled
+    if (saveData.story && saveData.story.enabled === false) {
+        // Skip story
+        if (wave % 2 === 0) {
+            openShop();
+        } else {
+            advanceWave();
+        }
+        return;
+    }
+
     const story = storyManager.getStoryForWave(completedWave);
     if (story) {
         openStory(story);
@@ -1840,6 +1902,7 @@ function startGame(mode = 'NORMAL') {
     weaponDrops = [];
     holyMasks = [];
     goldDrops = [];
+    cardDrops = [];
     gameRunning = true;
     gamePaused = false;
     isLevelingUp = false;
@@ -2188,6 +2251,42 @@ function masterLoop(timestamp) {
                 }
             });
 
+            // Card Drops
+            cardDrops.forEach((drop, index) => {
+                drop.draw();
+                const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
+                if (dist < player.radius + 20) {
+                    const cardKey = drop.cardKey;
+                    const card = COLLECTOR_CARDS[cardKey];
+
+                    if (card && !saveData.collection.includes(cardKey)) {
+                        saveData.collection.push(cardKey);
+                        saveGame();
+
+                        // Show notification
+                        const notif = document.createElement('div');
+                        notif.className = 'achievement-popup'; // Reuse achievement style
+                        notif.style.borderColor = card.color;
+                        notif.innerHTML = `
+                            <div style="font-size: 12px; color: #aaa;">NEW CARD FOUND!</div>
+                            <div style="color: ${card.color}; font-weight: bold; font-size: 16px; margin: 5px 0;">${card.name}</div>
+                            <div style="font-size: 12px;">${card.desc}</div>
+                        `;
+                        document.body.appendChild(notif);
+
+                        // Trigger animation
+                        setTimeout(() => notif.classList.add('show'), 10);
+
+                        setTimeout(() => {
+                            notif.classList.remove('show');
+                            setTimeout(() => notif.remove(), 1000);
+                        }, 4000);
+                    }
+
+                    cardDrops.splice(index, 1);
+                }
+            });
+
             // Holy Masks
             holyMasks.forEach((mask, index) => {
                 mask.draw();
@@ -2455,7 +2554,7 @@ function masterLoop(timestamp) {
                         saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
                         score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
                         weaponDrops.push(new WeaponDrop(enemy.x, enemy.y));
-                        checkDrop('BOSS'); // Boss Card
+                        checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
                         enemies.splice(eIndex, 1);
                         const remainingBosses = enemies.filter(e => e instanceof Boss).length;
                         if (remainingBosses === 0) {
@@ -2510,13 +2609,30 @@ function masterLoop(timestamp) {
                         if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y));
 
                         // Check for Card Drop
-                        checkDrop(enemy.subType || 'BASIC');
+                        checkDrop(enemy.subType || 'BASIC', enemy.x, enemy.y);
 
                         enemies.splice(eIndex, 1);
                         if (!bossActive) enemiesKilledInWave++;
                     }
                 }
             });
+
+            // Low Health Indicator
+            if (player.hp / player.maxHp < 0.2) {
+                ctx.save();
+                // Red Vignette
+                const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.4, canvas.width / 2, canvas.height / 2, canvas.height * 0.8);
+                gradient.addColorStop(0, 'transparent');
+                gradient.addColorStop(1, 'rgba(255, 0, 0, 0.4)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Pulsing Overlay
+                const pulse = (Math.sin(frame * 0.1) + 1) / 2; // 0 to 1
+                ctx.fillStyle = `rgba(255, 0, 0, ${pulse * 0.15})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            }
 
             updateUI();
             if (player.hp <= 0) {
