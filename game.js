@@ -250,39 +250,68 @@ window.setUIState = function (newState) {
 
 // --- Collection Logic ---
 window.checkDrop = function (enemyType) {
-    // Find card for this enemy type
-    // Map enemy types to card keys if needed, or ensure they match
-    // Enemy types in Enemy.js seem to be uppercase (BASIC, SHOOTER, etc.)
-    const cardKey = enemyType;
-    const card = COLLECTOR_CARDS[cardKey];
+    // Check for all 4 tiers
+    for (let i = 1; i <= 4; i++) {
+        const cardKey = `${enemyType}_${i}`;
+        const card = COLLECTOR_CARDS[cardKey];
 
-    if (!card) return;
-    if (saveData.collection.includes(cardKey)) return; // Already collected
+        if (!card) continue;
+        if (saveData.collection.includes(cardKey)) continue; // Already collected
 
-    if (Math.random() < card.chance) {
-        saveData.collection.push(cardKey);
-        saveGame();
+        if (Math.random() < card.chance) {
+            saveData.collection.push(cardKey);
+            saveGame();
 
-        // Show notification
-        const notif = document.createElement('div');
-        notif.className = 'achievement-popup'; // Reuse achievement style
-        notif.style.borderColor = card.color;
-        notif.innerHTML = `
-            <div style="font-size: 12px; color: #aaa;">NEW CARD FOUND!</div>
-            <div style="color: ${card.color}; font-weight: bold; font-size: 16px; margin: 5px 0;">${card.name}</div>
-            <div style="font-size: 12px;">${card.desc}</div>
-        `;
-        document.body.appendChild(notif);
+            // Show notification
+            const notif = document.createElement('div');
+            notif.className = 'achievement-popup'; // Reuse achievement style
+            notif.style.borderColor = card.color;
+            notif.innerHTML = `
+                <div style="font-size: 12px; color: #aaa;">NEW CARD FOUND!</div>
+                <div style="color: ${card.color}; font-weight: bold; font-size: 16px; margin: 5px 0;">${card.name}</div>
+                <div style="font-size: 12px;">${card.desc}</div>
+            `;
+            document.body.appendChild(notif);
 
-        // Trigger animation
-        setTimeout(() => notif.classList.add('show'), 10);
+            // Trigger animation
+            setTimeout(() => notif.classList.add('show'), 10);
 
-        setTimeout(() => {
-            notif.classList.remove('show');
-            setTimeout(() => notif.remove(), 1000);
-        }, 4000);
+            setTimeout(() => {
+                notif.classList.remove('show');
+                setTimeout(() => notif.remove(), 1000);
+            }, 4000);
+
+            // Only one card per kill to avoid spam
+            return;
+        }
     }
 };
+
+function getCollectionBonuses(targetType) {
+    const bonuses = {
+        damageMult: 1,
+        defenseMult: 1,
+        xpMult: 1,
+        critChance: 0,
+        specials: []
+    };
+
+    saveData.collection.forEach(key => {
+        const card = COLLECTOR_CARDS[key];
+        if (!card || !card.bonus) return;
+
+        // Check if bonus applies to this target (or is global/special)
+        if (card.bonus.target === targetType || card.bonus.type === 'special') {
+            if (card.bonus.type === 'damage_vs') bonuses.damageMult += card.bonus.val;
+            if (card.bonus.type === 'defense_vs') bonuses.defenseMult -= card.bonus.val; // Reduction
+            if (card.bonus.type === 'xp_vs') bonuses.xpMult += card.bonus.val;
+            if (card.bonus.type === 'crit_vs') bonuses.critChance += card.bonus.val;
+            if (card.bonus.type === 'special') bonuses.specials.push(card.bonus.id);
+        }
+    });
+
+    return bonuses;
+}
 
 function openCollection() {
     document.getElementById('menu-overlay').style.display = 'none';
@@ -299,33 +328,62 @@ window.closeCollection = function () {
 function renderCollection() {
     const container = document.getElementById('collection-grid');
     container.innerHTML = '';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.gap = '20px';
 
-    for (let key in COLLECTOR_CARDS) {
-        const card = COLLECTOR_CARDS[key];
-        const unlocked = saveData.collection.includes(key);
+    const types = ['BASIC', 'SHOOTER', 'BRUTE', 'SPEEDSTER', 'SWARM', 'SUMMONER', 'GHOST', 'SNIPER', 'BOMBER', 'TOXIC', 'SHIELDER', 'BOSS'];
 
-        const el = document.createElement('div');
-        el.className = 'collection-card';
-        if (!unlocked) el.classList.add('locked');
+    types.forEach(type => {
+        const row = document.createElement('div');
+        row.className = 'collection-row';
+        row.style.display = 'flex';
+        row.style.gap = '10px';
+        row.style.justifyContent = 'center';
+        row.style.flexWrap = 'wrap';
 
-        el.style.borderColor = unlocked ? card.color : '#333';
-        el.style.boxShadow = unlocked ? `0 0 15px ${card.color}20` : 'none';
+        // Header for row
+        const header = document.createElement('div');
+        header.style.width = '100%';
+        header.style.textAlign = 'center';
+        header.style.color = '#aaa';
+        header.style.marginBottom = '5px';
+        header.style.fontSize = '14px';
+        header.innerText = type;
+        row.appendChild(header);
 
-        el.innerHTML = `
-            <div class="card-icon" style="background: ${unlocked ? card.color : '#222'}">
-                ${unlocked ? '' : '?'}
-            </div>
-            <div class="card-info">
-                <div class="card-name" style="color: ${unlocked ? card.color : '#666'}">
-                    ${unlocked ? card.name : 'Unknown'}
+        for (let i = 1; i <= 4; i++) {
+            const key = `${type}_${i}`;
+            const card = COLLECTOR_CARDS[key];
+            if (!card) continue;
+
+            const unlocked = saveData.collection.includes(key);
+
+            const el = document.createElement('div');
+            el.className = 'collection-card';
+            if (!unlocked) el.classList.add('locked');
+
+            el.style.borderColor = unlocked ? card.color : '#333';
+            el.style.boxShadow = unlocked ? `0 0 15px ${card.color}20` : 'none';
+            el.style.width = '180px'; // Fixed width for consistency
+
+            el.innerHTML = `
+                <div class="card-icon" style="background: ${unlocked ? card.color : '#222'}">
+                    ${unlocked ? (i === 4 ? '👑' : i === 3 ? '💰' : i === 2 ? '🛡️' : '⚔️') : '?'}
                 </div>
-                <div class="card-desc">
-                    ${unlocked ? card.desc : 'Kill ' + key.toLowerCase() + 's to find.'}
+                <div class="card-info">
+                    <div class="card-name" style="color: ${unlocked ? card.color : '#666'}">
+                        ${unlocked ? card.name : 'Unknown'}
+                    </div>
+                    <div class="card-desc" style="color: ${unlocked ? '#ccc' : '#444'}">
+                        ${unlocked ? card.desc : 'Find this card to unlock bonus.'}
+                    </div>
                 </div>
-            </div>
-        `;
-        container.appendChild(el);
-    }
+            `;
+            row.appendChild(el);
+        }
+        container.appendChild(row);
+    });
 }
 
 // --- Statistics Screen Logic ---
@@ -2055,7 +2113,11 @@ function masterLoop(timestamp) {
 
                     // Speedster Explosion
                     if (enemy.subType === 'SPEEDSTER') {
-                        dmgTaken = 20 * (1 - player.damageReduction); // Huge damage
+                        let speedsterDmg = 20;
+                        const bonuses = getCollectionBonuses('SPEEDSTER');
+                        speedsterDmg *= bonuses.defenseMult;
+
+                        dmgTaken = speedsterDmg * (1 - player.damageReduction);
                         createExplosion(player.x, player.y, '#e74c3c');
                         enemy.hp = 0; // Suicide
                     }
@@ -2079,7 +2141,22 @@ function masterLoop(timestamp) {
                     if (proj.isEnemy) {
                         const pDist = Math.hypot(proj.x - player.x, proj.y - player.y);
                         if (pDist < player.radius + proj.radius) {
-                            const dmgTaken = proj.damage * (1 - player.damageReduction);
+                            // Card Dodge/Reduction Logic
+                            const bonuses = getCollectionBonuses(proj.shooterType);
+
+                            if (proj.shooterType === 'SHOOTER' && bonuses.specials.includes('SHOOTER_DODGE') && Math.random() < 0.15) {
+                                floatingTexts.push(new FloatingText(player.x, player.y - 40, "DODGE", "#f1c40f", 20));
+                                projectiles.splice(pIndex, 1);
+                                return;
+                            }
+
+                            if (proj.shooterType === 'TOXIC' && bonuses.specials.includes('TOXIC_IMMUNE')) {
+                                return; // Immune
+                            }
+
+                            let finalDmg = proj.damage * bonuses.defenseMult;
+
+                            const dmgTaken = finalDmg * (1 - player.damageReduction);
                             player.hp -= dmgTaken;
 
                             // Player takes damage number
@@ -2098,20 +2175,42 @@ function masterLoop(timestamp) {
                     } else {
                         const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
                         if (pDist - enemy.radius - proj.radius < 0) {
-                            enemy.hp -= proj.damage;
+                            let finalDamage = proj.damage;
+
+                            // Card Bonuses
+                            const bonuses = getCollectionBonuses(enemy.subType);
+                            if (enemy instanceof Boss) {
+                                const bossBonuses = getCollectionBonuses('BOSS');
+                                bonuses.damageMult += (bossBonuses.damageMult - 1);
+                            }
+
+                            finalDamage *= bonuses.damageMult;
+
+                            // Crit Check with Card Bonus
+                            let isCrit = proj.isCrit;
+                            if (!isCrit && Math.random() < (player.critChance + bonuses.critChance)) {
+                                isCrit = true;
+                                finalDamage *= player.critMultiplier;
+                            }
+
+                            // Special: Shield Pierce
+                            if (enemy.subType === 'SHIELDER' && bonuses.specials.includes('SHIELD_PIERCE')) {
+                                finalDamage *= 1.5;
+                            }
+
+                            enemy.hp -= finalDamage;
 
                             // Enemy takes damage number
-                            const isCrit = proj.isCrit;
                             floatingTexts.push(new FloatingText(
                                 enemy.x,
                                 enemy.y - 20,
-                                Math.floor(proj.damage) + (isCrit ? '!' : ''),
+                                Math.floor(finalDamage) + (isCrit ? '!' : ''),
                                 isCrit ? '#f1c40f' : '#fff',
                                 isCrit ? 30 : 16
                             ));
 
-                            currentRunStats.damageDealt += proj.damage; // Track Damage
-                            saveData.global.totalDamage += proj.damage;
+                            currentRunStats.damageDealt += finalDamage; // Track Damage
+                            saveData.global.totalDamage += finalDamage;
                             createExplosion(enemy.x, enemy.y, proj.color);
                             if (proj.isExplosive) {
                                 enemies.forEach(nearby => {
@@ -2174,6 +2273,7 @@ function masterLoop(timestamp) {
                         saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
                         score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
                         weaponDrops.push(new WeaponDrop(enemy.x, enemy.y));
+                        checkDrop('BOSS'); // Boss Card
                         enemies.splice(eIndex, 1);
                         const remainingBosses = enemies.filter(e => e instanceof Boss).length;
                         if (remainingBosses === 0) {
@@ -2191,10 +2291,25 @@ function masterLoop(timestamp) {
                             }
                         }
                     } else {
+                        // Swarm Explosion (Tier 4)
+                        if (enemy.subType === 'SWARM' && saveData.collection.includes('SWARM_4')) {
+                            createExplosion(enemy.x, enemy.y, '#8e44ad');
+                            enemies.forEach(nearby => {
+                                if (nearby !== enemy && Math.hypot(nearby.x - enemy.x, nearby.y - enemy.y) < 100) {
+                                    nearby.hp -= 20;
+                                    floatingTexts.push(new FloatingText(nearby.x, nearby.y - 20, "20", "#8e44ad", 16));
+                                }
+                            });
+                        }
+
                         currentRunStats.enemiesKilled++; // Track Kill
                         score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
                         if (Math.random() < player.maskChance) holyMasks.push(new HolyMask(enemy.x, enemy.y));
                         if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y)); // Gold Drop
+
+                        // Check for Card Drop
+                        checkDrop(enemy.subType || 'BASIC');
+
                         enemies.splice(eIndex, 1);
                         if (!bossActive) enemiesKilledInWave++;
                     }

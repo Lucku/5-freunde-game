@@ -100,20 +100,32 @@ const WEATHER_TYPES = [
     { id: 'HEATWAVE', name: 'HEATWAVE', color: 'rgba(255, 100, 50, 0.2)', duration: 600 },
     { id: 'MAGNETIC', name: 'MAGNETIC STORM', color: 'rgba(142, 68, 173, 0.2)', duration: 400 }
 ];
-const COLLECTOR_CARDS = {
-    BASIC: { name: "Grunt Card", desc: "+10% Damage vs Basics", chance: 0.005, color: "#7f8c8d" },
-    SHOOTER: { name: "Sniper Card", desc: "15% Chance to Dodge Shooters", chance: 0.005, color: "#f1c40f" },
-    BRUTE: { name: "Brute Card", desc: "+20% Crit Chance vs Brutes", chance: 0.005, color: "#5d4037" },
-    SPEEDSTER: { name: "Speedster Card", desc: "Speedsters are 10% Slower", chance: 0.005, color: "#e74c3c" },
-    SWARM: { name: "Swarm Card", desc: "Swarm enemies explode on death", chance: 0.001, color: "#8e44ad" },
-    SUMMONER: { name: "Summoner Card", desc: "+20% Damage vs Summoners", chance: 0.01, color: "#2980b9" },
-    GHOST: { name: "Ghost Card", desc: "Ghosts are always visible", chance: 0.01, color: "#bdc3c7" },
-    SNIPER: { name: "Assassin Card", desc: "Take 20% Less Dmg from Snipers", chance: 0.01, color: "#16a085" },
-    BOMBER: { name: "Bomber Card", desc: "Bombers have 50% less HP", chance: 0.01, color: "#2c3e50" },
-    TOXIC: { name: "Toxic Card", desc: "Immune to Toxic Trails", chance: 0.01, color: "#27ae60" },
-    SHIELDER: { name: "Guardian Card", desc: "Attacks pierce Shields", chance: 0.01, color: "#95a5a6" },
-    BOSS: { name: "Titan Card", desc: "+5% Damage vs Bosses", chance: 0.1, color: "#c0392b" }
+
+// Helper to create card variants
+const createCardSet = (type, name, color, specialDesc, specialBonus) => {
+    return {
+        [`${type}_1`]: { name: `${name} Bronze`, desc: `+10% Damage vs ${name}s`, chance: 0.01, color: '#cd7f32', bonus: { type: 'damage_vs', val: 0.1, target: type } },
+        [`${type}_2`]: { name: `${name} Silver`, desc: `-10% Damage from ${name}s`, chance: 0.005, color: '#c0c0c0', bonus: { type: 'defense_vs', val: 0.1, target: type } },
+        [`${type}_3`]: { name: `${name} Gold`, desc: `+20% XP from ${name}s`, chance: 0.0025, color: '#ffd700', bonus: { type: 'xp_vs', val: 0.2, target: type } },
+        [`${type}_4`]: { name: `${name} Platinum`, desc: specialDesc, chance: 0.001, color: '#e5e4e2', bonus: specialBonus }
+    };
 };
+
+const COLLECTOR_CARDS = {
+    ...createCardSet('BASIC', 'Grunt', '#7f8c8d', '+10% Crit Chance vs Basics', { type: 'crit_vs', val: 0.1, target: 'BASIC' }),
+    ...createCardSet('SHOOTER', 'Sniper', '#f1c40f', '15% Chance to Dodge Shooters', { type: 'special', id: 'SHOOTER_DODGE' }),
+    ...createCardSet('BRUTE', 'Brute', '#5d4037', '+20% Crit Chance vs Brutes', { type: 'crit_vs', val: 0.2, target: 'BRUTE' }),
+    ...createCardSet('SPEEDSTER', 'Speedster', '#e74c3c', 'Speedsters are 10% Slower', { type: 'special', id: 'SPEEDSTER_SLOW' }),
+    ...createCardSet('SWARM', 'Swarm', '#8e44ad', 'Swarm enemies explode on death (Dmg to enemies)', { type: 'special', id: 'SWARM_EXPLODE' }),
+    ...createCardSet('SUMMONER', 'Summoner', '#2980b9', 'Summoners summon 50% slower', { type: 'special', id: 'SUMMONER_SLOW' }),
+    ...createCardSet('GHOST', 'Ghost', '#bdc3c7', 'Ghosts are always visible', { type: 'special', id: 'GHOST_VISIBLE' }),
+    ...createCardSet('SNIPER', 'Assassin', '#16a085', 'Take 20% Less Dmg from Snipers', { type: 'defense_vs', val: 0.2, target: 'SNIPER' }), // Stacking with Silver
+    ...createCardSet('BOMBER', 'Bomber', '#2c3e50', 'Bombers have 50% less HP', { type: 'special', id: 'BOMBER_HP' }),
+    ...createCardSet('TOXIC', 'Toxic', '#27ae60', 'Immune to Toxic Trails', { type: 'special', id: 'TOXIC_IMMUNE' }),
+    ...createCardSet('SHIELDER', 'Guardian', '#95a5a6', 'Attacks pierce Shields', { type: 'special', id: 'SHIELD_PIERCE' }),
+    ...createCardSet('BOSS', 'Titan', '#c0392b', '+10% Damage vs Bosses', { type: 'damage_vs', val: 0.1, target: 'BOSS' })
+};
+
 const UPGRADE_POOL = [
     { id: 'health', title: 'Vitality', desc: 'Increase Max HP by 25 and Heal 20%.', icon: '❤️' },
     { id: 'radius', title: 'Blast Radius', desc: 'Increase Melee Area of Effect by 25%.', icon: '💥' },

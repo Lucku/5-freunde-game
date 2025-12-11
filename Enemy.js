@@ -51,6 +51,7 @@ class Enemy {
             this.radius = 30; this.hp *= 4; this.speed *= 0.5; this.color = '#5d4037'; this.damage *= 2; this.sides = 4;
         } else if (this.subType === 'SPEEDSTER') {
             this.radius = 12; this.hp *= 0.5; this.speed *= 2.5; this.color = '#e74c3c'; this.sides = 3;
+            if (saveData.collection.includes('SPEEDSTER_4')) this.speed *= 0.9;
         } else if (this.subType === 'SWARM') {
             this.radius = 8; this.hp = 1; this.speed *= 1.2; this.color = '#8e44ad'; this.sides = 0;
         } else if (this.subType === 'SUMMONER') {
@@ -63,6 +64,7 @@ class Enemy {
             this.radius = 15; this.hp *= 0.6; this.speed *= 0.7; this.color = '#16a085'; this.sides = 3; this.shootCooldown = 180;
         } else if (this.subType === 'BOMBER') {
             this.radius = 22; this.hp *= 1.5; this.speed *= 0.6; this.color = '#2c3e50'; this.sides = 8;
+            if (saveData.collection.includes('BOMBER_4')) this.hp *= 0.5;
         } else if (this.subType === 'TOXIC') {
             this.radius = 18; this.color = '#27ae60'; this.sides = 6; this.shootCooldown = 20; // Trail timer
         } else if (this.subType === 'SHIELDER') {
@@ -86,7 +88,8 @@ class Enemy {
         if (this.subType === 'GHOST') {
             const dist = Math.hypot(player.x - this.x, player.y - this.y);
             // Become visible when close or taking damage
-            if (dist < 150 || this.hp < this.maxHp) this.alpha = Math.min(1, this.alpha + 0.05);
+            if (saveData.collection.includes('GHOST_4')) this.alpha = 1;
+            else if (dist < 150 || this.hp < this.maxHp) this.alpha = Math.min(1, this.alpha + 0.05);
             else this.alpha = Math.max(0.1, this.alpha - 0.02);
             moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
         }
@@ -101,7 +104,9 @@ class Enemy {
             if (this.shootCooldown <= 0) {
                 // High velocity, high damage shot
                 const vel = { x: Math.cos(angle) * 15, y: Math.sin(angle) * 15 };
-                projectiles.push(new Projectile(this.x, this.y, vel, this.damage * 2, '#16a085', 4, 'enemy', 0, true));
+                const p = new Projectile(this.x, this.y, vel, this.damage * 2, '#16a085', 4, 'enemy', 0, true);
+                p.shooterType = 'SNIPER';
+                projectiles.push(p);
                 this.shootCooldown = 240; // 4 seconds
             }
             if (this.shootCooldown > 0) this.shootCooldown--;
@@ -125,6 +130,7 @@ class Enemy {
             if (this.shootCooldown <= 0) {
                 // Leave a stationary projectile (puddle)
                 const puddle = new Projectile(this.x, this.y, { x: 0, y: 0 }, 5, '#2ecc71', 10, 'enemy', 0, true);
+                puddle.shooterType = 'TOXIC';
                 puddle.life = 180; // Custom life property needed in Projectile or handle cleanup
                 // Since Projectile doesn't have life, we'll just use a slow projectile
                 projectiles.push(puddle);
@@ -140,7 +146,9 @@ class Enemy {
                 if (dist < 150) { moveX = -Math.cos(angle) * (currentSpeed * 0.5); moveY = -Math.sin(angle) * (currentSpeed * 0.5); }
                 if (this.shootCooldown <= 0) {
                     const vel = { x: Math.cos(angle) * 6, y: Math.sin(angle) * 6 };
-                    projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#e74c3c', 5, 'enemy', 0, true));
+                    const p = new Projectile(this.x, this.y, vel, this.damage, '#e74c3c', 5, 'enemy', 0, true);
+                    p.shooterType = 'SHOOTER';
+                    projectiles.push(p);
                     this.shootCooldown = 120;
                 }
             }
@@ -163,7 +171,10 @@ class Enemy {
                 minion.x = this.x; minion.y = this.y;
                 enemies.push(minion);
                 createExplosion(this.x, this.y, '#2980b9');
-                this.summonCooldown = 300; // 5 seconds
+
+                let cooldown = 300;
+                if (saveData.collection.includes('SUMMONER_4')) cooldown = 450; // 50% slower
+                this.summonCooldown = cooldown;
             }
             if (this.summonCooldown > 0) this.summonCooldown--;
 
