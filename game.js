@@ -288,8 +288,13 @@ function updateUIHighlight() {
 
         const el = focusables[uiSelectionIndex];
         el.classList.add('selected');
-        // Scroll into view if needed
-        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+
+        const scrollableStates = ['ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP'];
+        if (scrollableStates.includes(uiState)) {
+            // Scroll into view if needed
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        }
     }
 }
 
@@ -784,6 +789,11 @@ window.addEventListener('keydown', e => {
     }
     if (e.code === 'KeyE' && gameRunning && !gamePaused && !isShopping) {
         player.useSpecial();
+    }
+    // DEBUG: Kill Player with 'K'
+    if (e.code === 'KeyK' && gameRunning && !gamePaused) {
+        player.hp = -999;
+        showNotification("DEBUG: SUICIDE");
     }
 });
 
@@ -1324,92 +1334,90 @@ function startGame() {
 function gameOver() {
     gameRunning = false;
 
+    // Safety: Ensure stats object exists
+    if (!saveData.stats) saveData.stats = {};
+
     // Track Games and Deaths
     saveData.global.totalGames = (saveData.global.totalGames || 0) + 1;
     saveData.global.totalDeaths = (saveData.global.totalDeaths || 0) + 1;
 
-    // Check achievements immediately to catch "Death" and "Games Played" achievements
     checkAchievements();
 
     document.getElementById('menu-overlay').style.display = 'flex';
-    document.getElementById('game-over-screen').style.display = 'flex';
-    document.getElementById('finalScore').innerText = score;
 
+    // Show Screen
+    const screen = document.getElementById('game-over-screen');
+    if (screen) screen.style.display = 'flex';
+
+    // 1. Header & Score
     const heroData = saveData[player.type];
-    if (score > heroData.highScore) {
-        heroData.highScore = score;
-        document.getElementById('new-highscore-msg').style.display = 'block';
-    } else {
-        document.getElementById('new-highscore-msg').style.display = 'none';
-    }
+    const isHighScore = score > heroData.highScore;
+    if (isHighScore) heroData.highScore = score;
 
-    // --- Statistics Processing ---
-    const timeSurvivedMs = Date.now() - currentRunStats.startTime;
+    document.getElementById('go-score-val').innerText = score.toLocaleString();
+    document.getElementById('go-highscore-msg').style.display = isHighScore ? 'block' : 'none';
+
+    // 2. Prepare Stats Data
+    const timeSurvivedMs = Date.now() - (currentRunStats.startTime || Date.now());
     const timeSurvivedSec = Math.floor(timeSurvivedMs / 1000);
+    const fmtTime = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
-    const runStats = {
-        missilesFired: currentRunStats.missilesFired,
-        timeSurvived: timeSurvivedSec,
-        wavesCleared: wave - 1,
-        damageTaken: Math.floor(currentRunStats.damageTaken),
-        damageDealt: Math.floor(currentRunStats.damageDealt),
-        levelReached: player.level,
-        moneyGained: currentRunStats.moneyGained,
-        moneySpent: currentRunStats.moneySpent,
-        enemiesKilled: currentRunStats.enemiesKilled,
-        bossesKilled: currentRunStats.bossesKilled,
-        maxCombo: currentRunStats.maxCombo
-    };
+    const runStatsList = [
+        { label: "Time Survived", val: fmtTime(timeSurvivedSec), key: 'timeSurvived', raw: timeSurvivedSec },
+        { label: "Waves Cleared", val: wave - 1, key: 'wavesCleared', raw: wave - 1 },
+        { label: "Level Reached", val: player.level, key: 'levelReached', raw: player.level },
+        { label: "Enemies Killed", val: currentRunStats.enemiesKilled, key: 'enemiesKilled', raw: currentRunStats.enemiesKilled },
+        { label: "Damage Dealt", val: Math.floor(currentRunStats.damageDealt).toLocaleString(), key: 'damageDealt', raw: currentRunStats.damageDealt },
+        { label: "Gold Gained", val: currentRunStats.moneyGained, key: 'moneyGained', raw: currentRunStats.moneyGained },
+        { label: "Max Combo", val: currentRunStats.maxCombo, key: 'maxCombo', raw: currentRunStats.maxCombo },
+        { label: "Bosses Killed", val: currentRunStats.bossesKilled, key: 'bossesKilled', raw: currentRunStats.bossesKilled }
+    ];
 
-    const labels = {
-        missilesFired: "Missiles Fired",
-        timeSurvived: "Time Survived (s)",
-        wavesCleared: "Waves Cleared",
-        damageTaken: "Damage Taken",
-        damageDealt: "Damage Dealt",
-        levelReached: "Level Reached",
-        moneyGained: "Gold Gained",
-        moneySpent: "Gold Spent",
-        enemiesKilled: "Enemies Killed",
-        bossesKilled: "Bosses Killed",
-        maxCombo: "Max Combo"
-    };
+    const buildStatsList = [
+        { label: "Max HP", val: Math.floor(player.maxHp) },
+        { label: "Damage", val: "x" + player.damageMultiplier.toFixed(2) },
+        { label: "Speed", val: Math.floor(player.stats.speed * player.speedMultiplier) },
+        { label: "Crit Chance", val: (player.critChance * 100).toFixed(0) + "%" },
+        { label: "Crit Dmg", val: (player.critMultiplier * 100).toFixed(0) + "%" },
+        { label: "Cooldown", val: ((1 - player.cooldownMultiplier) * 100).toFixed(0) + "%" },
+        { label: "Defense", val: (player.damageReduction * 100).toFixed(0) + "%" }
+    ];
 
-    let tableHtml = `<table class="stats-table">
-    <thead><tr><th>Statistic</th><th style="text-align:right">Run</th><th style="text-align:right">Best</th></tr></thead>
-    <tbody>`;
+    // 3. Render Run Stats Grid
+    const gridContainer = document.getElementById('go-stats-grid');
+    gridContainer.innerHTML = '';
 
-    for (let key in runStats) {
-        const currentVal = runStats[key];
-        const bestVal = saveData.stats[key] || 0;
+    runStatsList.forEach(item => {
+        // Check for new record
         let isNewRecord = false;
-
-        if (currentVal > bestVal) {
-            saveData.stats[key] = currentVal;
+        if (item.key && item.raw > (saveData.stats[item.key] || 0)) {
+            saveData.stats[item.key] = item.raw;
             isNewRecord = true;
         }
 
-        let displayCurrent = currentVal;
-        let displayBest = isNewRecord ? currentVal : bestVal;
+        const card = document.createElement('div');
+        card.className = `stat-card ${isNewRecord ? 'record' : ''}`;
+        card.innerHTML = `
+            <div class="stat-label">${item.label}</div>
+            <div class="stat-val">${item.val}</div>
+            ${isNewRecord ? '<div class="stat-new-badge">NEW BEST</div>' : ''}
+        `;
+        gridContainer.appendChild(card);
+    });
 
-        // Format Time
-        if (key === 'timeSurvived') {
-            const fmt = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
-            displayCurrent = fmt(currentVal);
-            displayBest = fmt(displayBest);
-        }
+    // 4. Render Build Stats List
+    const listContainer = document.getElementById('go-build-list');
+    listContainer.innerHTML = '';
 
-        tableHtml += `<tr>
-        <td>${labels[key]}</td>
-        <td class="stats-val ${isNewRecord ? 'new-record' : ''}">${displayCurrent}</td>
-        <td class="stats-val">${displayBest}</td>
-    </tr>`;
-    }
-    tableHtml += `</tbody></table>`;
-    document.getElementById('run-stats-container').innerHTML = tableHtml;
-
-    // Render Detailed Stats
-    renderStatsTable(document.getElementById('detailed-stats-container'));
+    buildStatsList.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'build-item';
+        row.innerHTML = `
+            <span class="build-label">${item.label}</span>
+            <span class="build-val">${item.val}</span>
+        `;
+        listContainer.appendChild(row);
+    });
 
     saveGame();
     setUIState('GAMEOVER');

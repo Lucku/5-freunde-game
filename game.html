@@ -168,16 +168,39 @@
             </div>
         </div>
 
+        <!-- GAME OVER SCREEN -->
         <div id="game-over-screen">
-            <h1 style="color: #e74c3c">GAME OVER</h1>
-            <h2>Final Score: <span id="finalScore">0</span></h2>
-            <h3 id="new-highscore-msg" style="color: #f1c40f; display: none;">NEW HIGH SCORE!</h3>
-            <div id="run-stats-container">
-                <!-- Stats table generated via JS -->
+            <div class="go-header">
+                <h1>GAME OVER</h1>
+                <div class="go-score-container">
+                    <span id="go-score-val">0</span>
+                    <div class="go-score-label">Final Score</div>
+                    <div id="go-highscore-msg">🏆 NEW HIGH SCORE!</div>
+                </div>
             </div>
-            <div id="detailed-stats-container" style="width: 100%; max-width: 600px; margin-top: 20px;"></div>
 
-            <button class="btn" onclick="location.reload()">Play Again</button>
+            <div class="go-buttons">
+                <button class="btn btn-play-again" onclick="startGame()">🔄 Play Again</button>
+                <button class="btn" onclick="initMenu()">🏠 Menu</button>
+            </div>
+
+            <div class="go-content">
+                <!-- Left Column: Run Stats -->
+                <div class="go-column">
+                    <h3>Run Performance</h3>
+                    <div id="go-stats-grid" class="go-grid">
+                        <!-- JS will inject stat cards here -->
+                    </div>
+                </div>
+
+                <!-- Right Column: Build Stats -->
+                <div class="go-column small">
+                    <h3>Final Build</h3>
+                    <div id="go-build-list" class="go-list">
+                        <!-- JS will inject build items here -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
