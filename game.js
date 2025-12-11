@@ -31,6 +31,7 @@ const defaultSaveData = {
         totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0,
         totalVoidGoldSpent: 0, unlockedAchievements: []
     },
+    collection: [],
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
     stats: {}
 };
@@ -43,6 +44,7 @@ let saveData = {
     plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0, totalVoidGoldSpent: 0, unlockedAchievements: [] },
+    collection: [],
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
     stats: {
         missilesFired: 0,
@@ -245,6 +247,86 @@ window.setUIState = function (newState) {
     updateUIHighlight();
     console.log("UI State:", uiState);
 };
+
+// --- Collection Logic ---
+window.checkDrop = function (enemyType) {
+    // Find card for this enemy type
+    // Map enemy types to card keys if needed, or ensure they match
+    // Enemy types in Enemy.js seem to be uppercase (BASIC, SHOOTER, etc.)
+    const cardKey = enemyType;
+    const card = COLLECTOR_CARDS[cardKey];
+
+    if (!card) return;
+    if (saveData.collection.includes(cardKey)) return; // Already collected
+
+    if (Math.random() < card.chance) {
+        saveData.collection.push(cardKey);
+        saveGame();
+
+        // Show notification
+        const notif = document.createElement('div');
+        notif.className = 'achievement-popup'; // Reuse achievement style
+        notif.style.borderColor = card.color;
+        notif.innerHTML = `
+            <div style="font-size: 12px; color: #aaa;">NEW CARD FOUND!</div>
+            <div style="color: ${card.color}; font-weight: bold; font-size: 16px; margin: 5px 0;">${card.name}</div>
+            <div style="font-size: 12px;">${card.desc}</div>
+        `;
+        document.body.appendChild(notif);
+
+        // Trigger animation
+        setTimeout(() => notif.classList.add('show'), 10);
+
+        setTimeout(() => {
+            notif.classList.remove('show');
+            setTimeout(() => notif.remove(), 1000);
+        }, 4000);
+    }
+};
+
+function openCollection() {
+    document.getElementById('menu-overlay').style.display = 'none';
+    document.getElementById('collection-screen').style.display = 'flex';
+    renderCollection();
+    setUIState('COLLECTION');
+}
+
+window.closeCollection = function () {
+    document.getElementById('collection-screen').style.display = 'none';
+    initMenu();
+}
+
+function renderCollection() {
+    const container = document.getElementById('collection-grid');
+    container.innerHTML = '';
+
+    for (let key in COLLECTOR_CARDS) {
+        const card = COLLECTOR_CARDS[key];
+        const unlocked = saveData.collection.includes(key);
+
+        const el = document.createElement('div');
+        el.className = 'collection-card';
+        if (!unlocked) el.classList.add('locked');
+
+        el.style.borderColor = unlocked ? card.color : '#333';
+        el.style.boxShadow = unlocked ? `0 0 15px ${card.color}20` : 'none';
+
+        el.innerHTML = `
+            <div class="card-icon" style="background: ${unlocked ? card.color : '#222'}">
+                ${unlocked ? '' : '?'}
+            </div>
+            <div class="card-info">
+                <div class="card-name" style="color: ${unlocked ? card.color : '#666'}">
+                    ${unlocked ? card.name : 'Unknown'}
+                </div>
+                <div class="card-desc">
+                    ${unlocked ? card.desc : 'Kill ' + key.toLowerCase() + 's to find.'}
+                </div>
+            </div>
+        `;
+        container.appendChild(el);
+    }
+}
 
 // --- Statistics Screen Logic ---
 
@@ -541,6 +623,7 @@ function initMenu() {
     document.getElementById('achievements-screen').style.display = 'none';
     document.getElementById('highscore-screen').style.display = 'none'; /* Hide highscore screen */
     document.getElementById('stats-screen').style.display = 'none'; // Hide stats screen
+    document.getElementById('collection-screen').style.display = 'none';
     renderHeroSelect();
     setUIState('MENU'); // Set State
 }

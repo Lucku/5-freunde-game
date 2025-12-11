@@ -100,7 +100,20 @@ const WEATHER_TYPES = [
     { id: 'HEATWAVE', name: 'HEATWAVE', color: 'rgba(255, 100, 50, 0.2)', duration: 600 },
     { id: 'MAGNETIC', name: 'MAGNETIC STORM', color: 'rgba(142, 68, 173, 0.2)', duration: 400 }
 ];
-
+const COLLECTOR_CARDS = {
+    BASIC: { name: "Grunt Card", desc: "+10% Damage vs Basics", chance: 0.005, color: "#7f8c8d" },
+    SHOOTER: { name: "Sniper Card", desc: "15% Chance to Dodge Shooters", chance: 0.005, color: "#f1c40f" },
+    BRUTE: { name: "Brute Card", desc: "+20% Crit Chance vs Brutes", chance: 0.005, color: "#5d4037" },
+    SPEEDSTER: { name: "Speedster Card", desc: "Speedsters are 10% Slower", chance: 0.005, color: "#e74c3c" },
+    SWARM: { name: "Swarm Card", desc: "Swarm enemies explode on death", chance: 0.001, color: "#8e44ad" },
+    SUMMONER: { name: "Summoner Card", desc: "+20% Damage vs Summoners", chance: 0.01, color: "#2980b9" },
+    GHOST: { name: "Ghost Card", desc: "Ghosts are always visible", chance: 0.01, color: "#bdc3c7" },
+    SNIPER: { name: "Assassin Card", desc: "Take 20% Less Dmg from Snipers", chance: 0.01, color: "#16a085" },
+    BOMBER: { name: "Bomber Card", desc: "Bombers have 50% less HP", chance: 0.01, color: "#2c3e50" },
+    TOXIC: { name: "Toxic Card", desc: "Immune to Toxic Trails", chance: 0.01, color: "#27ae60" },
+    SHIELDER: { name: "Guardian Card", desc: "Attacks pierce Shields", chance: 0.01, color: "#95a5a6" },
+    BOSS: { name: "Titan Card", desc: "+5% Damage vs Bosses", chance: 0.1, color: "#c0392b" }
+};
 const UPGRADE_POOL = [
     { id: 'health', title: 'Vitality', desc: 'Increase Max HP by 25 and Heal 20%.', icon: '❤️' },
     { id: 'radius', title: 'Blast Radius', desc: 'Increase Melee Area of Effect by 25%.', icon: '💥' },
