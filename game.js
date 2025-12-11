@@ -917,6 +917,22 @@ class MeleeSwipe {
     }
 }
 
+class WeaponDrop {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.type = WEAPON_TYPES[Math.floor(Math.random() * WEAPON_TYPES.length)];
+        this.radius = 20; this.angle = 0;
+    }
+    draw() {
+        this.angle += 0.05;
+        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+        ctx.fillStyle = '#8e44ad'; ctx.fillRect(-15, -15, 30, 30);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(-15, -15, 30, 30);
+        ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('W', 0, 0); ctx.restore();
+    }
+}
+
 class GoldDrop {
     constructor(x, y) {
         this.x = x; this.y = y; this.radius = 10; this.angle = 0;
