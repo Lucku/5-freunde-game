@@ -277,6 +277,8 @@ canvas {
 #perm-shop-screen,
 #achievements-screen,
 #highscore-screen,
+#stats-screen,
+/* Added stats-screen */
 #game-over-screen {
     position: absolute;
     top: 0;
@@ -294,6 +296,95 @@ canvas {
 
 #game-over-screen {
     display: none;
+}
+
+#stats-screen {
+    display: none;
+    background: #111;
+}
+
+#stats-content {
+    width: 80%;
+    height: 60%;
+    overflow-y: auto;
+    padding: 20px;
+    background: #1a1a1a;
+    border: 2px solid #444;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.stats-section {
+    margin-bottom: 30px;
+}
+
+.stats-section h3 {
+    border-bottom: 2px solid #444;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+    color: #fff;
+    font-size: 18px;
+    letter-spacing: 1px;
+}
+
+.stats-grid-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+}
+
+.summary-card {
+    background: #2c3e50;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #34495e;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.summary-val {
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 5px;
+}
+
+.summary-label {
+    font-size: 11px;
+    color: #aaa;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.source-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.source-col {
+    background: #222;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #333;
+    font-size: 14px;
+    color: #ddd;
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+}
+
+.stat-row span:last-child {
+    font-weight: bold;
+    color: #fff;
 }
 
 /* Game Over Specific Styles */

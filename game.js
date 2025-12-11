@@ -245,6 +245,132 @@ window.setUIState = function (newState) {
     console.log("UI State:", uiState);
 };
 
+// --- Statistics Screen Logic ---
+
+function openStats() {
+    document.getElementById('menu-overlay').style.display = 'none';
+    document.getElementById('stats-screen').style.display = 'flex';
+    renderStatsScreen();
+    setUIState('STATS');
+}
+
+function closeStats() {
+    document.getElementById('stats-screen').style.display = 'none';
+    initMenu();
+}
+
+function renderStatsScreen() {
+    document.getElementById('stats-hero-title').innerText = `ACTIVE HERO: ${selectedHeroType.toUpperCase()}`;
+
+    // 1. Initialize Accumulators
+    let totals = {
+        damage: 0,      // %
+        healthPct: 0,   // %
+        healthFlat: 0,  // Flat
+        speed: 0,       // %
+        cooldown: 0,    // %
+        defense: 0,     // %
+        gold: 0,        // % (Greed)
+        luck: 0,        // %
+        projectiles: 0, // Flat
+        revives: 0      // Flat
+    };
+
+    // --- A. VOID SHOP (Meta Upgrades) ---
+    let voidHtml = '';
+    // Note: Assuming PERM_UPGRADES is global from Constants.js
+    // If not, define defaults or ensure Constants.js is loaded
+    if (typeof PERM_UPGRADES !== 'undefined') {
+        for (let key in PERM_UPGRADES) {
+            const level = saveData.metaUpgrades[key] || 0;
+            if (level > 0) {
+                let effect = "";
+                if (key === 'health') { totals.healthFlat += level * 5; effect = `+${level * 5} Max HP`; }
+                if (key === 'power') { totals.damage += level; effect = `+${level}% Damage`; }
+                if (key === 'swift') { totals.speed += level; effect = `+${level}% Speed`; }
+                if (key === 'greed') { totals.gold += level * 5; effect = `+${level * 5}% Gold Gain`; } // Assuming Greed exists
+
+                voidHtml += `<div class="stat-row"><span>${PERM_UPGRADES[key].name} (Lvl ${level})</span><span>${effect}</span></div>`;
+            }
+        }
+    }
+    if (voidHtml === '') voidHtml = '<div style="color:#666; font-style:italic; padding:10px;">No Void Upgrades purchased yet.</div>';
+    document.getElementById('stats-void-list').innerHTML = voidHtml;
+
+    // --- B. ACHIEVEMENTS ---
+    let achHtml = '';
+    saveData.global.unlockedAchievements.forEach(id => {
+        const ach = ACHIEVEMENTS.find(a => a.id === id);
+        if (ach) {
+            const val = ach.bonus.val;
+            let effect = "";
+
+            if (ach.bonus.type === 'damage') { totals.damage += val * 100; effect = `+${(val * 100).toFixed(0)}% Damage`; }
+            if (ach.bonus.type === 'health') { totals.healthPct += val * 100; effect = `+${(val * 100).toFixed(0)}% HP`; }
+            if (ach.bonus.type === 'speed') { totals.speed += val * 100; effect = `+${(val * 100).toFixed(0)}% Speed`; }
+            if (ach.bonus.type === 'cooldown') { totals.cooldown += val * 100; effect = `+${(val * 100).toFixed(0)}% CDR`; }
+            if (ach.bonus.type === 'gold') { totals.gold += val * 100; effect = `+${(val * 100).toFixed(0)}% Gold`; }
+
+            achHtml += `<div class="stat-row"><span>${ach.title}</span><span>${effect}</span></div>`;
+        }
+    });
+    if (achHtml === '') achHtml = '<div style="color:#666; font-style:italic; padding:10px;">No Achievements unlocked yet.</div>';
+    document.getElementById('stats-ach-list').innerHTML = achHtml;
+
+    // --- C. SKILL TREE ---
+    let treeHtml = '';
+    const treeData = generateHeroSkillTree(selectedHeroType);
+    const unlockedCount = saveData[selectedHeroType].unlocked;
+
+    // Aggregate Tree Stats for cleaner display
+    let treeStats = { damage: 0, health: 0, speed: 0, cooldown: 0, defense: 0, projectiles: 0, other: [] };
+
+    for (let i = 0; i < unlockedCount; i++) {
+        const node = treeData[i];
+        if (node.type === 'DAMAGE') { treeStats.damage += node.value; totals.damage += node.value * 100; }
+        else if (node.type === 'HEALTH') { treeStats.health += node.value; totals.healthPct += node.value * 100; }
+        else if (node.type === 'SPEED') { treeStats.speed += node.value; totals.speed += node.value * 100; }
+        else if (node.type === 'COOLDOWN') { treeStats.cooldown += node.value; totals.cooldown += node.value * 100; } // Approx additive for display
+        else if (node.type === 'ARMOR') { treeStats.defense += node.value; totals.defense += node.value * 100; }
+        else if (node.type === 'SPLIT' || node.type === 'PIERCE') {
+            treeStats.projectiles += node.value;
+            totals.projectiles += node.value;
+            treeStats.other.push(node.desc);
+        }
+        else {
+            treeStats.other.push(node.desc);
+        }
+    }
+
+    if (treeStats.damage > 0) treeHtml += `<div class="stat-row"><span>Total Damage Nodes</span><span>+${(treeStats.damage * 100).toFixed(0)}%</span></div>`;
+    if (treeStats.health > 0) treeHtml += `<div class="stat-row"><span>Total Health Nodes</span><span>+${(treeStats.health * 100).toFixed(0)}%</span></div>`;
+    if (treeStats.speed > 0) treeHtml += `<div class="stat-row"><span>Total Speed Nodes</span><span>+${(treeStats.speed * 100).toFixed(0)}%</span></div>`;
+    if (treeStats.cooldown > 0) treeHtml += `<div class="stat-row"><span>Total Cooldown Nodes</span><span>-${(treeStats.cooldown * 100).toFixed(0)}%</span></div>`;
+    if (treeStats.defense > 0) treeHtml += `<div class="stat-row"><span>Total Armor Nodes</span><span>+${(treeStats.defense * 100).toFixed(0)}%</span></div>`;
+
+    // Unique nodes
+    const uniqueNodes = [...new Set(treeStats.other)]; // Deduplicate descriptions
+    uniqueNodes.forEach(desc => {
+        treeHtml += `<div class="stat-row"><span>Special Node</span><span>${desc}</span></div>`;
+    });
+
+    if (unlockedCount === 0) treeHtml = '<div style="color:#666; font-style:italic; padding:10px;">No Skill Tree nodes unlocked.</div>';
+    document.getElementById('stats-tree-list').innerHTML = treeHtml;
+
+    // --- D. RENDER TOTALS ---
+    const summaryGrid = document.getElementById('stats-summary-grid');
+    summaryGrid.innerHTML = `
+        <div class="summary-card"><div class="summary-val" style="color:#e74c3c">+${totals.damage.toFixed(0)}%</div><div class="summary-label">Damage</div></div>
+        <div class="summary-card"><div class="summary-val" style="color:#2ecc71">+${totals.healthPct.toFixed(0)}% / +${totals.healthFlat}</div><div class="summary-label">Health</div></div>
+        <div class="summary-card"><div class="summary-val" style="color:#f1c40f">+${totals.speed.toFixed(0)}%</div><div class="summary-label">Move Speed</div></div>
+        <div class="summary-card"><div class="summary-val" style="color:#3498db">${totals.cooldown.toFixed(0)}%</div><div class="summary-label">Cooldown Red.</div></div>
+        <div class="summary-card"><div class="summary-val" style="color:#9b59b6">+${totals.defense.toFixed(0)}%</div><div class="summary-label">Defense</div></div>
+        <div class="summary-card"><div class="summary-val" style="color:#f39c12">+${totals.gold.toFixed(0)}%</div><div class="summary-label">Gold Gain</div></div>
+        <div class="summary-card"><div class="summary-val" style="color:#fff">+${totals.projectiles}</div><div class="summary-label">Extra Proj.</div></div>
+        <div class="summary-card"><div class="summary-val" style="color:#1abc9c">${saveData[selectedHeroType].prestige}</div><div class="summary-label">Prestige Rank</div></div>
+    `;
+}
+
 function getFocusables() {
     let screenId = '';
     if (uiState === 'MENU') screenId = 'start-screen';
@@ -256,6 +382,7 @@ function getFocusables() {
     else if (uiState === 'ACHIEVEMENTS') screenId = 'achievements-screen';
     else if (uiState === 'HIGHSCORE') screenId = 'highscore-screen';
     else if (uiState === 'SKILLTREE') screenId = 'skill-tree-screen';
+    else if (uiState === 'STATS') screenId = 'stats-screen'; // Added STATS
 
     if (!screenId) return [];
     const screen = document.getElementById(screenId);
@@ -331,6 +458,11 @@ function handleGamepadMenu() {
         if (treeContainer && Math.abs(gp.axes[3]) > 0.1) {
             treeContainer.scrollTop += gp.axes[3] * 15; // Scroll speed
         }
+    } else if (uiState === 'STATS') { // Added STATS scrolling
+        const content = document.getElementById('stats-content');
+        if (content && Math.abs(gp.axes[3]) > 0.1) {
+            content.scrollTop += gp.axes[3] * 15;
+        }
     }
 
     // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
@@ -341,6 +473,7 @@ function handleGamepadMenu() {
         else if (uiState === 'ACHIEVEMENTS') closeAchievements();
         else if (uiState === 'HIGHSCORE') closeHighScores();
         else if (uiState === 'SKILLTREE') closeSkillTree();
+        else if (uiState === 'STATS') closeStats(); // Added STATS
         uiDebounce = 30;
     }
 
@@ -384,6 +517,7 @@ function handleGamepadMenu() {
         else if (uiState === 'ACHIEVEMENTS') closeAchievements();
         else if (uiState === 'HIGHSCORE') closeHighScores();
         else if (uiState === 'SKILLTREE') closeSkillTree(); // Added SKILLTREE
+        else if (uiState === 'STATS') closeStats(); // Added STATS
         uiDebounce = 30; // Increased from 20 to 30
     }
 
@@ -405,6 +539,7 @@ function initMenu() {
     document.getElementById('perm-shop-screen').style.display = 'none'; // Hide perm shop
     document.getElementById('achievements-screen').style.display = 'none';
     document.getElementById('highscore-screen').style.display = 'none'; /* Hide highscore screen */
+    document.getElementById('stats-screen').style.display = 'none'; // Hide stats screen
     renderHeroSelect();
     setUIState('MENU'); // Set State
 }

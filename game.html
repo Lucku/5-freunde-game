@@ -134,6 +134,39 @@
         <button class="btn" onclick="closeSkillTree()">Back to Menu</button>
     </div>
 
+    <!-- NEW STATISTICS SCREEN -->
+    <div id="stats-screen">
+        <h1>GLOBAL STATISTICS</h1>
+        <h2 id="stats-hero-title" style="color: #aaa; margin-bottom: 20px;"></h2>
+
+        <div id="stats-content">
+            <!-- Section 1: Big Totals -->
+            <div class="stats-section">
+                <h3>TOTAL ACCUMULATED BONUSES</h3>
+                <div id="stats-summary-grid" class="stats-grid-summary">
+                    <!-- JS Injected -->
+                </div>
+            </div>
+
+            <!-- Section 2: Breakdown -->
+            <div class="source-list">
+                <div class="source-col">
+                    <h3 style="color: #9b59b6;">VOID SHOP (META)</h3>
+                    <div id="stats-void-list"></div>
+                </div>
+                <div class="source-col">
+                    <h3 style="color: #f1c40f;">ACHIEVEMENTS</h3>
+                    <div id="stats-ach-list"></div>
+                </div>
+                <div class="source-col" style="grid-column: span 2;">
+                    <h3 style="color: #3498db;">SKILL TREE (CURRENT HERO)</h3>
+                    <div id="stats-tree-list"></div>
+                </div>
+            </div>
+        </div>
+        <button class="btn" onclick="closeStats()">Back to Menu</button>
+    </div>
+
     <!-- Main Menu -->
     <div id="menu-overlay">
         <div id="start-screen">
@@ -152,6 +185,9 @@
                     style="font-size: 14px; padding: 10px 20px;">Achievements</button>
                 <button class="btn btn-gold" onclick="openHighScores()"
                     style="font-size: 14px; padding: 10px 20px;">High Scores</button>
+                <!-- NEW STATISTICS BUTTON -->
+                <button class="btn btn-blue" onclick="openStats()"
+                    style="font-size: 14px; padding: 10px 20px;">Statistics</button>
             </div>
             <!-- New Button for Void Shop -->
             <div style="margin-top: 10px;">
