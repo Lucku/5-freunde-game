@@ -126,6 +126,18 @@ const COLLECTOR_CARDS = {
     ...createCardSet('BOSS', 'Titan', '#c0392b', '+10% Damage vs Bosses', { type: 'damage_vs', val: 0.1, target: 'BOSS' })
 };
 
+const MUTATORS = [
+    { id: 'TINY_ARENA', name: 'Tiny Arena', desc: 'The arena is 50% smaller.', color: '#e74c3c' },
+    { id: 'EXPLOSIVE', name: 'Explosive Personality', desc: 'All enemies explode on death.', color: '#e67e22' },
+    { id: 'SLUG', name: 'Slug Mode', desc: 'Player Speed -50%, Damage +200%.', color: '#f1c40f' },
+    { id: 'FOG', name: 'Fog of War', desc: 'Enemies are only visible when close.', color: '#95a5a6' },
+    { id: 'GIANTS', name: 'Giant Slayer', desc: 'Enemies have 2x HP and Size, but spawn 50% less.', color: '#8e44ad' },
+    { id: 'SWARM', name: 'Swarm Mode', desc: 'Enemies have 50% HP and Size, but spawn 2x more.', color: '#2ecc71' },
+    { id: 'FRAGILE', name: 'Glass Cannon', desc: 'Player HP is capped at 1, but Damage is 5x.', color: '#3498db' },
+    { id: 'NO_REGEN', name: 'No Mercy', desc: 'No Health Drops spawn.', color: '#c0392b' },
+    { id: 'WINDY', name: 'Hurricane', desc: 'Strong winds push you around.', color: '#1abc9c' }
+];
+
 const UPGRADE_POOL = [
     { id: 'health', title: 'Vitality', desc: 'Increase Max HP by 25 and Heal 20%.', icon: '❤️' },
     { id: 'radius', title: 'Blast Radius', desc: 'Increase Melee Area of Effect by 25%.', icon: '💥' },

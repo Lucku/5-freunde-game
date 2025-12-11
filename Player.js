@@ -379,19 +379,26 @@ class Player {
             if (frame % 2 === 0) particles.push(new Particle(this.x, this.y, this.stats.color));
         }
 
+        // Calculate Movement Vector
+        let moveX = 0;
+        let moveY = 0;
+
         if (dx !== 0 || dy !== 0) {
-            // Normalize vector if using keyboard (gamepad axes are usually 0-1)
-            let len = Math.sqrt(dx * dx + dy * dy);
-            // Cap length at 1 for gamepad to allow slow walking, but normalize keyboard
-            if (len > 1) len = 1;
-            // For keyboard diagonal, len is 1.414, so we normalize. 
-            // For gamepad, we want to keep the analog value if it's < 1.
-
-            // Simple normalization for direction calculation
             const moveLen = Math.sqrt(dx * dx + dy * dy);
+            const scale = (moveLen > 1 ? 1 : moveLen); // Cap at 1 for gamepad
+            moveX = (dx / (moveLen || 1)) * currentSpeed * scale;
+            moveY = (dy / (moveLen || 1)) * currentSpeed * scale;
+        }
 
-            let nextX = this.x + (dx / (moveLen || 1)) * currentSpeed * (moveLen > 1 ? 1 : moveLen);
-            let nextY = this.y + (dy / (moveLen || 1)) * currentSpeed * (moveLen > 1 ? 1 : moveLen);
+        // WINDY MUTATOR
+        if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'WINDY')) {
+            moveX += 1.5; // Wind pushes right
+        }
+
+        // Apply Movement
+        if (moveX !== 0 || moveY !== 0) {
+            let nextX = this.x + moveX;
+            let nextY = this.y + moveY;
 
             if (!checkWallCollision(nextX, nextY, this.radius)) {
                 this.x = nextX; this.y = nextY;

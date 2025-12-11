@@ -70,6 +70,23 @@ class Enemy {
         } else if (this.subType === 'SHIELDER') {
             this.radius = 25; this.hp *= 3; this.speed *= 0.4; this.color = '#7f8c8d'; this.sides = 4;
         }
+
+        // --- MUTATOR MODIFIERS ---
+        if (typeof activeMutators !== 'undefined') {
+            if (activeMutators.some(m => m.id === 'GIANTS')) {
+                this.radius *= 1.5;
+                this.hp *= 2;
+            }
+            if (activeMutators.some(m => m.id === 'SWARM')) {
+                this.radius *= 0.6;
+                this.hp *= 0.6;
+            }
+            if (activeMutators.some(m => m.id === 'FOG')) {
+                this.alpha = 0; // Start invisible
+            }
+        }
+
+        this.maxHp = this.hp;
     }
 
     update() {
@@ -181,6 +198,16 @@ class Enemy {
         } else {
             // Basic, Brute, Speedster, Swarm just chase
             moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
+        }
+
+        // --- MUTATOR UPDATE LOGIC ---
+        if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'FOG')) {
+            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            if (dist < 180 || this.hp < this.maxHp) {
+                this.alpha = Math.min(1, this.alpha + 0.05);
+            } else {
+                this.alpha = Math.max(0, this.alpha - 0.05);
+            }
         }
 
         let nextX = this.x + moveX; let nextY = this.y + moveY;

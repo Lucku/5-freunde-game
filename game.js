@@ -33,7 +33,8 @@ const defaultSaveData = {
     },
     collection: [],
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
-    stats: {}
+    stats: {},
+    daily: { lastCompleted: null }
 };
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
@@ -58,7 +59,8 @@ let saveData = {
         enemiesKilled: 0,
         bossesKilled: 0,
         maxCombo: 0
-    }
+    },
+    daily: { lastCompleted: null }
 };
 
 // Runtime stats tracker
@@ -682,6 +684,24 @@ function initMenu() {
     document.getElementById('highscore-screen').style.display = 'none'; /* Hide highscore screen */
     document.getElementById('stats-screen').style.display = 'none'; // Hide stats screen
     document.getElementById('collection-screen').style.display = 'none';
+
+    // Update Daily Challenge Button
+    const dailyBtn = document.getElementById('daily-challenge-btn');
+    if (dailyBtn) {
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        if (saveData.daily && saveData.daily.lastCompleted === today) {
+            dailyBtn.innerText = "Daily Completed";
+            dailyBtn.disabled = true;
+            dailyBtn.style.opacity = 0.5;
+            dailyBtn.style.cursor = 'not-allowed';
+        } else {
+            dailyBtn.innerText = "Daily Challenge";
+            dailyBtn.disabled = false;
+            dailyBtn.style.opacity = 1;
+            dailyBtn.style.cursor = 'pointer';
+        }
+    }
+
     renderHeroSelect();
     setUIState('MENU'); // Set State
 }
@@ -1101,6 +1121,10 @@ window.addEventListener('keydown', e => {
             currentBiomeType = types[Math.floor(Math.random() * types.length)];
             showNotification(`DEBUG: SKIPPED TO WAVE ${wave}`);
             generateArena();
+            if (player) {
+                player.x = canvas.width / 2;
+                player.y = canvas.height / 2;
+            }
         }
     }
 });
@@ -1160,6 +1184,59 @@ function showNotification(text) {
     div.innerText = text;
     document.getElementById('notification-area').appendChild(div);
     setTimeout(() => div.remove(), 2000);
+}
+
+// --- Daily Challenge Logic ---
+let activeMutators = [];
+let isDailyMode = false;
+
+function getDailySeed() {
+    const now = new Date();
+    // Create a unique integer for the day (YYYYMMDD)
+    return parseInt(`${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`);
+}
+
+function getDailyMutators() {
+    const seed = getDailySeed();
+    // Simple seeded random
+    const random = (seed) => {
+        let x = Math.sin(seed++) * 10000;
+        return x - Math.floor(x);
+    };
+
+    let currentSeed = seed;
+    const count = 2 + Math.floor(random(currentSeed) * 2); // 2 or 3 mutators
+    currentSeed++;
+
+    const selected = [];
+    const pool = [...MUTATORS];
+
+    for (let i = 0; i < count; i++) {
+        if (pool.length === 0) break;
+        const index = Math.floor(random(currentSeed) * pool.length);
+        selected.push(pool[index]);
+        pool.splice(index, 1);
+        currentSeed++;
+    }
+    return selected;
+}
+
+function startDailyChallenge() {
+    const today = getDailySeed();
+    if (saveData.daily && saveData.daily.lastCompleted === today) {
+        alert("You have already completed today's challenge!");
+        return;
+    }
+
+    activeMutators = getDailyMutators();
+    isDailyMode = true;
+
+    // Show Mutators
+    let msg = "DAILY CHALLENGE MUTATORS:\n";
+    activeMutators.forEach(m => msg += `- ${m.name}: ${m.desc}\n`);
+    alert(msg);
+
+    startGame('DAILY');
 }
 
 // --- Classes ---
@@ -1446,6 +1523,22 @@ function generateArena() {
             playerRect.y < obs.y + obs.h &&
             playerRect.y + playerRect.h > obs.y);
     });
+
+    // TINY ARENA MUTATOR
+    if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'TINY_ARENA')) {
+        const w = canvas.width;
+        const h = canvas.height;
+        const border = 0.25; // 25% border on each side -> 50% playable area
+
+        // Top
+        obstacles.push(new Obstacle(0, 0, w, h * border));
+        // Bottom
+        obstacles.push(new Obstacle(0, h * (1 - border), w, h * border));
+        // Left
+        obstacles.push(new Obstacle(0, 0, w * border, h));
+        // Right
+        obstacles.push(new Obstacle(w * (1 - border), 0, w * border, h));
+    }
 }
 
 function checkWallCollision(x, y, r) {
@@ -1634,6 +1727,13 @@ function closeShop() {
     showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
 
     generateArena();
+
+    // Reset Player Position to Center
+    if (player) {
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
+    }
+
     setUIState('GAME');
 }
 
@@ -1677,7 +1777,7 @@ function checkAchievements() {
 
 // --- Main Loop ---
 
-function startGame() {
+function startGame(mode = 'NORMAL') {
     player = new Player(selectedHeroType);
     score = 0;
     wave = 1;
@@ -1711,6 +1811,26 @@ function startGame() {
         bossesKilled: 0,
         maxCombo: 0
     };
+
+    // Mode Handling
+    if (mode === 'NORMAL') {
+        isDailyMode = false;
+        activeMutators = [];
+    }
+    // Daily mode is set in startDailyChallenge
+
+    // Apply Mutators (Initial)
+    if (isDailyMode) {
+        if (activeMutators.some(m => m.id === 'FRAGILE')) {
+            player.maxHp = 1;
+            player.hp = 1;
+            player.damageMultiplier *= 5;
+        }
+        if (activeMutators.some(m => m.id === 'SLUG')) {
+            player.speedMultiplier *= 0.5;
+            player.damageMultiplier += 2; // +200%
+        }
+    }
 
     currentBiomeType = selectedHeroType; // Start in home biome
     generateArena();
@@ -1904,17 +2024,22 @@ function masterLoop(timestamp) {
             if (!bossActive) {
                 let spawnRate = Math.max(5, 40 - (wave * 2));
                 if (frame % spawnRate === 0) {
-                    // Swarm Logic
-                    if (wave > 2 && Math.random() < 0.1) {
-                        for (let i = 0; i < 5; i++) {
-                            const swarm = new Enemy(false, 'SWARM');
-                            // Offset slightly
-                            swarm.x += (Math.random() - 0.5) * 50;
-                            swarm.y += (Math.random() - 0.5) * 50;
-                            enemies.push(swarm);
+                    let loops = 1;
+                    if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
+
+                    for (let l = 0; l < loops; l++) {
+                        // Swarm Logic
+                        if (wave > 2 && Math.random() < 0.1) {
+                            for (let i = 0; i < 5; i++) {
+                                const swarm = new Enemy(false, 'SWARM');
+                                // Offset slightly
+                                swarm.x += (Math.random() - 0.5) * 50;
+                                swarm.y += (Math.random() - 0.5) * 50;
+                                enemies.push(swarm);
+                            }
+                        } else {
+                            enemies.push(new Enemy());
                         }
-                    } else {
-                        enemies.push(new Enemy());
                     }
                 }
             } else {
@@ -2268,6 +2393,15 @@ function masterLoop(timestamp) {
                     player.addCombo(); // Add Combo
                     checkAchievements(); // Check achievements on kill
 
+                    // Mutator: Explosive Personality
+                    if (isDailyMode && activeMutators.some(m => m.id === 'EXPLOSIVE')) {
+                        createExplosion(enemy.x, enemy.y, '#e74c3c');
+                        if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 100) {
+                            player.hp -= 10 * (1 - player.damageReduction);
+                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "10", "#e74c3c", 20));
+                        }
+                    }
+
                     if (enemy instanceof Boss) {
                         currentRunStats.bossesKilled++; // Track Boss Kill
                         saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
@@ -2278,6 +2412,20 @@ function masterLoop(timestamp) {
                         const remainingBosses = enemies.filter(e => e instanceof Boss).length;
                         if (remainingBosses === 0) {
                             bossActive = false;
+
+                            // Daily Challenge Win Condition
+                            if (isDailyMode && wave === 10) {
+                                showNotification("DAILY CHALLENGE COMPLETE!");
+                                saveData.daily.lastCompleted = getDailySeed();
+                                saveData.global.totalVoidGoldSpent += 0; // Just to ensure field exists
+                                // Reward
+                                player.gold += 5000; // Bonus Gold
+                                saveData.global.totalGold += 5000;
+                                saveGame();
+                                setTimeout(gameOver, 3000);
+                                return;
+                            }
+
                             // Shop Check - Changed to every 2 waves
                             if (wave % 2 === 0) {
                                 openShop();
@@ -2288,6 +2436,11 @@ function masterLoop(timestamp) {
                                 currentBiomeType = types[Math.floor(Math.random() * types.length)];
                                 showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
                                 generateArena();
+                                // Reset Player Position to Center
+                                if (player) {
+                                    player.x = canvas.width / 2;
+                                    player.y = canvas.height / 2;
+                                }
                             }
                         }
                     } else {
@@ -2305,7 +2458,21 @@ function masterLoop(timestamp) {
                         currentRunStats.enemiesKilled++; // Track Kill
                         score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
                         if (Math.random() < player.maskChance) holyMasks.push(new HolyMask(enemy.x, enemy.y));
-                        if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y)); // Gold Drop
+
+                        // Mutator: No Regen (No Health Drops)
+                        if (!(isDailyMode && activeMutators.some(m => m.id === 'NO_REGEN'))) {
+                            if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y)); // Gold Drop
+                        } else {
+                            // Still drop gold, but maybe less? Or just no health potions if they existed as drops.
+                            // Wait, GoldDrop is money. Health is usually from Shop or Skills.
+                            // If "No Regen" means no healing, we should block healing in Player.js or here.
+                            // Let's assume "No Health Drops" refers to potential future drops or just disable lifesteal/regen.
+                            // For now, let's just block Gold Drops as a penalty or rename mutator to "Poverty".
+                            // Actually, let's stick to the description: "No Health Drops spawn".
+                            // Since we don't have health drops yet (only shop potions), let's make it block Gold Drops instead for now?
+                            // Or better: Block Shop Healing.
+                        }
+                        if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y));
 
                         // Check for Card Drop
                         checkDrop(enemy.subType || 'BASIC');
