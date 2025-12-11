@@ -720,9 +720,22 @@ function renderSkillTree() {
         else if (isAvailable) el.classList.add('available');
         else el.classList.add('locked');
 
+        // Determine Icon based on type
+        let icon = "⚔️";
+        if (node.type === 'HEALTH') icon = "❤️";
+        if (node.type === 'SPEED') icon = "👟";
+        if (node.type === 'COOLDOWN') icon = "⏳";
+        if (node.type === 'ARMOR') icon = "🛡️";
+        if (node.type === 'PIERCE' || node.type === 'SPLIT') icon = "🏹";
+        if (node.type.includes('ULT')) icon = "✨";
+
         el.innerHTML = `
             <div class="skill-level">${index + 1}</div>
-            <div class="skill-info">${node.desc}</div>
+            <div class="skill-icon">${icon}</div>
+            <div class="skill-tooltip">
+                <strong>Node ${index + 1}</strong><br>
+                ${node.desc}
+            </div>
         `;
 
         if (isAvailable) {
