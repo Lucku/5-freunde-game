@@ -35,6 +35,7 @@ const defaultSaveData = {
     stats: {}
 };
 
+let currentBiomeType = 'fire'; // Default, updated in startGame
 let saveData = {
     fire: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
@@ -931,6 +932,23 @@ window.addEventListener('keydown', e => {
         player.hp = -999;
         showNotification("DEBUG: SUICIDE");
     }
+    // DEBUG: Next Wave with 'N'
+    if (e.code === 'KeyN' && gameRunning && !gamePaused) {
+        enemies = [];
+        bossActive = false;
+        projectiles = [];
+
+        if (wave % 2 === 0) {
+            openShop();
+        } else {
+            wave++;
+            enemiesKilledInWave = 0;
+            const types = ['fire', 'water', 'ice', 'plant', 'metal'];
+            currentBiomeType = types[Math.floor(Math.random() * types.length)];
+            showNotification(`DEBUG: SKIPPED TO WAVE ${wave}`);
+            generateArena();
+        }
+    }
 });
 
 function togglePause() {
@@ -1230,9 +1248,8 @@ function generateArena() {
     const safeZone = 150;
 
     // --- Biome Generation ---
-    // Based on selectedHeroType (which defines the "home turf")
-    // Or we could make it random? User asked for "match the arena of the respective elemental hero"
-    const type = selectedHeroType;
+    // Based on currentBiomeType (randomized per wave)
+    const type = currentBiomeType;
 
     if (type === 'fire') {
         // Lava Pools
@@ -1456,6 +1473,12 @@ function closeShop() {
     wave++;
     enemiesKilledInWave = 0;
     enemies = [];
+
+    // Randomize Biome
+    const types = ['fire', 'water', 'ice', 'plant', 'metal'];
+    currentBiomeType = types[Math.floor(Math.random() * types.length)];
+    showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
+
     generateArena();
     setUIState('GAME');
 }
@@ -1535,6 +1558,7 @@ function startGame() {
         maxCombo: 0
     };
 
+    currentBiomeType = selectedHeroType; // Start in home biome
     generateArena();
 
     document.getElementById('menu-overlay').style.display = 'none';
@@ -1754,15 +1778,25 @@ function masterLoop(timestamp) {
                 if (player.x > zone.x && player.x < zone.x + zone.w &&
                     player.y > zone.y && player.y < zone.y + zone.h) {
 
-                    if (zone.type === 'MUD') biomeSpeedMod = 0.5;
-                    if (zone.type === 'ICE') biomeSpeedMod = 1.3; // Slide faster
-                    if (zone.type === 'WATER') biomeSpeedMod = 0.7;
+                    // Immunity Check
+                    let isImmune = false;
+                    if (player.type === 'fire' && zone.type === 'LAVA') isImmune = true;
+                    if (player.type === 'ice' && zone.type === 'ICE') isImmune = true;
+                    if (player.type === 'plant' && zone.type === 'MUD') isImmune = true;
+                    if (player.type === 'water' && zone.type === 'WATER') isImmune = true;
+                    if (player.type === 'metal' && zone.type === 'MAGNET') isImmune = true;
 
-                    if (zone.type === 'LAVA' && frame % 60 === 0) {
-                        player.hp -= 5 * (1 - player.damageReduction);
-                        currentRunStats.damageTaken += 5;
-                        createExplosion(player.x, player.y, '#e74c3c');
-                        showNotification("BURNING!");
+                    if (!isImmune) {
+                        if (zone.type === 'MUD') biomeSpeedMod = 0.5;
+                        if (zone.type === 'ICE') biomeSpeedMod = 1.3; // Slide faster
+                        if (zone.type === 'WATER') biomeSpeedMod = 0.7;
+
+                        if (zone.type === 'LAVA' && frame % 60 === 0) {
+                            player.hp -= 5 * (1 - player.damageReduction);
+                            currentRunStats.damageTaken += 5;
+                            createExplosion(player.x, player.y, '#e74c3c');
+                            showNotification("BURNING!");
+                        }
                     }
                 }
             });
@@ -2029,7 +2063,12 @@ function masterLoop(timestamp) {
                             if (wave % 2 === 0) {
                                 openShop();
                             } else {
-                                wave++; enemiesKilledInWave = 0; enemies = []; generateArena();
+                                wave++; enemiesKilledInWave = 0; enemies = [];
+                                // Randomize Biome
+                                const types = ['fire', 'water', 'ice', 'plant', 'metal'];
+                                currentBiomeType = types[Math.floor(Math.random() * types.length)];
+                                showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
+                                generateArena();
                             }
                         }
                     } else {
