@@ -304,13 +304,6 @@ canvas {
     background: #111;
 }
 
-/* Stats Screen */
-#stats-screen {
-    display: none;
-    background: rgba(0, 0, 0, 0.9);
-    z-index: 20;
-}
-
 h1 {
     font-size: 60px;
     margin-bottom: 10px;

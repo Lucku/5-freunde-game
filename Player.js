@@ -310,7 +310,6 @@ class Player {
 
         // Gamepad Polling
         const gamepads = navigator.getGamepads();
-        console.log(gamepads);
         let gp = null;
         for (let g of gamepads) { if (g && g.connected) { gp = g; break; } }
 

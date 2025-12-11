@@ -788,29 +788,9 @@ window.addEventListener('keydown', e => {
 });
 
 function togglePause() {
-    if (isStatsOpen) { toggleStats(); return; }
     gamePaused = !gamePaused;
     document.getElementById('pause-screen').style.display = gamePaused ? 'flex' : 'none';
     setUIState(gamePaused ? 'PAUSE' : 'GAME');
-}
-
-function toggleStats() {
-    isStatsOpen = !isStatsOpen;
-    const screen = document.getElementById('stats-screen');
-    screen.style.display = isStatsOpen ? 'flex' : 'none';
-
-    if (isStatsOpen) {
-        // Pause if not already paused
-        if (!gamePaused && gameRunning) {
-            gamePaused = true;
-        }
-        renderStatsTable(document.getElementById('stats-content'));
-    } else {
-        // Resume if it was running and we just closed stats
-        if (gamePaused && gameRunning && document.getElementById('pause-screen').style.display === 'none') {
-            gamePaused = false;
-        }
-    }
 }
 
 function renderStatsTable(container) {
@@ -826,7 +806,7 @@ function renderStatsTable(container) {
         { label: 'Cooldown Red.', tree: (bd.cooldown.tree * 100).toFixed(0) + '%', ach: (bd.cooldown.ach * 100).toFixed(0) + '%', run: (run.cooldown * 100).toFixed(0) + '%' },
         { label: 'Defense', tree: (bd.defense.tree * 100).toFixed(0) + '%', ach: (bd.defense.ach * 100).toFixed(0) + '%', run: (run.defense * 100).toFixed(0) + '%' },
         { label: 'Projectiles', tree: '+' + bd.projectiles.tree, ach: '+' + bd.projectiles.ach, run: '+' + run.projectiles },
-        { label: 'Luck', tree: (bd.luck.tree * 100).toFixed(0) + '%', ach: (bd.luck.ach * 100).toFixed(0) + '%', run: (run.luck * 100).toFixed(1) + '%' },
+        { label: 'Luck', tree: (bd.luck.tree * 100).toFixed(0) + '%', ach: (bd.luck.ach * 100).toFixed(0) + '%', run: (run.luck * 100).toFixed(0) + '%' },
         { label: 'Explode Chance', tree: (bd.explodeChance.tree * 100).toFixed(0) + '%', ach: '-', run: '-' }
     ];
 
