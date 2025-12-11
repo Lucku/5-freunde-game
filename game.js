@@ -886,6 +886,7 @@ let weaponDrops = [];
 let holyMasks = [];
 let goldDrops = [];
 let obstacles = [];
+let biomeZones = [];
 
 // Input
 const keys = {};
@@ -990,6 +991,40 @@ function showNotification(text) {
 }
 
 // --- Classes ---
+
+class BiomeZone {
+    constructor(x, y, w, h, type) {
+        this.x = x; this.y = y; this.w = w; this.h = h;
+        this.type = type; // 'LAVA', 'ICE', 'MUD', 'WATER', 'MAGNET'
+    }
+    draw() {
+        ctx.save();
+        if (this.type === 'LAVA') {
+            ctx.fillStyle = 'rgba(231, 76, 60, 0.3)';
+            ctx.strokeStyle = '#c0392b';
+            // Pulsing effect
+            ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 500) * 0.2;
+        } else if (this.type === 'ICE') {
+            ctx.fillStyle = 'rgba(52, 152, 219, 0.2)';
+            ctx.strokeStyle = '#2980b9';
+        } else if (this.type === 'MUD') {
+            ctx.fillStyle = 'rgba(100, 80, 50, 0.4)';
+            ctx.strokeStyle = '#5d4037';
+        } else if (this.type === 'WATER') {
+            ctx.fillStyle = 'rgba(41, 128, 185, 0.3)';
+            ctx.strokeStyle = '#2980b9';
+            ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 1000) * 0.1;
+        } else if (this.type === 'MAGNET') {
+            ctx.fillStyle = 'rgba(142, 68, 173, 0.2)';
+            ctx.strokeStyle = '#8e44ad';
+        }
+
+        ctx.fillRect(this.x, this.y, this.w, this.h);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x, this.y, this.w, this.h);
+        ctx.restore();
+    }
+}
 
 class Obstacle {
     constructor(x, y, w, h) {
@@ -1188,10 +1223,36 @@ function createExplosion(x, y, color) {
 
 function generateArena() {
     obstacles = [];
+    biomeZones = [];
     const layout = Math.floor(Math.random() * 3);
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
     const safeZone = 150;
+
+    // --- Biome Generation ---
+    // Based on selectedHeroType (which defines the "home turf")
+    // Or we could make it random? User asked for "match the arena of the respective elemental hero"
+    const type = selectedHeroType;
+
+    if (type === 'fire') {
+        // Lava Pools
+        biomeZones.push(new BiomeZone(cx - 300, cy - 300, 150, 150, 'LAVA'));
+        biomeZones.push(new BiomeZone(cx + 150, cy + 150, 150, 150, 'LAVA'));
+    } else if (type === 'ice') {
+        // Ice Patches (Slippery/Fast)
+        biomeZones.push(new BiomeZone(cx - 400, cy - 100, 200, 200, 'ICE'));
+        biomeZones.push(new BiomeZone(cx + 200, cy - 100, 200, 200, 'ICE'));
+    } else if (type === 'plant') {
+        // Mud/Swamp (Slow)
+        biomeZones.push(new BiomeZone(cx - 200, cy - 200, 400, 100, 'MUD'));
+        biomeZones.push(new BiomeZone(cx - 200, cy + 100, 400, 100, 'MUD'));
+    } else if (type === 'water') {
+        // Deep Water (Slow + Push?) - For now just visual + slight slow
+        biomeZones.push(new BiomeZone(0, cy - 100, canvas.width, 200, 'WATER'));
+    } else if (type === 'metal') {
+        // Magnetic Zones
+        biomeZones.push(new BiomeZone(cx - 100, cy - 100, 200, 200, 'MAGNET'));
+    }
 
     if (layout === 0) {
         obstacles.push(new Obstacle(canvas.width * 0.2, canvas.height * 0.2, 100, 100));
@@ -1234,6 +1295,10 @@ function drawArena() {
     for (let x = 0; x <= canvas.width; x += tileSize) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); }
     for (let y = 0; y <= canvas.height; y += tileSize) { ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); }
     ctx.stroke();
+
+    // Draw Biome Zones (Under obstacles)
+    biomeZones.forEach(zone => zone.draw());
+
     obstacles.forEach(obs => obs.draw());
     ctx.save(); ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.beginPath(); ctx.arc(0, 0, 120, 0, Math.PI * 2); ctx.strokeStyle = bossActive ? '#c0392b' : '#444'; ctx.lineWidth = 15; ctx.stroke();
@@ -1682,6 +1747,27 @@ function masterLoop(timestamp) {
 
             // --- Updates ---
 
+            // Biome Effects on Player
+            let biomeSpeedMod = 1;
+            biomeZones.forEach(zone => {
+                // Simple AABB collision
+                if (player.x > zone.x && player.x < zone.x + zone.w &&
+                    player.y > zone.y && player.y < zone.y + zone.h) {
+
+                    if (zone.type === 'MUD') biomeSpeedMod = 0.5;
+                    if (zone.type === 'ICE') biomeSpeedMod = 1.3; // Slide faster
+                    if (zone.type === 'WATER') biomeSpeedMod = 0.7;
+
+                    if (zone.type === 'LAVA' && frame % 60 === 0) {
+                        player.hp -= 5 * (1 - player.damageReduction);
+                        currentRunStats.damageTaken += 5;
+                        createExplosion(player.x, player.y, '#e74c3c');
+                        showNotification("BURNING!");
+                    }
+                }
+            });
+            player.biomeSpeedMod = biomeSpeedMod;
+
             player.update();
             player.draw();
 
@@ -1780,6 +1866,24 @@ function masterLoop(timestamp) {
             });
 
             enemies.forEach((enemy, eIndex) => {
+                // Biome Effects on Enemy
+                let enemySpeedMod = 1;
+                biomeZones.forEach(zone => {
+                    if (enemy.x > zone.x && enemy.x < zone.x + zone.w &&
+                        enemy.y > zone.y && enemy.y < zone.y + zone.h) {
+
+                        if (zone.type === 'MUD') enemySpeedMod = 0.5;
+                        if (zone.type === 'ICE') enemySpeedMod = 1.3;
+                        if (zone.type === 'WATER') enemySpeedMod = 0.7;
+
+                        if (zone.type === 'LAVA' && frame % 60 === 0) {
+                            enemy.hp -= 5;
+                            createExplosion(enemy.x, enemy.y, '#e74c3c');
+                        }
+                    }
+                });
+                enemy.biomeSpeedMod = enemySpeedMod;
+
                 enemy.update(); enemy.draw();
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
 

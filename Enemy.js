@@ -42,6 +42,7 @@ class Enemy {
         this.summonCooldown = 0;
         this.frozenTimer = 0;
         this.alpha = 1; // For Ghost
+        this.biomeSpeedMod = 1; // Biome Modifier
 
         // Type Specific Overrides
         if (this.subType === 'SHOOTER') {
@@ -78,7 +79,7 @@ class Enemy {
 
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
         let moveX = 0, moveY = 0;
-        let currentSpeed = this.speed;
+        let currentSpeed = this.speed * this.biomeSpeedMod;
         if (currentWeather && currentWeather.id === 'BLIZZARD') currentSpeed *= 0.5;
 
         // --- Behavior Logic ---

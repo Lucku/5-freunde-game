@@ -32,6 +32,9 @@ class Player {
         // Apply Meta Greed
         this.goldMultiplier += (saveData.metaUpgrades.greed || 0) * 0.05;
 
+        // Biome Modifier
+        this.biomeSpeedMod = 1;
+
         // Crit Stats
         this.critChance = 0.05; // 5% base
         this.critMultiplier = 1.5; // 150% damage
@@ -356,6 +359,9 @@ class Player {
 
         let currentSpeed = this.stats.speed * this.speedMultiplier;
         if (this.buffs.speed > 0) currentSpeed *= 1.5;
+
+        // Apply Biome Modifier
+        currentSpeed *= this.biomeSpeedMod;
 
         // Weather Slow
         if (currentWeather && currentWeather.id === 'BLIZZARD') currentSpeed *= 0.8;
