@@ -13,8 +13,11 @@ module.exports = {
     },
     {
       name: '@electron-forge/maker-zip',
-      platforms: ['darwin'],
+      platforms: ['darwin', 'linux'],
     },
+    /* 
+    // RPM and DEB makers often fail on macOS without specific tools installed.
+    // Since we only need the ZIP for Steam Deck, we can disable these.
     {
       name: '@electron-forge/maker-deb',
       config: {},
@@ -22,7 +25,8 @@ module.exports = {
     {
       name: '@electron-forge/maker-rpm',
       config: {},
-    },
+    }, 
+    */
   ],
   plugins: [
     {

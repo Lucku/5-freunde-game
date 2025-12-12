@@ -516,6 +516,7 @@ function getFocusables() {
     else if (uiState === 'HIGHSCORE') screenId = 'highscore-screen';
     else if (uiState === 'SKILLTREE') screenId = 'skill-tree-screen';
     else if (uiState === 'STATS') screenId = 'stats-screen'; // Added STATS
+    else if (uiState === 'COLLECTION') screenId = 'collection-screen';
 
     if (!screenId) return [];
     const screen = document.getElementById(screenId);
@@ -523,7 +524,7 @@ function getFocusables() {
 
     // Select all interactive elements
     // REMOVED .achievement-row from here
-    const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item, .skill-node'));
+    const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item, .skill-node, .collection-card'));
     // Filter out hidden elements
     return elements.filter(el => el.offsetParent !== null);
 }
@@ -550,7 +551,7 @@ function updateUIHighlight() {
         el.classList.add('selected');
 
 
-        const scrollableStates = ['ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP'];
+        const scrollableStates = ['ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION'];
         if (scrollableStates.includes(uiState)) {
             // Scroll into view if needed
             el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
@@ -596,6 +597,11 @@ function handleGamepadMenu() {
         if (content && Math.abs(gp.axes[3]) > 0.1) {
             content.scrollTop += gp.axes[3] * 15;
         }
+    } else if (uiState === 'COLLECTION') {
+        const content = document.getElementById('collection-grid');
+        if (content && Math.abs(gp.axes[3]) > 0.1) {
+            content.scrollTop += gp.axes[3] * 15;
+        }
     }
 
     // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
@@ -607,6 +613,7 @@ function handleGamepadMenu() {
         else if (uiState === 'HIGHSCORE') closeHighScores();
         else if (uiState === 'SKILLTREE') closeSkillTree();
         else if (uiState === 'STATS') closeStats(); // Added STATS
+        else if (uiState === 'COLLECTION') closeCollection();
         uiDebounce = 30;
     }
 
@@ -974,11 +981,13 @@ function getHeroStats(type) {
     base.extraProjectiles = 0;
     base.meleeRadiusMult = 1;
     base.explodeChance = 0;
+    base.goldMultiplier = 1; // Initialize gold multiplier
 
-    const prestigeMult = 1 + (heroData.prestige * 0.5);
+    const prestigeMult = 1 + (heroData.prestige * 0.2); // Reduced from 0.5 to 0.2
     base.hp *= prestigeMult;
     base.rangeDmg *= prestigeMult;
     base.meleeDmg *= prestigeMult;
+    base.goldMultiplier *= prestigeMult; // Apply prestige to gold gain
 
     const unlockedCount = heroData.unlocked;
     for (let i = 0; i < unlockedCount; i++) {

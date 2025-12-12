@@ -27,7 +27,7 @@ class Player {
         this.speedMultiplier = 1;
         this.cooldownMultiplier = 1;
         this.gold = 0;
-        this.goldMultiplier = 1;
+        this.goldMultiplier = this.stats.goldMultiplier || 1;
 
         // Apply Meta Greed
         this.goldMultiplier += (saveData.metaUpgrades.greed || 0) * 0.05;
