@@ -943,8 +943,9 @@ button.btn-gold:hover {
 
 .skill-node.locked {
     opacity: 0.4;
-    pointer-events: none;
+    /* pointer-events: none; REMOVED to allow tooltips */
     filter: grayscale(100%);
+    cursor: not-allowed;
 }
 
 .skill-icon {
@@ -984,7 +985,8 @@ button.btn-gold:hover {
     pointer-events: none;
 }
 
-.skill-node:hover .skill-tooltip {
+.skill-node:hover .skill-tooltip,
+.skill-node.selected .skill-tooltip {
     visibility: visible;
     opacity: 1;
 }

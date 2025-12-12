@@ -643,62 +643,74 @@ function handleGamepadMenu() {
 
     // Navigation - Spatial Grid System
     if (down || up || left || right) {
-        const currentEl = focusables[uiSelectionIndex];
-        if (currentEl) {
-            const curRect = currentEl.getBoundingClientRect();
-            const curCx = curRect.left + curRect.width / 2;
-            const curCy = curRect.top + curRect.height / 2;
+        // Special Case for Skill Tree: Linear Navigation for Left/Right
+        if (uiState === 'SKILLTREE' && (left || right)) {
+            if (left) {
+                uiSelectionIndex--;
+                if (uiSelectionIndex < 0) uiSelectionIndex = focusables.length - 1; // Wrap to end
+            } else if (right) {
+                uiSelectionIndex++;
+                if (uiSelectionIndex >= focusables.length) uiSelectionIndex = 0; // Wrap to start
+            }
+            moved = true;
+        } else {
+            const currentEl = focusables[uiSelectionIndex];
+            if (currentEl) {
+                const curRect = currentEl.getBoundingClientRect();
+                const curCx = curRect.left + curRect.width / 2;
+                const curCy = curRect.top + curRect.height / 2;
 
-            let bestDist = Infinity;
-            let bestIndex = -1;
+                let bestDist = Infinity;
+                let bestIndex = -1;
 
-            focusables.forEach((el, index) => {
-                if (index === uiSelectionIndex) return;
+                focusables.forEach((el, index) => {
+                    if (index === uiSelectionIndex) return;
 
-                const rect = el.getBoundingClientRect();
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
+                    const rect = el.getBoundingClientRect();
+                    const cx = rect.left + rect.width / 2;
+                    const cy = rect.top + rect.height / 2;
 
-                let dist = Infinity;
-                let valid = false;
-                const k = 4; // Penalty weight for perpendicular deviation
+                    let dist = Infinity;
+                    let valid = false;
+                    const k = 4; // Penalty weight for perpendicular deviation
 
-                if (down) {
-                    if (cy > curCy + 10) { // Must be below
-                        valid = true;
-                        dist = (cy - curCy) + Math.abs(cx - curCx) * k;
+                    if (down) {
+                        if (cy > curCy + 10) { // Must be below
+                            valid = true;
+                            dist = (cy - curCy) + Math.abs(cx - curCx) * k;
+                        }
+                    } else if (up) {
+                        if (cy < curCy - 10) { // Must be above
+                            valid = true;
+                            dist = (curCy - cy) + Math.abs(cx - curCx) * k;
+                        }
+                    } else if (right) {
+                        if (cx > curCx + 10) { // Must be to the right
+                            valid = true;
+                            dist = (cx - curCx) + Math.abs(cy - curCy) * k;
+                        }
+                    } else if (left) {
+                        if (cx < curCx - 10) { // Must be to the left
+                            valid = true;
+                            dist = (curCx - cx) + Math.abs(cy - curCy) * k;
+                        }
                     }
-                } else if (up) {
-                    if (cy < curCy - 10) { // Must be above
-                        valid = true;
-                        dist = (curCy - cy) + Math.abs(cx - curCx) * k;
+
+                    if (valid && dist < bestDist) {
+                        bestDist = dist;
+                        bestIndex = index;
                     }
-                } else if (right) {
-                    if (cx > curCx + 10) { // Must be to the right
-                        valid = true;
-                        dist = (cx - curCx) + Math.abs(cy - curCy) * k;
-                    }
-                } else if (left) {
-                    if (cx < curCx - 10) { // Must be to the left
-                        valid = true;
-                        dist = (curCx - cx) + Math.abs(cy - curCy) * k;
-                    }
+                });
+
+                if (bestIndex !== -1) {
+                    uiSelectionIndex = bestIndex;
+                    moved = true;
                 }
-
-                if (valid && dist < bestDist) {
-                    bestDist = dist;
-                    bestIndex = index;
-                }
-            });
-
-            if (bestIndex !== -1) {
-                uiSelectionIndex = bestIndex;
+            } else {
+                // Fallback if selection is invalid
+                uiSelectionIndex = 0;
                 moved = true;
             }
-        } else {
-            // Fallback if selection is invalid
-            uiSelectionIndex = 0;
-            moved = true;
         }
     }
 
@@ -980,7 +992,6 @@ function renderSkillTree() {
             <div class="skill-level">${index + 1}</div>
             <div class="skill-icon">${icon}</div>
             <div class="skill-tooltip">
-                <strong>Node ${index + 1}</strong><br>
                 ${node.desc}
             </div>
         `;
@@ -990,6 +1001,20 @@ function renderSkillTree() {
                 saveData[selectedHeroType].unlocked++;
                 saveGame();
                 renderSkillTree();
+
+                // Auto-select the next node (which is now available)
+                // We need to wait for the DOM to update
+                setTimeout(() => {
+                    const focusables = getFocusables();
+                    // The newly unlocked node is at index 'index' (0-based)
+                    // The NEXT node (now available) is at index + 1
+                    // But getFocusables returns ALL nodes now that we removed pointer-events:none
+                    // So we can just select index + 1 if it exists
+                    if (index + 1 < focusables.length) {
+                        uiSelectionIndex = index + 1;
+                        updateUIHighlight();
+                    }
+                }, 50);
             };
         }
         container.appendChild(el);
