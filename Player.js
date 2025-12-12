@@ -331,11 +331,11 @@ class Player {
             // Shoot: RT (Button 7) or R1 (Button 5)
             if (gp.buttons[7].pressed || gp.buttons[5].pressed) this.shoot();
 
-            // Melee: B (Button 1) or X (Button 2)
-            if (gp.buttons[1].pressed || gp.buttons[2].pressed) this.melee();
+            // Melee: LT (Button 6) or X (Button 2)
+            if (gp.buttons[6].pressed || gp.buttons[2].pressed) this.melee();
 
-            // Dash: LT (Button 6) or LB (Button 4) or A (Button 0)
-            if ((gp.buttons[6].pressed || gp.buttons[4].pressed || gp.buttons[0].pressed) && !this.isDashing) this.dash();
+            // Dash: B (Button 1) or LB (Button 4) or A (Button 0)
+            if ((gp.buttons[1].pressed || gp.buttons[4].pressed || gp.buttons[0].pressed) && !this.isDashing) this.dash();
 
             // Special: Y (Button 3)
             if (gp.buttons[3].pressed) this.useSpecial();
