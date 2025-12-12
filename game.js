@@ -525,6 +525,7 @@ function getFocusables() {
     else if (uiState === 'SKILLTREE') screenId = 'skill-tree-screen';
     else if (uiState === 'STATS') screenId = 'stats-screen'; // Added STATS
     else if (uiState === 'COLLECTION') screenId = 'collection-screen';
+    else if (uiState === 'STORY') screenId = 'story-screen';
 
     if (!screenId) return [];
     const screen = document.getElementById(screenId);
@@ -1220,6 +1221,12 @@ window.addEventListener('keydown', e => {
             }
         }
     }
+
+    // DEBUG: Spawn Boss with 'B'
+    if (e.code === 'KeyB' && gameRunning && !gamePaused && !bossActive) {
+        enemiesKilledInWave = ENEMIES_PER_WAVE * wave;
+        showNotification("DEBUG: BOSS SPAWNED");
+    }
 });
 
 function togglePause() {
@@ -1856,8 +1863,8 @@ function closeShop() {
 
 // --- Story Logic ---
 function triggerStory(completedWave) {
-    // Check if story mode is enabled
-    if (saveData.story && saveData.story.enabled === false) {
+    // Check if story mode is enabled or if it's daily mode
+    if ((saveData.story && saveData.story.enabled === false) || isDailyMode) {
         // Skip story
         if (wave % 2 === 0) {
             openShop();
@@ -1906,6 +1913,7 @@ function advanceWave() {
     wave++;
     enemiesKilledInWave = 0;
     enemies = [];
+    bossActive = false;
 
     // Randomize Biome
     const types = ['fire', 'water', 'ice', 'plant', 'metal'];
@@ -2146,7 +2154,7 @@ function masterLoop(timestamp) {
         // Always handle UI input
         handleGamepadMenu();
 
-        if (gameRunning && !gamePaused && !isLevelingUp && !isShopping) {
+        if (gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen) {
 
             // Boss Death Slow-Mo Sequence
             if (bossDeathTimer > 0) {
@@ -2241,9 +2249,9 @@ function masterLoop(timestamp) {
             }
 
             // --- Spawning Logic ---
-            if (!bossActive && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
+            if (!bossActive && bossDeathTimer === 0 && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
                 bossActive = true;
-                if (Math.random() < 0.2) {
+                if (Math.random() < 0.05) {
                     document.getElementById('event-text').style.display = 'block';
                     setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
                     enemies.unshift(new Boss(), new Boss());
@@ -2253,7 +2261,7 @@ function masterLoop(timestamp) {
                 for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
             }
 
-            if (!bossActive) {
+            if (!bossActive && bossDeathTimer === 0) {
                 let spawnRate = Math.max(5, 40 - (wave * 2));
                 if (frame % spawnRate === 0) {
                     let loops = 1;

@@ -104,10 +104,10 @@ const WEATHER_TYPES = [
 // Helper to create card variants
 const createCardSet = (type, name, color, specialDesc, specialBonus) => {
     return {
-        [`${type}_1`]: { name: `${name} Bronze`, desc: `+10% Damage vs ${name}s`, chance: 0.01, color: '#cd7f32', bonus: { type: 'damage_vs', val: 0.1, target: type } },
-        [`${type}_2`]: { name: `${name} Silver`, desc: `-10% Damage from ${name}s`, chance: 0.005, color: '#c0c0c0', bonus: { type: 'defense_vs', val: 0.1, target: type } },
-        [`${type}_3`]: { name: `${name} Gold`, desc: `+20% XP from ${name}s`, chance: 0.0025, color: '#ffd700', bonus: { type: 'xp_vs', val: 0.2, target: type } },
-        [`${type}_4`]: { name: `${name} Platinum`, desc: specialDesc, chance: 0.001, color: '#e5e4e2', bonus: specialBonus }
+        [`${type}_1`]: { name: `${name} Bronze`, desc: `+10% Damage vs ${name}s`, chance: 0.005, color: '#cd7f32', bonus: { type: 'damage_vs', val: 0.1, target: type } },
+        [`${type}_2`]: { name: `${name} Silver`, desc: `-10% Damage from ${name}s`, chance: 0.0025, color: '#c0c0c0', bonus: { type: 'defense_vs', val: 0.1, target: type } },
+        [`${type}_3`]: { name: `${name} Gold`, desc: `+20% XP from ${name}s`, chance: 0.001, color: '#ffd700', bonus: { type: 'xp_vs', val: 0.2, target: type } },
+        [`${type}_4`]: { name: `${name} Platinum`, desc: specialDesc, chance: 0.0005, color: '#e5e4e2', bonus: specialBonus }
     };
 };
 
