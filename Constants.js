@@ -10,6 +10,7 @@ const BASE_HERO_STATS = {
 const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI', 'AUTOAIM'];
 const WEAPON_TYPES = ['SCATTER', 'MINIGUN', 'BAZOOKA'];
 const BOSS_TYPES = ['TANK', 'SPEEDSTER', 'SUMMONER', 'NOVA', 'RHINO', 'HYDRA'];
+const ENEMY_TYPES = ['BASIC', 'SHOOTER', 'BRUTE', 'SPEEDSTER', 'SWARM', 'SUMMONER', 'GHOST', 'SNIPER', 'BOMBER', 'TOXIC', 'SHIELDER'];
 const ENEMIES_PER_WAVE = 30;
 const SKILL_TREE_SIZE = 100;
 
@@ -113,7 +114,7 @@ const createCardSet = (type, name, color, specialDesc, specialBonus) => {
 
 const COLLECTOR_CARDS = {
     ...createCardSet('BASIC', 'Grunt', '#7f8c8d', '+10% Crit Chance vs Basics', { type: 'crit_vs', val: 0.1, target: 'BASIC' }),
-    ...createCardSet('SHOOTER', 'Sniper', '#f1c40f', '15% Chance to Dodge Shooters', { type: 'special', id: 'SHOOTER_DODGE' }),
+    ...createCardSet('SHOOTER', 'Shooter', '#f1c40f', '15% Chance to Dodge Shooters', { type: 'special', id: 'SHOOTER_DODGE' }),
     ...createCardSet('BRUTE', 'Brute', '#5d4037', '+20% Crit Chance vs Brutes', { type: 'crit_vs', val: 0.2, target: 'BRUTE' }),
     ...createCardSet('SPEEDSTER', 'Speedster', '#e74c3c', 'Speedsters are 10% Slower', { type: 'special', id: 'SPEEDSTER_SLOW' }),
     ...createCardSet('SWARM', 'Swarm', '#8e44ad', 'Swarm enemies explode on death (Dmg to enemies)', { type: 'special', id: 'SWARM_EXPLODE' }),
@@ -135,7 +136,8 @@ const MUTATORS = [
     { id: 'SWARM', name: 'Swarm Mode', desc: 'Enemies have 50% HP and Size, but spawn 2x more.', color: '#2ecc71' },
     { id: 'FRAGILE', name: 'Glass Cannon', desc: 'Player HP is capped at 1, but Damage is 5x.', color: '#3498db' },
     { id: 'NO_REGEN', name: 'No Mercy', desc: 'No Health Drops spawn.', color: '#c0392b' },
-    { id: 'WINDY', name: 'Hurricane', desc: 'Strong winds push you around.', color: '#1abc9c' }
+    { id: 'WINDY', name: 'Hurricane', desc: 'Strong winds push you around.', color: '#1abc9c' },
+    { id: 'ONE_TYPE', name: 'Monoculture', desc: 'Only one random enemy type spawns.', color: '#d35400' }
 ];
 
 const UPGRADE_POOL = [

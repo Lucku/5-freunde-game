@@ -2,8 +2,15 @@
 class Boss {
     constructor(type) {
         this.type = type || BOSS_TYPES[Math.floor(Math.random() * BOSS_TYPES.length)];
-        this.x = canvas.width / 2 + (Math.random() * 100 - 50);
-        this.y = -100;
+        const cam = arena.camera;
+        // Spawn near player but ensure inside map
+        this.x = cam.x + cam.width / 2 + (Math.random() * 100 - 50);
+        this.y = cam.y - 100;
+
+        // Clamp to map bounds
+        this.x = Math.max(60, Math.min(arena.width - 60, this.x));
+        this.y = Math.max(60, Math.min(arena.height - 60, this.y));
+
         this.radius = 60;
 
         const prestige = saveData[player.type].prestige;
@@ -63,10 +70,10 @@ class Boss {
             nextY += Math.sin(angle) * this.speed;
         }
 
-        if (!checkWallCollision(nextX, nextY, this.radius)) { this.x = nextX; this.y = nextY; }
+        if (!arena.checkCollision(nextX, nextY, this.radius)) { this.x = nextX; this.y = nextY; }
         else {
-            if (!checkWallCollision(nextX, this.y, this.radius)) this.x = nextX;
-            else if (!checkWallCollision(this.x, nextY, this.radius)) this.y = nextY;
+            if (!arena.checkCollision(nextX, this.y, this.radius)) this.x = nextX;
+            else if (!arena.checkCollision(this.x, nextY, this.radius)) this.y = nextY;
         }
 
         // Attack Logic

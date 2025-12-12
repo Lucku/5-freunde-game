@@ -349,7 +349,10 @@ class Player {
 
         // Mouse Fallback & Auto-fire
         if (!this.usingGamepad) {
-            this.aimAngle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+            // Adjust mouse coordinates by camera position
+            const camX = arena ? arena.camera.x : 0;
+            const camY = arena ? arena.camera.y : 0;
+            this.aimAngle = Math.atan2((mouse.y + camY) - this.y, (mouse.x + camX) - this.x);
             if (mouse.leftDown) this.shoot();
             if (mouse.rightDown) this.melee();
         }
@@ -400,16 +403,16 @@ class Player {
             let nextX = this.x + moveX;
             let nextY = this.y + moveY;
 
-            if (!checkWallCollision(nextX, nextY, this.radius)) {
+            if (!arena.checkCollision(nextX, nextY, this.radius)) {
                 this.x = nextX; this.y = nextY;
             } else {
-                if (!checkWallCollision(nextX, this.y, this.radius)) this.x = nextX;
-                else if (!checkWallCollision(this.x, nextY, this.radius)) this.y = nextY;
+                if (!arena.checkCollision(nextX, this.y, this.radius)) this.x = nextX;
+                else if (!arena.checkCollision(this.x, nextY, this.radius)) this.y = nextY;
             }
         }
 
-        this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
-        this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+        this.x = Math.max(this.radius, Math.min(arena.width - this.radius, this.x));
+        this.y = Math.max(this.radius, Math.min(arena.height - this.radius, this.y));
 
         if (this.rangeCooldown > 0) this.rangeCooldown--;
         if (this.meleeCooldown > 0) this.meleeCooldown--;

@@ -2,14 +2,15 @@ class Enemy {
     constructor(isBossMinion = false, forcedType = null) {
         let safe = false;
         while (!safe) {
+            const cam = arena.camera;
             if (Math.random() < 0.5) {
-                this.x = Math.random() < 0.5 ? -30 : canvas.width + 30;
-                this.y = Math.random() * canvas.height;
+                this.x = Math.random() < 0.5 ? cam.x - 30 : cam.x + cam.width + 30;
+                this.y = cam.y + Math.random() * cam.height;
             } else {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() < 0.5 ? -30 : canvas.height + 30;
+                this.x = cam.x + Math.random() * cam.width;
+                this.y = Math.random() < 0.5 ? cam.y - 30 : cam.y + cam.height + 30;
             }
-            if (!checkWallCollision(this.x, this.y, 20)) safe = true;
+            if (!arena.checkCollision(this.x, this.y, 20)) safe = true;
         }
 
         const prestige = saveData[player.type].prestige;
@@ -18,6 +19,12 @@ class Enemy {
         // Enemy Types: BASIC, SHOOTER, BRUTE, SPEEDSTER, SWARM, SUMMONER
         // NEW: GHOST, SNIPER, BOMBER, TOXIC, SHIELDER
         this.subType = forcedType;
+
+        // Global Override from Mutator
+        if (!this.subType && typeof forcedEnemyType !== 'undefined' && forcedEnemyType) {
+            this.subType = forcedEnemyType;
+        }
+
         if (!this.subType) {
             const rand = Math.random();
             if (wave > 10 && rand < 0.05) this.subType = 'SNIPER';
@@ -50,7 +57,7 @@ class Enemy {
         } else if (this.subType === 'BRUTE') {
             this.radius = 30; this.hp *= 4; this.speed *= 0.5; this.color = '#5d4037'; this.damage *= 2; this.sides = 4;
         } else if (this.subType === 'SPEEDSTER') {
-            this.radius = 12; this.hp *= 0.5; this.speed *= 2.5; this.color = '#e74c3c'; this.sides = 3;
+            this.radius = 12; this.hp *= 0.5; this.speed *= 1.8; this.color = '#e74c3c'; this.sides = 3;
             if (saveData.collection.includes('SPEEDSTER_4')) this.speed *= 0.9;
         } else if (this.subType === 'SWARM') {
             this.radius = 8; this.hp = 1; this.speed *= 1.2; this.color = '#8e44ad'; this.sides = 0;
@@ -211,10 +218,10 @@ class Enemy {
         }
 
         let nextX = this.x + moveX; let nextY = this.y + moveY;
-        if (!checkWallCollision(nextX, nextY, this.radius)) { this.x = nextX; this.y = nextY; }
+        if (!arena.checkCollision(nextX, nextY, this.radius)) { this.x = nextX; this.y = nextY; }
         else {
-            if (!checkWallCollision(nextX, this.y, this.radius)) this.x = nextX;
-            else if (!checkWallCollision(this.x, nextY, this.radius)) this.y = nextY;
+            if (!arena.checkCollision(nextX, this.y, this.radius)) this.x = nextX;
+            else if (!arena.checkCollision(this.x, nextY, this.radius)) this.y = nextY;
         }
     }
 

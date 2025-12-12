@@ -589,6 +589,18 @@ function handleGamepadMenu() {
 
     if (uiState === 'GAME') return;
 
+    // --- DAILY INFO MODAL ---
+    if (uiState === 'DAILY_INFO') {
+        if (a) {
+            confirmDailyStart();
+            uiDebounce = 20;
+        } else if (b) {
+            closeDailyInfo();
+            uiDebounce = 20;
+        }
+        return;
+    }
+
     // --- SCROLLING LOGIC (Right Stick) ---
     if (uiState === 'ACHIEVEMENTS') {
         const list = document.getElementById('achievements-list');
@@ -1152,6 +1164,7 @@ function getHeroTheme(type) {
 }
 
 // --- Game State ---
+let arena; // Arena Instance
 let gameRunning = false;
 let gamePaused = false;
 let isLevelingUp = false;
@@ -1177,12 +1190,13 @@ let particles = [];
 let floatingTexts = []; // New array for damage numbers
 let meleeAttacks = [];
 let powerUps = [];
+// obstacles and biomeZones moved to Arena class
 let weaponDrops = [];
 let holyMasks = [];
 let goldDrops = [];
 let cardDrops = [];
-let obstacles = [];
-let biomeZones = [];
+// let obstacles = []; // REMOVED
+// let biomeZones = []; // REMOVED
 
 // Story Manager
 const storyManager = new StoryManager();
@@ -1320,6 +1334,7 @@ function showNotification(text) {
 // --- Daily Challenge Logic ---
 let activeMutators = [];
 let isDailyMode = false;
+let forcedEnemyType = null;
 
 function getDailySeed() {
     const now = new Date();
@@ -1362,62 +1377,35 @@ function startDailyChallenge() {
     activeMutators = getDailyMutators();
     isDailyMode = true;
 
-    // Show Mutators
-    let msg = "DAILY CHALLENGE MUTATORS:\n";
-    activeMutators.forEach(m => msg += `- ${m.name}: ${m.desc}\n`);
-    alert(msg);
+    // Show Custom Modal
+    const list = document.getElementById('daily-mutators-list');
+    list.innerHTML = '';
+    activeMutators.forEach(m => {
+        const item = document.createElement('div');
+        item.style.marginBottom = '10px';
+        item.innerHTML = `<strong style="color:${m.color}">${m.name}</strong>: ${m.desc}`;
+        list.appendChild(item);
+    });
 
+    document.getElementById('daily-info-modal').style.display = 'flex';
+    setUIState('DAILY_INFO');
+}
+
+function confirmDailyStart() {
+    document.getElementById('daily-info-modal').style.display = 'none';
     startGame('DAILY');
+}
+
+function closeDailyInfo() {
+    document.getElementById('daily-info-modal').style.display = 'none';
+    setUIState('MENU');
 }
 
 // --- Classes ---
 
-class BiomeZone {
-    constructor(x, y, w, h, type) {
-        this.x = x; this.y = y; this.w = w; this.h = h;
-        this.type = type; // 'LAVA', 'ICE', 'MUD', 'WATER', 'MAGNET'
-    }
-    draw() {
-        ctx.save();
-        if (this.type === 'LAVA') {
-            ctx.fillStyle = 'rgba(231, 76, 60, 0.3)';
-            ctx.strokeStyle = '#c0392b';
-            // Pulsing effect
-            ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 500) * 0.2;
-        } else if (this.type === 'ICE') {
-            ctx.fillStyle = 'rgba(52, 152, 219, 0.2)';
-            ctx.strokeStyle = '#2980b9';
-        } else if (this.type === 'MUD') {
-            ctx.fillStyle = 'rgba(100, 80, 50, 0.4)';
-            ctx.strokeStyle = '#5d4037';
-        } else if (this.type === 'WATER') {
-            ctx.fillStyle = 'rgba(41, 128, 185, 0.3)';
-            ctx.strokeStyle = '#2980b9';
-            ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 1000) * 0.1;
-        } else if (this.type === 'MAGNET') {
-            ctx.fillStyle = 'rgba(142, 68, 173, 0.2)';
-            ctx.strokeStyle = '#8e44ad';
-        }
+// BiomeZone removed - moved to Arena.js
 
-        ctx.fillRect(this.x, this.y, this.w, this.h);
-        ctx.lineWidth = 2;
-        ctx.strokeRect(this.x, this.y, this.w, this.h);
-        ctx.restore();
-    }
-}
-
-class Obstacle {
-    constructor(x, y, w, h) {
-        this.x = x; this.y = y; this.w = w; this.h = h;
-    }
-    draw() {
-        ctx.fillStyle = '#444';
-        ctx.fillRect(this.x, this.y, this.w, this.h);
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(this.x, this.y, this.w, this.h);
-    }
-}
+// Obstacle removed - moved to Arena.js
 
 class Projectile {
     constructor(x, y, velocity, damage, color, radius, type, knockback, isEnemy, isExplosive = false, isCrit = false) {
@@ -1431,8 +1419,13 @@ class Projectile {
         if (this.isCrit) {
             this.radius *= 1.5; // Visual indicator
         }
+        this.life = null; // Optional lifetime
     }
-    update() { this.x += this.velocity.x; this.y += this.velocity.y; }
+    update() {
+        this.x += this.velocity.x;
+        this.y += this.velocity.y;
+        if (this.life !== null) this.life--;
+    }
     draw() {
         ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = this.color; ctx.fill();
@@ -1561,9 +1554,9 @@ class PowerUp {
     constructor() {
         let safe = false;
         while (!safe) {
-            this.x = Math.random() * (canvas.width - 100) + 50;
-            this.y = Math.random() * (canvas.height - 100) + 50;
-            if (!checkWallCollision(this.x, this.y, 15)) safe = true;
+            this.x = Math.random() * (arena.width - 100) + 50;
+            this.y = Math.random() * (arena.height - 100) + 50;
+            if (!arena.checkCollision(this.x, this.y, 15)) safe = true;
         }
         this.type = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
         this.radius = 15; this.timer = 600; this.oscillation = Math.random() * Math.PI;
@@ -1641,118 +1634,11 @@ function createExplosion(x, y, color) {
     for (let i = 0; i < 8; i++) { particles.push(new Particle(x, y, color)); }
 }
 
-function generateArena() {
-    obstacles = [];
-    biomeZones = [];
-    const layout = Math.floor(Math.random() * 5); // Increased to 5 layouts
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
-    const safeZone = 150;
+// generateArena removed - moved to Arena.js
 
-    // --- Biome Generation ---
-    // Based on currentBiomeType (randomized per wave)
-    const type = currentBiomeType;
+// checkWallCollision removed - moved to Arena.js
 
-    if (type === 'fire') {
-        // Lava Pools
-        biomeZones.push(new BiomeZone(cx - 300, cy - 300, 150, 150, 'LAVA'));
-        biomeZones.push(new BiomeZone(cx + 150, cy + 150, 150, 150, 'LAVA'));
-    } else if (type === 'ice') {
-        // Ice Patches (Slippery/Fast)
-        biomeZones.push(new BiomeZone(cx - 400, cy - 100, 200, 200, 'ICE'));
-        biomeZones.push(new BiomeZone(cx + 200, cy - 100, 200, 200, 'ICE'));
-    } else if (type === 'plant') {
-        // Mud/Swamp (Slow)
-        biomeZones.push(new BiomeZone(cx - 200, cy - 200, 400, 100, 'MUD'));
-        biomeZones.push(new BiomeZone(cx - 200, cy + 100, 400, 100, 'MUD'));
-    } else if (type === 'water') {
-        // Deep Water (Slow + Push?) - For now just visual + slight slow
-        biomeZones.push(new BiomeZone(0, cy - 100, canvas.width, 200, 'WATER'));
-    } else if (type === 'metal') {
-        // Magnetic Zones
-        biomeZones.push(new BiomeZone(cx - 100, cy - 100, 200, 200, 'MAGNET'));
-    }
-
-    if (layout === 0) {
-        obstacles.push(new Obstacle(canvas.width * 0.2, canvas.height * 0.2, 100, 100));
-        obstacles.push(new Obstacle(canvas.width * 0.8 - 100, canvas.height * 0.2, 100, 100));
-        obstacles.push(new Obstacle(canvas.width * 0.2, canvas.height * 0.8 - 100, 100, 100));
-        obstacles.push(new Obstacle(canvas.width * 0.8 - 100, canvas.height * 0.8 - 100, 100, 100));
-    } else if (layout === 1) {
-        obstacles.push(new Obstacle(cx - 300, cy - 50, 100, 100));
-        obstacles.push(new Obstacle(cx + 200, cy - 50, 100, 100));
-    } else if (layout === 2) {
-        obstacles.push(new Obstacle(canvas.width * 0.3, 0, 50, canvas.height * 0.4));
-        obstacles.push(new Obstacle(canvas.width * 0.7, canvas.height * 0.6, 50, canvas.height * 0.4));
-    } else if (layout === 3) {
-        // Central Block
-        obstacles.push(new Obstacle(cx - 50, cy - 50, 100, 100));
-    } else if (layout === 4) {
-        // Scattered Small Blocks
-        for (let i = 0; i < 6; i++) {
-            const x = Math.random() * (canvas.width - 100);
-            const y = Math.random() * (canvas.height - 100);
-            // Avoid center
-            if (Math.hypot(x - cx, y - cy) > 200) {
-                obstacles.push(new Obstacle(x, y, 60, 60));
-            }
-        }
-    }
-
-    obstacles = obstacles.filter(obs => {
-        const margin = 60;
-        const playerRect = { x: cx - margin, y: cy - margin, w: margin * 2, h: margin * 2 };
-        return !(playerRect.x < obs.x + obs.w &&
-            playerRect.x + playerRect.w > obs.x &&
-            playerRect.y < obs.y + obs.h &&
-            playerRect.y + playerRect.h > obs.y);
-    });
-
-    // TINY ARENA MUTATOR
-    if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'TINY_ARENA')) {
-        const w = canvas.width;
-        const h = canvas.height;
-        const border = 0.25; // 25% border on each side -> 50% playable area
-
-        // Top
-        obstacles.push(new Obstacle(0, 0, w, h * border));
-        // Bottom
-        obstacles.push(new Obstacle(0, h * (1 - border), w, h * border));
-        // Left
-        obstacles.push(new Obstacle(0, 0, w * border, h));
-        // Right
-        obstacles.push(new Obstacle(w * (1 - border), 0, w * border, h));
-    }
-}
-
-function checkWallCollision(x, y, r) {
-    for (let obs of obstacles) {
-        let closestX = Math.max(obs.x, Math.min(x, obs.x + obs.w));
-        let closestY = Math.max(obs.y, Math.min(y, obs.y + obs.h));
-        let dx = x - closestX; let dy = y - closestY;
-        if ((dx * dx + dy * dy) < (r * r)) return true;
-    }
-    return false;
-}
-
-function drawArena() {
-    const theme = getHeroTheme(player ? player.type : selectedHeroType);
-    ctx.fillStyle = theme.bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = theme.grid; ctx.lineWidth = 2; const tileSize = 80;
-    ctx.beginPath();
-    for (let x = 0; x <= canvas.width; x += tileSize) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); }
-    for (let y = 0; y <= canvas.height; y += tileSize) { ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); }
-    ctx.stroke();
-
-    // Draw Biome Zones (Under obstacles)
-    biomeZones.forEach(zone => zone.draw());
-
-    obstacles.forEach(obs => obs.draw());
-    ctx.save(); ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.beginPath(); ctx.arc(0, 0, 120, 0, Math.PI * 2); ctx.strokeStyle = bossActive ? '#c0392b' : '#444'; ctx.lineWidth = 15; ctx.stroke();
-    ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fillStyle = bossActive ? '#c0392b' : '#444'; ctx.fill();
-    ctx.restore();
-}
+// drawArena removed - moved to Arena.js
 
 function updateUI() {
     document.getElementById('scoreVal').innerText = score;
@@ -2015,7 +1901,14 @@ function checkAchievements() {
 // --- Main Loop ---
 
 function startGame(mode = 'NORMAL') {
+    // Initialize Arena (3000x3000)
+    arena = new Arena(3000, 3000);
+
     player = new Player(selectedHeroType);
+    // Center Player in Arena
+    player.x = arena.width / 2;
+    player.y = arena.height / 2;
+
     score = 0;
     wave = 1;
     enemiesKilledInWave = 0;
@@ -2030,6 +1923,7 @@ function startGame(mode = 'NORMAL') {
     holyMasks = [];
     goldDrops = [];
     cardDrops = [];
+    forcedEnemyType = null;
     gameRunning = true;
     gamePaused = false;
     isLevelingUp = false;
@@ -2068,10 +1962,20 @@ function startGame(mode = 'NORMAL') {
             player.speedMultiplier *= 0.5;
             player.damageMultiplier += 2; // +200%
         }
+        if (activeMutators.some(m => m.id === 'ONE_TYPE')) {
+            // Deterministic selection based on daily seed
+            const seed = getDailySeed();
+            const rand = Math.sin(seed + 999) * 10000;
+            const index = Math.floor((rand - Math.floor(rand)) * ENEMY_TYPES.length);
+            forcedEnemyType = ENEMY_TYPES[index];
+            showNotification(`MUTATOR: ONLY ${forcedEnemyType} ENEMIES!`);
+        } else {
+            forcedEnemyType = null;
+        }
     }
 
     currentBiomeType = selectedHeroType; // Start in home biome
-    generateArena();
+    arena.generate(currentBiomeType);
 
     document.getElementById('menu-overlay').style.display = 'none';
     document.getElementById('start-screen').style.display = 'none';
@@ -2200,6 +2104,9 @@ function masterLoop(timestamp) {
 
         if (gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen) {
 
+            // Update Camera
+            arena.updateCamera(player, canvas.width, canvas.height);
+
             // Boss Death Slow-Mo Sequence
             if (bossDeathTimer > 0) {
                 bossDeathTimer--;
@@ -2208,7 +2115,14 @@ function masterLoop(timestamp) {
                 if (bossDeathTimer % 3 !== 0) {
                     // Still draw to keep it smooth, but don't update logic
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    drawArena();
+
+                    ctx.save();
+                    ctx.translate(-arena.camera.x, -arena.camera.y);
+                    arena.draw(ctx, getHeroTheme(player ? player.type : selectedHeroType));
+                    // Draw entities (static for slow-mo)
+                    // ... (Ideally we'd draw entities here too, but for now just arena is fine or we duplicate draw calls)
+                    // Actually, let's just draw the arena background and overlay
+                    ctx.restore();
 
                     // Draw "VICTORY" text overlay
                     ctx.save();
@@ -2247,7 +2161,14 @@ function masterLoop(timestamp) {
             }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawArena();
+
+            // Apply Camera Transform
+            ctx.save();
+            ctx.translate(-arena.camera.x, -arena.camera.y);
+
+            // Draw World
+            arena.draw(ctx, getHeroTheme(player ? player.type : selectedHeroType));
+
             frame++;
 
             // Weather Logic
@@ -2336,7 +2257,7 @@ function masterLoop(timestamp) {
 
             // Biome Effects on Player
             let biomeSpeedMod = 1;
-            biomeZones.forEach(zone => {
+            arena.biomeZones.forEach(zone => {
                 // Simple AABB collision
                 if (player.x > zone.x && player.x < zone.x + zone.w &&
                     player.y > zone.y && player.y < zone.y + zone.h) {
@@ -2487,8 +2408,13 @@ function masterLoop(timestamp) {
             });
 
             projectiles.forEach((proj, index) => {
-                proj.update(); proj.draw();
-                if (checkWallCollision(proj.x, proj.y, proj.radius)) {
+                proj.update();
+                if (proj.life !== null && proj.life <= 0) {
+                    projectiles.splice(index, 1);
+                    return;
+                }
+                proj.draw();
+                if (arena.checkCollision(proj.x, proj.y, proj.radius)) {
                     if (proj.isExplosive) {
                         enemies.forEach(e => {
                             if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) {
@@ -2502,7 +2428,7 @@ function masterLoop(timestamp) {
                     projectiles.splice(index, 1);
                     return;
                 }
-                if (proj.x < 0 || proj.x > canvas.width || proj.y < 0 || proj.y > canvas.height) projectiles.splice(index, 1);
+                if (proj.x < 0 || proj.x > arena.width || proj.y < 0 || proj.y > arena.height) projectiles.splice(index, 1);
             });
 
             meleeAttacks.forEach((att, index) => {
@@ -2524,7 +2450,7 @@ function masterLoop(timestamp) {
             enemies.forEach((enemy, eIndex) => {
                 // Biome Effects on Enemy
                 let enemySpeedMod = 1;
-                biomeZones.forEach(zone => {
+                arena.biomeZones.forEach(zone => {
                     if (enemy.x > zone.x && enemy.x < zone.x + zone.w &&
                         enemy.y > zone.y && enemy.y < zone.y + zone.h) {
 
@@ -2780,6 +2706,9 @@ function masterLoop(timestamp) {
                     }
                 }
             });
+
+            // Restore Camera Transform
+            ctx.restore();
 
             // Low Health Indicator
             if (player.hp / player.maxHp < 0.2) {
