@@ -150,6 +150,14 @@ function importSave(input) {
     reader.readAsText(file);
 }
 
+function closeGame() {
+    if (isElectron) {
+        window.close();
+    } else {
+        alert("Cannot close window in browser mode. Please close the tab.");
+    }
+}
+
 // --- Hero Specific Skill Trees ---
 function generateHeroSkillTree(type) {
     const tree = [];
@@ -524,7 +532,7 @@ function getFocusables() {
 
     // Select all interactive elements
     // REMOVED .achievement-row from here
-    const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item, .skill-node, .collection-card'));
+    const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item, .skill-node, .collection-card, .switch'));
     // Filter out hidden elements
     return elements.filter(el => el.offsetParent !== null);
 }
