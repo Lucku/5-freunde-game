@@ -640,13 +640,65 @@ function handleGamepadMenu() {
 
     let moved = false;
 
-    // Navigation
-    if (down || right) {
-        uiSelectionIndex++;
-        moved = true;
-    } else if (up || left) {
-        uiSelectionIndex--;
-        moved = true;
+    // Navigation - Spatial Grid System
+    if (down || up || left || right) {
+        const currentEl = focusables[uiSelectionIndex];
+        if (currentEl) {
+            const curRect = currentEl.getBoundingClientRect();
+            const curCx = curRect.left + curRect.width / 2;
+            const curCy = curRect.top + curRect.height / 2;
+
+            let bestDist = Infinity;
+            let bestIndex = -1;
+
+            focusables.forEach((el, index) => {
+                if (index === uiSelectionIndex) return;
+
+                const rect = el.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+
+                let dist = Infinity;
+                let valid = false;
+                const k = 4; // Penalty weight for perpendicular deviation
+
+                if (down) {
+                    if (cy > curCy + 10) { // Must be below
+                        valid = true;
+                        dist = (cy - curCy) + Math.abs(cx - curCx) * k;
+                    }
+                } else if (up) {
+                    if (cy < curCy - 10) { // Must be above
+                        valid = true;
+                        dist = (curCy - cy) + Math.abs(cx - curCx) * k;
+                    }
+                } else if (right) {
+                    if (cx > curCx + 10) { // Must be to the right
+                        valid = true;
+                        dist = (cx - curCx) + Math.abs(cy - curCy) * k;
+                    }
+                } else if (left) {
+                    if (cx < curCx - 10) { // Must be to the left
+                        valid = true;
+                        dist = (curCx - cx) + Math.abs(cy - curCy) * k;
+                    }
+                }
+
+                if (valid && dist < bestDist) {
+                    bestDist = dist;
+                    bestIndex = index;
+                }
+            });
+
+            if (bestIndex !== -1) {
+                uiSelectionIndex = bestIndex;
+                moved = true;
+            }
+        } else {
+            // Fallback if selection is invalid
+            uiSelectionIndex = 0;
+            moved = true;
+        }
     }
 
     if (moved) {
@@ -1079,6 +1131,7 @@ let wave = 1;
 let frame = 0;
 let enemiesKilledInWave = 0;
 let bossActive = false;
+let bossDeathTimer = 0; // Timer for slow-mo effect
 
 // Weather
 let currentWeather = null;
@@ -2095,6 +2148,52 @@ function masterLoop(timestamp) {
 
         if (gameRunning && !gamePaused && !isLevelingUp && !isShopping) {
 
+            // Boss Death Slow-Mo Sequence
+            if (bossDeathTimer > 0) {
+                bossDeathTimer--;
+
+                // Slow down game logic (only run every 3rd frame)
+                if (bossDeathTimer % 3 !== 0) {
+                    // Still draw to keep it smooth, but don't update logic
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    drawArena();
+
+                    // Draw "VICTORY" text overlay
+                    ctx.save();
+                    ctx.fillStyle = `rgba(0, 0, 0, ${0.5 - (bossDeathTimer / 360)})`; // Fade in bg
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.font = 'bold 60px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.shadowColor = 'black';
+                    ctx.shadowBlur = 20;
+                    ctx.fillText("BOSS DEFEATED", canvas.width / 2, canvas.height / 2);
+                    ctx.restore();
+                    return;
+                }
+
+                if (bossDeathTimer === 0) {
+                    // Sequence Finished - Proceed to Next Wave/Shop
+
+                    // Daily Challenge Win Condition
+                    if (isDailyMode && wave === 10) {
+                        showNotification("DAILY CHALLENGE COMPLETE!");
+                        saveData.daily.lastCompleted = getDailySeed();
+                        saveData.global.totalVoidGoldSpent += 0; // Just to ensure field exists
+                        // Reward
+                        player.gold += 5000; // Bonus Gold
+                        saveData.global.totalGold += 5000;
+                        saveGame();
+                        setTimeout(gameOver, 3000);
+                        return;
+                    }
+
+                    triggerStory(wave);
+                }
+            }
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawArena();
             frame++;
@@ -2582,22 +2681,13 @@ function masterLoop(timestamp) {
                         if (remainingBosses === 0) {
                             bossActive = false;
 
-                            // Daily Challenge Win Condition
-                            if (isDailyMode && wave === 10) {
-                                showNotification("DAILY CHALLENGE COMPLETE!");
-                                saveData.daily.lastCompleted = getDailySeed();
-                                saveData.global.totalVoidGoldSpent += 0; // Just to ensure field exists
-                                // Reward
-                                player.gold += 5000; // Bonus Gold
-                                saveData.global.totalGold += 5000;
-                                saveGame();
-                                setTimeout(gameOver, 3000);
-                                return;
-                            }
+                            // Start Boss Death Sequence
+                            bossDeathTimer = 180; // 3 seconds at 60 FPS
 
-                            // Shop Check - Changed to every 2 waves
-                            // Trigger Story before Shop or Next Wave
-                            triggerStory(wave);
+                            // Clear all other enemies instantly for dramatic effect
+                            enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
+                            enemies = [];
+                            projectiles = []; // Clear projectiles too
                         }
                     } else {
                         // Swarm Explosion (Tier 4)
