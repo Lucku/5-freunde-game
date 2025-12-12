@@ -25,6 +25,7 @@ class Player {
         this.damageMultiplier = 1;
         this.maskChance = 0.01;
         this.speedMultiplier = 1;
+        this.trapSpeedMod = 1; // Added for traps
         this.cooldownMultiplier = 1;
         this.gold = 0;
         this.goldMultiplier = this.stats.goldMultiplier || 1;
@@ -261,6 +262,8 @@ class Player {
     }
 
     update() {
+        this.trapSpeedMod = 1; // Reset trap modifier
+
         if (this.buffs.speed > 0) this.buffs.speed--;
         if (this.buffs.multi > 0) this.buffs.multi--;
         if (this.buffs.autoaim > 0) this.buffs.autoaim--;
@@ -360,7 +363,7 @@ class Player {
         // Store input for dash direction
         this.moveInput = { x: dx, y: dy };
 
-        let currentSpeed = this.stats.speed * this.speedMultiplier;
+        let currentSpeed = this.stats.speed * this.speedMultiplier * this.trapSpeedMod;
         if (this.buffs.speed > 0) currentSpeed *= 1.5;
 
         // Apply Biome Modifier

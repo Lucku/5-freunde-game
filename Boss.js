@@ -76,6 +76,10 @@ class Boss {
             else if (!arena.checkCollision(this.x, nextY, this.radius)) this.y = nextY;
         }
 
+        // Clamp to map bounds (Fix for knockback OOB)
+        this.x = Math.max(this.radius, Math.min(arena.width - this.radius, this.x));
+        this.y = Math.max(this.radius, Math.min(arena.height - this.radius, this.y));
+
         // Attack Logic
         if (this.type !== 'RHINO') { // Rhino handles cooldown in movement
             if (this.attackCooldown <= 0) {

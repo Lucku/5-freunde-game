@@ -239,7 +239,9 @@ function renderHeroSelect() {
         }
 
         el.innerHTML = `
-            <div class="hero-icon" style="background: ${BASE_HERO_STATS[h].color};"></div>
+            <div class="hero-icon" style="background: ${BASE_HERO_STATS[h].color}; position: relative; display: flex; justify-content: center; align-items: center;">
+                <div style="width: 60%; height: 30%; background: rgba(0,0,0,0.5); border-radius: 0 0 50% 50%; margin-top: -10%;"></div>
+            </div>
             <div class="hero-name" style="color: ${BASE_HERO_STATS[h].color}">${h.toUpperCase()}</div>
             <div class="hero-stats">High Score: ${data.highScore}</div>
             ${prestigeText}
@@ -601,6 +603,16 @@ function handleGamepadMenu() {
         return;
     }
 
+    // --- MUSEUM ---
+    if (uiState === 'MUSEUM') {
+        if (b) {
+            setUIState('MENU');
+            document.getElementById('menu-overlay').style.display = 'flex';
+            uiDebounce = 20;
+        }
+        return;
+    }
+
     // --- SCROLLING LOGIC (Right Stick) ---
     if (uiState === 'ACHIEVEMENTS') {
         const list = document.getElementById('achievements-list');
@@ -914,6 +926,15 @@ function openAchievements() {
 function closeAchievements() {
     document.getElementById('achievements-screen').style.display = 'none';
     initMenu();
+}
+
+// --- Museum Logic ---
+let museum = null;
+
+function openMuseum() {
+    document.getElementById('menu-overlay').style.display = 'none';
+    museum = new Museum();
+    setUIState('MUSEUM');
 }
 
 // --- High Score Logic ---
@@ -1259,7 +1280,7 @@ window.addEventListener('keydown', e => {
             const types = ['fire', 'water', 'ice', 'plant', 'metal'];
             currentBiomeType = types[Math.floor(Math.random() * types.length)];
             showNotification(`DEBUG: SKIPPED TO WAVE ${wave}`);
-            generateArena();
+            arena.generate(currentBiomeType);
             if (player) {
                 player.x = canvas.width / 2;
                 player.y = canvas.height / 2;
@@ -1850,7 +1871,7 @@ function advanceWave() {
     currentBiomeType = types[Math.floor(Math.random() * types.length)];
     showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
 
-    generateArena();
+    arena.generate(currentBiomeType);
 
     // Reset Player Position to Center
     if (player) {
@@ -2102,10 +2123,18 @@ function masterLoop(timestamp) {
         // Always handle UI input
         handleGamepadMenu();
 
+        // --- MUSEUM STATE ---
+        if (uiState === 'MUSEUM' && museum) {
+            museum.update();
+            museum.draw(ctx);
+            return; // Skip normal game loop
+        }
+
         if (gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen) {
 
             // Update Camera
             arena.updateCamera(player, canvas.width, canvas.height);
+            arena.update(player);
 
             // Boss Death Slow-Mo Sequence
             if (bossDeathTimer > 0) {

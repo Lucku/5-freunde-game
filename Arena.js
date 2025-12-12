@@ -4,6 +4,7 @@ class Arena {
         this.height = height;
         this.camera = { x: 0, y: 0, width: 0, height: 0 };
         this.obstacles = [];
+        this.traps = [];
         this.biomeZones = [];
     }
 
@@ -90,6 +91,15 @@ class Arena {
                 playerRect.y < obs.y + obs.h &&
                 playerRect.y + playerRect.h > obs.y);
         });
+
+        // --- Trap Generation ---
+        this.traps = [];
+        const trapCount = 5 + Math.floor(Math.random() * 5);
+        for (let i = 0; i < trapCount; i++) {
+            const pos = this.getRandomSafePosition(50);
+            const type = ['SPIKE', 'SLOW', 'CONVEYOR'][Math.floor(Math.random() * 3)];
+            this.traps.push(new Trap(pos.x, pos.y, type));
+        }
     }
 
     draw(ctx, theme) {
@@ -134,8 +144,31 @@ class Arena {
         // Draw Biome Zones
         this.biomeZones.forEach(zone => zone.draw(ctx));
 
+        // Draw Traps
+        this.traps.forEach(trap => trap.draw(ctx));
+
         // Draw Obstacles
         this.obstacles.forEach(obs => obs.draw(ctx));
+    }
+
+    update(player) {
+        // Check Trap Collisions
+        this.traps.forEach(trap => {
+            trap.update(); // Update state
+
+            const dx = player.x - (trap.x + trap.w / 2);
+            const dy = player.y - (trap.y + trap.h / 2);
+            if (Math.abs(dx) < trap.w / 2 && Math.abs(dy) < trap.h / 2) {
+                if (trap.type === 'SPIKE' && trap.active) {
+                    if (frame % 60 === 0) player.hp -= 10; // Damage every second if active
+                } else if (trap.type === 'SLOW') {
+                    player.trapSpeedMod = 0.5; // Slow down
+                } else if (trap.type === 'CONVEYOR') {
+                    player.x += trap.vx;
+                    player.y += trap.vy;
+                }
+            }
+        });
     }
 
     checkCollision(x, y, r) {
@@ -212,3 +245,114 @@ class Obstacle {
         ctx.strokeRect(this.x, this.y, this.w, this.h);
     }
 }
+
+class Trap {
+    constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.w = 100;
+        this.h = 100;
+        this.type = type;
+        this.timer = 0;
+        this.active = true;
+
+        if (this.type === 'CONVEYOR') {
+            const angle = Math.floor(Math.random() * 4) * (Math.PI / 2);
+            this.vx = Math.cos(angle) * 2;
+            this.vy = Math.sin(angle) * 2;
+        } else if (this.type === 'SPIKE') {
+            this.timer = Math.random() * 200;
+            this.active = false;
+        }
+    }
+
+    update() {
+        if (this.type === 'SPIKE') {
+            this.timer++;
+            if (this.timer > 200) { // Cycle every ~3 seconds
+                this.active = !this.active;
+                this.timer = 0;
+            }
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        if (this.type === 'SPIKE') {
+            // Background (Floor)
+            ctx.fillStyle = '#222';
+            ctx.fillRect(0, 0, this.w, this.h);
+
+            if (this.active) {
+                // Spikes UP
+                ctx.fillStyle = '#7f8c8d'; // Metallic
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        ctx.beginPath();
+                        ctx.moveTo(i * 25, j * 25 + 25);
+                        ctx.lineTo(i * 25 + 12.5, j * 25); // Pointy
+                        ctx.lineTo(i * 25 + 25, j * 25 + 25);
+                        ctx.fill();
+                    }
+                }
+                // Red tips
+                ctx.fillStyle = '#c0392b';
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        ctx.beginPath();
+                        ctx.moveTo(i * 25 + 12.5, j * 25);
+                        ctx.lineTo(i * 25 + 10, j * 25 + 5);
+                        ctx.lineTo(i * 25 + 15, j * 25 + 5);
+                        ctx.fill();
+                    }
+                }
+            } else {
+                // Spikes DOWN (Holes)
+                ctx.fillStyle = '#111';
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        ctx.beginPath();
+                        ctx.arc(i * 25 + 12.5, j * 25 + 12.5, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+        } else if (this.type === 'SLOW') {
+            // Subtle Mud/Web
+            ctx.fillStyle = 'rgba(100, 100, 100, 0.2)'; // Very subtle
+            ctx.fillRect(0, 0, this.w, this.h);
+            // No border, just some specks
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            for (let i = 0; i < 5; i++) {
+                ctx.fillRect(Math.random() * this.w, Math.random() * this.h, 5, 5);
+            }
+        } else if (this.type === 'CONVEYOR') {
+            // Subtle Wind
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.fillRect(0, 0, this.w, this.h);
+        }
+        ctx.restore();
+
+        // Conveyor Arrows (Separate to handle rotation correctly)
+        if (this.type === 'CONVEYOR') {
+            ctx.save();
+            ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
+            const angle = Math.atan2(this.vy, this.vx);
+            ctx.rotate(angle);
+            ctx.fillStyle = 'rgba(255,255,255,0.1)'; // Faint arrows
+            const offset = (Date.now() / 10) % 50 - 25;
+
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath();
+                ctx.moveTo(-20 + offset + i * 50, -10);
+                ctx.lineTo(0 + offset + i * 50, 0);
+                ctx.lineTo(-20 + offset + i * 50, 10);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+    }
+}
+
