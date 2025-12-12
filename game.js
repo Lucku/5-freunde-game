@@ -559,7 +559,7 @@ function updateUIHighlight() {
         el.classList.add('selected');
 
 
-        const scrollableStates = ['ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION'];
+        const scrollableStates = ['ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE'];
         if (scrollableStates.includes(uiState)) {
             // Scroll into view if needed
             el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
@@ -610,6 +610,11 @@ function handleGamepadMenu() {
         if (content && Math.abs(gp.axes[3]) > 0.1) {
             content.scrollTop += gp.axes[3] * 15;
         }
+    } else if (uiState === 'HIGHSCORE') {
+        const content = document.getElementById('highscore-content');
+        if (content && Math.abs(gp.axes[3]) > 0.1) {
+            content.scrollTop += gp.axes[3] * 15;
+        }
     }
 
     // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
@@ -622,7 +627,7 @@ function handleGamepadMenu() {
         else if (uiState === 'SKILLTREE') closeSkillTree();
         else if (uiState === 'STATS') closeStats(); // Added STATS
         else if (uiState === 'COLLECTION') closeCollection();
-        uiDebounce = 30;
+        uiDebounce = 15;
     }
 
     const focusables = getFocusables();
@@ -648,13 +653,13 @@ function handleGamepadMenu() {
         if (uiSelectionIndex >= focusables.length) uiSelectionIndex = 0;
         if (uiSelectionIndex < 0) uiSelectionIndex = focusables.length - 1;
         updateUIHighlight();
-        uiDebounce = 15;
+        uiDebounce = 8;
     }
 
     // Select Action (A Button)
     if (a && !lastGamepadState.a) {
         focusables[uiSelectionIndex].click();
-        uiDebounce = 30; // Increased from 20 to 30 (approx 0.5s) to prevent double clicks
+        uiDebounce = 15; // Reduced from 30 to 15 for snappier feel
     }
 
     // Back Action (B Button)
