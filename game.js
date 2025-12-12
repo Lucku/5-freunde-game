@@ -1613,7 +1613,7 @@ function createExplosion(x, y, color) {
 function generateArena() {
     obstacles = [];
     biomeZones = [];
-    const layout = Math.floor(Math.random() * 3);
+    const layout = Math.floor(Math.random() * 5); // Increased to 5 layouts
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
     const safeZone = 150;
@@ -1650,9 +1650,22 @@ function generateArena() {
     } else if (layout === 1) {
         obstacles.push(new Obstacle(cx - 300, cy - 50, 100, 100));
         obstacles.push(new Obstacle(cx + 200, cy - 50, 100, 100));
-    } else {
+    } else if (layout === 2) {
         obstacles.push(new Obstacle(canvas.width * 0.3, 0, 50, canvas.height * 0.4));
         obstacles.push(new Obstacle(canvas.width * 0.7, canvas.height * 0.6, 50, canvas.height * 0.4));
+    } else if (layout === 3) {
+        // Central Block
+        obstacles.push(new Obstacle(cx - 50, cy - 50, 100, 100));
+    } else if (layout === 4) {
+        // Scattered Small Blocks
+        for (let i = 0; i < 6; i++) {
+            const x = Math.random() * (canvas.width - 100);
+            const y = Math.random() * (canvas.height - 100);
+            // Avoid center
+            if (Math.hypot(x - cx, y - cy) > 200) {
+                obstacles.push(new Obstacle(x, y, 60, 60));
+            }
+        }
     }
 
     obstacles = obstacles.filter(obs => {
