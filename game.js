@@ -770,6 +770,12 @@ function initMenu() {
     document.getElementById('stats-screen').style.display = 'none'; // Hide stats screen
     document.getElementById('collection-screen').style.display = 'none';
 
+    // Hide Save Management in Electron
+    const saveMgmt = document.getElementById('save-management');
+    if (saveMgmt) {
+        saveMgmt.style.display = isElectron ? 'none' : 'flex';
+    }
+
     // Update Daily Challenge Button
     const dailyBtn = document.getElementById('daily-challenge-btn');
     if (dailyBtn) {

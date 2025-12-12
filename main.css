@@ -857,6 +857,37 @@ button.btn-gold:hover {
     background: #d4ac0d;
 }
 
+/* Menu Organization */
+.menu-row {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 10px;
+    width: 100%;
+    max-width: 800px;
+    flex-wrap: wrap;
+}
+
+.btn-large {
+    padding: 20px 50px !important;
+    font-size: 24px !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    transition: transform 0.2s, box-shadow 0.2s !important;
+}
+
+.btn-large:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+}
+
+.btn-start {
+    background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+    color: white !important;
+    border: 2px solid #fff !important;
+}
+
 /* Skill Tree UI */
 #skill-tree-container {
     width: 80%;
