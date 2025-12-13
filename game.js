@@ -623,6 +623,13 @@ function handleGamepadMenu() {
         return;
     }
 
+    // Tutorial Input Handling
+    if (uiState === 'TUTORIAL') {
+        Tutorial.handleInput(gp);
+        lastGamepadState = { a, b };
+        return; // Skip standard navigation
+    }
+
     // --- SCROLLING LOGIC (Right Stick) ---
     if (uiState === 'ACHIEVEMENTS') {
         const list = document.getElementById('achievements-list');
@@ -777,6 +784,8 @@ function handleGamepadMenu() {
         else if (uiState === 'SKILLTREE') closeSkillTree(); // Added SKILLTREE
         else if (uiState === 'STATS') closeStats(); // Added STATS
         else if (uiState === 'STORY') closeStory(); // Added STORY
+        else if (uiState === 'TUTORIAL') closeTutorial(); // Added TUTORIAL
+        else if (uiState === 'CHAOSSHOP') closeChaosShop(); // Added CHAOSSHOP
         else if (uiState === 'DAILY_INFO') closeDailyInfo();
         uiDebounce = 30; // Increased from 20 to 30
     }
