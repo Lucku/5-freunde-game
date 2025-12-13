@@ -54,6 +54,9 @@ const Tutorial = {
                 <h3>Standard Mode</h3>
                 <p>The classic survival experience. Waves get harder over time. Bosses spawn every few minutes.</p>
                 
+                <h3>Story Mode</h3>
+                <p>Experience the narrative of the 5 Freunde. Includes special events, dialogue, and unique boss encounters.</p>
+
                 <h3>Daily Challenge</h3>
                 <p>A unique run generated every day. Everyone plays with the same random seed and mutators. 
                 <br><b>Reward:</b> 1 Chaos Shard per win.</p>
@@ -61,9 +64,23 @@ const Tutorial = {
                 <h3>Weekly Challenge</h3>
                 <p>A harder, longer challenge that resets weekly. 
                 <br><b>Reward:</b> 3 Chaos Shards per win.</p>
-                
-                <h3>Story Mode</h3>
-                <p>Enable in main menu. Adds narrative events and special bosses (like Makuta) at specific waves.</p>
+            `
+        },
+        prestige: {
+            title: "Prestige & Hard Mode",
+            html: `
+                <h2>Pushing the Limits</h2>
+                <h3>Prestige</h3>
+                <p>Once you reach a high level with a hero, you can <b>Prestige</b> them.</p>
+                <ul>
+                    <li><b>Resets:</b> Hero Level and Skill Tree progress to 0.</li>
+                    <li><b>Gains:</b> Increases base stats (Health, Damage, Gold Gain) permanently.</li>
+                    <li><b>Difficulty:</b> Enemies become tougher for that hero.</li>
+                </ul>
+                <p>Use Prestige to break through stat ceilings and farm Gold more efficiently.</p>
+
+                <h3>Hard Mode</h3>
+                <p>Unlocked after completing specific milestones. Increases enemy speed, health, and damage, but grants significantly more XP and Gold.</p>
             `
         },
         progression: {

@@ -269,7 +269,6 @@ canvas {
     margin-bottom: 10px;
 }
 
-#menu-overlay,
 #pause-screen,
 #levelup-screen,
 #skill-tree-screen,
@@ -294,6 +293,30 @@ canvas {
     justify-content: center;
     pointer-events: auto;
     z-index: 20;
+}
+
+#menu-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+    pointer-events: auto;
+    z-index: 20;
+}
+
+#start-screen {
+    margin: auto;
+    padding: 40px 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 #game-over-screen {
@@ -1335,4 +1358,101 @@ input:checked+.slider:before {
 .control-item span {
     color: #aaa;
     font-size: 14px;
+}
+
+/* --- New Main Menu Styles --- */
+.game-title {
+    font-size: 72px;
+    margin-bottom: 20px;
+    text-shadow: 0 0 20px rgba(52, 152, 219, 0.5);
+    background: linear-gradient(to right, #3498db, #9b59b6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.menu-grid-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 40px;
+    width: 90%;
+    max-width: 1200px;
+    margin-top: 30px;
+}
+
+.menu-column {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.menu-column h3 {
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+.menu-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.hero-section {
+    margin-bottom: 20px;
+}
+
+.system-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+/* Button Variants */
+.btn-story {
+    background: linear-gradient(45deg, #2c3e50, #34495e);
+    border: 1px solid #3498db;
+}
+
+.btn-story:hover {
+    background: linear-gradient(45deg, #34495e, #2c3e50);
+    box-shadow: 0 0 15px rgba(52, 152, 219, 0.4);
+}
+
+.btn-void {
+    background: linear-gradient(45deg, #8e44ad, #9b59b6);
+}
+
+.btn-chaos {
+    background: linear-gradient(45deg, #c0392b, #e74c3c);
+}
+
+.btn-altar {
+    background: linear-gradient(45deg, #27ae60, #2ecc71);
+}
+
+.btn-small {
+    font-size: 12px;
+    padding: 8px 12px;
+    min-width: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1000px) {
+    .menu-grid-container {
+        grid-template-columns: 1fr;
+        max-width: 500px;
+    }
 }

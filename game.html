@@ -117,6 +117,7 @@
                 <button class="tab-btn active" onclick="Tutorial.showTab('basics')">Basics</button>
                 <button class="tab-btn" onclick="Tutorial.showTab('heroes')">Heroes</button>
                 <button class="tab-btn" onclick="Tutorial.showTab('modes')">Game Modes</button>
+                <button class="tab-btn" onclick="Tutorial.showTab('prestige')">Prestige & Hard Mode</button>
                 <button class="tab-btn" onclick="Tutorial.showTab('progression')">Progression</button>
                 <button class="tab-btn" onclick="Tutorial.showTab('chaos')">Chaos System</button>
             </div>
@@ -218,64 +219,56 @@
     <!-- Main Menu -->
     <div id="menu-overlay">
         <div id="start-screen">
-            <h1>Freunde</h1>
-            <h2>Select your Elemental Hero</h2>
-            <div class="hero-select" id="hero-select-container">
-                <!-- Generated via JS -->
-            </div>
+            <h1 class="game-title">5 Freunde</h1>
 
-            <!-- Row 1: Main Actions -->
-            <div class="menu-row main-actions">
-                <button class="btn btn-large btn-start" onclick="startGame()">Start Game</button>
-                <button id="daily-challenge-btn" class="btn btn-large btn-gold" onclick="startDailyChallenge()">Daily
-                    Challenge</button>
-                <button id="weekly-challenge-btn" class="btn btn-large btn-gold" onclick="startWeeklyChallenge()">Weekly
-                    Challenge</button>
-            </div>
-
-            <!-- Row 2: Progression -->
-            <div class="menu-row">
-                <button class="btn btn-blue" onclick="openSkillTree()">Skill Tree</button>
-                <button class="btn" style="background: #9b59b6; color: white;" onclick="openPermShop()">Void
-                    Shop</button>
-                <button class="btn" style="background: #e74c3c; color: white;" onclick="openChaosShop()">Chaos
-                    Shop</button>
-                <button id="altar-btn" class="btn" style="background: #8e44ad; color: white; display:none;"
-                    onclick="openAltar()">Altar of Mastery</button>
-                <button class="btn btn-gold" onclick="openCollection()">Collection</button>
-                <button class="btn btn-gold" onclick="openMuseum()">Museum</button>
-            </div>
-
-            <!-- Row 3: Stats & Info -->
-            <div class="menu-row">
-                <button class="btn btn-gold" onclick="openAchievements()">Achievements</button>
-                <button class="btn btn-gold" onclick="openHighScores()">High Scores</button>
-                <button class="btn btn-blue" onclick="openStats()">Statistics</button>
-                <button class="btn btn-blue" onclick="Tutorial.open()">Tutorial</button>
-            </div>
-
-            <!-- Row 4: Settings -->
-            <div class="menu-row" style="margin-top: 15px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <label class="switch">
-                        <input type="checkbox" id="story-toggle" onchange="toggleStoryMode(this)">
-                        <span class="slider round"></span>
-                    </label>
-                    <span style="color: #fff; font-size: 14px;">Enable Story Mode</span>
+            <div class="menu-section hero-section">
+                <h2>Select Hero</h2>
+                <div class="hero-select" id="hero-select-container">
+                    <!-- Generated via JS -->
                 </div>
             </div>
 
-            <!-- Row 5: System -->
-            <div class="menu-row system-actions" style="margin-top: 20px;">
-                <div id="save-management" style="display: flex; gap: 10px;">
-                    <button class="btn btn-blue" style="font-size: 14px; padding: 10px 20px;"
-                        onclick="exportSave()">Export Save</button>
-                    <input type="file" id="import-file" style="display: none;" onchange="importSave(this)">
-                    <button class="btn btn-blue" style="font-size: 14px; padding: 10px 20px;"
-                        onclick="document.getElementById('import-file').click()">Import Save</button>
+            <div class="menu-grid-container">
+                <!-- Column 1: Play -->
+                <div class="menu-column">
+                    <h3>Play</h3>
+                    <button class="btn btn-large btn-start" onclick="startStandardGame()">Standard Run</button>
+                    <button class="btn btn-large btn-story" onclick="startStoryGame()">Story Mode</button>
+                    <button id="daily-challenge-btn" class="btn btn-gold" onclick="startDailyChallenge()">Daily
+                        Challenge</button>
+                    <button id="weekly-challenge-btn" class="btn btn-gold" onclick="startWeeklyChallenge()">Weekly
+                        Challenge</button>
                 </div>
-                <button class="btn" style="background: #c0392b; color: white; font-size: 14px; padding: 10px 20px;"
-                    onclick="closeGame()">Exit Game</button>
+
+                <!-- Column 2: Progression -->
+                <div class="menu-column">
+                    <h3>Progression</h3>
+                    <button class="btn btn-blue" onclick="openSkillTree()">Skill Tree</button>
+                    <button class="btn btn-void" onclick="openPermShop()">Void Shop</button>
+                    <button class="btn btn-chaos" onclick="openChaosShop()">Chaos Shop</button>
+                    <button id="altar-btn" class="btn btn-altar" style="display:none;" onclick="openAltar()">Altar of
+                        Mastery</button>
+                    <button class="btn btn-gold" onclick="openMuseum()">Museum</button>
+                    <button class="btn btn-gold" onclick="openCollection()">Collection</button>
+                </div>
+
+                <!-- Column 3: Extras & System -->
+                <div class="menu-column">
+                    <h3>Extras</h3>
+                    <button class="btn btn-gold" onclick="openAchievements()">Achievements</button>
+                    <button class="btn btn-gold" onclick="openHighScores()">High Scores</button>
+                    <button class="btn btn-blue" onclick="openStats()">Statistics</button>
+                    <button class="btn btn-blue" onclick="Tutorial.open()">Tutorial</button>
+
+                    <h3 style="margin-top: 20px;">System</h3>
+                    <div class="system-buttons">
+                        <button class="btn btn-small" onclick="exportSave()">Export Save</button>
+                        <input type="file" id="import-file" style="display: none;" onchange="importSave(this)">
+                        <button class="btn btn-small" onclick="document.getElementById('import-file').click()">Import
+                            Save</button>
+                        <button class="btn btn-danger btn-small" onclick="closeGame()">Exit</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -349,7 +342,9 @@
     <script src="AltarData.js"></script>
     <script src="Arena.js"></script>
     <script src="Museum.js"></script>
-    <script src="Altar.js"></script>    <script src="Tutorial.js"></script>    <script src="Story.js"></script>
+    <script src="Altar.js"></script>
+    <script src="Tutorial.js"></script>
+    <script src="Story.js"></script>
     <script src="Player.js"></script>
     <script src="Enemy.js"></script>
     <script src="Boss.js"></script>

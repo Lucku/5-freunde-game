@@ -795,13 +795,20 @@ function handleGamepadMenu() {
 
 // --- Update Existing Functions to use setUIState ---
 
-function toggleStoryMode(checkbox) {
+function startStandardGame() {
+    if (!saveData.story) {
+        saveData.story = { unlockedChapters: [], enabled: false };
+    }
+    saveData.story.enabled = false;
+    startGame('NORMAL');
+}
+
+function startStoryGame() {
     if (!saveData.story) {
         saveData.story = { unlockedChapters: [], enabled: true };
     }
-    saveData.story.enabled = checkbox.checked;
-    saveGame();
-    console.log("Story Mode " + (saveData.story.enabled ? "Enabled" : "Disabled"));
+    saveData.story.enabled = true;
+    startGame('NORMAL');
 }
 
 function initMenu() {
@@ -841,19 +848,6 @@ function initMenu() {
             dailyBtn.style.opacity = 1;
             dailyBtn.style.cursor = 'pointer';
         }
-    }
-
-    // Update Story Toggle Checkbox
-    const storyToggle = document.getElementById('story-toggle');
-    if (storyToggle) {
-        if (!saveData.story) {
-            saveData.story = { unlockedChapters: [], enabled: true };
-        }
-        // Default to true if undefined
-        if (saveData.story.enabled === undefined) {
-            saveData.story.enabled = true;
-        }
-        storyToggle.checked = saveData.story.enabled;
     }
 
     // Update Altar Button Visibility
