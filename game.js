@@ -547,7 +547,7 @@ function getFocusables() {
 
     // Select all interactive elements
     // REMOVED .achievement-row from here
-    const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item, .skill-node, .collection-card, .switch'));
+    const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item, .skill-node, .collection-card, .switch, .altar-node'));
     // Filter out hidden elements
     return elements.filter(el => el.offsetParent !== null);
 }
@@ -637,6 +637,11 @@ function handleGamepadMenu() {
         }
     } else if (uiState === 'HIGHSCORE') {
         const content = document.getElementById('highscore-content');
+        if (content && Math.abs(gp.axes[3]) > 0.1) {
+            content.scrollTop += gp.axes[3] * 15;
+        }
+    } else if (uiState === 'ALTAR') {
+        const content = document.getElementById('altar-screen');
         if (content && Math.abs(gp.axes[3]) > 0.1) {
             content.scrollTop += gp.axes[3] * 15;
         }
@@ -835,7 +840,7 @@ function initMenu() {
     // Update Altar Button Visibility
     const altarBtn = document.getElementById('altar-btn');
     if (altarBtn) {
-        const hasPrestige = ['fire', 'water', 'ice', 'plant', 'metal', 'black'].some(h => saveData[h].prestige > 0);
+        const hasPrestige = ['fire', 'water', 'ice', 'plant', 'metal'].some(h => saveData[h].prestige > 0);
         altarBtn.style.display = hasPrestige ? 'block' : 'none';
     }
 
@@ -1326,6 +1331,14 @@ window.addEventListener('keydown', e => {
         showNotification("DEBUG: BLACK HERO SELECTED");
         // We don't call renderHeroSelect() because Black isn't in the list, 
         // so we just rely on the notification.
+    }
+
+    // DEBUG: Add Skill Point with 'P' in Menu
+    if (e.code === 'KeyP' && uiState === 'MENU') {
+        saveData[selectedHeroType].level++;
+        saveGame();
+        renderHeroSelect();
+        showNotification(`DEBUG: +1 Point for ${selectedHeroType.toUpperCase()}`);
     }
 });
 
@@ -2653,6 +2666,20 @@ function masterLoop(timestamp) {
                             // Special: Shield Pierce
                             if (enemy.subType === 'SHIELDER' && bonuses.specials.includes('SHIELD_PIERCE')) {
                                 finalDamage *= 1.5;
+                            }
+
+                            // Altar: Wildfire (c4) - Apply Burn
+                            if (proj.isWildfire) {
+                                // Simple burn implementation: instant extra damage for now, or add status effect logic to Enemy class
+                                // Let's do instant bonus damage + visual
+                                finalDamage += 10;
+                                createExplosion(enemy.x, enemy.y, '#e67e22');
+                            }
+
+                            // Altar: Cryo-Flora (c9) - Apply Freeze
+                            if (proj.isCryo) {
+                                enemy.frozenTimer = 60; // 1s
+                                floatingTexts.push(new FloatingText(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
                             }
 
                             enemy.hp -= finalDamage;

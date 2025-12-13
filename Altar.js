@@ -7,7 +7,7 @@ class Altar {
         this.container.innerHTML = '';
 
         // 1. Render Hero Columns
-        const heroes = ['fire', 'water', 'ice', 'plant', 'metal', 'black'];
+        const heroes = ['fire', 'water', 'ice', 'plant', 'metal'];
 
         heroes.forEach(hero => {
             const col = document.createElement('div');
@@ -101,15 +101,16 @@ class Altar {
             const isActive = saveData.altar.active.includes(node.id);
 
             const nodeEl = document.createElement('div');
+            nodeEl.className = `altar-node ${isUnlocked ? 'unlocked' : 'locked'} ${isActive ? 'active' : ''}`;
             nodeEl.style.cssText = `
-                padding: 10px;
-                background: ${isUnlocked ? (isActive ? 'rgba(155, 89, 182, 0.3)' : 'rgba(0,0,0,0.3)') : 'rgba(0,0,0,0.5)'};
-                border: 1px solid ${isUnlocked ? (isActive ? '#9b59b6' : '#555') : '#333'};
-                border-radius: 5px;
-                cursor: ${isUnlocked ? 'pointer' : 'default'};
-                opacity: ${isUnlocked ? 1 : 0.5};
-                width: 300px;
-            `;
+                    padding: 10px;
+                    background: ${isUnlocked ? (isActive ? 'rgba(155, 89, 182, 0.3)' : 'rgba(0,0,0,0.3)') : 'rgba(0,0,0,0.5)'};
+                    border: 1px solid ${isUnlocked ? (isActive ? '#9b59b6' : '#555') : '#333'};
+                    border-radius: 5px;
+                    cursor: ${isUnlocked ? 'pointer' : 'default'};
+                    opacity: ${isUnlocked ? 1 : 0.5};
+                    width: 300px;
+                `;
 
             const reqText = reqs.map(h => `${h.toUpperCase()} ${node.req[h]}`).join(' + ');
 

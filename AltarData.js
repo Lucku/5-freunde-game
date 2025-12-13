@@ -25,14 +25,16 @@ const ALTAR_TREE = {
         { id: 'm2', req: 3, type: 'stat', stat: 'duration', val: 1.5, desc: 'Invincibility Duration +50%' },
         { id: 'm3', req: 5, type: 'unique', desc: 'Magnetic Field: Pulls enemies in while active' }
     ],
-    black: [
-        { id: 'b1', req: 1, type: 'stat', stat: 'cooldown', val: 0.9, desc: 'Void Eruption Cooldown -10%' },
-        { id: 'b2', req: 3, type: 'stat', stat: 'radius', val: 1.25, desc: 'Void Eruption Radius +25%' },
-        { id: 'b3', req: 5, type: 'unique', desc: 'Event Horizon: Void Eruption pulls enemies before exploding' }
-    ],
     convergence: [
         { id: 'c1', req: { fire: 5, water: 5 }, type: 'mutation', desc: 'Boiling Wave: Tidal Wave applies Fire DoT' },
         { id: 'c2', req: { ice: 5, metal: 5 }, type: 'mutation', desc: 'Frostbite Armor: Iron Will freezes attackers' },
-        { id: 'c3', req: { plant: 5, black: 5 }, type: 'mutation', desc: 'Corrupted Growth: Overgrowth drains enemy life' }
+        { id: 'c3', req: { fire: 5, ice: 5 }, type: 'mutation', desc: 'Thermal Shock: Inferno explosions apply Freeze' },
+        { id: 'c4', req: { fire: 5, plant: 5 }, type: 'mutation', desc: 'Wildfire: Overgrowth projectiles apply Burn' },
+        { id: 'c5', req: { fire: 5, metal: 5 }, type: 'mutation', desc: 'Molten Core: Iron Will emits fire pulses' },
+        { id: 'c6', req: { water: 5, ice: 5 }, type: 'mutation', desc: 'Permafrost: Deep Freeze pushes enemies away' },
+        { id: 'c7', req: { water: 5, plant: 5 }, type: 'mutation', desc: 'Algae Bloom: Tidal Wave heals player per hit' },
+        { id: 'c8', req: { water: 5, metal: 5 }, type: 'mutation', desc: 'Hydro-Shield: Tidal Wave grants temporary HP' },
+        { id: 'c9', req: { ice: 5, plant: 5 }, type: 'mutation', desc: 'Cryo-Flora: Overgrowth projectiles freeze enemies' },
+        { id: 'c10', req: { plant: 5, metal: 5 }, type: 'mutation', desc: 'Ironbark: Overgrowth grants damage reduction' }
     ]
 };

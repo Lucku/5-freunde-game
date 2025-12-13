@@ -224,7 +224,6 @@ class Player {
             if (this.type === 'ice' && has('i1')) this.specialMaxCooldown *= 0.9;
             if (this.type === 'plant' && has('p1')) this.specialMaxCooldown *= 0.9;
             if (this.type === 'metal' && has('m1')) this.specialMaxCooldown *= 0.9;
-            if (this.type === 'black' && has('b1')) this.specialMaxCooldown *= 0.9;
         }
     }
 
@@ -243,6 +242,9 @@ class Player {
             let radius = 150;
             if (has('f2')) radius *= 1.2; // +20% Radius
 
+            // Convergence: Thermal Shock (c3)
+            const isThermal = has('c3');
+
             for (let i = 0; i < 12; i++) {
                 const angle = (Math.PI * 2 / 12) * i;
                 const ex = this.x + Math.cos(angle) * radius;
@@ -251,8 +253,6 @@ class Player {
                     createExplosion(ex, ey, '#e74c3c');
                     // Lingering Flame (f3)
                     if (has('f3')) {
-                        // TODO: Spawn Fire Patch (Simulated by just extra damage for now or visual)
-                        // For simplicity, let's just do a second explosion later
                         setTimeout(() => createExplosion(ex, ey, '#e67e22'), 500);
                     }
 
@@ -260,6 +260,11 @@ class Player {
                         if (Math.hypot(e.x - ex, e.y - ey) < 80) {
                             e.hp -= 50 * this.damageMultiplier;
                             floatingTexts.push(new FloatingText(e.x, e.y - 20, "50", "#e74c3c", 20));
+
+                            if (isThermal) {
+                                e.frozenTimer = 60; // 1s Freeze
+                                floatingTexts.push(new FloatingText(e.x, e.y - 40, "FREEZE", "#aaddff", 16));
+                            }
                         }
                     });
                 }, i * 50);
@@ -273,6 +278,13 @@ class Player {
             // Tsunami (w3) - Wider effect?
             // Convergence: Boiling Wave (c1)
             const isBoiling = has('c1');
+            // Convergence: Algae Bloom (c7)
+            const isAlgae = has('c7');
+            // Convergence: Hydro-Shield (c8)
+            if (has('c8')) {
+                this.hp = Math.min(this.maxHp, this.hp + 20); // Temp HP / Heal
+                floatingTexts.push(new FloatingText(this.x, this.y - 40, "SHIELD", "#3498db", 20));
+            }
 
             enemies.forEach(e => {
                 const angle = Math.atan2(e.y - this.y, e.x - this.x);
@@ -284,6 +296,9 @@ class Player {
                     e.hp -= 10 * this.damageMultiplier; // Fire DoT instant burst
                     floatingTexts.push(new FloatingText(e.x, e.y - 40, "BOIL", "#e74c3c", 16));
                 }
+                if (isAlgae) {
+                    this.hp = Math.min(this.maxHp, this.hp + 1);
+                }
             });
         } else if (this.type === 'ice') {
             // Freeze
@@ -292,6 +307,8 @@ class Player {
 
             // Shatter (i3)
             const canShatter = has('i3');
+            // Convergence: Permafrost (c6)
+            const isPermafrost = has('c6');
 
             enemies.forEach(e => {
                 if (canShatter && e.frozenTimer > 0) {
@@ -300,6 +317,12 @@ class Player {
                 }
                 e.frozenTimer = duration;
                 floatingTexts.push(new FloatingText(e.x, e.y - 40, "FROZEN", "#aaddff", 16));
+
+                if (isPermafrost) {
+                    const angle = Math.atan2(e.y - this.y, e.x - this.x);
+                    e.x += Math.cos(angle) * 150;
+                    e.y += Math.sin(angle) * 150;
+                }
             });
         } else if (this.type === 'plant') {
             // Heal + Turret
@@ -315,20 +338,32 @@ class Player {
                 floatingTexts.push(new FloatingText(this.x, this.y - 60, "THORNMAIL", "#2ecc71", 20));
             }
 
-            // Convergence: Corrupted Growth (c3)
-            if (has('c3')) {
-                enemies.forEach(e => {
-                    if (Math.hypot(e.x - this.x, e.y - this.y) < 300) {
-                        e.hp -= 20;
-                        this.hp = Math.min(this.maxHp, this.hp + 2);
-                    }
-                });
+            // Convergence: Ironbark (c10)
+            if (has('c10')) {
+                this.damageReduction = 0.5; // 50% DR
+                setTimeout(() => this.damageReduction = 0, 5000); // Reset after 5s
+                floatingTexts.push(new FloatingText(this.x, this.y - 80, "IRONBARK", "#95a5a6", 20));
             }
+
+            // Convergence: Wildfire (c4)
+            const isWildfire = has('c4');
+            // Convergence: Cryo-Flora (c9)
+            const isCryo = has('c9');
 
             // Burst of thorns
             for (let i = 0; i < 20; i++) {
                 const angle = (Math.PI * 2 / 20) * i;
-                projectiles.push(new Projectile(this.x, this.y, { x: Math.cos(angle) * 10, y: Math.sin(angle) * 10 }, 30 * this.damageMultiplier, '#2ecc71', 5, 'plant', 10, false));
+                const p = new Projectile(this.x, this.y, { x: Math.cos(angle) * 10, y: Math.sin(angle) * 10 }, 30 * this.damageMultiplier, '#2ecc71', 5, 'plant', 10, false);
+                if (isWildfire) p.color = '#e67e22'; // Orange thorns
+                if (isCryo) p.color = '#aaddff'; // Blue thorns
+                // We need to handle these effects in Projectile collision or just assume basic damage for now
+                // Since Projectile class handles collision, we might need to add flags to projectile
+                // But Projectile constructor doesn't take flags.
+                // Let's hack it by adding properties after creation
+                if (isWildfire) p.isWildfire = true;
+                if (isCryo) p.isCryo = true;
+
+                projectiles.push(p);
             }
         } else if (this.type === 'metal') {
             // Invincible
@@ -338,8 +373,7 @@ class Player {
             this.invincibleTimer = duration;
             floatingTexts.push(new FloatingText(this.x, this.y - 40, "INVINCIBLE", "#95a5a6", 20));
 
-            // Magnetic Field (m3) - Handled in update loop or here?
-            // Let's do a one-time pull here for simplicity
+            // Magnetic Field (m3)
             if (has('m3')) {
                 enemies.forEach(e => {
                     if (Math.hypot(e.x - this.x, e.y - this.y) < 400) {
@@ -351,23 +385,22 @@ class Player {
             }
 
             // Convergence: Frostbite Armor (c2)
-            // Handled in collision logic usually, but we can add a flag
             if (has('c2')) this.hasFrostbiteArmor = true;
-        } else if (this.type === 'black') {
-            // Massive Area Damage
-            let radius = 300;
-            if (has('b2')) radius *= 1.25; // +25% Radius
 
-            // Event Horizon (b3) - Pull enemies
-            if (has('b3')) {
+            // Convergence: Molten Core (c5)
+            if (has('c5')) {
+                // Pulse fire
+                createExplosion(this.x, this.y, '#e74c3c');
                 enemies.forEach(e => {
-                    if (Math.hypot(e.x - this.x, e.y - this.y) < radius + 100) {
-                        const angle = Math.atan2(this.y - e.y, this.x - e.x);
-                        e.x += Math.cos(angle) * 150;
-                        e.y += Math.sin(angle) * 150;
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < 200) {
+                        e.hp -= 30 * this.damageMultiplier;
+                        floatingTexts.push(new FloatingText(e.x, e.y - 20, "BURN", "#e74c3c", 16));
                     }
                 });
             }
+        } else if (this.type === 'black') {
+            // Massive Area Damage
+            let radius = 300;
 
             createExplosion(this.x, this.y, '#9b59b6'); // Bright Purple
 
