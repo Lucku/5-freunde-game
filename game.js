@@ -36,6 +36,7 @@ const defaultSaveData = {
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
     stats: {},
     daily: { lastCompleted: null },
+    weekly: { lastCompleted: null },
     story: { unlockedChapters: [], enabled: true },
     altar: { active: [] } // New Altar Data
 };
@@ -65,6 +66,7 @@ let saveData = {
         maxCombo: 0
     },
     daily: { lastCompleted: null },
+    weekly: { lastCompleted: null },
     story: { unlockedChapters: [], enabled: true },
     altar: { active: [] } // New Altar Data
 };
@@ -129,6 +131,11 @@ function loadGame() {
         // Ensure Altar object exists (Migration)
         if (!saveData.altar) {
             saveData.altar = { active: [] };
+        }
+
+        // Ensure Weekly object exists (Migration)
+        if (!saveData.weekly) {
+            saveData.weekly = { lastCompleted: null };
         }
     } else {
         saveData = JSON.parse(JSON.stringify(defaultSaveData));
@@ -1435,6 +1442,77 @@ function getDailyMutators() {
     return selected;
 }
 
+let isWeeklyMode = false;
+
+function getWeeklySeed() {
+    const now = new Date();
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return parseInt(`${d.getUTCFullYear()}${String(weekNo).padStart(2, '0')}`);
+}
+
+function getWeeklyMutators() {
+    const seed = getWeeklySeed();
+    const random = (seed) => {
+        let x = Math.sin(seed++) * 10000;
+        return x - Math.floor(x);
+    };
+
+    let currentSeed = seed;
+    const count = 3 + Math.floor(random(currentSeed) * 2); // 3 or 4 mutators
+    currentSeed++;
+
+    const selected = [];
+    const pool = [...MUTATORS];
+
+    for (let i = 0; i < count; i++) {
+        if (pool.length === 0) break;
+        const index = Math.floor(random(currentSeed) * pool.length);
+        selected.push(pool[index]);
+        pool.splice(index, 1);
+        currentSeed++;
+    }
+    return selected;
+}
+
+function startWeeklyChallenge() {
+    const thisWeek = getWeeklySeed();
+    if (saveData.weekly && saveData.weekly.lastCompleted === thisWeek) {
+        alert("You have already completed this week's challenge!");
+        return;
+    }
+
+    activeMutators = getWeeklyMutators();
+    isWeeklyMode = true;
+    isDailyMode = false;
+
+    const title = document.querySelector('#daily-info-modal h1');
+    if (title) title.innerText = "WEEKLY CHALLENGE";
+
+    const list = document.getElementById('daily-mutators-list');
+    list.innerHTML = '';
+    activeMutators.forEach(m => {
+        const item = document.createElement('div');
+        item.style.marginBottom = '10px';
+        item.innerHTML = `<strong style="color:${m.color}">${m.name}</strong>: ${m.desc}`;
+        list.appendChild(item);
+    });
+
+    const btn = document.querySelector('#daily-info-modal .btn-gold');
+    btn.onclick = confirmWeeklyStart;
+
+    document.getElementById('daily-info-modal').style.display = 'flex';
+    setUIState('DAILY_INFO');
+}
+
+function confirmWeeklyStart() {
+    document.getElementById('daily-info-modal').style.display = 'none';
+    startGame('WEEKLY');
+}
+
 function startDailyChallenge() {
     const today = getDailySeed();
     if (saveData.daily && saveData.daily.lastCompleted === today) {
@@ -1444,6 +1522,10 @@ function startDailyChallenge() {
 
     activeMutators = getDailyMutators();
     isDailyMode = true;
+    isWeeklyMode = false;
+
+    const title = document.querySelector('#daily-info-modal h1');
+    if (title) title.innerText = "DAILY CHALLENGE";
 
     // Show Custom Modal
     const list = document.getElementById('daily-mutators-list');
@@ -1454,6 +1536,9 @@ function startDailyChallenge() {
         item.innerHTML = `<strong style="color:${m.color}">${m.name}</strong>: ${m.desc}`;
         list.appendChild(item);
     });
+
+    const btn = document.querySelector('#daily-info-modal .btn-gold');
+    btn.onclick = confirmDailyStart;
 
     document.getElementById('daily-info-modal').style.display = 'flex';
     setUIState('DAILY_INFO');
@@ -1861,8 +1946,8 @@ function closeShop() {
 
 // --- Story Logic ---
 function triggerStory(completedWave) {
-    // Check if story mode is enabled or if it's daily mode
-    if ((saveData.story && saveData.story.enabled === false) || isDailyMode) {
+    // Check if story mode is enabled or if it's daily/weekly mode
+    if ((saveData.story && saveData.story.enabled === false) || isDailyMode || isWeeklyMode) {
         // Skip story
         if (wave % 2 === 0) {
             openShop();
@@ -1977,7 +2062,7 @@ function startGame(mode = 'NORMAL') {
 
     // Check for Shadow Form Mutator BEFORE creating player
     let heroType = selectedHeroType;
-    if (mode === 'DAILY' && activeMutators.some(m => m.id === 'SHADOW_FORM')) {
+    if ((mode === 'DAILY' || mode === 'WEEKLY') && activeMutators.some(m => m.id === 'SHADOW_FORM')) {
         heroType = 'black';
     }
 
@@ -2024,12 +2109,13 @@ function startGame(mode = 'NORMAL') {
     // Mode Handling
     if (mode === 'NORMAL') {
         isDailyMode = false;
+        isWeeklyMode = false;
         activeMutators = [];
     }
-    // Daily mode is set in startDailyChallenge
+    // Daily/Weekly mode is set in startDailyChallenge/startWeeklyChallenge
 
     // Apply Mutators (Initial)
-    if (isDailyMode) {
+    if (isDailyMode || isWeeklyMode) {
         if (activeMutators.some(m => m.id === 'FRAGILE')) {
             player.maxHp = 1;
             player.hp = 1;
@@ -2040,8 +2126,8 @@ function startGame(mode = 'NORMAL') {
             player.damageMultiplier += 2; // +200%
         }
         if (activeMutators.some(m => m.id === 'ONE_TYPE')) {
-            // Deterministic selection based on daily seed
-            const seed = getDailySeed();
+            // Deterministic selection based on seed
+            const seed = isWeeklyMode ? getWeeklySeed() : getDailySeed();
             const rand = Math.sin(seed + 999) * 10000;
             const index = Math.floor((rand - Math.floor(rand)) * ENEMY_TYPES.length);
             forcedEnemyType = ENEMY_TYPES[index];
@@ -2236,6 +2322,18 @@ function masterLoop(timestamp) {
                         // Reward
                         player.gold += 5000; // Bonus Gold
                         saveData.global.totalGold += 5000;
+                        saveGame();
+                        setTimeout(gameOver, 3000);
+                        return;
+                    }
+
+                    // Weekly Challenge Win Condition
+                    if (isWeeklyMode && wave === 20) {
+                        showNotification("WEEKLY CHALLENGE COMPLETE!");
+                        saveData.weekly.lastCompleted = getWeeklySeed();
+                        // Reward (Bigger than Daily)
+                        player.gold += 15000; // Bonus Gold
+                        saveData.global.totalGold += 15000;
                         saveGame();
                         setTimeout(gameOver, 3000);
                         return;
@@ -2754,7 +2852,7 @@ function masterLoop(timestamp) {
                     checkAchievements(); // Check achievements on kill
 
                     // Mutator: Explosive Personality
-                    if (isDailyMode && activeMutators.some(m => m.id === 'EXPLOSIVE')) {
+                    if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'EXPLOSIVE')) {
                         createExplosion(enemy.x, enemy.y, '#e74c3c');
                         if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 100) {
                             player.hp -= 10 * (1 - player.damageReduction);
@@ -2798,7 +2896,7 @@ function masterLoop(timestamp) {
                         if (Math.random() < player.maskChance) holyMasks.push(new HolyMask(enemy.x, enemy.y));
 
                         // Mutator: No Regen (No Health Drops)
-                        if (!(isDailyMode && activeMutators.some(m => m.id === 'NO_REGEN'))) {
+                        if (!((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'NO_REGEN'))) {
                             if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y)); // Gold Drop
                         } else {
                             // Still drop gold, but maybe less? Or just no health potions if they existed as drops.
