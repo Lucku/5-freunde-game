@@ -39,7 +39,8 @@ const defaultSaveData = {
     daily: { lastCompleted: null },
     weekly: { lastCompleted: null },
     story: { unlockedChapters: [], enabled: true },
-    altar: { active: [] } // New Altar Data
+    altar: { active: [] }, // New Altar Data
+    chaos: { shards: 0, unlocked: [], active: [] } // Chaos Shop Data
 };
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
@@ -69,7 +70,8 @@ let saveData = {
     daily: { lastCompleted: null },
     weekly: { lastCompleted: null },
     story: { unlockedChapters: [], enabled: true },
-    altar: { active: [] } // New Altar Data
+    altar: { active: [] }, // New Altar Data
+    chaos: { shards: 0, unlocked: [], active: [] } // Chaos Shop Data
 };
 
 // Runtime stats tracker
@@ -908,6 +910,89 @@ function buyPermUpgrade(key, cost) {
 
 function closePermShop() {
     document.getElementById('perm-shop-screen').style.display = 'none';
+    initMenu();
+}
+
+// --- Chaos Shop Logic ---
+function isChaosActive(effectId) {
+    return saveData.chaos && saveData.chaos.active && saveData.chaos.active.includes(effectId);
+}
+
+function openChaosShop() {
+    document.getElementById('menu-overlay').style.display = 'none';
+    document.getElementById('chaos-shop-screen').style.display = 'flex';
+    renderChaosShop();
+    setUIState('CHAOSSHOP');
+}
+
+function renderChaosShop() {
+    // Ensure chaos data exists
+    if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
+
+    document.getElementById('chaosShardsVal').innerText = saveData.chaos.shards;
+    const container = document.getElementById('chaos-shop-container');
+    container.innerHTML = '';
+
+    CHAOS_EFFECTS.forEach(effect => {
+        const isUnlocked = saveData.chaos.unlocked.includes(effect.id);
+        const isActive = saveData.chaos.active.includes(effect.id);
+
+        const div = document.createElement('div');
+        div.className = 'shop-item';
+        // Style differently if unlocked/active
+        if (isUnlocked) {
+            div.style.borderColor = isActive ? '#2ecc71' : '#e74c3c';
+            div.style.background = isActive ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.1)';
+        }
+
+        let actionText = isUnlocked ? (isActive ? "ACTIVE (Click to Disable)" : "INACTIVE (Click to Enable)") : `Buy for ${effect.cost} Shards`;
+        let costColor = isUnlocked ? (isActive ? '#2ecc71' : '#e74c3c') : '#f1c40f';
+
+        div.innerHTML = `
+            <div style="font-size: 20px; font-weight: bold; color: #e74c3c;">${effect.name}</div>
+            <div style="color: #aaa; margin: 5px 0;">${effect.desc}</div>
+            <div style="color: #f1c40f; font-weight: bold;">Bonus: +${Math.round(effect.bonus * 100)}% Gold</div>
+            <div style="color: ${costColor}; margin-top: 10px; font-weight: bold;">${actionText}</div>
+        `;
+
+        div.onclick = () => {
+            if (isUnlocked) {
+                toggleChaosEffect(effect.id);
+            } else {
+                buyChaosEffect(effect.id, effect.cost);
+            }
+        };
+        container.appendChild(div);
+    });
+}
+
+function buyChaosEffect(id, cost) {
+    if (saveData.chaos.shards >= cost) {
+        saveData.chaos.shards -= cost;
+        saveData.chaos.unlocked.push(id);
+        saveGame();
+        renderChaosShop();
+        showNotification("Chaos Effect Unlocked!");
+    } else {
+        showNotification("Not enough Chaos Shards!");
+    }
+}
+
+function toggleChaosEffect(id) {
+    const index = saveData.chaos.active.indexOf(id);
+    if (index > -1) {
+        saveData.chaos.active.splice(index, 1);
+        showNotification("Effect Disabled");
+    } else {
+        saveData.chaos.active.push(id);
+        showNotification("Effect Enabled");
+    }
+    saveGame();
+    renderChaosShop();
+}
+
+function closeChaosShop() {
+    document.getElementById('chaos-shop-screen').style.display = 'none';
     initMenu();
 }
 
@@ -2337,6 +2422,11 @@ function masterLoop(timestamp) {
                         player.gold += 5000; // Bonus Gold
                         saveData.global.totalGold += 5000;
 
+                        // Chaos Reward
+                        if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
+                        saveData.chaos.shards += 1;
+                        showNotification("EARNED 1 CHAOS SHARD!");
+
                         // Track Wins
                         saveData.global.daily_wins = (saveData.global.daily_wins || 0) + 1;
 
@@ -2356,6 +2446,11 @@ function masterLoop(timestamp) {
                         // Reward (Bigger than Daily)
                         player.gold += 15000; // Bonus Gold
                         saveData.global.totalGold += 15000;
+
+                        // Chaos Reward
+                        if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
+                        saveData.chaos.shards += 3;
+                        showNotification("EARNED 3 CHAOS SHARDS!");
 
                         // Track Wins
                         saveData.global.weekly_wins = (saveData.global.weekly_wins || 0) + 1;
@@ -2981,6 +3076,18 @@ function masterLoop(timestamp) {
 
             // Restore Camera Transform
             ctx.restore();
+
+            // Chaos: Darkness (Fog of War)
+            if (typeof isChaosActive === 'function' && isChaosActive('DARKNESS')) {
+                ctx.save();
+                const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 150, canvas.width / 2, canvas.height / 2, 800);
+                gradient.addColorStop(0, 'transparent');
+                gradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.8)');
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            }
 
             // Low Health Indicator
             if (player.hp / player.maxHp < 0.2) {

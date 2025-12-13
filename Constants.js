@@ -166,6 +166,17 @@ const MUTATORS = [
     { id: 'SHADOW_FORM', name: 'Shadow Realm', desc: 'Play as the Hero of Darkness (Black).', color: '#2c3e50' }
 ];
 
+const CHAOS_EFFECTS = [
+    { id: 'INVERTED', name: 'Confused Controls', desc: 'Movement controls are inverted.', cost: 5, bonus: 0.50, color: '#e74c3c' },
+    { id: 'SLIPPERY', name: 'Butter Fingers', desc: 'Movement has zero friction.', cost: 3, bonus: 0.20, color: '#3498db' },
+    { id: 'GIANT_ENEMIES', name: 'Titan Mode', desc: 'Enemies are 2x size and HP.', cost: 5, bonus: 0.30, color: '#8e44ad' },
+    { id: 'TINY_PLAYER', name: 'Ant Man', desc: 'Player is 50% size, takes 200% damage.', cost: 4, bonus: 0.25, color: '#f1c40f' },
+    { id: 'EXPLOSIVE_STEPS', name: 'Hot Foot', desc: 'You spawn explosions while moving (hurts you!).', cost: 8, bonus: 0.40, color: '#e67e22' },
+    { id: 'DRUNK_CAM', name: 'Queasy Cam', desc: 'Camera rotates and sways.', cost: 2, bonus: 0.15, color: '#2ecc71' },
+    { id: 'SPEED_DEMON', name: 'Turbo Mode', desc: 'Game runs at 1.5x speed.', cost: 6, bonus: 0.30, color: '#9b59b6' },
+    { id: 'GHOST_TOWN', name: 'Invisible Enemies', desc: 'Enemies are partially transparent.', cost: 3, bonus: 0.20, color: '#95a5a6' }
+];
+
 const UPGRADE_POOL = [
     { id: 'health', title: 'Vitality', desc: 'Increase Max HP by 25 and Heal 20%.', icon: '❤️' },
     { id: 'radius', title: 'Blast Radius', desc: 'Increase Melee Area of Effect by 25%.', icon: '💥' },

@@ -48,6 +48,18 @@ class Enemy {
         this.shootCooldown = 0;
         this.summonCooldown = 0;
         this.frozenTimer = 0;
+
+        // Chaos: Giant Enemies
+        if (typeof isChaosActive === 'function' && isChaosActive('GIANT_ENEMIES')) {
+            this.radius *= 2;
+            this.hp *= 2;
+            this.damage *= 1.5;
+        }
+
+        // Chaos: Double Speed
+        if (typeof isChaosActive === 'function' && isChaosActive('DOUBLE_SPEED')) {
+            this.speed *= 2;
+        }
         this.alpha = 1; // For Ghost
         this.biomeSpeedMod = 1; // Biome Modifier
 

@@ -33,6 +33,16 @@ class Player {
         // Apply Meta Greed
         this.goldMultiplier += (saveData.metaUpgrades.greed || 0) * 0.05;
 
+        // Apply Chaos Gold Bonus
+        if (saveData.chaos && saveData.chaos.active) {
+            saveData.chaos.active.forEach(id => {
+                const effect = CHAOS_EFFECTS.find(e => e.id === id);
+                if (effect) {
+                    this.goldMultiplier += effect.bonus;
+                }
+            });
+        }
+
         // Biome Modifier
         this.biomeSpeedMod = 1;
 
@@ -82,6 +92,19 @@ class Player {
             const ach = ACHIEVEMENTS.find(a => a.id === id);
             if (ach && ach.bonus.type === 'gold') this.goldMultiplier += ach.bonus.val;
         });
+
+        // Chaos Effects (Constructor)
+        if (typeof isChaosActive === 'function') {
+            if (isChaosActive('TINY_PLAYER')) this.radius *= 0.5;
+            if (isChaosActive('ONE_HIT')) {
+                this.maxHp = 1;
+                this.hp = 1;
+            }
+        }
+
+        // Physics State for Slippery
+        this.vx = 0;
+        this.vy = 0;
     }
 
     gainXp(amount) {
@@ -282,7 +305,7 @@ class Player {
             const isAlgae = has('c7');
             // Convergence: Hydro-Shield (c8)
             if (has('c8')) {
-                this.hp = Math.min(this.maxHp, this.hp + 20); // Temp HP / Heal
+                if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + 20); // Temp HP / Heal
                 floatingTexts.push(new FloatingText(this.x, this.y - 40, "SHIELD", "#3498db", 20));
             }
 
@@ -297,7 +320,7 @@ class Player {
                     floatingTexts.push(new FloatingText(e.x, e.y - 40, "BOIL", "#e74c3c", 16));
                 }
                 if (isAlgae) {
-                    this.hp = Math.min(this.maxHp, this.hp + 1);
+                    if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + 1);
                 }
             });
         } else if (this.type === 'ice') {
@@ -329,7 +352,7 @@ class Player {
             let healAmount = this.maxHp * 0.3;
             if (has('p2')) healAmount *= 1.2; // +20% Heal
 
-            this.hp = Math.min(this.maxHp, this.hp + healAmount);
+            if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + healAmount);
             floatingTexts.push(new FloatingText(this.x, this.y - 40, "HEAL", "#2ecc71", 20));
 
             // Thornmail (p3)
@@ -424,8 +447,10 @@ class Player {
 
     onKill() {
         if (this.type === 'black') {
-            this.hp = Math.min(this.maxHp, this.hp + 2); // Heal 2 HP per kill
-            floatingTexts.push(new FloatingText(this.x, this.y - 30, "+2", "#2ecc71", 14));
+            if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
+                this.hp = Math.min(this.maxHp, this.hp + 2); // Heal 2 HP per kill
+                floatingTexts.push(new FloatingText(this.x, this.y - 30, "+2", "#2ecc71", 14));
+            }
         }
     }
 
@@ -551,6 +576,12 @@ class Player {
             if (mouse.rightDown) this.melee();
         }
 
+        // Chaos: Inverted Controls
+        if (typeof isChaosActive === 'function' && isChaosActive('INVERTED')) {
+            dx = -dx;
+            dy = -dy;
+        }
+
         // Store input for dash direction
         this.moveInput = { x: dx, y: dy };
 
@@ -562,6 +593,11 @@ class Player {
 
         // Weather Slow
         if (currentWeather && currentWeather.id === 'BLIZZARD') currentSpeed *= 0.8;
+
+        // Chaos: Double Speed
+        if (typeof isChaosActive === 'function' && isChaosActive('DOUBLE_SPEED')) {
+            currentSpeed *= 2;
+        }
 
         if (this.transformActive) {
             currentSpeed *= this.stats.ultModifiers.speed;
@@ -580,11 +616,30 @@ class Player {
         let moveX = 0;
         let moveY = 0;
 
-        if (dx !== 0 || dy !== 0) {
-            const moveLen = Math.sqrt(dx * dx + dy * dy);
-            const scale = (moveLen > 1 ? 1 : moveLen); // Cap at 1 for gamepad
-            moveX = (dx / (moveLen || 1)) * currentSpeed * scale;
-            moveY = (dy / (moveLen || 1)) * currentSpeed * scale;
+        if (typeof isChaosActive === 'function' && isChaosActive('SLIPPERY')) {
+            // Slippery logic
+            if (dx !== 0 || dy !== 0) {
+                const moveLen = Math.sqrt(dx * dx + dy * dy);
+                const scale = (moveLen > 1 ? 1 : moveLen);
+                const targetVx = (dx / (moveLen || 1)) * currentSpeed * scale;
+                const targetVy = (dy / (moveLen || 1)) * currentSpeed * scale;
+
+                this.vx += (targetVx - this.vx) * 0.05;
+                this.vy += (targetVy - this.vy) * 0.05;
+            } else {
+                this.vx *= 0.95; // Friction
+                this.vy *= 0.95;
+            }
+            moveX = this.vx;
+            moveY = this.vy;
+        } else {
+            // Normal Movement
+            if (dx !== 0 || dy !== 0) {
+                const moveLen = Math.sqrt(dx * dx + dy * dy);
+                const scale = (moveLen > 1 ? 1 : moveLen); // Cap at 1 for gamepad
+                moveX = (dx / (moveLen || 1)) * currentSpeed * scale;
+                moveY = (dy / (moveLen || 1)) * currentSpeed * scale;
+            }
         }
 
         // WINDY MUTATOR

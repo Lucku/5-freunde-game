@@ -99,6 +99,16 @@
         <button class="btn" onclick="closePermShop()" style="margin-top: 30px;">Back to Menu</button>
     </div>
 
+    <!-- Chaos Shop Screen -->
+    <div id="chaos-shop-screen">
+        <h1 style="color: #e74c3c; text-shadow: 0 0 10px #c0392b;">CHAOS SHOP</h1>
+        <h2 style="margin-bottom: 20px;">Spend Chaos Shards (Available: <span id="chaosShardsVal">0</span>)</h2>
+        <div class="shop-grid" id="chaos-shop-container">
+            <!-- Generated via JS -->
+        </div>
+        <button class="btn" onclick="closeChaosShop()" style="margin-top: 30px;">Back to Menu</button>
+    </div>
+
     <!-- Story Screen -->
     <div id="story-screen"
         style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); flex-direction: column; justify-content: center; align-items: center; z-index: 200;">
@@ -209,6 +219,8 @@
             <div class="menu-row">
                 <button class="btn btn-blue" onclick="openSkillTree()">Skill Tree</button>
                 <button class="btn" style="background: #9b59b6; color: white;" onclick="openPermShop()">Void
+                    Shop</button>
+                <button class="btn" style="background: #e74c3c; color: white;" onclick="openChaosShop()">Chaos
                     Shop</button>
                 <button id="altar-btn" class="btn" style="background: #8e44ad; color: white; display:none;"
                     onclick="openAltar()">Altar of Mastery</button>
