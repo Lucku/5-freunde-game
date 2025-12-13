@@ -26,6 +26,7 @@ const defaultSaveData = {
     ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
+    black: { level: 0, unlocked: 0, highScore: 0, prestige: 0 }, // Hidden/Daily Hero
     global: {
         totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0,
         totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0,
@@ -35,7 +36,8 @@ const defaultSaveData = {
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
     stats: {},
     daily: { lastCompleted: null },
-    story: { unlockedChapters: [], enabled: true }
+    story: { unlockedChapters: [], enabled: true },
+    altar: { active: [] } // New Altar Data
 };
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
@@ -45,6 +47,7 @@ let saveData = {
     ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
+    black: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0, totalVoidGoldSpent: 0, unlockedAchievements: [] },
     collection: [],
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
@@ -62,7 +65,8 @@ let saveData = {
         maxCombo: 0
     },
     daily: { lastCompleted: null },
-    story: { unlockedChapters: [], enabled: true }
+    story: { unlockedChapters: [], enabled: true },
+    altar: { active: [] } // New Altar Data
 };
 
 // Runtime stats tracker
@@ -121,6 +125,11 @@ function loadGame() {
         } else if (saveData.story.enabled === undefined) {
             saveData.story.enabled = true;
         }
+
+        // Ensure Altar object exists (Migration)
+        if (!saveData.altar) {
+            saveData.altar = { active: [] };
+        }
     } else {
         saveData = JSON.parse(JSON.stringify(defaultSaveData));
     }
@@ -167,7 +176,8 @@ function generateHeroSkillTree(type) {
         water: { COOLDOWN: 0.30, KNOCK: 0.30, SPEED: 0.20, HEALTH: 0.10, ULT_SPEED: 0.10 },
         ice: { PIERCE: 0.30, COOLDOWN: 0.15, DAMAGE: 0.20, HEALTH: 0.15, ULT_DAMAGE: 0.10, ULT_SPEED: 0.10 },
         plant: { SPLIT: 0.25, HEALTH: 0.30, DAMAGE: 0.10, COOLDOWN: 0.15, ULT_DAMAGE: 0.20 },
-        metal: { MELEE: 0.25, ARMOR: 0.30, HEALTH: 0.25, DAMAGE: 0.10, ULT_DAMAGE: 0.10 }
+        metal: { MELEE: 0.25, ARMOR: 0.30, HEALTH: 0.25, DAMAGE: 0.10, ULT_DAMAGE: 0.10 },
+        black: { DAMAGE: 1.0 } // Dummy tree, not used
     };
 
     const w = weights[type];
@@ -528,6 +538,8 @@ function getFocusables() {
     else if (uiState === 'STATS') screenId = 'stats-screen'; // Added STATS
     else if (uiState === 'COLLECTION') screenId = 'collection-screen';
     else if (uiState === 'STORY') screenId = 'story-screen';
+    else if (uiState === 'DAILY_INFO') screenId = 'daily-info-modal';
+    else if (uiState === 'ALTAR') screenId = 'altar-screen';
 
     if (!screenId) return [];
     const screen = document.getElementById(screenId);
@@ -562,7 +574,7 @@ function updateUIHighlight() {
         el.classList.add('selected');
 
 
-        const scrollableStates = ['ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE'];
+        const scrollableStates = ['ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE', 'ALTAR'];
         if (scrollableStates.includes(uiState)) {
             // Scroll into view if needed
             el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
@@ -590,18 +602,6 @@ function handleGamepadMenu() {
     const b = gp.buttons[1].pressed; // B / Circle
 
     if (uiState === 'GAME') return;
-
-    // --- DAILY INFO MODAL ---
-    if (uiState === 'DAILY_INFO') {
-        if (a) {
-            confirmDailyStart();
-            uiDebounce = 20;
-        } else if (b) {
-            closeDailyInfo();
-            uiDebounce = 20;
-        }
-        return;
-    }
 
     // --- MUSEUM ---
     if (uiState === 'MUSEUM') {
@@ -652,6 +652,7 @@ function handleGamepadMenu() {
         else if (uiState === 'SKILLTREE') closeSkillTree();
         else if (uiState === 'STATS') closeStats(); // Added STATS
         else if (uiState === 'COLLECTION') closeCollection();
+        else if (uiState === 'ALTAR') closeAltar();
         uiDebounce = 15;
     }
 
@@ -761,6 +762,7 @@ function handleGamepadMenu() {
         else if (uiState === 'SKILLTREE') closeSkillTree(); // Added SKILLTREE
         else if (uiState === 'STATS') closeStats(); // Added STATS
         else if (uiState === 'STORY') closeStory(); // Added STORY
+        else if (uiState === 'DAILY_INFO') closeDailyInfo();
         uiDebounce = 30; // Increased from 20 to 30
     }
 
@@ -828,6 +830,13 @@ function initMenu() {
             saveData.story.enabled = true;
         }
         storyToggle.checked = saveData.story.enabled;
+    }
+
+    // Update Altar Button Visibility
+    const altarBtn = document.getElementById('altar-btn');
+    if (altarBtn) {
+        const hasPrestige = ['fire', 'water', 'ice', 'plant', 'metal', 'black'].some(h => saveData[h].prestige > 0);
+        altarBtn.style.display = hasPrestige ? 'block' : 'none';
     }
 
     renderHeroSelect();
@@ -992,6 +1001,22 @@ function openHighScores() {
 
 function closeHighScores() {
     document.getElementById('highscore-screen').style.display = 'none';
+    initMenu();
+}
+
+// --- Altar Logic ---
+let altar = null;
+
+function openAltar() {
+    document.getElementById('menu-overlay').style.display = 'none';
+    document.getElementById('altar-screen').style.display = 'flex';
+    if (!altar) altar = new Altar();
+    altar.render();
+    setUIState('ALTAR');
+}
+
+function closeAltar() {
+    document.getElementById('altar-screen').style.display = 'none';
     initMenu();
 }
 
@@ -1181,6 +1206,7 @@ function getHeroTheme(type) {
     if (type === 'ice') return { bg: '#1a252a', grid: '#2c3e50' };
     if (type === 'plant') return { bg: '#0b2c14', grid: '#185226' };
     if (type === 'metal') return { bg: '#1a1a1a', grid: '#333' };
+    if (type === 'black') return { bg: '#000000', grid: '#2c3e50' }; // Dark theme for Black
     return { bg: '#1a1a1a', grid: '#333' };
 }
 
@@ -1292,6 +1318,14 @@ window.addEventListener('keydown', e => {
     if (e.code === 'KeyB' && gameRunning && !gamePaused && !bossActive) {
         enemiesKilledInWave = ENEMIES_PER_WAVE * wave;
         showNotification("DEBUG: BOSS SPAWNED");
+    }
+
+    // DEBUG: Select Black Hero in Menu with 'B'
+    if (e.code === 'KeyB' && uiState === 'MENU') {
+        selectedHeroType = 'black';
+        showNotification("DEBUG: BLACK HERO SELECTED");
+        // We don't call renderHeroSelect() because Black isn't in the list, 
+        // so we just rely on the notification.
     }
 });
 
@@ -1867,7 +1901,10 @@ function advanceWave() {
     bossActive = false;
 
     // Randomize Biome
-    const types = ['fire', 'water', 'ice', 'plant', 'metal'];
+    let types = ['fire', 'water', 'ice', 'plant', 'metal'];
+    if (player && player.type === 'black') {
+        types = ['black']; // Keep Black in his own realm
+    }
     currentBiomeType = types[Math.floor(Math.random() * types.length)];
     showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
 
@@ -1925,7 +1962,13 @@ function startGame(mode = 'NORMAL') {
     // Initialize Arena (3000x3000)
     arena = new Arena(3000, 3000);
 
-    player = new Player(selectedHeroType);
+    // Check for Shadow Form Mutator BEFORE creating player
+    let heroType = selectedHeroType;
+    if (mode === 'DAILY' && activeMutators.some(m => m.id === 'SHADOW_FORM')) {
+        heroType = 'black';
+    }
+
+    player = new Player(heroType);
     // Center Player in Arena
     player.x = arena.width / 2;
     player.y = arena.height / 2;
@@ -1995,7 +2038,7 @@ function startGame(mode = 'NORMAL') {
         }
     }
 
-    currentBiomeType = selectedHeroType; // Start in home biome
+    currentBiomeType = player.type; // Start in home biome (Updated to use player.type for Black support)
     arena.generate(currentBiomeType);
 
     document.getElementById('menu-overlay').style.display = 'none';
@@ -2501,6 +2544,12 @@ function masterLoop(timestamp) {
                 if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
                     // Invincibility Check
                     if (player.invincibleTimer > 0) {
+                        // Frostbite Armor (Altar c2)
+                        if (player.hasFrostbiteArmor) {
+                            enemy.frozenTimer = 180; // 3s Freeze
+                            floatingTexts.push(new FloatingText(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
+                        }
+
                         // Reflect damage?
                         enemy.hp -= 5;
                         createExplosion(player.x, player.y, '#95a5a6');
@@ -2520,6 +2569,14 @@ function masterLoop(timestamp) {
                         dmgTaken = speedsterDmg * (1 - player.damageReduction);
                         createExplosion(player.x, player.y, '#e74c3c');
                         enemy.hp = 0; // Suicide
+                    }
+
+                    // Thornmail (Altar p3)
+                    if (player.thornmailTimer > 0) {
+                        const reflectDmg = 20;
+                        enemy.hp -= reflectDmg;
+                        createExplosion(player.x, player.y, '#2ecc71');
+                        floatingTexts.push(new FloatingText(player.x, player.y - 40, "REFLECT", "#2ecc71", 16));
                     }
 
                     player.hp -= dmgTaken;
@@ -2666,6 +2723,7 @@ function masterLoop(timestamp) {
 
                 if (enemy.hp <= 0) {
                     player.addCombo(); // Add Combo
+                    if (player.onKill) player.onKill(); // Trigger onKill effects (e.g. Black Hero Heal)
                     checkAchievements(); // Check achievements on kill
 
                     // Mutator: Explosive Personality

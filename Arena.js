@@ -50,6 +50,13 @@ class Arena {
             this.biomeZones.push(new BiomeZone(cx - 200, cy - 200, 400, 400, 'MAGNET'));
             this.biomeZones.push(new BiomeZone(cx - 800, cy - 800, 300, 300, 'MAGNET'));
             this.biomeZones.push(new BiomeZone(cx + 500, cy + 500, 300, 300, 'MAGNET'));
+        } else if (biomeType === 'black') {
+            // Dark Energy Patches
+            for (let i = 0; i < 8; i++) {
+                const bx = Math.random() * (this.width - 400) + 200;
+                const by = Math.random() * (this.height - 400) + 200;
+                this.biomeZones.push(new BiomeZone(bx, by, 250, 250, 'DARK_ENERGY'));
+            }
         }
 
         // --- Obstacle Generation ---
@@ -169,6 +176,33 @@ class Arena {
                 }
             }
         });
+
+        // Check Biome Collisions (Dark Energy)
+        this.biomeZones.forEach(zone => {
+            if (zone.type === 'DARK_ENERGY') {
+                // Player Interaction
+                if (player.x > zone.x && player.x < zone.x + zone.w &&
+                    player.y > zone.y && player.y < zone.y + zone.h) {
+                    // Heal Player
+                    if (frame % 60 === 0 && player.hp < player.maxHp) {
+                        player.hp += 1;
+                        floatingTexts.push(new FloatingText(player.x, player.y - 30, "+1", "#9b59b6", 14));
+                    }
+                }
+                
+                // Enemy Interaction
+                enemies.forEach(e => {
+                    if (e.x > zone.x && e.x < zone.x + zone.w &&
+                        e.y > zone.y && e.y < zone.y + zone.h) {
+                        // Damage Enemy
+                        if (frame % 30 === 0) {
+                            e.hp -= 2;
+                            createExplosion(e.x, e.y, '#8e44ad');
+                        }
+                    }
+                });
+            }
+        });
     }
 
     checkCollision(x, y, r) {
@@ -224,6 +258,10 @@ class BiomeZone {
         } else if (this.type === 'MAGNET') {
             ctx.fillStyle = 'rgba(142, 68, 173, 0.2)';
             ctx.strokeStyle = '#8e44ad';
+        } else if (this.type === 'DARK_ENERGY') {
+            ctx.fillStyle = 'rgba(155, 89, 182, 0.3)'; // Purple
+            ctx.strokeStyle = '#8e44ad';
+            ctx.globalAlpha = 0.6 + Math.sin(Date.now() / 300) * 0.2; // Pulsing
         }
 
         ctx.fillRect(this.x, this.y, this.w, this.h);

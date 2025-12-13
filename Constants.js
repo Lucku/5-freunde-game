@@ -4,7 +4,8 @@ const BASE_HERO_STATS = {
     water: { color: '#3498db', hp: 60, speed: 4.5, rangeDmg: 12, meleeDmg: 80, rangeCd: 8, meleeCd: 100, projectileSpeed: 10, projectileSize: 5, knockback: 20 },
     ice: { color: '#ecf0f1', hp: 50, speed: 4, rangeDmg: 15, meleeDmg: 90, rangeCd: 25, meleeCd: 130, projectileSpeed: 15, projectileSize: 4, knockback: 2 },
     plant: { color: '#2ecc71', hp: 70, speed: 3.5, rangeDmg: 10, meleeDmg: 120, rangeCd: 30, meleeCd: 140, projectileSpeed: 9, projectileSize: 7, knockback: 8 },
-    metal: { color: '#95a5a6', hp: 100, speed: 3, rangeDmg: 40, meleeDmg: 150, rangeCd: 40, meleeCd: 180, projectileSpeed: 18, projectileSize: 8, knockback: 12 }
+    metal: { color: '#95a5a6', hp: 100, speed: 3, rangeDmg: 40, meleeDmg: 150, rangeCd: 40, meleeCd: 180, projectileSpeed: 18, projectileSize: 8, knockback: 12 },
+    black: { color: '#2c3e50', hp: 150, speed: 5, rangeDmg: 50, meleeDmg: 200, rangeCd: 10, meleeCd: 80, projectileSpeed: 20, projectileSize: 10, knockback: 25 } // Hero of Darkness
 };
 
 const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI', 'AUTOAIM'];
@@ -137,7 +138,8 @@ const MUTATORS = [
     { id: 'FRAGILE', name: 'Glass Cannon', desc: 'Player HP is capped at 1, but Damage is 5x.', color: '#3498db' },
     { id: 'NO_REGEN', name: 'No Mercy', desc: 'No Health Drops spawn.', color: '#c0392b' },
     { id: 'WINDY', name: 'Hurricane', desc: 'Strong winds push you around.', color: '#1abc9c' },
-    { id: 'ONE_TYPE', name: 'Monoculture', desc: 'Only one random enemy type spawns.', color: '#d35400' }
+    { id: 'ONE_TYPE', name: 'Monoculture', desc: 'Only one random enemy type spawns.', color: '#d35400' },
+    { id: 'SHADOW_FORM', name: 'Shadow Realm', desc: 'Play as the Hero of Darkness (Black).', color: '#2c3e50' }
 ];
 
 const UPGRADE_POOL = [

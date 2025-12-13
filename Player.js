@@ -158,6 +158,7 @@ class Player {
         if (this.type === 'metal') return 'IRON';
         if (this.type === 'plant') return 'CREEPER';
         if (this.type === 'water') return 'OCEAN';
+        if (this.type === 'black') return 'THE SHADOW';
         return 'ULTIMATE';
     }
 
@@ -205,6 +206,25 @@ class Player {
             this.specialName = "IRON WILL";
             this.specialMaxCooldown = 1200; // 20s
             iconEl.innerText = "🛡️";
+        } else if (this.type === 'black') {
+            this.specialName = "VOID ERUPTION";
+            this.specialMaxCooldown = 900; // 15s
+            iconEl.innerText = "🌑";
+        }
+
+        // Apply Altar Stats (Passive)
+        if (saveData.altar && saveData.altar.active) {
+            const active = saveData.altar.active;
+            // Helper to check if node is active
+            const has = (id) => active.includes(id);
+
+            // Cooldown Reductions
+            if (this.type === 'fire' && has('f1')) this.specialMaxCooldown *= 0.9;
+            if (this.type === 'water' && has('w1')) this.specialMaxCooldown *= 0.9;
+            if (this.type === 'ice' && has('i1')) this.specialMaxCooldown *= 0.9;
+            if (this.type === 'plant' && has('p1')) this.specialMaxCooldown *= 0.9;
+            if (this.type === 'metal' && has('m1')) this.specialMaxCooldown *= 0.9;
+            if (this.type === 'black' && has('b1')) this.specialMaxCooldown *= 0.9;
         }
     }
 
@@ -214,14 +234,28 @@ class Player {
         showNotification(`${this.specialName}!`);
         this.specialCooldown = this.specialMaxCooldown * this.cooldownMultiplier;
 
+        // Altar Checks
+        const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const has = (id) => active.includes(id);
+
         if (this.type === 'fire') {
             // Ring of explosions
+            let radius = 150;
+            if (has('f2')) radius *= 1.2; // +20% Radius
+
             for (let i = 0; i < 12; i++) {
                 const angle = (Math.PI * 2 / 12) * i;
-                const ex = this.x + Math.cos(angle) * 150;
-                const ey = this.y + Math.sin(angle) * 150;
+                const ex = this.x + Math.cos(angle) * radius;
+                const ey = this.y + Math.sin(angle) * radius;
                 setTimeout(() => {
                     createExplosion(ex, ey, '#e74c3c');
+                    // Lingering Flame (f3)
+                    if (has('f3')) {
+                        // TODO: Spawn Fire Patch (Simulated by just extra damage for now or visual)
+                        // For simplicity, let's just do a second explosion later
+                        setTimeout(() => createExplosion(ex, ey, '#e67e22'), 500);
+                    }
+
                     enemies.forEach(e => {
                         if (Math.hypot(e.x - ex, e.y - ey) < 80) {
                             e.hp -= 50 * this.damageMultiplier;
@@ -233,22 +267,64 @@ class Player {
         } else if (this.type === 'water') {
             // Pushback
             createExplosion(this.x, this.y, '#3498db');
+            let pushForce = 200;
+            if (has('w2')) pushForce *= 1.3; // +30% Pushback
+
+            // Tsunami (w3) - Wider effect?
+            // Convergence: Boiling Wave (c1)
+            const isBoiling = has('c1');
+
             enemies.forEach(e => {
                 const angle = Math.atan2(e.y - this.y, e.x - this.x);
-                e.x += Math.cos(angle) * 200;
-                e.y += Math.sin(angle) * 200;
+                e.x += Math.cos(angle) * pushForce;
+                e.y += Math.sin(angle) * pushForce;
                 e.hp -= 20 * this.damageMultiplier;
+
+                if (isBoiling) {
+                    e.hp -= 10 * this.damageMultiplier; // Fire DoT instant burst
+                    floatingTexts.push(new FloatingText(e.x, e.y - 40, "BOIL", "#e74c3c", 16));
+                }
             });
         } else if (this.type === 'ice') {
             // Freeze
+            let duration = 180;
+            if (has('i2')) duration *= 1.5; // +50% Duration
+
+            // Shatter (i3)
+            const canShatter = has('i3');
+
             enemies.forEach(e => {
-                e.frozenTimer = 180; // 3 seconds
+                if (canShatter && e.frozenTimer > 0) {
+                    e.hp -= 50 * this.damageMultiplier; // Shatter Damage
+                    floatingTexts.push(new FloatingText(e.x, e.y - 20, "SHATTER", "#aaddff", 20));
+                }
+                e.frozenTimer = duration;
                 floatingTexts.push(new FloatingText(e.x, e.y - 40, "FROZEN", "#aaddff", 16));
             });
         } else if (this.type === 'plant') {
-            // Heal + Turret (Simulated by just spawning projectiles for now)
-            this.hp = Math.min(this.maxHp, this.hp + (this.maxHp * 0.3));
+            // Heal + Turret
+            let healAmount = this.maxHp * 0.3;
+            if (has('p2')) healAmount *= 1.2; // +20% Heal
+
+            this.hp = Math.min(this.maxHp, this.hp + healAmount);
             floatingTexts.push(new FloatingText(this.x, this.y - 40, "HEAL", "#2ecc71", 20));
+
+            // Thornmail (p3)
+            if (has('p3')) {
+                this.thornmailTimer = 300; // 5s
+                floatingTexts.push(new FloatingText(this.x, this.y - 60, "THORNMAIL", "#2ecc71", 20));
+            }
+
+            // Convergence: Corrupted Growth (c3)
+            if (has('c3')) {
+                enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < 300) {
+                        e.hp -= 20;
+                        this.hp = Math.min(this.maxHp, this.hp + 2);
+                    }
+                });
+            }
+
             // Burst of thorns
             for (let i = 0; i < 20; i++) {
                 const angle = (Math.PI * 2 / 20) * i;
@@ -256,8 +332,67 @@ class Player {
             }
         } else if (this.type === 'metal') {
             // Invincible
-            this.invincibleTimer = 300; // 5 seconds
+            let duration = 300;
+            if (has('m2')) duration *= 1.5; // +50% Duration
+
+            this.invincibleTimer = duration;
             floatingTexts.push(new FloatingText(this.x, this.y - 40, "INVINCIBLE", "#95a5a6", 20));
+
+            // Magnetic Field (m3) - Handled in update loop or here?
+            // Let's do a one-time pull here for simplicity
+            if (has('m3')) {
+                enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < 400) {
+                        const angle = Math.atan2(this.y - e.y, this.x - e.x);
+                        e.x += Math.cos(angle) * 100;
+                        e.y += Math.sin(angle) * 100;
+                    }
+                });
+            }
+
+            // Convergence: Frostbite Armor (c2)
+            // Handled in collision logic usually, but we can add a flag
+            if (has('c2')) this.hasFrostbiteArmor = true;
+        } else if (this.type === 'black') {
+            // Massive Area Damage
+            let radius = 300;
+            if (has('b2')) radius *= 1.25; // +25% Radius
+
+            // Event Horizon (b3) - Pull enemies
+            if (has('b3')) {
+                enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < radius + 100) {
+                        const angle = Math.atan2(this.y - e.y, this.x - e.x);
+                        e.x += Math.cos(angle) * 150;
+                        e.y += Math.sin(angle) * 150;
+                    }
+                });
+            }
+
+            createExplosion(this.x, this.y, '#9b59b6'); // Bright Purple
+
+            // Ring Effect (Visual Pulse)
+            for (let i = 0; i < 36; i++) {
+                const angle = (Math.PI * 2 / 36) * i;
+                const px = this.x + Math.cos(angle) * (radius / 2);
+                const py = this.y + Math.sin(angle) * (radius / 2);
+                particles.push(new Particle(px, py, '#8e44ad'));
+            }
+
+            enemies.forEach(e => {
+                if (Math.hypot(e.x - this.x, e.y - this.y) < radius) {
+                    e.hp -= 100 * this.damageMultiplier;
+                    floatingTexts.push(new FloatingText(e.x, e.y - 20, "100", "#8e44ad", 25));
+                    createExplosion(e.x, e.y, '#9b59b6');
+                }
+            });
+        }
+    }
+
+    onKill() {
+        if (this.type === 'black') {
+            this.hp = Math.min(this.maxHp, this.hp + 2); // Heal 2 HP per kill
+            floatingTexts.push(new FloatingText(this.x, this.y - 30, "+2", "#2ecc71", 14));
         }
     }
 
@@ -268,10 +403,33 @@ class Player {
         if (this.buffs.multi > 0) this.buffs.multi--;
         if (this.buffs.autoaim > 0) this.buffs.autoaim--;
         if (this.specialCooldown > 0) this.specialCooldown--;
-        if (this.invincibleTimer > 0) this.invincibleTimer--;
+        if (this.invincibleTimer > 0) {
+            this.invincibleTimer--;
+            if (this.invincibleTimer <= 0) this.hasFrostbiteArmor = false;
+        }
+        if (this.thornmailTimer > 0) this.thornmailTimer--;
         if (this.pauseDebounce > 0) this.pauseDebounce--;
 
         if (this.dashCooldown > 0) this.dashCooldown--;
+
+        // Black Hero Passive: DoT & Aura
+        if (this.type === 'black') {
+            // Self Damage (DoT) - 1 HP every 20 frames (3 HP/sec) - Increased stress
+            if (frame % 20 === 0 && this.hp > 1) {
+                this.hp -= 1;
+                currentRunStats.damageTaken += 1;
+            }
+
+            // Dark Aura (Damage nearby enemies)
+            if (frame % 30 === 0) { // Twice a second
+                enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < 150) {
+                        e.hp -= 5 * this.damageMultiplier;
+                        createExplosion(e.x, e.y, '#9b59b6'); // Purple pop
+                    }
+                });
+            }
+        }
 
         // Combo Decay
         if (this.comboTimer > 0) {
@@ -426,6 +584,17 @@ class Player {
         ctx.translate(this.x, this.y);
         // Use stored aimAngle instead of calculating from mouse every frame
         ctx.rotate(this.aimAngle);
+
+        // Black Hero Aura Visual
+        if (this.type === 'black') {
+            ctx.beginPath();
+            ctx.arc(0, 0, 150, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(142, 68, 173, 0.1)'; // Faint purple
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(142, 68, 173, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
 
         // Transformation Visuals
         if (this.transformActive) {
