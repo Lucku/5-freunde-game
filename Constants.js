@@ -97,6 +97,30 @@ const voidTiers = [
 ];
 voidTiers.forEach(t => addAch(`void_${t[0]}`, t[1], `Spend ${t[0]} Gold in Void Shop.`, t[0], 'totalVoidGoldSpent', 'damage', t[2], `+${(t[2] * 100).toFixed(0)}% Dmg`));
 
+// 12. Special Achievements
+addAch('MAKUTA_SLAYER', 'Makuta Slayer', 'Defeat Makuta in Story Mode.', 1, 'makuta_kills', 'damage', 0.10, '+10% Dmg');
+
+// Makuta Hard Mode Achievements (1-10)
+for (let i = 1; i <= 10; i++) {
+    addAch(`MAKUTA_HM_${i}`, `Makuta Hard Mode ${i}`, `Defeat Makuta with Prestige ${i}+.`, 1, `makuta_hm_${i}`, 'damage', 0.05, '+5% Dmg');
+}
+
+// Challenge Achievements
+addAch('DAILY_CHALLENGE', 'Daily Routine', 'Complete a Daily Challenge.', 1, 'daily_wins', 'gold', 0.10, '+10% Gold');
+addAch('WEEKLY_CHALLENGE', 'Weekly Warrior', 'Complete a Weekly Challenge.', 1, 'weekly_wins', 'gold', 0.20, '+20% Gold');
+
+// Tiered Daily Challenge Achievements
+const dailyTiers = [
+    [5, 'Daily Grinder', 0.05], [10, 'Daily Master', 0.05], [50, 'Daily Legend', 0.10], [100, 'Daily God', 0.10]
+];
+dailyTiers.forEach(t => addAch(`DAILY_CHALLENGE_${t[0]}`, t[1], `Complete ${t[0]} Daily Challenges.`, t[0], 'daily_wins', 'gold', t[2], `+${(t[2] * 100).toFixed(0)}% Gold`));
+
+// Tiered Weekly Challenge Achievements
+const weeklyTiers = [
+    [5, 'Weekly Veteran', 0.10], [10, 'Weekly Champion', 0.10], [25, 'Weekly Legend', 0.15], [50, 'Weekly God', 0.20]
+];
+weeklyTiers.forEach(t => addAch(`WEEKLY_CHALLENGE_${t[0]}`, t[1], `Complete ${t[0]} Weekly Challenges.`, t[0], 'weekly_wins', 'gold', t[2], `+${(t[2] * 100).toFixed(0)}% Gold`));
+
 const WEATHER_TYPES = [
     { id: 'BLIZZARD', name: 'BLIZZARD', color: 'rgba(200, 230, 255, 0.3)', duration: 600 },
     { id: 'HEATWAVE', name: 'HEATWAVE', color: 'rgba(255, 100, 50, 0.2)', duration: 600 },

@@ -183,15 +183,25 @@ class Arena {
                 // Player Interaction
                 if (player.x > zone.x && player.x < zone.x + zone.w &&
                     player.y > zone.y && player.y < zone.y + zone.h) {
-                    // Heal Player
-                    if (frame % 60 === 0 && player.hp < player.maxHp) {
-                        player.hp += 1;
-                        zone.healthYielded += 1;
-                        floatingTexts.push(new FloatingText(player.x, player.y - 30, "+1", "#9b59b6", 14));
 
-                        if (zone.healthYielded >= zone.maxHealthYield) {
-                            zone.depleted = true;
-                            floatingTexts.push(new FloatingText(zone.x + zone.w / 2, zone.y + zone.h / 2, "DEPLETED", "#555", 20));
+                    if (player.type === 'black') {
+                        // Heal Black Hero
+                        if (frame % 60 === 0 && player.hp < player.maxHp) {
+                            player.hp += 1;
+                            zone.healthYielded += 1;
+                            floatingTexts.push(new FloatingText(player.x, player.y - 30, "+1", "#9b59b6", 14));
+
+                            if (zone.healthYielded >= zone.maxHealthYield) {
+                                zone.depleted = true;
+                                floatingTexts.push(new FloatingText(zone.x + zone.w / 2, zone.y + zone.h / 2, "DEPLETED", "#555", 20));
+                            }
+                        }
+                    } else {
+                        // Damage other heroes (Makuta Fight Logic)
+                        if (frame % 60 === 0) {
+                            player.hp -= 5 * (1 - player.damageReduction);
+                            createExplosion(player.x, player.y, '#8e44ad');
+                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "5", "#8e44ad", 16));
                         }
                     }
                 }
@@ -200,10 +210,19 @@ class Arena {
                 enemies.forEach(e => {
                     if (e.x > zone.x && e.x < zone.x + zone.w &&
                         e.y > zone.y && e.y < zone.y + zone.h) {
-                        // Damage Enemy
-                        if (frame % 30 === 0) {
-                            e.hp -= 2;
-                            createExplosion(e.x, e.y, '#8e44ad');
+
+                        if (e.type === 'MAKUTA') {
+                            // Heal Makuta
+                            if (frame % 60 === 0 && e.hp < e.maxHp) {
+                                e.hp += 50; // Significant healing
+                                floatingTexts.push(new FloatingText(e.x, e.y - 50, "+50", "#9b59b6", 20));
+                            }
+                        } else {
+                            // Damage regular enemies
+                            if (frame % 30 === 0) {
+                                e.hp -= 2;
+                                createExplosion(e.x, e.y, '#8e44ad');
+                            }
                         }
                     }
                 });

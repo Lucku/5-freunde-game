@@ -29,6 +29,23 @@ class Boss {
         else if (this.type === 'NOVA') { this.maxHp *= 0.8; this.color = '#8e44ad'; this.speed *= 0.2; }
         else if (this.type === 'RHINO') { this.maxHp *= 1.2; this.color = '#7f8c8d'; this.speed *= 0.5; }
         else if (this.type === 'HYDRA') { this.maxHp *= 1.0; this.color = '#27ae60'; }
+        else if (this.type === 'MAKUTA') {
+            // Makuta Special Boss
+            this.color = '#000000'; // Pure Black
+            this.radius = 80; // Larger
+
+            // Wave 50 vs Wave 100 Scaling
+            if (wave === 50) {
+                this.maxHp *= 2.0; // 2x Normal Boss HP
+                this.damage *= 1.5;
+                this.speed *= 1.2;
+            } else if (wave >= 100) {
+                this.maxHp *= 5.0; // 5x Normal Boss HP (Final Boss)
+                this.damage *= 2.5;
+                this.speed *= 1.5;
+            }
+            this.hp = this.maxHp;
+        }
     }
 
     update() {
@@ -64,6 +81,28 @@ class Boss {
                 }
             }
             this.attackCooldown--;
+        } else if (this.type === 'MAKUTA') {
+            // Makuta Logic: Teleportation & Shadow Bolts
+
+            // Standard Movement
+            nextX += Math.cos(angle) * this.speed;
+            nextY += Math.sin(angle) * this.speed;
+
+            // Teleport Ability (Every 5 seconds)
+            if (frame % 300 === 0) {
+                createExplosion(this.x, this.y, '#000');
+                // Teleport near player
+                const offsetAngle = Math.random() * Math.PI * 2;
+                this.x = player.x + Math.cos(offsetAngle) * 300;
+                this.y = player.y + Math.sin(offsetAngle) * 300;
+                createExplosion(this.x, this.y, '#000');
+                // Clamp
+                this.x = Math.max(this.radius, Math.min(arena.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(arena.height - this.radius, this.y));
+                return; // Skip collision check for this frame
+            }
+
+            this.attackCooldown--;
         } else {
             // Standard movement
             nextX += Math.cos(angle) * this.speed;
@@ -95,6 +134,23 @@ class Boss {
                     const vel = { x: Math.cos(a) * 10, y: Math.sin(a) * 10 };
                     projectiles.push(new Projectile(this.x, this.y, vel, this.damage * 0.8, '#f1c40f', 5, 'enemy', 0, true));
                     this.attackCooldown = 10;
+                } else if (this.type === 'MAKUTA') {
+                    // Shadow Nova
+                    for (let i = 0; i < 16; i++) {
+                        const a = (Math.PI * 2 / 16) * i;
+                        const vel = { x: Math.cos(a) * 7, y: Math.sin(a) * 7 };
+                        projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#000', 12, 'enemy', 0, true));
+                    }
+                    // Summon Shadow Minions
+                    if (Math.random() < 0.5) {
+                        for (let i = 0; i < 3; i++) {
+                            const minion = new Enemy(true);
+                            minion.x = this.x + (Math.random() - 0.5) * 100;
+                            minion.y = this.y + (Math.random() - 0.5) * 100;
+                            enemies.push(minion);
+                        }
+                    }
+                    this.attackCooldown = 120; // Fast attacks
                 } else if (this.type === 'SUMMONER') {
                     for (let i = 0; i < 3; i++) enemies.push(new Enemy(true));
                     this.attackCooldown = 200;

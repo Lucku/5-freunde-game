@@ -30,7 +30,8 @@ const defaultSaveData = {
     global: {
         totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0,
         totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0,
-        totalVoidGoldSpent: 0, unlockedAchievements: []
+        totalVoidGoldSpent: 0, unlockedAchievements: [],
+        daily_wins: 0, weekly_wins: 0
     },
     collection: [],
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
@@ -49,7 +50,7 @@ let saveData = {
     plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     black: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
-    global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0, totalVoidGoldSpent: 0, unlockedAchievements: [] },
+    global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0, totalVoidGoldSpent: 0, unlockedAchievements: [], daily_wins: 0, weekly_wins: 0 },
     collection: [],
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
     stats: {
@@ -2016,6 +2017,17 @@ function advanceWave() {
     setUIState('GAME');
 }
 
+function unlockAchievement(id) {
+    if (!saveData.global.unlockedAchievements.includes(id)) {
+        const ach = ACHIEVEMENTS.find(a => a.id === id);
+        if (ach) {
+            saveData.global.unlockedAchievements.push(id);
+            showNotification(`ACHIEVEMENT: ${ach.title}`);
+            saveGame();
+        }
+    }
+}
+
 function checkAchievements() {
     saveData.global.totalKills++;
     saveData.global.totalGold = (saveData.global.totalGold || 0) + 1;
@@ -2040,6 +2052,8 @@ function checkAchievements() {
             if (ach.stat === 'totalGames' && (saveData.global.totalGames || 0) >= ach.req) unlocked = true;
             if (ach.stat === 'totalDeaths' && (saveData.global.totalDeaths || 0) >= ach.req) unlocked = true;
             if (ach.stat === 'totalVoidGoldSpent' && (saveData.global.totalVoidGoldSpent || 0) >= ach.req) unlocked = true;
+            if (ach.stat === 'daily_wins' && (saveData.global.daily_wins || 0) >= ach.req) unlocked = true;
+            if (ach.stat === 'weekly_wins' && (saveData.global.weekly_wins || 0) >= ach.req) unlocked = true;
 
             // Calculated Stats
             if (ach.stat === 'calculated_skills' && totalSkills >= ach.req) unlocked = true;
@@ -2322,6 +2336,14 @@ function masterLoop(timestamp) {
                         // Reward
                         player.gold += 5000; // Bonus Gold
                         saveData.global.totalGold += 5000;
+
+                        // Track Wins
+                        saveData.global.daily_wins = (saveData.global.daily_wins || 0) + 1;
+
+                        // Achievement
+                        unlockAchievement('DAILY_CHALLENGE');
+                        checkAchievements(); // Check tiered achievements
+
                         saveGame();
                         setTimeout(gameOver, 3000);
                         return;
@@ -2334,6 +2356,14 @@ function masterLoop(timestamp) {
                         // Reward (Bigger than Daily)
                         player.gold += 15000; // Bonus Gold
                         saveData.global.totalGold += 15000;
+
+                        // Track Wins
+                        saveData.global.weekly_wins = (saveData.global.weekly_wins || 0) + 1;
+
+                        // Achievement
+                        unlockAchievement('WEEKLY_CHALLENGE');
+                        checkAchievements(); // Check tiered achievements
+
                         saveGame();
                         setTimeout(gameOver, 3000);
                         return;
@@ -2399,12 +2429,29 @@ function masterLoop(timestamp) {
             // --- Spawning Logic ---
             if (!bossActive && bossDeathTimer === 0 && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
                 bossActive = true;
-                if (Math.random() < 0.05) {
+
+                // Story Mode Special Boss: Makuta
+                if (saveData.story.enabled && !isDailyMode && !isWeeklyMode && (wave === 50 || wave === 100)) {
+                    showNotification("MAKUTA HAS AWAKENED!");
+                    document.getElementById('event-text').innerText = "BOSS: MAKUTA";
                     document.getElementById('event-text').style.display = 'block';
-                    setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
-                    enemies.unshift(new Boss(), new Boss());
+                    setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
+
+                    // Force Shadow Realm Biome
+                    currentBiomeType = 'black';
+                    arena.generate('black');
+                    showNotification("ENTERING SHADOW REALM...");
+
+                    enemies.unshift(new Boss('MAKUTA'));
                 } else {
-                    enemies.unshift(new Boss());
+                    // Standard Boss Spawning
+                    if (Math.random() < 0.05) {
+                        document.getElementById('event-text').style.display = 'block';
+                        setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
+                        enemies.unshift(new Boss(), new Boss());
+                    } else {
+                        enemies.unshift(new Boss());
+                    }
                 }
                 for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
             }
@@ -2861,6 +2908,19 @@ function masterLoop(timestamp) {
                     }
 
                     if (enemy instanceof Boss) {
+                        // Makuta Achievement Check
+                        if (enemy.type === 'MAKUTA') {
+                            unlockAchievement('MAKUTA_SLAYER'); // Base Achievement
+
+                            // Hard Mode Achievements (1-10)
+                            const prestige = saveData[player.type].prestige;
+                            for (let i = 1; i <= 10; i++) {
+                                if (prestige >= i) unlockAchievement(`MAKUTA_HM_${i}`);
+                            }
+
+                            showNotification("MAKUTA DEFEATED!");
+                        }
+
                         currentRunStats.bossesKilled++; // Track Boss Kill
                         saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
                         score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
