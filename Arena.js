@@ -186,10 +186,16 @@ class Arena {
                     // Heal Player
                     if (frame % 60 === 0 && player.hp < player.maxHp) {
                         player.hp += 1;
+                        zone.healthYielded += 1;
                         floatingTexts.push(new FloatingText(player.x, player.y - 30, "+1", "#9b59b6", 14));
+
+                        if (zone.healthYielded >= zone.maxHealthYield) {
+                            zone.depleted = true;
+                            floatingTexts.push(new FloatingText(zone.x + zone.w / 2, zone.y + zone.h / 2, "DEPLETED", "#555", 20));
+                        }
                     }
                 }
-                
+
                 // Enemy Interaction
                 enemies.forEach(e => {
                     if (e.x > zone.x && e.x < zone.x + zone.w &&
@@ -203,6 +209,9 @@ class Arena {
                 });
             }
         });
+
+        // Remove depleted zones
+        this.biomeZones = this.biomeZones.filter(z => !z.depleted);
     }
 
     checkCollision(x, y, r) {
@@ -238,6 +247,9 @@ class BiomeZone {
     constructor(x, y, w, h, type) {
         this.x = x; this.y = y; this.w = w; this.h = h;
         this.type = type;
+        this.healthYielded = 0;
+        this.maxHealthYield = 50; // Disappear after healing 50 HP
+        this.depleted = false;
     }
     draw(ctx) {
         ctx.save();
