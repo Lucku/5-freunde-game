@@ -165,6 +165,19 @@ class Arena {
             t2.pair = t1;
             this.traps.push(t1, t2);
         }
+
+        // --- Memory Shard Generation (Story Mode) ---
+        if (saveData.story && saveData.story.enabled && !isDailyMode && !isWeeklyMode) {
+            // Chance to spawn a memory shard
+            if (Math.random() < 0.3) { // 30% chance per wave
+                const pos = this.getRandomSafePosition(20);
+                // Determine type based on player or random?
+                // "Uniqueness: Each hero sees different memories."
+                // So we spawn a shard for the CURRENT hero.
+                const shard = new MemoryShard(pos.x, pos.y, player.type);
+                memoryShards.push(shard);
+            }
+        }
     }
 
     draw(ctx, theme) {

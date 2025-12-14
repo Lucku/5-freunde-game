@@ -78,6 +78,26 @@ class Museum {
             const type = id.split('_')[0];
             this.entities.push(new MuseumEntity(x, y, type, false));
         });
+
+        // Spawn Memory Displays
+        if (saveData.memories) {
+            const heroes = ['fire', 'water', 'ice', 'plant', 'metal'];
+            heroes.forEach(h => {
+                const count = saveData.memories[h] || 0;
+                if (count > 0) {
+                    // Find room center
+                    const room = this.rooms.find(r => r.name === h);
+                    if (room) {
+                        this.artifacts.push({
+                            x: room.x + room.w / 2,
+                            y: room.y + room.h - 50,
+                            text: `Memories: ${count}`,
+                            color: '#fff'
+                        });
+                    }
+                }
+            });
+        }
     }
 
     update() {
@@ -175,6 +195,26 @@ class Museum {
 
         // Draw Entities
         this.entities.forEach(e => e.draw(ctx));
+
+        // Draw Artifacts (Memories)
+        this.artifacts.forEach(a => {
+            ctx.save();
+            ctx.fillStyle = a.color;
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(a.text, a.x, a.y);
+
+            // Draw Icon
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y - 30);
+            ctx.lineTo(a.x + 10, a.y - 15);
+            ctx.lineTo(a.x, a.y);
+            ctx.lineTo(a.x - 10, a.y - 15);
+            ctx.closePath();
+            ctx.fillStyle = '#f1c40f';
+            ctx.fill();
+            ctx.restore();
+        });
 
         // Draw Player
         this.drawPlayer(ctx);

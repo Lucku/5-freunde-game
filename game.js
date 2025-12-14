@@ -39,6 +39,7 @@ const defaultSaveData = {
     daily: { lastCompleted: null },
     weekly: { lastCompleted: null },
     story: { unlockedChapters: [], enabled: true },
+    memories: {}, // New Memory System
     altar: { active: [] }, // New Altar Data
     chaos: { shards: 0, unlocked: [], active: [] } // Chaos Shop Data
 };
@@ -70,6 +71,7 @@ let saveData = {
     daily: { lastCompleted: null },
     weekly: { lastCompleted: null },
     story: { unlockedChapters: [], enabled: true },
+    memories: {},
     altar: { active: [] }, // New Altar Data
     chaos: { shards: 0, unlocked: [], active: [] } // Chaos Shop Data
 };
@@ -1375,6 +1377,8 @@ let weaponDrops = [];
 let holyMasks = [];
 let goldDrops = [];
 let cardDrops = [];
+let memoryShards = [];
+let companions = [];
 // let obstacles = []; // REMOVED
 // let biomeZones = []; // REMOVED
 
@@ -2161,6 +2165,25 @@ function advanceWave() {
         player.x = arena.width / 2;
         player.y = arena.height / 2;
     }
+
+    // Story Mode Companion Spawning
+    if (saveData.story && saveData.story.enabled && !isDailyMode && !isWeeklyMode) {
+        if (wave === 10 || wave === 20 || wave === 30) {
+            let companionType = null;
+            // Determine companion based on player type for synergy
+            if (player.type === 'ice') companionType = 'fire';
+            else if (player.type === 'fire') companionType = 'ice';
+            else if (player.type === 'metal') companionType = 'plant';
+            else if (player.type === 'plant') companionType = 'metal';
+            else if (player.type === 'water') companionType = 'plant'; // Fallback synergy
+            else companionType = 'fire'; // Default
+
+            // Spawn Companion
+            companions.push(new Companion(companionType, player));
+            showNotification(`${companionType.toUpperCase()} FRIEND JOINED!`);
+        }
+    }
+
     setUIState('GAME');
 }
 
@@ -2246,6 +2269,8 @@ function startGame(mode = 'NORMAL') {
     holyMasks = [];
     goldDrops = [];
     cardDrops = [];
+    memoryShards = [];
+    companions = [];
     forcedEnemyType = null;
     gameRunning = true;
     gamePaused = false;
@@ -2736,6 +2761,31 @@ function masterLoop(timestamp) {
 
             player.update();
             player.draw();
+
+            // Update Companions
+            companions.forEach(c => {
+                c.update();
+                c.draw(ctx);
+            });
+
+            // Memory Shards
+            memoryShards.forEach((shard, index) => {
+                shard.update();
+                shard.draw(ctx);
+                const dist = Math.hypot(player.x - shard.x, player.y - shard.y);
+                if (dist < player.radius + 20) {
+                    // Collect
+                    memoryShards.splice(index, 1);
+                    showNotification("MEMORY RECOVERED!");
+                    createExplosion(shard.x, shard.y, shard.color);
+
+                    // Save Memory
+                    if (!saveData.memories) saveData.memories = {};
+                    if (!saveData.memories[player.type]) saveData.memories[player.type] = 0;
+                    saveData.memories[player.type]++;
+                    saveGame();
+                }
+            });
 
             // Weapon Drops
             weaponDrops.forEach((drop, index) => {
