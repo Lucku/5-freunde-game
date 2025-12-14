@@ -739,6 +739,12 @@ class Player {
     shoot() {
         if (this.rangeCooldown > 0) return;
 
+        // Melee Only Mutator / Chaos Effect
+        if ((typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'MELEE_ONLY')) ||
+            (typeof isChaosActive !== 'undefined' && isChaosActive('MELEE_ONLY'))) {
+            return;
+        }
+
         let angle = this.aimAngle; // Use stored aim angle
         let autoAimActive = this.buffs.autoaim > 0;
 

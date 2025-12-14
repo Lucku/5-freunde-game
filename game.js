@@ -282,7 +282,7 @@ function renderHeroSelect() {
 let uiState = 'MENU'; // MENU, GAME, LEVELUP, SHOP, PERMSHOP, PAUSE, GAMEOVER
 let uiSelectionIndex = 0;
 let uiDebounce = 0;
-let lastGamepadState = { a: false, b: false };
+let lastGamepadState = { a: false, b: false, y: false };
 
 // Make this global so Player.js can use it
 window.setUIState = function (newState) {
@@ -616,6 +616,7 @@ function handleGamepadMenu() {
     const right = gp.axes[0] > T || gp.buttons[15].pressed;
     const a = gp.buttons[0].pressed; // A / Cross
     const b = gp.buttons[1].pressed; // B / Circle
+    const y = gp.buttons[3].pressed; // Y / Triangle
 
     if (uiState === 'GAME') return;
 
@@ -631,6 +632,12 @@ function handleGamepadMenu() {
 
     // --- SCROLLING LOGIC (Right Stick) ---
     if (uiState === 'MENU') {
+        // Music Toggle
+        if (y && !lastGamepadState.y) {
+            toggleMusic();
+            uiDebounce = 20;
+        }
+
         const content = document.getElementById('menu-overlay');
         if (content && Math.abs(gp.axes[3]) > 0.1) {
             content.scrollTop += gp.axes[3] * 15;
@@ -696,7 +703,7 @@ function handleGamepadMenu() {
 
     // If nothing to focus, just update state and return
     if (focusables.length === 0) {
-        lastGamepadState = { a, b };
+        lastGamepadState = { a, b, y };
         return;
     }
 
@@ -804,7 +811,7 @@ function handleGamepadMenu() {
         uiDebounce = 30; // Increased from 20 to 30
     }
 
-    lastGamepadState = { a, b };
+    lastGamepadState = { a, b, y };
 }
 
 // --- Update Existing Functions to use setUIState ---
@@ -928,6 +935,17 @@ function buyPermUpgrade(key, cost) {
 function closePermShop() {
     document.getElementById('perm-shop-screen').style.display = 'none';
     initMenu();
+}
+
+function toggleMusic() {
+    if (typeof audioManager !== 'undefined') {
+        const isMuted = audioManager.toggleMute();
+        const btn = document.getElementById('music-btn');
+        if (btn) {
+            btn.innerText = `Music: ${isMuted ? 'OFF' : 'ON'} (Y)`;
+            btn.style.color = isMuted ? '#e74c3c' : '';
+        }
+    }
 }
 
 // --- Chaos Shop Logic ---

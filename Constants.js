@@ -163,7 +163,8 @@ const MUTATORS = [
     { id: 'NO_REGEN', name: 'No Mercy', desc: 'No Health Drops spawn.', color: '#c0392b' },
     { id: 'WINDY', name: 'Hurricane', desc: 'Strong winds push you around.', color: '#1abc9c' },
     { id: 'ONE_TYPE', name: 'Monoculture', desc: 'Only one random enemy type spawns.', color: '#d35400' },
-    { id: 'SHADOW_FORM', name: 'Shadow Realm', desc: 'Play as the Hero of Darkness (Black).', color: '#2c3e50' }
+    { id: 'SHADOW_FORM', name: 'Shadow Realm', desc: 'Play as the Hero of Darkness (Black).', color: '#2c3e50' },
+    { id: 'MELEE_ONLY', name: 'Melee Only', desc: 'You can only use melee attacks.', color: '#c0392b' }
 ];
 
 const CHAOS_EFFECTS = [
@@ -174,7 +175,8 @@ const CHAOS_EFFECTS = [
     { id: 'EXPLOSIVE_STEPS', name: 'Hot Foot', desc: 'You spawn explosions while moving (hurts you!).', cost: 8, bonus: 0.40, color: '#e67e22' },
     { id: 'DRUNK_CAM', name: 'Queasy Cam', desc: 'Camera rotates and sways.', cost: 2, bonus: 0.15, color: '#2ecc71' },
     { id: 'SPEED_DEMON', name: 'Turbo Mode', desc: 'Game runs at 1.5x speed.', cost: 6, bonus: 0.30, color: '#9b59b6' },
-    { id: 'GHOST_TOWN', name: 'Invisible Enemies', desc: 'Enemies are partially transparent.', cost: 3, bonus: 0.20, color: '#95a5a6' }
+    { id: 'GHOST_TOWN', name: 'Invisible Enemies', desc: 'Enemies are partially transparent.', cost: 3, bonus: 0.20, color: '#95a5a6' },
+    { id: 'MELEE_ONLY', name: 'Melee Only', desc: 'You can only use melee attacks.', cost: 5, bonus: 0.40, color: '#c0392b' }
 ];
 
 const UPGRADE_POOL = [
