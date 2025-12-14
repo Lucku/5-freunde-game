@@ -67,7 +67,7 @@ const STORY_EVENTS = [
 
     { wave: 11, title: "The Fire Within", hero: "ALL", type: "NARRATIVE", text: "The heat of battle has forged a new strength in you. Like the magma of the Fire Biome, your resolve is hardening. You realize that your anger at Makuta can be a fuel, not just a burden." },
     { wave: 12, title: "Tides of Change", hero: "ALL", type: "NARRATIVE", text: "The Water Biome teaches you adaptability. Makuta's forces are rigid, predictable. You must be like the ocean—yielding when necessary, but crashing down with unstoppable force when the moment is right." },
-    { wave: 13, title: "Rooted in Strength", hero: "ALL", type: "NARRATIVE", text: "In the Plant Biome, you learn patience. Growth cannot be rushed. Your powers are developing naturally, and your connection to the earth grounds you against the chaos Makuta tries to sow." },
+    { wave: 13, title: "The Hero's Trial", hero: "ALL", type: "OBJECTIVE_WAVE", text: "The arena shifts. This is no longer a simple battle. The environment itself challenges your specific abilities. Prove your mastery over your element to survive.", data: { objective: true } },
     { wave: 14, title: "Cold Resolve", hero: "ALL", type: "NARRATIVE", text: "The Ice Biome is unforgiving, stripping away all that is unnecessary. You learn to focus your mind, freezing out fear and doubt. Your clarity of purpose terrifies the mindless swarm." },
     { wave: 15, title: "Iron Will", hero: "ALL", type: "NARRATIVE", text: "Metal does not bend easily, and neither do you. The Metal Biome tests your endurance. You take hit after hit, but you remain standing. You are becoming the shield for your friends." },
     { wave: 16, title: "Elemental Harmony", hero: "ALL", type: "NARRATIVE", text: "You begin to see how the elements interact. Fire melts Ice, Water nourishes Plant. You are not five separate warriors, but one ecosystem of power. This synergy is something Makuta cannot replicate." },
@@ -79,7 +79,7 @@ const STORY_EVENTS = [
     // --- ARC 3: THE SHADOW DEEPENS (Waves 21-30) ---
     { wave: 21, title: "Darker Skies", hero: "ALL", type: "NARRATIVE", text: "The sky above the arena turns a bruised purple. Makuta's influence is bleeding into the simulation. The air feels heavy, oppressive. He is trying to crush your spirit before he crushes your body." },
     { wave: 22, title: "The Whisper", hero: "ALL", type: "NARRATIVE", text: "You hear a voice in your head. Not your friends, but Him. Makuta offers you power, safety, if you just surrender the others. It's a lie, of course, but the temptation of rest is strong." },
-    { wave: 23, title: "Doubt", hero: "ALL", type: "NARRATIVE", text: "The constant fighting is taking its toll. You see a friend stumble. Are you strong enough to carry them? Doubt creeps in. Is the Golden Mask even real? Or is it just another one of Makuta's games?" },
+    { wave: 23, title: "Doubt", hero: "ALL", type: "OBJECTIVE_WAVE", text: "The constant fighting is taking its toll. You see a friend stumble. Are you strong enough to carry them? Doubt creeps in. Is the Golden Mask even real? Or is it just another one of Makuta's games?", data: { objective: true } },
     { wave: 24, title: "Friction", hero: "ALL", type: "NARRATIVE", text: "The stress leads to mistakes. Friendly fire, missed signals. The unity you built is fraying. You must remember who the real enemy is. It's not the one standing next to you." },
 
     // Wave 25: Reaffirming the Bond - Hero Specific Challenges
@@ -104,7 +104,7 @@ const STORY_EVENTS = [
     { wave: 32, title: "The Biomes Bleed", hero: "ALL", type: "NARRATIVE", text: "The biomes are merging in grotesque ways. Lava flows into the ice, creating choking steam. Vines are made of rusted metal. The world is in pain." },
 
     // Wave 33-37: Biome Specific Challenges
-    { wave: 33, title: "Corrupted Fire", hero: "ALL", type: "WAVE_OVERRIDE", text: "The fire enemies now burn with a black flame. It doesn't just burn; it corrupts. Do not let them touch you. Keep your distance and strike true.", data: { forcedEnemyType: 'BOMBER', spawnRateMod: 1.0 } },
+    { wave: 33, title: "Corrupted Fire", hero: "ALL", type: "OBJECTIVE_WAVE", text: "The fire enemies now burn with a black flame. It doesn't just burn; it corrupts. Do not let them touch you. Keep your distance and strike true.", data: { objective: true, forcedEnemyType: 'BOMBER', spawnRateMod: 1.0 } },
     { wave: 34, title: "Frozen Time", hero: "ALL", type: "WAVE_OVERRIDE", text: "The ice enemies slow time itself. Your movements feel sluggish. You must anticipate their attacks before they happen. Trust your instincts, not your eyes.", data: { forcedEnemyType: 'SHOOTER', spawnRateMod: 1.2 } },
     { wave: 35, title: "Poisoned Roots", hero: "ALL", type: "WAVE_OVERRIDE", text: "The plant life has turned toxic. Spores fill the air. You must keep moving to find fresh air. The arena is trying to suffocate you.", data: { forcedEnemyType: 'TOXIC', spawnRateMod: 1.5 } },
     { wave: 36, title: "Rusted Metal", hero: "ALL", type: "WAVE_OVERRIDE", text: "The metal constructs are decaying, jagged and dangerous. Tetanus and corruption await every scratch. Your armor is your only defense.", data: { forcedEnemyType: 'SHIELDER', spawnRateMod: 0.8 } },
@@ -129,7 +129,7 @@ const STORY_EVENTS = [
     // Wave 42: Goblin Reinforcements
     { wave: 42, title: "Goblin Tech", hero: "ALL", type: "WAVE_OVERRIDE", text: "The Green Goblin may be gone, but his minions remain. Small, fast goblins armed with stolen tech swarm the arena. Watch out for their speed!", data: { forcedEnemyType: 'GOBLIN', spawnRateMod: 1.2 } },
 
-    { wave: 43, title: "The Temptation", hero: "ALL", type: "NARRATIVE", text: "He offers you your heart's desire. Power? Peace? The return of your old life? It's all within his gift, he claims. You must reject it." },
+    { wave: 43, title: "The Temptation", hero: "ALL", type: "OBJECTIVE_WAVE", text: "He offers you your heart's desire. Power? Peace? The return of your old life? It's all within his gift, he claims. You must reject it.", data: { objective: true } },
     { wave: 44, title: "Resisting the Dark", hero: "ALL", type: "NARRATIVE", text: "You shout into the void: 'NO!' Your refusal sends a shockwave through the arena. Makuta recoils. He fears your will." },
     { wave: 45, title: "The Light Returns", hero: "ALL", type: "NARRATIVE", text: "Your defiance sparks a light within you. It's brighter than before. The Golden Mask is responding to your integrity." },
     { wave: 46, title: "No Allies", hero: "ALL", type: "NARRATIVE", text: "You realize no one is coming to save you. The 'Five Friends' are the only line of defense. You are the guardians now." },
@@ -143,7 +143,7 @@ const STORY_EVENTS = [
     // --- ARC 6: THE UNITY (Waves 51-60) ---
     { wave: 51, title: "The Gauntlet", hero: "ALL", type: "NARRATIVE", text: "Makuta throws everything at you. Waves of enemies, endless and relentless. This is a test of stamina." },
     { wave: 52, title: "Relentless", hero: "ALL", type: "NARRATIVE", text: "There is no time to think, only react. Muscle memory takes over. You move as a blur of elemental energy." },
-    { wave: 53, title: "No Sleep", hero: "ALL", type: "NARRATIVE", text: "Fatigue is your enemy now. Your limbs feel heavy. But your spirit is light. You draw energy from the arena itself." },
+    { wave: 53, title: "No Sleep", hero: "ALL", type: "OBJECTIVE_WAVE", text: "Fatigue is your enemy now. Your limbs feel heavy. But your spirit is light. You draw energy from the arena itself.", data: { objective: true } },
     { wave: 54, title: "Exhaustion", hero: "ALL", type: "NARRATIVE", text: "You are pushed to the brink. One mistake could end it. But you look at your friends, and they are still standing. So you stand too." },
     { wave: 55, title: "The Second Wind", hero: "ALL", type: "NARRATIVE", text: "Suddenly, a surge of energy. You've broken through the wall. You feel faster, stronger. You have tapped into a deeper reserve of power." },
     { wave: 56, title: "Synchronized Combat", hero: "ALL", type: "NARRATIVE", text: "You don't need to speak. You know where your friends are. You move as one entity. A perfect fighting machine." },
@@ -155,7 +155,7 @@ const STORY_EVENTS = [
     // --- ARC 7: THE MASK'S POWER (Waves 61-70) ---
     { wave: 61, title: "The Mask's Aura", hero: "ALL", type: "NARRATIVE", text: "You can feel it. The Golden Mask is close. Its energy radiates through the floor. It feels warm, inviting." },
     { wave: 62, title: "Getting Closer", hero: "ALL", type: "NARRATIVE", text: "The shadows are thinner here. The light of the mask is burning them away. Makuta is desperate to stop you." },
-    { wave: 63, title: "The Inner Sanctum", hero: "ALL", type: "NARRATIVE", text: "The arena transforms into a golden temple. You are in the antechamber of the mask. This is holy ground." },
+    { wave: 63, title: "The Inner Sanctum", hero: "ALL", type: "OBJECTIVE_WAVE", text: "The arena transforms into a golden temple. You are in the antechamber of the mask. This is holy ground.", data: { objective: true } },
     { wave: 64, title: "Guardians of the Gate", hero: "ALL", type: "NARRATIVE", text: "Ancient constructs awaken. They are not evil; they are the final test. You must prove you are strong enough to wield the power." },
     { wave: 65, title: "The Guardian's Challenge", hero: "ALL", type: "WAVE_OVERRIDE", text: "The temple guardians are not evil, but they are strict. They test your defense. Massive stone constructs block your path. You must break them.", data: { forcedEnemyType: 'SHIELDER', spawnRateMod: 0.8, layout: 2, trap: 'TURRET' } },
     { wave: 66, title: "Unity", hero: "ALL", type: "NARRATIVE", text: "The first lock opens. Unity. You have proven your bond is unbreakable." },
@@ -167,7 +167,7 @@ const STORY_EVENTS = [
     // --- ARC 8: THE VOID APPROACHES (Waves 71-80) ---
     { wave: 71, title: "Into the Abyss", hero: "ALL", type: "NARRATIVE", text: "But Makuta is there! He steps from the shadows, blocking your path. He drags the temple into the Void." },
     { wave: 72, title: "The Void Realm", hero: "ALL", type: "WAVE_OVERRIDE", text: "You are in his domain now. Physics don't apply here. Up is down. Light is dark. You must hold onto your own reality.", data: { layout: 5, trap: 'TELEPORTER' } },
-    { wave: 73, title: "Shadow Clones", hero: "ALL", type: "NARRATIVE", text: "Makuta creates dark reflections of you. They know your moves. They know your weaknesses. You must fight yourself." },
+    { wave: 73, title: "Shadow Clones", hero: "ALL", type: "OBJECTIVE_WAVE", text: "Makuta creates dark reflections of you. They know your moves. They know your weaknesses. You must fight yourself.", data: { objective: true } },
     { wave: 74, title: "Fighting Oneself", hero: "ALL", type: "NARRATIVE", text: "To defeat your shadow, you must accept your flaws. You are not perfect, and that is your strength. The shadows shatter." },
     { wave: 75, title: "Shadow Self", hero: "ALL", type: "BOSS_FIGHT", text: "Makuta plays his cruelest trick. He manifests a dark reflection of your own soul. To defeat it, you must accept your flaws.", data: { bossId: 'MAKUTA' } },
     { wave: 76, title: "The True Enemy", hero: "ALL", type: "NARRATIVE", text: "Makuta reveals his true form. A swirling vortex of chaos. He is not a man; he is a force of nature." },
@@ -179,7 +179,7 @@ const STORY_EVENTS = [
     // --- ARC 9: THE MASK REVEALED (Waves 81-90) ---
     { wave: 81, title: "The Golden Glow", hero: "ALL", type: "NARRATIVE", text: "You return to the temple. The mask is hovering there. It's beautiful." },
     { wave: 82, title: "Almost There", hero: "ALL", type: "NARRATIVE", text: "Just a few more steps. But Makuta sends his elite guard. The Rahkshi. Sons of Makuta." },
-    { wave: 83, title: "The Last Guardian", hero: "ALL", type: "NARRATIVE", text: "You defeat the Rahkshi. Only Makuta remains." },
+    { wave: 83, title: "The Last Guardian", hero: "ALL", type: "OBJECTIVE_WAVE", text: "You defeat the Rahkshi. Only Makuta remains.", data: { objective: true } },
     { wave: 84, title: "A Sacrifice?", hero: "ALL", type: "NARRATIVE", text: "Makuta launches a fatal attack. One of you steps in the way. But the attack is absorbed! The mask is protecting you." },
     { wave: 85, title: "The Sacrifice", hero: "ALL", type: "WAVE_OVERRIDE", text: "Makuta launches a fatal attack. The mask demands a sacrifice... or does it? You refuse to choose. You fight for everyone.", data: { forcedEnemyType: 'SPEEDSTER', spawnRateMod: 1.5 } },
     { wave: 86, title: "The Mask's Choice", hero: "ALL", type: "NARRATIVE", text: "The mask flies towards you. It has chosen. Not one of you, but ALL of you." },
@@ -191,7 +191,7 @@ const STORY_EVENTS = [
     // --- ARC 10: THE FINAL STAND (Waves 91-100) ---
     { wave: 91, title: "Makuta's Desperation", hero: "ALL", type: "NARRATIVE", text: "Makuta unleashes all his remaining power. He becomes a giant of shadow. He wants to take the whole world down with him." },
     { wave: 92, title: "Total War", hero: "ALL", type: "WAVE_OVERRIDE", text: "This is it. The final battle. You fly towards him, golden streaks in the darkness.", data: { layout: 6, trap: 'LASER_BEAM' } },
-    { wave: 93, title: "The Elements Unleashed", hero: "ALL", type: "NARRATIVE", text: "You unleash your full power. It's not just fire or ice anymore; it's pure energy. You blast away his shadows." },
+    { wave: 93, title: "The Elements Unleashed", hero: "ALL", type: "OBJECTIVE_WAVE", text: "You unleash your full power. It's not just fire or ice anymore; it's pure energy. You blast away his shadows.", data: { objective: true } },
     { wave: 94, title: "The Perfect Storm", hero: "ALL", type: "NARRATIVE", text: "You combine your attacks into a single beam of light. The Perfect Storm. It pierces Makuta's heart." },
     { wave: 95, title: "The Final Guard", hero: "ALL", type: "BOSS_FIGHT", text: "Makuta is weakened, but his personal guard remains. Two massive shadow beasts stand between you and victory.", data: { bossId: 'MAKUTA' } },
     { wave: 96, title: "The Light Shines", hero: "ALL", type: "NARRATIVE", text: "The light spreads, cleansing the entire arena. The Void recedes. The biomes are restored to their natural beauty." },

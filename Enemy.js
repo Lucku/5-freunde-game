@@ -117,14 +117,31 @@ class Enemy {
             return;
         }
 
-        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+        // --- TARGETING LOGIC ---
+        let targetX = player.x;
+        let targetY = player.y;
+        let isTargetingSapling = false;
+
+        if (typeof currentObjective !== 'undefined' && currentObjective && currentObjective.type === 'DEFENSE' && currentObjective.data.sapling) {
+            // 50% chance to target sapling
+            // We can store this preference on the enemy instance if we want consistency
+            if (!this.targetPreference) this.targetPreference = Math.random() < 0.5 ? 'SAPLING' : 'PLAYER';
+            
+            if (this.targetPreference === 'SAPLING') {
+                targetX = currentObjective.data.sapling.x;
+                targetY = currentObjective.data.sapling.y;
+                isTargetingSapling = true;
+            }
+        }
+
+        const angle = Math.atan2(targetY - this.y, targetX - this.x);
         let moveX = 0, moveY = 0;
         let currentSpeed = this.speed * this.biomeSpeedMod;
         if (currentWeather && currentWeather.id === 'BLIZZARD') currentSpeed *= 0.5;
 
         // --- Behavior Logic ---
         if (this.subType === 'GHOST') {
-            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            const dist = Math.hypot(targetX - this.x, targetY - this.y);
             // Become visible when close or taking damage
             if (saveData.collection.includes('GHOST_4')) this.alpha = 1;
             else if (dist < 150 || this.hp < this.maxHp) this.alpha = Math.min(1, this.alpha + 0.05);
@@ -132,7 +149,7 @@ class Enemy {
             moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
         }
         else if (this.subType === 'SNIPER') {
-            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            const dist = Math.hypot(targetX - this.x, targetY - this.y);
             if (dist > 400) {
                 moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
             } else if (dist < 200) {
@@ -151,7 +168,7 @@ class Enemy {
         }
         else if (this.subType === 'BOMBER') {
             moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
-            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            const dist = Math.hypot(targetX - this.x, targetY - this.y);
             if (dist < 60) {
                 // Explode
                 this.hp = 0;
@@ -160,6 +177,19 @@ class Enemy {
                 if (Math.hypot(player.x - this.x, player.y - this.y) < 100) {
                     player.hp -= 40 * (1 - player.damageReduction);
                     floatingTexts.push(new FloatingText(player.x, player.y - 20, "40", "#e74c3c", 20));
+                    // Track hits for Untouchable objective
+                    if (currentObjective && currentObjective.type === 'UNTOUCHABLE') {
+                        currentObjective.current++;
+                        showNotification(`HIT! ${currentObjective.current}/${currentObjective.target}`);
+                    }
+                }
+                // Damage Sapling
+                if (currentObjective && currentObjective.type === 'DEFENSE' && currentObjective.data.sapling) {
+                    const s = currentObjective.data.sapling;
+                    if (Math.hypot(s.x - this.x, s.y - this.y) < 100) {
+                        s.hp -= 100;
+                        createExplosion(s.x, s.y, '#2ecc71');
+                    }
                 }
             }
         }
@@ -177,7 +207,7 @@ class Enemy {
             if (this.shootCooldown > 0) this.shootCooldown--;
         }
         else if (this.subType === 'SHOOTER') {
-            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            const dist = Math.hypot(targetX - this.x, targetY - this.y);
             if (dist > 250) {
                 moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
             } else {
@@ -192,7 +222,7 @@ class Enemy {
             }
             if (this.shootCooldown > 0) this.shootCooldown--;
         } else if (this.subType === 'SUMMONER') {
-            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            const dist = Math.hypot(targetX - this.x, targetY - this.y);
             // Stay away from player
             if (dist < 400) {
                 moveX = -Math.cos(angle) * currentSpeed; moveY = -Math.sin(angle) * currentSpeed;

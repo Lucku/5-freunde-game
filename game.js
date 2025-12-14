@@ -2130,6 +2130,57 @@ function closeStory() {
     }
 }
 
+let currentObjective = null;
+
+function startObjective() {
+    currentObjective = {
+        type: 'NONE',
+        target: 0,
+        current: 0,
+        state: 'ACTIVE',
+        data: {}
+    };
+
+    if (player.type === 'fire') {
+        currentObjective.type = 'INFERNO';
+        currentObjective.target = 30; // 30 seconds
+        currentObjective.current = 0;
+        showNotification("OBJECTIVE: MAINTAIN COMBO x10!");
+    } else if (player.type === 'plant') {
+        currentObjective.type = 'DEFENSE';
+        currentObjective.data.sapling = {
+            x: arena.width / 2,
+            y: arena.height / 2,
+            hp: 500,
+            maxHp: 500,
+            radius: 30
+        };
+        showNotification("OBJECTIVE: PROTECT THE SAPLING!");
+    } else if (player.type === 'ice') {
+        currentObjective.type = 'EYE_OF_STORM';
+        currentObjective.target = 45; // Accumulate 45 seconds inside the eye
+        currentObjective.current = 0;
+        currentObjective.data.stormEye = {
+            x: arena.width / 2,
+            y: arena.height / 2,
+            radius: 150,
+            tx: arena.width / 2,
+            ty: arena.height / 2
+        };
+        showNotification("OBJECTIVE: STAY IN THE EYE OF THE STORM!");
+    } else if (player.type === 'water') {
+        currentObjective.type = 'UNTOUCHABLE';
+        currentObjective.target = 5; // Max 5 hits
+        currentObjective.current = 0;
+        showNotification("OBJECTIVE: AVOID DAMAGE!");
+    } else if (player.type === 'metal') {
+        currentObjective.type = 'IRON_WILL';
+        currentObjective.target = 60; // Survive 60 seconds
+        currentObjective.current = 0;
+        showNotification("OBJECTIVE: SURVIVE THE DECAY!");
+    }
+}
+
 function advanceWave() {
     wave++;
     enemiesKilledInWave = 0;
@@ -2164,6 +2215,14 @@ function advanceWave() {
     if (player) {
         player.x = arena.width / 2;
         player.y = arena.height / 2;
+    }
+
+    // Reset Objective
+    currentObjective = null;
+
+    // Check for Objective Wave
+    if (currentStoryEvent && currentStoryEvent.type === 'OBJECTIVE_WAVE') {
+        startObjective();
     }
 
     // Story Mode Companion Spawning
@@ -2272,6 +2331,7 @@ function startGame(mode = 'NORMAL') {
     memoryShards = [];
     companions = [];
     forcedEnemyType = null;
+    currentObjective = null; // Reset Objective
     gameRunning = true;
     gamePaused = false;
     isLevelingUp = false;
@@ -2472,6 +2532,91 @@ function masterLoop(timestamp) {
             arena.updateCamera(player, canvas.width, canvas.height);
             arena.update(player);
 
+            // --- OBJECTIVE LOGIC ---
+            if (currentObjective && currentObjective.state === 'ACTIVE') {
+                if (currentObjective.type === 'INFERNO') {
+                    if (player.combo >= 10) {
+                        currentObjective.current += 1 / 60; // Add 1 second per 60 frames
+                    }
+                    if (currentObjective.current >= currentObjective.target) {
+                        currentObjective.state = 'COMPLETED';
+                        showNotification("OBJECTIVE COMPLETE!");
+                        triggerStory(wave); // Advance
+                    }
+                } else if (currentObjective.type === 'DEFENSE') {
+                    // Sapling Logic handled in draw/enemy loop
+                    if (currentObjective.data.sapling.hp <= 0) {
+                        currentObjective.state = 'FAILED';
+                        gameOver();
+                    }
+                    // Survival Condition: Kill all enemies or survive time?
+                    // Let's say kill count for now, or just standard wave clear
+                    if (enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
+                        currentObjective.state = 'COMPLETED';
+                        showNotification("SAPLING SAVED!");
+                        triggerStory(wave);
+                    }
+                } else if (currentObjective.type === 'EYE_OF_STORM') {
+                    const eye = currentObjective.data.stormEye;
+                    // Move Eye
+                    const dx = eye.tx - eye.x;
+                    const dy = eye.ty - eye.y;
+                    const distToTarget = Math.hypot(dx, dy);
+                    if (distToTarget < 10) {
+                        eye.tx = Math.random() * arena.width;
+                        eye.ty = Math.random() * arena.height;
+                    } else {
+                        eye.x += (dx / distToTarget) * 1.5; // Speed
+                        eye.y += (dy / distToTarget) * 1.5;
+                    }
+
+                    // Check Player
+                    const d = Math.hypot(player.x - eye.x, player.y - eye.y);
+                    if (d < eye.radius) {
+                        currentObjective.current += 1 / 60;
+                    } else {
+                        // Damage if outside
+                        if (frame % 60 === 0) {
+                            player.hp -= 5;
+                            currentRunStats.damageTaken += 5;
+                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "STORM!", "#3498db", 20));
+                            if (player.hp <= 0) gameOver();
+                        }
+                    }
+
+                    if (currentObjective.current >= currentObjective.target) {
+                        currentObjective.state = 'COMPLETED';
+                        showNotification("STORM SURVIVED!");
+                        triggerStory(wave);
+                    }
+                } else if (currentObjective.type === 'UNTOUCHABLE') {
+                    if (currentObjective.current >= currentObjective.target) {
+                        currentObjective.state = 'FAILED';
+                        gameOver();
+                    }
+                    if (enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
+                        currentObjective.state = 'COMPLETED';
+                        showNotification("UNTOUCHABLE!");
+                        triggerStory(wave);
+                    }
+                } else if (currentObjective.type === 'IRON_WILL') {
+                    // Decay HP
+                    if (frame % 60 === 0) {
+                        player.hp -= 2; // Lose 2 HP per second
+                        if (player.hp <= 0) {
+                            currentObjective.state = 'FAILED';
+                            gameOver();
+                        }
+                    }
+                    currentObjective.current += 1 / 60;
+                    if (currentObjective.current >= currentObjective.target) {
+                        currentObjective.state = 'COMPLETED';
+                        showNotification("SURVIVED!");
+                        triggerStory(wave);
+                    }
+                }
+            }
+
             // Boss Death Slow-Mo Sequence
             if (bossDeathTimer > 0) {
                 bossDeathTimer--;
@@ -2572,6 +2717,65 @@ function masterLoop(timestamp) {
             // Draw World
             arena.draw(ctx, getHeroTheme(player ? player.type : selectedHeroType));
 
+            // Draw Objective Elements
+            if (currentObjective && currentObjective.state === 'ACTIVE') {
+                const objDisplay = document.getElementById('objective-display');
+                const objText = document.getElementById('objective-text');
+                const objBar = document.getElementById('objective-bar-container');
+                const objFill = document.getElementById('objective-bar-fill');
+
+                objDisplay.style.display = 'block';
+                objBar.style.display = 'block';
+
+                if (currentObjective.type === 'INFERNO') {
+                    objText.innerText = `COMBO TIME: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
+                    objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+                    objFill.style.backgroundColor = '#e74c3c';
+                } else if (currentObjective.type === 'DEFENSE') {
+                    const s = currentObjective.data.sapling;
+                    objText.innerText = `SAPLING HP: ${Math.floor(s.hp)}`;
+                    objFill.style.width = `${(s.hp / s.maxHp) * 100}%`;
+                    objFill.style.backgroundColor = '#2ecc71';
+
+                    // Draw Sapling in World
+                    ctx.save();
+                    ctx.translate(s.x - arena.camera.x, s.y - arena.camera.y);
+                    ctx.fillStyle = '#2ecc71';
+                    ctx.beginPath(); ctx.arc(0, 0, s.radius, 0, Math.PI * 2); ctx.fill();
+                    ctx.shadowBlur = 20; ctx.shadowColor = '#2ecc71'; ctx.stroke();
+                    ctx.restore();
+                } else if (currentObjective.type === 'EYE_OF_STORM') {
+                    const eye = currentObjective.data.stormEye;
+                    objText.innerText = `TIME IN EYE: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
+                    objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+                    objFill.style.backgroundColor = '#ecf0f1';
+
+                    // Draw Eye
+                    ctx.save();
+                    ctx.translate(eye.x - arena.camera.x, eye.y - arena.camera.y);
+
+                    // Safe Zone
+                    ctx.beginPath();
+                    ctx.arc(0, 0, eye.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(52, 152, 219, 0.2)';
+                    ctx.fill();
+                    ctx.lineWidth = 5;
+                    ctx.strokeStyle = '#ecf0f1';
+                    ctx.stroke();
+                    ctx.restore();
+                } else if (currentObjective.type === 'UNTOUCHABLE') {
+                    objText.innerText = `HITS TAKEN: ${currentObjective.current} / ${currentObjective.target}`;
+                    objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+                    objFill.style.backgroundColor = '#3498db';
+                } else if (currentObjective.type === 'IRON_WILL') {
+                    objText.innerText = `SURVIVE: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
+                    objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+                    objFill.style.backgroundColor = '#95a5a6';
+                }
+            } else {
+                document.getElementById('objective-display').style.display = 'none';
+            }
+
             frame++;
 
             // Weather Logic
@@ -2618,663 +2822,667 @@ function masterLoop(timestamp) {
             }
 
             // --- Spawning Logic ---
+            // Disable standard boss spawn if Objective Wave
             if (!bossActive && bossDeathTimer === 0 && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
-                bossActive = true;
-
-                // Story Mode Special Boss: Makuta (Legacy Check + New Event System)
-                let storyBossId = null;
-                if (currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT' && currentStoryEvent.data) {
-                    storyBossId = currentStoryEvent.data.bossId;
-                }
-
-                if (storyBossId === 'MAKUTA' || (saveData.story.enabled && !isDailyMode && !isWeeklyMode && (wave === 50 || wave === 100))) {
-                    showNotification("MAKUTA HAS AWAKENED!");
-                    document.getElementById('event-text').innerText = "BOSS: MAKUTA";
-                    document.getElementById('event-text').style.display = 'block';
-                    setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
-
-                    // Force Shadow Realm Biome
-                    currentBiomeType = 'black';
-                    arena.generate('black');
-                    showNotification("ENTERING SHADOW REALM...");
-
-                    enemies.unshift(new Boss('MAKUTA'));
-                } else if (storyBossId === 'GREEN_GOBLIN') {
-                    showNotification("THE GREEN GOBLIN ATTACKS!");
-                    document.getElementById('event-text').innerText = "BOSS: GREEN GOBLIN";
-                    document.getElementById('event-text').style.display = 'block';
-                    setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
-                    enemies.unshift(new Boss('GREEN_GOBLIN'));
+                if (currentObjective && currentObjective.state === 'ACTIVE') {
+                    // Do nothing, wait for objective completion logic
                 } else {
-                    // Standard Boss Spawning
-                    if (Math.random() < 0.05) {
+                    bossActive = true;
+
+                    // Story Mode Special Boss: Makuta (Legacy Check + New Event System)
+                    let storyBossId = null;
+                    if (currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT' && currentStoryEvent.data) {
+                        storyBossId = currentStoryEvent.data.bossId;
+                    }
+
+                    if (storyBossId === 'MAKUTA' || (saveData.story.enabled && !isDailyMode && !isWeeklyMode && (wave === 50 || wave === 100))) {
+                        showNotification("MAKUTA HAS AWAKENED!");
+                        document.getElementById('event-text').innerText = "BOSS: MAKUTA";
                         document.getElementById('event-text').style.display = 'block';
-                        setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
-                        enemies.unshift(new Boss(), new Boss());
+                        setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
+
+                        // Force Shadow Realm Biome
+                        currentBiomeType = 'black';
+                        arena.generate('black');
+                        showNotification("ENTERING SHADOW REALM...");
+
+                        enemies.unshift(new Boss('MAKUTA'));
+                    } else if (storyBossId === 'GREEN_GOBLIN') {
+                        showNotification("THE GREEN GOBLIN ATTACKS!");
+                        document.getElementById('event-text').innerText = "BOSS: GREEN GOBLIN";
+                        document.getElementById('event-text').style.display = 'block';
+                        setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
+                        enemies.unshift(new Boss('GREEN_GOBLIN'));
                     } else {
-                        enemies.unshift(new Boss());
-                    }
-                }
-                for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
-            }
-
-            if (!bossActive && bossDeathTimer === 0) {
-                let spawnRate = Math.max(5, 40 - (wave * 2));
-                let forcedType = null;
-
-                // Story Override
-                if (currentStoryEvent && currentStoryEvent.type === 'WAVE_OVERRIDE' && currentStoryEvent.data) {
-                    if (currentStoryEvent.data.spawnRateMod) {
-                        spawnRate = Math.max(5, spawnRate * currentStoryEvent.data.spawnRateMod);
-                    }
-                    if (currentStoryEvent.data.forcedEnemyType) {
-                        forcedType = currentStoryEvent.data.forcedEnemyType;
-                    }
-                }
-
-                if (frame % Math.floor(spawnRate) === 0) {
-                    let loops = 1;
-                    if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
-
-                    for (let l = 0; l < loops; l++) {
-                        if (forcedType) {
-                            enemies.push(new Enemy(false, forcedType));
+                        // Standard Boss Spawning
+                        if (Math.random() < 0.05) {
+                            document.getElementById('event-text').style.display = 'block';
+                            setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
+                            enemies.unshift(new Boss(), new Boss());
                         } else {
-                            // Swarm Logic
-                            if (wave > 2 && Math.random() < 0.1) {
-                                for (let i = 0; i < 5; i++) {
-                                    const swarm = new Enemy(false, 'SWARM');
-                                    // Offset slightly
-                                    swarm.x += (Math.random() - 0.5) * 50;
-                                    swarm.y += (Math.random() - 0.5) * 50;
-                                    enemies.push(swarm);
-                                }
+                            enemies.unshift(new Boss());
+                        }
+                    }
+                    for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
+                }
+
+                if (!bossActive && bossDeathTimer === 0) {
+                    let spawnRate = Math.max(5, 40 - (wave * 2));
+                    let forcedType = null;
+
+                    // Story Override
+                    if (currentStoryEvent && currentStoryEvent.type === 'WAVE_OVERRIDE' && currentStoryEvent.data) {
+                        if (currentStoryEvent.data.spawnRateMod) {
+                            spawnRate = Math.max(5, spawnRate * currentStoryEvent.data.spawnRateMod);
+                        }
+                        if (currentStoryEvent.data.forcedEnemyType) {
+                            forcedType = currentStoryEvent.data.forcedEnemyType;
+                        }
+                    }
+
+                    if (frame % Math.floor(spawnRate) === 0) {
+                        let loops = 1;
+                        if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
+
+                        for (let l = 0; l < loops; l++) {
+                            if (forcedType) {
+                                enemies.push(new Enemy(false, forcedType));
                             } else {
-                                enemies.push(new Enemy());
+                                // Swarm Logic
+                                if (wave > 2 && Math.random() < 0.1) {
+                                    for (let i = 0; i < 5; i++) {
+                                        const swarm = new Enemy(false, 'SWARM');
+                                        // Offset slightly
+                                        swarm.x += (Math.random() - 0.5) * 50;
+                                        swarm.y += (Math.random() - 0.5) * 50;
+                                        enemies.push(swarm);
+                                    }
+                                } else {
+                                    enemies.push(new Enemy());
+                                }
                             }
                         }
                     }
+                } else {
+                    if (frame % 150 === 0) enemies.push(new Enemy(true));
                 }
-            } else {
-                if (frame % 150 === 0) enemies.push(new Enemy(true));
-            }
 
-            if (frame % 600 === 0) powerUps.push(new PowerUp());
+                if (frame % 600 === 0) powerUps.push(new PowerUp());
 
-            // --- Updates ---
+                // --- Updates ---
 
-            // Biome Effects on Player
-            let biomeSpeedMod = 1;
-            arena.biomeZones.forEach(zone => {
-                // Simple AABB collision
-                if (player.x > zone.x && player.x < zone.x + zone.w &&
-                    player.y > zone.y && player.y < zone.y + zone.h) {
+                // Biome Effects on Player
+                let biomeSpeedMod = 1;
+                arena.biomeZones.forEach(zone => {
+                    // Simple AABB collision
+                    if (player.x > zone.x && player.x < zone.x + zone.w &&
+                        player.y > zone.y && player.y < zone.y + zone.h) {
 
-                    // Immunity Check
-                    let isImmune = false;
-                    if (player.type === 'fire' && zone.type === 'LAVA') isImmune = true;
-                    if (player.type === 'ice' && zone.type === 'ICE') isImmune = true;
-                    if (player.type === 'plant' && zone.type === 'MUD') isImmune = true;
-                    if (player.type === 'water' && zone.type === 'WATER') isImmune = true;
-                    if (player.type === 'metal' && zone.type === 'MAGNET') isImmune = true;
+                        // Immunity Check
+                        let isImmune = false;
+                        if (player.type === 'fire' && zone.type === 'LAVA') isImmune = true;
+                        if (player.type === 'ice' && zone.type === 'ICE') isImmune = true;
+                        if (player.type === 'plant' && zone.type === 'MUD') isImmune = true;
+                        if (player.type === 'water' && zone.type === 'WATER') isImmune = true;
+                        if (player.type === 'metal' && zone.type === 'MAGNET') isImmune = true;
 
-                    if (!isImmune) {
-                        if (zone.type === 'MUD') biomeSpeedMod = 0.5;
-                        if (zone.type === 'ICE') biomeSpeedMod = 1.3; // Slide faster
-                        if (zone.type === 'WATER') biomeSpeedMod = 0.7;
+                        if (!isImmune) {
+                            if (zone.type === 'MUD') biomeSpeedMod = 0.5;
+                            if (zone.type === 'ICE') biomeSpeedMod = 1.3; // Slide faster
+                            if (zone.type === 'WATER') biomeSpeedMod = 0.7;
 
-                        if (zone.type === 'LAVA' && frame % 60 === 0) {
-                            const lavaDmg = 5 * (1 - player.damageReduction);
-                            player.hp -= lavaDmg;
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.floor(lavaDmg), "#e74c3c", 20));
-                            currentRunStats.damageTaken += 5;
-                            createExplosion(player.x, player.y, '#e74c3c');
-                            showNotification("BURNING!");
-                        }
+                            if (zone.type === 'LAVA' && frame % 60 === 0) {
+                                const lavaDmg = 5 * (1 - player.damageReduction);
+                                player.hp -= lavaDmg;
+                                floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.floor(lavaDmg), "#e74c3c", 20));
+                                currentRunStats.damageTaken += 5;
+                                createExplosion(player.x, player.y, '#e74c3c');
+                                showNotification("BURNING!");
+                            }
 
-                        if (zone.type === 'MAGNET') {
-                            // Pull Player towards center
-                            const cx = zone.x + zone.w / 2;
-                            const cy = zone.y + zone.h / 2;
-                            const angle = Math.atan2(cy - player.y, cx - player.x);
-                            player.x += Math.cos(angle) * 2; // Strong pull
-                            player.y += Math.sin(angle) * 2;
+                            if (zone.type === 'MAGNET') {
+                                // Pull Player towards center
+                                const cx = zone.x + zone.w / 2;
+                                const cy = zone.y + zone.h / 2;
+                                const angle = Math.atan2(cy - player.y, cx - player.x);
+                                player.x += Math.cos(angle) * 2; // Strong pull
+                                player.y += Math.sin(angle) * 2;
+                            }
                         }
                     }
-                }
 
-                // Biome Effects on Enemies (Always active, no immunity for them)
-                if (zone.type === 'MAGNET') {
-                    const cx = zone.x + zone.w / 2;
-                    const cy = zone.y + zone.h / 2;
-                    enemies.forEach(e => {
-                        if (e.x > zone.x && e.x < zone.x + zone.w &&
-                            e.y > zone.y && e.y < zone.y + zone.h) {
-                            const angle = Math.atan2(cy - e.y, cx - e.x);
-                            e.x += Math.cos(angle) * 3; // Enemies get pulled harder
-                            e.y += Math.sin(angle) * 3;
-                        }
-                    });
-                }
-            });
-            player.biomeSpeedMod = biomeSpeedMod;
-
-            player.update();
-            player.draw();
-
-            // Update Companions
-            companions.forEach(c => {
-                c.update();
-                c.draw(ctx);
-            });
-
-            // Memory Shards
-            memoryShards.forEach((shard, index) => {
-                shard.update();
-                shard.draw(ctx);
-                const dist = Math.hypot(player.x - shard.x, player.y - shard.y);
-                if (dist < player.radius + 20) {
-                    // Collect
-                    memoryShards.splice(index, 1);
-                    showNotification("MEMORY RECOVERED!");
-                    createExplosion(shard.x, shard.y, shard.color);
-
-                    // Save Memory
-                    if (!saveData.memories) saveData.memories = {};
-                    if (!saveData.memories[player.type]) saveData.memories[player.type] = 0;
-                    saveData.memories[player.type]++;
-                    saveGame();
-                }
-            });
-
-            // Weapon Drops
-            weaponDrops.forEach((drop, index) => {
-                drop.draw();
-                const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
-                if (dist < player.radius + 20) {
-                    if (player.weapon === drop.type) {
-                        player.weaponTier++;
-                        player.weaponTimer = 900;
-                        showNotification(`WEAPON UPGRADED! (LVL ${player.weaponTier})`);
-                    } else {
-                        player.weapon = drop.type;
-                        player.weaponTier = 1;
-                        player.weaponTimer = 900;
-                        showNotification(`WEAPON EQUIPPED!`);
+                    // Biome Effects on Enemies (Always active, no immunity for them)
+                    if (zone.type === 'MAGNET') {
+                        const cx = zone.x + zone.w / 2;
+                        const cy = zone.y + zone.h / 2;
+                        enemies.forEach(e => {
+                            if (e.x > zone.x && e.x < zone.x + zone.w &&
+                                e.y > zone.y && e.y < zone.y + zone.h) {
+                                const angle = Math.atan2(cy - e.y, cx - e.x);
+                                e.x += Math.cos(angle) * 3; // Enemies get pulled harder
+                                e.y += Math.sin(angle) * 3;
+                            }
+                        });
                     }
-                    createExplosion(player.x, player.y, '#8e44ad');
-                    weaponDrops.splice(index, 1);
-                }
-            });
+                });
+                player.biomeSpeedMod = biomeSpeedMod;
 
-            // Gold Drops
-            goldDrops.forEach((drop, index) => {
-                drop.draw();
-                const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
-                if (dist < player.radius + 20) {
-                    const amount = Math.floor(drop.value * player.goldMultiplier);
-                    player.gold += amount;
-                    currentRunStats.moneyGained += amount; // Track Gold
-                    saveData.global.totalGold += drop.value; // Track for achievement
-                    goldDrops.splice(index, 1);
-                }
-            });
+                player.update();
+                player.draw();
 
-            // Card Drops
-            cardDrops.forEach((drop, index) => {
-                drop.draw();
-                const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
-                if (dist < player.radius + 20) {
-                    const cardKey = drop.cardKey;
-                    const card = COLLECTOR_CARDS[cardKey];
+                // Update Companions
+                companions.forEach(c => {
+                    c.update();
+                    c.draw(ctx);
+                });
 
-                    if (card && !saveData.collection.includes(cardKey)) {
-                        saveData.collection.push(cardKey);
+                // Memory Shards
+                memoryShards.forEach((shard, index) => {
+                    shard.update();
+                    shard.draw(ctx);
+                    const dist = Math.hypot(player.x - shard.x, player.y - shard.y);
+                    if (dist < player.radius + 20) {
+                        // Collect
+                        memoryShards.splice(index, 1);
+                        showNotification("MEMORY RECOVERED!");
+                        createExplosion(shard.x, shard.y, shard.color);
+
+                        // Save Memory
+                        if (!saveData.memories) saveData.memories = {};
+                        if (!saveData.memories[player.type]) saveData.memories[player.type] = 0;
+                        saveData.memories[player.type]++;
                         saveGame();
+                    }
+                });
 
-                        // Show notification
-                        const notif = document.createElement('div');
-                        notif.className = 'achievement-popup'; // Reuse achievement style
-                        notif.style.borderColor = card.color;
-                        notif.innerHTML = `
+                // Weapon Drops
+                weaponDrops.forEach((drop, index) => {
+                    drop.draw();
+                    const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
+                    if (dist < player.radius + 20) {
+                        if (player.weapon === drop.type) {
+                            player.weaponTier++;
+                            player.weaponTimer = 900;
+                            showNotification(`WEAPON UPGRADED! (LVL ${player.weaponTier})`);
+                        } else {
+                            player.weapon = drop.type;
+                            player.weaponTier = 1;
+                            player.weaponTimer = 900;
+                            showNotification(`WEAPON EQUIPPED!`);
+                        }
+                        createExplosion(player.x, player.y, '#8e44ad');
+                        weaponDrops.splice(index, 1);
+                    }
+                });
+
+                // Gold Drops
+                goldDrops.forEach((drop, index) => {
+                    drop.draw();
+                    const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
+                    if (dist < player.radius + 20) {
+                        const amount = Math.floor(drop.value * player.goldMultiplier);
+                        player.gold += amount;
+                        currentRunStats.moneyGained += amount; // Track Gold
+                        saveData.global.totalGold += drop.value; // Track for achievement
+                        goldDrops.splice(index, 1);
+                    }
+                });
+
+                // Card Drops
+                cardDrops.forEach((drop, index) => {
+                    drop.draw();
+                    const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
+                    if (dist < player.radius + 20) {
+                        const cardKey = drop.cardKey;
+                        const card = COLLECTOR_CARDS[cardKey];
+
+                        if (card && !saveData.collection.includes(cardKey)) {
+                            saveData.collection.push(cardKey);
+                            saveGame();
+
+                            // Show notification
+                            const notif = document.createElement('div');
+                            notif.className = 'achievement-popup'; // Reuse achievement style
+                            notif.style.borderColor = card.color;
+                            notif.innerHTML = `
                             <div style="font-size: 12px; color: #aaa;">NEW CARD FOUND!</div>
                             <div style="color: ${card.color}; font-weight: bold; font-size: 16px; margin: 5px 0;">${card.name}</div>
                             <div style="font-size: 12px;">${card.desc}</div>
                         `;
-                        document.body.appendChild(notif);
+                            document.body.appendChild(notif);
 
-                        // Trigger animation
-                        setTimeout(() => notif.classList.add('show'), 10);
+                            // Trigger animation
+                            setTimeout(() => notif.classList.add('show'), 10);
 
-                        setTimeout(() => {
-                            notif.classList.remove('show');
-                            setTimeout(() => notif.remove(), 1000);
-                        }, 4000);
-                    }
-
-                    cardDrops.splice(index, 1);
-                }
-            });
-
-            // Holy Masks
-            holyMasks.forEach((mask, index) => {
-                mask.draw();
-                const dist = Math.hypot(player.x - mask.x, player.y - mask.y);
-                if (dist < player.radius + 20) {
-                    saveData[player.type].level++;
-                    saveGame();
-                    showNotification("PERMANENT LEVEL UP!");
-                    createExplosion(player.x, player.y, '#f1c40f');
-                    holyMasks.splice(index, 1);
-                }
-            });
-
-            powerUps.forEach((pup, index) => {
-                pup.update(); pup.draw();
-                const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
-                if (dist < player.radius + pup.radius) {
-                    if (pup.type === 'HEAL') { player.hp = Math.min(player.hp + 30, player.maxHp); createExplosion(player.x, player.y, '#2ecc71'); }
-                    else if (pup.type === 'MAXHP') { player.maxHp += 20; player.hp += 20; createExplosion(player.x, player.y, '#e74c3c'); }
-                    else if (pup.type === 'SPEED') { player.buffs.speed = 600; createExplosion(player.x, player.y, '#f1c40f'); }
-                    else if (pup.type === 'MULTI') { player.buffs.multi = 600; createExplosion(player.x, player.y, '#3498db'); }
-                    else if (pup.type === 'AUTOAIM') { player.buffs.autoaim = 600; createExplosion(player.x, player.y, '#9b59b6'); }
-                    powerUps.splice(index, 1);
-                } else if (pup.timer <= 0) powerUps.splice(index, 1);
-            });
-
-            projectiles.forEach((proj, index) => {
-                proj.update();
-                if (proj.life !== null && proj.life <= 0) {
-                    projectiles.splice(index, 1);
-                    return;
-                }
-                proj.draw();
-                if (arena.checkCollision(proj.x, proj.y, proj.radius)) {
-                    if (proj.isExplosive) {
-                        enemies.forEach(e => {
-                            if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) {
-                                e.hp -= proj.damage;
-                                currentRunStats.damageDealt += proj.damage; // Track Damage
-                                saveData.global.totalDamage += proj.damage;
-                            }
-                        });
-                        createExplosion(proj.x, proj.y, '#e67e22');
-                    }
-                    projectiles.splice(index, 1);
-                    return;
-                }
-                if (proj.x < 0 || proj.x > arena.width || proj.y < 0 || proj.y > arena.height) projectiles.splice(index, 1);
-            });
-
-            meleeAttacks.forEach((att, index) => {
-                att.update(); att.draw();
-                if (att.life <= 0) meleeAttacks.splice(index, 1);
-            });
-
-            particles.forEach((part, index) => {
-                part.update(); part.draw();
-                if (part.alpha <= 0) particles.splice(index, 1);
-            });
-
-            // Update and Draw Floating Texts
-            floatingTexts.forEach((ft, index) => {
-                ft.update(); ft.draw();
-                if (ft.life <= 0) floatingTexts.splice(index, 1);
-            });
-
-            enemies.forEach((enemy, eIndex) => {
-                // Biome Effects on Enemy
-                let enemySpeedMod = 1;
-                arena.biomeZones.forEach(zone => {
-                    if (enemy.x > zone.x && enemy.x < zone.x + zone.w &&
-                        enemy.y > zone.y && enemy.y < zone.y + zone.h) {
-
-                        if (zone.type === 'MUD') enemySpeedMod = 0.5;
-                        if (zone.type === 'ICE') enemySpeedMod = 1.3;
-                        if (zone.type === 'WATER') enemySpeedMod = 0.7;
-
-                        if (zone.type === 'LAVA' && frame % 60 === 0) {
-                            enemy.hp -= 5;
-                            createExplosion(enemy.x, enemy.y, '#e74c3c');
+                            setTimeout(() => {
+                                notif.classList.remove('show');
+                                setTimeout(() => notif.remove(), 1000);
+                            }, 4000);
                         }
+
+                        cardDrops.splice(index, 1);
                     }
                 });
-                enemy.biomeSpeedMod = enemySpeedMod;
 
-                enemy.update(); enemy.draw();
-                const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+                // Holy Masks
+                holyMasks.forEach((mask, index) => {
+                    mask.draw();
+                    const dist = Math.hypot(player.x - mask.x, player.y - mask.y);
+                    if (dist < player.radius + 20) {
+                        saveData[player.type].level++;
+                        saveGame();
+                        showNotification("PERMANENT LEVEL UP!");
+                        createExplosion(player.x, player.y, '#f1c40f');
+                        holyMasks.splice(index, 1);
+                    }
+                });
 
-                if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
-                    // Invincibility Check
-                    if (player.invincibleTimer > 0) {
-                        // Frostbite Armor (Altar c2)
-                        if (player.hasFrostbiteArmor) {
-                            enemy.frozenTimer = 180; // 3s Freeze
-                            floatingTexts.push(new FloatingText(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
+                powerUps.forEach((pup, index) => {
+                    pup.update(); pup.draw();
+                    const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
+                    if (dist < player.radius + pup.radius) {
+                        if (pup.type === 'HEAL') { player.hp = Math.min(player.hp + 30, player.maxHp); createExplosion(player.x, player.y, '#2ecc71'); }
+                        else if (pup.type === 'MAXHP') { player.maxHp += 20; player.hp += 20; createExplosion(player.x, player.y, '#e74c3c'); }
+                        else if (pup.type === 'SPEED') { player.buffs.speed = 600; createExplosion(player.x, player.y, '#f1c40f'); }
+                        else if (pup.type === 'MULTI') { player.buffs.multi = 600; createExplosion(player.x, player.y, '#3498db'); }
+                        else if (pup.type === 'AUTOAIM') { player.buffs.autoaim = 600; createExplosion(player.x, player.y, '#9b59b6'); }
+                        powerUps.splice(index, 1);
+                    } else if (pup.timer <= 0) powerUps.splice(index, 1);
+                });
+
+                projectiles.forEach((proj, index) => {
+                    proj.update();
+                    if (proj.life !== null && proj.life <= 0) {
+                        projectiles.splice(index, 1);
+                        return;
+                    }
+                    proj.draw();
+                    if (arena.checkCollision(proj.x, proj.y, proj.radius)) {
+                        if (proj.isExplosive) {
+                            enemies.forEach(e => {
+                                if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) {
+                                    e.hp -= proj.damage;
+                                    currentRunStats.damageDealt += proj.damage; // Track Damage
+                                    saveData.global.totalDamage += proj.damage;
+                                }
+                            });
+                            createExplosion(proj.x, proj.y, '#e67e22');
                         }
-
-                        // Reflect damage?
-                        enemy.hp -= 5;
-                        createExplosion(player.x, player.y, '#95a5a6');
-                        const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                        enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20;
-                        return; // Skip damage
+                        projectiles.splice(index, 1);
+                        return;
                     }
+                    if (proj.x < 0 || proj.x > arena.width || proj.y < 0 || proj.y > arena.height) projectiles.splice(index, 1);
+                });
 
-                    let dmgTaken = 1 * (1 - player.damageReduction);
+                meleeAttacks.forEach((att, index) => {
+                    att.update(); att.draw();
+                    if (att.life <= 0) meleeAttacks.splice(index, 1);
+                });
 
-                    // Speedster Explosion
-                    if (enemy.subType === 'SPEEDSTER') {
-                        let speedsterDmg = 20;
-                        const bonuses = getCollectionBonuses('SPEEDSTER');
-                        speedsterDmg *= bonuses.defenseMult;
+                particles.forEach((part, index) => {
+                    part.update(); part.draw();
+                    if (part.alpha <= 0) particles.splice(index, 1);
+                });
 
-                        dmgTaken = speedsterDmg * (1 - player.damageReduction);
-                        createExplosion(player.x, player.y, '#e74c3c');
-                        enemy.hp = 0; // Suicide
-                    }
+                // Update and Draw Floating Texts
+                floatingTexts.forEach((ft, index) => {
+                    ft.update(); ft.draw();
+                    if (ft.life <= 0) floatingTexts.splice(index, 1);
+                });
 
-                    // Thornmail (Altar p3)
-                    if (player.thornmailTimer > 0) {
-                        const reflectDmg = 20;
-                        enemy.hp -= reflectDmg;
-                        createExplosion(player.x, player.y, '#2ecc71');
-                        floatingTexts.push(new FloatingText(player.x, player.y - 40, "REFLECT", "#2ecc71", 16));
-                    }
+                enemies.forEach((enemy, eIndex) => {
+                    // Biome Effects on Enemy
+                    let enemySpeedMod = 1;
+                    arena.biomeZones.forEach(zone => {
+                        if (enemy.x > zone.x && enemy.x < zone.x + zone.w &&
+                            enemy.y > zone.y && enemy.y < zone.y + zone.h) {
 
-                    player.hp -= dmgTaken;
-                    floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
-                    currentRunStats.damageTaken += dmgTaken; // Track Damage
-                    player.resetCombo(); // Reset Combo on Damage
-                    createExplosion(player.x, player.y, '#fff');
+                            if (zone.type === 'MUD') enemySpeedMod = 0.5;
+                            if (zone.type === 'ICE') enemySpeedMod = 1.3;
+                            if (zone.type === 'WATER') enemySpeedMod = 0.7;
 
-                    if (player.transformActive) {
-                        player.transformActive = false;
-                        player.currentForm = 'NONE';
-                        showNotification("FORM BROKEN!");
-                    }
-
-                    const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                    if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20; }
-                }
-
-                projectiles.forEach((proj, pIndex) => {
-                    if (proj.isEnemy) {
-                        const pDist = Math.hypot(proj.x - player.x, proj.y - player.y);
-                        if (pDist < player.radius + proj.radius) {
-                            // Card Dodge/Reduction Logic
-                            const bonuses = getCollectionBonuses(proj.shooterType);
-
-                            if (proj.shooterType === 'SHOOTER' && bonuses.specials.includes('SHOOTER_DODGE') && Math.random() < 0.15) {
-                                floatingTexts.push(new FloatingText(player.x, player.y - 40, "DODGE", "#f1c40f", 20));
-                                projectiles.splice(pIndex, 1);
-                                return;
-                            }
-
-                            if (proj.shooterType === 'TOXIC' && bonuses.specials.includes('TOXIC_IMMUNE')) {
-                                return; // Immune
-                            }
-
-                            let finalDmg = proj.damage * bonuses.defenseMult;
-
-                            const dmgTaken = finalDmg * (1 - player.damageReduction);
-                            player.hp -= dmgTaken;
-
-                            // Player takes damage number
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
-
-                            currentRunStats.damageTaken += dmgTaken; // Track Damage
-                            player.resetCombo(); // Reset Combo on Damage
-                            createExplosion(player.x, player.y, proj.color); projectiles.splice(pIndex, 1);
-
-                            if (player.transformActive) {
-                                player.transformActive = false;
-                                player.currentForm = 'NONE';
-                                showNotification("FORM BROKEN!");
+                            if (zone.type === 'LAVA' && frame % 60 === 0) {
+                                enemy.hp -= 5;
+                                createExplosion(enemy.x, enemy.y, '#e74c3c');
                             }
                         }
-                    } else {
-                        const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
-                        if (pDist - enemy.radius - proj.radius < 0) {
-                            let finalDamage = proj.damage;
+                    });
+                    enemy.biomeSpeedMod = enemySpeedMod;
 
-                            // Card Bonuses
-                            const bonuses = getCollectionBonuses(enemy.subType);
-                            if (enemy instanceof Boss) {
-                                const bossBonuses = getCollectionBonuses('BOSS');
-                                bonuses.damageMult += (bossBonuses.damageMult - 1);
-                            }
+                    enemy.update(); enemy.draw();
+                    const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
 
-                            finalDamage *= bonuses.damageMult;
-
-                            // Crit Check with Card Bonus
-                            let isCrit = proj.isCrit;
-                            if (!isCrit && Math.random() < (player.critChance + bonuses.critChance)) {
-                                isCrit = true;
-                                finalDamage *= player.critMultiplier;
-                            }
-
-                            // Special: Shield Pierce
-                            if (enemy.subType === 'SHIELDER' && bonuses.specials.includes('SHIELD_PIERCE')) {
-                                finalDamage *= 1.5;
-                            }
-
-                            // Altar: Wildfire (c4) - Apply Burn
-                            if (proj.isWildfire) {
-                                // Simple burn implementation: instant extra damage for now, or add status effect logic to Enemy class
-                                // Let's do instant bonus damage + visual
-                                finalDamage += 10;
-                                createExplosion(enemy.x, enemy.y, '#e67e22');
-                            }
-
-                            // Altar: Cryo-Flora (c9) - Apply Freeze
-                            if (proj.isCryo) {
-                                enemy.frozenTimer = 60; // 1s
+                    if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
+                        // Invincibility Check
+                        if (player.invincibleTimer > 0) {
+                            // Frostbite Armor (Altar c2)
+                            if (player.hasFrostbiteArmor) {
+                                enemy.frozenTimer = 180; // 3s Freeze
                                 floatingTexts.push(new FloatingText(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
                             }
 
-                            enemy.hp -= finalDamage;
+                            // Reflect damage?
+                            enemy.hp -= 5;
+                            createExplosion(player.x, player.y, '#95a5a6');
+                            const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                            enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20;
+                            return; // Skip damage
+                        }
 
-                            // Enemy takes damage number
-                            floatingTexts.push(new FloatingText(
-                                enemy.x,
-                                enemy.y - 20,
-                                Math.floor(finalDamage) + (isCrit ? '!' : ''),
-                                isCrit ? '#f1c40f' : '#fff',
-                                isCrit ? 30 : 16
-                            ));
+                        let dmgTaken = 1 * (1 - player.damageReduction);
 
-                            currentRunStats.damageDealt += finalDamage; // Track Damage
-                            saveData.global.totalDamage += finalDamage;
-                            createExplosion(enemy.x, enemy.y, proj.color);
-                            if (proj.isExplosive) {
+                        // Speedster Explosion
+                        if (enemy.subType === 'SPEEDSTER') {
+                            let speedsterDmg = 20;
+                            const bonuses = getCollectionBonuses('SPEEDSTER');
+                            speedsterDmg *= bonuses.defenseMult;
+
+                            dmgTaken = speedsterDmg * (1 - player.damageReduction);
+                            createExplosion(player.x, player.y, '#e74c3c');
+                            enemy.hp = 0; // Suicide
+                        }
+
+                        // Thornmail (Altar p3)
+                        if (player.thornmailTimer > 0) {
+                            const reflectDmg = 20;
+                            enemy.hp -= reflectDmg;
+                            createExplosion(player.x, player.y, '#2ecc71');
+                            floatingTexts.push(new FloatingText(player.x, player.y - 40, "REFLECT", "#2ecc71", 16));
+                        }
+
+                        player.hp -= dmgTaken;
+                        floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
+                        currentRunStats.damageTaken += dmgTaken; // Track Damage
+                        player.resetCombo(); // Reset Combo on Damage
+                        createExplosion(player.x, player.y, '#fff');
+
+                        if (player.transformActive) {
+                            player.transformActive = false;
+                            player.currentForm = 'NONE';
+                            showNotification("FORM BROKEN!");
+                        }
+
+                        const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                        if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20; }
+                    }
+
+                    projectiles.forEach((proj, pIndex) => {
+                        if (proj.isEnemy) {
+                            const pDist = Math.hypot(proj.x - player.x, proj.y - player.y);
+                            if (pDist < player.radius + proj.radius) {
+                                // Card Dodge/Reduction Logic
+                                const bonuses = getCollectionBonuses(proj.shooterType);
+
+                                if (proj.shooterType === 'SHOOTER' && bonuses.specials.includes('SHOOTER_DODGE') && Math.random() < 0.15) {
+                                    floatingTexts.push(new FloatingText(player.x, player.y - 40, "DODGE", "#f1c40f", 20));
+                                    projectiles.splice(pIndex, 1);
+                                    return;
+                                }
+
+                                if (proj.shooterType === 'TOXIC' && bonuses.specials.includes('TOXIC_IMMUNE')) {
+                                    return; // Immune
+                                }
+
+                                let finalDmg = proj.damage * bonuses.defenseMult;
+
+                                const dmgTaken = finalDmg * (1 - player.damageReduction);
+                                player.hp -= dmgTaken;
+
+                                // Player takes damage number
+                                floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
+
+                                currentRunStats.damageTaken += dmgTaken; // Track Damage
+                                player.resetCombo(); // Reset Combo on Damage
+                                createExplosion(player.x, player.y, proj.color); projectiles.splice(pIndex, 1);
+
+                                if (player.transformActive) {
+                                    player.transformActive = false;
+                                    player.currentForm = 'NONE';
+                                    showNotification("FORM BROKEN!");
+                                }
+                            }
+                        } else {
+                            const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
+                            if (pDist - enemy.radius - proj.radius < 0) {
+                                let finalDamage = proj.damage;
+
+                                // Card Bonuses
+                                const bonuses = getCollectionBonuses(enemy.subType);
+                                if (enemy instanceof Boss) {
+                                    const bossBonuses = getCollectionBonuses('BOSS');
+                                    bonuses.damageMult += (bossBonuses.damageMult - 1);
+                                }
+
+                                finalDamage *= bonuses.damageMult;
+
+                                // Crit Check with Card Bonus
+                                let isCrit = proj.isCrit;
+                                if (!isCrit && Math.random() < (player.critChance + bonuses.critChance)) {
+                                    isCrit = true;
+                                    finalDamage *= player.critMultiplier;
+                                }
+
+                                // Special: Shield Pierce
+                                if (enemy.subType === 'SHIELDER' && bonuses.specials.includes('SHIELD_PIERCE')) {
+                                    finalDamage *= 1.5;
+                                }
+
+                                // Altar: Wildfire (c4) - Apply Burn
+                                if (proj.isWildfire) {
+                                    // Simple burn implementation: instant extra damage for now, or add status effect logic to Enemy class
+                                    // Let's do instant bonus damage + visual
+                                    finalDamage += 10;
+                                    createExplosion(enemy.x, enemy.y, '#e67e22');
+                                }
+
+                                // Altar: Cryo-Flora (c9) - Apply Freeze
+                                if (proj.isCryo) {
+                                    enemy.frozenTimer = 60; // 1s
+                                    floatingTexts.push(new FloatingText(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
+                                }
+
+                                enemy.hp -= finalDamage;
+
+                                // Enemy takes damage number
+                                floatingTexts.push(new FloatingText(
+                                    enemy.x,
+                                    enemy.y - 20,
+                                    Math.floor(finalDamage) + (isCrit ? '!' : ''),
+                                    isCrit ? '#f1c40f' : '#fff',
+                                    isCrit ? 30 : 16
+                                ));
+
+                                currentRunStats.damageDealt += finalDamage; // Track Damage
+                                saveData.global.totalDamage += finalDamage;
+                                createExplosion(enemy.x, enemy.y, proj.color);
+                                if (proj.isExplosive) {
+                                    enemies.forEach(nearby => {
+                                        if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
+                                            nearby.hp -= proj.damage;
+                                            // Explosion damage number
+                                            floatingTexts.push(new FloatingText(nearby.x, nearby.y - 20, Math.floor(proj.damage), '#e67e22', 16));
+
+                                            currentRunStats.damageDealt += proj.damage; // Track Damage
+                                            saveData.global.totalDamage += proj.damage;
+                                        }
+                                    });
+                                    projectiles.splice(pIndex, 1);
+                                } else {
+                                    if (proj.pierce > 0) { proj.pierce--; } else { projectiles.splice(pIndex, 1); }
+                                }
+                                if (!(enemy instanceof Boss)) {
+                                    const angle = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);
+                                    enemy.x += Math.cos(angle) * proj.knockback; enemy.y += Math.sin(angle) * proj.knockback;
+                                }
+                            }
+                        }
+                    });
+
+                    meleeAttacks.forEach(att => {
+                        if (att.hitList.includes(eIndex)) return;
+                        const dx = enemy.x - att.x; const dy = enemy.y - att.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < att.radius + enemy.radius) {
+                            const angleToEnemy = Math.atan2(dy, dx);
+                            let diff = angleToEnemy - att.angle;
+                            while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
+                            if (Math.abs(diff) < Math.PI / 3) {
+                                enemy.hp -= att.damage;
+
+                                // Melee damage number
+                                const isCrit = att.isCrit;
+                                floatingTexts.push(new FloatingText(
+                                    enemy.x,
+                                    enemy.y - 20,
+                                    Math.floor(att.damage) + (isCrit ? '!' : ''),
+                                    isCrit ? '#f1c40f' : '#fff',
+                                    isCrit ? 35 : 20
+                                ));
+
+                                currentRunStats.damageDealt += att.damage; // Track Damage
+                                saveData.global.totalDamage += att.damage;
+                                createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(eIndex);
+                                if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
+                            }
+                        }
+                    });
+
+                    if (enemy.hp <= 0) {
+                        player.addCombo(); // Add Combo
+                        if (player.onKill) player.onKill(); // Trigger onKill effects (e.g. Black Hero Heal)
+                        checkAchievements(); // Check achievements on kill
+
+                        // Mutator: Explosive Personality
+                        if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'EXPLOSIVE')) {
+                            createExplosion(enemy.x, enemy.y, '#e74c3c');
+                            if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 100) {
+                                player.hp -= 10 * (1 - player.damageReduction);
+                                floatingTexts.push(new FloatingText(player.x, player.y - 20, "10", "#e74c3c", 20));
+                            }
+                        }
+
+                        if (enemy instanceof Boss) {
+                            // Makuta Achievement Check
+                            if (enemy.type === 'MAKUTA') {
+                                unlockAchievement('MAKUTA_SLAYER'); // Base Achievement
+
+                                // Hard Mode Achievements (1-10)
+                                const prestige = saveData[player.type].prestige;
+                                for (let i = 1; i <= 10; i++) {
+                                    if (prestige >= i) unlockAchievement(`MAKUTA_HM_${i}`);
+                                }
+
+                                showNotification("MAKUTA DEFEATED!");
+                            }
+
+                            currentRunStats.bossesKilled++; // Track Boss Kill
+                            saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
+                            score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
+                            weaponDrops.push(new WeaponDrop(enemy.x, enemy.y));
+                            checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
+                            enemies.splice(eIndex, 1);
+                            const remainingBosses = enemies.filter(e => e instanceof Boss).length;
+                            if (remainingBosses === 0) {
+                                bossActive = false;
+
+                                // Start Boss Death Sequence
+                                bossDeathTimer = 180; // 3 seconds at 60 FPS
+
+                                // Clear all other enemies instantly for dramatic effect
+                                enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
+                                enemies = [];
+                                projectiles = []; // Clear projectiles too
+                            }
+                        } else {
+                            // Swarm Explosion (Tier 4)
+                            if (enemy.subType === 'SWARM' && saveData.collection.includes('SWARM_4')) {
+                                createExplosion(enemy.x, enemy.y, '#8e44ad');
                                 enemies.forEach(nearby => {
-                                    if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
-                                        nearby.hp -= proj.damage;
-                                        // Explosion damage number
-                                        floatingTexts.push(new FloatingText(nearby.x, nearby.y - 20, Math.floor(proj.damage), '#e67e22', 16));
-
-                                        currentRunStats.damageDealt += proj.damage; // Track Damage
-                                        saveData.global.totalDamage += proj.damage;
+                                    if (nearby !== enemy && Math.hypot(nearby.x - enemy.x, nearby.y - enemy.y) < 100) {
+                                        nearby.hp -= 20;
+                                        floatingTexts.push(new FloatingText(nearby.x, nearby.y - 20, "20", "#8e44ad", 16));
                                     }
                                 });
-                                projectiles.splice(pIndex, 1);
+                            }
+
+                            currentRunStats.enemiesKilled++; // Track Kill
+                            score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
+                            if (Math.random() < player.maskChance) holyMasks.push(new HolyMask(enemy.x, enemy.y));
+
+                            // Mutator: No Regen (No Health Drops)
+                            if (!((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'NO_REGEN'))) {
+                                if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y)); // Gold Drop
                             } else {
-                                if (proj.pierce > 0) { proj.pierce--; } else { projectiles.splice(pIndex, 1); }
+                                // Still drop gold, but maybe less? Or just no health potions if they existed as drops.
+                                // Wait, GoldDrop is money. Health is usually from Shop or Skills.
+                                // If "No Regen" means no healing, we should block healing in Player.js or here.
+                                // Let's assume "No Health Drops" refers to potential future drops or just disable lifesteal/regen.
+                                // For now, let's just block Gold Drops as a penalty or rename mutator to "Poverty".
+                                // Actually, let's stick to the description: "No Health Drops spawn".
+                                // Since we don't have health drops yet (only shop potions), let's make it block Gold Drops instead for now?
+                                // Or better: Block Shop Healing.
                             }
-                            if (!(enemy instanceof Boss)) {
-                                const angle = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);
-                                enemy.x += Math.cos(angle) * proj.knockback; enemy.y += Math.sin(angle) * proj.knockback;
-                            }
+                            if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y));
+
+                            // Check for Card Drop
+                            checkDrop(enemy.subType || 'BASIC', enemy.x, enemy.y);
+
+                            enemies.splice(eIndex, 1);
+                            if (!bossActive) enemiesKilledInWave++;
                         }
                     }
                 });
 
-                meleeAttacks.forEach(att => {
-                    if (att.hitList.includes(eIndex)) return;
-                    const dx = enemy.x - att.x; const dy = enemy.y - att.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < att.radius + enemy.radius) {
-                        const angleToEnemy = Math.atan2(dy, dx);
-                        let diff = angleToEnemy - att.angle;
-                        while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
-                        if (Math.abs(diff) < Math.PI / 3) {
-                            enemy.hp -= att.damage;
+                // Restore Camera Transform
+                ctx.restore();
 
-                            // Melee damage number
-                            const isCrit = att.isCrit;
-                            floatingTexts.push(new FloatingText(
-                                enemy.x,
-                                enemy.y - 20,
-                                Math.floor(att.damage) + (isCrit ? '!' : ''),
-                                isCrit ? '#f1c40f' : '#fff',
-                                isCrit ? 35 : 20
-                            ));
-
-                            currentRunStats.damageDealt += att.damage; // Track Damage
-                            saveData.global.totalDamage += att.damage;
-                            createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(eIndex);
-                            if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
-                        }
-                    }
-                });
-
-                if (enemy.hp <= 0) {
-                    player.addCombo(); // Add Combo
-                    if (player.onKill) player.onKill(); // Trigger onKill effects (e.g. Black Hero Heal)
-                    checkAchievements(); // Check achievements on kill
-
-                    // Mutator: Explosive Personality
-                    if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'EXPLOSIVE')) {
-                        createExplosion(enemy.x, enemy.y, '#e74c3c');
-                        if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 100) {
-                            player.hp -= 10 * (1 - player.damageReduction);
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "10", "#e74c3c", 20));
-                        }
-                    }
-
-                    if (enemy instanceof Boss) {
-                        // Makuta Achievement Check
-                        if (enemy.type === 'MAKUTA') {
-                            unlockAchievement('MAKUTA_SLAYER'); // Base Achievement
-
-                            // Hard Mode Achievements (1-10)
-                            const prestige = saveData[player.type].prestige;
-                            for (let i = 1; i <= 10; i++) {
-                                if (prestige >= i) unlockAchievement(`MAKUTA_HM_${i}`);
-                            }
-
-                            showNotification("MAKUTA DEFEATED!");
-                        }
-
-                        currentRunStats.bossesKilled++; // Track Boss Kill
-                        saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
-                        score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
-                        weaponDrops.push(new WeaponDrop(enemy.x, enemy.y));
-                        checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
-                        enemies.splice(eIndex, 1);
-                        const remainingBosses = enemies.filter(e => e instanceof Boss).length;
-                        if (remainingBosses === 0) {
-                            bossActive = false;
-
-                            // Start Boss Death Sequence
-                            bossDeathTimer = 180; // 3 seconds at 60 FPS
-
-                            // Clear all other enemies instantly for dramatic effect
-                            enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
-                            enemies = [];
-                            projectiles = []; // Clear projectiles too
-                        }
-                    } else {
-                        // Swarm Explosion (Tier 4)
-                        if (enemy.subType === 'SWARM' && saveData.collection.includes('SWARM_4')) {
-                            createExplosion(enemy.x, enemy.y, '#8e44ad');
-                            enemies.forEach(nearby => {
-                                if (nearby !== enemy && Math.hypot(nearby.x - enemy.x, nearby.y - enemy.y) < 100) {
-                                    nearby.hp -= 20;
-                                    floatingTexts.push(new FloatingText(nearby.x, nearby.y - 20, "20", "#8e44ad", 16));
-                                }
-                            });
-                        }
-
-                        currentRunStats.enemiesKilled++; // Track Kill
-                        score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
-                        if (Math.random() < player.maskChance) holyMasks.push(new HolyMask(enemy.x, enemy.y));
-
-                        // Mutator: No Regen (No Health Drops)
-                        if (!((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'NO_REGEN'))) {
-                            if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y)); // Gold Drop
-                        } else {
-                            // Still drop gold, but maybe less? Or just no health potions if they existed as drops.
-                            // Wait, GoldDrop is money. Health is usually from Shop or Skills.
-                            // If "No Regen" means no healing, we should block healing in Player.js or here.
-                            // Let's assume "No Health Drops" refers to potential future drops or just disable lifesteal/regen.
-                            // For now, let's just block Gold Drops as a penalty or rename mutator to "Poverty".
-                            // Actually, let's stick to the description: "No Health Drops spawn".
-                            // Since we don't have health drops yet (only shop potions), let's make it block Gold Drops instead for now?
-                            // Or better: Block Shop Healing.
-                        }
-                        if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y));
-
-                        // Check for Card Drop
-                        checkDrop(enemy.subType || 'BASIC', enemy.x, enemy.y);
-
-                        enemies.splice(eIndex, 1);
-                        if (!bossActive) enemiesKilledInWave++;
-                    }
+                // Chaos: Darkness (Fog of War)
+                if (typeof isChaosActive === 'function' && isChaosActive('DARKNESS')) {
+                    ctx.save();
+                    const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 150, canvas.width / 2, canvas.height / 2, 800);
+                    gradient.addColorStop(0, 'transparent');
+                    gradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.8)');
+                    gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.restore();
                 }
-            });
 
-            // Restore Camera Transform
-            ctx.restore();
+                // Low Health Indicator
+                if (player.hp / player.maxHp < 0.2) {
+                    ctx.save();
+                    // Red Vignette
+                    const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.4, canvas.width / 2, canvas.height / 2, canvas.height * 0.8);
+                    gradient.addColorStop(0, 'transparent');
+                    gradient.addColorStop(1, 'rgba(255, 0, 0, 0.4)');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Chaos: Darkness (Fog of War)
-            if (typeof isChaosActive === 'function' && isChaosActive('DARKNESS')) {
-                ctx.save();
-                const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 150, canvas.width / 2, canvas.height / 2, 800);
-                gradient.addColorStop(0, 'transparent');
-                gradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.8)');
-                gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.restore();
-            }
+                    // Pulsing Overlay
+                    const pulse = (Math.sin(frame * 0.1) + 1) / 2; // 0 to 1
+                    ctx.fillStyle = `rgba(255, 0, 0, ${pulse * 0.15})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.restore();
+                }
 
-            // Low Health Indicator
-            if (player.hp / player.maxHp < 0.2) {
-                ctx.save();
-                // Red Vignette
-                const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.4, canvas.width / 2, canvas.height / 2, canvas.height * 0.8);
-                gradient.addColorStop(0, 'transparent');
-                gradient.addColorStop(1, 'rgba(255, 0, 0, 0.4)');
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Pulsing Overlay
-                const pulse = (Math.sin(frame * 0.1) + 1) / 2; // 0 to 1
-                ctx.fillStyle = `rgba(255, 0, 0, ${pulse * 0.15})`;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.restore();
-            }
-
-            updateUI();
-            if (player.hp <= 0) {
-                gameOver();
+                updateUI();
+                if (player.hp <= 0) {
+                    gameOver();
+                }
             }
         }
     }
-}
 
-// Ensure you call loadGame() at startup!
-loadGame();
+    // Ensure you call loadGame() at startup!
+    loadGame();
 
-// Initialize Menu on Load
-initMenu();
-masterLoop();
+    // Initialize Menu on Load
+    initMenu();
+    masterLoop();
 
-// OPTIONAL: Auto-save every 30 seconds
-setInterval(() => {
-    if (gameRunning && !gamePaused) {
-        saveGame();
-    }
-}, 30000);
+    // OPTIONAL: Auto-save every 30 seconds
+    setInterval(() => {
+        if (gameRunning && !gamePaused) {
+            saveGame();
+        }
+    }, 30000);
