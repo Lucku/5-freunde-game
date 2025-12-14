@@ -95,9 +95,26 @@ const Tutorial = {
                 
                 <h3>Altar of Mastery</h3>
                 <p>Sacrifice resources to gain powerful passive bonuses. Unlocked later in the game.</p>
+            `
+        },
+        museum: {
+            title: "Museum & Collection",
+            html: `
+                <h2>The Museum</h2>
+                <p>A physical space where you can walk around and view your unlocked Heroes and defeated Enemies.</p>
+                <p>Visit the <b>Gallery</b> to see the monsters you've conquered.</p>
+
+                <h2>Monster Collection Cards</h2>
+                <p>Enemies have a small chance to drop <b>Collector Cards</b> when defeated. Collecting these cards unlocks permanent bonuses against that specific enemy type.</p>
                 
-                <h3>Museum</h3>
-                <p>Collect Monster Cards dropped by enemies to unlock permanent bonuses against them.</p>
+                <h3>Card Tiers</h3>
+                <ul>
+                    <li><b style="color:#cd7f32">Bronze</b>: +10% Damage dealt to this enemy type.</li>
+                    <li><b style="color:#c0c0c0">Silver</b>: -10% Damage taken from this enemy type.</li>
+                    <li><b style="color:#ffd700">Gold</b>: +20% XP gained from this enemy type.</li>
+                    <li><b style="color:#e5e4e2">Platinum</b>: A unique special bonus (e.g., "Ghosts are always visible" or "Immune to Toxic Trails").</li>
+                </ul>
+                <p>Collect all 4 cards for an enemy to fully master them!</p>
             `
         },
         chaos: {

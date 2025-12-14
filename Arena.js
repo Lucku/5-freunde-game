@@ -104,7 +104,7 @@ class Arena {
         const trapCount = 5 + Math.floor(Math.random() * 5);
         for (let i = 0; i < trapCount; i++) {
             const pos = this.getRandomSafePosition(50);
-            const type = ['SPIKE', 'SLOW', 'CONVEYOR'][Math.floor(Math.random() * 3)];
+            const type = ['SLOW', 'CONVEYOR'][Math.floor(Math.random() * 2)];
             this.traps.push(new Trap(pos.x, pos.y, type));
         }
     }

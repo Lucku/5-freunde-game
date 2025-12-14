@@ -550,6 +550,8 @@ function getFocusables() {
     else if (uiState === 'STORY') screenId = 'story-screen';
     else if (uiState === 'DAILY_INFO') screenId = 'daily-info-modal';
     else if (uiState === 'ALTAR') screenId = 'altar-screen';
+    else if (uiState === 'CHAOSSHOP') screenId = 'chaos-shop-screen';
+    else if (uiState === 'TUTORIAL') screenId = 'tutorial-screen';
 
     if (!screenId) return [];
     const screen = document.getElementById(screenId);
@@ -623,15 +625,13 @@ function handleGamepadMenu() {
         return;
     }
 
-    // Tutorial Input Handling
-    if (uiState === 'TUTORIAL') {
-        Tutorial.handleInput(gp);
-        lastGamepadState = { a, b };
-        return; // Skip standard navigation
-    }
-
     // --- SCROLLING LOGIC (Right Stick) ---
-    if (uiState === 'ACHIEVEMENTS') {
+    if (uiState === 'MENU') {
+        const content = document.getElementById('menu-overlay');
+        if (content && Math.abs(gp.axes[3]) > 0.1) {
+            content.scrollTop += gp.axes[3] * 15;
+        }
+    } else if (uiState === 'ACHIEVEMENTS') {
         const list = document.getElementById('achievements-list');
         // Axis 3 is usually Right Stick Y
         if (list && Math.abs(gp.axes[3]) > 0.1) {
@@ -659,6 +659,16 @@ function handleGamepadMenu() {
         }
     } else if (uiState === 'ALTAR') {
         const content = document.getElementById('altar-screen');
+        if (content && Math.abs(gp.axes[3]) > 0.1) {
+            content.scrollTop += gp.axes[3] * 15;
+        }
+    } else if (uiState === 'CHAOSSHOP') {
+        const content = document.getElementById('chaos-shop-container');
+        if (content && Math.abs(gp.axes[3]) > 0.1) {
+            content.scrollTop += gp.axes[3] * 15;
+        }
+    } else if (uiState === 'TUTORIAL') {
+        const content = document.getElementById('tutorial-content');
         if (content && Math.abs(gp.axes[3]) > 0.1) {
             content.scrollTop += gp.axes[3] * 15;
         }
@@ -1388,53 +1398,57 @@ window.addEventListener('keydown', e => {
     if (e.code === 'KeyE' && gameRunning && !gamePaused && !isShopping) {
         player.useSpecial();
     }
-    // DEBUG: Kill Player with 'K'
-    if (e.code === 'KeyK' && gameRunning && !gamePaused) {
-        player.hp = -999;
-        showNotification("DEBUG: SUICIDE");
-    }
-    // DEBUG: Next Wave with 'N'
-    if (e.code === 'KeyN' && gameRunning && !gamePaused) {
-        enemies = [];
-        bossActive = false;
-        projectiles = [];
 
-        if (wave % 2 === 0) {
-            openShop();
-        } else {
-            wave++;
-            enemiesKilledInWave = 0;
-            const types = ['fire', 'water', 'ice', 'plant', 'metal'];
-            currentBiomeType = types[Math.floor(Math.random() * types.length)];
-            showNotification(`DEBUG: SKIPPED TO WAVE ${wave}`);
-            arena.generate(currentBiomeType);
-            if (player) {
-                player.x = canvas.width / 2;
-                player.y = canvas.height / 2;
+    // --- DEBUG KEYS (Disabled in Electron) ---
+    if (!isElectron) {
+        // DEBUG: Kill Player with 'K'
+        if (e.code === 'KeyK' && gameRunning && !gamePaused) {
+            player.hp = -999;
+            showNotification("DEBUG: SUICIDE");
+        }
+        // DEBUG: Next Wave with 'N'
+        if (e.code === 'KeyN' && gameRunning && !gamePaused) {
+            enemies = [];
+            bossActive = false;
+            projectiles = [];
+
+            if (wave % 2 === 0) {
+                openShop();
+            } else {
+                wave++;
+                enemiesKilledInWave = 0;
+                const types = ['fire', 'water', 'ice', 'plant', 'metal'];
+                currentBiomeType = types[Math.floor(Math.random() * types.length)];
+                showNotification(`DEBUG: SKIPPED TO WAVE ${wave}`);
+                arena.generate(currentBiomeType);
+                if (player) {
+                    player.x = canvas.width / 2;
+                    player.y = canvas.height / 2;
+                }
             }
         }
-    }
 
-    // DEBUG: Spawn Boss with 'B'
-    if (e.code === 'KeyB' && gameRunning && !gamePaused && !bossActive) {
-        enemiesKilledInWave = ENEMIES_PER_WAVE * wave;
-        showNotification("DEBUG: BOSS SPAWNED");
-    }
+        // DEBUG: Spawn Boss with 'B'
+        if (e.code === 'KeyB' && gameRunning && !gamePaused && !bossActive) {
+            enemiesKilledInWave = ENEMIES_PER_WAVE * wave;
+            showNotification("DEBUG: BOSS SPAWNED");
+        }
 
-    // DEBUG: Select Black Hero in Menu with 'B'
-    if (e.code === 'KeyB' && uiState === 'MENU') {
-        selectedHeroType = 'black';
-        showNotification("DEBUG: BLACK HERO SELECTED");
-        // We don't call renderHeroSelect() because Black isn't in the list, 
-        // so we just rely on the notification.
-    }
+        // DEBUG: Select Black Hero in Menu with 'B'
+        if (e.code === 'KeyB' && uiState === 'MENU') {
+            selectedHeroType = 'black';
+            showNotification("DEBUG: BLACK HERO SELECTED");
+            // We don't call renderHeroSelect() because Black isn't in the list, 
+            // so we just rely on the notification.
+        }
 
-    // DEBUG: Add Skill Point with 'P' in Menu
-    if (e.code === 'KeyP' && uiState === 'MENU') {
-        saveData[selectedHeroType].level++;
-        saveGame();
-        renderHeroSelect();
-        showNotification(`DEBUG: +1 Point for ${selectedHeroType.toUpperCase()}`);
+        // DEBUG: Add Skill Point with 'P' in Menu
+        if (e.code === 'KeyP' && uiState === 'MENU') {
+            saveData[selectedHeroType].level++;
+            saveGame();
+            renderHeroSelect();
+            showNotification(`DEBUG: +1 Point for ${selectedHeroType.toUpperCase()}`);
+        }
     }
 });
 
@@ -2494,6 +2508,7 @@ function masterLoop(timestamp) {
                     // Weather Effects
                     if (currentWeather.id === 'HEATWAVE' && frame % 60 === 0) {
                         player.hp -= 1;
+                        floatingTexts.push(new FloatingText(player.x, player.y - 20, "1", "#e74c3c", 20));
                         currentRunStats.damageTaken += 1; // Track Damage
                         enemies.forEach(e => e.hp -= 1);
                     }
@@ -2604,7 +2619,9 @@ function masterLoop(timestamp) {
                         if (zone.type === 'WATER') biomeSpeedMod = 0.7;
 
                         if (zone.type === 'LAVA' && frame % 60 === 0) {
-                            player.hp -= 5 * (1 - player.damageReduction);
+                            const lavaDmg = 5 * (1 - player.damageReduction);
+                            player.hp -= lavaDmg;
+                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.floor(lavaDmg), "#e74c3c", 20));
                             currentRunStats.damageTaken += 5;
                             createExplosion(player.x, player.y, '#e74c3c');
                             showNotification("BURNING!");
@@ -2836,6 +2853,7 @@ function masterLoop(timestamp) {
                     }
 
                     player.hp -= dmgTaken;
+                    floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
                     currentRunStats.damageTaken += dmgTaken; // Track Damage
                     player.resetCombo(); // Reset Combo on Damage
                     createExplosion(player.x, player.y, '#fff');
@@ -2873,7 +2891,7 @@ function masterLoop(timestamp) {
                             player.hp -= dmgTaken;
 
                             // Player takes damage number
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.floor(dmgTaken), '#e74c3c', 20));
+                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
 
                             currentRunStats.damageTaken += dmgTaken; // Track Damage
                             player.resetCombo(); // Reset Combo on Damage
