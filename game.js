@@ -102,6 +102,10 @@ function saveGame() {
     }
 }
 
+// --- Audio System ---
+// Audio management has been moved to AudioManager.js
+
+
 function loadGame() {
     let data = null;
 
@@ -1359,6 +1363,7 @@ let cardDrops = [];
 // Story Manager
 const storyManager = new StoryManager();
 let isStoryOpen = false;
+let currentStoryEvent = null;
 
 // Input
 const keys = {};
@@ -1422,8 +1427,8 @@ window.addEventListener('keydown', e => {
                 showNotification(`DEBUG: SKIPPED TO WAVE ${wave}`);
                 arena.generate(currentBiomeType);
                 if (player) {
-                    player.x = canvas.width / 2;
-                    player.y = canvas.height / 2;
+                    player.x = arena.width / 2;
+                    player.y = arena.height / 2;
                 }
             }
         }
@@ -2060,11 +2065,16 @@ function triggerStory(completedWave) {
         return;
     }
 
-    const story = storyManager.getStoryForWave(completedWave);
+    // Pass player type (uppercase) to get specific story events
+    const heroType = player ? player.type.toUpperCase() : 'ALL';
+    const nextWave = completedWave + 1;
+    const story = storyManager.getEventForWave(nextWave, heroType);
+
     if (story) {
+        currentStoryEvent = story; // Store for gameplay logic
         openStory(story);
     } else {
-        // Fallback if no story (shouldn't happen with procedural)
+        currentStoryEvent = null;
         advanceWave();
     }
 }
@@ -2088,7 +2098,10 @@ function closeStory() {
     document.getElementById('story-screen').style.display = 'none';
 
     // Proceed to Shop or Next Wave
-    if (wave % 2 === 0) {
+    // Special case: If wave is 0 (Intro), always advance to Wave 1
+    if (wave === 0) {
+        advanceWave();
+    } else if (wave % 2 === 0) {
         openShop();
     } else {
         advanceWave();
@@ -2106,15 +2119,29 @@ function advanceWave() {
     if (player && player.type === 'black') {
         types = ['black']; // Keep Black in his own realm
     }
-    currentBiomeType = types[Math.floor(Math.random() * types.length)];
+
+    // Wave 1 starts in home biome
+    if (wave === 1 && player && player.type !== 'black') {
+        currentBiomeType = player.type;
+    } else {
+        currentBiomeType = types[Math.floor(Math.random() * types.length)];
+    }
+
     showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
 
-    arena.generate(currentBiomeType);
+    let layoutOverride = null;
+    let trapOverride = null;
+    if (currentStoryEvent && currentStoryEvent.data) {
+        if (currentStoryEvent.data.layout !== undefined) layoutOverride = currentStoryEvent.data.layout;
+        if (currentStoryEvent.data.trap !== undefined) trapOverride = currentStoryEvent.data.trap;
+    }
+
+    arena.generate(currentBiomeType, layoutOverride, trapOverride);
 
     // Reset Player Position to Center
     if (player) {
-        player.x = canvas.width / 2;
-        player.y = canvas.height / 2;
+        player.x = arena.width / 2;
+        player.y = arena.height / 2;
     }
     setUIState('GAME');
 }
@@ -2188,7 +2215,7 @@ function startGame(mode = 'NORMAL') {
     player.y = arena.height / 2;
 
     score = 0;
-    wave = 1;
+    wave = 0; // Start at 0, advanceWave will increment to 1
     enemiesKilledInWave = 0;
     bossActive = false;
     enemies = [];
@@ -2222,11 +2249,25 @@ function startGame(mode = 'NORMAL') {
         maxCombo: 0
     };
 
+    // Hide Menus
+    document.getElementById('menu-overlay').style.display = 'none';
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-over-screen').style.display = 'none';
+    document.getElementById('pause-screen').style.display = 'none';
+    document.getElementById('levelup-screen').style.display = 'none';
+    document.getElementById('shop-screen').style.display = 'none';
+
     // Mode Handling
     if (mode === 'NORMAL') {
         isDailyMode = false;
         isWeeklyMode = false;
         activeMutators = [];
+
+        // Trigger Story Intro if enabled
+        if (saveData.story && saveData.story.enabled) {
+            triggerStory(0);
+            return;
+        }
     }
     // Daily/Weekly mode is set in startDailyChallenge/startWeeklyChallenge
 
@@ -2253,17 +2294,8 @@ function startGame(mode = 'NORMAL') {
         }
     }
 
-    currentBiomeType = player.type; // Start in home biome (Updated to use player.type for Black support)
-    arena.generate(currentBiomeType);
-
-    document.getElementById('menu-overlay').style.display = 'none';
-    document.getElementById('start-screen').style.display = 'none';
-    document.getElementById('game-over-screen').style.display = 'none';
-    document.getElementById('pause-screen').style.display = 'none';
-    document.getElementById('levelup-screen').style.display = 'none';
-    document.getElementById('shop-screen').style.display = 'none';
-
-    setUIState('GAME'); // Set State
+    // Start Wave 1
+    advanceWave();
 }
 
 function gameOver() {
@@ -2364,6 +2396,9 @@ const FPS = 60;
 const frameDelay = 1000 / FPS;
 
 function masterLoop(timestamp) {
+    if (typeof audioManager !== 'undefined') {
+        audioManager.update();
+    }
 
     requestAnimationFrame(masterLoop);
 
@@ -2543,8 +2578,13 @@ function masterLoop(timestamp) {
             if (!bossActive && bossDeathTimer === 0 && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
                 bossActive = true;
 
-                // Story Mode Special Boss: Makuta
-                if (saveData.story.enabled && !isDailyMode && !isWeeklyMode && (wave === 50 || wave === 100)) {
+                // Story Mode Special Boss: Makuta (Legacy Check + New Event System)
+                let storyBossId = null;
+                if (currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT' && currentStoryEvent.data) {
+                    storyBossId = currentStoryEvent.data.bossId;
+                }
+
+                if (storyBossId === 'MAKUTA' || (saveData.story.enabled && !isDailyMode && !isWeeklyMode && (wave === 50 || wave === 100))) {
                     showNotification("MAKUTA HAS AWAKENED!");
                     document.getElementById('event-text').innerText = "BOSS: MAKUTA";
                     document.getElementById('event-text').style.display = 'block';
@@ -2556,6 +2596,12 @@ function masterLoop(timestamp) {
                     showNotification("ENTERING SHADOW REALM...");
 
                     enemies.unshift(new Boss('MAKUTA'));
+                } else if (storyBossId === 'GREEN_GOBLIN') {
+                    showNotification("THE GREEN GOBLIN ATTACKS!");
+                    document.getElementById('event-text').innerText = "BOSS: GREEN GOBLIN";
+                    document.getElementById('event-text').style.display = 'block';
+                    setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
+                    enemies.unshift(new Boss('GREEN_GOBLIN'));
                 } else {
                     // Standard Boss Spawning
                     if (Math.random() < 0.05) {
@@ -2571,22 +2617,38 @@ function masterLoop(timestamp) {
 
             if (!bossActive && bossDeathTimer === 0) {
                 let spawnRate = Math.max(5, 40 - (wave * 2));
-                if (frame % spawnRate === 0) {
+                let forcedType = null;
+
+                // Story Override
+                if (currentStoryEvent && currentStoryEvent.type === 'WAVE_OVERRIDE' && currentStoryEvent.data) {
+                    if (currentStoryEvent.data.spawnRateMod) {
+                        spawnRate = Math.max(5, spawnRate * currentStoryEvent.data.spawnRateMod);
+                    }
+                    if (currentStoryEvent.data.forcedEnemyType) {
+                        forcedType = currentStoryEvent.data.forcedEnemyType;
+                    }
+                }
+
+                if (frame % Math.floor(spawnRate) === 0) {
                     let loops = 1;
                     if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
 
                     for (let l = 0; l < loops; l++) {
-                        // Swarm Logic
-                        if (wave > 2 && Math.random() < 0.1) {
-                            for (let i = 0; i < 5; i++) {
-                                const swarm = new Enemy(false, 'SWARM');
-                                // Offset slightly
-                                swarm.x += (Math.random() - 0.5) * 50;
-                                swarm.y += (Math.random() - 0.5) * 50;
-                                enemies.push(swarm);
-                            }
+                        if (forcedType) {
+                            enemies.push(new Enemy(false, forcedType));
                         } else {
-                            enemies.push(new Enemy());
+                            // Swarm Logic
+                            if (wave > 2 && Math.random() < 0.1) {
+                                for (let i = 0; i < 5; i++) {
+                                    const swarm = new Enemy(false, 'SWARM');
+                                    // Offset slightly
+                                    swarm.x += (Math.random() - 0.5) * 50;
+                                    swarm.y += (Math.random() - 0.5) * 50;
+                                    enemies.push(swarm);
+                                }
+                            } else {
+                                enemies.push(new Enemy());
+                            }
                         }
                     }
                 }

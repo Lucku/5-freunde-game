@@ -45,10 +45,39 @@ class Boss {
                 this.speed *= 1.5;
             }
             this.hp = this.maxHp;
+        } else if (this.type === 'GREEN_GOBLIN') {
+            this.color = '#2ecc71';
+            this.speed *= 1.3;
+            this.maxHp *= 0.8;
+            this.hp = this.maxHp;
+            this.magnetStrength = 2.0; // Strong pull
         }
     }
 
     update() {
+        // Green Goblin Magnet
+        if (this.type === 'GREEN_GOBLIN') {
+            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            if (dist < 500) {
+                const pullAngle = Math.atan2(this.y - player.y, this.x - player.x);
+                // Pull player
+                player.x += Math.cos(pullAngle) * this.magnetStrength;
+                player.y += Math.sin(pullAngle) * this.magnetStrength;
+
+                // Visual effect for magnet
+                if (frame % 10 === 0) {
+                    ctx.save();
+                    ctx.strokeStyle = '#2ecc71';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(player.x, player.y);
+                    ctx.lineTo(this.x, this.y);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        }
+
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
         let nextX = this.x;
         let nextY = this.y;
@@ -147,10 +176,18 @@ class Boss {
                             const minion = new Enemy(true);
                             minion.x = this.x + (Math.random() - 0.5) * 100;
                             minion.y = this.y + (Math.random() - 0.5) * 100;
+                            // Force Shadow Type for minions
+                            minion.color = '#333';
+                            minion.hp *= 1.5;
                             enemies.push(minion);
                         }
                     }
-                    this.attackCooldown = 120; // Fast attacks
+                    // Shadow Beam (Aimed at player)
+                    const beamAngle = Math.atan2(player.y - this.y, player.x - this.x);
+                    const beamVel = { x: Math.cos(beamAngle) * 12, y: Math.sin(beamAngle) * 12 };
+                    projectiles.push(new Projectile(this.x, this.y, beamVel, this.damage * 1.5, '#500', 20, 'enemy', 0, true));
+
+                    this.attackCooldown = 100; // Slightly slower to account for intensity
                 } else if (this.type === 'SUMMONER') {
                     for (let i = 0; i < 3; i++) enemies.push(new Enemy(true));
                     this.attackCooldown = 200;
@@ -171,6 +208,16 @@ class Boss {
                         projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#27ae60', 10, 'enemy', 0, true));
                     }
                     this.attackCooldown = 60;
+                } else if (this.type === 'GREEN_GOBLIN') {
+                    // Explosive Pumpkin Bombs
+                    for (let i = 0; i < 3; i++) {
+                        const spread = (Math.random() - 0.5) * 0.5;
+                        const a = Math.atan2(player.y - this.y, player.x - this.x) + spread;
+                        const vel = { x: Math.cos(a) * 9, y: Math.sin(a) * 9 };
+                        // Orange projectiles that look like bombs
+                        projectiles.push(new Projectile(this.x, this.y, vel, this.damage * 1.2, '#e67e22', 12, 'enemy', 0, true));
+                    }
+                    this.attackCooldown = 90;
                 }
             } else { this.attackCooldown--; }
         }
@@ -185,6 +232,7 @@ class Boss {
         if (this.type === 'SUMMONER') sides = 4;
         if (this.type === 'NOVA') sides = 8;
         if (this.type === 'HYDRA') sides = 5;
+        if (this.type === 'GREEN_GOBLIN') sides = 3;
 
         for (let i = 0; i < sides; i++) {
             ctx.lineTo(this.radius * Math.cos(i * 2 * Math.PI / sides), this.radius * Math.sin(i * 2 * Math.PI / sides));

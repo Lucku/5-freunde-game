@@ -88,6 +88,8 @@ class Enemy {
             this.radius = 18; this.color = '#27ae60'; this.sides = 6; this.shootCooldown = 20; // Trail timer
         } else if (this.subType === 'SHIELDER') {
             this.radius = 25; this.hp *= 3; this.speed *= 0.4; this.color = '#7f8c8d'; this.sides = 4;
+        } else if (this.subType === 'GOBLIN') {
+            this.radius = 12; this.hp *= 0.6; this.speed *= 1.3; this.color = '#2ecc71'; this.sides = 3; this.damage *= 0.8;
         }
 
         // --- MUTATOR MODIFIERS ---

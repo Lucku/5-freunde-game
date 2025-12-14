@@ -23,14 +23,17 @@ class Arena {
         }
     }
 
-    generate(biomeType) {
+    generate(biomeType, layoutOverride = null, trapOverride = null) {
         this.obstacles = [];
         this.biomeZones = [];
-        const layout = Math.floor(Math.random() * 5);
+        const layout = layoutOverride !== null ? layoutOverride : Math.floor(Math.random() * 8);
         const cx = this.width / 2;
         const cy = this.height / 2;
 
-        console.log(`Generating Arena: Layout ${layout}, Biome ${biomeType}, Size ${this.width}x${this.height}`);
+        // Access global wave variable
+        const currentWave = typeof wave !== 'undefined' ? wave : 1;
+
+        console.log(`Generating Arena: Layout ${layout}, Biome ${biomeType}, Size ${this.width}x${this.height}, Wave ${currentWave}`);
 
         // --- Biome Generation ---
         if (biomeType === 'fire') {
@@ -87,6 +90,36 @@ class Arena {
                     this.obstacles.push(new Obstacle(x, y, 100, 100));
                 }
             }
+        } else if (layout === 5) { // Maze-like
+            const cellSize = 200;
+            for (let x = 100; x < w - 100; x += cellSize) {
+                for (let y = 100; y < h - 100; y += cellSize) {
+                    if (Math.random() < 0.3 && Math.hypot(x - cx, y - cy) > 300) {
+                        this.obstacles.push(new Obstacle(x, y, 100, 100));
+                    }
+                }
+            }
+        } else if (layout === 6) { // Arena Ring
+            const radius = 600;
+            const count = 12;
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 / count) * i;
+                const x = cx + Math.cos(angle) * radius;
+                const y = cy + Math.sin(angle) * radius;
+                this.obstacles.push(new Obstacle(x - 50, y - 50, 100, 100));
+            }
+        } else if (layout === 7) { // Checkerboard
+            const size = 300;
+            for (let x = 0; x < w; x += size) {
+                for (let y = 0; y < h; y += size) {
+                    if ((Math.floor(x / size) + Math.floor(y / size)) % 2 === 0) {
+                        if (Math.hypot(x + size / 2 - cx, y + size / 2 - cy) > 400) {
+                            // 50% chance for obstacle, 50% for trap (handled later)
+                            if (Math.random() < 0.5) this.obstacles.push(new Obstacle(x + 50, y + 50, 200, 200));
+                        }
+                    }
+                }
+            }
         }
 
         // Ensure spawn area is clear
@@ -102,10 +135,35 @@ class Arena {
         // --- Trap Generation ---
         this.traps = [];
         const trapCount = 5 + Math.floor(Math.random() * 5);
+
+        // Trap Progression System
+        let availableTraps = ['SLOW']; // Wave 1-4: Only Slow Traps
+        if (currentWave >= 5) availableTraps.push('CONVEYOR');
+        if (currentWave >= 10) availableTraps.push('SPIKE');
+        if (currentWave >= 15) availableTraps.push('TURRET');
+        if (currentWave >= 20) availableTraps.push('LASER_BEAM');
+
         for (let i = 0; i < trapCount; i++) {
             const pos = this.getRandomSafePosition(50);
-            const type = ['SLOW', 'CONVEYOR'][Math.floor(Math.random() * 2)];
-            this.traps.push(new Trap(pos.x, pos.y, type));
+            const type = trapOverride ? trapOverride : availableTraps[Math.floor(Math.random() * availableTraps.length)];
+            const newTrap = new Trap(pos.x, pos.y, type);
+            this.traps.push(newTrap);
+
+            // Add Obstacles for Turrets and Laser Beams
+            if (type === 'TURRET' || type === 'LASER_BEAM') {
+                this.obstacles.push(new Obstacle(pos.x, pos.y, newTrap.w, newTrap.h));
+            }
+        }
+
+        // Always add a Teleporter pair if layout is Maze-like
+        if (layout === 5) {
+            const p1 = this.getRandomSafePosition(50);
+            const p2 = this.getRandomSafePosition(50);
+            const t1 = new Trap(p1.x, p1.y, 'TELEPORTER');
+            const t2 = new Trap(p2.x, p2.y, 'TELEPORTER');
+            t1.pair = t2;
+            t2.pair = t1;
+            this.traps.push(t1, t2);
         }
     }
 
@@ -167,12 +225,56 @@ class Arena {
             const dy = player.y - (trap.y + trap.h / 2);
             if (Math.abs(dx) < trap.w / 2 && Math.abs(dy) < trap.h / 2) {
                 if (trap.type === 'SPIKE' && trap.active) {
-                    if (frame % 60 === 0) player.hp -= 10; // Damage every second if active
+                    if (frame % 60 === 0) {
+                        player.hp -= 10; // Damage every second if active
+                        floatingTexts.push(new FloatingText(player.x, player.y - 20, "10", "#e74c3c", 20));
+                    }
                 } else if (trap.type === 'SLOW') {
                     player.trapSpeedMod = 0.5; // Slow down
                 } else if (trap.type === 'CONVEYOR') {
                     player.x += trap.vx;
                     player.y += trap.vy;
+                } else if (trap.type === 'TELEPORTER' && trap.active && trap.pair) {
+                    // Teleport
+                    createExplosion(player.x, player.y, '#3498db');
+                    player.x = trap.pair.x + trap.pair.w / 2;
+                    player.y = trap.pair.y + trap.pair.h / 2;
+                    createExplosion(player.x, player.y, '#3498db');
+                    trap.active = false; // Cooldown
+                    trap.pair.active = false;
+                    trap.timer = 180; // 3 seconds cooldown
+                    trap.pair.timer = 180;
+                }
+            }
+
+            // Laser Beam Collision (Line vs Circle)
+            if (trap.type === 'LASER_BEAM') {
+                // Simple check: distance from point to line segment
+                // Laser rotates around center
+                const cx = trap.x + trap.w / 2;
+                const cy = trap.y + trap.h / 2;
+                const lx = cx + Math.cos(trap.angle) * 200;
+                const ly = cy + Math.sin(trap.angle) * 200;
+
+                // Check collision with player
+                // Vector from start to end
+                const dx = lx - cx;
+                const dy = ly - cy;
+                // Vector from start to player
+                const px = player.x - cx;
+                const py = player.y - cy;
+
+                const t = Math.max(0, Math.min(1, (px * dx + py * dy) / (dx * dx + dy * dy)));
+                const closestX = cx + t * dx;
+                const closestY = cy + t * dy;
+
+                const dist = Math.hypot(player.x - closestX, player.y - closestY);
+                if (dist < player.radius + 5) {
+                    if (frame % 10 === 0) {
+                        player.hp -= 2;
+                        createExplosion(player.x, player.y, '#e74c3c');
+                        floatingTexts.push(new FloatingText(player.x, player.y - 20, "2", "#e74c3c", 20));
+                    }
                 }
             }
         });
@@ -332,6 +434,13 @@ class Trap {
         } else if (this.type === 'SPIKE') {
             this.timer = Math.random() * 200;
             this.active = false;
+        } else if (this.type === 'TURRET') {
+            this.timer = Math.random() * 100;
+        } else if (this.type === 'LASER_BEAM') {
+            this.angle = Math.random() * Math.PI * 2;
+        } else if (this.type === 'TELEPORTER') {
+            this.active = true;
+            this.timer = 0;
         }
     }
 
@@ -341,6 +450,25 @@ class Trap {
             if (this.timer > 200) { // Cycle every ~3 seconds
                 this.active = !this.active;
                 this.timer = 0;
+            }
+        } else if (this.type === 'TURRET') {
+            this.timer++;
+            if (this.timer > 120) { // Shoot every 2 seconds
+                // Find nearest player (only 1 player for now)
+                // Assuming 'player' and 'projectiles' are global
+                if (typeof player !== 'undefined' && typeof projectiles !== 'undefined') {
+                    const angle = Math.atan2(player.y - (this.y + this.h / 2), player.x - (this.x + this.w / 2));
+                    const vel = { x: Math.cos(angle) * 5, y: Math.sin(angle) * 5 };
+                    projectiles.push(new Projectile(this.x + this.w / 2, this.y + this.h / 2, vel, 10, '#e74c3c', 8, 'enemy', 0, true));
+                }
+                this.timer = 0;
+            }
+        } else if (this.type === 'LASER_BEAM') {
+            this.angle += 0.02; // Rotate
+        } else if (this.type === 'TELEPORTER') {
+            if (!this.active) {
+                this.timer--;
+                if (this.timer <= 0) this.active = true;
             }
         }
     }
@@ -401,6 +529,46 @@ class Trap {
             // Subtle Wind
             ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
             ctx.fillRect(0, 0, this.w, this.h);
+        } else if (this.type === 'TURRET') {
+            // Base
+            ctx.fillStyle = '#7f8c8d';
+            ctx.beginPath(); ctx.arc(this.w / 2, this.h / 2, 30, 0, Math.PI * 2); ctx.fill();
+            // Barrel (aims at player if possible, else static)
+            ctx.strokeStyle = '#34495e'; ctx.lineWidth = 8;
+            ctx.beginPath(); ctx.moveTo(this.w / 2, this.h / 2);
+            // Simple visual aim
+            let angle = 0;
+            if (typeof player !== 'undefined') angle = Math.atan2(player.y - (this.y + this.h / 2), player.x - (this.x + this.w / 2));
+            ctx.lineTo(this.w / 2 + Math.cos(angle) * 40, this.h / 2 + Math.sin(angle) * 40);
+            ctx.stroke();
+        } else if (this.type === 'LASER_BEAM') {
+            // Base
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(this.w / 2 - 10, this.h / 2 - 10, 20, 20);
+            // Beam
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(this.w / 2, this.h / 2);
+            ctx.lineTo(this.w / 2 + Math.cos(this.angle) * 200, this.h / 2 + Math.sin(this.angle) * 200);
+            ctx.stroke();
+            // Glow
+            ctx.strokeStyle = 'rgba(231, 76, 60, 0.3)';
+            ctx.lineWidth = 10;
+            ctx.stroke();
+        } else if (this.type === 'TELEPORTER') {
+            ctx.fillStyle = this.active ? 'rgba(52, 152, 219, 0.5)' : 'rgba(52, 152, 219, 0.1)';
+            ctx.beginPath(); ctx.arc(this.w / 2, this.h / 2, 40, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#3498db'; ctx.lineWidth = 2;
+            ctx.stroke();
+            // Swirl effect
+            if (this.active) {
+                ctx.save();
+                ctx.translate(this.w / 2, this.h / 2);
+                ctx.rotate(Date.now() / 500);
+                ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 1.5); ctx.stroke();
+                ctx.restore();
+            }
         }
         ctx.restore();
 

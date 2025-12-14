@@ -684,6 +684,21 @@ class Player {
             ctx.stroke();
         }
 
+        // Metal Hero Invincibility Visual
+        if (this.type === 'metal' && this.invincibleTimer > 0) {
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 5, 0, Math.PI * 2);
+            ctx.strokeStyle = '#bdc3c7'; // Silver/Metal color
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]); // Dashed line for shield effect
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset dash
+
+            // Inner glow
+            ctx.fillStyle = 'rgba(189, 195, 199, 0.3)';
+            ctx.fill();
+        }
+
         // Transformation Visuals
         if (this.transformActive) {
             ctx.beginPath(); ctx.arc(0, 0, this.radius + 15, 0, Math.PI * 2);
