@@ -836,9 +836,8 @@ class Player {
                     const isExtraCrit = Math.random() < this.critChance;
                     const extraDmg = dmg * (isExtraCrit ? this.critMultiplier : 1);
 
-                    const offsetX = this.x - (vel.x * (i * 3));
-                    const offsetY = this.y - (vel.y * (i * 3));
-                    const extraProj = new Projectile(offsetX, offsetY, vel, extraDmg, this.stats.color, size, this.type, knockback, false, false, isExtraCrit);
+                    // Spawn exactly at hero position
+                    const extraProj = new Projectile(this.x, this.y, vel, extraDmg, this.stats.color, size, this.type, knockback, false, false, isExtraCrit);
                     if (pierce > 0) extraProj.pierce = pierce;
                     projectiles.push(extraProj);
                     currentRunStats.missilesFired++; // Track Missiles
