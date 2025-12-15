@@ -100,6 +100,13 @@ voidTiers.forEach(t => addAch(`void_${t[0]}`, t[1], `Spend ${t[0]} Gold in Void 
 // 12. Special Achievements
 addAch('MAKUTA_SLAYER', 'Makuta Slayer', 'Defeat Makuta in Story Mode.', 1, 'makuta_kills', 'damage', 0.10, '+10% Dmg');
 
+// Story Completion Achievements (Per Hero)
+addAch('STORY_FIRE', 'Fire Champion', 'Complete Story Mode with Fire Hero.', 1, 'story_fire', 'damage', 0.05, '+5% Dmg');
+addAch('STORY_WATER', 'Water Champion', 'Complete Story Mode with Water Hero.', 1, 'story_water', 'health', 0.05, '+5% HP');
+addAch('STORY_ICE', 'Ice Champion', 'Complete Story Mode with Ice Hero.', 1, 'story_ice', 'cooldown', 0.05, '-5% CD');
+addAch('STORY_PLANT', 'Plant Champion', 'Complete Story Mode with Plant Hero.', 1, 'story_plant', 'health', 0.05, '+5% HP');
+addAch('STORY_METAL', 'Metal Champion', 'Complete Story Mode with Metal Hero.', 1, 'story_metal', 'defense', 0.05, '+5% Def');
+
 // Makuta Hard Mode Achievements (1-10)
 for (let i = 1; i <= 10; i++) {
     addAch(`MAKUTA_HM_${i}`, `Makuta Hard Mode ${i}`, `Defeat Makuta with Prestige ${i}+.`, 1, `makuta_hm_${i}`, 'damage', 0.05, '+5% Dmg');

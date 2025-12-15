@@ -227,6 +227,17 @@
         <button class="btn" onclick="closeCollection()">Back to Menu</button>
     </div>
 
+    <!-- Completion Screen -->
+    <div id="completion-screen"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#111; z-index:2000; flex-direction:column; align-items:center; padding:20px; overflow-y:auto;">
+        <h1 style="color:#f1c40f; font-size:40px; margin-bottom:10px;">COMPLETION TRACKER</h1>
+        <div id="completion-grid"
+            style="width: 100%; max-width: 1000px; display: flex; flex-direction: column; align-items: center; gap: 30px;">
+            <!-- Generated via JS -->
+        </div>
+        <button class="btn" onclick="closeCompletion()" style="margin-top: 30px;">Back to Menu</button>
+    </div>
+
     <!-- Main Menu -->
     <div id="menu-overlay">
         <div id="start-screen">
@@ -269,6 +280,7 @@
                     <button class="btn btn-gold" onclick="openAchievements()">Achievements</button>
                     <button class="btn btn-gold" onclick="openHighScores()">High Scores</button>
                     <button class="btn btn-blue" onclick="openStats()">Statistics</button>
+                    <button class="btn btn-blue" onclick="openCompletion()">Completion</button>
                     <button class="btn btn-blue" onclick="Tutorial.open()">Tutorial</button>
 
                     <h3 style="margin-top: 20px;">System</h3>
@@ -363,6 +375,7 @@
     <script src="Companion.js"></script>
     <script src="MemoryStories.js"></script>
     <script src="MemoryShard.js"></script>
+    <script src="CompletionMenu.js"></script>
     <script src="AudioManager.js"></script>
     <script src="game.js"></script>
 </body>

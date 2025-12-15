@@ -574,6 +574,20 @@ function renderStatsScreen() {
     `;
 }
 
+// --- Completion Menu Logic ---
+window.openCompletion = function () {
+    document.getElementById('menu-overlay').style.display = 'none';
+    document.getElementById('completion-screen').style.display = 'flex';
+    const menu = new CompletionMenu();
+    menu.render();
+    setUIState('COMPLETION');
+}
+
+window.closeCompletion = function () {
+    document.getElementById('completion-screen').style.display = 'none';
+    initMenu();
+}
+
 function getFocusables() {
     let screenId = '';
     if (uiState === 'MENU') screenId = 'start-screen';
@@ -592,6 +606,7 @@ function getFocusables() {
     else if (uiState === 'ALTAR') screenId = 'altar-screen';
     else if (uiState === 'CHAOSSHOP') screenId = 'chaos-shop-screen';
     else if (uiState === 'TUTORIAL') screenId = 'tutorial-screen';
+    else if (uiState === 'COMPLETION') screenId = 'completion-screen';
 
     if (!screenId) return [];
     const screen = document.getElementById(screenId);
@@ -3523,6 +3538,13 @@ function masterLoop(timestamp) {
                         // True Golden Mask Drop (Makuta Wave 100+)
                         if (enemy.type === 'MAKUTA' && wave >= 100) {
                             holyMasks.push(new HolyMask(enemy.x, enemy.y, true));
+
+                            // Unlock Hero Story Achievement
+                            if (player.type === 'fire') unlockAchievement('STORY_FIRE');
+                            if (player.type === 'water') unlockAchievement('STORY_WATER');
+                            if (player.type === 'ice') unlockAchievement('STORY_ICE');
+                            if (player.type === 'plant') unlockAchievement('STORY_PLANT');
+                            if (player.type === 'metal') unlockAchievement('STORY_METAL');
                         }
 
                         enemies.splice(eIndex, 1);
