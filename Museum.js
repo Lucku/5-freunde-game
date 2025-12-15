@@ -8,12 +8,14 @@ class Museum {
         this.rooms = [];
         this.artifacts = [];
         this.cards = [];
+        this.decorations = []; // New Decorations Array
         this.scrollY = 0;
 
         // Player Avatar in Museum (defaults to selected hero)
         this.player = { x: 1200, y: 1600, radius: 20, speed: 5, type: selectedHeroType, angle: 0 };
 
         this.generateLayout();
+        this.generateDecorations(); // Generate Decorations
         this.spawnEntities();
     }
 
@@ -63,6 +65,47 @@ class Museum {
             { name: 'metal', x: 1800, y: 650, w: 550, h: 1100, color: '#1a1a1a' }, // Right Wing
             { name: 'gallery', x: 650, y: 650, w: 1100, h: 1100, color: '#333' } // Central/Main
         ];
+    }
+
+    generateDecorations() {
+        this.decorations = [];
+
+        this.rooms.forEach(room => {
+            // 1. Rugs (Center of room)
+            this.decorations.push({
+                type: 'RUG',
+                x: room.x + room.w / 2,
+                y: room.y + room.h / 2,
+                w: room.w * 0.8,
+                h: room.h * 0.8,
+                color: shadeColor(room.color, 10) // Slightly lighter than floor
+            });
+
+            // 2. Pillars (Corners, inset)
+            const inset = 60;
+            this.decorations.push({ type: 'PILLAR', x: room.x + inset, y: room.y + inset, color: shadeColor(room.color, -30) });
+            this.decorations.push({ type: 'PILLAR', x: room.x + room.w - inset, y: room.y + inset, color: shadeColor(room.color, -30) });
+            this.decorations.push({ type: 'PILLAR', x: room.x + inset, y: room.y + room.h - inset, color: shadeColor(room.color, -30) });
+            this.decorations.push({ type: 'PILLAR', x: room.x + room.w - inset, y: room.y + room.h - inset, color: shadeColor(room.color, -30) });
+
+            // 3. Specific Room Decor
+            if (room.name === 'fire') {
+                this.decorations.push({ type: 'FLAME', x: room.x + room.w / 2, y: room.y + 100 });
+                this.decorations.push({ type: 'FLAME', x: room.x + 100, y: room.y + room.h / 2 });
+                this.decorations.push({ type: 'FLAME', x: room.x + room.w - 100, y: room.y + room.h / 2 });
+            } else if (room.name === 'water') {
+                this.decorations.push({ type: 'FOUNTAIN', x: room.x + room.w / 2, y: room.y + room.h / 2 });
+            } else if (room.name === 'plant') {
+                this.decorations.push({ type: 'PLANT_POT', x: room.x + 100, y: room.y + 100 });
+                this.decorations.push({ type: 'PLANT_POT', x: room.x + room.w - 100, y: room.y + 100 });
+                this.decorations.push({ type: 'PLANT_POT', x: room.x + 100, y: room.y + room.h - 100 });
+                this.decorations.push({ type: 'PLANT_POT', x: room.x + room.w - 100, y: room.y + room.h - 100 });
+            }
+        });
+
+        // Hallway Benches
+        this.decorations.push({ type: 'BENCH', x: 750, y: 1400, w: 30, h: 80, angle: 0 });
+        this.decorations.push({ type: 'BENCH', x: 1620, y: 1400, w: 30, h: 80, angle: 0 });
     }
 
     spawnEntities() {
@@ -281,6 +324,9 @@ class Museum {
             ctx.strokeRect(w.x, w.y, w.w, w.h);
         });
 
+        // Draw Decorations
+        this.drawDecorations(ctx);
+
         // Draw Entities
         this.entities.forEach(e => e.draw(ctx));
 
@@ -326,6 +372,52 @@ class Museum {
         ctx.font = '20px Arial';
         ctx.textAlign = 'center';
         ctx.fillText("MUSEUM - Press ESC or B to Exit", canvas.width / 2, 30);
+    }
+
+    drawDecorations(ctx) {
+        this.decorations.forEach(d => {
+            ctx.save();
+            if (d.type === 'RUG') {
+                ctx.fillStyle = d.color;
+                ctx.fillRect(d.x - d.w / 2, d.y - d.h / 2, d.w, d.h);
+                ctx.strokeStyle = shadeColor(d.color, 20);
+                ctx.lineWidth = 4;
+                ctx.strokeRect(d.x - d.w / 2, d.y - d.h / 2, d.w, d.h);
+            } else if (d.type === 'PILLAR') {
+                ctx.fillStyle = d.color;
+                ctx.beginPath(); ctx.arc(d.x, d.y, 25, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath(); ctx.arc(d.x + 5, d.y + 5, 25, 0, Math.PI * 2); ctx.fill(); // Shadow
+                ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.stroke();
+            } else if (d.type === 'BENCH') {
+                ctx.fillStyle = '#5d4037';
+                ctx.fillRect(d.x, d.y, d.w, d.h);
+                ctx.fillStyle = '#3e2723';
+                ctx.fillRect(d.x + 4, d.y + 4, d.w - 8, d.h - 8);
+            } else if (d.type === 'FOUNTAIN') {
+                ctx.fillStyle = '#3498db';
+                ctx.beginPath(); ctx.arc(d.x, d.y, 60, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#85c1e9';
+                ctx.beginPath(); ctx.arc(d.x, d.y, 45, 0, Math.PI * 2); ctx.fill();
+                // Water effect
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.beginPath(); ctx.arc(d.x, d.y, 30 + Math.sin(Date.now() * 0.005) * 5, 0, Math.PI * 2); ctx.fill();
+            } else if (d.type === 'FLAME') {
+                ctx.fillStyle = '#c0392b';
+                ctx.beginPath(); ctx.arc(d.x, d.y, 20, 0, Math.PI * 2); ctx.fill(); // Base
+                ctx.fillStyle = '#f1c40f';
+                const flicker = Math.random() * 5;
+                ctx.beginPath(); ctx.arc(d.x, d.y - 10, 15 + flicker, 0, Math.PI * 2); ctx.fill(); // Flame
+            } else if (d.type === 'PLANT_POT') {
+                ctx.fillStyle = '#795548'; // Pot
+                ctx.beginPath(); ctx.arc(d.x, d.y, 15, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#2ecc71'; // Leaves
+                ctx.beginPath(); ctx.arc(d.x, d.y - 10, 20, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#27ae60';
+                ctx.beginPath(); ctx.arc(d.x - 5, d.y - 15, 15, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        });
     }
 
     drawArtifact(ctx, x, y, type) {
