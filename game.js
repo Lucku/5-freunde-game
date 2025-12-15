@@ -2206,6 +2206,8 @@ function triggerStory(completedWave) {
     }
 }
 
+let currentStoryAudio = null;
+
 function openStory(story) {
     isStoryOpen = true;
     document.getElementById('story-screen').style.display = 'flex';
@@ -2218,11 +2220,34 @@ function openStory(story) {
         saveData.story.unlockedChapters.push(story.id);
         saveGame();
     }
+
+    // Play Story Audio
+    if (currentStoryAudio) {
+        currentStoryAudio.pause();
+        currentStoryAudio = null;
+    }
+
+    const audioPath = `music/story/${story.id}.mp3`;
+    currentStoryAudio = new Audio(audioPath);
+    // Optional: Adjust volume based on AudioManager settings if accessible, or default to 1.0
+    // currentStoryAudio.volume = 1.0; 
+
+    currentStoryAudio.play().catch(e => {
+        // Audio file likely doesn't exist, ignore error
+        // console.log("No audio found for story event:", story.id);
+    });
 }
 
 function closeStory() {
     isStoryOpen = false;
     document.getElementById('story-screen').style.display = 'none';
+
+    // Stop Story Audio
+    if (currentStoryAudio) {
+        currentStoryAudio.pause();
+        currentStoryAudio.currentTime = 0;
+        currentStoryAudio = null;
+    }
 
     // Proceed to Shop or Next Wave
     // Special case: If wave is 0 (Intro), always advance to Wave 1
