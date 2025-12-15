@@ -89,11 +89,11 @@ class Companion {
         if (this.type === 'fire' && this.player.type === 'ice') {
             // Thermal Shock: High Damage to frozen enemies
             if (target.frozenTimer > 0) {
-                createDamageNumber(target.x, target.y, 50, '#e74c3c');
+                floatingTexts.push(new FloatingText(target.x, target.y, 50, '#e74c3c', 20));
                 target.hp -= 50;
                 target.frozenTimer = 0; // Melt
             } else {
-                createDamageNumber(target.x, target.y, 10, '#e74c3c');
+                floatingTexts.push(new FloatingText(target.x, target.y, 10, '#e74c3c', 15));
                 target.hp -= 10;
             }
         }
@@ -102,7 +102,7 @@ class Companion {
             if (target === this.player) {
                 if (this.player.hp < this.player.maxHp) {
                     this.player.hp = Math.min(this.player.hp + 5, this.player.maxHp);
-                    createDamageNumber(this.player.x, this.player.y, 5, '#2ecc71'); // Green number for heal
+                    floatingTexts.push(new FloatingText(this.player.x, this.player.y, "+5", '#2ecc71', 15)); // Green number for heal
                 }
             }
         }
@@ -110,7 +110,7 @@ class Companion {
         else {
             if (target !== this.player) {
                 target.hp -= 15;
-                createDamageNumber(target.x, target.y, 15, this.color);
+                floatingTexts.push(new FloatingText(target.x, target.y, 15, this.color, 15));
             }
         }
     }
@@ -119,7 +119,7 @@ class Companion {
         if (!this.active) return;
 
         ctx.save();
-        ctx.globalAlpha = 0.6; // Ghostly/Holographic
+        ctx.globalAlpha = 0.8; // Less ghostly, more solid
 
         // Tether to player
         ctx.beginPath();
@@ -131,7 +131,7 @@ class Companion {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Draw Companion
+        // Draw Companion Body
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = this.color;
@@ -144,6 +144,14 @@ class Companion {
         ctx.shadowBlur = 10;
         ctx.shadowColor = this.color;
         ctx.fill();
+
+        // Draw Visor
+        ctx.beginPath();
+        // Visor is a smaller rectangle or arc on the "face"
+        // Assuming they face the player or movement direction? 
+        // Let's just put it in the center for now, maybe a horizontal slit
+        ctx.fillStyle = '#000'; // Black visor
+        ctx.fillRect(this.x - 10, this.y - 4, 20, 8);
 
         ctx.restore();
     }

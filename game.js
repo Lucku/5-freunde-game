@@ -1495,6 +1495,12 @@ window.addEventListener('keydown', e => {
             showNotification("DEBUG: BOSS SPAWNED");
         }
 
+        // DEBUG: Toggle Invincibility with 'I'
+        if (e.code === 'KeyI' && gameRunning && !gamePaused) {
+            player.isInvincible = !player.isInvincible;
+            showNotification(`DEBUG: INVINCIBILITY ${player.isInvincible ? 'ON' : 'OFF'}`);
+        }
+
         // DEBUG: Jump to Wave/Chapter with 'J'
         if (e.code === 'KeyJ' && gameRunning && !gamePaused) {
             const input = prompt("Jump to Wave (Story Chapter):", wave + 1);
@@ -1872,15 +1878,27 @@ class CardDrop {
 }
 
 class HolyMask {
-    constructor(x, y) {
+    constructor(x, y, isTrueGolden = false) {
         this.x = x; this.y = y; this.radius = 20; this.angle = 0;
+        this.isTrueGolden = isTrueGolden;
     }
     draw() {
         this.angle += 0.05;
         ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
-        ctx.fillStyle = '#f1c40f'; // Gold
-        ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+
+        if (this.isTrueGolden) {
+            // True Golden Mask Visuals
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#f1c40f';
+            ctx.fillStyle = '#fff'; // White hot center
+            ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 4; ctx.stroke();
+        } else {
+            ctx.fillStyle = '#f1c40f'; // Gold
+            ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+        }
+
         // Eyes
         ctx.fillStyle = 'black';
         ctx.beginPath(); ctx.arc(-5, -2, 3, 0, Math.PI * 2); ctx.fill();
@@ -2282,20 +2300,31 @@ function advanceWave() {
     }
 
     // Story Mode Companion Spawning
-    if (saveData.story && saveData.story.enabled && !isDailyMode && !isWeeklyMode) {
-        if (wave === 10 || wave === 20 || wave === 30) {
-            let companionType = null;
-            // Determine companion based on player type for synergy
-            if (player.type === 'ice') companionType = 'fire';
-            else if (player.type === 'fire') companionType = 'ice';
-            else if (player.type === 'metal') companionType = 'plant';
-            else if (player.type === 'plant') companionType = 'metal';
-            else if (player.type === 'water') companionType = 'plant'; // Fallback synergy
-            else companionType = 'fire'; // Default
+    if (currentStoryEvent && currentStoryEvent.type === 'COMPANION_JOIN') {
+        let availableTypes = ['fire', 'water', 'ice', 'plant', 'metal'];
+        // Remove player type
+        if (player) {
+            availableTypes = availableTypes.filter(t => t !== player.type);
+        }
+        // Remove existing companions
+        companions.forEach(c => {
+            availableTypes = availableTypes.filter(t => t !== c.type);
+        });
 
-            // Spawn Companion
-            companions.push(new Companion(companionType, player));
-            showNotification(`${companionType.toUpperCase()} FRIEND JOINED!`);
+        if (availableTypes.length > 0) {
+            let pickedType = availableTypes[0]; // Default
+
+            // Synergy Preference - Only for the first companion
+            if (companions.length === 0) {
+                if (player.type === 'ice' && availableTypes.includes('fire')) pickedType = 'fire';
+                else if (player.type === 'fire' && availableTypes.includes('ice')) pickedType = 'ice';
+                else if (player.type === 'metal' && availableTypes.includes('plant')) pickedType = 'plant';
+                else if (player.type === 'plant' && availableTypes.includes('metal')) pickedType = 'metal';
+                else if (player.type === 'water' && availableTypes.includes('plant')) pickedType = 'plant'; // Fallback synergy
+            }
+
+            companions.push(new Companion(pickedType, player));
+            showNotification(`${pickedType.toUpperCase()} FRIEND JOINED!`);
         }
     }
 
@@ -2633,9 +2662,11 @@ function masterLoop(timestamp) {
                     } else {
                         // Damage if outside
                         if (frame % 60 === 0) {
-                            player.hp -= 5;
-                            currentRunStats.damageTaken += 5;
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "STORM!", "#3498db", 20));
+                            if (!player.isInvincible) {
+                                player.hp -= 5;
+                                currentRunStats.damageTaken += 5;
+                                floatingTexts.push(new FloatingText(player.x, player.y - 20, "STORM!", "#3498db", 20));
+                            }
                             if (player.hp <= 0) gameOver();
                         }
                     }
@@ -2658,7 +2689,7 @@ function masterLoop(timestamp) {
                 } else if (currentObjective.type === 'IRON_WILL') {
                     // Decay HP
                     if (frame % 60 === 0) {
-                        player.hp -= 2; // Lose 2 HP per second
+                        if (!player.isInvincible) player.hp -= 2; // Lose 2 HP per second
                         if (player.hp <= 0) {
                             currentObjective.state = 'FAILED';
                             gameOver();
@@ -2845,9 +2876,11 @@ function masterLoop(timestamp) {
                 } else {
                     // Weather Effects
                     if (currentWeather.id === 'HEATWAVE' && frame % 60 === 0) {
-                        player.hp -= 1;
-                        floatingTexts.push(new FloatingText(player.x, player.y - 20, "1", "#e74c3c", 20));
-                        currentRunStats.damageTaken += 1; // Track Damage
+                        if (!player.isInvincible) {
+                            player.hp -= 1;
+                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "1", "#e74c3c", 20));
+                            currentRunStats.damageTaken += 1; // Track Damage
+                        }
                         enemies.forEach(e => e.hp -= 1);
                     }
                     if (currentWeather.id === 'MAGNETIC') {
@@ -2990,9 +3023,11 @@ function masterLoop(timestamp) {
 
                         if (zone.type === 'LAVA' && frame % 60 === 0) {
                             const lavaDmg = 5 * (1 - player.damageReduction);
-                            player.hp -= lavaDmg;
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.floor(lavaDmg), "#e74c3c", 20));
-                            currentRunStats.damageTaken += 5;
+                            if (!player.isInvincible) {
+                                player.hp -= lavaDmg;
+                                floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.floor(lavaDmg), "#e74c3c", 20));
+                                currentRunStats.damageTaken += 5;
+                            }
                             createExplosion(player.x, player.y, '#e74c3c');
                             showNotification("BURNING!");
                         }
@@ -3046,8 +3081,34 @@ function masterLoop(timestamp) {
 
                     // Save Memory
                     if (!saveData.memories) saveData.memories = {};
-                    if (!saveData.memories[player.type]) saveData.memories[player.type] = 0;
-                    saveData.memories[player.type]++;
+
+                    // Migration: Convert number to array if needed
+                    if (typeof saveData.memories[player.type] === 'number') {
+                        const count = saveData.memories[player.type];
+                        saveData.memories[player.type] = [];
+                        for (let i = 0; i < count; i++) saveData.memories[player.type].push(i);
+                    }
+
+                    if (!saveData.memories[player.type]) saveData.memories[player.type] = [];
+
+                    const unlockedIndices = saveData.memories[player.type];
+                    const allStories = MEMORY_STORIES[player.type] || [];
+                    const availableIndices = [];
+                    for (let i = 0; i < allStories.length; i++) {
+                        if (!unlockedIndices.includes(i)) availableIndices.push(i);
+                    }
+
+                    if (availableIndices.length > 0) {
+                        const newIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+                        saveData.memories[player.type].push(newIndex);
+
+                        // Show Story Text
+                        const storyText = allStories[newIndex];
+                        showNotification(`MEMORY: "${storyText}"`);
+                    } else {
+                        showNotification("MEMORY RECOVERED! (All collected)");
+                    }
+
                     saveGame();
                 }
             });
@@ -3126,10 +3187,23 @@ function masterLoop(timestamp) {
                 mask.draw();
                 const dist = Math.hypot(player.x - mask.x, player.y - mask.y);
                 if (dist < player.radius + 20) {
-                    saveData[player.type].level++;
-                    saveGame();
-                    showNotification("PERMANENT LEVEL UP!");
-                    createExplosion(player.x, player.y, '#f1c40f');
+                    if (mask.isTrueGolden) {
+                        // True Golden Mask Effect
+                        player.damageMultiplier += 0.5; // +50% Damage
+                        player.speedMultiplier += 0.2; // +20% Speed
+                        player.maxHp += 50;
+                        player.hp += 50;
+                        player.cooldownMultiplier *= 0.8; // -20% Cooldown
+
+                        showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
+                        createExplosion(player.x, player.y, '#fff');
+                        // Unlock Achievement if exists?
+                    } else {
+                        saveData[player.type].level++;
+                        saveGame();
+                        showNotification("PERMANENT LEVEL UP!");
+                        createExplosion(player.x, player.y, '#f1c40f');
+                    }
                     holyMasks.splice(index, 1);
                 }
             });
@@ -3247,10 +3321,12 @@ function masterLoop(timestamp) {
                         floatingTexts.push(new FloatingText(player.x, player.y - 40, "REFLECT", "#2ecc71", 16));
                     }
 
-                    player.hp -= dmgTaken;
-                    floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
-                    currentRunStats.damageTaken += dmgTaken; // Track Damage
-                    player.resetCombo(); // Reset Combo on Damage
+                    if (!player.isInvincible) {
+                        player.hp -= dmgTaken;
+                        floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
+                        currentRunStats.damageTaken += dmgTaken; // Track Damage
+                        player.resetCombo(); // Reset Combo on Damage
+                    }
                     createExplosion(player.x, player.y, '#fff');
 
                     if (player.transformActive) {
@@ -3283,13 +3359,15 @@ function masterLoop(timestamp) {
                             let finalDmg = proj.damage * bonuses.defenseMult;
 
                             const dmgTaken = finalDmg * (1 - player.damageReduction);
-                            player.hp -= dmgTaken;
 
-                            // Player takes damage number
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
+                            if (!player.isInvincible) {
+                                player.hp -= dmgTaken;
+                                // Player takes damage number
+                                floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
+                                currentRunStats.damageTaken += dmgTaken; // Track Damage
+                                player.resetCombo(); // Reset Combo on Damage
+                            }
 
-                            currentRunStats.damageTaken += dmgTaken; // Track Damage
-                            player.resetCombo(); // Reset Combo on Damage
                             createExplosion(player.x, player.y, proj.color); projectiles.splice(pIndex, 1);
 
                             if (player.transformActive) {
@@ -3413,8 +3491,10 @@ function masterLoop(timestamp) {
                     if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'EXPLOSIVE')) {
                         createExplosion(enemy.x, enemy.y, '#e74c3c');
                         if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 100) {
-                            player.hp -= 10 * (1 - player.damageReduction);
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "10", "#e74c3c", 20));
+                            if (!player.isInvincible) {
+                                player.hp -= 10 * (1 - player.damageReduction);
+                                floatingTexts.push(new FloatingText(player.x, player.y - 20, "10", "#e74c3c", 20));
+                            }
                         }
                     }
 
@@ -3437,6 +3517,12 @@ function masterLoop(timestamp) {
                         score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
                         weaponDrops.push(new WeaponDrop(enemy.x, enemy.y));
                         checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
+
+                        // True Golden Mask Drop (Makuta Wave 100+)
+                        if (enemy.type === 'MAKUTA' && wave >= 100) {
+                            holyMasks.push(new HolyMask(enemy.x, enemy.y, true));
+                        }
+
                         enemies.splice(eIndex, 1);
                         const remainingBosses = enemies.filter(e => e instanceof Boss).length;
                         if (remainingBosses === 0) {

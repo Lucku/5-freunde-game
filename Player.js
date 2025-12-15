@@ -30,6 +30,9 @@ class Player {
         this.gold = 0;
         this.goldMultiplier = this.stats.goldMultiplier || 1;
 
+        // Debug
+        this.isInvincible = false;
+
         // Apply Meta Greed
         this.goldMultiplier += (saveData.metaUpgrades.greed || 0) * 0.05;
 

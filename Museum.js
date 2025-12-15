@@ -34,8 +34,15 @@ class Museum {
 
             // Room Dividers
             // Horizontal Line at y=600 (Top Rooms)
-            { x: 0, y: 600, w: 900, h: 50 },
-            { x: 1500, y: 600, w: 900, h: 50 },
+            // Fire Room Door (Gap at 350-450)
+            { x: 0, y: 600, w: 350, h: 50 },
+            { x: 450, y: 600, w: 450, h: 50 }, // Ends at 900
+
+            // Water Room Door (Gap at 900-1500) - Already exists as gap between 900 and 1500
+
+            // Ice Room Door (Gap at 1950-2050)
+            { x: 1500, y: 600, w: 450, h: 50 }, // Starts at 1500, ends at 1950
+            { x: 2050, y: 600, w: 350, h: 50 }, // Starts at 2050, ends at 2400
 
             // Vertical Lines for Top Rooms (3 rooms: 0-800, 800-1600, 1600-2400)
             { x: 800, y: 0, w: 50, h: 600 },
@@ -83,7 +90,13 @@ class Museum {
         if (saveData.memories) {
             const heroes = ['fire', 'water', 'ice', 'plant', 'metal'];
             heroes.forEach(h => {
-                const count = saveData.memories[h] || 0;
+                let count = 0;
+                if (Array.isArray(saveData.memories[h])) {
+                    count = saveData.memories[h].length;
+                } else {
+                    count = saveData.memories[h] || 0;
+                }
+
                 if (count > 0) {
                     // Find room center
                     const room = this.rooms.find(r => r.name === h);
@@ -92,7 +105,9 @@ class Museum {
                             x: room.x + room.w / 2,
                             y: room.y + room.h - 50,
                             text: `Memories: ${count}`,
-                            color: '#fff'
+                            color: '#fff',
+                            type: 'MEMORY',
+                            hero: h
                         });
                     }
                 }
@@ -101,12 +116,28 @@ class Museum {
     }
 
     update() {
+        if (this.viewingStory) {
+            if (keys['escape']) {
+                this.viewingStory = null;
+                keys['escape'] = false;
+            }
+            const gp = navigator.getGamepads()[0];
+            if (gp && gp.buttons[1].pressed) this.viewingStory = null;
+            return;
+        }
+
         // Move Player
         let dx = 0; let dy = 0;
         if (keys['ArrowUp'] || keys['w']) dy = -this.player.speed;
         if (keys['ArrowDown'] || keys['s']) dy = this.player.speed;
         if (keys['ArrowLeft'] || keys['a']) dx = -this.player.speed;
         if (keys['ArrowRight'] || keys['d']) dx = this.player.speed;
+
+        // Exit with Escape
+        if (keys['escape']) {
+            setUIState('MENU');
+            document.getElementById('menu-overlay').style.display = 'flex';
+        }
 
         // Gamepad
         const gp = navigator.getGamepads()[0];
@@ -142,6 +173,15 @@ class Museum {
 
         // Update Entities (Wander)
         this.entities.forEach(e => e.update(this.walls));
+
+        // Check Interaction
+        if (keys['e']) {
+            const closest = this.artifacts.find(a => Math.hypot(this.player.x - a.x, this.player.y - a.y) < 50);
+            if (closest && closest.type === 'MEMORY') {
+                this.viewingStory = closest.hero;
+                keys['e'] = false;
+            }
+        }
     }
 
     checkWallCollision(x, y) {
@@ -156,6 +196,11 @@ class Museum {
     }
 
     draw(ctx) {
+        if (this.viewingStory) {
+            this.drawStory(ctx);
+            return;
+        }
+
         ctx.save();
         ctx.translate(-this.camera.x, -this.camera.y);
 
@@ -215,6 +260,18 @@ class Museum {
             ctx.fill();
             ctx.restore();
         });
+
+        // Draw Interaction Prompt
+        const closest = this.artifacts.find(a => Math.hypot(this.player.x - a.x, this.player.y - a.y) < 50);
+        if (closest && closest.type === 'MEMORY') {
+            ctx.save();
+            ctx.translate(closest.x, closest.y - 60);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText("PRESS E TO VIEW", 0, 0);
+            ctx.restore();
+        }
 
         // Draw Player
         this.drawPlayer(ctx);
@@ -276,6 +333,42 @@ class Museum {
         ctx.beginPath(); ctx.arc(0, -15, 8, 0, Math.PI * 2); ctx.arc(0, 15, 8, 0, Math.PI * 2); ctx.fill();
 
         ctx.restore();
+    }
+
+    drawStory(ctx) {
+        ctx.fillStyle = 'rgba(0,0,0,0.9)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const hero = this.viewingStory;
+        const stories = MEMORY_STORIES[hero] || [];
+        const unlocked = saveData.memories[hero]; // Array of indices or number
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 30px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${hero.toUpperCase()} MEMORIES`, canvas.width / 2, 50);
+
+        ctx.font = '18px Arial';
+        ctx.textAlign = 'left';
+
+        let y = 120;
+        for (let i = 0; i < stories.length; i++) {
+            let text = "???";
+            if (Array.isArray(unlocked) && unlocked.includes(i)) {
+                text = stories[i];
+            } else if (typeof unlocked === 'number' && i < unlocked) {
+                text = stories[i];
+            }
+
+            ctx.fillStyle = (text === "???") ? '#555' : '#ddd';
+            ctx.fillText(`${i + 1}. ${text}`, 100, y);
+            y += 40;
+        }
+
+        ctx.fillStyle = '#f1c40f';
+        ctx.textAlign = 'center';
+        ctx.font = '20px Arial';
+        ctx.fillText("PRESS ESC TO CLOSE", canvas.width / 2, canvas.height - 50);
     }
 }
 

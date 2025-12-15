@@ -40,8 +40,9 @@ class Enemy {
         }
 
         this.radius = 15 + Math.random() * 10;
-        this.hp = (20 + Math.random() * 20) * difficultyMult;
-        this.speed = (1 + Math.random() * 1.5) * (1 + (wave * 0.1));
+        // Adjusted Scaling: More HP, Less Speed
+        this.hp = (25 + Math.random() * 25) * (1 + (wave * 0.35)) * (1 + (prestige * 0.5));
+        this.speed = (1 + Math.random() * 1.5) * (1 + (wave * 0.025)); // Reduced from 0.1 to 0.025
         this.color = '#555';
         this.damage = 20 * difficultyMult;
         this.sides = Math.floor(Math.random() * 3) + 4;
@@ -126,7 +127,7 @@ class Enemy {
             // 50% chance to target sapling
             // We can store this preference on the enemy instance if we want consistency
             if (!this.targetPreference) this.targetPreference = Math.random() < 0.5 ? 'SAPLING' : 'PLAYER';
-            
+
             if (this.targetPreference === 'SAPLING') {
                 targetX = currentObjective.data.sapling.x;
                 targetY = currentObjective.data.sapling.y;
@@ -175,8 +176,10 @@ class Enemy {
                 createExplosion(this.x, this.y, '#e74c3c');
                 // Explosion damage area
                 if (Math.hypot(player.x - this.x, player.y - this.y) < 100) {
-                    player.hp -= 40 * (1 - player.damageReduction);
-                    floatingTexts.push(new FloatingText(player.x, player.y - 20, "40", "#e74c3c", 20));
+                    if (!player.isInvincible) {
+                        player.hp -= 40 * (1 - player.damageReduction);
+                        floatingTexts.push(new FloatingText(player.x, player.y - 20, "40", "#e74c3c", 20));
+                    }
                     // Track hits for Untouchable objective
                     if (currentObjective && currentObjective.type === 'UNTOUCHABLE') {
                         currentObjective.current++;

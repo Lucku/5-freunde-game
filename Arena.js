@@ -239,8 +239,10 @@ class Arena {
             if (Math.abs(dx) < trap.w / 2 && Math.abs(dy) < trap.h / 2) {
                 if (trap.type === 'SPIKE' && trap.active) {
                     if (frame % 60 === 0) {
-                        player.hp -= 10; // Damage every second if active
-                        floatingTexts.push(new FloatingText(player.x, player.y - 20, "10", "#e74c3c", 20));
+                        if (!player.isInvincible) {
+                            player.hp -= 10; // Damage every second if active
+                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "10", "#e74c3c", 20));
+                        }
                     }
                 } else if (trap.type === 'SLOW') {
                     player.trapSpeedMod = 0.5; // Slow down
@@ -284,9 +286,11 @@ class Arena {
                 const dist = Math.hypot(player.x - closestX, player.y - closestY);
                 if (dist < player.radius + 5) {
                     if (frame % 10 === 0) {
-                        player.hp -= 2;
-                        createExplosion(player.x, player.y, '#e74c3c');
-                        floatingTexts.push(new FloatingText(player.x, player.y - 20, "2", "#e74c3c", 20));
+                        if (!player.isInvincible) {
+                            player.hp -= 2;
+                            createExplosion(player.x, player.y, '#e74c3c');
+                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "2", "#e74c3c", 20));
+                        }
                     }
                 }
             }
@@ -314,9 +318,11 @@ class Arena {
                     } else {
                         // Damage other heroes (Makuta Fight Logic)
                         if (frame % 60 === 0) {
-                            player.hp -= 5 * (1 - player.damageReduction);
-                            createExplosion(player.x, player.y, '#8e44ad');
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "5", "#8e44ad", 16));
+                            if (!player.isInvincible) {
+                                player.hp -= 5 * (1 - player.damageReduction);
+                                createExplosion(player.x, player.y, '#8e44ad');
+                                floatingTexts.push(new FloatingText(player.x, player.y - 20, "5", "#8e44ad", 16));
+                            }
                         }
                     }
                 }

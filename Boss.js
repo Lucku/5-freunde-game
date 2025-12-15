@@ -50,7 +50,7 @@ class Boss {
             this.speed *= 1.3;
             this.maxHp *= 0.8;
             this.hp = this.maxHp;
-            this.magnetStrength = 2.0; // Strong pull
+            this.magnetStrength = 0.8; // Reduced from 2.0 to 0.8
         }
     }
 
@@ -58,7 +58,7 @@ class Boss {
         // Green Goblin Magnet
         if (this.type === 'GREEN_GOBLIN') {
             const dist = Math.hypot(player.x - this.x, player.y - this.y);
-            if (dist < 500) {
+            if (dist < 400) { // Reduced range from 500 to 400
                 const pullAngle = Math.atan2(this.y - player.y, this.x - player.x);
                 // Pull player
                 player.x += Math.cos(pullAngle) * this.magnetStrength;
