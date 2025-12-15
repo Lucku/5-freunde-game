@@ -42,7 +42,8 @@ const defaultSaveData = {
     story: { unlockedChapters: [], enabled: true },
     memories: {}, // New Memory System
     altar: { active: [] }, // New Altar Data
-    chaos: { shards: 0, unlocked: [], active: [] } // Chaos Shop Data
+    chaos: { shards: 0, unlocked: [], active: [] }, // Chaos Shop Data
+    savedRun: null // Slot for mid-run save
 };
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
@@ -74,7 +75,8 @@ let saveData = {
     story: { unlockedChapters: [], enabled: true },
     memories: {},
     altar: { active: [] }, // New Altar Data
-    chaos: { shards: 0, unlocked: [], active: [] } // Chaos Shop Data
+    chaos: { shards: 0, unlocked: [], active: [] }, // Chaos Shop Data
+    savedRun: null
 };
 
 // Runtime stats tracker
@@ -919,6 +921,12 @@ function initMenu() {
         saveMgmt.style.display = isElectron ? 'none' : 'flex';
     }
 
+    // Show Exit to Desktop Button in Electron
+    const exitBtn = document.getElementById('btn-exit-desktop');
+    if (exitBtn) {
+        exitBtn.style.display = isElectron ? 'block' : 'none';
+    }
+
     // Update Daily Challenge Button
     const dailyBtn = document.getElementById('daily-challenge-btn');
     if (dailyBtn) {
@@ -944,7 +952,187 @@ function initMenu() {
     }
 
     renderHeroSelect();
+    updateContinueButton();
     setUIState('MENU'); // Set State
+}
+
+// --- Run Saving System ---
+
+function saveRunState() {
+    if (!gameRunning || wave <= 0) return;
+
+    const runState = {
+        mode: saveData.story.enabled ? 'STORY' : 'NORMAL', // Simplified mode tracking
+        wave: wave,
+        score: score,
+        player: {
+            type: player.type,
+            hp: player.hp,
+            maxHp: player.maxHp,
+            level: player.level,
+            xp: player.xp,
+            maxXp: player.maxXp,
+            gold: player.gold,
+            weapon: player.weapon,
+            weaponTier: player.weaponTier,
+            buffs: player.buffs,
+            runBuffs: player.runBuffs,
+            stats: player.stats, // Base stats
+            // Modifiers
+            damageMultiplier: player.damageMultiplier,
+            speedMultiplier: player.speedMultiplier,
+            cooldownMultiplier: player.cooldownMultiplier,
+            damageReduction: player.damageReduction,
+            extraProjectiles: player.extraProjectiles,
+            meleeRadius: player.meleeRadius,
+            maskChance: player.maskChance,
+            goldMultiplier: player.goldMultiplier,
+            critChance: player.critChance,
+            critMultiplier: player.critMultiplier
+        },
+        companions: companions.map(c => ({ type: c.type })), // Only need types to recreate
+        currentRunStats: currentRunStats,
+        // We don't save enemies, projectiles, etc. as we restart at wave start
+    };
+
+    saveData.savedRun = runState;
+    saveGame();
+    console.log("Run saved at Wave " + wave);
+}
+
+function clearSavedRun() {
+    saveData.savedRun = null;
+    saveGame();
+    updateContinueButton();
+}
+
+function updateContinueButton() {
+    const btn = document.getElementById('continue-btn');
+    const sub = document.getElementById('continue-subtitle');
+
+    if (saveData.savedRun) {
+        btn.style.display = 'block';
+        const modeName = saveData.savedRun.mode === 'STORY' ? 'Story Mode' : 'Standard Run';
+        sub.innerText = `${modeName} - Wave ${saveData.savedRun.wave} - ${saveData.savedRun.player.type.toUpperCase()}`;
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+function continueRun() {
+    if (!saveData.savedRun) return;
+
+    const state = saveData.savedRun;
+
+    // Restore Game Mode
+    saveData.story.enabled = (state.mode === 'STORY');
+
+    // Initialize Game Base
+    startGame(state.mode); // This resets everything, so we overwrite after
+
+    // Restore Wave & Score
+    wave = state.wave - 1; // advanceWave() will increment it back to correct wave
+    score = state.score;
+    document.getElementById('scoreVal').innerText = score;
+
+    // Restore Player
+    // Re-create player with correct type (startGame does this, but let's be safe)
+    player = new Player(state.player.type);
+
+    // Restore Stats
+    player.hp = state.player.hp;
+    player.maxHp = state.player.maxHp;
+    player.level = state.player.level;
+    player.xp = state.player.xp;
+    player.maxXp = state.player.maxXp;
+    player.gold = state.player.gold;
+    player.weapon = state.player.weapon;
+    player.weaponTier = state.player.weaponTier;
+
+    // Restore Buffs & Modifiers
+    player.buffs = state.player.buffs;
+    player.runBuffs = state.player.runBuffs;
+
+    player.damageMultiplier = state.player.damageMultiplier;
+    player.speedMultiplier = state.player.speedMultiplier;
+    player.cooldownMultiplier = state.player.cooldownMultiplier;
+    player.damageReduction = state.player.damageReduction;
+    player.extraProjectiles = state.player.extraProjectiles;
+    player.meleeRadius = state.player.meleeRadius;
+    player.maskChance = state.player.maskChance;
+    player.goldMultiplier = state.player.goldMultiplier;
+    player.critChance = state.player.critChance;
+    player.critMultiplier = state.player.critMultiplier;
+
+    // Restore Companions
+    companions = [];
+    state.companions.forEach(cData => {
+        companions.push(new Companion(cData.type, player));
+    });
+
+    // Restore Run Stats
+    currentRunStats = state.currentRunStats;
+
+    // Reset Boss Timer
+    bossDeathTimer = 0;
+    bossActive = false;
+    enemiesKilledInWave = 0; // Reset kill count for the wave we are about to start
+    // Start the wave
+    advanceWave();
+
+    // Clear the save slot immediately upon loading (Rogue-lite style)
+    // Or keep it until next wave start? 
+    // "The moment a game over happens, the saved run is automatically cleared" implies we keep it until death or overwrite.
+    // BUT "pick up on that saved run again" usually implies consumption in roguelikes to prevent save scumming.
+    // However, user said "automatically saved at the beginning of each wave".
+    // So we don't clear it here. We overwrite it at next wave start.
+    // But if they die, we must clear it.
+}
+
+let pendingGameMode = null;
+
+function checkNewGame(mode) {
+    if (saveData.savedRun) {
+        pendingGameMode = mode;
+        document.getElementById('confirm-dialog').style.display = 'flex';
+        // Controller focus handling would go here
+    } else {
+        if (mode === 'STORY') startStoryGame();
+        else startStandardGame();
+    }
+}
+
+function confirmNewGame() {
+    clearSavedRun();
+    closeConfirmDialog();
+    if (pendingGameMode === 'STORY') startStoryGame();
+    else startStandardGame();
+}
+
+function closeConfirmDialog() {
+    document.getElementById('confirm-dialog').style.display = 'none';
+    pendingGameMode = null;
+}
+
+function quitGame() {
+    clearSavedRun();
+    // Use initMenu to return to menu without full reload if preferred, 
+    // but reload ensures clean state.
+    location.reload();
+}
+
+function exitToDesktop() {
+    if (isElectron) {
+        window.close();
+    }
+}
+
+function showQuitWarning() {
+    document.getElementById('quit-run-warning').style.opacity = 1;
+}
+
+function hideQuitWarning() {
+    document.getElementById('quit-run-warning').style.opacity = 0;
 }
 
 // --- Permanent Shop Logic ---
@@ -2384,6 +2572,9 @@ function advanceWave() {
         }
     }
 
+    // Save Run State at start of wave
+    saveRunState();
+
     setUIState('GAME');
 }
 
@@ -2544,6 +2735,9 @@ function startGame(mode = 'NORMAL') {
 
 function gameOver() {
     gameRunning = false;
+
+    // Clear Saved Run on Death
+    clearSavedRun();
 
     // Safety: Ensure stats object exists
     if (!saveData.stats) saveData.stats = {};

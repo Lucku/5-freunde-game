@@ -77,7 +77,13 @@
     <div id="pause-screen">
         <h1>PAUSED</h1>
         <button class="btn" onclick="togglePause()">Resume</button>
-        <button class="btn btn-red" onclick="location.reload()">Quit Game</button>
+        <button class="btn btn-red" id="btn-quit-run" onclick="quitGame()" onmouseover="showQuitWarning()"
+            onmouseout="hideQuitWarning()" onfocus="showQuitWarning()" onblur="hideQuitWarning()">Quit Run</button>
+        <div id="quit-run-warning"
+            style="color: #e74c3c; font-size: 14px; margin-top: 5px; height: 20px; opacity: 0; transition: opacity 0.3s; font-weight: bold;">
+            Warning: Progress will be lost!</div>
+        <button id="btn-exit-desktop" class="btn btn-red" style="display:none; margin-top: 10px;"
+            onclick="exitToDesktop()">Quit Game</button>
     </div>
 
     <!-- Level Up Screen -->
@@ -238,6 +244,18 @@
         <button class="btn" onclick="closeCompletion()" style="margin-top: 30px;">Back to Menu</button>
     </div>
 
+    <!-- Confirmation Dialog -->
+    <div id="confirm-dialog"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:3000; flex-direction:column; align-items:center; justify-content:center;">
+        <h2 style="color:#e74c3c; margin-bottom:20px;">Overwrite Saved Run?</h2>
+        <p style="color:#fff; margin-bottom:30px; text-align:center;">Starting a new game will delete your currently
+            saved run.<br>Are you sure?</p>
+        <div style="display:flex; gap:20px;">
+            <button class="btn btn-red" onclick="confirmNewGame()">Yes, Start New</button>
+            <button class="btn" onclick="closeConfirmDialog()">No, Cancel</button>
+        </div>
+    </div>
+
     <!-- Main Menu -->
     <div id="menu-overlay">
         <div id="start-screen">
@@ -254,8 +272,12 @@
                 <!-- Column 1: Play -->
                 <div class="menu-column">
                     <h3>Play</h3>
-                    <button class="btn btn-large btn-start" onclick="startStandardGame()">Standard Run</button>
-                    <button class="btn btn-large btn-story" onclick="startStoryGame()">Story Mode</button>
+                    <button id="continue-btn" class="btn btn-large btn-green" style="display:none; margin-bottom: 10px;"
+                        onclick="continueRun()">
+                        Continue Run<br><span id="continue-subtitle" style="font-size:12px; color:#ddd;"></span>
+                    </button>
+                    <button class="btn btn-large btn-start" onclick="checkNewGame('STANDARD')">Standard Run</button>
+                    <button class="btn btn-large btn-story" onclick="checkNewGame('STORY')">Story Mode</button>
                     <button id="daily-challenge-btn" class="btn btn-gold" onclick="startDailyChallenge()">Daily
                         Challenge</button>
                     <button id="weekly-challenge-btn" class="btn btn-gold" onclick="startWeeklyChallenge()">Weekly
