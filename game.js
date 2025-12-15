@@ -3082,17 +3082,19 @@ function masterLoop(timestamp) {
                     // Save Memory
                     if (!saveData.memories) saveData.memories = {};
 
+                    const shardType = shard.heroType;
+
                     // Migration: Convert number to array if needed
-                    if (typeof saveData.memories[player.type] === 'number') {
-                        const count = saveData.memories[player.type];
-                        saveData.memories[player.type] = [];
-                        for (let i = 0; i < count; i++) saveData.memories[player.type].push(i);
+                    if (typeof saveData.memories[shardType] === 'number') {
+                        const count = saveData.memories[shardType];
+                        saveData.memories[shardType] = [];
+                        for (let i = 0; i < count; i++) saveData.memories[shardType].push(i);
                     }
 
-                    if (!saveData.memories[player.type]) saveData.memories[player.type] = [];
+                    if (!saveData.memories[shardType]) saveData.memories[shardType] = [];
 
-                    const unlockedIndices = saveData.memories[player.type];
-                    const allStories = MEMORY_STORIES[player.type] || [];
+                    const unlockedIndices = saveData.memories[shardType];
+                    const allStories = MEMORY_STORIES[shardType] || [];
                     const availableIndices = [];
                     for (let i = 0; i < allStories.length; i++) {
                         if (!unlockedIndices.includes(i)) availableIndices.push(i);
@@ -3100,7 +3102,7 @@ function masterLoop(timestamp) {
 
                     if (availableIndices.length > 0) {
                         const newIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
-                        saveData.memories[player.type].push(newIndex);
+                        saveData.memories[shardType].push(newIndex);
 
                         // Show Story Text
                         const storyText = allStories[newIndex];

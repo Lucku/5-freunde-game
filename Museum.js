@@ -8,6 +8,7 @@ class Museum {
         this.rooms = [];
         this.artifacts = [];
         this.cards = [];
+        this.scrollY = 0;
 
         // Player Avatar in Museum (defaults to selected hero)
         this.player = { x: 1200, y: 1600, radius: 20, speed: 5, type: selectedHeroType, angle: 0 };
@@ -112,6 +113,38 @@ class Museum {
                     }
                 }
             });
+
+            // Special Black Memory in Gallery
+            if (saveData.memories['black'] && Array.isArray(saveData.memories['black']) && saveData.memories['black'].length > 0) {
+                const count = saveData.memories['black'].length;
+                const room = this.rooms.find(r => r.name === 'gallery');
+                if (room) {
+                    this.artifacts.push({
+                        x: room.x + room.w / 2,
+                        y: room.y + 50, // Top of the gallery
+                        text: `Shadows: ${count}`,
+                        color: '#000',
+                        type: 'MEMORY',
+                        hero: 'black'
+                    });
+                }
+            }
+
+            // Special Makuta Memory in Gallery
+            if (saveData.memories['makuta'] && Array.isArray(saveData.memories['makuta']) && saveData.memories['makuta'].length > 0) {
+                const count = saveData.memories['makuta'].length;
+                const room = this.rooms.find(r => r.name === 'gallery');
+                if (room) {
+                    this.artifacts.push({
+                        x: room.x + room.w / 2,
+                        y: room.y + room.h - 50, // Bottom of the gallery
+                        text: `Darkness: ${count}`,
+                        color: '#8e44ad',
+                        type: 'MEMORY',
+                        hero: 'makuta'
+                    });
+                }
+            }
         }
     }
 
@@ -119,10 +152,20 @@ class Museum {
         if (this.viewingStory) {
             if (keys['escape']) {
                 this.viewingStory = null;
+                this.scrollY = 0;
                 keys['escape'] = false;
             }
+
+            // Scroll Logic
+            if (keys['ArrowUp'] || keys['w']) this.scrollY += 15;
+            if (keys['ArrowDown'] || keys['s']) this.scrollY -= 15;
+            if (this.scrollY > 0) this.scrollY = 0; // Don't scroll past top
+
             const gp = navigator.getGamepads()[0];
-            if (gp && gp.buttons[1].pressed) this.viewingStory = null;
+            if (gp && gp.buttons[1].pressed) {
+                this.viewingStory = null;
+                this.scrollY = 0;
+            }
             return;
         }
 
@@ -351,7 +394,7 @@ class Museum {
         ctx.font = '18px Arial';
         ctx.textAlign = 'left';
 
-        let y = 120;
+        let y = 120 + this.scrollY;
         for (let i = 0; i < stories.length; i++) {
             let text = "???";
             if (Array.isArray(unlocked) && unlocked.includes(i)) {

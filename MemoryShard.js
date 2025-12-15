@@ -16,6 +16,8 @@ class MemoryShard {
             case 'plant': return '#2ecc71';
             case 'metal': return '#95a5a6';
             case 'water': return '#2980b9';
+            case 'black': return '#000000';
+            case 'makuta': return '#8e44ad';
             default: return '#ffffff';
         }
     }
