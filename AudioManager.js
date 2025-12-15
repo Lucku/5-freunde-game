@@ -69,7 +69,7 @@ class AudioManager {
         // Ensure global variables are available
         if (typeof uiState === 'undefined') return;
 
-        const menuStates = ['MENU', 'PERMSHOP', 'ACHIEVEMENTS', 'COLLECTION', 'HIGHSCORE', 'STORY', 'ALTAR', 'CHAOSSHOP', 'TUTORIAL', 'STATS'];
+        const menuStates = ['MENU', 'PERMSHOP', 'ACHIEVEMENTS', 'COLLECTION', 'HIGHSCORE', 'STORY', 'ALTAR', 'CHAOSSHOP', 'TUTORIAL', 'STATS', 'COMPLETION'];
 
         if (uiState === 'GAMEOVER') {
             this.stopAllExcept('gameover');

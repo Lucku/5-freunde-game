@@ -1,4 +1,5 @@
 const isElectron = typeof process !== 'undefined' && process.versions && process.versions.electron;
+let lastInputType = 'MOUSE'; // 'MOUSE' or 'GAMEPAD'
 let fs, path, saveFilePath;
 
 if (isElectron) {
@@ -626,6 +627,8 @@ function updateUIHighlight() {
     // Remove selected class from all
     document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
 
+    if (lastInputType !== 'GAMEPAD') return;
+
     if (focusables.length > 0) {
         // Auto-select first available node in Skill Tree if at start
         if (uiState === 'SKILLTREE' && uiSelectionIndex === 0) {
@@ -641,7 +644,7 @@ function updateUIHighlight() {
         el.classList.add('selected');
 
 
-        const scrollableStates = ['ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE', 'ALTAR'];
+        const scrollableStates = ['ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE', 'ALTAR', 'COMPLETION'];
         if (scrollableStates.includes(uiState)) {
             // Scroll into view if needed
             el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
@@ -668,6 +671,11 @@ function handleGamepadMenu() {
     const a = gp.buttons[0].pressed; // A / Cross
     const b = gp.buttons[1].pressed; // B / Circle
     const y = gp.buttons[3].pressed; // Y / Triangle
+
+    // Check for active input to switch mode
+    if (up || down || left || right || a || b || y || Math.abs(gp.axes[3]) > 0.1) {
+        lastInputType = 'GAMEPAD';
+    }
 
     if (uiState === 'GAME') return;
 
@@ -734,6 +742,11 @@ function handleGamepadMenu() {
         if (content && Math.abs(gp.axes[3]) > 0.1) {
             content.scrollTop += gp.axes[3] * 15;
         }
+    } else if (uiState === 'COMPLETION') {
+        const content = document.getElementById('completion-grid');
+        if (content && Math.abs(gp.axes[3]) > 0.1) {
+            content.scrollTop += gp.axes[3] * 15;
+        }
     }
 
     // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
@@ -747,6 +760,7 @@ function handleGamepadMenu() {
         else if (uiState === 'STATS') closeStats(); // Added STATS
         else if (uiState === 'COLLECTION') closeCollection();
         else if (uiState === 'ALTAR') closeAltar();
+        else if (uiState === 'COMPLETION') closeCompletion();
         uiDebounce = 15;
     }
 
@@ -1443,6 +1457,7 @@ const mouse = { x: 0, y: 0, leftDown: false, rightDown: false }; // Updated mous
 window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 window.addEventListener('mousemove', e => {
+    lastInputType = 'MOUSE';
     mouse.x = e.clientX;
     mouse.y = e.clientY;
     // If mouse moves, switch back to mouse aiming
@@ -1451,6 +1466,7 @@ window.addEventListener('mousemove', e => {
 
 // Updated Mouse Listeners for Auto-Fire support
 window.addEventListener('mousedown', e => {
+    lastInputType = 'MOUSE';
     if (!gameRunning || gamePaused || isLevelingUp || isShopping) return;
     if (e.button === 0) mouse.leftDown = true;
     if (e.button === 2) mouse.rightDown = true;
@@ -2198,8 +2214,8 @@ function openStory(story) {
     setUIState('STORY');
 
     // Save progress
-    if (!saveData.story.unlockedChapters.includes(story.wave)) {
-        saveData.story.unlockedChapters.push(story.wave);
+    if (!saveData.story.unlockedChapters.includes(story.id)) {
+        saveData.story.unlockedChapters.push(story.id);
         saveGame();
     }
 }
@@ -2591,6 +2607,18 @@ function gameOver() {
 
     saveGame();
     setUIState('GAMEOVER');
+
+    // Update Play Again button based on mode
+    const playAgainBtn = document.querySelector('#game-over-screen .btn-play-again');
+    if (playAgainBtn) {
+        if (isDailyMode) {
+            playAgainBtn.onclick = function () { startGame('DAILY'); };
+        } else if (isWeeklyMode) {
+            playAgainBtn.onclick = function () { startGame('WEEKLY'); };
+        } else {
+            playAgainBtn.onclick = function () { startGame('NORMAL'); };
+        }
+    }
 }
 
 // --- Fixed Time Step Loop ---

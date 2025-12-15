@@ -1544,3 +1544,77 @@ input:checked+.slider:before {
     height: 100%;
     transition: width 0.5s ease-out;
 }
+
+/* Completion Menu Expanded Styles */
+.completion-header-btn {
+    width: 100%;
+    background: none;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0;
+    margin-bottom: 10px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+.completion-header-btn:focus {
+    outline: 2px solid #f1c40f;
+    border-radius: 4px;
+}
+
+.completion-subs {
+    margin-top: 15px;
+    padding-left: 15px;
+    border-left: 2px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.completion-sub-item {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 6px;
+}
+
+.completion-sub-header-btn {
+    width: 100%;
+    background: none;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0;
+    margin-bottom: 5px;
+    cursor: default;
+    color: #ddd;
+    font-size: 0.9em;
+}
+
+.completion-sub-header-btn:focus {
+    outline: 2px solid #3498db;
+    border-radius: 4px;
+}
+
+.sub-title {
+    font-weight: bold;
+}
+
+.sub-val {
+    font-size: 0.9em;
+    color: #aaa;
+}
+
+.sub-bar {
+    height: 8px;
+    background: #222;
+}
+
+.completion-header-btn.active .completion-title {
+    color: #f1c40f;
+    text-shadow: 0 0 10px rgba(241, 196, 15, 0.3);
+}
