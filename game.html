@@ -245,6 +245,21 @@
         <button class="btn" onclick="closeCompletion()" style="margin-top: 20px; flex-shrink: 0;">Back to Menu</button>
     </div>
 
+    <!-- DLC Screen -->
+    <div id="dlc-screen"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#111; z-index:2000; flex-direction:column; align-items:center; padding:20px; overflow-y:auto;">
+        <h1 style="color:#9b59b6; font-size:40px; margin-bottom:10px; text-shadow: 0 0 15px #8e44ad;">INSTALLED DLCs
+        </h1>
+        <div style="color:#aaa; margin-bottom:30px;">Manage your additional content. Changes require a game restart.
+        </div>
+
+        <div id="dlc-list" style="display:flex; flex-direction:column; gap:20px; width:100%; max-width:800px;">
+            <!-- Injected by JS -->
+        </div>
+
+        <button class="btn" style="margin-top:30px;" onclick="closeDLCMenu()">Back to Menu</button>
+    </div>
+
     <!-- Confirmation Dialog -->
     <div id="confirm-dialog"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:3000; flex-direction:column; align-items:center; justify-content:center;">
@@ -305,6 +320,7 @@
                     <button class="btn btn-blue" onclick="openStats()">Statistics</button>
                     <button class="btn btn-blue" onclick="openCompletion()">Completion</button>
                     <button class="btn btn-blue" onclick="Tutorial.open()">Tutorial</button>
+                    <button class="btn btn-purple" onclick="openDLCMenu()">DLCs</button>
 
                     <h3 style="margin-top: 20px;">System</h3>
                     <div class="system-buttons">
@@ -387,6 +403,7 @@
     </div>
 
     <script src="Constants.js"></script>
+    <script src="dlc/DLCManager.js"></script>
     <script src="AltarData.js"></script>
     <script src="Arena.js"></script>
     <script src="Museum.js"></script>

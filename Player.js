@@ -105,6 +105,11 @@ class Player {
         // Physics State for Slippery
         this.vx = 0;
         this.vy = 0;
+
+        // DLC Hero Initialization
+        if (window.HERO_LOGIC && window.HERO_LOGIC[this.type]) {
+            window.HERO_LOGIC[this.type].init(this);
+        }
     }
 
     gainXp(amount) {
@@ -142,10 +147,13 @@ class Player {
 
         if (this.level % 10 === 0) {
             const formName = this.getFormName();
+            let desc = `Transform into ${formName}! Lasts until you take damage.`;
+            if (this.type === 'earth') desc = `Transform into ${formName}! Lasts 15 seconds. Unstoppable Momentum.`;
+
             const transformOption = {
                 id: 'transform',
                 title: 'ULTIMATE FORM',
-                desc: `Transform into ${formName}! Lasts until you take damage.`,
+                desc: desc,
                 icon: '🌟'
             };
             const pool = [...UPGRADE_POOL].sort(() => 0.5 - Math.random());
@@ -182,6 +190,7 @@ class Player {
         if (this.type === 'plant') return 'CREEPER';
         if (this.type === 'water') return 'OCEAN';
         if (this.type === 'black') return 'THE SHADOW';
+        if (this.type === 'earth') return 'OBSIDIAN GOLEM';
         return 'ULTIMATE';
     }
 
@@ -256,6 +265,14 @@ class Player {
     useSpecial() {
         if (this.specialCooldown > 0) return;
 
+        // --- DLC HOOK: Custom Special ---
+        if (this.customSpecial) {
+            if (this.customSpecial()) {
+                this.specialCooldown = this.specialMaxCooldown * this.cooldownMultiplier;
+                return;
+            }
+        }
+
         showNotification(`${this.specialName}!`);
         this.specialCooldown = this.specialMaxCooldown * this.cooldownMultiplier;
 
@@ -270,6 +287,8 @@ class Player {
 
             // Convergence: Thermal Shock (c3)
             const isThermal = has('c3');
+            // Convergence: Meteor Impact (c11)
+            const isMeteor = has('c11');
 
             for (let i = 0; i < 12; i++) {
                 const angle = (Math.PI * 2 / 12) * i;
@@ -291,6 +310,11 @@ class Player {
                                 e.frozenTimer = 60; // 1s Freeze
                                 floatingTexts.push(new FloatingText(e.x, e.y - 40, "FREEZE", "#aaddff", 16));
                             }
+                            if (isMeteor) {
+                                const angle = Math.atan2(e.y - ey, e.x - ex);
+                                e.x += Math.cos(angle) * 50;
+                                e.y += Math.sin(angle) * 50;
+                            }
                         }
                     });
                 }, i * 50);
@@ -306,6 +330,8 @@ class Player {
             const isBoiling = has('c1');
             // Convergence: Algae Bloom (c7)
             const isAlgae = has('c7');
+            // Convergence: Muddy Waters (c12)
+            const isMuddy = has('c12');
             // Convergence: Hydro-Shield (c8)
             if (has('c8')) {
                 if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + 20); // Temp HP / Heal
@@ -325,6 +351,10 @@ class Player {
                 if (isAlgae) {
                     if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + 1);
                 }
+                if (isMuddy) {
+                    e.speedMult = (e.speedMult || 1) * 0.5;
+                    floatingTexts.push(new FloatingText(e.x, e.y - 60, "SLOW", "#8d6e63", 16));
+                }
             });
         } else if (this.type === 'ice') {
             // Freeze
@@ -335,6 +365,8 @@ class Player {
             const canShatter = has('i3');
             // Convergence: Permafrost (c6)
             const isPermafrost = has('c6');
+            // Convergence: Glacial Shatter (c13)
+            const isGlacial = has('c13');
 
             enemies.forEach(e => {
                 if (canShatter && e.frozenTimer > 0) {
@@ -348,6 +380,10 @@ class Player {
                     const angle = Math.atan2(e.y - this.y, e.x - this.x);
                     e.x += Math.cos(angle) * 150;
                     e.y += Math.sin(angle) * 150;
+                }
+                if (isGlacial) {
+                    e.hp -= 30 * this.damageMultiplier;
+                    floatingTexts.push(new FloatingText(e.x, e.y - 60, "CRUSH", "#8d6e63", 20));
                 }
             });
         } else if (this.type === 'plant') {
@@ -370,6 +406,12 @@ class Player {
                 this.damageReduction = Math.max(this.damageReduction, 0.5); // Set to 50% DR if lower
                 setTimeout(() => this.damageReduction = oldDr, 5000); // Reset to previous value
                 floatingTexts.push(new FloatingText(this.x, this.y - 80, "IRONBARK", "#95a5a6", 20));
+            }
+
+            // Convergence: Stone Roots (c14)
+            if (has('c14')) {
+                this.invincibleTimer = 60; // 1s Invincibility
+                floatingTexts.push(new FloatingText(this.x, this.y - 80, "STONE SKIN", "#8d6e63", 20));
             }
 
             // Convergence: Wildfire (c4)
@@ -413,6 +455,19 @@ class Player {
 
             // Convergence: Frostbite Armor (c2)
             if (has('c2')) this.hasFrostbiteArmor = true;
+
+            // Convergence: Heavy Metal (c15)
+            if (has('c15')) {
+                createExplosion(this.x, this.y, '#8d6e63');
+                enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < 150) {
+                        const angle = Math.atan2(e.y - this.y, e.x - this.x);
+                        e.x += Math.cos(angle) * 200;
+                        e.y += Math.sin(angle) * 200;
+                        e.hp -= 50 * this.damageMultiplier;
+                    }
+                });
+            }
 
             // Convergence: Molten Core (c5)
             if (has('c5')) {
@@ -589,6 +644,12 @@ class Player {
         // Store input for dash direction
         this.moveInput = { x: dx, y: dy };
 
+        // --- DLC HOOK: Custom Update ---
+        if (this.customUpdate) {
+            // If customUpdate returns true, it handles movement/physics completely
+            if (this.customUpdate(dx, dy)) return;
+        }
+
         let currentSpeed = this.stats.speed * this.speedMultiplier * this.trapSpeedMod;
         if (this.buffs.speed > 0) currentSpeed *= 1.5;
 
@@ -672,6 +733,12 @@ class Player {
     }
 
     draw() {
+        // --- DLC HOOK: Custom Draw ---
+        if (this.customDraw) {
+            this.customDraw(ctx);
+            return;
+        }
+
         ctx.save();
         ctx.translate(this.x, this.y);
         // Use stored aimAngle instead of calculating from mouse every frame

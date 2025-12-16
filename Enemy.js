@@ -147,10 +147,20 @@ class Enemy {
             }
         }
 
+        // DLC Hook: Init
+        if (window.ENEMY_LOGIC && window.ENEMY_LOGIC[this.subType]) {
+            window.ENEMY_LOGIC[this.subType].init(this);
+        }
+
         this.maxHp = this.hp;
     }
 
     update() {
+        // DLC Hook: Update
+        if (window.ENEMY_LOGIC && window.ENEMY_LOGIC[this.subType]) {
+            if (window.ENEMY_LOGIC[this.subType].update(this)) return;
+        }
+
         if (this.frozenTimer > 0) {
             this.frozenTimer--;
             if (frame % 10 === 0) particles.push(new Particle(this.x, this.y, '#aaddff'));
@@ -338,6 +348,13 @@ class Enemy {
     }
 
     draw() {
+        // DLC Hook: Draw
+        if (window.ENEMY_LOGIC && window.ENEMY_LOGIC[this.subType]) {
+            if (window.ENEMY_LOGIC[this.subType].draw(ctx, this)) {
+                return;
+            }
+        }
+
         ctx.save(); ctx.translate(this.x, this.y);
 
         // Elite Aura Visuals

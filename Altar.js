@@ -7,7 +7,7 @@ class Altar {
         this.container.innerHTML = '';
 
         // 1. Render Hero Columns
-        const heroes = ['fire', 'water', 'ice', 'plant', 'metal'];
+        const heroes = ['fire', 'water', 'ice', 'plant', 'metal', 'earth'];
 
         heroes.forEach(hero => {
             const col = document.createElement('div');

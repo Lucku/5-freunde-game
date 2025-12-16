@@ -14,6 +14,11 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const buffContainer = document.getElementById('buff-container');
 
+// Initialize DLC Manager
+if (typeof DLCManager !== 'undefined') {
+    window.dlcManager = new DLCManager();
+}
+
 function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -53,6 +58,7 @@ let saveData = {
     ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
+    earth: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     black: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0, totalVoidGoldSpent: 0, unlockedAchievements: [], daily_wins: 0, weekly_wins: 0 },
     collection: [],
@@ -233,6 +239,11 @@ function generateHeroSkillTree(type) {
         black: { DAMAGE: 1.0 } // Dummy tree, not used
     };
 
+    // DLC Hook: Get Weights
+    if (window.HERO_LOGIC && window.HERO_LOGIC[type] && window.HERO_LOGIC[type].getSkillTreeWeights) {
+        weights[type] = window.HERO_LOGIC[type].getSkillTreeWeights();
+    }
+
     const w = weights[type];
     const types = [];
     for (let k in w) {
@@ -272,6 +283,13 @@ function generateHeroSkillTree(type) {
         if (t === 'ARMOR') { val = 0.01; desc = "+1% Dmg Reduction"; }
         if (t === 'MELEE') { val = 0.05; desc = "+5% Melee Size"; }
 
+        // DLC Hook: Node Details
+        if (window.HERO_LOGIC && window.HERO_LOGIC[type] && window.HERO_LOGIC[type].getSkillNodeDetails) {
+            const details = window.HERO_LOGIC[type].getSkillNodeDetails(t, val, desc);
+            val = details.val;
+            desc = details.desc;
+        }
+
         if ((i + 1) % 10 === 0) {
             if (t === 'PIERCE' || t === 'SPLIT') val += 1; // +2 for major
             else val *= 5;
@@ -288,9 +306,19 @@ let selectedHeroType = 'fire';
 function renderHeroSelect() {
     const container = document.getElementById('hero-select-container');
     container.innerHTML = '';
-    const heroes = ['fire', 'water', 'ice', 'plant', 'metal'];
+
+    // Dynamically get heroes from BASE_HERO_STATS
+    // Filter out 'black' if it's meant to be hidden or handled separately
+    const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
 
     heroes.forEach(h => {
+        // Ensure save data exists for this hero (e.g. DLC heroes)
+        if (!saveData[h]) {
+            saveData[h] = { level: 0, unlocked: 0, highScore: 0, prestige: 0 };
+            // Auto-unlock DLC heroes for now, or handle via DLC logic
+            if (h === 'earth') saveData[h].unlocked = 1;
+        }
+
         const data = saveData[h];
         const el = document.createElement('div');
         el.className = 'hero-card';
@@ -614,6 +642,7 @@ function getFocusables() {
     else if (uiState === 'CHAOSSHOP') screenId = 'chaos-shop-screen';
     else if (uiState === 'TUTORIAL') screenId = 'tutorial-screen';
     else if (uiState === 'COMPLETION') screenId = 'completion-screen';
+    else if (uiState === 'DLC') screenId = 'dlc-screen';
 
     if (!screenId) return [];
     const screen = document.getElementById(screenId);
@@ -919,6 +948,13 @@ function initMenu() {
     document.getElementById('highscore-screen').style.display = 'none'; /* Hide highscore screen */
     document.getElementById('stats-screen').style.display = 'none'; // Hide stats screen
     document.getElementById('collection-screen').style.display = 'none';
+    document.getElementById('dlc-screen').style.display = 'none';
+
+    // Setup DLC Buttons
+    const dlcBtn = document.getElementById('btn-dlc');
+    if (dlcBtn) dlcBtn.onclick = openDLCMenu;
+    const dlcBackBtn = document.getElementById('btn-dlc-back');
+    if (dlcBackBtn) dlcBackBtn.onclick = closeDLCMenu;
 
     // Hide Save Management in Electron
     const saveMgmt = document.getElementById('save-management');
@@ -975,13 +1011,80 @@ function initMenu() {
     // Update Altar Button Visibility
     const altarBtn = document.getElementById('altar-btn');
     if (altarBtn) {
-        const hasPrestige = ['fire', 'water', 'ice', 'plant', 'metal'].some(h => saveData[h].prestige > 0);
+        const hasPrestige = Object.keys(BASE_HERO_STATS).some(h => saveData[h] && saveData[h].prestige > 0);
         altarBtn.style.display = hasPrestige ? 'block' : 'none';
     }
 
     renderHeroSelect();
     updateContinueButton();
     setUIState('MENU'); // Set State
+}
+
+// --- DLC Menu Logic ---
+function openDLCMenu() {
+    setUIState('DLC');
+    document.getElementById('menu-overlay').style.display = 'none';
+    document.getElementById('dlc-screen').style.display = 'flex';
+    renderDLCList();
+}
+
+function closeDLCMenu() {
+    document.getElementById('dlc-screen').style.display = 'none';
+    initMenu();
+}
+
+function renderDLCList() {
+    const container = document.getElementById('dlc-list');
+    container.innerHTML = '';
+
+    if (!window.dlcManager) {
+        container.innerHTML = '<div style="color:red;">DLC Manager not found.</div>';
+        return;
+    }
+
+    const dlcs = window.dlcManager.getDLCList();
+
+    if (dlcs.length === 0) {
+        container.innerHTML = '<div style="color:#777; text-align:center;">No DLCs found.</div>';
+        return;
+    }
+
+    dlcs.forEach(dlc => {
+        const card = document.createElement('div');
+        card.className = 'dlc-card';
+        card.style.cssText = `
+            background: rgba(255,255,255,0.05);
+            border: 1px solid ${dlc.active ? '#2ecc71' : '#555'};
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: all 0.2s;
+        `;
+
+        card.innerHTML = `
+            <div style="font-size: 40px;">${dlc.icon}</div>
+            <div style="flex-grow: 1;">
+                <h2 style="margin: 0; color: ${dlc.active ? '#fff' : '#aaa'};">${dlc.title}</h2>
+                <div style="color: #888; margin-top: 5px;">${dlc.desc}</div>
+            </div>
+            <div>
+                <button class="btn ${dlc.active ? 'btn-red' : 'btn-green'}" style="min-width: 100px;">
+                    ${dlc.active ? 'DISABLE' : 'ENABLE'}
+                </button>
+            </div>
+        `;
+
+        // Toggle Button Logic
+        const btn = card.querySelector('button');
+        btn.onclick = () => {
+            window.dlcManager.toggleDLC(dlc.id, !dlc.active);
+            renderDLCList(); // Refresh list
+        };
+
+        container.appendChild(card);
+    });
 }
 
 // --- Run Saving System ---
@@ -1550,6 +1653,11 @@ function getHeroStats(type) {
     base.goldMultiplier = 1; // Initialize gold multiplier
     base.xpMultiplier = 1 + (saveData.metaUpgrades.wisdom || 0) * 0.02; // Apply Void Mind
 
+    // Earth Hero Stats (Defaults)
+    base.momentumCap = 100;
+    base.ramDmgMult = 1;
+    base.momentumDecayMult = 1;
+
     const prestigeMult = 1 + (heroData.prestige * 0.2); // Reduced from 0.5 to 0.2
     base.hp *= prestigeMult;
     base.rangeDmg *= prestigeMult;
@@ -1585,6 +1693,11 @@ function getHeroStats(type) {
         }
         if (node.type === 'ARMOR') { base.defense += node.value; base.breakdown.defense.tree += node.value; }
         if (node.type === 'MELEE') base.meleeRadiusMult += node.value;
+
+        // DLC Hook: Apply Node
+        if (window.HERO_LOGIC && window.HERO_LOGIC[type] && window.HERO_LOGIC[type].applySkillNode) {
+            window.HERO_LOGIC[type].applySkillNode(base, node);
+        }
     }
 
     // Apply Achievement Bonuses
@@ -2569,6 +2682,11 @@ function startObjective() {
         currentObjective.current = 0;
         showNotification("OBJECTIVE: SURVIVE THE DECAY!");
     }
+
+    // DLC Hook: Start Objective
+    if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].startObjective) {
+        window.HERO_LOGIC[player.type].startObjective(currentObjective);
+    }
 }
 
 function advanceWave() {
@@ -3057,6 +3175,11 @@ function masterLoop(timestamp) {
                         triggerStory(wave);
                     }
                 }
+
+                // DLC Hook: Check Completion
+                if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].checkObjectiveCompletion) {
+                    window.HERO_LOGIC[player.type].checkObjectiveCompletion(currentObjective, wave);
+                }
             }
 
             // Boss Death Slow-Mo Sequence
@@ -3214,6 +3337,11 @@ function masterLoop(timestamp) {
                     objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
                     objFill.style.backgroundColor = '#95a5a6';
                 }
+
+                // DLC Hook: Draw UI
+                if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawObjectiveUI) {
+                    window.HERO_LOGIC[player.type].drawObjectiveUI(currentObjective, objText, objFill);
+                }
             } else {
                 document.getElementById('objective-display').style.display = 'none';
             }
@@ -3359,6 +3487,12 @@ function masterLoop(timestamp) {
 
             // Biome Effects on Player
             let biomeSpeedMod = 1;
+
+            // DLC Hook: Biome Update
+            if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType]) {
+                window.BIOME_LOGIC[currentBiomeType].update(arena, player, enemies);
+            }
+
             arena.biomeZones.forEach(zone => {
                 // Simple AABB collision
                 if (player.x > zone.x && player.x < zone.x + zone.w &&
@@ -3969,6 +4103,15 @@ function masterLoop(timestamp) {
             // Restore Camera Transform
             ctx.restore();
 
+            // DLC Hook: Biome Draw (e.g. Falling Rock Shadows)
+            if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType]) {
+                ctx.save();
+                // Apply camera transform again for biome effects
+                ctx.translate(-arena.camera.x, -arena.camera.y);
+                window.BIOME_LOGIC[currentBiomeType].draw(ctx, arena);
+                ctx.restore();
+            }
+
             // Chaos: Darkness (Fog of War) OR Mutator: Low Visibility
             const isLowVis = (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'LOW_VISIBILITY'));
             if ((typeof isChaosActive === 'function' && isChaosActive('DARKNESS')) || isLowVis) {
@@ -4010,9 +4153,16 @@ function masterLoop(timestamp) {
 // Ensure you call loadGame() at startup!
 loadGame();
 
-// Initialize Menu on Load
-initMenu();
-masterLoop();
+// Initialize DLCs then Menu
+if (window.dlcManager) {
+    window.dlcManager.init().then(() => {
+        initMenu();
+        masterLoop();
+    });
+} else {
+    initMenu();
+    masterLoop();
+}
 
 // OPTIONAL: Auto-save every 30 seconds
 setInterval(() => {

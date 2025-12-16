@@ -36,7 +36,11 @@ class Arena {
         console.log(`Generating Arena: Layout ${layout}, Biome ${biomeType}, Size ${this.width}x${this.height}, Wave ${currentWave}`);
 
         // --- Biome Generation ---
-        if (biomeType === 'fire') {
+        // DLC Hook
+        if (window.BIOME_LOGIC && window.BIOME_LOGIC[biomeType]) {
+            window.BIOME_LOGIC[biomeType].generate(this);
+        }
+        else if (biomeType === 'fire') {
             this.biomeZones.push(new BiomeZone(cx - 600, cy - 600, 300, 300, 'LAVA'));
             this.biomeZones.push(new BiomeZone(cx + 300, cy + 300, 300, 300, 'LAVA'));
             this.biomeZones.push(new BiomeZone(cx - 300, cy + 300, 200, 200, 'LAVA'));

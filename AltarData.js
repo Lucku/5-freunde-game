@@ -25,6 +25,11 @@ const ALTAR_TREE = {
         { id: 'm2', req: 3, type: 'stat', stat: 'duration', val: 1.5, desc: 'Invincibility Duration +50%' },
         { id: 'm3', req: 5, type: 'unique', desc: 'Magnetic Field: Pulls enemies in while active' }
     ],
+    earth: [
+        { id: 'e1', req: 1, type: 'stat', stat: 'cooldown', val: 0.9, desc: 'Seismic Slam Cooldown -10%' },
+        { id: 'e2', req: 3, type: 'stat', stat: 'radius', val: 1.2, desc: 'Seismic Slam Radius +20%' },
+        { id: 'e3', req: 5, type: 'unique', desc: 'Aftershock: Seismic Slam triggers a second time' }
+    ],
     convergence: [
         { id: 'c1', req: { fire: 5, water: 5 }, type: 'mutation', desc: 'Boiling Wave: Tidal Wave applies Fire DoT' },
         { id: 'c2', req: { ice: 5, metal: 5 }, type: 'mutation', desc: 'Frostbite Armor: Iron Will freezes attackers' },
@@ -35,6 +40,12 @@ const ALTAR_TREE = {
         { id: 'c7', req: { water: 5, plant: 5 }, type: 'mutation', desc: 'Algae Bloom: Tidal Wave heals player per hit' },
         { id: 'c8', req: { water: 5, metal: 5 }, type: 'mutation', desc: 'Hydro-Shield: Tidal Wave grants temporary HP' },
         { id: 'c9', req: { ice: 5, plant: 5 }, type: 'mutation', desc: 'Cryo-Flora: Overgrowth projectiles freeze enemies' },
-        { id: 'c10', req: { plant: 5, metal: 5 }, type: 'mutation', desc: 'Ironbark: Overgrowth grants damage reduction' }
+        { id: 'c10', req: { plant: 5, metal: 5 }, type: 'mutation', desc: 'Ironbark: Overgrowth grants damage reduction' },
+        // Earth Mutations
+        { id: 'c11', req: { fire: 5, earth: 5 }, type: 'mutation', desc: 'Magma Roll: Rolling leaves a fire trail' },
+        { id: 'c12', req: { water: 5, earth: 5 }, type: 'mutation', desc: 'Mudslide: Seismic Slam slows enemies' },
+        { id: 'c13', req: { ice: 5, earth: 5 }, type: 'mutation', desc: 'Ice Breaker: Ramming frozen enemies deals 3x damage' },
+        { id: 'c14', req: { plant: 5, earth: 5 }, type: 'mutation', desc: 'Nature\'s Embrace: Ramming heals for 1% HP' },
+        { id: 'c15', req: { metal: 5, earth: 5 }, type: 'mutation', desc: 'Steel Ball: +50% Armor while rolling' }
     ]
 };
