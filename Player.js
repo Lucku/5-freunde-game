@@ -451,8 +451,9 @@ class Player {
     onKill() {
         if (this.type === 'black') {
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
-                this.hp = Math.min(this.maxHp, this.hp + 2); // Heal 2 HP per kill
-                floatingTexts.push(new FloatingText(this.x, this.y - 30, "+2", "#2ecc71", 14));
+                // Nerfed Healing: 1 HP per kill (was 2)
+                this.hp = Math.min(this.maxHp, this.hp + 1);
+                floatingTexts.push(new FloatingText(this.x, this.y - 30, "+1", "#2ecc71", 14));
             }
         }
     }
@@ -475,10 +476,17 @@ class Player {
 
         // Black Hero Passive: DoT & Aura
         if (this.type === 'black') {
-            // Self Damage (DoT) - 1 HP every 20 frames (3 HP/sec) - Increased stress
+            // Self Damage (DoT) - Increases with wave
+            // Base: 1 HP per 20 frames. Scaling: +0.1 per wave
             if (frame % 20 === 0 && this.hp > 1) {
-                this.hp -= 1;
-                currentRunStats.damageTaken += 1;
+                const dotDamage = 1 + (wave * 0.1);
+                this.hp -= dotDamage;
+                currentRunStats.damageTaken += dotDamage;
+
+                // Visual indicator for high DoT
+                if (dotDamage > 2) {
+                    floatingTexts.push(new FloatingText(this.x, this.y - 20, "-" + dotDamage.toFixed(1), "#555", 12));
+                }
             }
 
             // Dark Aura (Damage nearby enemies)

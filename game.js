@@ -2320,9 +2320,49 @@ function chooseUpgrade(type) {
 }
 
 // --- Shop Logic ---
+const SHOP_POOL = [
+    { id: 'dmg', name: 'Sharpening Stone', baseCost: 250, desc: '+5% Damage', action: () => { player.damageMultiplier += 0.05; player.runBuffs.damage += 0.05; } },
+    { id: 'spd', name: 'Light Boots', baseCost: 200, desc: '+5% Speed', action: () => { player.speedMultiplier += 0.05; player.runBuffs.speed += 0.05; } },
+    { id: 'hp', name: 'Heart Container', baseCost: 300, desc: '+20 Max HP', action: () => { player.maxHp += 20; player.hp += 20; player.runBuffs.maxHp += 20; } },
+    { id: 'cd', name: 'Hourglass', baseCost: 350, desc: '-5% Cooldown', action: () => { player.cooldownMultiplier *= 0.95; player.runBuffs.cooldown += 0.05; } },
+    { id: 'crit', name: 'Lucky Charm', baseCost: 400, desc: '+5% Crit Chance', action: () => { player.critChance += 0.05; } },
+    { id: 'def', name: 'Iron Plating', baseCost: 400, desc: '+2% Dmg Reduction', action: () => { player.damageReduction = Math.min(0.75, player.damageReduction + 0.02); player.runBuffs.defense += 0.02; } },
+    { id: 'range', name: 'Magnet', baseCost: 150, desc: '+20 Pickup Range', action: () => { player.pickupRadius += 20; } }
+];
+
+let currentShopItems = [];
+
 function openShop() {
     isShopping = true;
     document.getElementById('shop-screen').style.display = 'flex';
+
+    // Generate Shop Items if new visit (empty list)
+    if (!currentShopItems || currentShopItems.length === 0) {
+        currentShopItems = [];
+        // Always add Heal
+        currentShopItems.push({
+            id: 'heal',
+            name: 'Health Potion',
+            baseCost: 100,
+            desc: 'Heal 50 HP',
+            action: () => { player.hp = Math.min(player.hp + 50, player.maxHp); }
+        });
+
+        // Pick 3 random unique items from pool
+        const pool = [...SHOP_POOL];
+        for (let i = 0; i < 3; i++) {
+            if (pool.length === 0) break;
+            const idx = Math.floor(Math.random() * pool.length);
+            currentShopItems.push(pool[idx]);
+            pool.splice(idx, 1);
+        }
+    }
+
+    renderShopItems();
+    setUIState('SHOP');
+}
+
+function renderShopItems() {
     document.getElementById('shopGoldVal').innerText = player.gold;
 
     // Update Health UI
@@ -2335,41 +2375,44 @@ function openShop() {
     const container = document.getElementById('shop-container');
     container.innerHTML = '';
 
-    const items = [
-        { id: 'heal', name: 'Health Potion', cost: 100, desc: 'Heal 50 HP', action: () => { player.hp = Math.min(player.hp + 50, player.maxHp); updateShopHealth(); } },
-        { id: 'dmg', name: 'Sharpening Stone', cost: 250, desc: '+5% Damage', action: () => { player.damageMultiplier += 0.05; player.runBuffs.damage += 0.05; } },
-        { id: 'spd', name: 'Light Boots', cost: 200, desc: '+5% Speed', action: () => { player.speedMultiplier += 0.05; player.runBuffs.speed += 0.05; } },
-        { id: 'hp', name: 'Heart Container', cost: 300, desc: '+20 Max HP', action: () => { player.maxHp += 20; player.hp += 20; player.runBuffs.maxHp += 20; updateShopHealth(); } }
-    ];
+    // Calculate Multipliers
+    // Price increases with wave and items bought
+    const waveMult = 1 + (wave * 0.1);
+    const boughtMult = 1 + ((currentRunStats.itemsBought || 0) * 0.2); // 20% increase per item bought
 
-    items.forEach(item => {
+    currentShopItems.forEach(item => {
+        const cost = Math.floor(item.baseCost * waveMult * boughtMult);
+
         const div = document.createElement('div');
         div.className = 'shop-item';
         div.innerHTML = `
             <div style="font-size: 24px; font-weight: bold; color: #fff;">${item.name}</div>
             <div style="color: #aaa; margin: 5px 0;">${item.desc}</div>
-            <div class="shop-cost">${item.cost} Gold</div>
+            <div class="shop-cost" style="color: ${player.gold >= cost ? '#f1c40f' : '#e74c3c'}">${cost} Gold</div>
         `;
         div.onclick = () => {
-            if (player.gold >= item.cost) {
-                player.gold -= item.cost;
-                currentRunStats.moneySpent += item.cost; // Track Spent
+            if (player.gold >= cost) {
+                player.gold -= cost;
+                currentRunStats.moneySpent += cost;
+                if (!currentRunStats.itemsBought) currentRunStats.itemsBought = 0;
+                currentRunStats.itemsBought++;
+
                 item.action();
-                document.getElementById('shopGoldVal').innerText = player.gold;
+
                 showNotification("Purchased!");
+                renderShopItems(); // Re-render to update prices and health
             } else {
                 showNotification("Not enough Gold!");
             }
         };
         container.appendChild(div);
     });
-    setUIState('SHOP');
 }
 
 function closeShop() {
     isShopping = false;
     document.getElementById('shop-screen').style.display = 'none';
-
+    currentShopItems = []; // Reset for next shop
     advanceWave();
 }
 
@@ -2378,7 +2421,7 @@ function triggerStory(completedWave) {
     // Check if story mode is enabled or if it's daily/weekly mode
     if ((saveData.story && saveData.story.enabled === false) || isDailyMode || isWeeklyMode) {
         // Skip story
-        if (wave % 2 === 0) {
+        if (wave % 4 === 0) {
             openShop();
         } else {
             advanceWave();
@@ -2447,7 +2490,7 @@ function closeStory() {
     // Special case: If wave is 0 (Intro), always advance to Wave 1
     if (wave === 0) {
         advanceWave();
-    } else if (wave % 2 === 0) {
+    } else if (wave % 4 === 0) {
         openShop();
     } else {
         advanceWave();
@@ -2689,7 +2732,8 @@ function startGame(mode = 'NORMAL') {
         moneySpent: 0,
         enemiesKilled: 0,
         bossesKilled: 0,
-        maxCombo: 0
+        maxCombo: 0,
+        itemsBought: 0
     };
 
     // Hide Menus
