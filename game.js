@@ -646,7 +646,7 @@ function updateUIHighlight() {
         el.classList.add('selected');
 
 
-        const scrollableStates = ['ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE', 'ALTAR', 'COMPLETION'];
+        const scrollableStates = ['MENU', 'ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE', 'ALTAR', 'COMPLETION'];
         if (scrollableStates.includes(uiState)) {
             // Scroll into view if needed
             el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
@@ -900,6 +900,7 @@ function startStoryGame() {
 }
 
 function initMenu() {
+    if (typeof audioManager !== 'undefined') audioManager.play('menu');
     document.getElementById('menu-overlay').style.display = 'flex';
     document.getElementById('start-screen').style.display = 'flex';
     document.getElementById('start-screen').style.flexDirection = 'column';
@@ -921,10 +922,16 @@ function initMenu() {
         saveMgmt.style.display = isElectron ? 'none' : 'flex';
     }
 
+    // Hide Import/Export Buttons in Electron
+    const exportBtn = document.getElementById('btn-export-save');
+    const importBtn = document.getElementById('btn-import-save');
+    if (exportBtn) exportBtn.style.display = isElectron ? 'none' : 'inline-block';
+    if (importBtn) importBtn.style.display = isElectron ? 'none' : 'inline-block';
+
     // Show Exit to Desktop Button in Electron
     const exitBtn = document.getElementById('btn-exit-desktop');
     if (exitBtn) {
-        exitBtn.style.display = isElectron ? 'block' : 'none';
+        exitBtn.style.display = isElectron ? 'inline-block' : 'none';
     }
 
     // Update Daily Challenge Button
@@ -1285,6 +1292,7 @@ function closeChaosShop() {
 }
 
 function openSkillTree() {
+    if (typeof audioManager !== 'undefined') audioManager.play('menu');
     document.getElementById('menu-overlay').style.display = 'none';
     document.getElementById('skill-tree-screen').style.display = 'flex';
     renderSkillTree();
@@ -2502,6 +2510,7 @@ function startObjective() {
 function advanceWave() {
     wave++;
     enemiesKilledInWave = 0;
+    masksDroppedInWave = 0; // Reset mask cap
     enemies = [];
     bossActive = false;
 
@@ -2649,6 +2658,7 @@ function startGame(mode = 'NORMAL') {
     score = 0;
     wave = 0; // Start at 0, advanceWave will increment to 1
     enemiesKilledInWave = 0;
+    masksDroppedInWave = 0; // Cap mask drops
     bossActive = false;
     enemies = [];
     projectiles = [];
@@ -2664,6 +2674,7 @@ function startGame(mode = 'NORMAL') {
     companions = [];
     forcedEnemyType = null;
     currentObjective = null; // Reset Objective
+    currentStoryEvent = null; // Reset Story Event to prevent leaks
     gameRunning = true;
     gamePaused = false;
     isLevelingUp = false;
@@ -2877,6 +2888,15 @@ function masterLoop(timestamp) {
 
             // Update Camera
             arena.updateCamera(player, canvas.width, canvas.height);
+
+            // Heatwave Mirage Effect (Camera Wobble)
+            if (currentWeather && currentWeather.id === 'HEATWAVE') {
+                const wobbleX = Math.sin(frame * 0.05) * 15;
+                const wobbleY = Math.cos(frame * 0.03) * 15;
+                arena.camera.x += wobbleX;
+                arena.camera.y += wobbleY;
+            }
+
             arena.update(player);
 
             // --- OBJECTIVE LOGIC ---
@@ -3137,13 +3157,8 @@ function masterLoop(timestamp) {
                     weatherTimer = 3600 + Math.random() * 2400; // 1-1.5 minutes break
                 } else {
                     // Weather Effects
-                    if (currentWeather.id === 'HEATWAVE' && frame % 60 === 0) {
-                        if (!player.isInvincible) {
-                            player.hp -= 1;
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "1", "#e74c3c", 20));
-                            currentRunStats.damageTaken += 1; // Track Damage
-                        }
-                        enemies.forEach(e => e.hp -= 1);
+                    if (currentWeather.id === 'HEATWAVE') {
+                        // Mirage Effect handled in Camera Update
                     }
                     if (currentWeather.id === 'MAGNETIC') {
                         enemies.forEach(e1 => {
@@ -3821,7 +3836,12 @@ function masterLoop(timestamp) {
 
                         currentRunStats.enemiesKilled++; // Track Kill
                         score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
-                        if (Math.random() < player.maskChance) holyMasks.push(new HolyMask(enemy.x, enemy.y));
+
+                        // Mask Drop Logic (Capped at 5 per wave)
+                        if (masksDroppedInWave < 5 && Math.random() < player.maskChance) {
+                            holyMasks.push(new HolyMask(enemy.x, enemy.y));
+                            masksDroppedInWave++;
+                        }
 
                         // Mutator: No Regen (No Health Drops)
                         if (!((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'NO_REGEN'))) {

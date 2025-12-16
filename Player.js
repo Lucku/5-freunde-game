@@ -860,8 +860,15 @@ class Player {
                     const isExtraCrit = Math.random() < this.critChance;
                     const extraDmg = dmg * (isExtraCrit ? this.critMultiplier : 1);
 
+                    // Add slight spread to extra projectiles so they are visible
+                    const spreadAngle = (Math.random() - 0.5) * 0.2; // +/- 0.1 radians (~5.7 degrees)
+                    const spreadVel = {
+                        x: Math.cos(angle + spreadAngle) * speed,
+                        y: Math.sin(angle + spreadAngle) * speed
+                    };
+
                     // Spawn exactly at hero position
-                    const extraProj = new Projectile(this.x, this.y, vel, extraDmg, this.stats.color, size, this.type, knockback, false, false, isExtraCrit);
+                    const extraProj = new Projectile(this.x, this.y, spreadVel, extraDmg, this.stats.color, size, this.type, knockback, false, false, isExtraCrit);
                     if (pierce > 0) extraProj.pierce = pierce;
                     projectiles.push(extraProj);
                     currentRunStats.missilesFired++; // Track Missiles

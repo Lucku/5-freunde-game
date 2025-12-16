@@ -261,7 +261,10 @@ class Museum {
         this.entities.forEach(e => e.update(this.walls));
 
         // Check Interaction
-        if (keys['e']) {
+        let interact = keys['e'];
+        if (gp && gp.buttons[0].pressed) interact = true; // Button A
+
+        if (interact) {
             const closest = this.artifacts.find(a => Math.hypot(this.player.x - a.x, this.player.y - a.y) < 50);
             if (closest && closest.type === 'MEMORY') {
                 this.viewingStory = closest.hero;
@@ -358,7 +361,7 @@ class Museum {
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 16px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText("PRESS E TO VIEW", 0, 0);
+            ctx.fillText("PRESS E OR (A) TO VIEW", 0, 0);
             ctx.restore();
         }
 
@@ -371,7 +374,7 @@ class Museum {
         ctx.fillStyle = 'white';
         ctx.font = '20px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText("MUSEUM - Press ESC or B to Exit", canvas.width / 2, 30);
+        ctx.fillText("MUSEUM - Press ESC or (B) to Exit", canvas.width / 2, 30);
     }
 
     drawDecorations(ctx) {
@@ -503,7 +506,7 @@ class Museum {
         ctx.fillStyle = '#f1c40f';
         ctx.textAlign = 'center';
         ctx.font = '20px Arial';
-        ctx.fillText("PRESS ESC TO CLOSE", canvas.width / 2, canvas.height - 50);
+        ctx.fillText("PRESS ESC OR (B) TO CLOSE", canvas.width / 2, canvas.height - 50);
     }
 }
 

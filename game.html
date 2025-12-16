@@ -80,7 +80,7 @@
         <button class="btn btn-red" id="btn-quit-run" onclick="quitGame()" onmouseover="showQuitWarning()"
             onmouseout="hideQuitWarning()" onfocus="showQuitWarning()" onblur="hideQuitWarning()">Quit Run</button>
         <div id="quit-run-warning"
-            style="color: #e74c3c; font-size: 14px; margin-top: 5px; height: 20px; opacity: 0; transition: opacity 0.3s; font-weight: bold;">
+            style="color: #e74c3c; font-size: 14px; margin-top: 5px; height: 20px; min-height: 20px; opacity: 0; transition: opacity 0.3s; font-weight: bold; pointer-events: none;">
             Warning: Progress will be lost!</div>
         <button id="btn-exit-desktop" class="btn btn-red" style="display:none; margin-top: 10px;"
             onclick="exitToDesktop()">Quit Game</button>
@@ -235,13 +235,13 @@
 
     <!-- Completion Screen -->
     <div id="completion-screen"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#111; z-index:2000; flex-direction:column; align-items:center; padding:20px; overflow-y:auto;">
-        <h1 style="color:#f1c40f; font-size:40px; margin-bottom:10px;">COMPLETION TRACKER</h1>
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#111; z-index:2000; flex-direction:column; align-items:center; padding:20px; overflow:hidden;">
+        <h1 style="color:#f1c40f; font-size:40px; margin-bottom:10px; flex-shrink: 0;">COMPLETION TRACKER</h1>
         <div id="completion-grid"
-            style="width: 100%; max-width: 1000px; display: flex; flex-direction: column; align-items: center; gap: 30px;">
+            style="width: 100%; max-width: 1000px; display: flex; flex-direction: column; align-items: center; gap: 30px; overflow-y: auto; flex-grow: 1; padding-right: 10px;">
             <!-- Generated via JS -->
         </div>
-        <button class="btn" onclick="closeCompletion()" style="margin-top: 30px;">Back to Menu</button>
+        <button class="btn" onclick="closeCompletion()" style="margin-top: 20px; flex-shrink: 0;">Back to Menu</button>
     </div>
 
     <!-- Confirmation Dialog -->
@@ -308,9 +308,10 @@
                     <h3 style="margin-top: 20px;">System</h3>
                     <div class="system-buttons">
                         <button id="music-btn" class="btn btn-small" onclick="toggleMusic()">Music: ON (Y)</button>
-                        <button class="btn btn-small" onclick="exportSave()">Export Save</button>
+                        <button id="btn-export-save" class="btn btn-small" onclick="exportSave()">Export Save</button>
                         <input type="file" id="import-file" style="display: none;" onchange="importSave(this)">
-                        <button class="btn btn-small" onclick="document.getElementById('import-file').click()">Import
+                        <button id="btn-import-save" class="btn btn-small"
+                            onclick="document.getElementById('import-file').click()">Import
                             Save</button>
                         <button class="btn btn-danger btn-small" onclick="closeGame()">Exit</button>
                     </div>
