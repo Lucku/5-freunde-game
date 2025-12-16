@@ -256,19 +256,6 @@ canvas {
     box-shadow: 0 0 5px white;
 }
 
-.weapon-icon {
-    width: 150px;
-    height: 40px;
-    background: #333;
-    border: 2px solid #fff;
-    border-radius: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    margin-bottom: 10px;
-}
-
 #pause-screen,
 #levelup-screen,
 #skill-tree-screen,

@@ -16,9 +16,6 @@ class Player {
         this.maxXp = 100;
         this.extraProjectiles = this.stats.extraProjectiles || 0;
         this.buffs = { speed: 0, multi: 0, autoaim: 0 };
-        this.weapon = 'STANDARD';
-        this.weaponTimer = 0;
-        this.weaponTier = 1; // Weapon Tier System
 
         // New Stats
         this.damageReduction = this.stats.defense || 0;
@@ -519,14 +516,6 @@ class Player {
             }
         }
 
-        if (this.weapon !== 'STANDARD') {
-            this.weaponTimer--;
-            if (this.weaponTimer <= 0) {
-                this.weapon = 'STANDARD';
-                showNotification("WEAPON EXPIRED");
-            }
-        }
-
         // --- Input Handling (Keyboard & Controller) ---
         let dx = 0; let dy = 0;
 
@@ -774,18 +763,11 @@ class Player {
         let size = this.stats.projectileSize;
         let cooldown = this.stats.rangeCd * this.cooldownMultiplier;
 
-        // Apply Weapon Tier Bonuses
-        if (this.weapon !== 'STANDARD') {
-            const tierMult = 1 + (this.weaponTier - 1) * 0.25; // +25% damage per tier
-            dmg *= tierMult;
-            size *= (1 + (this.weaponTier - 1) * 0.1); // +10% size per tier
-        }
-
         // Crit Calculation per shot batch (or per projectile)
         // We'll calculate it per projectile in the loop for variety
 
         // Apply Blast Radius to size for Fire/Explosive
-        if (this.type === 'fire' || this.weapon === 'BAZOOKA') {
+        if (this.type === 'fire') {
             size *= (this.stats.blastRadiusMult || 1);
         }
 
@@ -820,29 +802,18 @@ class Player {
                 size = 12; dmg *= 3; speed *= 0.8; cooldown = 50 * this.cooldownMultiplier; color = '#7f8c8d';
             }
         } else {
-            if (this.weapon === 'SCATTER') {
-                shots.push(angle - 0.3, angle - 0.15, angle, angle + 0.15, angle + 0.3);
-                cooldown = 30 * this.cooldownMultiplier; dmg = this.stats.rangeDmg * 0.6 * this.damageMultiplier;
-            } else if (this.weapon === 'MINIGUN') {
-                shots.push(angle + (Math.random() - 0.5) * 0.2);
-                cooldown = 4 * this.cooldownMultiplier; dmg = this.stats.rangeDmg * 0.4 * this.damageMultiplier;
-            } else if (this.weapon === 'BAZOOKA') {
-                shots.push(angle); speed = 8; size = 10; dmg = this.stats.rangeDmg * 2 * this.damageMultiplier;
-                cooldown = 60 * this.cooldownMultiplier; isExplosive = true;
-            } else {
-                if (this.type === 'plant') { shots.push(angle - 0.2, angle, angle + 0.2); }
-                else { shots.push(angle); }
-                if (this.buffs.multi > 0) {
-                    shots.push(angle - 0.25, angle + 0.25);
-                }
+            if (this.type === 'plant') { shots.push(angle - 0.2, angle, angle + 0.2); }
+            else { shots.push(angle); }
+            if (this.buffs.multi > 0) {
+                shots.push(angle - 0.25, angle + 0.25);
+            }
 
-                // Fire Hero Special Trait
-                if (this.type === 'fire' && Math.random() < (this.stats.explodeChance || 0)) {
-                    isExplosive = true;
-                    color = '#e67e22'; // Orange tint for explosive shots
-                    size *= 1.5; // Increase size for explosion
-                    dmg *= 1.2; // Slightly increase damage
-                }
+            // Fire Hero Special Trait
+            if (this.type === 'fire' && Math.random() < (this.stats.explodeChance || 0)) {
+                isExplosive = true;
+                color = '#e67e22'; // Orange tint for explosive shots
+                size *= 1.5; // Increase size for explosion
+                dmg *= 1.2; // Slightly increase damage
             }
         }
 
@@ -857,7 +828,7 @@ class Player {
             projectiles.push(proj);
             currentRunStats.missilesFired++; // Track Missiles
 
-            if (this.weapon === 'STANDARD' && !this.transformActive) {
+            if (!this.transformActive) {
                 for (let i = 1; i <= this.extraProjectiles; i++) {
                     // Extra projectiles also roll for crit independently
                     const isExtraCrit = Math.random() < this.critChance;

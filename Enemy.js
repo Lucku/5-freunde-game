@@ -48,6 +48,35 @@ class Enemy {
         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'FAST_ENEMIES')) {
             this.speed *= 1.5;
         }
+
+        // Elite Status (Late Game)
+        this.isElite = false;
+        this.eliteType = null;
+        if (wave > 50 && Math.random() < 0.05) { // 5% chance after wave 50
+            this.isElite = true;
+            this.eliteType = ELITE_TYPES[Math.floor(Math.random() * ELITE_TYPES.length)];
+            this.hp *= 3;
+            this.radius *= 1.2;
+            this.xpValue = 50; // High XP
+
+            // Elite Specific Stats
+            if (this.eliteType.id === 'TANK') {
+                this.hp *= 2;
+                this.radius *= 1.5;
+                this.speed *= 0.7;
+            } else if (this.eliteType.id === 'EXPLODER') {
+                this.speed *= 1.3;
+            }
+
+            // Apply Card Nerfs
+            const nerfHp = getCollectionBonuses(this.eliteType.id).damageMult; // Using damageMult as HP nerf here for simplicity or add specific logic
+            // Actually, let's check specific card bonuses
+            if (this.eliteType.id === 'AURA_SPEED' && getCollectionBonuses('ELITE_AURA_SPEED').damageMult > 1) {
+                this.hp *= 0.9; // 10% less HP
+            }
+        } else {
+            this.xpValue = 10;
+        }
         this.color = '#555';
         this.damage = 20 * difficultyMult;
         this.sides = Math.floor(Math.random() * 3) + 4;
@@ -259,6 +288,32 @@ class Enemy {
             moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
         }
 
+        // --- ELITE LOGIC ---
+        if (this.isElite) {
+            if (this.eliteType.id === 'AURA_SPEED') {
+                // Buff nearby enemies
+                enemies.forEach(e => {
+                    if (e !== this && Math.hypot(e.x - this.x, e.y - this.y) < 200) {
+                        e.speedBuff = 1.5; // 50% speed boost
+                    }
+                });
+            } else if (this.eliteType.id === 'AURA_HEAL') {
+                // Heal nearby enemies
+                if (frame % 60 === 0) {
+                    let healAmount = 10;
+                    if (saveData.collection.includes('ELITE_AURA_HEAL_4')) healAmount = 5; // Nerf
+
+                    enemies.forEach(e => {
+                        if (e !== this && Math.hypot(e.x - this.x, e.y - this.y) < 200) {
+                            e.hp = Math.min(e.maxHp || e.hp * 2, e.hp + healAmount);
+                            // Visual heal
+                            particles.push(new Particle(e.x, e.y, '#2ecc71'));
+                        }
+                    });
+                }
+            }
+        }
+
         // --- MUTATOR UPDATE LOGIC ---
         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'FOG')) {
             const dist = Math.hypot(player.x - this.x, player.y - this.y);
@@ -279,6 +334,23 @@ class Enemy {
 
     draw() {
         ctx.save(); ctx.translate(this.x, this.y);
+
+        // Elite Aura Visuals
+        if (this.isElite) {
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2);
+            ctx.strokeStyle = this.eliteType.color;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Crown Icon
+            ctx.fillStyle = '#f1c40f';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('👑', 0, -this.radius - 10);
+        }
 
         // Rotate to face player so eyes look at you
         const angle = Math.atan2(player.y - this.y, player.x - this.x);

@@ -9,7 +9,6 @@ const BASE_HERO_STATS = {
 };
 
 const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI', 'AUTOAIM'];
-const WEAPON_TYPES = ['SCATTER', 'MINIGUN', 'BAZOOKA'];
 const BOSS_TYPES = ['TANK', 'SPEEDSTER', 'SUMMONER', 'NOVA', 'RHINO', 'HYDRA'];
 const ENEMY_TYPES = ['BASIC', 'SHOOTER', 'BRUTE', 'SPEEDSTER', 'SWARM', 'SUMMONER', 'GHOST', 'SNIPER', 'BOMBER', 'TOXIC', 'SHIELDER'];
 const ENEMIES_PER_WAVE = 30;
@@ -134,6 +133,13 @@ const WEATHER_TYPES = [
     { id: 'MAGNETIC', name: 'MAGNETIC STORM', color: 'rgba(142, 68, 173, 0.2)', duration: 400 }
 ];
 
+const ELITE_TYPES = [
+    { id: 'AURA_SPEED', name: 'Commander', color: '#f1c40f', desc: 'Buffs nearby enemy speed' },
+    { id: 'AURA_HEAL', name: 'Mender', color: '#2ecc71', desc: 'Heals nearby enemies' },
+    { id: 'EXPLODER', name: 'Volatile', color: '#e74c3c', desc: 'Explodes on death' },
+    { id: 'TANK', name: 'Juggernaut', color: '#34495e', desc: 'Massive HP and Size' }
+];
+
 // Helper to create card variants
 const createCardSet = (type, name, color, specialDesc, specialBonus) => {
     return {
@@ -156,7 +162,13 @@ const COLLECTOR_CARDS = {
     ...createCardSet('BOMBER', 'Bomber', '#2c3e50', 'Bombers have 50% less HP', { type: 'special', id: 'BOMBER_HP' }),
     ...createCardSet('TOXIC', 'Toxic', '#27ae60', 'Immune to Toxic Trails', { type: 'special', id: 'TOXIC_IMMUNE' }),
     ...createCardSet('SHIELDER', 'Guardian', '#95a5a6', 'Attacks pierce Shields', { type: 'special', id: 'SHIELD_PIERCE' }),
-    ...createCardSet('BOSS', 'Titan', '#c0392b', '+10% Damage vs Bosses', { type: 'damage_vs', val: 0.1, target: 'BOSS' })
+    ...createCardSet('BOSS', 'Titan', '#c0392b', '+10% Damage vs Bosses', { type: 'damage_vs', val: 0.1, target: 'BOSS' }),
+
+    // Elite Cards
+    ...createCardSet('ELITE_AURA_SPEED', 'Elite Commander', '#f1c40f', 'Elites have 10% less HP', { type: 'damage_vs', val: 0.1, target: 'ELITE' }),
+    ...createCardSet('ELITE_AURA_HEAL', 'Elite Mender', '#2ecc71', 'Elites heal 50% less', { type: 'special', id: 'ELITE_HEAL_NERF' }),
+    ...createCardSet('ELITE_EXPLODER', 'Elite Volatile', '#e74c3c', 'Explosion radius -20%', { type: 'special', id: 'ELITE_EXPLODE_NERF' }),
+    ...createCardSet('ELITE_TANK', 'Elite Juggernaut', '#34495e', '+20% Damage vs Elites', { type: 'damage_vs', val: 0.2, target: 'ELITE' })
 };
 
 const MUTATORS = [

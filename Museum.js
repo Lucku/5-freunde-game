@@ -125,8 +125,10 @@ class Museum {
             const x = 700 + col * 100;
             const y = 800 + row * 100;
 
-            // Parse ID to get type (e.g., "BASIC_1" -> "BASIC")
-            const type = id.split('_')[0];
+            // Parse ID to get type (e.g., "BASIC_1" -> "BASIC", "ELITE_AURA_SPEED_1" -> "ELITE_AURA_SPEED")
+            const parts = id.split('_');
+            parts.pop(); // Remove the number suffix
+            const type = parts.join('_');
             this.entities.push(new MuseumEntity(x, y, type, false));
         });
 
@@ -547,6 +549,11 @@ class MuseumEntity {
             else if (this.type === 'BOMBER') { this.radius = 22; this.color = '#2c3e50'; this.sides = 8; }
             else if (this.type === 'TOXIC') { this.radius = 18; this.color = '#27ae60'; this.sides = 6; }
             else if (this.type === 'SHIELDER') { this.radius = 25; this.color = '#7f8c8d'; this.sides = 4; }
+            // Elites
+            else if (this.type === 'ELITE_AURA_SPEED') { this.radius = 25; this.color = '#f1c40f'; this.sides = 6; this.isElite = true; }
+            else if (this.type === 'ELITE_AURA_HEAL') { this.radius = 25; this.color = '#2ecc71'; this.sides = 6; this.isElite = true; }
+            else if (this.type === 'ELITE_EXPLODER') { this.radius = 25; this.color = '#e74c3c'; this.sides = 6; this.isElite = true; }
+            else if (this.type === 'ELITE_TANK') { this.radius = 35; this.color = '#34495e'; this.sides = 8; this.isElite = true; }
             else { this.type = 'BASIC'; } // Fallback
         }
     }
@@ -593,6 +600,23 @@ class MuseumEntity {
     draw(ctx) {
         ctx.save();
         ctx.translate(this.x, this.y);
+
+        // Elite Visuals
+        if (this.isElite) {
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 5, 0, Math.PI * 2);
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([3, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Crown Icon
+            ctx.fillStyle = '#f1c40f';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('👑', 0, -this.radius - 5);
+        }
 
         // Rotate slightly for movement effect or just face direction
         // Since they wander randomly, let's just use their movement angle

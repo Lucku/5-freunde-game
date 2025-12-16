@@ -980,8 +980,6 @@ function saveRunState() {
             xp: player.xp,
             maxXp: player.maxXp,
             gold: player.gold,
-            weapon: player.weapon,
-            weaponTier: player.weaponTier,
             buffs: player.buffs,
             runBuffs: player.runBuffs,
             stats: player.stats, // Base stats
@@ -1053,8 +1051,6 @@ function continueRun() {
     player.xp = state.player.xp;
     player.maxXp = state.player.maxXp;
     player.gold = state.player.gold;
-    player.weapon = state.player.weapon;
-    player.weaponTier = state.player.weaponTier;
 
     // Restore Buffs & Modifiers
     player.buffs = state.player.buffs;
@@ -1632,7 +1628,6 @@ let floatingTexts = []; // New array for damage numbers
 let meleeAttacks = [];
 let powerUps = [];
 // obstacles and biomeZones moved to Arena class
-let weaponDrops = [];
 let holyMasks = [];
 let goldDrops = [];
 let cardDrops = [];
@@ -2032,22 +2027,6 @@ class MeleeSwipe {
     }
 }
 
-class WeaponDrop {
-    constructor(x, y) {
-        this.x = x; this.y = y;
-        this.type = WEAPON_TYPES[Math.floor(Math.random() * WEAPON_TYPES.length)];
-        this.radius = 20; this.angle = 0;
-    }
-    draw() {
-        this.angle += 0.05;
-        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
-        ctx.fillStyle = '#8e44ad'; ctx.fillRect(-15, -15, 30, 30);
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(-15, -15, 30, 30);
-        ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('W', 0, 0); ctx.restore();
-    }
-}
-
 class GoldDrop {
     constructor(x, y) {
         this.x = x; this.y = y; this.radius = 10; this.angle = 0;
@@ -2228,12 +2207,6 @@ function updateUI() {
     document.getElementById('scoreVal').innerText = score;
     document.getElementById('waveVal').innerText = wave;
     document.getElementById('goldVal').innerText = player.gold;
-
-    let weaponText = player.weapon;
-    if (player.weapon !== 'STANDARD') {
-        weaponText += ` (LVL ${player.weaponTier})`;
-    }
-    document.getElementById('weapon-display').innerText = weaponText;
 
     // Update Special Ability UI
     const specialPercent = Math.max(0, (player.specialCooldown / player.specialMaxCooldown) * 100);
@@ -2666,7 +2639,6 @@ function startGame(mode = 'NORMAL') {
     floatingTexts = [];
     meleeAttacks = [];
     powerUps = [];
-    weaponDrops = [];
     holyMasks = [];
     goldDrops = [];
     cardDrops = [];
@@ -3398,26 +3370,6 @@ function masterLoop(timestamp) {
                 }
             });
 
-            // Weapon Drops
-            weaponDrops.forEach((drop, index) => {
-                drop.draw();
-                const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
-                if (dist < player.radius + 20) {
-                    if (player.weapon === drop.type) {
-                        player.weaponTier++;
-                        player.weaponTimer = 900;
-                        showNotification(`WEAPON UPGRADED! (LVL ${player.weaponTier})`);
-                    } else {
-                        player.weapon = drop.type;
-                        player.weaponTier = 1;
-                        player.weaponTimer = 900;
-                        showNotification(`WEAPON EQUIPPED!`);
-                    }
-                    createExplosion(player.x, player.y, '#8e44ad');
-                    weaponDrops.splice(index, 1);
-                }
-            });
-
             // Gold Drops
             goldDrops.forEach((drop, index) => {
                 drop.draw();
@@ -3800,7 +3752,6 @@ function masterLoop(timestamp) {
                         currentRunStats.bossesKilled++; // Track Boss Kill
                         saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
                         score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
-                        weaponDrops.push(new WeaponDrop(enemy.x, enemy.y));
                         checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
 
                         // True Golden Mask Drop (Makuta Wave 100+)
@@ -3842,6 +3793,30 @@ function masterLoop(timestamp) {
 
                         currentRunStats.enemiesKilled++; // Track Kill
                         score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
+
+                        // Elite Logic on Death
+                        if (enemy.isElite) {
+                            score += 500;
+                            player.gainXp(200);
+                            createExplosion(enemy.x, enemy.y, enemy.eliteType.color);
+
+                            // Elite Card Drop
+                            checkDrop(enemy.eliteType.id, enemy.x, enemy.y);
+
+                            if (enemy.eliteType.id === 'EXPLODER') {
+                                let radius = 200;
+                                if (saveData.collection.includes('ELITE_EXPLODER_4')) radius = 160; // Nerf
+
+                                createExplosion(enemy.x, enemy.y, '#e74c3c');
+                                // Damage Player
+                                if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < radius) {
+                                    if (!player.isInvincible) {
+                                        player.hp -= 30 * (1 - player.damageReduction);
+                                        floatingTexts.push(new FloatingText(player.x, player.y - 20, "30", "#e74c3c", 20));
+                                    }
+                                }
+                            }
+                        }
 
                         // Mask Drop Logic (Capped at 5 per wave)
                         if (masksDroppedInWave < 5 && Math.random() < player.maskChance) {
