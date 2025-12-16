@@ -43,6 +43,11 @@ class Enemy {
         // Adjusted Scaling: More HP, Less Speed
         this.hp = (25 + Math.random() * 25) * (1 + (wave * 0.35)) * (1 + (prestige * 0.5));
         this.speed = (1 + Math.random() * 1.5) * (1 + (wave * 0.025)); // Reduced from 0.1 to 0.025
+
+        // Mutator: Fast Enemies
+        if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'FAST_ENEMIES')) {
+            this.speed *= 1.5;
+        }
         this.color = '#555';
         this.damage = 20 * difficultyMult;
         this.sides = Math.floor(Math.random() * 3) + 4;

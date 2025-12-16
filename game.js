@@ -1845,7 +1845,7 @@ function getDailyMutators() {
     };
 
     let currentSeed = seed;
-    const count = 2 + Math.floor(random(currentSeed) * 2); // 2 or 3 mutators
+    const count = 2; // Always 2 mutators for Daily
     currentSeed++;
 
     const selected = [];
@@ -1881,7 +1881,7 @@ function getWeeklyMutators() {
     };
 
     let currentSeed = seed;
-    const count = 3 + Math.floor(random(currentSeed) * 2); // 3 or 4 mutators
+    const count = 3; // Always 3 mutators for Weekly
     currentSeed++;
 
     const selected = [];
@@ -3226,7 +3226,13 @@ function masterLoop(timestamp) {
                             setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
                             enemies.unshift(new Boss(), new Boss());
                         } else {
-                            enemies.unshift(new Boss());
+                            // Mutator: Double Boss
+                            if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'DOUBLE_BOSS')) {
+                                enemies.unshift(new Boss(), new Boss());
+                                showNotification("DOUBLE BOSS SPAWN!");
+                            } else {
+                                enemies.unshift(new Boss());
+                            }
                         }
                     }
                     for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
@@ -3870,8 +3876,9 @@ function masterLoop(timestamp) {
             // Restore Camera Transform
             ctx.restore();
 
-            // Chaos: Darkness (Fog of War)
-            if (typeof isChaosActive === 'function' && isChaosActive('DARKNESS')) {
+            // Chaos: Darkness (Fog of War) OR Mutator: Low Visibility
+            const isLowVis = (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'LOW_VISIBILITY'));
+            if ((typeof isChaosActive === 'function' && isChaosActive('DARKNESS')) || isLowVis) {
                 ctx.save();
                 const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 150, canvas.width / 2, canvas.height / 2, 800);
                 gradient.addColorStop(0, 'transparent');

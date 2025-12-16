@@ -189,6 +189,9 @@ class Player {
     }
 
     dash() {
+        // Mutator: No Dash
+        if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'NO_DASH')) return;
+
         if (this.dashCooldown > 0 || this.isDashing) return;
 
         let dx = this.moveInput.x;

@@ -171,7 +171,11 @@ const MUTATORS = [
     { id: 'WINDY', name: 'Hurricane', desc: 'Strong winds push you around.', color: '#1abc9c' },
     { id: 'ONE_TYPE', name: 'Monoculture', desc: 'Only one random enemy type spawns.', color: '#d35400' },
     { id: 'SHADOW_FORM', name: 'Shadow Realm', desc: 'Play as the Hero of Darkness (Black).', color: '#2c3e50' },
-    { id: 'MELEE_ONLY', name: 'Melee Only', desc: 'You can only use melee attacks.', color: '#c0392b' }
+    { id: 'MELEE_ONLY', name: 'Melee Only', desc: 'You can only use melee attacks.', color: '#c0392b' },
+    { id: 'NO_DASH', name: 'Heavy Boots', desc: 'Dashing is disabled.', color: '#7f8c8d' },
+    { id: 'DOUBLE_BOSS', name: 'Twin Terrors', desc: 'Bosses spawn in pairs.', color: '#8e44ad' },
+    { id: 'FAST_ENEMIES', name: 'Adrenaline', desc: 'Enemies move 50% faster.', color: '#f1c40f' },
+    { id: 'LOW_VISIBILITY', name: 'Darkness', desc: 'Player light radius is reduced.', color: '#34495e' }
 ];
 
 const CHAOS_EFFECTS = [
