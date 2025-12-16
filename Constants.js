@@ -218,5 +218,7 @@ const PERM_UPGRADES = {
     health: { name: "Void Heart", desc: "+5 Starting HP", baseCost: 1000, costMult: 1.2 },
     greed: { name: "Void Coin", desc: "+5% Gold Gain", baseCost: 2000, costMult: 1.3 },
     power: { name: "Void Strength", desc: "+1% Damage", baseCost: 5000, costMult: 1.4 },
-    swift: { name: "Void Step", desc: "+1% Speed", baseCost: 3000, costMult: 1.3 }
+    swift: { name: "Void Step", desc: "+1% Speed", baseCost: 3000, costMult: 1.3 },
+    defense: { name: "Void Shell", desc: "+1% Damage Reduction", baseCost: 4000, costMult: 1.5 },
+    wisdom: { name: "Void Mind", desc: "+2% XP Gain", baseCost: 2500, costMult: 1.3 }
 };

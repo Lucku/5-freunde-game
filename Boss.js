@@ -16,7 +16,7 @@ class Boss {
         const prestige = saveData[player.type].prestige;
         const difficultyMult = (1 + (prestige * 0.5));
 
-        this.maxHp = 1000 * wave * difficultyMult;
+        this.maxHp = 1500 * wave * difficultyMult;
         this.hp = this.maxHp;
         this.speed = 1.5 + (wave * 0.1);
         this.color = '#c0392b';

@@ -108,7 +108,7 @@ class Player {
     }
 
     gainXp(amount) {
-        this.xp += amount;
+        this.xp += amount * (this.stats.xpMultiplier || 1);
         if (this.xp >= this.maxXp) {
             this.xp -= this.maxXp;
             this.levelUp();
@@ -366,8 +366,9 @@ class Player {
 
             // Convergence: Ironbark (c10)
             if (has('c10')) {
-                this.damageReduction = 0.5; // 50% DR
-                setTimeout(() => this.damageReduction = 0, 5000); // Reset after 5s
+                const oldDr = this.damageReduction;
+                this.damageReduction = Math.max(this.damageReduction, 0.5); // Set to 50% DR if lower
+                setTimeout(() => this.damageReduction = oldDr, 5000); // Reset to previous value
                 floatingTexts.push(new FloatingText(this.x, this.y - 80, "IRONBARK", "#95a5a6", 20));
             }
 

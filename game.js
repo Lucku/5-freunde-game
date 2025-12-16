@@ -35,7 +35,7 @@ const defaultSaveData = {
         daily_wins: 0, weekly_wins: 0
     },
     collection: [],
-    metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
+    metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0, defense: 0, wisdom: 0 },
     stats: {},
     daily: { lastCompleted: null },
     weekly: { lastCompleted: null },
@@ -56,7 +56,7 @@ let saveData = {
     black: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0, totalVoidGoldSpent: 0, unlockedAchievements: [], daily_wins: 0, weekly_wins: 0 },
     collection: [],
-    metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0 },
+    metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0, defense: 0, wisdom: 0 },
     stats: {
         missilesFired: 0,
         timeSurvived: 0,
@@ -477,6 +477,7 @@ function renderStatsScreen() {
         cooldown: 0,    // %
         defense: 0,     // %
         gold: 0,        // % (Greed)
+        xp: 0,          // % (Wisdom)
         luck: 0,        // %
         projectiles: 0, // Flat
         revives: 0      // Flat
@@ -494,7 +495,9 @@ function renderStatsScreen() {
                 if (key === 'health') { totals.healthFlat += level * 5; effect = `+${level * 5} Max HP`; }
                 if (key === 'power') { totals.damage += level; effect = `+${level}% Damage`; }
                 if (key === 'swift') { totals.speed += level; effect = `+${level}% Speed`; }
-                if (key === 'greed') { totals.gold += level * 5; effect = `+${level * 5}% Gold Gain`; } // Assuming Greed exists
+                if (key === 'greed') { totals.gold += level * 5; effect = `+${level * 5}% Gold Gain`; }
+                if (key === 'defense') { totals.defense += level; effect = `+${level}% Dmg Reduction`; }
+                if (key === 'wisdom') { totals.xp += level * 2; effect = `+${level * 2}% XP Gain`; }
 
                 voidHtml += `<div class="stat-row"><span>${PERM_UPGRADES[key].name} (Lvl ${level})</span><span>${effect}</span></div>`;
             }
@@ -572,6 +575,7 @@ function renderStatsScreen() {
         <div class="summary-card"><div class="summary-val" style="color:#3498db">${totals.cooldown.toFixed(0)}%</div><div class="summary-label">Cooldown Red.</div></div>
         <div class="summary-card"><div class="summary-val" style="color:#9b59b6">+${totals.defense.toFixed(0)}%</div><div class="summary-label">Defense</div></div>
         <div class="summary-card"><div class="summary-val" style="color:#f39c12">+${totals.gold.toFixed(0)}%</div><div class="summary-label">Gold Gain</div></div>
+        <div class="summary-card"><div class="summary-val" style="color:#3498db">+${totals.xp.toFixed(0)}%</div><div class="summary-label">XP Gain</div></div>
         <div class="summary-card"><div class="summary-val" style="color:#fff">+${totals.projectiles}</div><div class="summary-label">Extra Proj.</div></div>
         <div class="summary-card"><div class="summary-val" style="color:#1abc9c">${saveData[selectedHeroType].prestige}</div><div class="summary-label">Prestige Rank</div></div>
     `;
@@ -1539,11 +1543,12 @@ function getHeroStats(type) {
     base.pierce = (type === 'ice') ? 2 : 0;
     base.blastRadiusMult = 1;
     base.knockbackMult = 1;
-    base.defense = 0;
+    base.defense = (saveData.metaUpgrades.defense || 0) * 0.01; // Apply Void Shell
     base.extraProjectiles = 0;
     base.meleeRadiusMult = 1;
     base.explodeChance = 0;
     base.goldMultiplier = 1; // Initialize gold multiplier
+    base.xpMultiplier = 1 + (saveData.metaUpgrades.wisdom || 0) * 0.02; // Apply Void Mind
 
     const prestigeMult = 1 + (heroData.prestige * 0.2); // Reduced from 0.5 to 0.2
     base.hp *= prestigeMult;
@@ -2224,6 +2229,24 @@ function updateUI() {
     document.getElementById('scoreVal').innerText = score;
     document.getElementById('waveVal').innerText = wave;
     document.getElementById('goldVal').innerText = player.gold;
+
+    // Hard Mode Indicator
+    const prestige = saveData[player.type].prestige;
+    const scoreBoard = document.getElementById('score-board');
+    if (prestige > 0) {
+        if (!document.getElementById('hm-indicator')) {
+            const hmSpan = document.createElement('span');
+            hmSpan.id = 'hm-indicator';
+            hmSpan.style.color = '#e74c3c';
+            hmSpan.style.marginLeft = '10px';
+            hmSpan.style.fontWeight = 'bold';
+            scoreBoard.appendChild(hmSpan);
+        }
+        document.getElementById('hm-indicator').innerText = `| HM ${prestige}`;
+    } else {
+        const hmSpan = document.getElementById('hm-indicator');
+        if (hmSpan) hmSpan.remove();
+    }
 
     // Update Special Ability UI
     const specialPercent = Math.max(0, (player.specialCooldown / player.specialMaxCooldown) * 100);
