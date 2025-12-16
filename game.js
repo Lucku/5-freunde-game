@@ -951,6 +951,23 @@ function initMenu() {
         }
     }
 
+    // Update Weekly Challenge Button
+    const weeklyBtn = document.getElementById('weekly-challenge-btn');
+    if (weeklyBtn) {
+        const thisWeek = getWeeklySeed();
+        if (saveData.weekly && saveData.weekly.lastCompleted === thisWeek) {
+            weeklyBtn.innerText = "Weekly Completed";
+            weeklyBtn.disabled = true;
+            weeklyBtn.style.opacity = 0.5;
+            weeklyBtn.style.cursor = 'not-allowed';
+        } else {
+            weeklyBtn.innerText = "Weekly Challenge";
+            weeklyBtn.disabled = false;
+            weeklyBtn.style.opacity = 1;
+            weeklyBtn.style.cursor = 'pointer';
+        }
+    }
+
     // Update Altar Button Visibility
     const altarBtn = document.getElementById('altar-btn');
     if (altarBtn) {
@@ -2307,14 +2324,22 @@ function openShop() {
     isShopping = true;
     document.getElementById('shop-screen').style.display = 'flex';
     document.getElementById('shopGoldVal').innerText = player.gold;
+
+    // Update Health UI
+    const updateShopHealth = () => {
+        document.getElementById('shopHealthVal').innerText = Math.ceil(player.hp);
+        document.getElementById('shopMaxHealthVal').innerText = Math.ceil(player.maxHp);
+    };
+    updateShopHealth();
+
     const container = document.getElementById('shop-container');
     container.innerHTML = '';
 
     const items = [
-        { id: 'heal', name: 'Health Potion', cost: 100, desc: 'Heal 50 HP', action: () => { player.hp = Math.min(player.hp + 50, player.maxHp); } },
+        { id: 'heal', name: 'Health Potion', cost: 100, desc: 'Heal 50 HP', action: () => { player.hp = Math.min(player.hp + 50, player.maxHp); updateShopHealth(); } },
         { id: 'dmg', name: 'Sharpening Stone', cost: 250, desc: '+5% Damage', action: () => { player.damageMultiplier += 0.05; player.runBuffs.damage += 0.05; } },
         { id: 'spd', name: 'Light Boots', cost: 200, desc: '+5% Speed', action: () => { player.speedMultiplier += 0.05; player.runBuffs.speed += 0.05; } },
-        { id: 'hp', name: 'Heart Container', cost: 300, desc: '+20 Max HP', action: () => { player.maxHp += 20; player.hp += 20; player.runBuffs.maxHp += 20; } }
+        { id: 'hp', name: 'Heart Container', cost: 300, desc: '+20 Max HP', action: () => { player.maxHp += 20; player.hp += 20; player.runBuffs.maxHp += 20; updateShopHealth(); } }
     ];
 
     items.forEach(item => {
@@ -2716,7 +2741,7 @@ function startGame(mode = 'NORMAL') {
     advanceWave();
 }
 
-function gameOver() {
+function gameOver(isVictory = false) {
     gameRunning = false;
 
     // Clear Saved Run on Death
@@ -2727,7 +2752,9 @@ function gameOver() {
 
     // Track Games and Deaths
     saveData.global.totalGames = (saveData.global.totalGames || 0) + 1;
-    saveData.global.totalDeaths = (saveData.global.totalDeaths || 0) + 1;
+    if (!isVictory) {
+        saveData.global.totalDeaths = (saveData.global.totalDeaths || 0) + 1;
+    }
 
     checkAchievements();
 
@@ -2736,6 +2763,13 @@ function gameOver() {
     // Show Screen
     const screen = document.getElementById('game-over-screen');
     if (screen) screen.style.display = 'flex';
+
+    // Update Title
+    const titleEl = document.getElementById('go-title');
+    if (titleEl) {
+        titleEl.innerText = isVictory ? "VICTORY!" : "GAME OVER";
+        titleEl.style.color = isVictory ? "#f1c40f" : "#e74c3c";
+    }
 
     // 1. Header & Score
     const heroData = saveData[player.type];
@@ -3016,7 +3050,7 @@ function masterLoop(timestamp) {
                         checkAchievements(); // Check tiered achievements
 
                         saveGame();
-                        setTimeout(gameOver, 3000);
+                        setTimeout(() => gameOver(true), 3000);
                         return;
                     }
 
@@ -3041,7 +3075,7 @@ function masterLoop(timestamp) {
                         checkAchievements(); // Check tiered achievements
 
                         saveGame();
-                        setTimeout(gameOver, 3000);
+                        setTimeout(() => gameOver(true), 3000);
                         return;
                     }
 
@@ -3616,6 +3650,13 @@ function masterLoop(timestamp) {
                     } else {
                         const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
                         if (pDist - enemy.radius - proj.radius < 0) {
+                            // Boss Immunity Check
+                            if (enemy instanceof Boss && enemy.immune) {
+                                floatingTexts.push(new FloatingText(enemy.x, enemy.y - 40, "IMMUNE", "#fff", 20));
+                                projectiles.splice(pIndex, 1);
+                                return;
+                            }
+
                             let finalDamage = proj.damage;
 
                             // Card Bonuses
@@ -3623,6 +3664,11 @@ function masterLoop(timestamp) {
                             if (enemy instanceof Boss) {
                                 const bossBonuses = getCollectionBonuses('BOSS');
                                 bonuses.damageMult += (bossBonuses.damageMult - 1);
+
+                                // Tank Boss Phase 2 Vulnerability
+                                if (enemy.type === 'TANK' && enemy.phase === 2) {
+                                    bonuses.damageMult *= 1.5; // Takes 50% more damage
+                                }
                             }
 
                             finalDamage *= bonuses.damageMult;
@@ -3720,6 +3766,11 @@ function masterLoop(timestamp) {
                 });
 
                 if (enemy.hp <= 0) {
+                    // Boss Minion Logic
+                    if (enemy.isSummonedMinion && enemy.parentBoss) {
+                        enemy.parentBoss.minionsToKill--;
+                    }
+
                     player.addCombo(); // Add Combo
                     if (player.onKill) player.onKill(); // Trigger onKill effects (e.g. Black Hero Heal)
                     checkAchievements(); // Check achievements on kill

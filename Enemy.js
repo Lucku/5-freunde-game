@@ -52,6 +52,11 @@ class Enemy {
         // Elite Status (Late Game)
         this.isElite = false;
         this.eliteType = null;
+
+        // Boss Minion Properties
+        this.isSummonedMinion = false;
+        this.parentBoss = null;
+
         if (wave > 50 && Math.random() < 0.05) { // 5% chance after wave 50
             this.isElite = true;
             this.eliteType = ELITE_TYPES[Math.floor(Math.random() * ELITE_TYPES.length)];

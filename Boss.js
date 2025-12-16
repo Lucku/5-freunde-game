@@ -24,6 +24,14 @@ class Boss {
         this.attackCooldown = 100;
         this.state = 0; // For complex bosses like Rhino
 
+        // Phase & Mechanics
+        this.phase = 1;
+        this.immune = false;
+        this.minionsToKill = 0;
+        this.telegraphTimer = 0;
+        this.telegraphDuration = 60;
+        this.telegraphData = null; // {x, y, radius, type}
+
         if (this.type === 'TANK') { this.maxHp *= 1.5; this.hp = this.maxHp; this.speed *= 0.5; }
         else if (this.type === 'SPEEDSTER') { this.maxHp *= 0.7; this.hp = this.maxHp; this.speed *= 1.5; }
         else if (this.type === 'NOVA') { this.maxHp *= 0.8; this.color = '#8e44ad'; this.speed *= 0.2; }
@@ -55,6 +63,66 @@ class Boss {
     }
 
     update() {
+        // Phase Transition Logic
+        if (this.phase === 1 && this.hp <= this.maxHp * 0.5) {
+            this.phase = 2;
+            floatingTexts.push(new FloatingText(this.x, this.y - 60, "PHASE 2!", "#e74c3c", 30));
+            createExplosion(this.x, this.y, this.color);
+
+            if (this.type === 'TANK') {
+                this.speed *= 2.0; // Move faster
+                this.damage *= 1.5; // Hit harder
+                // Visual change handled in draw
+            } else if (this.type === 'SUMMONER') {
+                this.immune = true;
+                this.minionsToKill = 5;
+                // Spawn 5 specific minions
+                for (let i = 0; i < 5; i++) {
+                    const angle = (Math.PI * 2 / 5) * i;
+                    let dist = 100;
+                    const m = new Enemy(true);
+
+                    // Calculate spawn position
+                    let spawnX = this.x + Math.cos(angle) * dist;
+                    let spawnY = this.y + Math.sin(angle) * dist;
+
+                    // Check collision with obstacles, pull closer if needed
+                    let attempts = 0;
+                    while (arena.checkCollision(spawnX, spawnY, m.radius) && attempts < 5) {
+                        dist -= 20;
+                        spawnX = this.x + Math.cos(angle) * dist;
+                        spawnY = this.y + Math.sin(angle) * dist;
+                        attempts++;
+                    }
+
+                    // Fallback: Spawn on boss if still invalid (Boss is always in valid spot)
+                    if (arena.checkCollision(spawnX, spawnY, m.radius)) {
+                        spawnX = this.x;
+                        spawnY = this.y;
+                    }
+
+                    m.x = spawnX;
+                    m.y = spawnY;
+                    m.isSummonedMinion = true;
+                    m.parentBoss = this;
+                    m.color = '#8e44ad'; // Purple minions
+                    enemies.push(m);
+                    createExplosion(m.x, m.y, '#8e44ad');
+                }
+            }
+        }
+
+        // Summoner Immunity Check
+        if (this.type === 'SUMMONER' && this.phase === 2) {
+            if (this.minionsToKill <= 0) {
+                if (this.immune) {
+                    this.immune = false;
+                    floatingTexts.push(new FloatingText(this.x, this.y - 60, "SHIELD BROKEN!", "#fff", 30));
+                    createExplosion(this.x, this.y, '#fff');
+                }
+            }
+        }
+
         // Green Goblin Magnet
         if (this.type === 'GREEN_GOBLIN') {
             const dist = Math.hypot(player.x - this.x, player.y - this.y);
@@ -150,6 +218,36 @@ class Boss {
 
         // Attack Logic
         if (this.type !== 'RHINO') { // Rhino handles cooldown in movement
+            if (this.attackCooldown <= 0) {
+                // Telegraphed Attacks
+                if (this.type === 'TANK' && this.phase === 2 && Math.random() < 0.3) {
+                    // Big Slam
+                    this.telegraphData = { x: this.x, y: this.y, radius: 150, type: 'CIRCLE' };
+                    this.telegraphTimer = 60;
+                    this.attackCooldown = 120;
+                    return; // Wait for telegraph
+                }
+            }
+
+            // Execute Telegraphed Attack
+            if (this.telegraphTimer > 0) {
+                this.telegraphTimer--;
+                if (this.telegraphTimer <= 0) {
+                    // Execute
+                    if (this.telegraphData.type === 'CIRCLE') {
+                        createExplosion(this.telegraphData.x, this.telegraphData.y, '#e74c3c');
+                        // Damage player if in range
+                        const dist = Math.hypot(player.x - this.telegraphData.x, player.y - this.telegraphData.y);
+                        if (dist < this.telegraphData.radius) {
+                            player.hp -= this.damage * 2;
+                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(this.damage * 2), "#e74c3c", 20));
+                        }
+                    }
+                    this.telegraphData = null;
+                }
+                return; // Don't move or do other attacks while telegraphing
+            }
+
             if (this.attackCooldown <= 0) {
                 if (this.type === 'TANK') {
                     for (let i = 0; i < 12; i++) {
@@ -248,6 +346,52 @@ class Boss {
         if (this.type === 'RHINO' && this.state === 1) {
             // Charge effect
             ctx.strokeStyle = 'orange'; ctx.lineWidth = 5; ctx.stroke();
+        }
+
+        // Phase 2 Visuals
+        if (this.phase === 2) {
+            if (this.type === 'TANK') {
+                // Broken Armor Look
+                ctx.strokeStyle = '#e74c3c';
+                ctx.setLineDash([10, 10]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        // Immunity Shield
+        if (this.immune) {
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Telegraph Indicators
+        if (this.telegraphTimer > 0 && this.telegraphData) {
+            ctx.restore(); // Restore to world coordinates for telegraph
+            ctx.save();
+            ctx.translate(this.telegraphData.x, this.telegraphData.y);
+
+            ctx.fillStyle = 'rgba(231, 76, 60, 0.3)';
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 2;
+
+            if (this.telegraphData.type === 'CIRCLE') {
+                ctx.beginPath();
+                ctx.arc(0, 0, this.telegraphData.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Progress
+                ctx.beginPath();
+                ctx.arc(0, 0, this.telegraphData.radius * (1 - this.telegraphTimer / 60), 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(231, 76, 60, 0.5)';
+                ctx.fill();
+            }
+            ctx.restore();
+            return; // Already restored
         }
 
         ctx.restore();
