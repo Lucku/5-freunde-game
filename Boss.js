@@ -59,6 +59,14 @@ class Boss {
             this.maxHp *= 0.8;
             this.hp = this.maxHp;
             this.magnetStrength = 0.8; // Reduced from 2.0 to 0.8
+        } else if (this.type === 'DARK_GOLEM') {
+            this.color = '#212121'; // Dark Obsidian
+            this.radius = 90; // Massive
+            this.maxHp *= 3.0; // Very tanky
+            this.hp = this.maxHp;
+            this.speed *= 0.4; // Very slow
+            this.damage *= 2.0; // One-shot potential
+            this.knockbackResist = 1.0; // Unmovable
         }
     }
 

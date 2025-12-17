@@ -190,6 +190,22 @@ class Museum {
                     });
                 }
             }
+
+            // Special Earth Memory in Gallery (DLC)
+            if (saveData.memories['earth'] && Array.isArray(saveData.memories['earth']) && saveData.memories['earth'].length > 0) {
+                const count = saveData.memories['earth'].length;
+                const room = this.rooms.find(r => r.name === 'gallery');
+                if (room) {
+                    this.artifacts.push({
+                        x: room.x + 100, // Left side of the gallery
+                        y: room.y + room.h / 2,
+                        text: `Earth: ${count}`,
+                        color: '#8d6e63',
+                        type: 'MEMORY',
+                        hero: 'earth'
+                    });
+                }
+            }
         }
     }
 

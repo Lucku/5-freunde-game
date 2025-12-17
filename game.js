@@ -3475,6 +3475,12 @@ function masterLoop(timestamp) {
                         document.getElementById('event-text').style.display = 'block';
                         setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
                         enemies.unshift(new Boss('GREEN_GOBLIN'));
+                    } else if (storyBossId === 'DARK_GOLEM') {
+                        showNotification("THE DARK GOLEM AWAKENS!");
+                        document.getElementById('event-text').innerText = "BOSS: DARK GOLEM";
+                        document.getElementById('event-text').style.display = 'block';
+                        setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
+                        enemies.unshift(new Boss('DARK_GOLEM'));
                     } else {
                         // Standard Boss Spawning
                         if (Math.random() < 0.05) {
