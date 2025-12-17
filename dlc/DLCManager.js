@@ -11,10 +11,11 @@ class DLCManager {
     }
 
     getDLCList() {
+        const enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock"]');
         return Object.keys(this.availableDLCs).map(id => ({
             id: id,
             ...this.availableDLCs[id],
-            active: this.isDLCActive(id)
+            active: enabledDLCs.includes(id)
         }));
     }
 
@@ -32,7 +33,7 @@ class DLCManager {
     }
 
     toggleDLC(id, enable) {
-        let enabled = JSON.parse(localStorage.getItem('enabled_dlcs') || '[]');
+        let enabled = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock"]');
         if (enable) {
             if (!enabled.includes(id)) enabled.push(id);
         } else {

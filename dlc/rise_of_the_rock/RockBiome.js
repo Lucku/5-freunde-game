@@ -9,6 +9,18 @@ class RockBiome {
 
         // Add Quicksand (Pulls towards center of zone)
         arena.biomeZones.push(new BiomeZone(cx - 400, cy + 300, 200, 200, 'QUICKSAND'));
+
+        // Add Rock Pillars (Obstacles)
+        if (typeof Obstacle !== 'undefined') {
+            // Central Pillar
+            arena.obstacles.push(new Obstacle(cx - 100, cy - 100, 200, 200));
+
+            // Scattered Rocks
+            arena.obstacles.push(new Obstacle(cx - 600, cy - 600, 100, 100));
+            arena.obstacles.push(new Obstacle(cx + 500, cy - 500, 150, 150));
+            arena.obstacles.push(new Obstacle(cx - 500, cy + 500, 120, 120));
+            arena.obstacles.push(new Obstacle(cx + 600, cy + 600, 100, 100));
+        }
     }
 
     static update(arena, player, enemies) {
@@ -106,3 +118,5 @@ class RockBiome {
         }
     }
 }
+
+window.RockBiome = RockBiome;

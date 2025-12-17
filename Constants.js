@@ -5,7 +5,6 @@ const BASE_HERO_STATS = {
     ice: { color: '#ecf0f1', hp: 50, speed: 4, rangeDmg: 15, meleeDmg: 90, rangeCd: 25, meleeCd: 130, projectileSpeed: 15, projectileSize: 4, knockback: 2 },
     plant: { color: '#2ecc71', hp: 70, speed: 3.5, rangeDmg: 10, meleeDmg: 120, rangeCd: 30, meleeCd: 140, projectileSpeed: 9, projectileSize: 7, knockback: 8 },
     metal: { color: '#95a5a6', hp: 100, speed: 3, rangeDmg: 40, meleeDmg: 150, rangeCd: 40, meleeCd: 180, projectileSpeed: 18, projectileSize: 8, knockback: 12 },
-    earth: { color: '#8d6e63', hp: 120, speed: 2, rangeDmg: 20, meleeDmg: 100, rangeCd: 60, meleeCd: 150, projectileSpeed: 8, projectileSize: 8, knockback: 30 },
     black: { color: '#2c3e50', hp: 150, speed: 5, rangeDmg: 50, meleeDmg: 200, rangeCd: 10, meleeCd: 80, projectileSpeed: 20, projectileSize: 10, knockback: 25 } // Hero of Darkness
 };
 
@@ -17,10 +16,11 @@ const SKILL_TREE_SIZE = 100;
 
 
 // --- ACHIEVEMENTS GENERATOR ---
-const ACHIEVEMENTS = [];
+window.ACHIEVEMENTS = [];
+const ACHIEVEMENTS = window.ACHIEVEMENTS;
 
 function addAch(id, title, desc, req, stat, type, val, text) {
-    ACHIEVEMENTS.push({ id, title, desc, req, stat, bonus: { type, val, text } });
+    window.ACHIEVEMENTS.push({ id, title, desc, req, stat, bonus: { type, val, text } });
 }
 
 // 1. Kills (Total)
@@ -169,7 +169,11 @@ const COLLECTOR_CARDS = {
     ...createCardSet('ELITE_AURA_SPEED', 'Elite Commander', '#f1c40f', 'Elites have 10% less HP', { type: 'damage_vs', val: 0.1, target: 'ELITE' }),
     ...createCardSet('ELITE_AURA_HEAL', 'Elite Mender', '#2ecc71', 'Elites heal 50% less', { type: 'special', id: 'ELITE_HEAL_NERF' }),
     ...createCardSet('ELITE_EXPLODER', 'Elite Volatile', '#e74c3c', 'Explosion radius -20%', { type: 'special', id: 'ELITE_EXPLODE_NERF' }),
-    ...createCardSet('ELITE_TANK', 'Elite Juggernaut', '#34495e', '+20% Damage vs Elites', { type: 'damage_vs', val: 0.2, target: 'ELITE' })
+    ...createCardSet('ELITE_TANK', 'Elite Juggernaut', '#34495e', '+20% Damage vs Elites', { type: 'damage_vs', val: 0.2, target: 'ELITE' }),
+
+    // DLC: Rise of the Rock
+    ...createCardSet('GOLEM', 'Golem', '#795548', 'Golems do not split on death', { type: 'special', id: 'GOLEM_NO_SPLIT' }),
+    ...createCardSet('BURROWER', 'Burrower', '#5d4037', 'Can hit Burrowers underground', { type: 'special', id: 'BURROWER_PIERCE' })
 };
 
 const MUTATORS = [

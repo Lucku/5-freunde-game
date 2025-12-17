@@ -425,9 +425,31 @@ function renderCollection() {
     container.style.flexDirection = 'column';
     container.style.gap = '20px';
 
-    const types = ['BASIC', 'SHOOTER', 'BRUTE', 'SPEEDSTER', 'SWARM', 'SUMMONER', 'GHOST', 'SNIPER', 'BOMBER', 'TOXIC', 'SHIELDER', 'BOSS'];
+    // Build types list dynamically from ENEMY_TYPES + BOSS + ELITES
+    let types = [];
+    if (typeof ENEMY_TYPES !== 'undefined') {
+        types = [...ENEMY_TYPES];
+    } else {
+        types = ['BASIC', 'SHOOTER', 'BRUTE', 'SPEEDSTER', 'SWARM', 'SUMMONER', 'GHOST', 'SNIPER', 'BOMBER', 'TOXIC', 'SHIELDER'];
+    }
+
+    if (!types.includes('BOSS')) types.push('BOSS');
+
+    // Add DLC types if not already in ENEMY_TYPES (just in case)
+    if (window.dlcManager && window.dlcManager.isDLCActive('rise_of_the_rock')) {
+        if (!types.includes('GOLEM')) types.push('GOLEM');
+        if (!types.includes('BURROWER')) types.push('BURROWER');
+    }
+
+    // Add Elite Types
+    const elites = ['ELITE_AURA_SPEED', 'ELITE_AURA_HEAL', 'ELITE_EXPLODER', 'ELITE_TANK'];
+    types.push(...elites);
 
     types.forEach(type => {
+        // Check if we actually have cards for this type
+        // (Prevents showing empty rows if a type exists but has no cards)
+        if (!COLLECTOR_CARDS[`${type}_1`]) return;
+
         const row = document.createElement('div');
         row.className = 'collection-row';
         row.style.display = 'flex';
@@ -442,7 +464,7 @@ function renderCollection() {
         header.style.color = '#aaa';
         header.style.marginBottom = '5px';
         header.style.fontSize = '14px';
-        header.innerText = type;
+        header.innerText = type.replace(/_/g, ' ');
         row.appendChild(header);
 
         for (let i = 1; i <= 4; i++) {
@@ -1430,7 +1452,9 @@ function openAchievements() {
     const list = document.getElementById('achievements-list');
     list.innerHTML = '';
 
-    ACHIEVEMENTS.forEach(ach => {
+    const achievementsList = window.ACHIEVEMENTS || ACHIEVEMENTS;
+
+    achievementsList.forEach(ach => {
         const unlocked = saveData.global.unlockedAchievements.includes(ach.id);
         const div = document.createElement('div');
         div.className = `achievement-row ${unlocked ? 'unlocked' : ''}`;
@@ -2790,7 +2814,15 @@ function checkAchievements() {
     const totalSkills = ['fire', 'water', 'ice', 'plant', 'metal'].reduce((acc, h) => acc + (saveData[h].unlocked || 0), 0);
     const totalPrestige = ['fire', 'water', 'ice', 'plant', 'metal'].reduce((acc, h) => acc + (saveData[h].prestige || 0), 0);
 
-    ACHIEVEMENTS.forEach(ach => {
+    // DLC Stats
+    const earthPrestige = saveData['earth'] ? (saveData['earth'].prestige || 0) : 0;
+    const rockMaxWave = saveData['earth'] ? (saveData['earth'].highScore || 0) : 0; // Assuming highScore tracks max wave for that hero/biome context
+    const killGolem = saveData.stats['kill_GOLEM'] || 0; // Need to ensure kill stats are tracked per enemy type
+    const killBurrower = saveData.stats['kill_BURROWER'] || 0;
+
+    const achievementsList = window.ACHIEVEMENTS || ACHIEVEMENTS;
+
+    achievementsList.forEach(ach => {
         if (!saveData.global.unlockedAchievements.includes(ach.id)) {
             let unlocked = false;
 
@@ -2810,6 +2842,12 @@ function checkAchievements() {
             // Calculated Stats
             if (ach.stat === 'calculated_skills' && totalSkills >= ach.req) unlocked = true;
             if (ach.stat === 'calculated_prestige' && totalPrestige >= ach.req) unlocked = true;
+
+            // DLC Stats
+            if (ach.stat === 'earth_prestige' && earthPrestige >= ach.req) unlocked = true;
+            if (ach.stat === 'rock_max_wave' && rockMaxWave >= ach.req) unlocked = true;
+            if (ach.stat === 'kill_GOLEM' && killGolem >= ach.req) unlocked = true;
+            if (ach.stat === 'kill_BURROWER' && killBurrower >= ach.req) unlocked = true;
 
             if (unlocked) {
                 saveData.global.unlockedAchievements.push(ach.id);
@@ -3772,6 +3810,18 @@ function masterLoop(timestamp) {
                         return; // Skip damage
                     }
 
+                    // Earth Hero Max Momentum Invulnerability (Ramming)
+                    if (player.heroType === 'EARTH' && player.momentum >= player.maxMomentum * 0.95) {
+                        // Bounce enemy away
+                        const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                        if (!(enemy instanceof Boss)) {
+                            enemy.x += Math.cos(angle) * 50;
+                            enemy.y += Math.sin(angle) * 50;
+                        }
+                        createExplosion(player.x, player.y, '#8d6e63');
+                        return; // No damage taken
+                    }
+
                     let dmgTaken = 1 * (1 - player.damageReduction);
 
                     // Speedster Explosion
@@ -3838,6 +3888,11 @@ function masterLoop(timestamp) {
                                 floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
                                 currentRunStats.damageTaken += dmgTaken; // Track Damage
                                 player.resetCombo(); // Reset Combo on Damage
+
+                                // Earth Hero Momentum Loss on Projectile Hit
+                                if (player.heroType === 'EARTH' && player.momentum > 0) {
+                                    player.momentum = Math.max(0, player.momentum - 30);
+                                }
                             }
 
                             createExplosion(player.x, player.y, proj.color); projectiles.splice(pIndex, 1);
@@ -4044,6 +4099,12 @@ function masterLoop(timestamp) {
                         }
 
                         currentRunStats.enemiesKilled++; // Track Kill
+
+                        // Track Specific Enemy Kills for Achievements
+                        const killKey = `kill_${enemy.subType}`;
+                        if (!saveData.stats[killKey]) saveData.stats[killKey] = 0;
+                        saveData.stats[killKey]++;
+
                         score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
 
                         // Elite Logic on Death

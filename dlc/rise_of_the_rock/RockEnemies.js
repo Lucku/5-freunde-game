@@ -18,6 +18,12 @@ class RockEnemies {
         // Let's add a property to flag that it needs to split
         if (enemy.hp <= 0 && !enemy.hasSplit) {
             enemy.hasSplit = true;
+
+            // Check for Platinum Card: No Split
+            if (typeof saveData !== 'undefined' && saveData.collection.includes('GOLEM_4')) {
+                return false;
+            }
+
             // Spawn 2 smaller golems (Mini-Golems)
             // We need access to the global 'enemies' array
             if (typeof enemies !== 'undefined') {
@@ -80,7 +86,10 @@ class RockEnemies {
         // Since we can't easily modify the damage logic without a hook, 
         // we'll just heal them back instantly if they took damage while burrowed.
         if (enemy.isBurrowed) {
-            if (enemy.hp < enemy.lastHp) {
+            // Check for Platinum Card: Pierce Burrow
+            const canPierce = typeof saveData !== 'undefined' && saveData.collection.includes('BURROWER_4');
+
+            if (!canPierce && enemy.hp < enemy.lastHp) {
                 enemy.hp = enemy.lastHp; // Revert damage
                 floatingTexts.push(new FloatingText(enemy.x, enemy.y - 20, "BLOCK", "#aaa", 15));
             }
@@ -111,3 +120,5 @@ class RockEnemies {
         return false;
     }
 }
+
+window.RockEnemies = RockEnemies;

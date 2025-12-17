@@ -1,4 +1,4 @@
-const STORY_EVENTS = [
+window.STORY_EVENTS = [
     // --- ARC 1: THE AWAKENING (Waves 1-10) ---
     {
         id: "awakening_1", wave: 1, hero: "ALL", type: "NARRATIVE",

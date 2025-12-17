@@ -10,6 +10,7 @@ class EarthHero {
         player.momentumGain = 1.0;
         player.lastMoveAngle = 0;
         player.isRolling = false;
+        player.lastHp = player.hp; // Track HP for momentum penalty
 
         // Override stats for "Rolling Boulder" feel
         player.stats.speed = 2; // Slow base speed
@@ -20,6 +21,7 @@ class EarthHero {
         player.customUpdate = (dx, dy) => EarthHero.update(player, dx, dy);
         player.customDraw = (ctx) => EarthHero.draw(player, ctx);
         player.customSpecial = () => EarthHero.useSpecial(player);
+        player.melee = () => { }; // Disable melee for Earth Hero
 
         // Altar Checks
         const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
@@ -171,15 +173,23 @@ class EarthHero {
             while (angleDiff <= -Math.PI) angleDiff += Math.PI * 2;
             while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
-            // If turning too sharp, lose momentum
-            if (Math.abs(angleDiff) > 1.0) {
-                player.momentum *= 0.9;
+            // Momentum Logic: Only gain if moving straight AND in cardinal direction (not diagonal)
+            // Check if angle is close to 0, PI/2, PI, -PI/2
+            const isCardinal = (Math.abs(Math.sin(moveAngle)) < 0.1 || Math.abs(Math.cos(moveAngle)) < 0.1);
+
+            if (Math.abs(angleDiff) > 2.0) {
+                // Sharp Turn (e.g. 180 degree reversal): Lose ALL Momentum
+                player.momentum = 0;
+            } else if (Math.abs(angleDiff) < 0.2 && isCardinal) {
+                // Straight line & Cardinal: Gain Momentum
+                player.momentum = Math.min(player.maxMomentum, player.momentum + player.momentumGain);
+            } else {
+                // Turning or Diagonal: Lose Momentum significantly
+                player.momentum *= 0.98;
             }
 
             player.lastMoveAngle = moveAngle;
 
-            // Gain Momentum
-            player.momentum = Math.min(player.maxMomentum, player.momentum + player.momentumGain);
             player.isRolling = true;
 
             // Magma Roll (c11)
@@ -225,8 +235,8 @@ class EarthHero {
                 arena.obstacles.forEach(obs => {
                     // Simple AABB vs Circle collision check
                     // Find closest point on rectangle to circle center
-                    const closestX = Math.max(obs.x, Math.min(player.x, obs.x + obs.width));
-                    const closestY = Math.max(obs.y, Math.min(player.y, obs.y + obs.height));
+                    const closestX = Math.max(obs.x, Math.min(player.x, obs.x + obs.w));
+                    const closestY = Math.max(obs.y, Math.min(player.y, obs.y + obs.h));
 
                     const dx = player.x - closestX;
                     const dy = player.y - closestY;
@@ -249,16 +259,11 @@ class EarthHero {
                         player.x += nx * overlap;
                         player.y += ny * overlap;
 
-                        // Bounce / Lose Momentum
-                        // Reflect angle? Or just stop?
-                        // Let's make it bounce slightly and lose significant momentum
-                        player.momentum *= 0.5; // Lose 50% momentum on crash
+                        // Stop momentum on collision
+                        player.momentum = 0;
 
                         // Visual feedback
-                        if (player.momentum > 20) {
-                            if (typeof createExplosion === 'function') createExplosion(closestX, closestY, '#8d6e63');
-                            // Screen shake?
-                        }
+                        if (typeof createExplosion === 'function') createExplosion(closestX, closestY, '#8d6e63');
                     }
                 });
             }
@@ -369,9 +374,20 @@ class EarthHero {
         ctx.fillStyle = '#333';
         ctx.fillRect(player.x - barWidth / 2, player.y + yOffset, barWidth, barHeight);
 
-        ctx.fillStyle = '#f1c40f'; // Gold/Earth color
+        // Momentum Bar Color
+        if (player.momentum >= player.maxMomentum * 0.95) {
+            ctx.fillStyle = '#e74c3c'; // Red/Hot when max
+            // Glow effect
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#e74c3c';
+        } else {
+            ctx.fillStyle = '#f1c40f'; // Gold/Earth color
+            ctx.shadowBlur = 0;
+        }
+
         const fillWidth = (player.momentum / player.maxMomentum) * barWidth;
         ctx.fillRect(player.x - barWidth / 2, player.y + yOffset, fillWidth, barHeight);
+        ctx.shadowBlur = 0; // Reset shadow
 
         return true; // Block default draw
     }

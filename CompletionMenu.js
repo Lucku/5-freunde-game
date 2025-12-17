@@ -41,11 +41,45 @@ class CompletionMenu {
                 current: 0, total: 0, percent: 0,
                 subs: { 'Shop Items': { current: 0, total: 0, percent: 0, missing: [] } }
             },
+            dlc: {
+                current: 0, total: 0, percent: 0,
+                subs: {} // Dynamic: "DLC Name: Type"
+            },
             total: { current: 0, total: 0, percent: 0 }
+        };
+
+        // Helper to add to DLC
+        const addToDLC = (dlcName, type, isUnlocked, name) => {
+            const key = `${dlcName}: ${type}`;
+            if (!progress.dlc.subs[key]) {
+                progress.dlc.subs[key] = { current: 0, total: 0, percent: 0, missing: [] };
+            }
+            const sub = progress.dlc.subs[key];
+            sub.total++;
+            if (isUnlocked) {
+                sub.current++;
+                progress.dlc.current++;
+            } else {
+                sub.missing.push(name);
+            }
         };
 
         // 1. Memories
         for (const hero in MEMORY_STORIES) {
+            if (hero === 'earth') {
+                const stories = MEMORY_STORIES[hero];
+                const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
+                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                if (!Array.isArray(unlocked)) { // Legacy count support
+                    for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
+                }
+
+                stories.forEach((story, i) => {
+                    addToDLC('Rise of the Rock', 'Memories', unlockedIndices.includes(i), `Shard #${i + 1}`);
+                });
+                continue;
+            }
+
             const stories = MEMORY_STORIES[hero];
             const heroName = hero.charAt(0).toUpperCase() + hero.slice(1);
 
@@ -76,7 +110,14 @@ class CompletionMenu {
         progress.memories.percent = progress.memories.total > 0 ? (progress.memories.current / progress.memories.total) * 100 : 0;
 
         // 2. Achievements
-        ACHIEVEMENTS.forEach(ach => {
+        const achievementsList = window.ACHIEVEMENTS || ACHIEVEMENTS;
+        achievementsList.forEach(ach => {
+            // DLC Check
+            if (ach.id.startsWith('rock_')) {
+                addToDLC('Rise of the Rock', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
+                return;
+            }
+
             let cat = 'Combat';
             if (ach.id.startsWith('story') || ach.id.startsWith('MAKUTA')) cat = 'Story';
             else if (ach.id.startsWith('gold') || ach.id.startsWith('void')) cat = 'Collection';
@@ -90,7 +131,7 @@ class CompletionMenu {
                 sub.current++;
                 progress.achievements.current++;
             } else {
-                sub.missing.push(`${ach.name}: ${ach.desc}`);
+                sub.missing.push(`${ach.title}: ${ach.desc}`); // Changed ach.name to ach.title to match Constants.js
             }
         });
 
@@ -102,7 +143,38 @@ class CompletionMenu {
         progress.achievements.percent = progress.achievements.total > 0 ? (progress.achievements.current / progress.achievements.total) * 100 : 0;
 
         // 3. Story Mode
-        STORY_EVENTS.forEach(evt => {
+        const events = window.STORY_EVENTS || STORY_EVENTS;
+
+        // FIX: Ensure DLC Story Chapters are present if DLC is active
+        // We check both the manager and the registry to be safe
+        const isDLCActive = (window.dlcManager && window.dlcManager.isDLCActive('rise_of_the_rock')) ||
+            (window.DLC_REGISTRY && window.DLC_REGISTRY['rise_of_the_rock']);
+
+        if (isDLCActive) {
+            const hasDLC = events.some(e => e.id && e.id.startsWith('rock_'));
+            if (!hasDLC) {
+                console.warn("DLC Story Chapters missing! Injecting fallback...");
+                for (let i = 1; i <= 40; i++) {
+                    events.push({
+                        id: `rock_${i}`,
+                        wave: i * 2,
+                        hero: "EARTH",
+                        type: "NARRATIVE",
+                        title: `Chapter ${i}: The Ascent`,
+                        text: `The earth rumbles as you climb higher. The enemies grow stronger, but your resolve is as hard as stone. (Wave ${i * 2})`
+                    });
+                }
+            }
+        }
+
+        events.forEach(evt => {
+            if (evt.id && evt.id.startsWith('rock_')) {
+                // DLC Chapters must be unlocked by ID to avoid conflict with base game waves
+                const isUnlocked = saveData.story.unlockedChapters.includes(evt.id);
+                addToDLC('Rise of the Rock', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
+                return;
+            }
+
             let cat = 'Act 5 (81-100)';
             if (evt.wave <= 20) cat = 'Act 1 (1-20)';
             else if (evt.wave <= 40) cat = 'Act 2 (21-40)';
@@ -133,6 +205,12 @@ class CompletionMenu {
             const card = COLLECTOR_CARDS[id];
             // Extract type from ID (e.g., BASIC_1 -> BASIC)
             const type = id.split('_')[0];
+
+            if (['GOLEM', 'BURROWER'].includes(type)) {
+                addToDLC('Rise of the Rock', 'Cards', saveData.collection.includes(id), card.name);
+                return;
+            }
+
             // Map type to nice name if needed, or just use type
             const typeName = type.charAt(0) + type.slice(1).toLowerCase();
 
@@ -159,6 +237,15 @@ class CompletionMenu {
         progress.cards.percent = progress.cards.total > 0 ? (progress.cards.current / progress.cards.total) * 100 : 0;
 
         // 5. Altar of Mastery
+        // Check for Earth Altar (DLC)
+        if (ALTAR_TREE['earth']) {
+            const nodes = ALTAR_TREE['earth'];
+            const prestige = saveData['earth'] ? (saveData['earth'].prestige || 0) : 0;
+            nodes.forEach(node => {
+                addToDLC('Rise of the Rock', 'Altar', prestige >= node.req, `${node.name} (Req: Lv ${node.req})`);
+            });
+        }
+
         ['fire', 'water', 'ice', 'plant', 'metal'].forEach(hero => {
             const heroName = hero.charAt(0).toUpperCase() + hero.slice(1);
             const nodes = ALTAR_TREE[hero];
@@ -215,9 +302,17 @@ class CompletionMenu {
         progress.chaos.current = chaosSub.current;
         progress.chaos.percent = chaosSub.percent;
 
+        // Calculate DLC Percentages
+        for (const key in progress.dlc.subs) {
+            const sub = progress.dlc.subs[key];
+            sub.percent = sub.total > 0 ? (sub.current / sub.total) * 100 : 0;
+            progress.dlc.total += sub.total;
+        }
+        progress.dlc.percent = progress.dlc.total > 0 ? (progress.dlc.current / progress.dlc.total) * 100 : 0;
+
         // Overall Total
-        const grandTotal = progress.memories.total + progress.achievements.total + progress.story.total + progress.cards.total + progress.altar.total + progress.chaos.total;
-        const grandCurrent = progress.memories.current + progress.achievements.current + progress.story.current + progress.cards.current + progress.altar.current + progress.chaos.current;
+        const grandTotal = progress.memories.total + progress.achievements.total + progress.story.total + progress.cards.total + progress.altar.total + progress.chaos.total + progress.dlc.total;
+        const grandCurrent = progress.memories.current + progress.achievements.current + progress.story.current + progress.cards.current + progress.altar.current + progress.chaos.current + progress.dlc.current;
 
         progress.total.total = grandTotal;
         progress.total.current = grandCurrent;
@@ -251,7 +346,8 @@ class CompletionMenu {
             { id: 'story', name: 'Story Chapters', color: '#e74c3c', icon: '📖' },
             { id: 'cards', name: 'Collector Cards', color: '#9b59b6', icon: '🃏' },
             { id: 'altar', name: 'Altar Mutations', color: '#2ecc71', icon: '⚡' },
-            { id: 'chaos', name: 'Chaos Items', color: '#e67e22', icon: '🌀' }
+            { id: 'chaos', name: 'Chaos Items', color: '#e67e22', icon: '🌀' },
+            { id: 'dlc', name: 'DLC Content', color: '#7f8c8d', icon: '📦' }
         ];
 
         const listContainer = document.createElement('div');

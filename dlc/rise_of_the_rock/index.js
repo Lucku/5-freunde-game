@@ -20,6 +20,35 @@ const RISE_OF_THE_ROCK = {
         this.injectEnemies();
         this.injectStory();
         this.injectAltar();
+        this.injectAchievements();
+    },
+
+    injectAchievements: function () {
+        // Ensure we are using the global array
+        const achievements = window.ACHIEVEMENTS || (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS : null);
+
+        if (achievements) {
+            // Helper to add achievement if not exists
+            const addDLCAch = (id, title, desc, req, stat, type, val, text) => {
+                if (!achievements.some(a => a.id === id)) {
+                    achievements.push({ id, title, desc, req, stat, bonus: { type, val, text } });
+                }
+            };
+
+            // 1. Earth Hero Prestige
+            addDLCAch('rock_prestige_10', 'Earth Master', 'Rise of the Rock: Reach Prestige 10 with Earth Hero.', 10, 'earth_prestige', 'damage', 0.05, '+5% Dmg');
+
+            // 2. Rock Biome Survival
+            addDLCAch('rock_wave_50', 'Survivor', 'Rise of the Rock: Reach Wave 50 in Rock Biome.', 50, 'rock_max_wave', 'health', 0.10, '+10% HP');
+
+            // 3. Golem Slayer
+            addDLCAch('rock_kill_golem', 'Golem Breaker', 'Rise of the Rock: Kill 500 Golems.', 500, 'kill_GOLEM', 'damage', 0.05, '+5% Dmg vs Golems');
+
+            // 4. Burrower Slayer
+            addDLCAch('rock_kill_burrower', 'Exterminator', 'Rise of the Rock: Kill 500 Burrowers.', 500, 'kill_BURROWER', 'speed', 0.05, '+5% Speed');
+        } else {
+            console.error("Rise of the Rock: Could not find ACHIEVEMENTS to inject into.");
+        }
     },
 
     injectHero: function () {
@@ -49,10 +78,16 @@ const RISE_OF_THE_ROCK = {
     },
 
     injectStory: function () {
-        if (typeof STORY_EVENTS !== 'undefined') {
+        // Robustly find the events array
+        const events = window.STORY_EVENTS || (typeof STORY_EVENTS !== 'undefined' ? STORY_EVENTS : null);
+
+        if (events) {
+            // Check if already injected to avoid duplicates
+            if (events.some(e => e.id === 'rock_1')) return;
+
             // Add 40 Chapters for Earth
             for (let i = 1; i <= 40; i++) {
-                STORY_EVENTS.push({
+                events.push({
                     id: `rock_${i}`,
                     wave: i * 2, // Every 2 waves
                     hero: "EARTH",
@@ -61,6 +96,8 @@ const RISE_OF_THE_ROCK = {
                     text: `The earth rumbles as you climb higher. The enemies grow stronger, but your resolve is as hard as stone. (Wave ${i * 2})`
                 });
             }
+        } else {
+            console.error("Rise of the Rock: Could not find STORY_EVENTS to inject into.");
         }
     },
 
