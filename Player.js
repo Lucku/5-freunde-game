@@ -172,12 +172,24 @@ class Player {
     }
 
     createUpgradeCard(opt, container) {
+        // Earth Hero Description Swaps
+        let displayOpt = { ...opt };
+        if (this.type === 'earth') {
+            if (opt.id === 'radius') {
+                displayOpt.title = 'MOMENTUM CAP';
+                displayOpt.desc = '+20 Max Momentum';
+            } else if (opt.id === 'projectile') {
+                displayOpt.title = 'RAM DAMAGE';
+                displayOpt.desc = '+20% Ram Damage';
+            }
+        }
+
         const card = document.createElement('div');
         card.className = 'upgrade-card';
         card.innerHTML = `
-            <div class="upgrade-icon">${opt.icon}</div>
-            <div class="upgrade-title">${opt.title}</div>
-            <div class="upgrade-desc">${opt.desc}</div>
+            <div class="upgrade-icon">${displayOpt.icon}</div>
+            <div class="upgrade-title">${displayOpt.title}</div>
+            <div class="upgrade-desc">${displayOpt.desc}</div>
         `;
         card.onclick = () => chooseUpgrade(opt.id);
         container.appendChild(card);

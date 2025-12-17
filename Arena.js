@@ -432,6 +432,13 @@ class BiomeZone {
             ctx.fillStyle = 'rgba(155, 89, 182, 0.3)'; // Purple
             ctx.strokeStyle = '#8e44ad';
             ctx.globalAlpha = 0.6 + Math.sin(Date.now() / 300) * 0.2; // Pulsing
+        } else if (this.type === 'RUBBLE') {
+            ctx.fillStyle = 'rgba(121, 85, 72, 0.3)'; // Brown
+            ctx.strokeStyle = '#795548';
+        } else if (this.type === 'QUICKSAND') {
+            ctx.fillStyle = 'rgba(230, 126, 34, 0.3)'; // Sandy Orange
+            ctx.strokeStyle = '#d35400';
+            ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 800) * 0.1;
         }
 
         ctx.fillRect(this.x, this.y, this.w, this.h);

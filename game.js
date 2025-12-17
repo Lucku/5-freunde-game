@@ -2459,8 +2459,25 @@ function chooseUpgrade(type) {
         player.hp = Math.min(player.maxHp, player.hp + (player.maxHp * 0.2));
         player.runBuffs.maxHp += 25;
     }
-    else if (type === 'radius') { player.meleeRadius *= 1.25; }
-    else if (type === 'projectile') { player.extraProjectiles += 1; player.runBuffs.projectiles += 1; }
+    else if (type === 'radius') {
+        if (player.heroType === 'EARTH') {
+            // Earth Hero: Increase Momentum Cap
+            player.maxMomentum = (player.maxMomentum || 100) + 20;
+            showNotification("MAX MOMENTUM INCREASED!");
+        } else {
+            player.meleeRadius *= 1.25;
+        }
+    }
+    else if (type === 'projectile') {
+        if (player.heroType === 'EARTH') {
+            // Earth Hero: Increase Ram Damage
+            player.stats.ramDmgMult = (player.stats.ramDmgMult || 1) + 0.2; // +20% Ram Damage
+            showNotification("RAM DAMAGE INCREASED!");
+        } else {
+            player.extraProjectiles += 1;
+            player.runBuffs.projectiles += 1;
+        }
+    }
     else if (type === 'speed') { player.speedMultiplier += 0.1; player.runBuffs.speed += 0.1; }
     else if (type === 'cooldown') { player.cooldownMultiplier *= 0.9; player.runBuffs.cooldown += 0.1; }
     else if (type === 'defense') { player.damageReduction = Math.min(0.5, player.damageReduction + 0.05); player.runBuffs.defense += 0.05; }
@@ -3725,8 +3742,29 @@ function masterLoop(timestamp) {
                     if (pup.type === 'HEAL') { player.hp = Math.min(player.hp + 30, player.maxHp); createExplosion(player.x, player.y, '#2ecc71'); }
                     else if (pup.type === 'MAXHP') { player.maxHp += 20; player.hp += 20; createExplosion(player.x, player.y, '#e74c3c'); }
                     else if (pup.type === 'SPEED') { player.buffs.speed = 600; createExplosion(player.x, player.y, '#f1c40f'); }
-                    else if (pup.type === 'MULTI') { player.buffs.multi = 600; createExplosion(player.x, player.y, '#3498db'); }
-                    else if (pup.type === 'AUTOAIM') { player.buffs.autoaim = 600; createExplosion(player.x, player.y, '#9b59b6'); }
+                    else if (pup.type === 'MULTI') {
+                        if (player.heroType === 'EARTH') {
+                            // Earth Hero: Instant Max Momentum
+                            player.momentum = player.maxMomentum;
+                            showNotification("MAX MOMENTUM!");
+                            createExplosion(player.x, player.y, '#8d6e63');
+                        } else {
+                            player.buffs.multi = 600;
+                            createExplosion(player.x, player.y, '#3498db');
+                        }
+                    }
+                    else if (pup.type === 'AUTOAIM') {
+                        if (player.heroType === 'EARTH') {
+                            // Earth Hero: Temporary Ram Damage Boost
+                            player.stats.ramDmgMult = (player.stats.ramDmgMult || 1) + 1.0; // +100% Ram Damage
+                            setTimeout(() => { player.stats.ramDmgMult -= 1.0; }, 10000); // Lasts 10s
+                            showNotification("RAM DAMAGE BOOST!");
+                            createExplosion(player.x, player.y, '#e74c3c');
+                        } else {
+                            player.buffs.autoaim = 600;
+                            createExplosion(player.x, player.y, '#9b59b6');
+                        }
+                    }
                     powerUps.splice(index, 1);
                 } else if (pup.timer <= 0) powerUps.splice(index, 1);
             });
