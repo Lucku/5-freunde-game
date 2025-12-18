@@ -175,11 +175,8 @@ class Player {
         // Earth Hero Description Swaps
         let displayOpt = { ...opt };
         if (this.type === 'earth') {
-            if (opt.id === 'radius') {
-                displayOpt.title = 'MOMENTUM CAP';
-                displayOpt.desc = '+20 Max Momentum';
-            } else if (opt.id === 'projectile') {
-                displayOpt.title = 'RAM DAMAGE';
+            if (opt.id === 'projectile') {
+                displayOpt.title = 'Ram Damage';
                 displayOpt.desc = '+20% Ram Damage';
             }
         }

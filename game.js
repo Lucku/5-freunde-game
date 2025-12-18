@@ -2460,13 +2460,7 @@ function chooseUpgrade(type) {
         player.runBuffs.maxHp += 25;
     }
     else if (type === 'radius') {
-        if (player.heroType === 'EARTH') {
-            // Earth Hero: Increase Momentum Cap
-            player.maxMomentum = (player.maxMomentum || 100) + 20;
-            showNotification("MAX MOMENTUM INCREASED!");
-        } else {
-            player.meleeRadius *= 1.25;
-        }
+        player.meleeRadius *= 1.25;
     }
     else if (type === 'projectile') {
         if (player.heroType === 'EARTH') {

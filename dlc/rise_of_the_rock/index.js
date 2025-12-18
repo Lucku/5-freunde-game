@@ -89,7 +89,7 @@ const RISE_OF_THE_ROCK = {
                 rangeDmg: 0,      // No range
                 meleeDmg: 100,    // Ramming damage base
                 rangeCd: 999,     // Disable standard shooting
-                meleeCd: 999,     // Disable standard melee
+                meleeCd: 120,     // Tremor Cooldown (2s)
                 projectileSpeed: 0,
                 projectileSize: 0,
                 knockback: 30,    // Huge knockback

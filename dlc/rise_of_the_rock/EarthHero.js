@@ -21,7 +21,7 @@ class EarthHero {
         player.customUpdate = (dx, dy) => EarthHero.update(player, dx, dy);
         player.customDraw = (ctx) => EarthHero.draw(player, ctx);
         player.customSpecial = () => EarthHero.useSpecial(player);
-        player.melee = () => { }; // Disable melee for Earth Hero
+        player.melee = () => EarthHero.melee(player); // Tremor Attack
 
         // Altar Checks
         const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
@@ -141,6 +141,73 @@ class EarthHero {
         return true; // Handled
     }
 
+    static melee(player) {
+        if (player.meleeCooldown > 0) return;
+
+        // Tremor: A localized earthquake
+        // Scales with Momentum and Melee Radius upgrades
+        const momentumRatio = player.momentum / player.maxMomentum;
+        const radius = (player.meleeRadius || 120) * (1 + momentumRatio * 0.5); // Radius + 0-50%
+        const damage = player.stats.meleeDmg * player.damageMultiplier * (0.5 + momentumRatio); // 50% to 150% Damage
+
+        // Visuals
+        createExplosion(player.x, player.y, '#5d4037'); // Dark Brown
+
+        // Shockwave Effect
+        if (typeof particles !== 'undefined') {
+            particles.push({
+                x: player.x,
+                y: player.y,
+                radius: 10,
+                maxRadius: radius,
+                alpha: 1,
+                color: '#8d6e63',
+                lineWidth: 10,
+                update: function () {
+                    this.radius += (this.maxRadius - this.radius) * 0.15 + 2;
+                    this.alpha -= 0.04;
+                    this.lineWidth *= 0.95;
+                },
+                draw: function () {
+                    if (this.alpha <= 0) return;
+                    // Use global ctx
+                    const c = window.ctx || document.getElementById('gameCanvas').getContext('2d');
+                    c.save();
+                    c.globalAlpha = this.alpha;
+                    c.beginPath();
+                    c.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    c.strokeStyle = this.color;
+                    c.lineWidth = this.lineWidth;
+                    c.stroke();
+                    c.restore();
+                }
+            });
+        }
+
+        // Hit Enemies
+        if (typeof enemies !== 'undefined') {
+            enemies.forEach(e => {
+                const dist = Math.hypot(e.x - player.x, e.y - player.y);
+                if (dist < radius) {
+                    e.hp -= damage;
+
+                    // Knockback
+                    const angle = Math.atan2(e.y - player.y, e.x - player.x);
+                    const force = 10 + (momentumRatio * 20);
+                    e.x += Math.cos(angle) * force;
+                    e.y += Math.sin(angle) * force;
+
+                    // Floating Text
+                    if (typeof FloatingText !== 'undefined') {
+                        floatingTexts.push(new FloatingText(e.x, e.y - 20, Math.floor(damage), "#fff", 20));
+                    }
+                }
+            });
+        }
+
+        player.meleeCooldown = player.meleeMaxCooldown * player.cooldownMultiplier;
+    }
+
     static update(player, dx, dy) {
         // Custom Movement Logic
         // Instead of direct velocity, we apply force to momentum
@@ -220,13 +287,22 @@ class EarthHero {
         // Calculate Speed based on Momentum
         // Base speed + (Max Speed - Base Speed) * (Momentum / Max)
         const speedRatio = player.momentum / player.maxMomentum;
-        const currentSpeed = player.stats.speed + (player.stats.maxSpeed - player.stats.speed) * speedRatio;
+        let currentSpeed = player.stats.speed + (player.stats.maxSpeed - player.stats.speed) * speedRatio;
+
+        // Apply Speed Buffs
+        if (player.buffs.speed > 0) currentSpeed *= 1.5;
+        currentSpeed *= player.speedMultiplier;
 
         // Apply Movement
         if (player.momentum > 0) {
             player.x += Math.cos(player.lastMoveAngle) * currentSpeed;
             player.y += Math.sin(player.lastMoveAngle) * currentSpeed;
         }
+
+        // Cooldown Management (Since we override update, we must handle this)
+        if (player.meleeCooldown > 0) player.meleeCooldown--;
+        if (player.rangeCooldown > 0) player.rangeCooldown--;
+        if (player.specialCooldown > 0) player.specialCooldown--;
 
         // Clamp to Arena
         if (typeof arena !== 'undefined') {
