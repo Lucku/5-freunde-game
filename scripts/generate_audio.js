@@ -5,28 +5,28 @@ const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
 
 // --- Configuration ---
 const API_KEY = process.env.ELEVENLABS_API_KEY; // Ensure this is set in your environment
-const VOICE_ID = 'JBFqnCBsd6RMkjVDRZzb'; // Default voice (change as needed)
+const VOICE_ID = 'hfgNmTYYctMgJ7E2s6Vx'; // Default voice (change as needed)
 const MODEL_ID = 'eleven_multilingual_v2';
-const OUTPUT_DIR = path.join(__dirname, '../music/story');
+const OUTPUT_DIR = path.join(__dirname, '../dlc/music/story');
 
 // --- Load Story Data ---
 // We read the file manually to avoid issues with browser-specific code in Story.js
-const storyFileContent = fs.readFileSync(path.join(__dirname, '../Story.js'), 'utf8');
+const storyFileContent = fs.readFileSync(path.join(__dirname, '../dlc/rise_of_the_rock/index.js'), 'utf8');
 
 // Extract the STORY_EVENTS array using a safe evaluation or regex
 // Since Story.js is simple, we can try to eval the array part.
 // However, to be safe and avoid 'class StoryManager' errors, we'll just extract the array string.
-const startMarker = 'const STORY_EVENTS = [';
+const startMarker = 'const earthStory = [';
 const endMarker = '];';
 const startIndex = storyFileContent.indexOf(startMarker);
 const endIndex = storyFileContent.indexOf(endMarker, startIndex);
 
 if (startIndex === -1 || endIndex === -1) {
-    console.error("Could not find STORY_EVENTS in Story.js");
+    console.error("Could not find earthStory in index.js");
     process.exit(1);
 }
 
-const arrayString = storyFileContent.substring(startIndex + 'const STORY_EVENTS = '.length, endIndex + 1);
+const arrayString = storyFileContent.substring(startIndex + 'const earthStory = '.length, endIndex + 1);
 let STORY_EVENTS;
 try {
     STORY_EVENTS = eval(arrayString);
@@ -81,10 +81,10 @@ async function generateAudio() {
                     output_format: 'mp3_44100_128',
                     voiceSettings: {
                         stability: 1,
-                        similarityBoost: 0.9,
+                        similarityBoost: 1,
                         useSpeakerBoost: true,
                         style: 0,
-                        speed: 0.9,
+                        speed: 1,
                     },
                 }
             );

@@ -1,0 +1,8 @@
+General:
+
+- Voice all memory shards with different voices
+
+Rise of the Rock:
+
+- Play Earth hero battle themes randomly and only in story mode
+- Elaborate memory shards

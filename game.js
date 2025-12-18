@@ -2635,15 +2635,23 @@ function openStory(story) {
         currentStoryAudio = null;
     }
 
-    const audioPath = `music/story/${story.id}.mp3`;
-    currentStoryAudio = new Audio(audioPath);
-    // Optional: Adjust volume based on AudioManager settings if accessible, or default to 1.0
-    // currentStoryAudio.volume = 1.0; 
-
-    currentStoryAudio.play().catch(e => {
-        // Audio file likely doesn't exist, ignore error
-        // console.log("No audio found for story event:", story.id);
-    });
+    // Prefer DLC story audio for Earth hero if available; fall back to base story audio on failure
+    const basePath = `music/story/${story.id}.mp3`;
+    if (story.hero === 'EARTH') {
+        const dlcPath = `dlc/rise_of_the_rock/music/story/${story.id}.mp3`;
+        const dlcAudio = new Audio(dlcPath);
+        dlcAudio.play().then(() => {
+            currentStoryAudio = dlcAudio;
+        }).catch(() => {
+            // DLC audio missing or blocked, fall back to base audio
+            const baseAudio = new Audio(basePath);
+            baseAudio.play().catch(() => { /* ignore */ });
+            currentStoryAudio = baseAudio;
+        });
+    } else {
+        currentStoryAudio = new Audio(basePath);
+        currentStoryAudio.play().catch(() => { /* ignore */ });
+    }
 }
 
 function closeStory() {
