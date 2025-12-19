@@ -476,6 +476,7 @@ class Museum {
         if (this.player.type === 'ice') color = '#ecf0f1';
         if (this.player.type === 'plant') color = '#2ecc71';
         if (this.player.type === 'metal') color = '#95a5a6';
+        if (this.player.type === 'earth') color = '#8d6e63';
 
         ctx.fillStyle = color;
         ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
