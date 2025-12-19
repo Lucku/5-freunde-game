@@ -242,7 +242,7 @@ class EarthHero {
 
             // Momentum Logic: Only gain if moving straight AND in cardinal direction (not diagonal)
             // Check if angle is close to 0, PI/2, PI, -PI/2
-            const isCardinal = (Math.abs(Math.sin(moveAngle)) < 0.1 || Math.abs(Math.cos(moveAngle)) < 0.1);
+            const isCardinal = (Math.abs(Math.sin(moveAngle)) < 0.25 || Math.abs(Math.cos(moveAngle)) < 0.25);
 
             if (Math.abs(angleDiff) > 2.0) {
                 // Sharp Turn (e.g. 180 degree reversal): Lose ALL Momentum
@@ -250,7 +250,7 @@ class EarthHero {
             } else if (Math.abs(angleDiff) > 1.0) {
                 // 90 Degree Turn (approx 1.57 rad): Lose significant momentum
                 player.momentum *= 0.5;
-            } else if (Math.abs(angleDiff) < 0.2 && isCardinal) {
+            } else if (Math.abs(angleDiff) < 0.3 && isCardinal) {
                 // Straight line & Cardinal: Gain Momentum
                 player.momentum = Math.min(player.maxMomentum, player.momentum + player.momentumGain);
             } else {
