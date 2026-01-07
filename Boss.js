@@ -11,6 +11,14 @@ class Boss {
         this.x = Math.max(60, Math.min(arena.width - 60, this.x));
         this.y = Math.max(60, Math.min(arena.height - 60, this.y));
 
+        // Collision Check (Ensure boss doesn't spawn in wall)
+        let attempts = 0;
+        while (attempts < 10 && arena.checkCollision(this.x, this.y, 60)) {
+            this.x = Math.random() * (arena.width - 120) + 60;
+            this.y = Math.random() * (arena.height - 120) + 60;
+            attempts++;
+        }
+
         this.radius = 60;
 
         const prestige = saveData[player.type].prestige;

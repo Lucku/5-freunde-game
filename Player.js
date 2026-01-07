@@ -490,8 +490,14 @@ class Player {
                 });
             }
         } else if (this.type === 'black') {
-            // Massive Area Damage
+            // Massive Area Damage + Heal
             let radius = 300;
+
+            // Burst Heal
+            if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
+                 this.hp = Math.min(this.maxHp, this.hp + 50);
+                 floatingTexts.push(new FloatingText(this.x, this.y - 40, "+50 HP", "#2ecc71", 20));
+            }
 
             createExplosion(this.x, this.y, '#9b59b6'); // Bright Purple
 
@@ -516,9 +522,9 @@ class Player {
     onKill() {
         if (this.type === 'black') {
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
-                // Nerfed Healing: 1 HP per kill (was 2)
-                this.hp = Math.min(this.maxHp, this.hp + 1);
-                floatingTexts.push(new FloatingText(this.x, this.y - 30, "+1", "#2ecc71", 14));
+                // Buffed Healing: 3 HP per kill (was 1)
+                this.hp = Math.min(this.maxHp, this.hp + 3);
+                floatingTexts.push(new FloatingText(this.x, this.y - 30, "+3", "#2ecc71", 14));
             }
         }
     }

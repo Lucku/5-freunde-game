@@ -1318,7 +1318,7 @@ function renderPermShop() {
 function buyPermUpgrade(key, cost) {
     if (saveData.global.totalGold >= cost) {
         saveData.global.totalGold -= cost;
-        saveData.metaUpgrades[key]++;
+        saveData.metaUpgrades[key] = (saveData.metaUpgrades[key] || 0) + 1;
 
         // Track Void Spending
         saveData.global.totalVoidGoldSpent = (saveData.global.totalVoidGoldSpent || 0) + cost;
@@ -1710,10 +1710,8 @@ function getHeroStats(type) {
         if (node.type === 'SPLIT') {
             base.extraProjectiles += node.value;
             base.breakdown.projectiles.tree += node.value;
-            // Nerf damage for each split node taken (compounding 20% reduction)
-            for (let k = 0; k < node.value; k++) {
-                base.rangeDmg *= 0.8;
-            }
+            // Nerf damage: 20% reduction per extra projectile (Additive divisor, not compounding)
+            base.rangeDmg /= (1 + (0.2 * node.value));
         }
         if (node.type === 'ARMOR') { base.defense += node.value; base.breakdown.defense.tree += node.value; }
         if (node.type === 'MELEE') base.meleeRadiusMult += node.value;
@@ -3334,6 +3332,20 @@ function masterLoop(timestamp) {
 
             // Apply Camera Transform
             ctx.save();
+
+            // Queasy Cam Chaos Effect
+            if (saveData.chaos && saveData.chaos.active && saveData.chaos.active.includes('DRUNK_CAM')) {
+                const cx = (canvas.width / 2);
+                const cy = (canvas.height / 2);
+                const angle = Math.sin(frame * 0.05) * 0.1; // Sway
+                const scale = 1 + Math.sin(frame * 0.03) * 0.05; // Breathe
+
+                ctx.translate(cx, cy); 
+                ctx.rotate(angle);
+                ctx.scale(scale, scale);
+                ctx.translate(-cx, -cy);
+            }
+
             ctx.translate(-arena.camera.x, -arena.camera.y);
 
             // Draw World
@@ -3504,7 +3516,7 @@ function masterLoop(timestamp) {
             }
 
             if (!bossActive && bossDeathTimer === 0) {
-                let spawnRate = Math.max(5, 40 - (wave * 2));
+                let spawnRate = Math.max(2, 40 - (wave * 2.5)); // Increased scaling
                 let forcedType = null;
 
                 // Story Override
@@ -4090,7 +4102,7 @@ function masterLoop(timestamp) {
 
                     if (enemy instanceof Boss) {
                         // Makuta Achievement Check
-                        if (enemy.type === 'MAKUTA') {
+                        if (enemy.type === 'MAKUTA' && wave >= 100) {
                             unlockAchievement('MAKUTA_SLAYER'); // Base Achievement
 
                             // Hard Mode Achievements (1-10)
