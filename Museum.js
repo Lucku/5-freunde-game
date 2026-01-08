@@ -215,18 +215,60 @@ class Museum {
                 this.viewingStory = null;
                 this.scrollY = 0;
                 keys['escape'] = false;
+                if (audioManager.voice) {
+                    audioManager.voice.pause(); // Stop voice when closing menu
+                }
             }
-
-            // Scroll Logic
-            if (keys['ArrowUp'] || keys['w']) this.scrollY += 15;
-            if (keys['ArrowDown'] || keys['s']) this.scrollY -= 15;
-            if (this.scrollY > 0) this.scrollY = 0; // Don't scroll past top
 
             const gp = navigator.getGamepads()[0];
             if (gp && gp.buttons[1].pressed) {
                 this.viewingStory = null;
                 this.scrollY = 0;
+                if (audioManager.voice) {
+                    audioManager.voice.pause();
+                }
             }
+
+            // Init timer
+            if (typeof this.scrollTimer === 'undefined') this.scrollTimer = 0;
+            if (this.scrollTimer > 0) this.scrollTimer--;
+
+            // Navigation
+            if (this.scrollTimer <= 0) {
+                const stories = MEMORY_STORIES[this.viewingStory] || [];
+                if (keys['ArrowUp'] || keys['w'] || (gp && gp.axes[1] < -0.5)) {
+                    this.selectedStoryIndex = Math.max(0, this.selectedStoryIndex - 1);
+                    this.scrollTimer = 5;
+                }
+                if (keys['ArrowDown'] || keys['s'] || (gp && gp.axes[1] > 0.5)) {
+                    this.selectedStoryIndex = Math.min(stories.length - 1, this.selectedStoryIndex + 1);
+                    this.scrollTimer = 5;
+                }
+
+                // Play Audio
+                if (keys['e'] || keys['p'] || (gp && gp.buttons[0].pressed) || (gp && gp.buttons[2].pressed)) { // A or X
+                    const unlocked = saveData.memories[this.viewingStory];
+                    let isOwned = false;
+                    if (Array.isArray(unlocked)) isOwned = unlocked.includes(this.selectedStoryIndex);
+                    else if (typeof unlocked === 'number') isOwned = this.selectedStoryIndex < unlocked;
+
+                    if (isOwned && audioManager.hasVoice(this.viewingStory, this.selectedStoryIndex)) {
+                        audioManager.playVoice(this.viewingStory, this.selectedStoryIndex);
+                        this.scrollTimer = 30;
+                    }
+                }
+            }
+
+            // Auto-center scroll
+            const targetY = 120 + this.selectedStoryIndex * 40;
+            const screenCenter = 1800 / 2; // Fixed height logic, wait canvas is window size?
+            // "this.height = 1800" but UI is drawn to canvas which is usually window/screen.
+            // drawStory uses "canvas.height". Assuming global canvas context.
+            // Let's use 450 (approx half of typical screen) or a fixed offset.
+            // Actually, just center the selected item at Y=300 relative to screen.
+            const desiredScroll = 300 - targetY;
+            this.scrollY += (desiredScroll - this.scrollY) * 0.1;
+
             return;
         }
 
@@ -286,6 +328,8 @@ class Museum {
             const closest = this.artifacts.find(a => Math.hypot(this.player.x - a.x, this.player.y - a.y) < 50);
             if (closest && closest.type === 'MEMORY') {
                 this.viewingStory = closest.hero;
+                this.selectedStoryIndex = 0;
+                this.scrollY = 0;
                 keys['e'] = false;
             }
         }
@@ -493,12 +537,12 @@ class Museum {
     }
 
     drawStory(ctx) {
-        ctx.fillStyle = 'rgba(0,0,0,0.9)';
+        ctx.fillStyle = 'rgba(0,0,0,0.95)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         const hero = this.viewingStory;
         const stories = MEMORY_STORIES[hero] || [];
-        const unlocked = saveData.memories[hero]; // Array of indices or number
+        const unlocked = saveData.memories[hero];
 
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 30px Arial';
@@ -508,24 +552,53 @@ class Museum {
         ctx.font = '18px Arial';
         ctx.textAlign = 'left';
 
-        let y = 120 + this.scrollY;
         for (let i = 0; i < stories.length; i++) {
+            let y = 120 + i * 40 + this.scrollY;
+
+            if (y < -50 || y > canvas.height + 50) continue;
+
             let text = "???";
+            let isOwned = false;
+
+            if (saveData.debug) isOwned = true; // Debug helper
             if (Array.isArray(unlocked) && unlocked.includes(i)) {
                 text = stories[i];
+                isOwned = true;
             } else if (typeof unlocked === 'number' && i < unlocked) {
                 text = stories[i];
+                isOwned = true;
+            }
+
+            if (i === this.selectedStoryIndex) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.fillRect(50, y - 25, canvas.width - 100, 35);
+                ctx.strokeStyle = '#f1c40f';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(50, y - 25, canvas.width - 100, 35);
             }
 
             ctx.fillStyle = (text === "???") ? '#555' : '#ddd';
+            if (i === this.selectedStoryIndex) ctx.fillStyle = '#fff';
+
             ctx.fillText(`${i + 1}. ${text}`, 100, y);
-            y += 40;
+
+            if (isOwned && audioManager.hasVoice(hero, i)) {
+                ctx.fillText("🔊", 65, y);
+                if (i === this.selectedStoryIndex) {
+                    ctx.save();
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'right';
+                    ctx.fillText("[PRESS E / Ⓐ TO PLAY]", canvas.width - 60, y);
+                    ctx.restore();
+                }
+            }
         }
 
         ctx.fillStyle = '#f1c40f';
         ctx.textAlign = 'center';
         ctx.font = '20px Arial';
-        ctx.fillText("PRESS ESC OR (B) TO CLOSE", canvas.width / 2, canvas.height - 50);
+        ctx.fillText("PRESS ESC OR (B) TO CLOSE | ▲▼ NAVIGATE", canvas.width / 2, canvas.height - 30);
     }
 }
 

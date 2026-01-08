@@ -45,6 +45,44 @@ class AudioManager {
         this.isMuted = false;
     }
 
+    hasVoice(hero, index) {
+        if (index < 0 || index >= 50) return false;
+        // In a real implementation, we would check if the file exists.
+        // For now, we assume if the index is valid, the file *might* exist.
+        return true;
+    }
+
+    playVoice(hero, index) {
+        if (this.isMuted) return;
+
+        if (this.voice) {
+            this.voice.pause();
+            this.voice = null;
+        }
+
+        const id = index + 1;
+        let path = "";
+
+        // DLC: Rise of the Rock (Earth Hero)
+        if (hero === 'earth') {
+            path = `dlc/rise_of_the_rock/music/memories/${hero}_${id}.mp3`;
+        } else {
+            // Standard Heroes (and potentially others if added strictly to base)
+            path = `music/memories/${hero}_${id}.mp3`;
+        }
+
+        this.voice = new Audio(path);
+        this.voice.volume = 0.8;
+        this.voice.play().catch(e => {
+            console.warn(`Audio memory file not found or failed to play: ${path}`, e);
+        });
+        if (this.tracks.museum) this.tracks.museum.volume = 0.2;
+
+        this.voice.onended = () => {
+            if (this.tracks.museum) this.tracks.museum.volume = 0.5;
+        };
+    }
+
     toggleMute() {
         this.isMuted = !this.isMuted;
         if (this.isMuted) {
@@ -120,11 +158,26 @@ class AudioManager {
                 this.play('golem');
             } else {
                 // If the Earth hero is active in the run, prefer DLC rock battle variants (randomized)
+                // Story Mode only (Not Daily/Weekly)
                 const isEarthActive = typeof player !== 'undefined' && player && player.type === 'earth';
-                if (isEarthActive && this.tracks['battle_rock_1'] && this.tracks['battle_rock_2']) {
-                    const pick = 'battle_rock_1'; // TODO: Play randomly between 1 and 2 and only in story mode
-                    this.stopAllExcept(pick);
-                    this.play(pick);
+                const isStoryMode = typeof isDailyMode !== 'undefined' && !isDailyMode &&
+                                    typeof isWeeklyMode !== 'undefined' && !isWeeklyMode &&
+                                    typeof saveData !== 'undefined' && saveData.story && saveData.story.enabled;
+
+                if (isEarthActive && isStoryMode && this.tracks['battle_rock_1'] && this.tracks['battle_rock_2']) {
+                    const t1 = this.tracks['battle_rock_1'];
+                    const t2 = this.tracks['battle_rock_2'];
+
+                    if (!t1.paused) {
+                        this.stopAllExcept('battle_rock_1');
+                    } else if (!t2.paused) {
+                        this.stopAllExcept('battle_rock_2');
+                    } else {
+                        // None playing, pick random
+                        const pick = Math.random() < 0.5 ? 'battle_rock_1' : 'battle_rock_2';
+                        this.stopAllExcept(pick);
+                        this.play(pick);
+                    }
                 } else {
                     this.stopAllExcept('battle');
                     this.play('battle');

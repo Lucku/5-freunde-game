@@ -5,33 +5,43 @@ const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
 
 // --- Configuration ---
 const API_KEY = process.env.ELEVENLABS_API_KEY; // Ensure this is set in your environment
-const VOICE_ID = 'hfgNmTYYctMgJ7E2s6Vx'; // Default voice (change as needed)
+//const VOICE_ID = 'hfgNmTYYctMgJ7E2s6Vx'; // Default voblack (change as needed)
+const VOICE_ID = 'xrNwYO0xeioXswMCcFNF'
 const MODEL_ID = 'eleven_multilingual_v2';
-const OUTPUT_DIR = path.join(__dirname, '../dlc/music/story');
+const OUTPUT_DIR = path.join(__dirname, '../music/memories');
 
 // --- Load Story Data ---
-// We read the file manually to avoid issues with browser-specific code in Story.js
-const storyFileContent = fs.readFileSync(path.join(__dirname, '../dlc/rise_of_the_rock/index.js'), 'utf8');
+// Load MemoryStories.js and parse it
+const memoryFileContent = fs.readFileSync(path.join(__dirname, '../MemoryStories.js'), 'utf8');
 
-// Extract the STORY_EVENTS array using a safe evaluation or regex
-// Since Story.js is simple, we can try to eval the array part.
-// However, to be safe and avoid 'class StoryManager' errors, we'll just extract the array string.
-const startMarker = 'const earthStory = [';
-const endMarker = '];';
-const startIndex = storyFileContent.indexOf(startMarker);
-const endIndex = storyFileContent.indexOf(endMarker, startIndex);
+// Extract the MEMORY_STORIES object using regex or substring
+// The file typically starts with "const MEMORY_STORIES = {" and ends with "};"
+const startMarker = 'const MEMORY_STORIES = {';
+const startIndex = memoryFileContent.indexOf(startMarker);
 
-if (startIndex === -1 || endIndex === -1) {
-    console.error("Could not find earthStory in index.js");
+if (startIndex === -1) {
+    console.error("Could not find MEMORY_STORIES in MemoryStories.js");
     process.exit(1);
 }
 
-const arrayString = storyFileContent.substring(startIndex + 'const earthStory = '.length, endIndex + 1);
-let STORY_EVENTS;
+// Extract the object literal content
+let objectString = memoryFileContent.substring(startIndex + 'const MEMORY_STORIES = '.length);
+// Remove trailing semicolon if present
+objectString = objectString.trim().replace(/;$/, '');
+
+let MEMORY_STORIES;
 try {
-    STORY_EVENTS = eval(arrayString);
+    // Basic eval might fail if there are comments or complex things, but the file is simple JSON-like JS.
+    MEMORY_STORIES = eval('(' + objectString + ')');
 } catch (e) {
-    console.error("Failed to parse STORY_EVENTS:", e);
+    console.error("Failed to parse MEMORY_STORIES:", e);
+    process.exit(1);
+}
+
+const BLACK_MEMORIES = MEMORY_STORIES.black;
+
+if (!BLACK_MEMORIES || !Array.isArray(BLACK_MEMORIES)) {
+    console.error("Fire memories not found or invalid format.");
     process.exit(1);
 }
 
@@ -49,14 +59,14 @@ async function generateAudio() {
         fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     }
 
-    console.log(`Found ${STORY_EVENTS.length} story events.`);
+    console.log(`Found ${BLACK_MEMORIES.length} black memory events.`);
 
-    for (const event of STORY_EVENTS) {
-        // Determine ID: Use 'id' if present, otherwise construct from wave/hero
-        let id = event.id;
-        if (!id) {
-            id = `wave_${event.wave}_${event.hero}`;
-        }
+    // Limit to 50 as per requirements (although the array should be 50 already)
+    const limit = Math.min(BLACK_MEMORIES.length, 50);
+
+    for (let i = 0; i < limit; i++) {
+        const text = BLACK_MEMORIES[i];
+        const id = `black_${i + 1}`; // 1-based index for filenames
 
         const filePath = path.join(OUTPUT_DIR, `${id}.mp3`);
 
@@ -65,7 +75,7 @@ async function generateAudio() {
             continue;
         }
 
-        if (!event.text) {
+        if (!text) {
             console.log(`Skipping ${id} (no text)`);
             continue;
         }
@@ -76,10 +86,10 @@ async function generateAudio() {
             const response = await elevenlabs.textToSpeech.convert(
                 VOICE_ID,
                 {
-                    text: event.text,
+                    text: text,
                     model_id: MODEL_ID,
                     output_format: 'mp3_44100_128',
-                    voiceSettings: {
+                    voblackSettings: {
                         stability: 1,
                         similarityBoost: 1,
                         useSpeakerBoost: true,
@@ -108,7 +118,7 @@ async function generateAudio() {
 
             console.log(`Saved ${filePath}`);
 
-            // Rate limit protection (optional but recommended)
+            // Rate limit protection
             await new Promise(r => setTimeout(r, 500));
 
         } catch (error) {
