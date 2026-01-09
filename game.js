@@ -12,6 +12,7 @@ if (isElectron) {
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+window.ctx = ctx; // Expose for DLCs
 const buffContainer = document.getElementById('buff-container');
 
 // Initialize DLC Manager
@@ -808,7 +809,8 @@ function handleGamepadMenu() {
 
     // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
     if (b && !lastGamepadState.b) {
-        if (uiState === 'PERMSHOP') closePermShop();
+        if (uiState === 'OPTIONS') closeOptions();
+        else if (uiState === 'PERMSHOP') closePermShop();
         else if (uiState === 'SHOP') closeShop();
         else if (uiState === 'PAUSE') togglePause();
         else if (uiState === 'ACHIEVEMENTS') closeAchievements();
@@ -1340,12 +1342,45 @@ function closePermShop() {
 }
 
 function toggleMusic() {
-    if (typeof audioManager !== 'undefined') {
-        const isMuted = audioManager.toggleMute();
-        const btn = document.getElementById('music-btn');
+    toggleOption('musicEnabled');
+}
+
+// --- OPTIONS MENU LOGIC ---
+function openOptions() {
+    setUIState('OPTIONS');
+    document.getElementById('options-screen').style.display = 'flex';
+    updateOptionButtons();
+}
+
+function closeOptions() {
+    setUIState('MENU');
+    document.getElementById('options-screen').style.display = 'none';
+}
+
+function toggleOption(key) {
+    if (typeof gameConfig === 'undefined') return;
+
+    // Use the helper in Config.js
+    const val = toggleSetting(key);
+    updateOptionButtons();
+}
+
+function updateOptionButtons() {
+    if (typeof gameConfig === 'undefined') return;
+
+    const map = {
+        'musicEnabled': 'opt-music-btn',
+        'sfxEnabled': 'opt-sfx-btn',
+        'damageNumbers': 'opt-dmg-btn',
+        'screenShake': 'opt-shake-btn'
+    };
+
+    for (let k in map) {
+        const btn = document.getElementById(map[k]);
         if (btn) {
-            btn.innerText = `Music: ${isMuted ? 'OFF' : 'ON'} (Y)`;
-            btn.style.color = isMuted ? '#e74c3c' : '';
+            const isActive = gameConfig[k];
+            btn.innerText = isActive ? "ON" : "OFF";
+            btn.className = isActive ? "btn btn-green btn-small" : "btn btn-red btn-small";
         }
     }
 }
@@ -1754,6 +1789,8 @@ function getHeroTheme(type) {
     if (type === 'plant') return { bg: '#0b2c14', grid: '#185226' };
     if (type === 'metal') return { bg: '#1a1a1a', grid: '#333' };
     if (type === 'black') return { bg: '#000000', grid: '#2c3e50' }; // Dark theme for Black
+    if (type === 'lightning') return { bg: '#101020', grid: '#303060' }; // Dark Electric Blue
+    if (type === 'earth') return { bg: '#2e2718', grid: '#584930' }; // Dark Earth
     return { bg: '#1a1a1a', grid: '#333' };
 }
 
@@ -1777,12 +1814,21 @@ let currentWeather = null;
 let weatherTimer = 3600; // Time until next weather
 let weatherDuration = 0;
 
-let player;
-let projectiles = [];
-let enemies = [];
-let particles = [];
-let floatingTexts = []; // New array for damage numbers
-let meleeAttacks = [];
+// GLOBAL VARIABLES (Window Scope for DLC Access)
+var player;
+var projectiles = [];
+var enemies = [];
+var particles = [];
+var floatingTexts = [];
+var meleeAttacks = [];
+
+// Explicitly link to window to be 100% sure
+window.player = player;
+window.projectiles = projectiles;
+window.enemies = enemies;
+window.particles = particles;
+window.floatingTexts = floatingTexts;
+window.meleeAttacks = meleeAttacks;
 let powerUps = [];
 // obstacles and biomeZones moved to Arena class
 let holyMasks = [];
@@ -2327,6 +2373,8 @@ class FloatingText {
         this.velocity.y *= 0.9; // Gravity-ish drag
     }
     draw() {
+        if (typeof gameConfig !== 'undefined' && !gameConfig.damageNumbers) return;
+
         ctx.save();
         ctx.globalAlpha = Math.max(0, this.life / 60);
         ctx.fillStyle = this.color;
@@ -2350,7 +2398,13 @@ function shadeColor(color, percent) {
     return "#" + RR + GG + BB;
 }
 
-function createExplosion(x, y, color) {
+// Expose Classes for DLC
+window.FloatingText = FloatingText;
+window.Particle = Particle;
+window.CardDrop = CardDrop;
+window.createExplosion = createExplosion; // Ensure function is visible
+
+function createExplosion(x, y, color, count = 10) {
     for (let i = 0; i < 8; i++) { particles.push(new Particle(x, y, color)); }
 }
 
@@ -3340,7 +3394,7 @@ function masterLoop(timestamp) {
                 const angle = Math.sin(frame * 0.05) * 0.1; // Sway
                 const scale = 1 + Math.sin(frame * 0.03) * 0.05; // Breathe
 
-                ctx.translate(cx, cy); 
+                ctx.translate(cx, cy);
                 ctx.rotate(angle);
                 ctx.scale(scale, scale);
                 ctx.translate(-cx, -cy);
@@ -3495,6 +3549,13 @@ function masterLoop(timestamp) {
                         document.getElementById('event-text').style.display = 'block';
                         setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
                         enemies.unshift(new Boss('DARK_GOLEM'));
+                    } else if (storyBossId === 'ZEUS') {
+                        showNotification("THE THUNDER LORD DECENDS!");
+                        document.getElementById('event-text').innerText = "BOSS: ZEUS";
+                        document.getElementById('event-text').style.display = 'block';
+                        setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
+                        // Force Storm Biome? 
+                        enemies.unshift(new Boss('ZEUS'));
                     } else {
                         // Standard Boss Spawning
                         if (Math.random() < 0.05) {
@@ -3964,6 +4025,23 @@ function masterLoop(timestamp) {
                     } else {
                         const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
                         if (pDist - enemy.radius - proj.radius < 0) {
+
+                            // 1. PROJECTILE HOOK (For DLCs)
+                            // If the projectile has a custom collision handler, let it handle interaction.
+                            // If it returns 'STOP', we assume it handled damage/death and we stop default game logic.
+                            if (proj.onHit) {
+                                const result = proj.onHit(enemy);
+                                if (result === 'STOP') {
+                                    // Remove from array if the handler asks, or handler did it.
+                                    // Usually handler might chain and then ask to be removed.
+                                    // If handler returns STOP, we assume it managed the lifecycle.
+                                    // We should check if it's still in the array?
+                                    // Safest: Let handler kill itself or return STOP to suppress default splicing.
+                                    if (proj.life <= 0) projectiles.splice(pIndex, 1);
+                                    return;
+                                }
+                            }
+
                             // Boss Immunity Check
                             if (enemy instanceof Boss && enemy.immune) {
                                 floatingTexts.push(new FloatingText(enemy.x, enemy.y - 40, "IMMUNE", "#fff", 20));

@@ -439,6 +439,10 @@ class BiomeZone {
             ctx.fillStyle = 'rgba(230, 126, 34, 0.3)'; // Sandy Orange
             ctx.strokeStyle = '#d35400';
             ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 800) * 0.1;
+        } else if (this.type === 'STORM') {
+            ctx.fillStyle = 'rgba(50, 50, 80, 0.4)'; // Dark Thundercloud
+            ctx.strokeStyle = '#ffff00'; // Electric Yellow Outline
+            ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 150) * 0.2; // Rapid flickering
         }
 
         ctx.fillRect(this.x, this.y, this.w, this.h);

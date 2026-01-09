@@ -80,6 +80,20 @@ class CompletionMenu {
                 continue;
             }
 
+            if (hero === 'lightning') { // Tournament of Thunder DLC
+                const stories = MEMORY_STORIES[hero];
+                const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
+                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                if (!Array.isArray(unlocked)) {
+                    for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
+                }
+
+                stories.forEach((story, i) => {
+                    addToDLC('Tournament of Thunder', 'Memories', unlockedIndices.includes(i), `Shard #${i + 1}`);
+                });
+                continue;
+            }
+
             const stories = MEMORY_STORIES[hero];
             const heroName = hero.charAt(0).toUpperCase() + hero.slice(1);
 
@@ -117,6 +131,10 @@ class CompletionMenu {
                 addToDLC('Rise of the Rock', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
                 return;
             }
+            if (ach.id.startsWith('thunder_')) {
+                addToDLC('Tournament of Thunder', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
+                return;
+            }
 
             let cat = 'Combat';
             if (ach.id.startsWith('story') || ach.id.startsWith('MAKUTA')) cat = 'Story';
@@ -147,13 +165,16 @@ class CompletionMenu {
 
         // FIX: Ensure DLC Story Chapters are present if DLC is active
         // We check both the manager and the registry to be safe
-        const isDLCActive = (window.dlcManager && window.dlcManager.isDLCActive('rise_of_the_rock')) ||
+        const isRockActive = (window.dlcManager && window.dlcManager.isDLCActive('rise_of_the_rock')) ||
             (window.DLC_REGISTRY && window.DLC_REGISTRY['rise_of_the_rock']);
 
-        if (isDLCActive) {
+        const isThunderActive = (window.dlcManager && window.dlcManager.isDLCActive('tournament_of_thunder')) ||
+            (window.DLC_REGISTRY && window.DLC_REGISTRY['tournament_of_thunder']);
+
+        if (isRockActive) {
             const hasDLC = events.some(e => e.id && e.id.startsWith('rock_'));
             if (!hasDLC) {
-                console.warn("DLC Story Chapters missing! Injecting fallback...");
+                console.warn("Rock DLC Story Chapters missing! Injecting fallback...");
                 for (let i = 1; i <= 40; i++) {
                     events.push({
                         id: `rock_${i}`,
@@ -161,10 +182,14 @@ class CompletionMenu {
                         hero: "EARTH",
                         type: "NARRATIVE",
                         title: `Chapter ${i}: The Ascent`,
-                        text: `The earth rumbles as you climb higher. The enemies grow stronger, but your resolve is as hard as stone. (Wave ${i * 2})`
+                        text: `The earth rumbles as you climb higher. (Wave ${i * 2})`
                     });
                 }
             }
+        }
+
+        if (isThunderActive) {
+            // For Tournament of Thunder, we assume index.js injected them reliably.
         }
 
         events.forEach(evt => {
@@ -172,6 +197,11 @@ class CompletionMenu {
                 // DLC Chapters must be unlocked by ID to avoid conflict with base game waves
                 const isUnlocked = saveData.story.unlockedChapters.includes(evt.id);
                 addToDLC('Rise of the Rock', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
+                return;
+            }
+            if (evt.id && evt.id.startsWith('thunder_')) {
+                const isUnlocked = saveData.story.unlockedChapters.includes(evt.id);
+                addToDLC('Tournament of Thunder', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
                 return;
             }
 

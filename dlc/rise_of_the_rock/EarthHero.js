@@ -119,6 +119,12 @@ class EarthHero {
                             floatingTexts.push(new FloatingText(e.x, e.y - 60, "SLOW", "#3498db", 20));
                         }
 
+                        // Convergence: Grounding (c21)
+                        if (has('c21')) {
+                            e.hp -= 30 * player.damageMultiplier;
+                            createExplosion(e.x, e.y, '#ffff00');
+                        }
+
                         // Knockback
                         const angle = Math.atan2(e.y - player.y, e.x - player.x);
                         e.x += Math.cos(angle) * 50;

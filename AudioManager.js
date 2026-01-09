@@ -43,6 +43,8 @@ class AudioManager {
         this.tracks.golem.volume = 0.6;
 
         this.isMuted = false;
+
+        this.updateSettings();
     }
 
     hasVoice(hero, index) {
@@ -93,6 +95,16 @@ class AudioManager {
         return this.isMuted;
     }
 
+    updateSettings() {
+        if (typeof gameConfig !== 'undefined') {
+            const shouldMute = !gameConfig.musicEnabled;
+            if (this.isMuted !== shouldMute) {
+                this.isMuted = shouldMute;
+                if (this.isMuted) this.stopAllExcept(null);
+            }
+        }
+    }
+
     play(trackName) {
         if (this.isMuted) return;
         const track = this.tracks[trackName];
@@ -121,7 +133,7 @@ class AudioManager {
         // Ensure global variables are available
         if (typeof uiState === 'undefined') return;
 
-        const menuStates = ['MENU', 'PERMSHOP', 'ACHIEVEMENTS', 'COLLECTION', 'HIGHSCORE', 'STORY', 'ALTAR', 'CHAOSSHOP', 'TUTORIAL', 'STATS', 'COMPLETION'];
+        const menuStates = ['MENU', 'OPTIONS', 'PERMSHOP', 'ACHIEVEMENTS', 'COLLECTION', 'HIGHSCORE', 'STORY', 'ALTAR', 'CHAOSSHOP', 'TUTORIAL', 'STATS', 'COMPLETION'];
 
         if (uiState === 'GAMEOVER') {
             this.stopAllExcept('gameover');
@@ -161,8 +173,8 @@ class AudioManager {
                 // Story Mode only (Not Daily/Weekly)
                 const isEarthActive = typeof player !== 'undefined' && player && player.type === 'earth';
                 const isStoryMode = typeof isDailyMode !== 'undefined' && !isDailyMode &&
-                                    typeof isWeeklyMode !== 'undefined' && !isWeeklyMode &&
-                                    typeof saveData !== 'undefined' && saveData.story && saveData.story.enabled;
+                    typeof isWeeklyMode !== 'undefined' && !isWeeklyMode &&
+                    typeof saveData !== 'undefined' && saveData.story && saveData.story.enabled;
 
                 if (isEarthActive && isStoryMode && this.tracks['battle_rock_1'] && this.tracks['battle_rock_2']) {
                     const t1 = this.tracks['battle_rock_1'];

@@ -6,6 +6,11 @@ class DLCManager {
                 title: "Rise of the Rock",
                 desc: "Unleash the power of the Earth! Adds a new Earth Hero, Rock Biome, new enemies, and powerful mutations.",
                 icon: "⛰️"
+            },
+            'tournament_of_thunder': {
+                title: "The Tournament of Thunder",
+                desc: "Enter the Cloud Kingdom! Introduces the Lightning Hero, Cloud Biome, and the legendary Tournament.",
+                icon: "⚡"
             }
         };
     }

@@ -75,10 +75,43 @@ class Boss {
             this.speed *= 0.4; // Very slow
             this.damage *= 2.0; // One-shot potential
             this.knockbackResist = 1.0; // Unmovable
+        } else if (this.type === 'ZEUS') {
+            this.color = '#ffffff'; // White Hot
+            this.radius = 80;
+            this.maxHp *= 2.5; // Superboss
+            this.hp = this.maxHp;
+            this.speed *= 1.5; // Fast
+            this.damage *= 1.2;
+            this.knockbackResist = 0.8;
+            this.state = 'IDLE';
+            this.stormTimer = 0;
         }
     }
 
     update() {
+        // ZEUS Logic
+        if (this.type === 'ZEUS') {
+            // Check phases
+            if (this.phase === 1 && this.hp < this.maxHp * 0.6) {
+                this.phase = 2;
+                // Trigger Storm
+                createExplosion(this.x, this.y, '#ffff00');
+                if (typeof showNotification === 'function') showNotification("THE STORM RISES!");
+            }
+            if (this.phase === 2 && this.hp < this.maxHp * 0.3) {
+                this.phase = 3;
+                this.speed *= 1.5;
+                if (typeof showNotification === 'function') showNotification("UNLIMITED POWER!");
+            }
+
+            // Random lightning strikes around boss
+            if (Math.random() < 0.05) {
+                // Assuming createProjectile exists or similiar.
+                // For now, just explosions
+                createExplosion(this.x + (Math.random() * 400 - 200), this.y + (Math.random() * 400 - 200), '#ffff00');
+            }
+        }
+
         // Phase Transition Logic
         if (this.phase === 1 && this.hp <= this.maxHp * 0.5) {
             this.phase = 2;

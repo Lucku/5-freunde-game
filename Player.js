@@ -298,6 +298,8 @@ class Player {
             const isThermal = has('c3');
             // Convergence: Meteor Impact (c11)
             const isMeteor = has('c11');
+            // Convergence: Plasma (c16)
+            const isPlasma = has('c16');
 
             for (let i = 0; i < 12; i++) {
                 const angle = (Math.PI * 2 / 12) * i;
@@ -324,6 +326,10 @@ class Player {
                                 e.x += Math.cos(angle) * 50;
                                 e.y += Math.sin(angle) * 50;
                             }
+                            if (isPlasma) {
+                                createExplosion(e.x, e.y, '#ffff00');
+                                e.hp -= 20 * this.damageMultiplier;
+                            }
                         }
                     });
                 }, i * 50);
@@ -347,11 +353,23 @@ class Player {
                 floatingTexts.push(new FloatingText(this.x, this.y - 40, "SHIELD", "#3498db", 20));
             }
 
+            // Convergence: Storm Surge (c19)
+            const isStormSurge = has('c19');
+
             enemies.forEach(e => {
                 const angle = Math.atan2(e.y - this.y, e.x - this.x);
                 e.x += Math.cos(angle) * pushForce;
                 e.y += Math.sin(angle) * pushForce;
                 e.hp -= 20 * this.damageMultiplier;
+
+                if (isStormSurge) {
+                    e.hp -= 25 * this.damageMultiplier;
+                    if (Math.random() < 0.5) {
+                        floatingTexts.push(new FloatingText(e.x, e.y - 40, "ZAP", "#ffff00", 16));
+                        // Check if createExplosion supports color
+                        createExplosion(e.x, e.y, '#ffff00');
+                    }
+                }
 
                 if (isBoiling) {
                     e.hp -= 10 * this.damageMultiplier; // Fire DoT instant burst
@@ -402,6 +420,17 @@ class Player {
 
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + healAmount);
             floatingTexts.push(new FloatingText(this.x, this.y - 40, "HEAL", "#2ecc71", 20));
+
+            // Convergence: Bio-Electricity (c20)
+            if (has('c20')) {
+                enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < 250) {
+                        e.hp -= 40 * this.damageMultiplier;
+                        createExplosion(e.x, e.y, '#ffff00');
+                        floatingTexts.push(new FloatingText(e.x, e.y - 30, "SHOCK", "#ffff00", 18));
+                    }
+                });
+            }
 
             // Thornmail (p3)
             if (has('p3')) {
@@ -495,8 +524,8 @@ class Player {
 
             // Burst Heal
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
-                 this.hp = Math.min(this.maxHp, this.hp + 50);
-                 floatingTexts.push(new FloatingText(this.x, this.y - 40, "+50 HP", "#2ecc71", 20));
+                this.hp = Math.min(this.maxHp, this.hp + 50);
+                floatingTexts.push(new FloatingText(this.x, this.y - 40, "+50 HP", "#2ecc71", 20));
             }
 
             createExplosion(this.x, this.y, '#9b59b6'); // Bright Purple
@@ -509,11 +538,21 @@ class Player {
                 particles.push(new Particle(px, py, '#8e44ad'));
             }
 
+            // Convergence: Void Storm (c22)
+            const isVoidStorm = has('c22');
+
             enemies.forEach(e => {
                 if (Math.hypot(e.x - this.x, e.y - this.y) < radius) {
                     e.hp -= 100 * this.damageMultiplier;
                     floatingTexts.push(new FloatingText(e.x, e.y - 20, "100", "#8e44ad", 25));
                     createExplosion(e.x, e.y, '#9b59b6');
+
+                    if (isVoidStorm) {
+                        e.hp -= 50 * this.damageMultiplier;
+                        e.frozenTimer = 60; // Mini-stun
+                        createExplosion(e.x, e.y, '#ffff00'); // Lightning visual
+                        floatingTexts.push(new FloatingText(e.x, e.y - 50, "STORM", "#ffff00", 20));
+                    }
                 }
             });
         }
