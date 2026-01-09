@@ -30,6 +30,7 @@ class LightningHero {
         if (dx !== 0 || dy !== 0) {
             // Charge faster if in Flash form?
             let rate = player.currentForm === 'FLASH' ? 2.0 : 1.0;
+            if (player.stats && player.stats.staticGenMult) rate *= player.stats.staticGenMult;
             player.staticCharge = Math.min(player.maxStaticCharge, player.staticCharge + rate);
         }
 
@@ -222,7 +223,7 @@ class LightningHero {
         // NERFED: Reduced base damage and Super multiplier
         const dmgMult = isSuper ? 2.5 : 0.6; // Super is 4x stronger (was 4.0 / 0.8)
         const globalMult = player.damageMultiplier || 1;
-        const finalDmg = player.stats.rangeDmg * dmgMult * globalMult;
+        let finalDmg = player.stats.rangeDmg * dmgMult * globalMult;
 
         // SAFE INSTANTIATION: Check if class exists
         // We ensure the class is defined below BEFORE this method runs in typical usage,
@@ -231,27 +232,77 @@ class LightningHero {
         // CHECK RAILGUN (c18)
         const hasRailgun = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active && saveData.altar.active.includes('c18'));
 
+        // CHAIN BONUS (Skill Tree)
+        const chainBonus = (player.stats && player.stats.chainCount) ? player.stats.chainCount : 0;
+        const chainCount = (isSuper ? 5 : 2) + chainBonus;
+
         if (typeof LightningProjectile !== 'undefined') {
-            const proj = new LightningProjectile(
+
+            // 1. Main Projectile
+            const mainProj = new LightningProjectile(
                 player.x, player.y,
                 Math.cos(angle) * speed,
                 Math.sin(angle) * speed,
                 finalDmg,
-                isSuper ? 25 : 10, // Larger Hitbox (10 normal, 25 super)
+                isSuper ? 25 : 10,
                 isSuper,
-                isSuper ? 5 : 2, // Chain Count (Nerfed from 8 -> 5)
-                isSuper ? 600 : 350, // Range (Nerfed from 400 -> 350)
+                chainCount,
+                isSuper ? 600 : 350,
                 [],
                 hasRailgun
             );
+            if (typeof projectiles !== 'undefined') projectiles.push(mainProj);
+            else if (window.projectiles) window.projectiles.push(mainProj);
 
-            // Robust Push to Global Projectiles
-            if (typeof projectiles !== 'undefined') {
-                projectiles.push(proj);
-            } else if (window.projectiles) {
-                window.projectiles.push(proj);
-            } else {
-                console.error("[L-Hero] 'projectiles' array not found!");
+            // 2. Buff Multi-Shot (Powerup)
+            if (player.buffs && player.buffs.multi > 0) {
+                const offsets = [-0.25, 0.25];
+                offsets.forEach(offset => {
+                    const a = angle + offset;
+                    const buffProj = new LightningProjectile(
+                        player.x, player.y,
+                        Math.cos(a) * speed,
+                        Math.sin(a) * speed,
+                        finalDmg,
+                        isSuper ? 25 : 10,
+                        isSuper,
+                        chainCount,
+                        isSuper ? 600 : 350,
+                        [],
+                        hasRailgun
+                    );
+                    if (typeof projectiles !== 'undefined') projectiles.push(buffProj);
+                    else if (window.projectiles) window.projectiles.push(buffProj);
+                });
+            }
+
+            // --- Multi-Shot Logic (Analogue to Base) ---
+            // If Flash form, extra shots might be overwhelming or desired.
+            // We'll allow it but maybe keep the spread tight.
+            if (player.extraProjectiles > 0) {
+                // No extra reduction here, handled by base stats
+                const multiShotDmg = finalDmg;
+
+                for (let i = 1; i <= player.extraProjectiles; i++) {
+                    const spreadAngle = (Math.random() - 0.5) * 0.3; // Slight spread
+                    const sVelX = Math.cos(angle + spreadAngle) * speed;
+                    const sVelY = Math.sin(angle + spreadAngle) * speed;
+
+                    const extraProj = new LightningProjectile(
+                        player.x, player.y,
+                        sVelX, sVelY,
+                        multiShotDmg, // Standard damage
+                        isSuper ? 25 : 10,
+                        isSuper,
+                        chainCount,
+                        isSuper ? 600 : 350,
+                        [],
+                        hasRailgun
+                    );
+
+                    if (typeof projectiles !== 'undefined') projectiles.push(extraProj);
+                    else if (window.projectiles) window.projectiles.push(extraProj);
+                }
             }
 
         } else {
@@ -294,15 +345,15 @@ class LightningHero {
         }
     }
 
-    static getDiff() {
+    static getSkillTreeWeights() {
         // Upgrade Weightings
         return {
             DAMAGE: 0.20,
             CHAIN_COUNT: 0.15,
             SPEED: 0.25,
             COOLDOWN: 0.20,
-            Health: 0.10,
-            Regen: 0.10
+            HEALTH: 0.10,
+            STATIC_GEN: 0.10
         };
     }
 
@@ -311,6 +362,15 @@ class LightningHero {
         if (type === 'CHAIN_COUNT') return { val: 1, desc: "+1 Chain Jump" };
         if (type === 'STATIC_GEN') return { val: 0.1, desc: "+10% Charge Rate" };
         return { val, desc };
+    }
+
+    static applySkillNode(base, node) {
+        if (node.type === 'CHAIN_COUNT') {
+            base.chainCount = (base.chainCount || 0) + node.value;
+        }
+        if (node.type === 'STATIC_GEN') {
+            base.staticGenMult = (base.staticGenMult || 1) + node.value;
+        }
     }
 }
 

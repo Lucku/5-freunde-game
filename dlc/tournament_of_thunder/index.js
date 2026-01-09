@@ -3,6 +3,7 @@
 const TOURNAMENT_OF_THUNDER = {
     id: 'tournament_of_thunder',
     name: "The Tournament of Thunder",
+    hero: 'lightning',
     description: "Enter the Cloud Kingdom! Introduces the Lightning Hero, Cloud Biome, and the legendary Tournament.",
 
     load: async function () {
@@ -167,15 +168,61 @@ const TOURNAMENT_OF_THUNDER = {
 
     injectMemories: function () {
         if (typeof MEMORY_STORIES !== 'undefined') {
-            const memories = [];
-            for (let i = 1; i <= 50; i++) {
-                memories.push(`Lightning Memory ${i}: The static whispered to me...`);
-            }
-            // Overwrite first few with real text if needed
-            memories[0] = "I was born in a storm, they said. Lighting struck the hospital the moment I cried.";
-            memories[1] = "Speed was never a choice. It was a necessity. I moved before I thought.";
+            MEMORY_STORIES['lightning'] = [
+                "Speed was always my obsession, the blur of the world rushing past my eyes.",
+                "But no matter how fast I ran, I couldn't outrun the feeling of not belonging.",
+                "I worked as an electrical engineer, fixing circuits and grids, fascinated by the invisible flow of power.",
+                "One night, a massive storm hit the city, the kind that rattles bones and turns the sky violet.",
+                "A transformer blew nearby, arcing wild, deadly electricity towards a crowd of bystanders.",
+                "I didn't think; I just moved, pushing a child out of the way of the falling cable.",
+                "The bolt hit me square in the chest, stopping my heart... and then restarting it with a different rhythm.",
+                "I didn't die. I absorbed it. The pain was replaced by a rush of pure adrenaline.",
+                "My veins glowed, my hair stood on end, and I felt connected to every electron in the air.",
+                "The government noticed quickly. Men in dark suits, endless tests in sterile white rooms.",
+                "They wanted to contain me, to study me, to use me as a living battery.",
+                "They underestimated the charge I held.",
+                "I escaped, running faster than sound, turning into a streak of living light.",
+                "My escape led me to a strange, ancient gate hidden deep in the mountains.",
+                "It pulsed with the same energy I felt buzzing inside my bones.",
+                "Touching it transported me here, to this Arena, a place out of time.",
+                "Here, the air is thick with magic and danger, and I finally feel unfiltered.",
+                "I learned to channel my static, to chain lightning between foes like a deadly dance.",
+                "In my world, I was a freak, a science experiment gone wrong. Here, I am a force of nature.",
+                "The others accepted me, though I move too fast for their liking sometimes."
+            ];
+        }
 
-            MEMORY_STORIES['lightning'] = memories;
+        // Extensibility: Hook into MemoryShard color
+        if (typeof MemoryShard !== 'undefined') {
+            const originalGetColor = MemoryShard.prototype.getColorByType;
+            MemoryShard.prototype.getColorByType = function (type) {
+                if (type === 'lightning') return '#ffeb3b';
+                return originalGetColor.call(this, type);
+            }
+        }
+
+        // Extensibility: Hook into Museum artifact spawning
+        if (typeof Museum !== 'undefined') {
+            const originalSpawn = Museum.prototype.spawnEntities;
+            Museum.prototype.spawnEntities = function () {
+                originalSpawn.call(this); // Run base logic
+
+                // Add Lightning Artifact
+                if (saveData.memories['lightning'] && Array.isArray(saveData.memories['lightning']) && saveData.memories['lightning'].length > 0) {
+                    const count = saveData.memories['lightning'].length;
+                    const room = this.rooms.find(r => r.name === 'gallery');
+                    if (room) {
+                        this.artifacts.push({
+                            x: room.x + room.w - 100,
+                            y: room.y + room.h / 2,
+                            text: `Lightning: ${count}`,
+                            color: '#ffeb3b',
+                            type: 'MEMORY',
+                            hero: 'lightning'
+                        });
+                    }
+                }
+            }
         }
     }
 };

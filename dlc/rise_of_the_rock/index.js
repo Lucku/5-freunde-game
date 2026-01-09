@@ -3,6 +3,7 @@
 const RISE_OF_THE_ROCK = {
     id: 'rise_of_the_rock',
     name: "The Rise of the Rock",
+    hero: 'earth',
     description: "Introduces the Earth Hero, Rock Biome, and a new Story Campaign.",
 
     load: async function () {
@@ -48,6 +49,39 @@ const RISE_OF_THE_ROCK = {
                 "They are fighting too. Fighting the same shadow that trapped me.",
                 "I am coming. The mountain is moving, and I will not be stopped."
             ];
+        }
+
+        // Extensibility: Hook into MemoryShard color
+        if (typeof MemoryShard !== 'undefined') {
+            const originalGetColor = MemoryShard.prototype.getColorByType;
+            MemoryShard.prototype.getColorByType = function (type) {
+                if (type === 'earth') return '#8d6e63';
+                return originalGetColor.call(this, type);
+            }
+        }
+
+        // Extensibility: Hook into Museum artifact spawning
+        if (typeof Museum !== 'undefined') {
+            const originalSpawn = Museum.prototype.spawnEntities;
+            Museum.prototype.spawnEntities = function () {
+                originalSpawn.call(this); // Run base logic
+
+                // Add Earth Artifact
+                if (saveData.memories['earth'] && Array.isArray(saveData.memories['earth']) && saveData.memories['earth'].length > 0) {
+                    const count = saveData.memories['earth'].length;
+                    const room = this.rooms.find(r => r.name === 'gallery');
+                    if (room) {
+                        this.artifacts.push({
+                            x: room.x + 100, // Left side
+                            y: room.y + room.h / 2,
+                            text: `Earth: ${count}`,
+                            color: '#8d6e63',
+                            type: 'MEMORY',
+                            hero: 'earth'
+                        });
+                    }
+                }
+            }
         }
     },
 
@@ -110,6 +144,7 @@ const RISE_OF_THE_ROCK = {
         const events = window.STORY_EVENTS || (typeof STORY_EVENTS !== 'undefined' ? STORY_EVENTS : null);
 
         if (events) {
+            // Check if already injected to avoid duplicates
             // Check if already injected to avoid duplicates
             if (events.some(e => e.id === 'rock_start')) return;
 

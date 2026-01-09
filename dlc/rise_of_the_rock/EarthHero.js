@@ -22,6 +22,7 @@ class EarthHero {
         player.customDraw = (ctx) => EarthHero.draw(player, ctx);
         player.customSpecial = () => EarthHero.useSpecial(player);
         player.melee = () => EarthHero.melee(player); // Tremor Attack
+        player.shoot = () => EarthHero.shoot(player); // Rock Throw
 
         // Altar Checks
         const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
@@ -212,6 +213,52 @@ class EarthHero {
         }
 
         player.meleeCooldown = player.meleeMaxCooldown * player.cooldownMultiplier;
+    }
+
+    static shoot(player) {
+        if (player.rangeCooldown > 0) return;
+
+        // Aim
+        let angle = player.aimAngle;
+        // If no aim (keyboard only?), use facing
+        if (angle === undefined) {
+            angle = player.lastMoveAngle || 0;
+        }
+
+        // Stats
+        const speed = 10;
+        const dmg = Math.max(1, player.stats.meleeDmg * 0.25); // 25% of Melee Damage
+
+        // Cooldown: 45 frames (0.75s) - Moderate fire rate
+        const cooldown = 45 * player.cooldownMultiplier;
+
+        const vel = { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
+
+        if (typeof Projectile !== 'undefined') {
+            const proj = new Projectile(
+                player.x, player.y,
+                vel,
+                dmg,
+                '#8d6e63', // Rock Brown
+                12, // Size
+                'earth',
+                25, // Knockback (Increased for effect)
+                false // isEnemy
+            );
+
+            // Optional: Allow rock to pierce 1 enemy
+            proj.pierce = 1;
+
+            // Low Range: ~250px (25 frames * 10 speed)
+            proj.life = 25;
+
+            if (typeof projectiles !== 'undefined') projectiles.push(proj);
+            else if (window.projectiles) window.projectiles.push(proj);
+
+            if (typeof currentRunStats !== 'undefined') currentRunStats.missilesFired++;
+        }
+
+        player.rangeCooldown = cooldown;
     }
 
     static update(player, dx, dy) {
@@ -413,6 +460,30 @@ class EarthHero {
     static draw(player, ctx) {
         ctx.save();
         ctx.translate(player.x, player.y);
+
+        // --- Aim Indicator ---
+        let aimAngle = player.aimAngle;
+        if (aimAngle === undefined) aimAngle = player.lastMoveAngle || 0;
+
+        ctx.save();
+        ctx.rotate(aimAngle);
+
+        // Draw Directional Arrow
+        ctx.beginPath();
+        // Line out
+        ctx.moveTo(player.radius + 5, 0);
+        ctx.lineTo(player.radius + 35, 0);
+        // Arrowhead
+        ctx.lineTo(player.radius + 25, -6);
+        ctx.moveTo(player.radius + 35, 0);
+        ctx.lineTo(player.radius + 25, 6);
+
+        ctx.lineCap = 'round';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(141, 110, 99, 0.6)'; // Semi-transparent brown
+        ctx.stroke();
+
+        ctx.restore();
 
         // Rotate based on movement to simulate rolling
         // We can use a global frame counter or player.x/y for rotation

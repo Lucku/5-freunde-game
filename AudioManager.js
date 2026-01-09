@@ -68,6 +68,8 @@ class AudioManager {
         // DLC: Rise of the Rock (Earth Hero)
         if (hero === 'earth') {
             path = `dlc/rise_of_the_rock/music/memories/${hero}_${id}.mp3`;
+        } else if (hero === 'lightning') {
+            path = `dlc/tournament_of_thunder/music/memories/${hero}_${id}.mp3`;
         } else {
             // Standard Heroes (and potentially others if added strictly to base)
             path = `music/memories/${hero}_${id}.mp3`;

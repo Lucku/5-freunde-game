@@ -344,6 +344,24 @@ function renderHeroSelect() {
         };
         container.appendChild(el);
     });
+    updateStoryButton();
+}
+
+function updateStoryButton() {
+    const btn = document.querySelector('.btn-story');
+    if (!btn) return;
+
+    let title = "Story Mode";
+    if (window.DLC_REGISTRY) {
+        for (const key in window.DLC_REGISTRY) {
+            const dlc = window.DLC_REGISTRY[key];
+            if (dlc.hero === selectedHeroType && dlc.name) {
+                title = dlc.name;
+                break;
+            }
+        }
+    }
+    btn.innerText = title;
 }
 
 // --- UI State Management for Gamepad ---
@@ -2522,6 +2540,8 @@ function chooseUpgrade(type) {
         } else {
             player.extraProjectiles += 1;
             player.runBuffs.projectiles += 1;
+            // Balance: -20% Damage (Additive divisor) per split, similar to Skill Tree
+            player.stats.rangeDmg /= 1.2;
         }
     }
     else if (type === 'speed') { player.speedMultiplier += 0.1; player.runBuffs.speed += 0.1; }
@@ -3733,6 +3753,11 @@ function masterLoop(timestamp) {
                         // Show Story Text
                         const storyText = allStories[newIndex];
                         showNotification(`MEMORY: "${storyText}"`);
+
+                        // Play Audio
+                        if (typeof audioManager !== 'undefined') {
+                            audioManager.playVoice(shardType, newIndex);
+                        }
                     } else {
                         showNotification("MEMORY RECOVERED! (All collected)");
                     }
