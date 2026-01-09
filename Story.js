@@ -198,7 +198,8 @@ window.STORY_EVENTS = [
     { id: "final_97", wave: 97, title: "The Inner Sanctum", hero: "ALL", type: "NARRATIVE", text: "You enter the heart of his domain. It is a place of absolute nothingness. Only your light exists here." },
     { id: "final_98", wave: 98, title: "Face to Face", hero: "ALL", type: "NARRATIVE", text: "He stands before you, no longer hiding in shadows. He is the shadow. And he is afraid." },
     { id: "final_99", wave: 99, title: "One Last Breath", hero: "ALL", type: "NARRATIVE", text: "You ready your weapons. Your friends stand beside you. This is the moment you were chosen for." },
-    { id: "final_100", wave: 100, title: "The End of Shadows", hero: "ALL", type: "BOSS_FIGHT", text: "Makuta roars, a sound that shakes the universe. It ends here. For the Golden Mask! For the world!", data: { bossId: 'MAKUTA' } }
+    { id: "final_100", wave: 100, title: "The End of Shadows", hero: "ALL", type: "BOSS_FIGHT", text: "Makuta roars, a sound that shakes the universe. It ends here. For the Golden Mask! For the world!", data: { bossId: 'MAKUTA' } },
+    { id: "final_101", wave: 101, title: "Victory", hero: "ALL", type: "THE_END", text: "Makuta falls. The shadows retreat. The world is safe... for now. You have mastered your elements and saved reality." }
 ];
 
 const PROCEDURAL_TEMPLATES = [

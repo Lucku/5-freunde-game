@@ -142,6 +142,9 @@ const TOURNAMENT_OF_THUNDER = {
             // Final Boss at 50
             addChapter(50, "The Final Spark", "Makuta summons his mightiest minion, ZEUS. A titan of living lightning descends from the heavens. 'Show this spark what real power looks like,' Makuta commands.", "BOSS_FIGHT", { bossId: 'ZEUS' });
 
+            // The End
+            addChapter(51, "Champion of Thunder", "Zeus bows before you. Makuta scoffs but honors the deal. You are free, and you are the champion.", "THE_END");
+
             // Append to global events
             events.push(...thunderStory);
         }

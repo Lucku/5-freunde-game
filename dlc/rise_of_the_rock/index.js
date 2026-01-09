@@ -359,6 +359,11 @@ const RISE_OF_THE_ROCK = {
                     title: "The Gatekeeper",
                     text: "You stand at the exit, the light blindingly bright. But the way is barred. A massive construct of obsidian and dark magic rises. The Dark Golem. The final lock on your cage. Break it!",
                     data: { bossId: 'DARK_GOLEM' } // Unique Boss
+                },
+                {
+                    id: "rock_41", wave: 41, hero: "EARTH", type: "THE_END",
+                    title: "Freedom",
+                    text: "The Golem crumbles. The barrier shatters. You step out into the sunlight for the first time in eons. The earth rejoices beneath your feet. You are free."
                 }
             ];
 

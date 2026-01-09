@@ -28,12 +28,12 @@ window.addEventListener('resize', resize);
 resize();
 
 const defaultSaveData = {
-    fire: { level: 0, unlocked: 1, highScore: 0, prestige: 0 },
-    water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
-    ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
-    plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
-    metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
-    black: { level: 0, unlocked: 0, highScore: 0, prestige: 0 }, // Hidden/Daily Hero
+    fire: { level: 0, unlocked: 1, highScore: 0, prestige: 0, maxWinPrestige: -1 },
+    water: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 },
+    ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 },
+    plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 },
+    metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 },
+    black: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 }, // Hidden/Daily Hero
     global: {
         totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0,
         totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0,
@@ -1676,9 +1676,19 @@ function renderSkillTree() {
     });
 
     const prestigeBtn = document.getElementById('prestige-container');
-    if (heroData.unlocked >= SKILL_TREE_SIZE) {
+    const hasBeatenRank = (heroData.maxWinPrestige ?? -1) >= heroData.prestige;
+
+    if (heroData.unlocked >= SKILL_TREE_SIZE && hasBeatenRank) {
         prestigeBtn.style.display = 'block';
         prestigeBtn.querySelector('button').innerText = `UNLOCK HARD MODE ${heroData.prestige + 1}`;
+        prestigeBtn.querySelector('button').disabled = false;
+        prestigeBtn.querySelector('button').title = "Reset tree, increase difficulty, gain base stats.";
+    } else if (heroData.unlocked >= SKILL_TREE_SIZE && !hasBeatenRank) {
+        // Show disabled button with reasoning
+        prestigeBtn.style.display = 'block';
+        prestigeBtn.querySelector('button').innerText = `BEAT STORY WITH RANK ${heroData.prestige} TO PRESTIGE`;
+        prestigeBtn.querySelector('button').disabled = true;
+        prestigeBtn.querySelector('button').title = "You must complete a Story Mode run with this character's current Prestige Rank first.";
     } else {
         prestigeBtn.style.display = 'none';
     }
@@ -2737,6 +2747,12 @@ function closeStory() {
         currentStoryAudio = null;
     }
 
+    // Victory Check: If this was "THE_END", trigger game over (victory)
+    if (currentStoryEvent && currentStoryEvent.type === 'THE_END') {
+        gameOver(true); // Victory!
+        return;
+    }
+
     // Proceed to Shop or Next Wave
     // Special case: If wave is 0 (Intro), always advance to Wave 1
     if (wave === 0) {
@@ -3068,6 +3084,13 @@ function gameOver(isVictory = false) {
     saveData.global.totalGames = (saveData.global.totalGames || 0) + 1;
     if (!isVictory) {
         saveData.global.totalDeaths = (saveData.global.totalDeaths || 0) + 1;
+    } else {
+        // Victory! Track max prestige win
+        const currentP = saveData[player.type].prestige || 0;
+        const recorded = saveData[player.type].maxWinPrestige ?? -1;
+        if (currentP > recorded) {
+            saveData[player.type].maxWinPrestige = currentP;
+        }
     }
 
     checkAchievements();
@@ -3545,7 +3568,7 @@ function masterLoop(timestamp) {
                         storyBossId = currentStoryEvent.data.bossId;
                     }
 
-                    if (storyBossId === 'MAKUTA' || (saveData.story.enabled && !isDailyMode && !isWeeklyMode && (wave === 50 || wave === 100))) {
+                    if (storyBossId === 'MAKUTA' || (!storyBossId && saveData.story.enabled && !isDailyMode && !isWeeklyMode && (wave === 50 || wave === 100))) {
                         showNotification("MAKUTA HAS AWAKENED!");
                         document.getElementById('event-text').innerText = "BOSS: MAKUTA";
                         document.getElementById('event-text').style.display = 'block';

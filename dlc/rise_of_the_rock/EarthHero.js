@@ -153,9 +153,10 @@ class EarthHero {
 
         // Tremor: A localized earthquake
         // Scales with Momentum and Melee Radius upgrades
-        const momentumRatio = player.momentum / player.maxMomentum;
-        const radius = (player.meleeRadius || 120) * (1 + momentumRatio * 0.5); // Radius + 0-50%
-        const damage = player.stats.meleeDmg * player.damageMultiplier * (0.5 + momentumRatio); // 50% to 150% Damage
+        // CHANGE: Use fixed base (100) instead of maxMomentum for ratio so increasing valid Max Momentum actually buffs damage/radius
+        const momentumRatio = player.momentum / 100;
+        const radius = (player.meleeRadius || 120) * (1 + momentumRatio * 0.5); // Radius + 0-50+%
+        const damage = player.stats.meleeDmg * player.damageMultiplier * (0.5 + momentumRatio); // 50% to 150%+ Damage
 
         // Visuals
         createExplosion(player.x, player.y, '#5d4037'); // Dark Brown
@@ -410,7 +411,8 @@ class EarthHero {
                     const dist = Math.hypot(e.x - player.x, e.y - player.y);
                     if (dist < player.radius + e.radius) {
                         // RAMMING SPEED!
-                        let damage = player.stats.meleeDmg * (player.momentum / player.maxMomentum) * player.damageMultiplier * (player.stats.ramDmgMult || 1);
+                        // Changed to fixed base 100 so higher max momentum = higher damage
+                        let damage = player.stats.meleeDmg * (player.momentum / 100) * player.damageMultiplier * (player.stats.ramDmgMult || 1);
 
                         // Ice Breaker (c13)
                         if (has('c13') && e.frozenTimer > 0) {
