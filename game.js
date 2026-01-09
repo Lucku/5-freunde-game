@@ -966,6 +966,14 @@ function startStandardGame() {
     startGame('NORMAL');
 }
 
+function startShuffleGame() {
+    if (!saveData.story) {
+        saveData.story = { unlockedChapters: [], enabled: false };
+    }
+    saveData.story.enabled = false;
+    startGame('SHUFFLE');
+}
+
 function startStoryGame() {
     if (!saveData.story) {
         saveData.story = { unlockedChapters: [], enabled: true };
@@ -1267,6 +1275,7 @@ function checkNewGame(mode) {
         // Controller focus handling would go here
     } else {
         if (mode === 'STORY') startStoryGame();
+        else if (mode === 'SHUFFLE') startShuffleGame();
         else startStandardGame();
     }
 }
@@ -1275,6 +1284,7 @@ function confirmNewGame() {
     clearSavedRun();
     closeConfirmDialog();
     if (pendingGameMode === 'STORY') startStoryGame();
+    else if (pendingGameMode === 'SHUFFLE') startShuffleGame();
     else startStandardGame();
 }
 
@@ -2054,6 +2064,7 @@ function showNotification(text) {
 // --- Daily Challenge Logic ---
 let activeMutators = [];
 let isDailyMode = false;
+let isChaosShuffleMode = false;
 let forcedEnemyType = null;
 
 function getDailySeed() {
@@ -2531,6 +2542,35 @@ function updateUI() {
         div.style.backgroundColor = '#9b59b6'; div.style.color = 'white'; div.innerText = '🎯';
         buffContainer.appendChild(div);
     }
+
+    // Chaos Mode Indicators
+    if (saveData.chaos && saveData.chaos.active && saveData.chaos.active.length > 0) {
+        const chaosIcons = {
+            'INVERTED': '↔️',
+            'SLIPPERY': '🧊',
+            'GIANT_ENEMIES': '👹',
+            'TINY_PLAYER': '🐜',
+            'EXPLOSIVE_STEPS': '💣',
+            'DRUNK_CAM': '😵',
+            'SPEED_DEMON': '⏩',
+            'GHOST_TOWN': '👻',
+            'MELEE_ONLY': '⚔️'
+        };
+
+        saveData.chaos.active.forEach(id => {
+            const effect = CHAOS_EFFECTS.find(e => e.id === id);
+            if (effect) {
+                const div = document.createElement('div');
+                div.className = 'buff-icon chaos-icon'; // Added class for potential styling
+                div.style.backgroundColor = effect.color;
+                div.style.color = 'white';
+                div.style.border = '2px solid #fff'; // Distinguish from normal buffs
+                div.innerText = chaosIcons[id] || '🌀';
+                div.title = effect.name; // Tooltip
+                buffContainer.appendChild(div);
+            }
+        });
+    }
 }
 
 function chooseUpgrade(type) {
@@ -2820,12 +2860,92 @@ function startObjective() {
     }
 }
 
+function shuffleHero() {
+    // 1. Get available heroes
+    let availableHeroes = ['fire', 'water', 'ice', 'plant', 'metal'];
+
+    // Check DLC for heroes
+    if (window.dlcManager) {
+        const dlcs = window.dlcManager.getDLCList();
+        dlcs.forEach(dlc => {
+            if (dlc.active && dlc.hero && !availableHeroes.includes(dlc.hero)) {
+                availableHeroes.push(dlc.hero);
+            }
+        });
+    }
+
+    // 2. Pick random NEXT hero (ensure it changes)
+    let nextHero = player.type;
+    let attempts = 0;
+    while (nextHero === player.type && attempts < 20) {
+        nextHero = availableHeroes[Math.floor(Math.random() * availableHeroes.length)];
+        attempts++;
+    }
+
+    // 3. Store Stats
+    const oldStats = {
+        hpPercent: player.hp / player.maxHp,
+        level: player.level,
+        xp: player.xp,
+        maxXp: player.maxXp,
+        gold: player.gold,
+        buffs: JSON.parse(JSON.stringify(player.buffs)),
+        runBuffs: JSON.parse(JSON.stringify(player.runBuffs)),
+        critChance: player.critChance,
+        critMultiplier: player.critMultiplier
+    };
+
+    // 4. Create New Player
+    const newPlayer = new Player(nextHero);
+
+    // 5. Restore Position
+    newPlayer.x = player.x;
+    newPlayer.y = player.y;
+
+    // 6. Apply Stats
+    newPlayer.level = oldStats.level;
+    newPlayer.xp = oldStats.xp;
+    newPlayer.maxXp = oldStats.maxXp;
+    newPlayer.gold = oldStats.gold;
+    newPlayer.buffs = oldStats.buffs;
+    newPlayer.runBuffs = oldStats.runBuffs;
+
+    // Re-apply buffs to base stats
+    newPlayer.maxHp += (oldStats.runBuffs.maxHp || 0);
+    newPlayer.damageMultiplier += (oldStats.runBuffs.damage || 0);
+    newPlayer.damageReduction += (oldStats.runBuffs.defense || 0);
+    newPlayer.maskChance += (oldStats.runBuffs.luck || 0);
+    newPlayer.extraProjectiles += (oldStats.runBuffs.projectiles || 0);
+    newPlayer.speedMultiplier += (oldStats.runBuffs.speed || 0);
+
+    // Cooldown Approximation
+    newPlayer.cooldownMultiplier = Math.max(0.1, 1 - (oldStats.runBuffs.cooldown || 0));
+
+    // Crit Carry Over (Approximate)
+    newPlayer.critChance += (oldStats.critChance - 0.05);
+
+    // 7. HP Percentage Restoration
+    newPlayer.hp = newPlayer.maxHp * oldStats.hpPercent;
+
+    // 8. Swap
+    player = newPlayer;
+
+    showNotification(`CHAOS SHUFFLE: ${nextHero.toUpperCase()}!`);
+    createExplosion(player.x, player.y, '#fff', 20);
+    updateUI();
+}
+
 function advanceWave() {
     wave++;
     enemiesKilledInWave = 0;
     masksDroppedInWave = 0; // Reset mask cap
     enemies = [];
     bossActive = false;
+
+    // CHAOS SHUFFLE: Switch Hero
+    if (isChaosShuffleMode && wave > 1) {
+        shuffleHero();
+    }
 
     // Randomize Biome
     let types = ['fire', 'water', 'ice', 'plant', 'metal'];
@@ -2967,15 +3087,23 @@ function checkAchievements() {
 
 // --- Main Loop ---
 
+// --- Main Loop ---
+
 function startGame(mode = 'NORMAL') {
     // Initialize Arena (3000x3000)
     arena = new Arena(3000, 3000);
+
+    isChaosShuffleMode = (mode === 'SHUFFLE');
 
     // Check for Shadow Form Mutator BEFORE creating player
     let heroType = selectedHeroType;
     if ((mode === 'DAILY' || mode === 'WEEKLY') && activeMutators.some(m => m.id === 'SHADOW_FORM')) {
         heroType = 'black';
     }
+
+    // In Shuffle Mode, start with random non-black hero? Or selected? 
+    // "Shuffles the current hero... Result in shuffling the 5 main game heroes... and DLC"
+    // Let's start with the selected hero, then shuffle next wave.
 
     player = new Player(heroType);
     // Center Player in Arena
