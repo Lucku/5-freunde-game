@@ -241,6 +241,11 @@ class CompletionMenu {
                 return;
             }
 
+            if (['CLOUD', 'STORM', 'ZEUS'].includes(type) || ['CLOUD_BAT', 'STORM_ELEMENTAL', 'ZEUS_BOT'].includes(type)) { // Handle split on underscore potentially leaving CLOUD/STORM
+                addToDLC('Tournament of Thunder', 'Cards', saveData.collection.includes(id), card.name);
+                return;
+            }
+
             // Map type to nice name if needed, or just use type
             const typeName = type.charAt(0) + type.slice(1).toLowerCase();
 

@@ -173,7 +173,12 @@ const COLLECTOR_CARDS = {
 
     // DLC: Rise of the Rock
     ...createCardSet('GOLEM', 'Golem', '#795548', 'Golems do not split on death', { type: 'special', id: 'GOLEM_NO_SPLIT' }),
-    ...createCardSet('BURROWER', 'Burrower', '#5d4037', 'Can hit Burrowers underground', { type: 'special', id: 'BURROWER_PIERCE' })
+    ...createCardSet('BURROWER', 'Burrower', '#5d4037', 'Can hit Burrowers underground', { type: 'special', id: 'BURROWER_PIERCE' }),
+
+    // DLC: Tournament of Thunder
+    ...createCardSet('CLOUD_BAT', 'Cloud Bat', '#90a4ae', 'Cloud Bats move 50% slower', { type: 'special', id: 'CLOUD_BAT_SLOW' }),
+    ...createCardSet('STORM_ELEMENTAL', 'Storm Elemental', '#fbc02d', '+20% Damage vs Storm Elementals', { type: 'damage_vs', val: 0.2, target: 'STORM_ELEMENTAL' }),
+    ...createCardSet('ZEUS_BOT', 'Zeus Bot', '#fff', 'Zeus Bots do not revive minions', { type: 'special', id: 'ZEUS_BOT_NERF' })
 };
 
 const MUTATORS = [
