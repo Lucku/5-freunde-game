@@ -307,61 +307,114 @@ const RISE_OF_THE_ROCK = {
                     text: "The path to the surface is guarded by ancient defenses. Stone sentinels awaken to stop you. Prove that you are the master of the earth, not its prisoner.",
                     data: { objective: true }
                 },
-
-                // --- ARC 4: THE REVELATION ---
                 {
                     id: "rock_31", wave: 31, hero: "EARTH", type: "NARRATIVE",
                     title: "Broken Chains",
                     text: "You smash the last sentinel. The magic binding you to this place snaps. You feel light. Lighter than stone should be."
                 },
+
+                // --- ARC 4: THE OBSIDIAN MAZE ---
                 {
                     id: "rock_32", wave: 32, hero: "EARTH", type: "NARRATIVE",
+                    title: "The False Summit",
+                    text: "You expect the sky, but you find another wall. A layer of black obsidian, slick and impenetrable. The path didn't end; it changed."
+                },
+                {
+                    id: "rock_33", wave: 33, hero: "EARTH", type: "NARRATIVE",
+                    title: "Reflection",
+                    text: "The obsidian is like a mirror. You see yourself, but twisted. A monster of stone and rage. Is this what you are becoming?"
+                },
+                {
+                    id: "rock_34", wave: 34, hero: "EARTH", type: "NARRATIVE",
+                    title: "The Void",
+                    text: "Between the layers of rock, there is a void. No sound. No vibration. It is deafening to someone who sees with their feet."
+                },
+                {
+                    id: "rock_35", wave: 35, hero: "EARTH", type: "NARRATIVE",
+                    title: "Whispers of the Lost",
+                    text: "You find statues here. Not carved, but petrified. Previous prisoners who gave up hope. Their despair lingers like a fog."
+                },
+                {
+                    id: "rock_36", wave: 36, hero: "EARTH", type: "NARRATIVE",
+                    title: "Inner Fire",
+                    text: "The cold of the void tries to freeze your core. You must stoke the magma within. Anger is a fuel. Use it."
+                },
+                {
+                    id: "rock_37", wave: 37, hero: "EARTH", type: "NARRATIVE",
+                    title: "Gravity",
+                    text: "The laws of nature feel wrong here. The rock pulls at you, trying to merge you back into the wall. You have to fight to stay an individual."
+                },
+                {
+                    id: "rock_38", wave: 38, hero: "EARTH", type: "NARRATIVE",
+                    title: "Diamond Dust",
+                    text: "The air is filled with razor-sharp dust. It scratches your surface. You polish yourself against the pain. You are becoming harder. Diamond hard."
+                },
+                {
+                    id: "rock_39", wave: 39, hero: "EARTH", type: "NARRATIVE",
+                    title: "Resonance",
+                    text: "You stop fighting the vibration and start creating it. You hum a low frequency. The obsidian begins to crack. It cannot withstand your song."
+                },
+                {
+                    id: "rock_40", wave: 40, hero: "EARTH", type: "OBJECTIVE_WAVE",
+                    title: "Shatterpoint",
+                    text: "You found the flaw in the obsidian wall. It requires one massive, sustained impact to shatter. Defend your position while you charge the blow!",
+                    data: { objective: true }
+                },
+                {
+                    id: "rock_41", wave: 41, hero: "EARTH", type: "NARRATIVE",
+                    title: "Breakthrough",
+                    text: "With a roar that shakes the mountain, the black wall explodes outward. Light floods in. Real light."
+                },
+
+                // --- ARC 5: THE REVELATION ---
+                {
+                    id: "rock_42", wave: 42, hero: "EARTH", type: "NARRATIVE",
                     title: "The Sky",
                     text: "You reach the tear. Blue. Infinite blue. It's terrifying and beautiful. Clouds drift by, soft and white. You reach a hand out."
                 },
                 {
-                    id: "rock_33", wave: 33, hero: "EARTH", type: "NARRATIVE",
+                    id: "rock_43", wave: 43, hero: "EARTH", type: "NARRATIVE",
                     title: "Memories",
                     text: "As the sunlight hits your skin, flashes of memory return. You weren't always a rock. You were... someone. Someone who laughed. Someone who had friends."
                 },
                 {
-                    id: "rock_34", wave: 34, hero: "EARTH", type: "NARRATIVE",
+                    id: "rock_44", wave: 44, hero: "EARTH", type: "NARRATIVE",
                     title: "Identity",
                     text: "You are Earth. But you are also... a protector. You remember a promise. 'We will stand together.' Who were you promising?"
                 },
                 {
-                    id: "rock_35", wave: 35, hero: "EARTH", type: "NARRATIVE",
+                    id: "rock_45", wave: 45, hero: "EARTH", type: "NARRATIVE",
                     title: "The Question",
                     text: "As you near the surface, a thought troubles you. If there was a Jailer, are there others like you? Other prisoners? You hope that under the sun, you will find answers. And maybe... friends."
                 },
                 {
-                    id: "rock_36", wave: 36, hero: "EARTH", type: "NARRATIVE",
+                    id: "rock_46", wave: 46, hero: "EARTH", type: "NARRATIVE",
                     title: "The Final Barrier",
                     text: "You step out onto the surface. But you are not free yet. A massive dome of dark energy surrounds the exit. Makuta's final contingency."
                 },
                 {
-                    id: "rock_37", wave: 37, hero: "EARTH", type: "NARRATIVE",
+                    id: "rock_47", wave: 47, hero: "EARTH", type: "NARRATIVE",
                     title: "Gathering Strength",
                     text: "The ground beneath you hums. The planet itself is angry at this corruption. It lends you its strength. You are the avatar of the world's wrath."
                 },
                 {
-                    id: "rock_38", wave: 38, hero: "EARTH", type: "NARRATIVE",
+                    id: "rock_48", wave: 48, hero: "EARTH", type: "NARRATIVE",
                     title: "The Earth's Pulse",
                     text: "Your heart beats in sync with the tremors. Thump. Thump. Thump. The dome cracks. Something is coming through."
                 },
                 {
-                    id: "rock_39", wave: 39, hero: "EARTH", type: "NARRATIVE",
+                    id: "rock_49", wave: 49, hero: "EARTH", type: "NARRATIVE",
                     title: "Confrontation",
                     text: "The ground explodes. From the shards of the dome, a massive figure forms. Obsidian and hate. The Dark Golem. It roars, challenging your right to exist."
                 },
                 {
-                    id: "rock_40", wave: 40, hero: "EARTH", type: "BOSS_FIGHT",
+                    id: "rock_50", wave: 50, hero: "EARTH", type: "BOSS_FIGHT",
                     title: "The Gatekeeper",
                     text: "You stand at the exit, the light blindingly bright. But the way is barred. A massive construct of obsidian and dark magic rises. The Dark Golem. The final lock on your cage. Break it!",
                     data: { bossId: 'DARK_GOLEM' } // Unique Boss
                 },
                 {
-                    id: "rock_41", wave: 41, hero: "EARTH", type: "THE_END",
+                    id: "rock_51", wave: 51, hero: "EARTH", type: "THE_END",
                     title: "Freedom",
                     text: "The Golem crumbles. The barrier shatters. You step out into the sunlight for the first time in eons. The earth rejoices beneath your feet. You are free."
                 }

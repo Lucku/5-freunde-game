@@ -131,13 +131,50 @@ const TOURNAMENT_OF_THUNDER = {
             // Since game logic might not support zones, we stick to generic Kill/Survive objectives the game likely has or NARRATIVE boss.
             addChapter(20, "Overload", "The arena's generator is exposed. If you can withstand the energy surge, you might break the dampeners.", "BOSS_FIGHT", { bossId: 'GENERATOR_GUARDIAN' }); // Or standard boss if ID doesn't exist
 
-            // ... Continue filling rest or procedural ...
-            for (let i = 21; i < 50; i++) {
-                addChapter(i, `Round ${i}`, "The tournament continues. The crowd roars.");
-            }
+            // Waves 21-29: The Rise of the Champion
+            const storyData3 = [
+                { t: "Fan Favorite", b: "The crowd has turned. They are no longer waiting for your death; they are cheering for your victory. Makuta looks annoyed." },
+                { t: "Sponsorship", b: "A mysterious benefactor drops a weapon cache into the arena. It's empty, but the message is clear: You have allies." },
+                { t: "Heavy Rain", b: "A torrential downpour makes the floor slick. Lightning arcs unpredictably across the water. Watch your step." },
+                { t: "The Veteran", b: "Your opponent is an old gladiator, scarred and weary. He nods to you before the fight begins. Respect." },
+                { t: "Overconfidence", b: "You're winning too easily. Is this a trap? Or are you just that good? Don't get sloppy." },
+                { t: "The Blackout", b: "Lights go out. Total darkness. You fight by the flash of your own lightning and the enemy's dying sparks." },
+                { t: "Sabotage", b: "The arena traps activate early. Someone on the inside is trying to kill you before the round even starts." },
+                { t: "Double Trouble", b: "Makuta throws in two waves at once. 'Let's see how you handle pressure,' he laughs over the intercom." },
+                { t: "The Proposition", b: "A secret message in the locker room: 'Throw the next match, and live like a king.' Use it as kindling." }
+            ];
+            storyData3.forEach((d, idx) => addChapter(idx + 21, d.t, d.b));
+
+            // Waves 31-39: The Rebellion Brews
+            const storyData4 = [
+                { t: "Unrest", b: "The prisoners in the holding cells are banging on the bars. The rhythm matches your heartbeat. Boom. Boom." },
+                { t: "Broken Chains", b: "A guard is thrown into the arena by the other prisoners. He begs for mercy. You grant it, but the crowd wanted blood." },
+                { t: "Signal Fire", b: "You send a massive bolt into the sky. It's not an attack; it's a beacon. The rebellion is beginning." },
+                { t: "Lockdown", b: "Makuta locks the arena down. High-level security drones flood the zone. This is no longer a game." },
+                { t: "The Traitor", b: "One of your fellow gladiators turns on you for a promise of freedom. Betrayal stings worse than lightning." },
+                { t: "Power Surge", b: "The arena energy grid is fluctuating. The rebels are attacking the power station outside." },
+                { t: "Desperation", b: "Makuta is losing control. He unleashes untested experimental monsters. They are unstable and dangerous." },
+                { t: "The Breach", b: "A wall of the arena cracks. Debris falls, crushing enemies. Freedom is inches away, but the barrier holds." },
+                { t: "Maximum Security", b: "The elite royal guard enters. They don't fight for glory; they fight to execute." }
+            ];
+            storyData4.forEach((d, idx) => addChapter(idx + 31, d.t, d.b));
 
             // Unique Objective at 40
             addChapter(40, "The Rebellion", "The prisoners are rioting! Makuta's guards are distracted. Now is your chance to strike the supports!", "OBJECTIVE_WAVE", { objective: "KILL_COUNT", count: 50 });
+
+            // Waves 41-49: The Final Ascent
+            const storyData5 = [
+                { t: "Chaos Reign", b: "The stands are empty. The audience has fled. It's just you, the enemies, and the burning arena." },
+                { t: "No Rules", b: "The announcer is gone. No bell rings. The fight just keeps coming. Survive." },
+                { t: "The Inner Sanctum", b: "You push towards Makuta's throne room. The enemies here are his personal bodyguards." },
+                { t: "Ascension", b: "The floor lifts, taking you higher into the storm clouds. The air is electric, tasting of ozone and victory." },
+                { t: "The Construct", b: "A massive mechanical golem blocks the path. It runs on the souls of fallen warriors. Set them free." },
+                { t: "Storm Caller", b: "You realize the storm isn't controlled by Makuta. It's responding to YOU. Call it down." },
+                { t: "The Gates", b: "The golden gates to the throne room stand before you. They are sealed with high-voltage locks. Overload them." },
+                { t: "One Last Breath", b: "Silence falls one last time. You check your wounds. You are broken, bleeding, but still standing." },
+                { t: "Godslayer", b: "Makuta screams in rage. He has one card left to play. The sky splits open." }
+            ];
+            storyData5.forEach((d, idx) => addChapter(idx + 41, d.t, d.b));
 
             // Final Boss at 50
             addChapter(50, "The Final Spark", "Makuta summons his mightiest minion, ZEUS. A titan of living lightning descends from the heavens. 'Show this spark what real power looks like,' Makuta commands.", "BOSS_FIGHT", { bossId: 'ZEUS' });

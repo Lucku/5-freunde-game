@@ -4,44 +4,44 @@ const { Readable } = require('stream');
 const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
 
 // --- Configuration ---
-const API_KEY = process.env.ELEVENLABS_API_KEY; // Ensure this is set in your environment
-//const VOICE_ID = 'hfgNmTYYctMgJ7E2s6Vx'; // Default voblack (change as needed)
-const VOICE_ID = 'xrNwYO0xeioXswMCcFNF'
+const API_KEY = process.env.ELEVENLABS_API_KEY;
+const VOICE_ID = 'JBFqnCBsd6RMkjVDRZzb'; // Main Story Voice
 const MODEL_ID = 'eleven_multilingual_v2';
-const OUTPUT_DIR = path.join(__dirname, '../music/memories');
+const STORY_FILE = path.join(__dirname, '../Story.js');
+const OUTPUT_DIR = path.join(__dirname, '../music/story');
 
 // --- Load Story Data ---
-// Load MemoryStories.js and parse it
-const memoryFileContent = fs.readFileSync(path.join(__dirname, '../MemoryStories.js'), 'utf8');
-
-// Extract the MEMORY_STORIES object using regex or substring
-// The file typically starts with "const MEMORY_STORIES = {" and ends with "};"
-const startMarker = 'const MEMORY_STORIES = {';
-const startIndex = memoryFileContent.indexOf(startMarker);
-
-if (startIndex === -1) {
-    console.error("Could not find MEMORY_STORIES in MemoryStories.js");
+if (!fs.existsSync(STORY_FILE)) {
+    console.error("Could not find Story file:", STORY_FILE);
     process.exit(1);
 }
 
-// Extract the object literal content
-let objectString = memoryFileContent.substring(startIndex + 'const MEMORY_STORIES = '.length);
-// Remove trailing semicolon if present
-objectString = objectString.trim().replace(/;$/, '');
+const fileContent = fs.readFileSync(STORY_FILE, 'utf8');
+const storyItems = [];
 
-let MEMORY_STORIES;
-try {
-    // Basic eval might fail if there are comments or complex things, but the file is simple JSON-like JS.
-    MEMORY_STORIES = eval('(' + objectString + ')');
-} catch (e) {
-    console.error("Failed to parse MEMORY_STORIES:", e);
-    process.exit(1);
+// Parse window.STORY_EVENTS = [ ... ];
+const storyMatch = fileContent.match(/window\.STORY_EVENTS\s*=\s*(\[[\s\S]*?\]);/);
+
+if (storyMatch) {
+    try {
+        const events = eval(storyMatch[1]);
+        events.forEach(e => {
+            if (e.text) {
+                storyItems.push({
+                    id: e.id || `wave_${e.wave}`, // Ensure ID
+                    text: e.text
+                });
+            }
+        });
+    } catch (e) {
+        console.error("Error parsing STORY_EVENTS:", e);
+    }
 }
 
-const BLACK_MEMORIES = MEMORY_STORIES.black;
+// Fallback or explicit additions could go here
 
-if (!BLACK_MEMORIES || !Array.isArray(BLACK_MEMORIES)) {
-    console.error("Fire memories not found or invalid format.");
+if (storyItems.length === 0) {
+    console.error("No story items found to generate.");
     process.exit(1);
 }
 
@@ -59,24 +59,15 @@ async function generateAudio() {
         fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     }
 
-    console.log(`Found ${BLACK_MEMORIES.length} black memory events.`);
+    console.log(`Found ${storyItems.length} story events.`);
 
-    // Limit to 50 as per requirements (although the array should be 50 already)
-    const limit = Math.min(BLACK_MEMORIES.length, 50);
-
-    for (let i = 0; i < limit; i++) {
-        const text = BLACK_MEMORIES[i];
-        const id = `black_${i + 1}`; // 1-based index for filenames
-
+    for (const item of storyItems) {
+        const text = item.text;
+        const id = item.id;
         const filePath = path.join(OUTPUT_DIR, `${id}.mp3`);
 
         if (fs.existsSync(filePath)) {
             console.log(`Skipping ${id} (already exists)`);
-            continue;
-        }
-
-        if (!text) {
-            console.log(`Skipping ${id} (no text)`);
             continue;
         }
 
@@ -89,12 +80,11 @@ async function generateAudio() {
                     text: text,
                     model_id: MODEL_ID,
                     output_format: 'mp3_44100_128',
-                    voblackSettings: {
+                    voice_settings: {
                         stability: 1,
-                        similarityBoost: 1,
-                        useSpeakerBoost: true,
+                        similarity_boost: 1,
+                        use_speaker_boost: true,
                         style: 0,
-                        speed: 1,
                     },
                 }
             );

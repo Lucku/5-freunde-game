@@ -9,9 +9,13 @@ class AudioManager {
             gameover: new Audio('music/game_over.wav'),
 
             // DLC Battle variants (may be overwritten/added by DLC on load)
-            battle_rock_1: new Audio('dlc/rise_of_the_rock/music/battle.wav'),
+            battle_rock_1: new Audio('dlc/rise_of_the_rock/music/battle_1.wav'),
             battle_rock_2: new Audio('dlc/rise_of_the_rock/music/battle_2.wav'),
             golem: new Audio('dlc/rise_of_the_rock/music/boss_dark_golem.wav'),
+
+            battle_thunder_1: new Audio('dlc/tournament_of_thunder/music/battle_1.wav'),
+            battle_thunder_2: new Audio('dlc/tournament_of_thunder/music/battle_2.wav'),
+            zeus: new Audio('dlc/tournament_of_thunder/music/boss_zeus.wav'),
         };
 
         // Configuration
@@ -41,6 +45,14 @@ class AudioManager {
 
         this.tracks.golem.loop = true;
         this.tracks.golem.volume = 0.6;
+
+        this.tracks.battle_thunder_1.loop = true;
+        this.tracks.battle_thunder_1.volume = 0.4;
+        this.tracks.battle_thunder_2.loop = true;
+        this.tracks.battle_thunder_2.volume = 0.4;
+
+        this.tracks.zeus.loop = true;
+        this.tracks.zeus.volume = 0.6;
 
         this.isMuted = false;
 
@@ -161,6 +173,10 @@ class AudioManager {
                 typeof enemies !== 'undefined' &&
                 enemies.some(e => e instanceof Boss && e.type === 'DARK_GOLEM');
 
+            const isZeusActive = typeof bossActive !== 'undefined' && bossActive &&
+                typeof enemies !== 'undefined' &&
+                enemies.some(e => e instanceof Boss && e.type === 'ZEUS');
+
             if (isMakutaActive) {
                 this.stopAllExcept('makuta');
                 this.play('makuta');
@@ -170,10 +186,14 @@ class AudioManager {
             } else if (isGolemActive) {
                 this.stopAllExcept('golem');
                 this.play('golem');
+            } else if (isZeusActive) {
+                this.stopAllExcept('zeus');
+                this.play('zeus');
             } else {
                 // If the Earth hero is active in the run, prefer DLC rock battle variants (randomized)
                 // Story Mode only (Not Daily/Weekly)
                 const isEarthActive = typeof player !== 'undefined' && player && player.type === 'earth';
+                const isLightningActive = typeof player !== 'undefined' && player && player.type === 'lightning';
                 const isStoryMode = typeof isDailyMode !== 'undefined' && !isDailyMode &&
                     typeof isWeeklyMode !== 'undefined' && !isWeeklyMode &&
                     typeof saveData !== 'undefined' && saveData.story && saveData.story.enabled;
@@ -189,6 +209,20 @@ class AudioManager {
                     } else {
                         // None playing, pick random
                         const pick = Math.random() < 0.5 ? 'battle_rock_1' : 'battle_rock_2';
+                        this.stopAllExcept(pick);
+                        this.play(pick);
+                    }
+                } else if (isLightningActive && isStoryMode && this.tracks['battle_thunder_1'] && this.tracks['battle_thunder_2']) {
+                    const t1 = this.tracks['battle_thunder_1'];
+                    const t2 = this.tracks['battle_thunder_2'];
+
+                    if (!t1.paused) {
+                        this.stopAllExcept('battle_thunder_1');
+                    } else if (!t2.paused) {
+                        this.stopAllExcept('battle_thunder_2');
+                    } else {
+                        // None playing, pick random
+                        const pick = Math.random() < 0.5 ? 'battle_thunder_1' : 'battle_thunder_2';
                         this.stopAllExcept(pick);
                         this.play(pick);
                     }
