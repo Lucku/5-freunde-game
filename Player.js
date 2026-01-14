@@ -204,6 +204,9 @@ class Player {
     }
 
     dash() {
+        // Chaos Hook
+        if(typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) checkChaosEvent('DASH');
+
         // Mutator: No Dash
         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'NO_DASH')) return;
 
@@ -273,6 +276,9 @@ class Player {
 
     useSpecial() {
         if (this.specialCooldown > 0) return;
+        
+        // Chaos Hook
+        if(typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) checkChaosEvent('SPECIAL');
 
         // --- DLC HOOK: Custom Special ---
         if (this.customSpecial) {
@@ -863,6 +869,7 @@ class Player {
 
     shoot() {
         if (this.rangeCooldown > 0) return;
+        if(typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode && typeof checkChaosEvent === 'function') checkChaosEvent('ATTACK');
 
         // Melee Only Mutator / Chaos Effect
         if ((typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'MELEE_ONLY')) ||
@@ -985,6 +992,7 @@ class Player {
 
     melee() {
         if (this.meleeCooldown > 0) return;
+        if(typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode && typeof checkChaosEvent === 'function') checkChaosEvent('ATTACK');
         const angle = this.aimAngle; // Use stored aim angle
 
         const isCrit = Math.random() < this.critChance;

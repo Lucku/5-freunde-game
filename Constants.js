@@ -212,6 +212,33 @@ const CHAOS_EFFECTS = [
     { id: 'MELEE_ONLY', name: 'Melee Only', desc: 'You can only use melee attacks.', cost: 5, bonus: 0.40, color: '#c0392b' }
 ];
 
+const CHAOS_OBJECTIVES = [
+    { id: 'SURVIVE', text: 'No Hits Taken (1 Wave)', duration: 0, type: 'passive', failOnHit: true },
+    { id: 'KILL_FAST', text: 'Kill 20 Enemies in 10s', duration: 10, target: 20, type: 'counter' },
+    { id: 'PACIFIST', text: 'Don\'t Attack for 10s', duration: 10, type: 'timer', failOnAttack: true },
+    { id: 'NO_HEAL', text: 'Do Not Heal (1 Wave)', duration: 0, type: 'passive', failOnHeal: true },
+    { id: 'DONT_MOVE', text: 'Stand Still for 10s', duration: 20, type: 'accumulation', target: 10, id_check: 'STAND_STILL' },
+    { id: 'COLLECT_GOLD', text: 'Collect 50 Gold', duration: 30, type: 'counter', target: 50, counterType: 'GOLD' },
+    { id: 'DASH_MANIAC', text: 'Dash 10 Times', duration: 20, type: 'counter', target: 10, counterType: 'DASH' },
+    { id: 'NO_DASH', text: 'Do Not Dash (1 Wave)', duration: 0, type: 'passive', failOnDash: true },
+    { id: 'MELEE_KILL', text: '10 Melee Kills', duration: 30, type: 'counter', target: 10, counterType: 'MELEE_KILL' },
+    { id: 'PROJECTILE_KILL', text: '15 Projectile Kills', duration: 30, type: 'counter', target: 15, counterType: 'PROJ_KILL' },
+    { id: 'NO_SPECIAL', text: 'No Special Ability (1 Wave)', duration: 0, type: 'passive', failOnSpecial: true }
+];
+
+const CHAOS_REWARDS = [
+    { id: 'damage', val: 0.10, name: '+10% Dmg', icon: '⚔️' },
+    { id: 'health', val: 25, name: '+25 HP', icon: '❤️' },
+    { id: 'speed', val: 0.10, name: '+10% Spd', icon: '👟' },
+    { id: 'defense', val: 0.05, name: '+5% Def', icon: '🛡️' },
+    { id: 'gold', val: 0.20, name: '+20% Gold', icon: '💰' },
+    { id: 'luck', val: 0.10, name: '+10% Luck', icon: '🍀' },
+    { id: 'xp', val: 0.15, name: '+15% XP', icon: '🧠' },
+    { id: 'cooldown', val: 0.05, name: '-5% CD', icon: '⏳' },
+    { id: 'radius', val: 0.15, name: '+15% Area', icon: '💥' },
+    { id: 'crit', val: 0.05, name: '+5% Crit', icon: '🎯' }
+];
+
 const UPGRADE_POOL = [
     { id: 'health', title: 'Vitality', desc: 'Increase Max HP by 25 and Heal 20%.', icon: '❤️' },
     { id: 'radius', title: 'Blast Radius', desc: 'Increase Melee Area of Effect by 25%.', icon: '💥' },
