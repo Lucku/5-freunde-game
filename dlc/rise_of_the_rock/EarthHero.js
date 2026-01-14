@@ -103,7 +103,7 @@ class EarthHero {
             timer: duration
         };
 
-        showNotification("TECTONIC SHIELD ACTIVATED!");
+        showNotification("TECTONIC SHIELD!");
         createExplosion(player.x, player.y, '#8d6e63');
 
         // Visual debris
