@@ -352,10 +352,10 @@ function updateStoryButton() {
     if (!btn) return;
 
     let title = "Story Mode";
-    if (window.DLC_REGISTRY) {
+    if (typeof window.DLC_REGISTRY !== 'undefined' && window.DLC_REGISTRY) {
         for (const key in window.DLC_REGISTRY) {
             const dlc = window.DLC_REGISTRY[key];
-            if (dlc.hero === selectedHeroType && dlc.name) {
+            if (dlc && dlc.hero === selectedHeroType && dlc.name) {
                 title = dlc.name;
                 break;
             }
@@ -1018,6 +1018,12 @@ function initMenu() {
     document.getElementById('stats-screen').style.display = 'none'; // Hide stats screen
     document.getElementById('collection-screen').style.display = 'none';
     document.getElementById('dlc-screen').style.display = 'none';
+
+    // Safety: Hide other possible overlays
+    const optScreen = document.getElementById('options-screen');
+    if (optScreen) optScreen.style.display = 'none';
+    const chaosScreen = document.getElementById('chaos-selection-screen');
+    if (chaosScreen) chaosScreen.style.display = 'none';
 
     // Setup DLC Buttons
     const dlcBtn = document.getElementById('btn-dlc');
@@ -2880,260 +2886,8 @@ function startObjective() {
 }
 
 // --- CHAOS MODE 2.0 LOGIC ---
-let chaosShuffleOptions = [];
-let chaosSelectionIndex = 1;
-let currentChaosObjective = null;
+// Moved to ChaosMode.js
 
-function openChaosGamble() {
-    gamePaused = true;
-    setUIState('CHAOS_GAMBLE');
-    document.getElementById('chaos-selection-screen').style.display = 'flex';
-    document.getElementById('chaos-options-container').innerHTML = '';
-    chaosSelectionIndex = 1;
-
-    // Generate 2 random heroes not current
-    const types = ['fire', 'water', 'ice', 'plant', 'metal'];
-    if (window.dlcManager) {
-        window.dlcManager.getDLCList().forEach(d => { if (d.active && d.hero) types.push(d.hero); });
-    }
-
-    let available = types.filter(t => t !== player.type);
-
-    // Pick 2 random unique
-    let picks = [];
-    while (picks.length < 2 && available.length > 0) {
-        let r = Math.floor(Math.random() * available.length);
-        picks.push(available[r]);
-        available.splice(r, 1);
-    }
-
-    // Define Penalties
-    const penalties = [
-        {
-            id: 'HP', name: '-10% Max HP', apply: (p) => {
-                let oldMax = p.maxHp;
-                p.maxHp = Math.floor(p.maxHp * 0.9);
-                p.hp = Math.floor(p.hp * (p.maxHp / oldMax));
-            }
-        },
-        { id: 'HEAL', name: '-50% Healing', apply: (p) => { p.healMultiplier = (p.healMultiplier || 1) * 0.5; } },
-        { id: 'SPEED', name: '-10% Speed', apply: (p) => { p.speedMultiplier = (p.speedMultiplier || 0) - 0.1; } },
-        { id: 'DMG', name: '-10% Damage', apply: (p) => { p.damageMultiplier = (p.damageMultiplier || 0) * 0.9; } }
-    ];
-    let penalty = penalties[Math.floor(Math.random() * penalties.length)];
-
-    let options = [
-        { type: 'HERO', val: picks[0], label: `Switch to ${picks[0].toUpperCase()}`, color: BASE_HERO_STATS[picks[0]]?.color || '#fff' },
-        { type: 'HERO', val: picks[1], label: `Switch to ${picks[1].toUpperCase()}`, color: BASE_HERO_STATS[picks[1]]?.color || '#fff' },
-        { type: 'STAY', val: penalty, label: `Keep ${player.type.toUpperCase()} & ${penalty.name}`, color: '#e74c3c' }
-    ];
-
-    chaosShuffleOptions = options;
-    updateChaosGambleUI();
-}
-
-function updateChaosGambleUI() {
-    const container = document.getElementById('chaos-options-container');
-    container.innerHTML = '';
-
-    chaosShuffleOptions.forEach((opt, idx) => {
-        let div = document.createElement('div');
-        div.style.padding = '30px';
-        div.style.borderRadius = '15px';
-        div.style.cursor = 'pointer';
-        div.style.width = '240px';
-        div.style.textAlign = 'center';
-        div.style.transition = 'all 0.2s';
-
-        let isActive = (idx === chaosSelectionIndex);
-
-        if (isActive) {
-            div.style.background = '#333';
-            div.style.border = `4px solid #fff`;
-            div.style.transform = 'scale(1.1)';
-            div.style.boxShadow = `0 0 25px ${opt.color}80`;
-        } else {
-            div.style.background = '#222';
-            div.style.border = `4px solid ${opt.color}`;
-            div.style.transform = 'scale(1)';
-            div.style.boxShadow = `0 0 15px ${opt.color}40`;
-        }
-
-        div.onclick = () => confirmChaosGamble(idx);
-        div.onmouseover = () => { chaosSelectionIndex = idx; updateChaosGambleUI(); }; // Mouse hover updates selection
-
-        div.innerHTML = `
-            <div style="font-size:20px; font-weight:bold; margin-bottom:15px; color:${opt.color};">${opt.label}</div>
-            <div style="font-size:14px; color:#aaa; line-height:1.4;">
-                ${opt.type === 'HERO' ? 'Abandon your current form and adapt to chaos.' : 'Resist the chaos, but pay the price.'}
-            </div>
-            ${isActive ? '<div style="margin-top:10px; font-size:12px; color:#fff;">(Press A to Select)</div>' : ''}
-        `;
-        container.appendChild(div);
-    });
-}
-
-function confirmChaosGamble(idx) {
-    let choice = chaosShuffleOptions[idx];
-    document.getElementById('chaos-selection-screen').style.display = 'none';
-    gamePaused = false;
-    setUIState('GAME'); // Reset UI State
-
-    if (choice.type === 'HERO') {
-        shuffleHero(choice.val);
-    } else {
-        // Apply Penalty
-        choice.val.apply(player);
-        showNotification(`PENALTY APPLIED: ${choice.val.name}`);
-        createExplosion(player.x, player.y, '#e74c3c', 20);
-    }
-
-    resumeWaveGeneration();
-}
-
-function generateChaosObjective() {
-    if (!isChaosShuffleMode) return;
-
-    // Pick random objective
-    let pool = CHAOS_OBJECTIVES;
-    let template = pool[Math.floor(Math.random() * pool.length)];
-
-    // Pick random reward
-    let rewardPool = CHAOS_REWARDS;
-    let reward = rewardPool[Math.floor(Math.random() * rewardPool.length)];
-
-    currentChaosObjective = {
-        ...template,
-        progress: 0,
-        startTime: Date.now(),
-        failed: false,
-        completed: false,
-        reward: reward // Store reward
-    };
-
-    // UI Update
-    let hud = document.getElementById('chaos-challenge-hud');
-    hud.style.display = 'block';
-    hud.style.color = '#ff5e5e';
-
-    showNotification(`NEW CHALLENGE: ${template.text}`);
-    updateChaosObjective(0); // Initial Render
-}
-
-function updateChaosObjective(dt) {
-    if (!currentChaosObjective || currentChaosObjective.completed || currentChaosObjective.failed) return;
-
-    let obj = currentChaosObjective;
-    let hud = document.getElementById('chaos-challenge-hud');
-
-    // Render Content
-    let rewardHtml = `<span style="margin-left:8px; color:#f1c40f; border:1px solid #f1c40f; padding:2px 5px; border-radius:4px; font-size:12px;">${obj.reward.icon} ${obj.reward.name}</span>`;
-
-    let statusText = "";
-    // Time limit check
-    if (obj.duration && typeof obj.duration === 'number') {
-        let elapsed = (Date.now() - obj.startTime) / 1000;
-        let remaining = obj.duration - elapsed;
-
-        if (remaining <= 0) {
-            // Time up!
-            if (obj.type === 'timer') {
-                completeChaosObjective(true); return;
-            } else if (obj.type === 'counter') {
-                completeChaosObjective(false); return; // Counter needed to reach target
-            } else if (obj.type === 'accumulation') {
-                // Accumulation usually fails if time runs out before target (or passes if survival?)
-                // For now assumes complete if type is accumulation and time runs out? No, accumulation needs target
-                completeChaosObjective(false); return;
-            }
-        } else {
-            statusText = `${obj.text} (${remaining.toFixed(1)}s)`;
-        }
-    } else if (obj.duration === 'wave') {
-        statusText = `${obj.text} (Survive Wave)`;
-    }
-
-    // Accumulation check (e.g. Stand Still)
-    if (obj.type === 'accumulation') {
-        if (obj.id_check === 'STAND_STILL') {
-            const isMoving = (keys['w'] || keys['a'] || keys['s'] || keys['d'] || player.moveInput.x !== 0 || player.moveInput.y !== 0);
-            if (!isMoving) {
-                obj.progress += dt;
-                let pct = Math.min(100, (obj.progress / obj.target) * 100);
-                statusText = `${obj.text} (${pct.toFixed(0)}%)`;
-                if (obj.progress >= obj.target) { completeChaosObjective(true); return; }
-            }
-        }
-    }
-
-    // Counter Display
-    if (obj.type === 'counter') {
-        statusText = `${obj.text} (${Math.floor(obj.progress)}/${obj.target})`;
-    }
-
-    if (statusText) hud.innerHTML = `CHALLENGE: ${statusText} ${rewardHtml}`;
-}
-
-function checkChaosEvent(eventType, val = 1) {
-    if (!currentChaosObjective || currentChaosObjective.completed || currentChaosObjective.failed) return;
-    let obj = currentChaosObjective;
-
-    if (obj.failOnHit && eventType === 'HIT') completeChaosObjective(false);
-    if (obj.failOnHeal && eventType === 'HEAL') completeChaosObjective(false);
-    if (obj.failOnAttack && eventType === 'ATTACK') completeChaosObjective(false);
-    if (obj.failOnDash && eventType === 'DASH') completeChaosObjective(false);
-    if (obj.failOnSpecial && eventType === 'SPECIAL') completeChaosObjective(false);
-
-    if (obj.type === 'counter') {
-        let match = false;
-        if (obj.id === 'KILL_FAST' && eventType === 'KILL') match = true; // Generic Kill
-        if (obj.counterType === 'GOLD' && eventType === 'GOLD') match = true;
-        if (obj.counterType === 'DASH' && eventType === 'DASH') match = true;
-        if (obj.counterType === 'MELEE_KILL' && eventType === 'KILL' && val.isMelee) match = true; // val needs structure check
-        if (obj.counterType === 'PROJ_KILL' && eventType === 'KILL' && !val.isMelee) match = true;
-
-        if (match) {
-            obj.progress += (typeof val === 'number' ? val : 1);
-            if (obj.progress >= obj.target) completeChaosObjective(true);
-        }
-    }
-}
-
-function completeChaosObjective(success) {
-    currentChaosObjective.completed = true; // Stop checking
-    let hud = document.getElementById('chaos-challenge-hud');
-    let reward = currentChaosObjective.reward;
-
-    if (success) {
-        hud.style.color = '#2ecc71';
-        hud.innerHTML = `COMPLETE: ${reward.icon} ${reward.name}`;
-        showNotification(`CHALLENGE COMPLETE! ${reward.icon} ${reward.name}`);
-        createExplosion(player.x, player.y, '#2ecc71', 30);
-
-        // Apply Stat from Reward
-        if (reward.id === 'damage') player.damageMultiplier = (player.damageMultiplier || 1) + reward.val;
-        if (reward.id === 'health') { player.maxHp += reward.val; player.hp += reward.val; }
-        if (reward.id === 'speed') player.speedMultiplier = (player.speedMultiplier || 0) + reward.val;
-        if (reward.id === 'defense') player.damageReduction = Math.min(0.8, (player.damageReduction || 0) + reward.val);
-        if (reward.id === 'gold') player.goldMultiplier = (player.goldMultiplier || 1) + reward.val;
-        if (reward.id === 'luck') player.maskChance = (player.maskChance || 0.01) + reward.val;
-        if (reward.id === 'xp') player.maxXp = Math.max(10, player.maxXp * (1 - reward.val)); // XP boost usually reduces needed? OR gain multiplier. Sticking to simple gain logic if implemented, but here just placeholder logic. Or implement gain mult.
-        if (reward.id === 'cooldown') player.cooldownMultiplier = Math.max(0.1, (player.cooldownMultiplier || 1) - reward.val);
-        if (reward.id === 'radius') {
-            // Melee/Explosion Radius
-            player.stats.meleeRadiusMult = (player.stats.meleeRadiusMult || 1) + reward.val;
-            player.meleeRadius = 80 * player.stats.meleeRadiusMult;
-            player.stats.blastRadiusMult = (player.stats.blastRadiusMult || 1) + reward.val;
-        }
-        if (reward.id === 'crit') player.critChance = (player.critChance || 0.05) + reward.val;
-
-    } else {
-        hud.style.color = '#555';
-        hud.innerHTML = `CHALLENGE FAILED`;
-        showNotification(`CHALLENGE FAILED`);
-        currentChaosObjective.failed = true;
-    }
-}
 
 function shuffleHero(targetHeroType = null) {
     // 1. Get available heroes
@@ -3255,7 +3009,14 @@ function resumeWaveGeneration() {
 
     // --- INSTANT BOSS SPAWN CHECK ---
     let storyBossId = null;
-    if (currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT' && currentStoryEvent.data) {
+
+    // Check Chaos Nemesis
+    if (typeof nextWaveIsNemesis !== 'undefined' && nextWaveIsNemesis) {
+        storyBossId = nextWaveIsNemesis;
+        nextWaveIsNemesis = null;
+    }
+
+    if (!storyBossId && currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT' && currentStoryEvent.data) {
         storyBossId = currentStoryEvent.data.bossId;
     }
 
@@ -3266,21 +3027,25 @@ function resumeWaveGeneration() {
 
     if (storyBossId) {
         bossActive = true;
+        let pName = storyBossId;
         if (storyBossId === 'MAKUTA') {
             showNotification("MAKUTA HAS AWAKENED!");
-            document.getElementById('event-text').innerText = "BOSS: MAKUTA";
+            pName = "MAKUTA";
             // Force Shadow Realm Biome for Makuta
             currentBiomeType = 'black';
         } else if (storyBossId === 'GREEN_GOBLIN') {
             showNotification("THE GREEN GOBLIN ATTACKS!");
-            document.getElementById('event-text').innerText = "BOSS: GREEN GOBLIN";
+            pName = "GREEN GOBLIN";
         } else if (storyBossId === 'DARK_GOLEM') {
             showNotification("THE DARK GOLEM AWAKENS!");
-            document.getElementById('event-text').innerText = "BOSS: DARK GOLEM";
+            pName = "DARK GOLEM";
         } else if (storyBossId === 'ZEUS') {
             showNotification("THE THUNDER LORD DECENDS!");
-            document.getElementById('event-text').innerText = "BOSS: ZEUS";
+            pName = "ZEUS";
+        } else {
+            showNotification(`BOSS WARNING: ${storyBossId}!`);
         }
+        document.getElementById('event-text').innerText = `BOSS: ${pName}`;
 
         document.getElementById('event-text').style.display = 'block';
         setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
@@ -4425,13 +4190,21 @@ function masterLoop(timestamp) {
                     }
 
                     if (!player.isInvincible) {
-                        player.hp -= dmgTaken;
-                        if (isChaosShuffleMode) checkChaosEvent('HIT');
-                        floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
-                        currentRunStats.damageTaken += dmgTaken; // Track Damage
-                        player.resetCombo(); // Reset Combo on Damage
+                        // Hook: Custom pre-damage check (for Shields etc)
+                        let damagePrevented = false;
+                        if (player.customOnDamage) {
+                            damagePrevented = player.customOnDamage(dmgTaken);
+                        }
+
+                        if (!damagePrevented) {
+                            player.hp -= dmgTaken;
+                            if (isChaosShuffleMode) checkChaosEvent('HIT');
+                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
+                            currentRunStats.damageTaken += dmgTaken; // Track Damage
+                            player.resetCombo(); // Reset Combo on Damage
+                        }
                     }
-                    createExplosion(player.x, player.y, '#fff');
+                    createExplosion(player.x, player.y, '#5e3939');
 
                     if (player.transformActive) {
                         player.transformActive = false;
@@ -4664,6 +4437,9 @@ function masterLoop(timestamp) {
                         saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
                         score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
                         checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
+
+                        // CHAOS EVENT HOOK
+                        if (typeof checkChaosEvent === 'function') checkChaosEvent('BOSS_KILL', enemy.type);
 
                         // True Golden Mask Drop (Makuta Wave 100+)
                         if (enemy.type === 'MAKUTA' && wave >= 100) {

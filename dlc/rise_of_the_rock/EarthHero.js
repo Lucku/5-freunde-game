@@ -12,6 +12,9 @@ class EarthHero {
         player.isRolling = false;
         player.lastHp = player.hp; // Track HP for momentum penalty
 
+        // Shield Props
+        player.rockShield = { active: false, hp: 0, maxHp: 0, timer: 0 };
+
         // Override stats for "Rolling Boulder" feel
         player.stats.speed = 2; // Slow base speed
         player.stats.maxSpeed = 12; // High max speed with momentum
@@ -23,18 +26,19 @@ class EarthHero {
         player.customSpecial = () => EarthHero.useSpecial(player);
         player.melee = () => EarthHero.melee(player); // Tremor Attack
         player.shoot = () => EarthHero.shoot(player); // Rock Throw
+        player.customOnDamage = (dmg) => EarthHero.onDamage(player, dmg); // Shield Logic
 
         // Altar Checks
         const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
         const has = (id) => active.includes(id);
 
         // Set Special Name
-        player.specialName = "SEISMIC SLAM";
-        let cd = 900; // 15s
+        player.specialName = "TECTONIC SHIELD";
+        let cd = 2400; // 40s (Increased from 20s)
         if (has('e1')) cd *= 0.9; // Cooldown Reduction
         player.specialMaxCooldown = cd;
         const iconEl = document.getElementById('special-icon');
-        if (iconEl) iconEl.innerText = "⛰️";
+        if (iconEl) iconEl.innerText = "🛡️";
     }
 
     // --- DLC OFFLOADING METHODS ---
@@ -86,66 +90,63 @@ class EarthHero {
     }
 
     static useSpecial(player) {
-        // Seismic Slam: Stun all enemies + Damage
+        // TECTONIC SHIELD
+        // Grants temporary rock armor based on Max HP
+
+        const shieldHp = 50 + (player.maxHp * 0.5); // Base 50 + 50% Max HP
+        const duration = 300; // 5 seconds
+
+        player.rockShield = {
+            active: true,
+            hp: shieldHp,
+            maxHp: shieldHp,
+            timer: duration
+        };
+
+        showNotification("TECTONIC SHIELD ACTIVATED!");
         createExplosion(player.x, player.y, '#8d6e63');
 
-        // Visual Shockwave
+        // Visual debris
         if (typeof particles !== 'undefined') {
-            for (let i = 0; i < 20; i++) {
-                const angle = (Math.PI * 2 / 20) * i;
-                particles.push(new Particle(player.x, player.y, '#5d4037', { x: Math.cos(angle) * 5, y: Math.sin(angle) * 5 }));
+            for (let i = 0; i < 15; i++) {
+                const angle = (Math.PI * 2 / 15) * i;
+                particles.push(new Particle(player.x, player.y, '#5d4037', { x: Math.cos(angle) * 3, y: Math.sin(angle) * 3 }));
             }
         }
 
-        // Altar Checks
+        // Altar Checks - Synergy
         const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
         const has = (id) => active.includes(id);
 
-        let radius = 300;
-        if (has('e2')) radius *= 1.2;
-
-        const applySlam = () => {
-            if (typeof enemies !== 'undefined') {
-                enemies.forEach(e => {
-                    const dist = Math.hypot(e.x - player.x, e.y - player.y);
-                    if (dist < radius) {
-                        e.hp -= 50 * player.damageMultiplier;
-                        e.frozenTimer = 120; // Stun for 2s (using frozenTimer)
-                        floatingTexts.push(new FloatingText(e.x, e.y - 40, "STUN", "#8d6e63", 20));
-
-                        // Mudslide (c12)
-                        if (has('c12')) {
-                            e.speedMult = (e.speedMult || 1) * 0.5; // Permanent slow for this enemy instance? Or need a timer?
-                            // Assuming enemies reset speed or we just permanently slow them
-                            floatingTexts.push(new FloatingText(e.x, e.y - 60, "SLOW", "#3498db", 20));
-                        }
-
-                        // Convergence: Grounding (c21)
-                        if (has('c21')) {
-                            e.hp -= 30 * player.damageMultiplier;
-                            createExplosion(e.x, e.y, '#ffff00');
-                        }
-
-                        // Knockback
-                        const angle = Math.atan2(e.y - player.y, e.x - player.x);
-                        e.x += Math.cos(angle) * 50;
-                        e.y += Math.sin(angle) * 50;
-                    }
-                });
-            }
-        };
-
-        applySlam();
-
-        // Aftershock (e3)
-        if (has('e3')) {
-            setTimeout(() => {
-                createExplosion(player.x, player.y, '#8d6e63');
-                applySlam();
-            }, 1000);
+        if (has('e2')) {
+            // E2: Thorns Logic could go here or modify stats
+            player.rockShield.hp *= 1.2;
         }
 
-        return true; // Handled
+        return true;
+    }
+
+    static onDamage(player, dmg) {
+        if (player.rockShield && player.rockShield.active) {
+
+            // Absorb damage (Fragile Shield: Takes 2x Damage)
+            const damageToShield = dmg * 2;
+            player.rockShield.hp -= damageToShield;
+
+            floatingTexts.push(new FloatingText(player.x, player.y - 40, "BLOCK", "#8d6e63", 20));
+
+            // Visual Effect
+            createExplosion(player.x, player.y, '#5d4037', 10);
+
+            if (player.rockShield.hp <= 0) {
+                player.rockShield.active = false;
+                showNotification("SHIELD BROKEN!");
+                createExplosion(player.x, player.y, '#8d6e63', 40); // Big break effect
+            }
+
+            return true; // Prevent default damage
+        }
+        return false;
     }
 
     static melee(player) {
@@ -268,6 +269,17 @@ class EarthHero {
 
         const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
         const has = (id) => active.includes(id);
+
+        // --- SHIELD TIMER LOGIC ---
+        if (player.rockShield && player.rockShield.active) {
+            player.rockShield.timer--;
+            if (player.rockShield.timer <= 0) {
+                player.rockShield.active = false;
+                showNotification("SHIELD EXPIRED");
+                // Visual pop
+                if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#8d6e63', 20);
+            }
+        }
 
         // --- ULTIMATE: OBSIDIAN GOLEM ---
         if (player.transformActive) {
@@ -520,6 +532,35 @@ class EarthHero {
             ctx.strokeStyle = `rgba(141, 110, 99, ${(player.momentum - 50) / 50})`;
             ctx.lineWidth = 2;
             ctx.stroke();
+        }
+
+        // --- DRAW TECTONIC SHIELD ---
+        if (player.rockShield && player.rockShield.active) {
+            const shieldPct = Math.max(0, player.rockShield.hp / player.rockShield.maxHp);
+            const shieldRadius = player.radius + 8; // Tighter fit
+
+            // Rotating Shield Ring
+            ctx.save();
+            ctx.rotate(Date.now() * 0.001); // Slower, subtler rotation
+
+            ctx.beginPath();
+            // Single thin subtle ring instead of segmented blocks
+            ctx.arc(0, 0, shieldRadius, 0, Math.PI * 2);
+
+            ctx.strokeStyle = `rgba(100, 80, 70, ${0.3 + shieldPct * 0.3})`; // Lower opacity
+            ctx.lineWidth = 3; // Thinner line
+            ctx.stroke();
+
+            // Very subtle inner glow
+            if (shieldPct > 0.5) {
+                ctx.beginPath();
+                ctx.arc(0, 0, shieldRadius - 2, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(141, 110, 99, 0.05)`;
+                ctx.fill();
+            }
+
+            ctx.restore();
+            // Removed spikes for subtlety
         }
 
         ctx.restore();

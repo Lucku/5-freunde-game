@@ -19,6 +19,9 @@
                 <div id="score-board">Score: <span id="scoreVal">0</span> | Wave: <span id="waveVal">1</span></div>
                 <div id="gold-display">Gold: <span id="goldVal">0</span></div>
             </div>
+            <div id="chaos-challenge-hud"
+                style="display:none; color: #ff5e5e; font-weight:bold; margin-top:5px; font-size: 14px; text-shadow: 0 0 5px red;">
+            </div>
             <div id="combo-display">COMBO x0</div>
         </div>
         <div id="notification-area"></div>
@@ -442,12 +445,13 @@
     <!-- Chaos Hero Selection Screen -->
     <div id="chaos-selection-screen"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(20, 0, 0, 0.95); z-index:4000; flex-direction:column; align-items:center; justify-content:center;">
-        <h1 style="color:#e74c3c; font-size:50px; text-shadow: 0 0 20px #c0392b; margin-bottom: 30px;">CHOOSE YOUR VESSEL</h1>
+        <h1 style="color:#e74c3c; font-size:50px; text-shadow: 0 0 20px #c0392b; margin-bottom: 30px;">CHOOSE YOUR
+            VESSEL</h1>
         <div id="chaos-options-container" style="display:flex; gap: 40px;">
             <!-- Options injected via JS -->
         </div>
     </div>
-    
+
     <script src="Constants.js"></script>
     <script src="Config.js"></script>
     <script src="dlc/DLCManager.js"></script>
@@ -465,6 +469,7 @@
     <script src="MemoryShard.js"></script>
     <script src="CompletionMenu.js"></script>
     <script src="AudioManager.js"></script>
+    <script src="ChaosMode.js"></script>
     <script src="game.js"></script>
 </body>
 
