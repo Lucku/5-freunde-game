@@ -255,10 +255,12 @@ function updateChaosObjective(dt) {
     let hud = document.getElementById('chaos-challenge-hud');
     if (!hud) return;
 
+    // Force Display Block if Chaos Mode is Active
+    hud.style.display = 'block';
+
     // Persist persistence check
     if (!currentChaosObjective) {
         hud.innerHTML = `<span style="color:#777">Waiting for Chaos...</span>`;
-        hud.style.display = 'block';
         return;
     }
 

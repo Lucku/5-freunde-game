@@ -784,6 +784,19 @@ function handleGamepadMenu() {
         return;
     }
 
+    // --- CONFIRM DIALOGUE ---
+    if (uiState === 'CONFIRM_OVERWRITE') {
+        if (a) {
+            confirmNewGame();
+            uiDebounce = 20;
+        }
+        if (b) {
+            closeConfirmDialog();
+            uiDebounce = 20;
+        }
+        return;
+    }
+
     // --- SCROLLING LOGIC (Right Stick) ---
     if (uiState === 'MENU') {
         // Music Toggle
@@ -1297,7 +1310,7 @@ function checkNewGame(mode) {
     if (saveData.savedRun) {
         pendingGameMode = mode;
         document.getElementById('confirm-dialog').style.display = 'flex';
-        // Controller focus handling would go here
+        setUIState('CONFIRM_OVERWRITE'); // Set UI state for controller
     } else {
         if (mode === 'STORY') startStoryGame();
         else if (mode === 'SHUFFLE') startShuffleGame();
@@ -1316,6 +1329,7 @@ function confirmNewGame() {
 function closeConfirmDialog() {
     document.getElementById('confirm-dialog').style.display = 'none';
     pendingGameMode = null;
+    setUIState('MENU'); // Restore UI state
 }
 
 function quitGame() {

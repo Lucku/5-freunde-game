@@ -279,6 +279,36 @@ class EarthHero {
                 // Visual pop
                 if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#8d6e63', 20);
             }
+
+            // --- PROJECTILE REFLECTION ---
+            // Check for nearby enemy projectiles and reflect them
+            if (typeof projectiles !== 'undefined') {
+                const reflectRadius = 70; // Slightly larger than player to catch them before impact
+                // Use a standard for loop for safety if projectiles is modified
+                for (let i = 0; i < projectiles.length; i++) {
+                    const p = projectiles[i];
+                    if (p.isEnemy) { // Only reflect enemy projectiles
+                        const dist = Math.hypot(p.x - player.x, p.y - player.y);
+                        if (dist < reflectRadius) {
+                            // REFLECT!
+                            p.isEnemy = false; // Now it's friendly
+                            p.velocity.x *= -1.5; // Return to sender faster
+                            p.velocity.y *= -1.5;
+                            p.color = '#8d6e63'; // Change to Earth color
+                            p.damage = (p.damage || 10) * 2; // Bonus damage
+                            p.radius = (p.radius || 4) + 2; // Make it bigger
+
+                            // Move it away slightly to prevent immediate re-collision checks issues if any
+                            p.x += p.velocity.x * 2;
+                            p.y += p.velocity.y * 2;
+
+                            // SFX / VFX
+                            if (typeof createExplosion !== 'undefined') createExplosion(p.x, p.y, '#fff', 5);
+                            if (typeof audioManager !== 'undefined') audioManager.play('shield_hit'); // If exists, or fallback
+                        }
+                    }
+                }
+            }
         }
 
         // --- ULTIMATE: OBSIDIAN GOLEM ---
