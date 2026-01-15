@@ -1,3 +1,12 @@
+const MUSEUM_DIALOGUES = {
+    fire: ["Is it hot in here, or is it just me?", "I remember the burning fields...", "My flames will never be extinguished!", "Do you have a lighter?", "Chaos is just energy in disguise."],
+    water: ["The flow of time is like a river...", "Stay hydrated.", "I miss the ocean waves.", "Calm yourself, friend.", "Water adapts to any vessel."],
+    ice: ["Cool it.", "Preservation is key.", "The cold never bothered me anyway.", "Stay frosty.", "Time freezes for no one."],
+    plant: ["Nature always finds a way.", "Photosynthesis is underrated.", "Let's put down some roots.", "Growth requires patience.", "I speak for the trees."],
+    metal: ["Efficiency is my middle name.", "Steel wins battles.", "I am unbreakable.", "Clink, clank.", "Upgrade complete."],
+    bg: ["Welcome to the Hall of Memories.", "Silence is golden.", "Don't touch the artifacts!", "Admire the history.", "Shh..."]
+};
+
 class Museum {
     constructor() {
         this.width = 2400;
@@ -10,12 +19,14 @@ class Museum {
         this.cards = [];
         this.decorations = []; // New Decorations Array
         this.scrollY = 0;
+        this.activeDialogue = null; // { text: "...", x: 0, y: 0, timer: 0 }
 
         // Player Avatar in Museum (defaults to selected hero)
         this.player = { x: 1200, y: 1600, radius: 20, speed: 5, type: selectedHeroType, angle: 0 };
 
         this.generateLayout();
         this.generateDecorations(); // Generate Decorations
+        this.generateTrophies(); // Generate Trophies
         this.spawnEntities();
     }
 
@@ -106,6 +117,77 @@ class Museum {
         // Hallway Benches
         this.decorations.push({ type: 'BENCH', x: 750, y: 1400, w: 30, h: 80, angle: 0 });
         this.decorations.push({ type: 'BENCH', x: 1620, y: 1400, w: 30, h: 80, angle: 0 });
+    }
+
+    generateTrophies() {
+        // Trophies logic (Story, HighScore, Ultimate)
+        const heroes = ['fire', 'water', 'ice', 'plant', 'metal'];
+
+        // Find High Score Holder
+        let highScoreHero = null;
+        let maxScore = -1;
+        heroes.forEach(h => {
+            if (saveData[h] && saveData[h].highScore > maxScore && saveData[h].highScore > 0) {
+                maxScore = saveData[h].highScore;
+                highScoreHero = h;
+            }
+        });
+
+        heroes.forEach(h => {
+            const room = this.rooms.find(r => r.name === h);
+            if (!room) return;
+
+            // X positions along the back wall (y + 100)
+            const trophyY = room.y + 80;
+            let trophyX = room.x + 150;
+
+            // 1. Story Trophy (Completed Story if maxWinPrestige exists)
+            // Ideally check saveData.story.completed logic, but using maxWinPrestige check for now as proxy for winning a run
+            if (saveData[h].maxWinPrestige !== undefined && saveData[h].maxWinPrestige >= 0) {
+                this.artifacts.push({
+                    type: 'TROPHY',
+                    subtype: 'STORY',
+                    x: trophyX,
+                    y: trophyY,
+                    text: 'Story Conqueror',
+                    color: '#e67e22',
+                    hero: h
+                });
+            }
+            trophyX += 100;
+
+            // 2. High Score Trophy (Unique to one hero)
+            if (h === highScoreHero) {
+                this.artifacts.push({
+                    type: 'TROPHY',
+                    subtype: 'HIGHSCORE',
+                    x: trophyX,
+                    y: trophyY,
+                    text: 'Champion',
+                    color: '#f1c40f',
+                    hero: h
+                });
+            }
+            trophyX += 100;
+
+            // 3. Ultimate Trophy (All Altar Items)
+            if (typeof ALTAR_TREE !== 'undefined' && ALTAR_TREE[h]) {
+                const totalItems = ALTAR_TREE[h].length;
+                const unlockedItems = saveData.altar.active.filter(id => ALTAR_TREE[h].find(item => item.id === id)).length;
+
+                if (unlockedItems >= totalItems) {
+                    this.artifacts.push({
+                        type: 'TROPHY',
+                        subtype: 'ULTIMATE',
+                        x: trophyX,
+                        y: trophyY,
+                        text: 'Master of Elements',
+                        color: '#9b59b6',
+                        hero: h
+                    });
+                }
+            }
+        });
     }
 
     spawnEntities() {
@@ -304,17 +386,48 @@ class Museum {
         // Update Entities (Wander)
         this.entities.forEach(e => e.update(this.walls));
 
+        // Update Dialogue
+        if (this.activeDialogue) {
+            this.activeDialogue.timer--;
+            if (this.activeDialogue.timer <= 0) this.activeDialogue = null;
+        }
+
+        // Automatic Dialogue Trigger (Proximity)
+        // Check every 60 frames (1 sec) to avoid constant checking? No, smooth check needed.
+        // We add a cooldown to prevent spam.
+        if (!this.dialogueCooldown) this.dialogueCooldown = 0;
+        if (this.dialogueCooldown > 0) this.dialogueCooldown--;
+
+        if (this.dialogueCooldown <= 0 && !this.activeDialogue) {
+            const closestEntity = this.entities.find(e => e.isHero && Math.hypot(this.player.x - e.x, this.player.y - e.y) < 100);
+            if (closestEntity) {
+                const lines = MUSEUM_DIALOGUES[closestEntity.type] || MUSEUM_DIALOGUES['bg'];
+                const text = lines[Math.floor(Math.random() * lines.length)];
+                this.activeDialogue = {
+                    text: text,
+                    x: closestEntity.x,
+                    y: closestEntity.y - 40,
+                    timer: 240 // 4 seconds duration
+                };
+
+                // Set cooldown (e.g., 10 seconds before next auto-dialogue)
+                this.dialogueCooldown = 600;
+            }
+        }
+
         // Check Interaction
         let interact = keys['e'];
         if (gp && gp.buttons[0].pressed) interact = true; // Button A
 
         if (interact) {
-            const closest = this.artifacts.find(a => Math.hypot(this.player.x - a.x, this.player.y - a.y) < 50);
-            if (closest && closest.type === 'MEMORY') {
-                this.viewingStory = closest.hero;
+            // Artifacts (Memories)
+            const closestArtifact = this.artifacts.find(a => a.type === 'MEMORY' && Math.hypot(this.player.x - a.x, this.player.y - a.y) < 50);
+            if (closestArtifact) {
+                this.viewingStory = closestArtifact.hero;
                 this.selectedStoryIndex = 0;
                 this.scrollY = 0;
                 keys['e'] = false;
+                return; // Stop processing other interactions
             }
         }
     }
@@ -379,28 +492,88 @@ class Museum {
         // Draw Entities
         this.entities.forEach(e => e.draw(ctx));
 
-        // Draw Artifacts (Memories)
-        this.artifacts.forEach(a => {
+        // Draw Active Dialogue
+        if (this.activeDialogue) {
             ctx.save();
-            ctx.fillStyle = a.color;
-            ctx.font = '16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(a.text, a.x, a.y);
+            ctx.font = 'bold 16px Arial';
+            const w = ctx.measureText(this.activeDialogue.text).width + 20;
+            const h = 30;
+            const x = this.activeDialogue.x;
+            const y = this.activeDialogue.y;
 
-            // Draw Icon
+            // Bubble
+            ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.moveTo(a.x, a.y - 30);
-            ctx.lineTo(a.x + 10, a.y - 15);
-            ctx.lineTo(a.x, a.y);
-            ctx.lineTo(a.x - 10, a.y - 15);
-            ctx.closePath();
-            ctx.fillStyle = '#f1c40f';
+            ctx.roundRect(x - w / 2, y - h, w, h, 10);
             ctx.fill();
+
+            // Triangle tail
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x - 5, y + 5);
+            ctx.lineTo(x + 5, y);
+            ctx.fill();
+
+            // Text
+            ctx.fillStyle = '#000';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.activeDialogue.text, x, y - h / 2);
             ctx.restore();
+        }
+
+        // Draw Artifacts (Memories & Trophies)
+        this.artifacts.forEach(a => {
+            if (a.type === 'TROPHY') {
+                ctx.save();
+                ctx.translate(a.x, a.y);
+
+                // Glow
+                ctx.fillStyle = a.color;
+                ctx.globalAlpha = 0.3;
+                ctx.beginPath();
+                ctx.arc(0, 0, 15 + Math.sin(Date.now() * 0.005) * 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+
+                // Icon
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                if (a.subtype === 'STORY') ctx.fillText('📖', 0, 0); // Book/Scroll
+                else if (a.subtype === 'HIGHSCORE') ctx.fillText('🏆', 0, 0); // Trophy Cup
+                else if (a.subtype === 'ULTIMATE') ctx.fillText('🌟', 0, 0); // Star
+
+                // Label (Only when close)
+                if (Math.hypot(this.player.x - a.x, this.player.y - a.y) < 80) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(a.text, 0, -25);
+                }
+
+                ctx.restore();
+            } else {
+                ctx.save();
+                ctx.fillStyle = a.color;
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(a.text, a.x, a.y);
+
+                // Draw Icon
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y - 30);
+                ctx.lineTo(a.x + 10, a.y - 15);
+                ctx.lineTo(a.x, a.y);
+                ctx.lineTo(a.x - 10, a.y - 15);
+                ctx.closePath();
+                ctx.fillStyle = '#f1c40f';
+                ctx.fill();
+                ctx.restore();
+            }
         });
 
         // Draw Interaction Prompt
-        const closest = this.artifacts.find(a => Math.hypot(this.player.x - a.x, this.player.y - a.y) < 50);
+        const closest = this.artifacts.find(a => a.type === 'MEMORY' && Math.hypot(this.player.x - a.x, this.player.y - a.y) < 50);
         if (closest && closest.type === 'MEMORY') {
             ctx.save();
             ctx.translate(closest.x, closest.y - 60);
@@ -427,11 +600,55 @@ class Museum {
         this.decorations.forEach(d => {
             ctx.save();
             if (d.type === 'RUG') {
+                const rx = d.x - d.w / 2;
+                const ry = d.y - d.h / 2;
+
+                // Base
                 ctx.fillStyle = d.color;
-                ctx.fillRect(d.x - d.w / 2, d.y - d.h / 2, d.w, d.h);
-                ctx.strokeStyle = shadeColor(d.color, 20);
+                ctx.fillRect(rx, ry, d.w, d.h);
+
+                // Texture/Pattern (Diamonds to look like fabric)
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(rx, ry, d.w, d.h);
+                ctx.clip();
+
+                ctx.fillStyle = shadeColor(d.color, -15);
+                const tileSize = 80;
+                for (let tx = rx - tileSize; tx < rx + d.w + tileSize; tx += tileSize) {
+                    for (let ty = ry - tileSize; ty < ry + d.h + tileSize; ty += tileSize) {
+                        // Draw rotated square (Diamond)
+                        ctx.beginPath();
+                        ctx.moveTo(tx + tileSize / 2, ty);
+                        ctx.lineTo(tx + tileSize, ty + tileSize / 2);
+                        ctx.lineTo(tx + tileSize / 2, ty + tileSize);
+                        ctx.lineTo(tx, ty + tileSize / 2);
+                        ctx.fill();
+                    }
+                }
+                ctx.restore();
+
+                // Inner Border (Fancy)
+                ctx.strokeStyle = shadeColor(d.color, 25);
+                ctx.lineWidth = 12;
+                ctx.strokeRect(rx + 15, ry + 15, d.w - 30, d.h - 30);
+
+                // Detail Line in Border
+                ctx.strokeStyle = shadeColor(d.color, -30);
+                ctx.lineWidth = 2;
+                ctx.strokeRect(rx + 15, ry + 15, d.w - 30, d.h - 30);
+
+                // Outer Edge
+                ctx.strokeStyle = shadeColor(d.color, -40);
                 ctx.lineWidth = 4;
-                ctx.strokeRect(d.x - d.w / 2, d.y - d.h / 2, d.w, d.h);
+                ctx.strokeRect(rx, ry, d.w, d.h);
+
+                // Fringe/Tassels hints (Dashed outer line)
+                ctx.strokeStyle = '#d7ccc8';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.strokeRect(rx - 3, ry - 3, d.w + 6, d.h + 6);
+                ctx.setLineDash([]);
             } else if (d.type === 'PILLAR') {
                 ctx.fillStyle = d.color;
                 ctx.beginPath(); ctx.arc(d.x, d.y, 25, 0, Math.PI * 2); ctx.fill();
