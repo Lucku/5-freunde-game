@@ -346,8 +346,9 @@ class CompletionMenu {
         progress.dlc.percent = progress.dlc.total > 0 ? (progress.dlc.current / progress.dlc.total) * 100 : 0;
 
         // Overall Total
-        const grandTotal = progress.memories.total + progress.achievements.total + progress.story.total + progress.cards.total + progress.altar.total + progress.chaos.total + progress.dlc.total;
-        const grandCurrent = progress.memories.current + progress.achievements.current + progress.story.current + progress.cards.current + progress.altar.current + progress.chaos.current + progress.dlc.current;
+        // Exclude DLC from the main game completion percentage so activation doesn't affect 100% trophy logic
+        const grandTotal = progress.memories.total + progress.achievements.total + progress.story.total + progress.cards.total + progress.altar.total + progress.chaos.total;
+        const grandCurrent = progress.memories.current + progress.achievements.current + progress.story.current + progress.cards.current + progress.altar.current + progress.chaos.current;
 
         progress.total.total = grandTotal;
         progress.total.current = grandCurrent;
