@@ -1180,10 +1180,19 @@ function renderDLCList() {
 function saveRunState() {
     if (!gameRunning || wave <= 0) return;
 
+    let currentMode = 'NORMAL';
+    if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) currentMode = 'SHUFFLE';
+    else if (saveData.story && saveData.story.enabled) currentMode = 'STORY';
+
     const runState = {
-        mode: saveData.story.enabled ? 'STORY' : 'NORMAL', // Simplified mode tracking
+        mode: currentMode,
         wave: wave,
         score: score,
+        chaos: (currentMode === 'SHUFFLE') ? {
+            heroAffection: (typeof heroAffection !== 'undefined') ? heroAffection : {},
+            chaosObjectiveStreak: (typeof chaosObjectiveStreak !== 'undefined') ? chaosObjectiveStreak : 0,
+            lostHeroes: (typeof lostHeroes !== 'undefined') ? lostHeroes : []
+        } : null,
         player: {
             type: player.type,
             hp: player.hp,
@@ -1229,7 +1238,10 @@ function updateContinueButton() {
 
     if (saveData.savedRun) {
         btn.style.display = 'block';
-        const modeName = saveData.savedRun.mode === 'STORY' ? 'Story Mode' : 'Standard Run';
+        let modeName = 'Standard Run';
+        if (saveData.savedRun.mode === 'STORY') modeName = 'Story Mode';
+        else if (saveData.savedRun.mode === 'SHUFFLE') modeName = 'Chaos Shuffle';
+
         sub.innerText = `${modeName} - Wave ${saveData.savedRun.wave} - ${saveData.savedRun.player.type.toUpperCase()}`;
     } else {
         btn.style.display = 'none';
@@ -1246,6 +1258,19 @@ function continueRun() {
 
     // Initialize Game Base
     startGame(state.mode); // This resets everything, so we overwrite after
+
+    // Restore Chaos State if applicable
+    if (state.mode === 'SHUFFLE' && state.chaos) {
+        if (typeof heroAffection !== 'undefined') {
+            // We need to carefully assign properties to avoid reference breaking if using let/const in other file
+            Object.assign(heroAffection, state.chaos.heroAffection);
+        }
+        if (typeof chaosObjectiveStreak !== 'undefined') chaosObjectiveStreak = state.chaos.chaosObjectiveStreak;
+        if (typeof lostHeroes !== 'undefined') {
+            lostHeroes.length = 0; // Clear array
+            state.chaos.lostHeroes.forEach(h => lostHeroes.push(h));
+        }
+    }
 
     // Restore Wave & Score
     wave = state.wave - 1; // advanceWave() will increment it back to correct wave

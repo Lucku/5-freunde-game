@@ -11,6 +11,30 @@ let currentChaosObjective = null;
 let nextWaveIsNemesis = null; // ID of boss if active
 let bossIncarnationActive = false;
 let chaosObjectiveStreak = 0;
+// Affection System
+let heroAffection = {
+    fire: 50, water: 50, ice: 50, plant: 50, metal: 50
+};
+// Emergency & Status State
+let affectionCooldowns = {}; // { type: timestamp }
+let activeBackups = []; // { type: string, expiry: timestamp }
+let lostHeroes = []; // ['fire', 'water'] - permanently gone this run
+
+// Ensure DLC heroes are init
+if (window.dlcManager) {
+    window.dlcManager.getDLCList().forEach(d => {
+        if (d.active && d.hero && !heroAffection[d.hero]) heroAffection[d.hero] = 50;
+    });
+}
+
+function spawnChaosCompanion(type) {
+    if (typeof Companion !== 'undefined' && typeof companions !== 'undefined') {
+        companions.push(new Companion(type, player));
+        showNotification(`${type.toUpperCase()} COMPANIION JOINED!`);
+    } else {
+        console.warn("Companion system not ready");
+    }
+}
 
 // Objectives & Rewards Pools
 // Using Constants.js values as source of truth
@@ -49,7 +73,7 @@ function openChaosGamble() {
         window.dlcManager.getDLCList().forEach(d => { if (d.active && d.hero) types.push(d.hero); });
     }
 
-    let available = types.filter(t => t !== player.type);
+    let available = types.filter(t => t !== player.type && !lostHeroes.includes(t));
 
     // Pick 2 random unique
     let picks = [];
@@ -61,6 +85,11 @@ function openChaosGamble() {
 
     // Define Penalties
     const penalties = [
+        {
+            id: 'GOLD', name: '-20% Gold Gain', apply: (p) => {
+                p.goldMultiplier = (p.goldMultiplier || 1) * 0.8;
+            }
+        },
         {
             id: 'HP', name: '-10% Max HP', apply: (p) => {
                 let oldMax = p.maxHp;
@@ -141,14 +170,27 @@ function updateChaosGambleUI() {
             desc = 'Abandon your current form and adapt to chaos.';
             // Add Helmet/Icon
             if (BASE_HERO_STATS[opt.val]) {
+                let aff = heroAffection[opt.val] || 50;
                 heroIcon = `
                     <div class="hero-icon" style="background: ${opt.color}; width: 80px; height: 80px; margin: 0 auto 15px auto; border-radius: 50%; position: relative; display: flex; justify-content: center; align-items: center; border: 3px solid rgba(255,255,255,0.5);">
                         <div style="width: 60%; height: 30%; background: rgba(0,0,0,0.5); border-radius: 0 0 50% 50%; margin-top: -10%;"></div>
                     </div>
                  `;
+                heroIcon += `
+                 <div style="margin-bottom:10px;">
+                    <span style="color:#ff69b4; font-size:12px;">❤ ${aff}%</span>
+                    <div style="width:100px; height:6px; background:#444; margin:2px auto; border-radius:3px;">
+                        <div style="width:${aff}%; height:100%; background:#ff69b4; border-radius:3px;"></div>
+                    </div>
+                 </div>
+                 `;
             }
         }
-        if (opt.type === 'STAY') desc = 'Resist the chaos, but pay the price.';
+        if (opt.type === 'STAY') {
+            desc = 'Resist the chaos, but pay the price in Gold and Glory.';
+            let aff = heroAffection[player.type] || 50;
+            desc += `<br><span style="color:#ff69b4; font-size:12px;">Current Bond: ${aff}%</span>`;
+        }
         if (opt.type === 'NEMESIS') desc = `Instant Boss Fight!<br><span style="color:#f1c40f">${opt.note}</span>`;
 
         if (isActive) {
@@ -178,6 +220,37 @@ function confirmChaosGamble(idx) {
     gamePaused = false;
     setUIState('GAME'); // Reset UI State
 
+    // Affection Logic
+    if (choice.type === 'HERO') {
+        // Gain Affection for chosen
+        if (heroAffection[choice.val] !== undefined) heroAffection[choice.val] = Math.min(100, heroAffection[choice.val] + 10);
+
+        // Lose Affection for ignored Heroes
+        chaosShuffleOptions.forEach(opt => {
+            if (opt.type === 'HERO' && opt.val !== choice.val) {
+                let t = opt.val;
+                if (heroAffection[t] !== undefined) {
+                    let oldVal = heroAffection[t];
+                    let newVal = Math.max(0, heroAffection[t] - 10);
+                    heroAffection[t] = newVal;
+
+                    // Apply Penalties
+                    if (newVal === 0 && oldVal > 0) {
+                        // LOST FOREVER
+                        lostHeroes.push(t);
+                        showNotification(`${t.toUpperCase()} HAS ABANDONED YOU!`);
+                        player.maxHp = Math.floor(player.maxHp * 0.7); // Massive Debuff
+                        player.hp = Math.min(player.hp, player.maxHp);
+                    } else if (newVal < 20 && oldVal >= 20) {
+                        // Warning Debuff
+                        showNotification(`${t.toUpperCase()} IS LOSING FAITH... (-10% DMG)`);
+                        player.damageMultiplier = (player.damageMultiplier || 1) * 0.9;
+                    }
+                }
+            }
+        });
+    }
+
     if (choice.type === 'HERO') {
         shuffleHero(choice.val);
     } else if (choice.type === 'STAY') {
@@ -191,6 +264,61 @@ function confirmChaosGamble(idx) {
     }
 
     resumeWaveGeneration();
+}
+
+function manageAffection(dt) {
+    if (!player || player.hp <= 0) return;
+
+    // 1. Full Affection Companions (Permanent)
+    for (let type in heroAffection) {
+        if (type === player.type || lostHeroes.includes(type)) continue;
+
+        if (heroAffection[type] >= 100) {
+            if (typeof companions !== 'undefined') {
+                if (!companions.find(c => c.type === type)) {
+                    spawnChaosCompanion(type);
+                    if (typeof showNotification !== 'undefined') showNotification(`MAX BOND: ${type.toUpperCase()} JOINS PERMANENTLY!`);
+                }
+            }
+        }
+    }
+
+    // 2. Emergency Backup (>80% Affection, <20% HP)
+    if (player.hp < player.maxHp * 0.2) {
+        for (let type in heroAffection) {
+            if (type === player.type || lostHeroes.includes(type)) continue;
+
+            if (typeof companions !== 'undefined' && companions.find(c => c.type === type)) continue;
+
+            if (heroAffection[type] > 80) {
+                let lastTime = affectionCooldowns[type] || 0;
+                if (Date.now() - lastTime > 60000) {
+                    spawnChaosCompanion(type);
+                    activeBackups.push({ type: type, expiry: Date.now() + 30000 });
+                    affectionCooldowns[type] = Date.now();
+                    if (typeof showNotification !== 'undefined') showNotification(`EMERGENCY: ${type.toUpperCase()} TO THE RESCUE!`);
+                    if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#fff', 50);
+                }
+            }
+        }
+    }
+
+    // 3. Expiry Check for Backups
+    for (let i = activeBackups.length - 1; i >= 0; i--) {
+        let b = activeBackups[i];
+        if (Date.now() > b.expiry) {
+            if (heroAffection[b.type] < 100) {
+                if (typeof companions !== 'undefined') {
+                    let idx = companions.findIndex(c => c.type === b.type);
+                    if (idx !== -1) {
+                        companions.splice(idx, 1);
+                        if (typeof showNotification !== 'undefined') showNotification(`${b.type.toUpperCase()} DEPARTS.`);
+                    }
+                }
+            }
+            activeBackups.splice(i, 1);
+        }
+    }
 }
 
 function generateChaosObjective() {
@@ -252,6 +380,9 @@ function generateChaosObjective() {
 }
 
 function updateChaosObjective(dt) {
+    // Run Affection System Logic (Per Frame)
+    if (dt > 0) manageAffection(dt);
+
     let hud = document.getElementById('chaos-challenge-hud');
     if (!hud) return;
 
@@ -260,7 +391,20 @@ function updateChaosObjective(dt) {
 
     // Persist persistence check
     if (!currentChaosObjective) {
-        hud.innerHTML = `<span style="color:#777">Waiting for Chaos...</span>`;
+        let status = `<span style="color:#777">Waiting for Chaos...</span>`;
+
+        // Append Active Backups Status
+        if (activeBackups.length > 0) {
+            status += `<br><span style="color:cyan; font-size:10px;">BACKUP ACTIVE: ${activeBackups.map(b => b.type.toUpperCase()).join(', ')}</span>`;
+        } else {
+            // Show Full Affection Companions status
+            let fullLove = Object.keys(heroAffection).filter(k => heroAffection[k] >= 100 && k !== player.type && !lostHeroes.includes(k));
+            if (fullLove.length > 0) {
+                status += `<br><span style="color:#2ecc71; font-size:10px;">COMPANIONS: ${fullLove.map(t => t.toUpperCase()).join(', ')}</span>`;
+            }
+        }
+
+        hud.innerHTML = status;
         return;
     }
 
