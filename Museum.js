@@ -74,7 +74,7 @@ class Museum {
             { name: 'ice', x: 1650, y: 50, w: 700, h: 550, color: '#1a252a' },
             { name: 'plant', x: 50, y: 650, w: 550, h: 1100, color: '#0b2c14' }, // Left Wing
             { name: 'metal', x: 1800, y: 650, w: 550, h: 1100, color: '#1a1a1a' }, // Right Wing
-            { name: 'gallery', x: 650, y: 650, w: 1100, h: 1100, color: '#333' } // Central/Main
+            { name: 'gallery', x: 650, y: 650, w: 1100, h: 1100, color: '#84806bcc' } // Central/Main
         ];
     }
 
@@ -188,6 +188,34 @@ class Museum {
                 }
             }
         });
+
+        // 4. 100% Completion Trophy (Center of Gallery)
+        // Check if CompletionMenu class is available
+        if (typeof CompletionMenu !== 'undefined') {
+            const tempMenu = new CompletionMenu();
+            if (tempMenu.calculateProgress) {
+                try {
+                    const progress = tempMenu.calculateProgress();
+                    // Check logic: progress.total.percent >= 100
+                    if (progress.total && progress.total.percent >= 99.9) {
+                        const gallery = this.rooms.find(r => r.name === 'gallery');
+                        if (gallery) {
+                            this.artifacts.push({
+                                type: 'TROPHY',
+                                subtype: 'PLATINUM',
+                                x: gallery.x + gallery.w / 2,
+                                y: gallery.y + gallery.h / 2,
+                                text: 'THE 5 FRIENDS (100%)',
+                                color: '#00ffff', // Cyan/Platinum
+                                hero: 'all'
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error calculating progress for Museum trophy:", e);
+                }
+            }
+        }
     }
 
     spawnEntities() {
@@ -543,6 +571,10 @@ class Museum {
                 if (a.subtype === 'STORY') ctx.fillText('📖', 0, 0); // Book/Scroll
                 else if (a.subtype === 'HIGHSCORE') ctx.fillText('🏆', 0, 0); // Trophy Cup
                 else if (a.subtype === 'ULTIMATE') ctx.fillText('🌟', 0, 0); // Star
+                else if (a.subtype === 'PLATINUM') {
+                    ctx.font = '48px Arial'; // Bigger
+                    ctx.fillText('👑', 0, 0); // Crown
+                }
 
                 // Label (Only when close)
                 if (Math.hypot(this.player.x - a.x, this.player.y - a.y) < 80) {
@@ -790,7 +822,7 @@ class Museum {
                     ctx.fillStyle = '#f1c40f';
                     ctx.font = 'bold 12px Arial';
                     ctx.textAlign = 'right';
-                    ctx.fillText("[PRESS E / Ⓐ TO PLAY]", canvas.width - 60, y);
+                    ctx.fillText("[PRESS E / (A) TO PLAY]", canvas.width - 60, y);
                     ctx.restore();
                 }
             }
