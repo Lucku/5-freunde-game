@@ -723,7 +723,8 @@ function updateUIHighlight() {
         const scrollableStates = ['MENU', 'ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE', 'ALTAR', 'COMPLETION'];
         if (scrollableStates.includes(uiState)) {
             // Scroll into view if needed
-            el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            // Center the selected element to avoid manual scrolling requirements
+            el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
         }
     }
 }

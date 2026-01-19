@@ -295,15 +295,27 @@ canvas {
     overflow-y: auto;
     pointer-events: auto;
     z-index: 20;
+
+    /* Hide Scrollbar but allow scrolling */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+#menu-overlay::-webkit-scrollbar {
+    display: none;
 }
 
 #start-screen {
     margin: auto;
-    padding: 40px 0;
+    padding: 20px 0;
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
+    /* Scale content to fit if needed, handled by flex/margin auto */
+    max-height: 100vh;
 }
 
 #game-over-screen {
@@ -1349,8 +1361,8 @@ input:checked+.slider:before {
 
 /* --- New Main Menu Styles --- */
 .game-title {
-    font-size: 72px;
-    margin-bottom: 20px;
+    font-size: 60px;
+    margin-bottom: 10px;
     text-shadow: 0 0 20px rgba(52, 152, 219, 0.5);
     background: linear-gradient(to right, #3498db, #9b59b6);
     -webkit-background-clip: text;
@@ -1361,18 +1373,18 @@ input:checked+.slider:before {
 .menu-grid-container {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 40px;
+    gap: 20px;
     width: 90%;
     max-width: 1200px;
-    margin-top: 30px;
+    margin-top: 10px;
 }
 
 .menu-column {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
     background: rgba(0, 0, 0, 0.3);
-    padding: 20px;
+    padding: 15px;
     border-radius: 15px;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -1397,7 +1409,7 @@ input:checked+.slider:before {
 }
 
 .hero-section {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 .system-buttons {
