@@ -16,6 +16,20 @@ class AudioManager {
             battle_thunder_1: new Audio('dlc/tournament_of_thunder/music/battle_1.wav'),
             battle_thunder_2: new Audio('dlc/tournament_of_thunder/music/battle_2.wav'),
             zeus: new Audio('dlc/tournament_of_thunder/music/boss_zeus.wav'),
+
+            // Attack SFX
+            attack_fire: new Audio('music/sounds/attack_fire.wav'),
+            attack_water: new Audio('music/sounds/attack_water.wav'),
+            attack_ice: new Audio('music/sounds/attack_ice.wav'),
+            attack_plant: new Audio('music/sounds/attack_plant.wav'),
+            attack_metal: new Audio('music/sounds/attack_metal.wav'),
+            attack_black: new Audio('music/sounds/attack_black.wav'),
+
+            attack_earth: new Audio('dlc/rise_of_the_rock/music/sounds/attack_earth.wav'),
+            attack_earth_roll: new Audio('dlc/rise_of_the_rock/music/sounds/attack_earth_roll.wav'),
+
+            attack_lightning: new Audio('dlc/tournament_of_thunder/music/sounds/attack_lightning.wav'),
+            attack_lightning_charged: new Audio('dlc/tournament_of_thunder/music/sounds/attack_lightning_charged.wav'),
         };
 
         // Configuration
@@ -54,9 +68,39 @@ class AudioManager {
         this.tracks.zeus.loop = true;
         this.tracks.zeus.volume = 0.6;
 
-        this.isMuted = false;
+        if (this.tracks.attack_earth_roll) {
+            this.tracks.attack_earth_roll.loop = true;
+            this.tracks.attack_earth_roll.volume = 0.3;
+        }
+
+        // SFX Configuration
+        ['attack_fire', 'attack_water', 'attack_ice', 'attack_plant', 'attack_metal', 'attack_black', 'attack_earth', 'attack_lightning', 'attack_lightning_charged'].forEach(key => {
+            if (this.tracks[key]) this.tracks[key].volume = 0.25; // Low volume to not dominate music
+        });
+
+        this.musicEnabled = true;
+        this.sfxEnabled = true;
 
         this.updateSettings();
+    }
+
+    playAttack(hero, isCharged = false) {
+        if (!this.sfxEnabled) return;
+
+        let key = `attack_${hero}`;
+        if (hero === 'lightning' && isCharged) {
+            key = 'attack_lightning_charged';
+        }
+
+        const sound = this.tracks[key];
+
+        if (sound) {
+            const sfx = sound.cloneNode();
+            sfx.volume = 0.3;
+            sfx.play().catch(e => {
+                // Ignore errors
+            });
+        }
     }
 
     hasVoice(hero, index) {
@@ -67,7 +111,7 @@ class AudioManager {
     }
 
     playVoice(hero, index) {
-        if (this.isMuted) return;
+        if (!this.sfxEnabled) return; // Treating voice as SFX for now, or use separate flag
 
         if (this.voice) {
             this.voice.pause();
@@ -100,27 +144,42 @@ class AudioManager {
     }
 
     toggleMute() {
-        this.isMuted = !this.isMuted;
-        if (this.isMuted) {
-            this.stopAllExcept(null);
-        } else {
-            // Will resume on next update
+        this.musicEnabled = !this.musicEnabled;
+        if (!this.musicEnabled) {
+            this.stopAllMusic();
         }
-        return this.isMuted;
+        return !this.musicEnabled;
     }
 
     updateSettings() {
         if (typeof gameConfig !== 'undefined') {
-            const shouldMute = !gameConfig.musicEnabled;
-            if (this.isMuted !== shouldMute) {
-                this.isMuted = shouldMute;
-                if (this.isMuted) this.stopAllExcept(null);
+            // Sync Music
+            if (this.musicEnabled !== gameConfig.musicEnabled) {
+                this.musicEnabled = gameConfig.musicEnabled;
+                if (!this.musicEnabled) this.stopAllMusic();
+            }
+
+            // Sync SFX
+            this.sfxEnabled = gameConfig.sfxEnabled;
+
+            // Handle Earth Roll special case (continuous SFX)
+            if (!this.sfxEnabled && this.tracks.attack_earth_roll && !this.tracks.attack_earth_roll.paused) {
+                this.tracks.attack_earth_roll.pause();
             }
         }
     }
 
     play(trackName) {
-        if (this.isMuted) return;
+        const musicTracks = ['menu', 'museum', 'makuta', 'goblin', 'battle', 'gameover', 'battle_rock_1', 'battle_rock_2', 'golem', 'battle_thunder_1', 'battle_thunder_2', 'zeus'];
+        const isMusic = musicTracks.includes(trackName);
+
+        if (isMusic) {
+            if (!this.musicEnabled) return;
+        } else {
+            // Assume SFX
+            if (!this.sfxEnabled) return;
+        }
+
         const track = this.tracks[trackName];
         if (track && track.paused) {
             track.play().catch(e => { /* Ignore autoplay errors */ });
@@ -135,7 +194,15 @@ class AudioManager {
         }
     }
 
+    // New helper to stop only music
+    stopAllMusic() {
+        const musicTracks = ['menu', 'museum', 'makuta', 'goblin', 'battle', 'gameover', 'battle_rock_1', 'battle_rock_2', 'golem', 'battle_thunder_1', 'battle_thunder_2', 'zeus'];
+        musicTracks.forEach(key => this.stop(key));
+    }
+
     stopAllExcept(trackName) {
+        // This is mainly used for music switching, so we should filter by music tracks mostly?
+        // But invalidating 'all' is safer for state changes.
         for (const key in this.tracks) {
             if (key !== trackName) {
                 this.stop(key);

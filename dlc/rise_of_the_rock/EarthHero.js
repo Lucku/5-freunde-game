@@ -220,6 +220,10 @@ class EarthHero {
     static shoot(player) {
         if (player.rangeCooldown > 0) return;
 
+        if (typeof audioManager !== 'undefined') {
+            audioManager.playAttack('earth');
+        }
+
         // Aim
         let angle = player.aimAngle;
         // If no aim (keyboard only?), use facing
@@ -378,6 +382,15 @@ class EarthHero {
         // Steel Ball (c15)
         if (has('c15')) {
             player.stats.defense = (player.baseDefense || 0) + (player.isRolling ? 0.5 : 0);
+        }
+
+        // Manage Rolling Sound
+        if (typeof audioManager !== 'undefined') {
+            if (player.isRolling && player.momentum > 10) { // Only play if actually rolling with some speed
+                audioManager.play('attack_earth_roll'); 
+            } else {
+                audioManager.stop('attack_earth_roll');
+            }
         }
 
         // Calculate Speed based on Momentum

@@ -185,6 +185,11 @@ class LightningHero {
             isSuper = true; // Unleash the storm
         }
 
+        // Play Sound
+        if (typeof audioManager !== 'undefined') {
+            audioManager.playAttack('lightning', isSuper);
+        }
+
         // Auto-aim / Angle Calculation
         let angle;
 
@@ -549,6 +554,11 @@ class LightningProjectile {
         // Find next target
         let nextTarget = this.findNextTarget(hitEnemy);
         if (nextTarget) {
+            // Play Chain Sound
+            if (typeof audioManager !== 'undefined') {
+                audioManager.playAttack('lightning', this.isSuper);
+            }
+
             const angle = Math.atan2(nextTarget.y - this.y, nextTarget.x - this.x);
             const speed = 25;
 

@@ -877,6 +877,9 @@ class Player {
             return;
         }
 
+        // Play Attack Sound
+        if (typeof audioManager !== 'undefined') audioManager.playAttack(this.type);
+
         let angle = this.aimAngle; // Use stored aim angle
         let autoAimActive = this.buffs.autoaim > 0;
 

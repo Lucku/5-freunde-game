@@ -684,6 +684,7 @@ function getFocusables() {
     else if (uiState === 'TUTORIAL') screenId = 'tutorial-screen';
     else if (uiState === 'COMPLETION') screenId = 'completion-screen';
     else if (uiState === 'DLC') screenId = 'dlc-screen';
+    else if (uiState === 'OPTIONS') screenId = 'options-screen';
 
     if (!screenId) return [];
     const screen = document.getElementById(screenId);
@@ -2938,6 +2939,17 @@ function openStory(story) {
     const basePath = `music/story/${story.id}.mp3`;
     if (story.hero === 'EARTH') {
         const dlcPath = `dlc/rise_of_the_rock/music/story/${story.id}.mp3`;
+        const dlcAudio = new Audio(dlcPath);
+        dlcAudio.play().then(() => {
+            currentStoryAudio = dlcAudio;
+        }).catch(() => {
+            // DLC audio missing or blocked, fall back to base audio
+            const baseAudio = new Audio(basePath);
+            baseAudio.play().catch(() => { /* ignore */ });
+            currentStoryAudio = baseAudio;
+        });
+    } else if (story.hero === 'LIGHTNING') {
+        const dlcPath = `dlc/tournament_of_thunder/music/story/${story.id}.mp3`;
         const dlcAudio = new Audio(dlcPath);
         dlcAudio.play().then(() => {
             currentStoryAudio = dlcAudio;
