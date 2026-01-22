@@ -1,5 +1,5 @@
 const isElectron = typeof process !== 'undefined' && process.versions && process.versions.electron;
-let lastInputType = 'MOUSE'; // 'MOUSE' or 'GAMEPAD'
+// lastInputType moved to InputManager
 let fs, path, saveFilePath;
 
 if (isElectron) {
@@ -100,52 +100,10 @@ let currentRunStats = {
 };
 
 // --- Save Encoding/Decoding ---
-function encodeSaveData(data) {
-    try {
-        const jsonString = JSON.stringify(data);
-        // Simple obfuscation: Base64 encode
-        // For "binary" feel, we could use TextEncoder but localStorage stores strings.
-        // To make it harder to edit, we can reverse it or add a salt, but Base64 is standard for "binary-to-text".
-        // Let's do: Base64(JSON)
-        return btoa(unescape(encodeURIComponent(jsonString)));
-    } catch (e) {
-        console.error("Failed to encode save data:", e);
-        return null;
-    }
-}
-
-function decodeSaveData(encodedString) {
-    try {
-        // Check if it's old format (JSON)
-        if (encodedString.trim().startsWith('{')) {
-            return JSON.parse(encodedString);
-        }
-        // Assume new format (Base64)
-        const jsonString = decodeURIComponent(escape(atob(encodedString)));
-        return JSON.parse(jsonString);
-    } catch (e) {
-        console.error("Failed to decode save data:", e);
-        return null;
-    }
-}
+// Moved to SaveManager.js
 
 function saveGame() {
-    if (!saveData) return;
-
-    const encodedData = encodeSaveData(saveData);
-    if (!encodedData) return;
-
-    if (isElectron) {
-        try {
-            // We save as a binary-like string (Base64) to make it harder to edit manually
-            fs.writeFileSync(saveFilePath, encodedData);
-        } catch (e) {
-            console.error("Failed to save game to disk:", e);
-        }
-    } else {
-        // Fallback for Web Browser
-        localStorage.setItem('5FreundeSave', encodedData);
-    }
+    SaveManager.saveGame(saveData);
 }
 
 // --- Audio System ---
@@ -153,70 +111,21 @@ function saveGame() {
 
 
 function loadGame() {
-    let data = null;
-
-    if (isElectron) {
-        try {
-            if (fs.existsSync(saveFilePath)) {
-                const raw = fs.readFileSync(saveFilePath, 'utf8');
-                data = decodeSaveData(raw);
-            }
-        } catch (e) {
-            console.error("Failed to load save file:", e);
-        }
-    } else {
-        // Fallback for Web Browser
-        const raw = localStorage.getItem('5FreundeSave');
-        if (raw) data = decodeSaveData(raw);
-    }
-
-    if (data) {
-        // Merge loaded data with default structure to ensure new updates don't break old saves
-        saveData = { ...defaultSaveData, ...data, global: { ...defaultSaveData.global, ...data.global } };
-
-        // Ensure story object exists and has enabled property (Migration for old saves)
-        if (!saveData.story) {
-            saveData.story = { unlockedChapters: [], enabled: true };
-        } else if (saveData.story.enabled === undefined) {
-            saveData.story.enabled = true;
-        }
-
-        // Ensure Altar object exists (Migration)
-        if (!saveData.altar) {
-            saveData.altar = { active: [] };
-        }
-
-        // Ensure Weekly object exists (Migration)
-        if (!saveData.weekly) {
-            saveData.weekly = { lastCompleted: null };
-        }
-    } else {
-        saveData = JSON.parse(JSON.stringify(defaultSaveData));
-    }
+    saveData = SaveManager.loadGame(defaultSaveData);
 }
 
 function exportSave() {
-    const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'freunde_savegame.json';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    SaveManager.exportSave(saveData);
 }
 
 function importSave(input) {
-    const file = input.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        try {
-            const parsed = JSON.parse(e.target.result);
-            saveData = parsed;
-            saveGame();
-            alert("Save loaded successfully!");
-            location.reload();
-        } catch (err) { alert("Invalid save file"); }
-    };
-    reader.readAsText(file);
+    if (!input.files[0]) return;
+    SaveManager.importSave(input.files[0], (data) => {
+        saveData = data;
+        saveGame();
+        alert("Save loaded successfully!");
+        location.reload();
+    });
 }
 
 function closeGame() {
@@ -365,18 +274,35 @@ function updateStoryButton() {
 }
 
 // --- UI State Management for Gamepad ---
-let uiState = 'MENU'; // MENU, GAME, LEVELUP, SHOP, PERMSHOP, PAUSE, GAMEOVER
-let uiSelectionIndex = 0;
-let uiDebounce = 0;
+// uiState, uiSelectionIndex, uiDebounce are now managed by UIManager
+const uiManager = new UIManager();
+// Compatibility accessors (getters/setters if we wanted to be strict, but for now we replace usages)
+// We need to keep `uiState` global variable because it is used everywhere in game.js logic like `if (uiState === 'GAME')`
+// So we will sync them or replace usages. Replacing 100+ usages is risky in one shot.
+// Plan: Redirect window.setUIState to UIManager, and `uiState` variable can refer to `uiManager.uiState`.
+
+// REPLACEMENT STRATEGY:
+// 1. Remove `let uiState ...` definition.
+// 2. Define `uiState` property on window to link to `uiManager.uiState`.
+
+Object.defineProperty(window, 'uiState', {
+    get: function () { return uiManager.uiState; },
+    set: function (v) { uiManager.uiState = v; }
+});
+Object.defineProperty(window, 'uiSelectionIndex', {
+    get: function () { return uiManager.uiSelectionIndex; },
+    set: function (v) { uiManager.uiSelectionIndex = v; }
+});
+Object.defineProperty(window, 'uiDebounce', {
+    get: function () { return uiManager.uiDebounce; },
+    set: function (v) { uiManager.uiDebounce = v; }
+});
+
 let lastGamepadState = { a: false, b: false, y: false };
 
 // Make this global so Player.js can use it
 window.setUIState = function (newState) {
-    uiState = newState;
-    uiSelectionIndex = 0;
-    uiDebounce = 20; // Delay to prevent instant input
-    updateUIHighlight();
-    console.log("UI State:", uiState);
+    uiManager.setUIState(newState);
 };
 
 // --- Collection Logic ---
@@ -665,69 +591,11 @@ window.closeCompletion = function () {
 }
 
 function getFocusables() {
-    let screenId = '';
-    if (uiState === 'MENU') screenId = 'start-screen';
-    else if (uiState === 'LEVELUP') screenId = 'levelup-screen';
-    else if (uiState === 'SHOP') screenId = 'shop-screen';
-    else if (uiState === 'PERMSHOP') screenId = 'perm-shop-screen';
-    else if (uiState === 'PAUSE') screenId = 'pause-screen';
-    else if (uiState === 'GAMEOVER') screenId = 'game-over-screen';
-    else if (uiState === 'ACHIEVEMENTS') screenId = 'achievements-screen';
-    else if (uiState === 'HIGHSCORE') screenId = 'highscore-screen';
-    else if (uiState === 'SKILLTREE') screenId = 'skill-tree-screen';
-    else if (uiState === 'STATS') screenId = 'stats-screen'; // Added STATS
-    else if (uiState === 'COLLECTION') screenId = 'collection-screen';
-    else if (uiState === 'STORY') screenId = 'story-screen';
-    else if (uiState === 'DAILY_INFO') screenId = 'daily-info-modal';
-    else if (uiState === 'ALTAR') screenId = 'altar-screen';
-    else if (uiState === 'CHAOSSHOP') screenId = 'chaos-shop-screen';
-    else if (uiState === 'TUTORIAL') screenId = 'tutorial-screen';
-    else if (uiState === 'COMPLETION') screenId = 'completion-screen';
-    else if (uiState === 'DLC') screenId = 'dlc-screen';
-    else if (uiState === 'OPTIONS') screenId = 'options-screen';
-
-    if (!screenId) return [];
-    const screen = document.getElementById(screenId);
-    if (!screen) return [];
-
-    // Select all interactive elements
-    // Added .achievement-row, .stat-row, and .summary-card
-    const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item, .skill-node, .collection-card, .switch, .altar-node, .achievement-row, .stat-row, .summary-card'));
-    // Filter out hidden elements
-    return elements.filter(el => el.offsetParent !== null);
+    return uiManager.getFocusables();
 }
 
 function updateUIHighlight() {
-    if (uiState === 'GAME') return;
-
-    const focusables = getFocusables();
-    // Remove selected class from all
-    document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-
-    if (lastInputType !== 'GAMEPAD') return;
-
-    if (focusables.length > 0) {
-        // Auto-select first available node in Skill Tree if at start
-        if (uiState === 'SKILLTREE' && uiSelectionIndex === 0) {
-            const firstAvailable = focusables.findIndex(el => el.classList.contains('available'));
-            if (firstAvailable !== -1) uiSelectionIndex = firstAvailable;
-        }
-
-        // Clamp index
-        if (uiSelectionIndex >= focusables.length) uiSelectionIndex = 0;
-        if (uiSelectionIndex < 0) uiSelectionIndex = focusables.length - 1;
-
-        const el = focusables[uiSelectionIndex];
-        el.classList.add('selected');
-
-
-        const scrollableStates = ['MENU', 'ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE', 'ALTAR', 'COMPLETION', 'STATS', 'CHAOSSHOP', 'TUTORIAL', 'DAILY_INFO', 'OPTIONS', 'DLC'];
-        if (scrollableStates.includes(uiState)) {
-            // Scroll into view if needed
-            // Center the selected element to avoid manual scrolling requirements
-            el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-        }
-    }
+    uiManager.updateUIHighlight();
 }
 
 function handleGamepadMenu() {
@@ -752,7 +620,7 @@ function handleGamepadMenu() {
 
     // Check for active input to switch mode
     if (up || down || left || right || a || b || y || Math.abs(gp.axes[3]) > 0.1) {
-        lastInputType = 'GAMEPAD';
+        inputManager.lastInputType = 'GAMEPAD';
     }
 
     if (uiState === 'GAME') return;
@@ -1898,33 +1766,11 @@ let isStoryOpen = false;
 let currentStoryEvent = null;
 
 // Input
-const keys = {};
-const mouse = { x: 0, y: 0, leftDown: false, rightDown: false }; // Updated mouse object
+const inputManager = new InputManager(); // Handles keys, mouse, and lastInputType
 
-window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-window.addEventListener('mousemove', e => {
-    lastInputType = 'MOUSE';
-    mouse.x = e.clientX;
-    mouse.y = e.clientY;
-    // If mouse moves, switch back to mouse aiming
-    if (player) player.usingGamepad = false;
-});
+// Context menu blocked by InputManager
 
-// Updated Mouse Listeners for Auto-Fire support
-window.addEventListener('mousedown', e => {
-    lastInputType = 'MOUSE';
-    if (!gameRunning || gamePaused || isLevelingUp || isShopping) return;
-    if (e.button === 0) mouse.leftDown = true;
-    if (e.button === 2) mouse.rightDown = true;
-});
-window.addEventListener('mouseup', e => {
-    if (e.button === 0) mouse.leftDown = false;
-    if (e.button === 2) mouse.rightDown = false;
-});
-window.addEventListener('contextmenu', e => e.preventDefault());
-
-window.addEventListener('keydown', e => {
+inputManager.onKeyDown = e => {
     if (e.code === 'Escape' && gameRunning && !isLevelingUp && !isShopping) {
         togglePause();
     }
@@ -2017,7 +1863,7 @@ window.addEventListener('keydown', e => {
             showNotification(`DEBUG: +1 Point for ${selectedHeroType.toUpperCase()}`);
         }
     }
-});
+};
 
 function togglePause() {
     gamePaused = !gamePaused;
