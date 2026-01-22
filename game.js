@@ -691,8 +691,8 @@ function getFocusables() {
     if (!screen) return [];
 
     // Select all interactive elements
-    // REMOVED .achievement-row from here
-    const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item, .skill-node, .collection-card, .switch, .altar-node'));
+    // Added .achievement-row, .stat-row, and .summary-card
+    const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item, .skill-node, .collection-card, .switch, .altar-node, .achievement-row, .stat-row, .summary-card'));
     // Filter out hidden elements
     return elements.filter(el => el.offsetParent !== null);
 }
@@ -721,7 +721,7 @@ function updateUIHighlight() {
         el.classList.add('selected');
 
 
-        const scrollableStates = ['MENU', 'ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE', 'ALTAR', 'COMPLETION'];
+        const scrollableStates = ['MENU', 'ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE', 'ALTAR', 'COMPLETION', 'STATS', 'CHAOSSHOP', 'TUTORIAL', 'DAILY_INFO', 'OPTIONS', 'DLC'];
         if (scrollableStates.includes(uiState)) {
             // Scroll into view if needed
             // Center the selected element to avoid manual scrolling requirements
@@ -799,63 +799,12 @@ function handleGamepadMenu() {
         return;
     }
 
-    // --- SCROLLING LOGIC (Right Stick) ---
+    // --- SCROLLING LOGIC (Right Stick - REMOVED, now handled by selection) ---
     if (uiState === 'MENU') {
-        // Music Toggle
+        // Music Toggle (still needed on Y)
         if (y && !lastGamepadState.y) {
             toggleMusic();
             uiDebounce = 20;
-        }
-
-        const content = document.getElementById('menu-overlay');
-        if (content && Math.abs(gp.axes[3]) > 0.1) {
-            content.scrollTop += gp.axes[3] * 15;
-        }
-    } else if (uiState === 'ACHIEVEMENTS') {
-        const list = document.getElementById('achievements-list');
-        // Axis 3 is usually Right Stick Y
-        if (list && Math.abs(gp.axes[3]) > 0.1) {
-            list.scrollTop += gp.axes[3] * 15; // Scroll speed
-        }
-    } else if (uiState === 'SKILLTREE') {
-        const treeContainer = document.getElementById('skill-tree-container');
-        if (treeContainer && Math.abs(gp.axes[3]) > 0.1) {
-            treeContainer.scrollTop += gp.axes[3] * 15; // Scroll speed
-        }
-    } else if (uiState === 'STATS') { // Added STATS scrolling
-        const content = document.getElementById('stats-content');
-        if (content && Math.abs(gp.axes[3]) > 0.1) {
-            content.scrollTop += gp.axes[3] * 15;
-        }
-    } else if (uiState === 'COLLECTION') {
-        const content = document.getElementById('collection-grid');
-        if (content && Math.abs(gp.axes[3]) > 0.1) {
-            content.scrollTop += gp.axes[3] * 15;
-        }
-    } else if (uiState === 'HIGHSCORE') {
-        const content = document.getElementById('highscore-content');
-        if (content && Math.abs(gp.axes[3]) > 0.1) {
-            content.scrollTop += gp.axes[3] * 15;
-        }
-    } else if (uiState === 'ALTAR') {
-        const content = document.getElementById('altar-screen');
-        if (content && Math.abs(gp.axes[3]) > 0.1) {
-            content.scrollTop += gp.axes[3] * 15;
-        }
-    } else if (uiState === 'CHAOSSHOP') {
-        const content = document.getElementById('chaos-shop-container');
-        if (content && Math.abs(gp.axes[3]) > 0.1) {
-            content.scrollTop += gp.axes[3] * 15;
-        }
-    } else if (uiState === 'TUTORIAL') {
-        const content = document.getElementById('tutorial-content');
-        if (content && Math.abs(gp.axes[3]) > 0.1) {
-            content.scrollTop += gp.axes[3] * 15;
-        }
-    } else if (uiState === 'COMPLETION') {
-        const content = document.getElementById('completion-grid');
-        if (content && Math.abs(gp.axes[3]) > 0.1) {
-            content.scrollTop += gp.axes[3] * 15;
         }
     }
 

@@ -205,7 +205,7 @@ class Player {
 
     dash() {
         // Chaos Hook
-        if(typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) checkChaosEvent('DASH');
+        if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) checkChaosEvent('DASH');
 
         // Mutator: No Dash
         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'NO_DASH')) return;
@@ -276,9 +276,9 @@ class Player {
 
     useSpecial() {
         if (this.specialCooldown > 0) return;
-        
+
         // Chaos Hook
-        if(typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) checkChaosEvent('SPECIAL');
+        if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) checkChaosEvent('SPECIAL');
 
         // --- DLC HOOK: Custom Special ---
         if (this.customSpecial) {
@@ -296,6 +296,7 @@ class Player {
         const has = (id) => active.includes(id);
 
         if (this.type === 'fire') {
+            if (typeof audioManager !== 'undefined') audioManager.play('special_fire');
             // Ring of explosions
             let radius = 150;
             if (has('f2')) radius *= 1.2; // +20% Radius
@@ -341,6 +342,7 @@ class Player {
                 }, i * 50);
             }
         } else if (this.type === 'water') {
+            if (typeof audioManager !== 'undefined') audioManager.play('special_water');
             // Pushback
             createExplosion(this.x, this.y, '#3498db');
             let pushForce = 200;
@@ -390,6 +392,7 @@ class Player {
                 }
             });
         } else if (this.type === 'ice') {
+            if (typeof audioManager !== 'undefined') audioManager.play('special_ice');
             // Freeze
             let duration = 180;
             if (has('i2')) duration *= 1.5; // +50% Duration
@@ -420,6 +423,7 @@ class Player {
                 }
             });
         } else if (this.type === 'plant') {
+            if (typeof audioManager !== 'undefined') audioManager.play('special_plant');
             // Heal + Turret
             let healAmount = this.maxHp * 0.3;
             if (has('p2')) healAmount *= 1.2; // +20% Heal
@@ -479,6 +483,7 @@ class Player {
                 projectiles.push(p);
             }
         } else if (this.type === 'metal') {
+            if (typeof audioManager !== 'undefined') audioManager.play('special_iron');
             // Invincible
             let duration = 300;
             if (has('m2')) duration *= 1.5; // +50% Duration
@@ -526,6 +531,9 @@ class Player {
             }
         } else if (this.type === 'black') {
             // Massive Area Damage + Heal
+            // Play Sound
+            if (typeof audioManager !== 'undefined') audioManager.play('special_black');
+
             let radius = 300;
 
             // Burst Heal
@@ -869,7 +877,7 @@ class Player {
 
     shoot() {
         if (this.rangeCooldown > 0) return;
-        if(typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode && typeof checkChaosEvent === 'function') checkChaosEvent('ATTACK');
+        if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode && typeof checkChaosEvent === 'function') checkChaosEvent('ATTACK');
 
         // Melee Only Mutator / Chaos Effect
         if ((typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'MELEE_ONLY')) ||
@@ -995,7 +1003,14 @@ class Player {
 
     melee() {
         if (this.meleeCooldown > 0) return;
-        if(typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode && typeof checkChaosEvent === 'function') checkChaosEvent('ATTACK');
+        if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode && typeof checkChaosEvent === 'function') checkChaosEvent('ATTACK');
+
+        // Play Melee Sound
+        if (typeof audioManager !== 'undefined') {
+            if (this.type === 'earth') audioManager.play('melee_earth');
+            else audioManager.play('melee_all');
+        }
+
         const angle = this.aimAngle; // Use stored aim angle
 
         const isCrit = Math.random() < this.critChance;

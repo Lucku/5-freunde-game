@@ -24,12 +24,25 @@ class AudioManager {
             attack_plant: new Audio('music/sounds/attack_plant.wav'),
             attack_metal: new Audio('music/sounds/attack_metal.wav'),
             attack_black: new Audio('music/sounds/attack_black.wav'),
+            attack_shooter: new Audio('music/sounds/attack_shooter.wav'),
+            melee_all: new Audio('music/sounds/melee_all.wav'),
+
+
+            // Special SFX
+            special_black: new Audio('music/sounds/special_black.wav'),
+            special_fire: new Audio('music/sounds/special_fire.wav'),
+            special_ice: new Audio('music/sounds/special_ice.wav'),
+            special_iron: new Audio('music/sounds/special_iron.wav'), // Note: iron vs metal in filename
+            special_plant: new Audio('music/sounds/special_plant.wav'),
+            special_water: new Audio('music/sounds/special_water.wav'),
 
             attack_earth: new Audio('dlc/rise_of_the_rock/music/sounds/attack_earth.wav'),
             attack_earth_roll: new Audio('dlc/rise_of_the_rock/music/sounds/attack_earth_roll.wav'),
+            melee_earth: new Audio('dlc/rise_of_the_rock/music/sounds/melee_earth.wav'),
 
             attack_lightning: new Audio('dlc/tournament_of_thunder/music/sounds/attack_lightning.wav'),
             attack_lightning_charged: new Audio('dlc/tournament_of_thunder/music/sounds/attack_lightning_charged.wav'),
+            special_lightning: new Audio('dlc/tournament_of_thunder/music/sounds/special_lightning.wav'),
         };
 
         // Configuration
@@ -73,8 +86,8 @@ class AudioManager {
             this.tracks.attack_earth_roll.volume = 0.3;
         }
 
-        // SFX Configuration
-        ['attack_fire', 'attack_water', 'attack_ice', 'attack_plant', 'attack_metal', 'attack_black', 'attack_earth', 'attack_lightning', 'attack_lightning_charged'].forEach(key => {
+        // SFX Configuration, 'attack_shooter', 'special_black', 'special_fire', 'special_ice', 'special_iron', 'special_plant', 'special_water', 'special_lightning'
+        ['attack_fire', 'attack_water', 'attack_ice', 'attack_plant', 'attack_metal', 'attack_black', 'attack_earth', 'attack_lightning', 'attack_lightning_charged', 'melee_all', 'melee_earth'].forEach(key => {
             if (this.tracks[key]) this.tracks[key].volume = 0.25; // Low volume to not dominate music
         });
 
@@ -82,6 +95,31 @@ class AudioManager {
         this.sfxEnabled = true;
 
         this.updateSettings();
+
+        // Loop Tracking
+        this.activeLoops = {};
+    }
+
+    startLoop(key) {
+        if (!this.sfxEnabled) return;
+        if (this.activeLoops[key]) return; // Already looping
+
+        const sound = this.tracks[key];
+        if (sound) {
+            const loopNode = sound.cloneNode();
+            loopNode.loop = true;
+            loopNode.volume = sound.volume;
+            loopNode.play().catch(e => console.warn(`Audio loop fail: ${key}`, e));
+            this.activeLoops[key] = loopNode;
+        }
+    }
+
+    stopLoop(key) {
+        if (this.activeLoops[key]) {
+            this.activeLoops[key].pause();
+            this.activeLoops[key].currentTime = 0;
+            delete this.activeLoops[key];
+        }
     }
 
     playAttack(hero, isCharged = false) {
@@ -175,14 +213,20 @@ class AudioManager {
 
         if (isMusic) {
             if (!this.musicEnabled) return;
+            const track = this.tracks[trackName];
+            if (track && track.paused) {
+                track.play().catch(e => { /* Ignore autoplay errors */ });
+            }
         } else {
             // Assume SFX
             if (!this.sfxEnabled) return;
-        }
-
-        const track = this.tracks[trackName];
-        if (track && track.paused) {
-            track.play().catch(e => { /* Ignore autoplay errors */ });
+            const track = this.tracks[trackName];
+            if (track) {
+                // Clone for polyphony (overlap)
+                const sfx = track.cloneNode();
+                sfx.volume = track.volume;
+                sfx.play().catch(e => { /* Ignore autoplay errors */ });
+            }
         }
     }
 

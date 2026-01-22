@@ -53,6 +53,10 @@ class LightningHero {
             if (player.thunderWrath % 8 === 0) {
                 LightningHero.spawnThunderStrike(player);
             }
+            // Stop loop when finished
+            if (player.thunderWrath === 0) {
+                if (typeof audioManager !== 'undefined') audioManager.stopLoop('special_lightning');
+            }
         }
 
         // 4. UI: Draw Charge Bar
@@ -345,6 +349,9 @@ class LightningHero {
         // Screen Shake
         if (typeof arena !== 'undefined') {
             // Simple camera shake via activeMutators or manual?
+
+            // Start Audio Loop
+            if (typeof audioManager !== 'undefined') audioManager.startLoop('special_lightning');
             // Usually camera checks 'currentWeather' or screen shake variables.
             // We'll leave it to the explosions to create impact.
         }

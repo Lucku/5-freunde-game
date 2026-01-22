@@ -364,6 +364,7 @@ canvas {
     text-align: center;
     border: 1px solid #34495e;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    transition: all 0.1s ease-in-out;
 }
 
 .summary-val {
@@ -396,10 +397,13 @@ canvas {
 .stat-row {
     display: flex;
     justify-content: space-between;
-    padding: 8px 0;
+    padding: 8px 10px;
+    /* Added side padding for highlight box */
     border-bottom: 1px solid #333;
     font-size: 14px;
     color: #ddd;
+    transition: all 0.1s ease-in-out;
+    /* Smooth hover/select */
 }
 
 .stat-row:last-child {
@@ -1110,7 +1114,7 @@ button.btn-gold:hover {
 /* Gamepad Navigation Highlight */
 .selected {
     border: 3px solid #f1c40f !important;
-    transform: scale(1.05);
+    /* transform: scale(1.05); REMOVED scale effect */
     box-shadow: 0 0 20px rgba(241, 196, 15, 0.6);
     z-index: 100;
     position: relative;

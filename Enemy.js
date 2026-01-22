@@ -265,6 +265,7 @@ class Enemy {
             } else {
                 if (dist < 150) { moveX = -Math.cos(angle) * (currentSpeed * 0.5); moveY = -Math.sin(angle) * (currentSpeed * 0.5); }
                 if (this.shootCooldown <= 0) {
+                    if (typeof audioManager !== 'undefined') audioManager.play('attack_shooter');
                     const vel = { x: Math.cos(angle) * 6, y: Math.sin(angle) * 6 };
                     const p = new Projectile(this.x, this.y, vel, this.damage, '#e74c3c', 5, 'enemy', 0, true);
                     p.shooterType = 'SHOOTER';
