@@ -142,3 +142,16 @@ class Altar {
         this.render();
     }
 }
+
+const altarUI = new Altar();
+window.openAltar = function () {
+    document.getElementById('menu-overlay').style.display = 'none';
+    document.getElementById('altar-screen').style.display = 'flex';
+    altarUI.render();
+    if (window.setUIState) window.setUIState('ALTAR');
+};
+
+window.closeAltar = function () {
+    document.getElementById('altar-screen').style.display = 'none';
+    if (window.initMenu) window.initMenu();
+};

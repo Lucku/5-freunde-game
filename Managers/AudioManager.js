@@ -17,7 +17,8 @@ class AudioManager {
             battle_thunder_2: new Audio('dlc/tournament_of_thunder/music/battle_2.wav'),
             zeus: new Audio('dlc/tournament_of_thunder/music/boss_zeus.wav'),
 
-            // Attack SFX
+            // SFX
+            level_up: new Audio('music/sounds/level_up.wav'),
             attack_fire: new Audio('music/sounds/attack_fire.wav'),
             attack_water: new Audio('music/sounds/attack_water.wav'),
             attack_ice: new Audio('music/sounds/attack_ice.wav'),
@@ -80,6 +81,10 @@ class AudioManager {
 
         this.tracks.zeus.loop = true;
         this.tracks.zeus.volume = 0.6;
+
+        if (this.tracks.level_up) {
+            this.tracks.level_up.volume = 0.5;
+        }
 
         if (this.tracks.attack_earth_roll) {
             this.tracks.attack_earth_roll.loop = true;

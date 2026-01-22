@@ -387,9 +387,9 @@ class EarthHero {
         // Manage Rolling Sound
         if (typeof audioManager !== 'undefined') {
             if (player.isRolling && player.momentum > 10) { // Only play if actually rolling with some speed
-                audioManager.play('attack_earth_roll'); 
+                audioManager.startLoop('attack_earth_roll');
             } else {
-                audioManager.stop('attack_earth_roll');
+                audioManager.stopLoop('attack_earth_roll');
             }
         }
 

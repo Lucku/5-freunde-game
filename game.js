@@ -53,7 +53,7 @@ const defaultSaveData = {
 };
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
-let saveData = {
+window.saveData = {
     fire: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
@@ -103,7 +103,9 @@ let currentRunStats = {
 // Moved to SaveManager.js
 
 function saveGame() {
-    SaveManager.saveGame(saveData);
+    if (typeof SaveManager !== 'undefined') {
+        SaveManager.saveGame(window.saveData);
+    }
 }
 
 // --- Audio System ---
@@ -111,21 +113,30 @@ function saveGame() {
 
 
 function loadGame() {
-    saveData = SaveManager.loadGame(defaultSaveData);
+    if (typeof SaveManager !== 'undefined') {
+        window.saveData = SaveManager.loadGame(defaultSaveData);
+    } else {
+        console.error("SaveManager is not defined!");
+        window.saveData = JSON.parse(JSON.stringify(defaultSaveData));
+    }
 }
 
 function exportSave() {
-    SaveManager.exportSave(saveData);
+    if (typeof SaveManager !== 'undefined') {
+        SaveManager.exportSave(window.saveData);
+    }
 }
 
 function importSave(input) {
     if (!input.files[0]) return;
-    SaveManager.importSave(input.files[0], (data) => {
-        saveData = data;
-        saveGame();
-        alert("Save loaded successfully!");
-        location.reload();
-    });
+    if (typeof SaveManager !== 'undefined') {
+        SaveManager.importSave(input.files[0], (data) => {
+            window.saveData = data;
+            saveGame();
+            alert("Save loaded successfully!");
+            location.reload();
+        });
+    }
 }
 
 function closeGame() {
@@ -137,141 +148,14 @@ function closeGame() {
 }
 
 // --- Hero Specific Skill Trees ---
-function generateHeroSkillTree(type) {
-    const tree = [];
-    // Specific weights for each hero identity
-    const weights = {
-        fire: { DAMAGE: 0.25, EXPLODE_CHANCE: 0.30, SPEED: 0.10, COOLDOWN: 0.15, HEALTH: 0.10, ULT_DAMAGE: 0.10 },
-        water: { COOLDOWN: 0.30, KNOCK: 0.30, SPEED: 0.20, HEALTH: 0.10, ULT_SPEED: 0.10 },
-        ice: { PIERCE: 0.30, COOLDOWN: 0.15, DAMAGE: 0.20, HEALTH: 0.15, ULT_DAMAGE: 0.10, ULT_SPEED: 0.10 },
-        plant: { SPLIT: 0.25, HEALTH: 0.30, DAMAGE: 0.10, COOLDOWN: 0.15, ULT_DAMAGE: 0.20 },
-        metal: { MELEE: 0.25, ARMOR: 0.30, HEALTH: 0.25, DAMAGE: 0.10, ULT_DAMAGE: 0.10 },
-        black: { DAMAGE: 1.0 } // Dummy tree, not used
-    };
-
-    // DLC Hook: Get Weights
-    if (window.HERO_LOGIC && window.HERO_LOGIC[type] && window.HERO_LOGIC[type].getSkillTreeWeights) {
-        weights[type] = window.HERO_LOGIC[type].getSkillTreeWeights();
-    }
-
-    const w = weights[type];
-    const types = [];
-    for (let k in w) {
-        const count = Math.floor(w[k] * 100);
-        for (let i = 0; i < count; i++) types.push(k);
-    }
-    // Fill remaining with generic damage if rounding errors
-    while (types.length < 100) types.push('DAMAGE');
-
-    let seed = type.length;
-    const random = () => {
-        const x = Math.sin(seed++) * 10000;
-        return x - Math.floor(x);
-    };
-
-    for (let i = 0; i < SKILL_TREE_SIZE; i++) {
-        const idx = Math.floor(random() * types.length);
-        const t = types[idx];
-
-        let val = 0;
-        let desc = "";
-
-        // Generic
-        if (t === 'DAMAGE') { val = 0.02; desc = "+2% Damage"; }
-        if (t === 'HEALTH') { val = 0.02; desc = "+2% Max HP"; }
-        if (t === 'SPEED') { val = 0.01; desc = "+1% Move Speed"; }
-        if (t === 'COOLDOWN') { val = 0.01; desc = "-1% Cooldowns"; }
-        if (t === 'ULT_DAMAGE') { val = 0.05; desc = "+5% Ult Dmg"; }
-        if (t === 'ULT_SPEED') { val = 0.05; desc = "+5% Ult Spd"; }
-
-        // Specific
-        if (t === 'BLAST') { val = 0.05; desc = "+5% Blast Radius"; }
-        if (t === 'EXPLODE_CHANCE') { val = 0.05; desc = "+5% Explode Chance"; }
-        if (t === 'KNOCK') { val = 0.05; desc = "+5% Knockback"; }
-        if (t === 'PIERCE') { val = 1; desc = "+1 Pierce Count"; }
-        if (t === 'SPLIT') { val = 1; desc = "+1 Proj / -20% Dmg"; }
-        if (t === 'ARMOR') { val = 0.01; desc = "+1% Dmg Reduction"; }
-        if (t === 'MELEE') { val = 0.05; desc = "+5% Melee Size"; }
-
-        // DLC Hook: Node Details
-        if (window.HERO_LOGIC && window.HERO_LOGIC[type] && window.HERO_LOGIC[type].getSkillNodeDetails) {
-            const details = window.HERO_LOGIC[type].getSkillNodeDetails(t, val, desc);
-            val = details.val;
-            desc = details.desc;
-        }
-
-        if ((i + 1) % 10 === 0) {
-            if (t === 'PIERCE' || t === 'SPLIT') val += 1; // +2 for major
-            else val *= 5;
-            desc = "MAJOR: " + desc.replace('+', '+').replace('-', '-');
-        }
-        tree.push({ id: i, type: t, value: val, desc: desc });
-    }
-    return tree;
-}
+// --- Skill Tree Data is in UI/Statistics.js ---
 
 // --- Menu Logic ---
-let selectedHeroType = 'fire';
+window.selectedHeroType = 'fire';
 
-function renderHeroSelect() {
-    const container = document.getElementById('hero-select-container');
-    container.innerHTML = '';
+// Moved to UI/MainMenu.js
 
-    // Dynamically get heroes from BASE_HERO_STATS
-    // Filter out 'black' if it's meant to be hidden or handled separately
-    const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
-
-    heroes.forEach(h => {
-        // Ensure save data exists for this hero (e.g. DLC heroes)
-        if (!saveData[h]) {
-            saveData[h] = { level: 0, unlocked: 0, highScore: 0, prestige: 0 };
-            // Auto-unlock DLC heroes for now, or handle via DLC logic
-            if (h === 'earth') saveData[h].unlocked = 1;
-        }
-
-        const data = saveData[h];
-        const el = document.createElement('div');
-        el.className = 'hero-card';
-        if (h === selectedHeroType) el.style.borderColor = 'white';
-
-        let prestigeText = "";
-        if (data.prestige > 0) {
-            prestigeText = `<div class="hero-prestige">Hard Mode ${data.prestige}</div>`;
-        }
-
-        el.innerHTML = `
-            <div class="hero-icon" style="background: ${BASE_HERO_STATS[h].color}; position: relative; display: flex; justify-content: center; align-items: center;">
-                <div style="width: 60%; height: 30%; background: rgba(0,0,0,0.5); border-radius: 0 0 50% 50%; margin-top: -10%;"></div>
-            </div>
-            <div class="hero-name" style="color: ${BASE_HERO_STATS[h].color}">${h.toUpperCase()}</div>
-            <div class="hero-stats">High Score: ${data.highScore}</div>
-            ${prestigeText}
-        `;
-        el.onclick = () => {
-            selectedHeroType = h;
-            renderHeroSelect();
-        };
-        container.appendChild(el);
-    });
-    updateStoryButton();
-}
-
-function updateStoryButton() {
-    const btn = document.querySelector('.btn-story');
-    if (!btn) return;
-
-    let title = "Story Mode";
-    if (typeof window.DLC_REGISTRY !== 'undefined' && window.DLC_REGISTRY) {
-        for (const key in window.DLC_REGISTRY) {
-            const dlc = window.DLC_REGISTRY[key];
-            if (dlc && dlc.hero === selectedHeroType && dlc.name) {
-                title = dlc.name;
-                break;
-            }
-        }
-    }
-    btn.innerText = title;
-}
+// Moved to UI/MainMenu.js
 
 // --- UI State Management for Gamepad ---
 // uiState, uiSelectionIndex, uiDebounce are now managed by UIManager
@@ -447,148 +331,10 @@ function renderCollection() {
 }
 
 // --- Statistics Screen Logic ---
-
-function openStats() {
-    document.getElementById('menu-overlay').style.display = 'none';
-    document.getElementById('stats-screen').style.display = 'flex';
-    renderStatsScreen();
-    setUIState('STATS');
-}
-
-function closeStats() {
-    document.getElementById('stats-screen').style.display = 'none';
-    initMenu();
-}
-
-function renderStatsScreen() {
-    document.getElementById('stats-hero-title').innerText = `ACTIVE HERO: ${selectedHeroType.toUpperCase()}`;
-
-    // 1. Initialize Accumulators
-    let totals = {
-        damage: 0,      // %
-        healthPct: 0,   // %
-        healthFlat: 0,  // Flat
-        speed: 0,       // %
-        cooldown: 0,    // %
-        defense: 0,     // %
-        gold: 0,        // % (Greed)
-        xp: 0,          // % (Wisdom)
-        luck: 0,        // %
-        projectiles: 0, // Flat
-        revives: 0      // Flat
-    };
-
-    // --- A. VOID SHOP (Meta Upgrades) ---
-    let voidHtml = '';
-    // Note: Assuming PERM_UPGRADES is global from Constants.js
-    // If not, define defaults or ensure Constants.js is loaded
-    if (typeof PERM_UPGRADES !== 'undefined') {
-        for (let key in PERM_UPGRADES) {
-            const level = saveData.metaUpgrades[key] || 0;
-            if (level > 0) {
-                let effect = "";
-                if (key === 'health') { totals.healthFlat += level * 5; effect = `+${level * 5} Max HP`; }
-                if (key === 'power') { totals.damage += level; effect = `+${level}% Damage`; }
-                if (key === 'swift') { totals.speed += level; effect = `+${level}% Speed`; }
-                if (key === 'greed') { totals.gold += level * 5; effect = `+${level * 5}% Gold Gain`; }
-                if (key === 'defense') { totals.defense += level; effect = `+${level}% Dmg Reduction`; }
-                if (key === 'wisdom') { totals.xp += level * 2; effect = `+${level * 2}% XP Gain`; }
-
-                voidHtml += `<div class="stat-row"><span>${PERM_UPGRADES[key].name} (Lvl ${level})</span><span>${effect}</span></div>`;
-            }
-        }
-    }
-    if (voidHtml === '') voidHtml = '<div style="color:#666; font-style:italic; padding:10px;">No Void Upgrades purchased yet.</div>';
-    document.getElementById('stats-void-list').innerHTML = voidHtml;
-
-    // --- B. ACHIEVEMENTS ---
-    let achHtml = '';
-    saveData.global.unlockedAchievements.forEach(id => {
-        const ach = ACHIEVEMENTS.find(a => a.id === id);
-        if (ach) {
-            const val = ach.bonus.val;
-            let effect = "";
-
-            if (ach.bonus.type === 'damage') { totals.damage += val * 100; effect = `+${(val * 100).toFixed(0)}% Damage`; }
-            if (ach.bonus.type === 'health') { totals.healthPct += val * 100; effect = `+${(val * 100).toFixed(0)}% HP`; }
-            if (ach.bonus.type === 'speed') { totals.speed += val * 100; effect = `+${(val * 100).toFixed(0)}% Speed`; }
-            if (ach.bonus.type === 'cooldown') { totals.cooldown += val * 100; effect = `+${(val * 100).toFixed(0)}% CDR`; }
-            if (ach.bonus.type === 'gold') { totals.gold += val * 100; effect = `+${(val * 100).toFixed(0)}% Gold`; }
-
-            achHtml += `<div class="stat-row"><span>${ach.title}</span><span>${effect}</span></div>`;
-        }
-    });
-    if (achHtml === '') achHtml = '<div style="color:#666; font-style:italic; padding:10px;">No Achievements unlocked yet.</div>';
-    document.getElementById('stats-ach-list').innerHTML = achHtml;
-
-    // --- C. SKILL TREE ---
-    let treeHtml = '';
-    const treeData = generateHeroSkillTree(selectedHeroType);
-    const unlockedCount = saveData[selectedHeroType].unlocked;
-
-    // Aggregate Tree Stats for cleaner display
-    let treeStats = { damage: 0, health: 0, speed: 0, cooldown: 0, defense: 0, projectiles: 0, other: [] };
-
-    for (let i = 0; i < unlockedCount; i++) {
-        const node = treeData[i];
-        if (node.type === 'DAMAGE') { treeStats.damage += node.value; totals.damage += node.value * 100; }
-        else if (node.type === 'HEALTH') { treeStats.health += node.value; totals.healthPct += node.value * 100; }
-        else if (node.type === 'SPEED') { treeStats.speed += node.value; totals.speed += node.value * 100; }
-        else if (node.type === 'COOLDOWN') { treeStats.cooldown += node.value; totals.cooldown += node.value * 100; } // Approx additive for display
-        else if (node.type === 'ARMOR') { treeStats.defense += node.value; totals.defense += node.value * 100; }
-        else if (node.type === 'SPLIT' || node.type === 'PIERCE') {
-            treeStats.projectiles += node.value;
-            totals.projectiles += node.value;
-            treeStats.other.push(node.desc);
-        }
-        else {
-            treeStats.other.push(node.desc);
-        }
-    }
-
-    if (treeStats.damage > 0) treeHtml += `<div class="stat-row"><span>Total Damage Nodes</span><span>+${(treeStats.damage * 100).toFixed(0)}%</span></div>`;
-    if (treeStats.health > 0) treeHtml += `<div class="stat-row"><span>Total Health Nodes</span><span>+${(treeStats.health * 100).toFixed(0)}%</span></div>`;
-    if (treeStats.speed > 0) treeHtml += `<div class="stat-row"><span>Total Speed Nodes</span><span>+${(treeStats.speed * 100).toFixed(0)}%</span></div>`;
-    if (treeStats.cooldown > 0) treeHtml += `<div class="stat-row"><span>Total Cooldown Nodes</span><span>-${(treeStats.cooldown * 100).toFixed(0)}%</span></div>`;
-    if (treeStats.defense > 0) treeHtml += `<div class="stat-row"><span>Total Armor Nodes</span><span>+${(treeStats.defense * 100).toFixed(0)}%</span></div>`;
-
-    // Unique nodes
-    const uniqueNodes = [...new Set(treeStats.other)]; // Deduplicate descriptions
-    uniqueNodes.forEach(desc => {
-        treeHtml += `<div class="stat-row"><span>Special Node</span><span>${desc}</span></div>`;
-    });
-
-    if (unlockedCount === 0) treeHtml = '<div style="color:#666; font-style:italic; padding:10px;">No Skill Tree nodes unlocked.</div>';
-    document.getElementById('stats-tree-list').innerHTML = treeHtml;
-
-    // --- D. RENDER TOTALS ---
-    const summaryGrid = document.getElementById('stats-summary-grid');
-    summaryGrid.innerHTML = `
-        <div class="summary-card"><div class="summary-val" style="color:#e74c3c">+${totals.damage.toFixed(0)}%</div><div class="summary-label">Damage</div></div>
-        <div class="summary-card"><div class="summary-val" style="color:#2ecc71">+${totals.healthPct.toFixed(0)}% / +${totals.healthFlat}</div><div class="summary-label">Health</div></div>
-        <div class="summary-card"><div class="summary-val" style="color:#f1c40f">+${totals.speed.toFixed(0)}%</div><div class="summary-label">Move Speed</div></div>
-        <div class="summary-card"><div class="summary-val" style="color:#3498db">${totals.cooldown.toFixed(0)}%</div><div class="summary-label">Cooldown Red.</div></div>
-        <div class="summary-card"><div class="summary-val" style="color:#9b59b6">+${totals.defense.toFixed(0)}%</div><div class="summary-label">Defense</div></div>
-        <div class="summary-card"><div class="summary-val" style="color:#f39c12">+${totals.gold.toFixed(0)}%</div><div class="summary-label">Gold Gain</div></div>
-        <div class="summary-card"><div class="summary-val" style="color:#3498db">+${totals.xp.toFixed(0)}%</div><div class="summary-label">XP Gain</div></div>
-        <div class="summary-card"><div class="summary-val" style="color:#fff">+${totals.projectiles}</div><div class="summary-label">Extra Proj.</div></div>
-        <div class="summary-card"><div class="summary-val" style="color:#1abc9c">${saveData[selectedHeroType].prestige}</div><div class="summary-label">Prestige Rank</div></div>
-    `;
-}
+// Moved to UI/Statistics.js
 
 // --- Completion Menu Logic ---
-window.openCompletion = function () {
-    document.getElementById('menu-overlay').style.display = 'none';
-    document.getElementById('completion-screen').style.display = 'flex';
-    const menu = new CompletionMenu();
-    menu.render();
-    setUIState('COMPLETION');
-}
-
-window.closeCompletion = function () {
-    document.getElementById('completion-screen').style.display = 'none';
-    initMenu();
-}
+// Moved to UI/Statistics.js
 
 function getFocusables() {
     return uiManager.getFocusables();
@@ -1189,304 +935,23 @@ function exitToDesktop() {
     }
 }
 
-function showQuitWarning() {
-    document.getElementById('quit-run-warning').style.opacity = 1;
-}
-
-function hideQuitWarning() {
-    document.getElementById('quit-run-warning').style.opacity = 0;
-}
+// --- Move Quit Warning and Options to UI/Options.js ---
 
 // --- Permanent Shop Logic ---
-function openPermShop() {
-    document.getElementById('menu-overlay').style.display = 'none';
-    document.getElementById('perm-shop-screen').style.display = 'flex';
-    renderPermShop();
-    setUIState('PERMSHOP');
-}
-
-function renderPermShop() {
-    document.getElementById('permGoldVal').innerText = saveData.global.totalGold;
-    const container = document.getElementById('perm-shop-container');
-    container.innerHTML = '';
-
-    for (let key in PERM_UPGRADES) {
-        const up = PERM_UPGRADES[key];
-        const level = saveData.metaUpgrades[key] || 0;
-        const cost = Math.floor(up.baseCost * Math.pow(up.costMult, level));
-
-        const div = document.createElement('div');
-        div.className = 'shop-item';
-        div.innerHTML = `
-            <div style="font-size: 20px; font-weight: bold; color: #9b59b6;">${up.name}</div>
-            <div style="color: #aaa; margin: 5px 0;">${up.desc}</div>
-            <div style="color: #fff;">Level: ${level}</div>
-            <div class="shop-cost">${cost} Total Gold</div>
-        `;
-        div.onclick = () => buyPermUpgrade(key, cost);
-        container.appendChild(div);
-    }
-}
-
-function buyPermUpgrade(key, cost) {
-    if (saveData.global.totalGold >= cost) {
-        saveData.global.totalGold -= cost;
-        saveData.metaUpgrades[key] = (saveData.metaUpgrades[key] || 0) + 1;
-
-        // Track Void Spending
-        saveData.global.totalVoidGoldSpent = (saveData.global.totalVoidGoldSpent || 0) + cost;
-
-        saveGame();
-        renderPermShop();
-        showNotification("Upgrade Purchased!");
-
-        // Check for Void Shop achievements
-        checkAchievements();
-    } else {
-        showNotification("Not enough Total Gold!");
-    }
-}
-
-function closePermShop() {
-    document.getElementById('perm-shop-screen').style.display = 'none';
-    initMenu();
-}
-
-function toggleMusic() {
-    toggleOption('musicEnabled');
-}
-
-// --- OPTIONS MENU LOGIC ---
-function openOptions() {
-    setUIState('OPTIONS');
-    document.getElementById('options-screen').style.display = 'flex';
-    updateOptionButtons();
-}
-
-function closeOptions() {
-    setUIState('MENU');
-    document.getElementById('options-screen').style.display = 'none';
-}
-
-function toggleOption(key) {
-    if (typeof gameConfig === 'undefined') return;
-
-    // Use the helper in Config.js
-    const val = toggleSetting(key);
-    updateOptionButtons();
-}
-
-function updateOptionButtons() {
-    if (typeof gameConfig === 'undefined') return;
-
-    const map = {
-        'musicEnabled': 'opt-music-btn',
-        'sfxEnabled': 'opt-sfx-btn',
-        'damageNumbers': 'opt-dmg-btn',
-        'screenShake': 'opt-shake-btn'
-    };
-
-    for (let k in map) {
-        const btn = document.getElementById(map[k]);
-        if (btn) {
-            const isActive = gameConfig[k];
-            btn.innerText = isActive ? "ON" : "OFF";
-            btn.className = isActive ? "btn btn-green btn-small" : "btn btn-red btn-small";
-        }
-    }
-}
+// Moved to UI/Shop.js
 
 // --- Chaos Shop Logic ---
-function isChaosActive(effectId) {
-    return saveData.chaos && saveData.chaos.active && saveData.chaos.active.includes(effectId);
-}
+// Moved to UI/Shop.js
 
-function openChaosShop() {
-    document.getElementById('menu-overlay').style.display = 'none';
-    document.getElementById('chaos-shop-screen').style.display = 'flex';
-    renderChaosShop();
-    setUIState('CHAOSSHOP');
-}
+// --- Skill Tree Logic ---
+// Moved to UI/Statistics.js
 
-function renderChaosShop() {
-    // Ensure chaos data exists
-    if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
+// --- Achievements Logic ---
+// Moved to UI/Statistics.js
 
-    document.getElementById('chaosShardsVal').innerText = saveData.chaos.shards;
-    const container = document.getElementById('chaos-shop-container');
-    container.innerHTML = '';
+// --- Museum Logic Moved to Museum.js ---
 
-    CHAOS_EFFECTS.forEach(effect => {
-        const isUnlocked = saveData.chaos.unlocked.includes(effect.id);
-        const isActive = saveData.chaos.active.includes(effect.id);
 
-        const div = document.createElement('div');
-        div.className = 'shop-item';
-        // Style differently if unlocked/active
-        if (isUnlocked) {
-            div.style.borderColor = isActive ? '#2ecc71' : '#e74c3c';
-            div.style.background = isActive ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.1)';
-        }
-
-        let actionText = isUnlocked ? (isActive ? "ACTIVE (Click to Disable)" : "INACTIVE (Click to Enable)") : `Buy for ${effect.cost} Shards`;
-        let costColor = isUnlocked ? (isActive ? '#2ecc71' : '#e74c3c') : '#f1c40f';
-
-        div.innerHTML = `
-            <div style="font-size: 20px; font-weight: bold; color: #e74c3c;">${effect.name}</div>
-            <div style="color: #aaa; margin: 5px 0;">${effect.desc}</div>
-            <div style="color: #f1c40f; font-weight: bold;">Bonus: +${Math.round(effect.bonus * 100)}% Gold</div>
-            <div style="color: ${costColor}; margin-top: 10px; font-weight: bold;">${actionText}</div>
-        `;
-
-        div.onclick = () => {
-            if (isUnlocked) {
-                toggleChaosEffect(effect.id);
-            } else {
-                buyChaosEffect(effect.id, effect.cost);
-            }
-        };
-        container.appendChild(div);
-    });
-}
-
-function buyChaosEffect(id, cost) {
-    if (saveData.chaos.shards >= cost) {
-        saveData.chaos.shards -= cost;
-        saveData.chaos.unlocked.push(id);
-        saveGame();
-        renderChaosShop();
-        showNotification("Chaos Effect Unlocked!");
-    } else {
-        showNotification("Not enough Chaos Shards!");
-    }
-}
-
-function toggleChaosEffect(id) {
-    const index = saveData.chaos.active.indexOf(id);
-    if (index > -1) {
-        saveData.chaos.active.splice(index, 1);
-        showNotification("Effect Disabled");
-    } else {
-        saveData.chaos.active.push(id);
-        showNotification("Effect Enabled");
-    }
-    saveGame();
-    renderChaosShop();
-}
-
-function closeChaosShop() {
-    document.getElementById('chaos-shop-screen').style.display = 'none';
-    initMenu();
-}
-
-function openSkillTree() {
-    if (typeof audioManager !== 'undefined') audioManager.play('menu');
-    document.getElementById('menu-overlay').style.display = 'none';
-    document.getElementById('skill-tree-screen').style.display = 'flex';
-    renderSkillTree();
-    setUIState('SKILLTREE');
-}
-
-function closeSkillTree() {
-    document.getElementById('skill-tree-screen').style.display = 'none';
-    initMenu();
-}
-
-function openAchievements() {
-    document.getElementById('menu-overlay').style.display = 'none';
-    document.getElementById('achievements-screen').style.display = 'flex';
-    const list = document.getElementById('achievements-list');
-    list.innerHTML = '';
-
-    const achievementsList = window.ACHIEVEMENTS || ACHIEVEMENTS;
-
-    achievementsList.forEach(ach => {
-        const unlocked = saveData.global.unlockedAchievements.includes(ach.id);
-        const div = document.createElement('div');
-        div.className = `achievement-row ${unlocked ? 'unlocked' : ''}`;
-        div.innerHTML = `
-            <div class="ach-info">
-                <h3>${ach.title} ${unlocked ? '✅' : '🔒'}</h3>
-                <p>${ach.desc}</p>
-            </div>
-            <div class="ach-reward">${ach.bonus.text}</div>
-        `;
-        list.appendChild(div);
-    });
-    setUIState('ACHIEVEMENTS');
-}
-
-function closeAchievements() {
-    document.getElementById('achievements-screen').style.display = 'none';
-    initMenu();
-}
-
-// --- Museum Logic ---
-let museum = null;
-
-function openMuseum() {
-    document.getElementById('menu-overlay').style.display = 'none';
-    museum = new Museum();
-    setUIState('MUSEUM');
-}
-
-// --- High Score Logic ---
-function openHighScores() {
-    document.getElementById('menu-overlay').style.display = 'none';
-    document.getElementById('highscore-screen').style.display = 'flex';
-
-    const labels = {
-        missilesFired: "Missiles Fired",
-        timeSurvived: "Longest Run",
-        wavesCleared: "Max Waves",
-        damageTaken: "Damage Taken",
-        damageDealt: "Damage Dealt",
-        levelReached: "Max Level",
-        moneyGained: "Max Gold (Run)",
-        moneySpent: "Max Spent (Run)",
-        enemiesKilled: "Max Kills (Run)",
-        bossesKilled: "Max Bosses (Run)",
-        maxCombo: "Max Combo"
-    };
-
-    let html = `
-    <h2 style="color:#f1c40f; margin-bottom:10px;">BEST RUN RECORDS</h2>
-    <table class="stats-table">
-        <thead><tr><th>Statistic</th><th style="text-align:right">Best Record</th></tr></thead>
-        <tbody>`;
-
-    // 1. Best Run Stats
-    for (let key in labels) {
-        let val = saveData.stats[key] || 0;
-        if (key === 'timeSurvived') {
-            val = `${Math.floor(val / 60)}:${(val % 60).toString().padStart(2, '0')}`;
-        }
-        html += `<tr><td>${labels[key]}</td><td class="stats-val" style="color:#fff">${val}</td></tr>`;
-    }
-    html += `</tbody></table>`;
-
-    // 2. Lifetime Totals
-    html += `
-    <h2 style="color:#3498db; margin-top:30px; margin-bottom:10px;">LIFETIME TOTALS</h2>
-    <table class="stats-table">
-        <thead><tr><th>Statistic</th><th style="text-align:right">Total</th></tr></thead>
-        <tbody>
-            <tr><td>Total Kills</td><td class="stats-val" style="color:#3498db">${saveData.global.totalKills}</td></tr>
-            <tr><td>Total Gold Collected</td><td class="stats-val" style="color:#f1c40f">${saveData.global.totalGold}</td></tr>
-            <tr><td>Total Bosses Slain</td><td class="stats-val" style="color:#e74c3c">${saveData.global.totalBosses}</td></tr>
-            <tr><td>Total Damage Dealt</td><td class="stats-val" style="color:#9b59b6">${(saveData.global.totalDamage / 1000000).toFixed(2)}M</td></tr>
-            <tr><td>Highest Wave Ever</td><td class="stats-val" style="color:#2ecc71">${saveData.global.maxWave}</td></tr>
-        </tbody>
-    </table>`;
-
-    document.getElementById('highscore-content').innerHTML = html;
-    setUIState('HIGHSCORE');
-}
-
-function closeHighScores() {
-    document.getElementById('highscore-screen').style.display = 'none';
-    initMenu();
-}
 
 // --- Altar Logic ---
 let altar = null;
@@ -1504,224 +969,21 @@ function closeAltar() {
     initMenu();
 }
 
-function renderSkillTree() {
-    const container = document.getElementById('skill-tree-container');
-    container.innerHTML = '';
-    const heroData = saveData[selectedHeroType];
-    const pointsAvailable = heroData.level - heroData.unlocked;
-    const treeData = generateHeroSkillTree(selectedHeroType);
+// --- Render Skill Tree Logic ---
+// Moved to UI/Statistics.js
 
-    let title = selectedHeroType.toUpperCase() + " SKILL TREE";
-    if (heroData.prestige > 0) title += ` (HARD MODE ${heroData.prestige})`;
-    document.getElementById('skill-tree-title').innerText = title;
-    document.getElementById('skill-points-display').innerText = `Points Available: ${pointsAvailable}`;
+// --- Hero Utils moved to Player.js ---
 
-    treeData.forEach((node, index) => {
-        const el = document.createElement('div');
-        el.className = 'skill-node';
 
-        const isUnlocked = index < heroData.unlocked;
-        const isAvailable = index === heroData.unlocked && pointsAvailable > 0;
-
-        if (isUnlocked) el.classList.add('unlocked');
-        else if (isAvailable) el.classList.add('available');
-        else el.classList.add('locked');
-
-        // Determine Icon based on type
-        let icon = "⚔️";
-        if (node.type === 'HEALTH') icon = "❤️";
-        if (node.type === 'SPEED') icon = "👟";
-        if (node.type === 'COOLDOWN') icon = "⏳";
-        if (node.type === 'ARMOR') icon = "🛡️";
-        if (node.type === 'PIERCE' || node.type === 'SPLIT') icon = "🏹";
-        if (node.type.includes('ULT')) icon = "✨";
-
-        el.innerHTML = `
-            <div class="skill-level">${index + 1}</div>
-            <div class="skill-icon">${icon}</div>
-            <div class="skill-tooltip">
-                ${node.desc}
-            </div>
-        `;
-
-        if (isAvailable) {
-            el.onclick = () => {
-                saveData[selectedHeroType].unlocked++;
-                saveGame();
-                renderSkillTree();
-
-                // Auto-select the next node (which is now available)
-                // We need to wait for the DOM to update
-                setTimeout(() => {
-                    const focusables = getFocusables();
-                    // The newly unlocked node is at index 'index' (0-based)
-                    // The NEXT node (now available) is at index + 1
-                    // But getFocusables returns ALL nodes now that we removed pointer-events:none
-                    // So we can just select index + 1 if it exists
-                    if (index + 1 < focusables.length) {
-                        uiSelectionIndex = index + 1;
-                        updateUIHighlight();
-                    }
-                }, 50);
-            };
-        }
-        container.appendChild(el);
-    });
-
-    const prestigeBtn = document.getElementById('prestige-container');
-    const hasBeatenRank = (heroData.maxWinPrestige ?? -1) >= heroData.prestige;
-
-    if (heroData.unlocked >= SKILL_TREE_SIZE && hasBeatenRank) {
-        prestigeBtn.style.display = 'block';
-        prestigeBtn.querySelector('button').innerText = `UNLOCK HARD MODE ${heroData.prestige + 1}`;
-        prestigeBtn.querySelector('button').disabled = false;
-        prestigeBtn.querySelector('button').title = "Reset tree, increase difficulty, gain base stats.";
-    } else if (heroData.unlocked >= SKILL_TREE_SIZE && !hasBeatenRank) {
-        // Show disabled button with reasoning
-        prestigeBtn.style.display = 'block';
-        prestigeBtn.querySelector('button').innerText = `BEAT STORY WITH RANK ${heroData.prestige} TO PRESTIGE`;
-        prestigeBtn.querySelector('button').disabled = true;
-        prestigeBtn.querySelector('button').title = "You must complete a Story Mode run with this character's current Prestige Rank first.";
-    } else {
-        prestigeBtn.style.display = 'none';
-    }
-}
-
-function prestigeHero() {
-    if (confirm("Are you sure? This will reset your Skill Tree progress to 0, but increase difficulty and base stats.")) {
-        saveData[selectedHeroType].level = 0;
-        saveData[selectedHeroType].unlocked = 0;
-        saveData[selectedHeroType].prestige++;
-        saveGame();
-        renderSkillTree();
-    }
-}
-
-function getHeroStats(type) {
-    const base = JSON.parse(JSON.stringify(BASE_HERO_STATS[type]));
-    const heroData = saveData[type];
-    const treeData = generateHeroSkillTree(type);
-
-    base.ultModifiers = { damage: 1, speed: 1 };
-
-    // Apply Meta Upgrades (Permanent Shop)
-    base.hp += (saveData.metaUpgrades.health || 0) * 5;
-    base.rangeDmg *= (1 + (saveData.metaUpgrades.power || 0) * 0.01);
-    base.meleeDmg *= (1 + (saveData.metaUpgrades.power || 0) * 0.01);
-    base.speed *= (1 + (saveData.metaUpgrades.swift || 0) * 0.01);
-
-    // Breakdown tracking
-    base.breakdown = {
-        damage: { tree: 0, ach: 0 },
-        health: { tree: 0, ach: 0 },
-        speed: { tree: 0, ach: 0 },
-        cooldown: { tree: 0, ach: 0 },
-        defense: { tree: 0, ach: 0 },
-        projectiles: { tree: 0, ach: 0 },
-        luck: { tree: 0, ach: 0 },
-        explodeChance: { tree: 0, ach: 0 }
-    };
-
-    // New Stats Defaults
-    base.pierce = (type === 'ice') ? 2 : 0;
-    base.blastRadiusMult = 1;
-    base.knockbackMult = 1;
-    base.defense = (saveData.metaUpgrades.defense || 0) * 0.01; // Apply Void Shell
-    base.extraProjectiles = 0;
-    base.meleeRadiusMult = 1;
-    base.explodeChance = 0;
-    base.goldMultiplier = 1; // Initialize gold multiplier
-    base.xpMultiplier = 1 + (saveData.metaUpgrades.wisdom || 0) * 0.02; // Apply Void Mind
-
-    // Earth Hero Stats (Defaults)
-    base.momentumCap = 100;
-    base.ramDmgMult = 1;
-    base.momentumDecayMult = 1;
-
-    const prestigeMult = 1 + (heroData.prestige * 0.2); // Reduced from 0.5 to 0.2
-    base.hp *= prestigeMult;
-    base.rangeDmg *= prestigeMult;
-    base.meleeDmg *= prestigeMult;
-    base.goldMultiplier *= prestigeMult; // Apply prestige to gold gain
-
-    const unlockedCount = heroData.unlocked;
-    for (let i = 0; i < unlockedCount; i++) {
-        const node = treeData[i];
-        if (node.type === 'DAMAGE') { base.rangeDmg *= (1 + node.value); base.breakdown.damage.tree += node.value; }
-        if (node.type === 'HEALTH') { base.hp *= (1 + node.value); base.breakdown.health.tree += node.value; }
-        if (node.type === 'SPEED') { base.speed *= (1 + node.value); base.breakdown.speed.tree += node.value; }
-        if (node.type === 'COOLDOWN') {
-            base.rangeCd *= (1 - node.value);
-            base.meleeCd *= (1 - node.value);
-            base.breakdown.cooldown.tree += node.value;
-        }
-        if (node.type === 'ULT_DAMAGE') base.ultModifiers.damage += node.value;
-        if (node.type === 'ULT_SPEED') base.ultModifiers.speed += node.value;
-
-        // Specifics
-        if (node.type === 'BLAST') base.blastRadiusMult += node.value;
-        if (node.type === 'EXPLODE_CHANCE') { base.explodeChance += node.value; base.breakdown.explodeChance.tree += node.value; }
-        if (node.type === 'KNOCK') base.knockbackMult += node.value;
-        if (node.type === 'PIERCE') base.pierce += node.value;
-        if (node.type === 'SPLIT') {
-            base.extraProjectiles += node.value;
-            base.breakdown.projectiles.tree += node.value;
-            // Nerf damage: 20% reduction per extra projectile (Additive divisor, not compounding)
-            base.rangeDmg /= (1 + (0.2 * node.value));
-        }
-        if (node.type === 'ARMOR') { base.defense += node.value; base.breakdown.defense.tree += node.value; }
-        if (node.type === 'MELEE') base.meleeRadiusMult += node.value;
-
-        // DLC Hook: Apply Node
-        if (window.HERO_LOGIC && window.HERO_LOGIC[type] && window.HERO_LOGIC[type].applySkillNode) {
-            window.HERO_LOGIC[type].applySkillNode(base, node);
-        }
-    }
-
-    // Apply Achievement Bonuses
-    saveData.global.unlockedAchievements.forEach(id => {
-        const ach = ACHIEVEMENTS.find(a => a.id === id);
-        if (ach) {
-            if (ach.bonus.type === 'damage') { base.rangeDmg *= (1 + ach.bonus.val); base.breakdown.damage.ach += ach.bonus.val; }
-            if (ach.bonus.type === 'health') { base.hp *= (1 + ach.bonus.val); base.breakdown.health.ach += ach.bonus.val; }
-            if (ach.bonus.type === 'gold') { base.goldMultiplier += ach.bonus.val; } // Note: Gold isn't in breakdown yet, but works
-
-            // NEW TYPES
-            if (ach.bonus.type === 'speed') {
-                base.speed *= (1 + ach.bonus.val);
-                base.breakdown.speed.ach += ach.bonus.val;
-            }
-            if (ach.bonus.type === 'cooldown') {
-                base.rangeCd *= (1 - ach.bonus.val);
-                base.meleeCd *= (1 - ach.bonus.val);
-                base.breakdown.cooldown.ach += ach.bonus.val;
-            }
-        }
-    });
-
-    base.hp = Math.floor(base.hp);
-    return base;
-}
-
-function getHeroTheme(type) {
-    if (type === 'fire') return { bg: '#2c0b0b', grid: '#521818' };
-    if (type === 'water') return { bg: '#0b1a2c', grid: '#183652' };
-    if (type === 'ice') return { bg: '#1a252a', grid: '#2c3e50' };
-    if (type === 'plant') return { bg: '#0b2c14', grid: '#185226' };
-    if (type === 'metal') return { bg: '#1a1a1a', grid: '#333' };
-    if (type === 'black') return { bg: '#000000', grid: '#2c3e50' }; // Dark theme for Black
-    if (type === 'lightning') return { bg: '#101020', grid: '#303060' }; // Dark Electric Blue
-    if (type === 'earth') return { bg: '#2e2718', grid: '#584930' }; // Dark Earth
-    return { bg: '#1a1a1a', grid: '#333' };
-}
 
 // --- Game State ---
 let arena; // Arena Instance
-let gameRunning = false;
-let gamePaused = false;
-let isLevelingUp = false;
-let isShopping = false;
-let isStatsOpen = false;
+// GLOBAL VARIABLES (Window Scope for UI Access)
+var gameRunning = false;
+var gamePaused = false;
+var isLevelingUp = false;
+var isShopping = false;
+var isStatsOpen = false;
 
 let score = 0;
 let wave = 1;
@@ -1762,7 +1024,7 @@ let companions = [];
 
 // Story Manager
 const storyManager = new StoryManager();
-let isStoryOpen = false;
+var isStoryOpen = false;
 let currentStoryEvent = null;
 
 // Input
@@ -2259,102 +1521,7 @@ function chooseUpgrade(type) {
     setUIState('GAME');
 }
 
-// --- Shop Logic ---
-const SHOP_POOL = [
-    { id: 'dmg', name: 'Sharpening Stone', baseCost: 250, desc: '+5% Damage', action: () => { player.damageMultiplier += 0.05; player.runBuffs.damage += 0.05; } },
-    { id: 'spd', name: 'Light Boots', baseCost: 200, desc: '+5% Speed', action: () => { player.speedMultiplier += 0.05; player.runBuffs.speed += 0.05; } },
-    { id: 'hp', name: 'Heart Container', baseCost: 300, desc: '+20 Max HP', action: () => { player.maxHp += 20; player.hp += 20; player.runBuffs.maxHp += 20; } },
-    { id: 'cd', name: 'Hourglass', baseCost: 350, desc: '-5% Cooldown', action: () => { player.cooldownMultiplier *= 0.95; player.runBuffs.cooldown += 0.05; } },
-    { id: 'crit', name: 'Lucky Charm', baseCost: 400, desc: '+5% Crit Chance', action: () => { player.critChance += 0.05; } },
-    { id: 'def', name: 'Iron Plating', baseCost: 400, desc: '+2% Dmg Reduction', action: () => { player.damageReduction = Math.min(0.75, player.damageReduction + 0.02); player.runBuffs.defense += 0.02; } },
-    { id: 'range', name: 'Magnet', baseCost: 150, desc: '+20 Pickup Range', action: () => { player.pickupRadius += 20; } }
-];
-
-let currentShopItems = [];
-
-function openShop() {
-    isShopping = true;
-    document.getElementById('shop-screen').style.display = 'flex';
-
-    // Generate Shop Items if new visit (empty list)
-    if (!currentShopItems || currentShopItems.length === 0) {
-        currentShopItems = [];
-        // Always add Heal
-        currentShopItems.push({
-            id: 'heal',
-            name: 'Health Potion',
-            baseCost: 100,
-            desc: 'Heal 50 HP',
-            action: () => { player.hp = Math.min(player.hp + 50, player.maxHp); }
-        });
-
-        // Pick 3 random unique items from pool
-        const pool = [...SHOP_POOL];
-        for (let i = 0; i < 3; i++) {
-            if (pool.length === 0) break;
-            const idx = Math.floor(Math.random() * pool.length);
-            currentShopItems.push(pool[idx]);
-            pool.splice(idx, 1);
-        }
-    }
-
-    renderShopItems();
-    setUIState('SHOP');
-}
-
-function renderShopItems() {
-    document.getElementById('shopGoldVal').innerText = player.gold;
-
-    // Update Health UI
-    const updateShopHealth = () => {
-        document.getElementById('shopHealthVal').innerText = Math.ceil(player.hp);
-        document.getElementById('shopMaxHealthVal').innerText = Math.ceil(player.maxHp);
-    };
-    updateShopHealth();
-
-    const container = document.getElementById('shop-container');
-    container.innerHTML = '';
-
-    // Calculate Multipliers
-    // Price increases with wave and items bought
-    const waveMult = 1 + (wave * 0.1);
-    const boughtMult = 1 + ((currentRunStats.itemsBought || 0) * 0.2); // 20% increase per item bought
-
-    currentShopItems.forEach(item => {
-        const cost = Math.floor(item.baseCost * waveMult * boughtMult);
-
-        const div = document.createElement('div');
-        div.className = 'shop-item';
-        div.innerHTML = `
-            <div style="font-size: 24px; font-weight: bold; color: #fff;">${item.name}</div>
-            <div style="color: #aaa; margin: 5px 0;">${item.desc}</div>
-            <div class="shop-cost" style="color: ${player.gold >= cost ? '#f1c40f' : '#e74c3c'}">${cost} Gold</div>
-        `;
-        div.onclick = () => {
-            if (player.gold >= cost) {
-                player.gold -= cost;
-                currentRunStats.moneySpent += cost;
-                if (!currentRunStats.itemsBought) currentRunStats.itemsBought = 0;
-                currentRunStats.itemsBought++;
-
-                item.action();
-
-                showNotification("Purchased!");
-                renderShopItems(); // Re-render to update prices and health
-            } else {
-                showNotification("Not enough Gold!");
-            }
-        };
-        container.appendChild(div);
-    });
-}
-
-function closeShop() {
-    isShopping = false;
-    document.getElementById('shop-screen').style.display = 'none';
-    currentShopItems = []; // Reset for next shop
-    advanceWave();
-}
+// --- Shop Logic moved to UI/Shop.js ---
 
 // --- Story Logic ---
 function triggerStory(completedWave) {
@@ -3066,9 +2233,9 @@ function masterLoop(timestamp) {
         handleGamepadMenu();
 
         // --- MUSEUM STATE ---
-        if (uiState === 'MUSEUM' && museum) {
-            museum.update();
-            museum.draw(ctx);
+        if (uiState === 'MUSEUM' && window.museum) {
+            window.museum.update();
+            window.museum.draw(ctx);
             return; // Skip normal game loop
         }
 

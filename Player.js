@@ -142,8 +142,7 @@ class Player {
         this.maxXp = Math.floor(this.maxXp * 1.2);
         isLevelingUp = true;
 
-        const container = document.getElementById('upgrade-options');
-        container.innerHTML = '';
+        let options = [];
 
         if (this.level % 10 === 0) {
             const formName = this.getFormName();
@@ -157,39 +156,17 @@ class Player {
                 icon: '🌟'
             };
             const pool = [...UPGRADE_POOL].sort(() => 0.5 - Math.random());
-            const options = [transformOption, pool[0]];
-            options.forEach(opt => this.createUpgradeCard(opt, container));
+            options = [transformOption, pool[0]];
         } else {
             const pool = [...UPGRADE_POOL].sort(() => 0.5 - Math.random());
-            const options = pool.slice(0, 2);
-            options.forEach(opt => this.createUpgradeCard(opt, container));
+            options = pool.slice(0, 2);
         }
 
-        document.getElementById('levelup-screen').style.display = 'flex';
-
-        // Trigger UI State for Controller
-        if (window.setUIState) window.setUIState('LEVELUP');
-    }
-
-    createUpgradeCard(opt, container) {
-        // Earth Hero Description Swaps
-        let displayOpt = { ...opt };
-        if (this.type === 'earth') {
-            if (opt.id === 'projectile') {
-                displayOpt.title = 'Ram Damage';
-                displayOpt.desc = '+20% Ram Damage';
-            }
+        if (window.levelUpUI) {
+            window.levelUpUI.showLevelUp(this, options);
+        } else {
+            console.error("LevelUpUI not initialized");
         }
-
-        const card = document.createElement('div');
-        card.className = 'upgrade-card';
-        card.innerHTML = `
-            <div class="upgrade-icon">${displayOpt.icon}</div>
-            <div class="upgrade-title">${displayOpt.title}</div>
-            <div class="upgrade-desc">${displayOpt.desc}</div>
-        `;
-        card.onclick = () => chooseUpgrade(opt.id);
-        container.appendChild(card);
     }
 
     getFormName() {
@@ -1020,3 +997,111 @@ class Player {
         this.meleeCooldown = this.meleeMaxCooldown * this.cooldownMultiplier;
     }
 }
+
+window.getHeroStats = function (type) {
+    const base = JSON.parse(JSON.stringify(BASE_HERO_STATS[type]));
+    const heroData = saveData[type];
+    const treeData = window.generateHeroSkillTree(type);
+
+    base.ultModifiers = { damage: 1, speed: 1 };
+
+    // Apply Meta Upgrades (Permanent Shop)
+    base.hp += (saveData.metaUpgrades.health || 0) * 5;
+    base.rangeDmg *= (1 + (saveData.metaUpgrades.power || 0) * 0.01);
+    base.meleeDmg *= (1 + (saveData.metaUpgrades.power || 0) * 0.01);
+    base.speed *= (1 + (saveData.metaUpgrades.swift || 0) * 0.01);
+
+    // Breakdown tracking
+    base.breakdown = {
+        damage: { tree: 0, ach: 0 },
+        health: { tree: 0, ach: 0 },
+        speed: { tree: 0, ach: 0 },
+        cooldown: { tree: 0, ach: 0 },
+        defense: { tree: 0, ach: 0 },
+        projectiles: { tree: 0, ach: 0 },
+        luck: { tree: 0, ach: 0 },
+        explodeChance: { tree: 0, ach: 0 }
+    };
+
+    // New Stats Defaults
+    base.pierce = (type === 'ice') ? 2 : 0;
+    base.blastRadiusMult = 1;
+    base.knockbackMult = 1;
+    base.defense = (saveData.metaUpgrades.defense || 0) * 0.01; // Apply Void Shell
+    base.extraProjectiles = 0;
+    base.meleeRadiusMult = 1;
+    base.explodeChance = 0;
+    base.goldMultiplier = 1; // Initialize gold multiplier
+    base.xpMultiplier = 1 + (saveData.metaUpgrades.wisdom || 0) * 0.02; // Apply Void Mind
+
+    // Earth Hero Stats (Defaults)
+    base.momentumCap = 100;
+    base.ramDmgMult = 1;
+    base.momentumDecayMult = 1;
+
+    const prestigeMult = 1 + (heroData.prestige * 0.2); // Reduced from 0.5 to 0.2
+    base.hp *= prestigeMult;
+    base.rangeDmg *= prestigeMult;
+    base.meleeDmg *= prestigeMult;
+    base.goldMultiplier *= prestigeMult; // Apply prestige to gold gain
+
+    const unlockedCount = heroData.unlocked;
+    for (let i = 0; i < unlockedCount; i++) {
+        const node = treeData[i];
+        if (node.type === 'DAMAGE') { base.rangeDmg *= (1 + node.value); base.breakdown.damage.tree += node.value; }
+        if (node.type === 'HEALTH') { base.hp *= (1 + node.value); base.breakdown.health.tree += node.value; }
+        if (node.type === 'SPEED') { base.speed *= (1 + node.value); base.breakdown.speed.tree += node.value; }
+        if (node.type === 'COOLDOWN') {
+            base.rangeCd *= (1 - node.value);
+            base.meleeCd *= (1 - node.value);
+            base.breakdown.cooldown.tree += node.value;
+        }
+        if (node.type === 'ULT_DAMAGE') base.ultModifiers.damage += node.value;
+        if (node.type === 'ULT_SPEED') base.ultModifiers.speed += node.value;
+
+        // Specifics
+        if (node.type === 'BLAST') base.blastRadiusMult += node.value;
+        if (node.type === 'EXPLODE_CHANCE') { base.explodeChance += node.value; base.breakdown.explodeChance.tree += node.value; }
+        if (node.type === 'KNOCK') base.knockbackMult += node.value;
+        if (node.type === 'PIERCE') base.pierce += node.value;
+        if (node.type === 'SPLIT') {
+            base.extraProjectiles += node.value;
+            base.breakdown.projectiles.tree += node.value;
+            // Nerf damage: 20% reduction per extra projectile (Additive divisor, not compounding)
+            base.rangeDmg /= (1 + (0.2 * node.value));
+        }
+        if (node.type === 'ARMOR') { base.defense += node.value; base.breakdown.defense.tree += node.value; }
+        if (node.type === 'MELEE') base.meleeRadiusMult += node.value;
+
+        // DLC Hook: Apply Node
+        if (window.HERO_LOGIC && window.HERO_LOGIC[type] && window.HERO_LOGIC[type].applySkillNode) {
+            window.HERO_LOGIC[type].applySkillNode(base, node);
+        }
+    }
+
+    // Apply Achievement Bonuses
+    if (saveData.global.unlockedAchievements) {
+        saveData.global.unlockedAchievements.forEach(id => {
+            const ach = ACHIEVEMENTS.find(a => a.id === id);
+            if (ach) {
+                if (ach.bonus.type === 'damage') { base.rangeDmg *= (1 + ach.bonus.val); base.breakdown.damage.ach += ach.bonus.val; }
+                if (ach.bonus.type === 'health') { base.hp *= (1 + ach.bonus.val); base.breakdown.health.ach += ach.bonus.val; }
+                if (ach.bonus.type === 'gold') { base.goldMultiplier += ach.bonus.val; } // Note: Gold isn't in breakdown yet, but works
+
+                // NEW TYPES
+                if (ach.bonus.type === 'speed') {
+                    base.speed *= (1 + ach.bonus.val);
+                    base.breakdown.speed.ach += ach.bonus.val;
+                }
+                if (ach.bonus.type === 'cooldown') {
+                    base.rangeCd *= (1 - ach.bonus.val);
+                    base.meleeCd *= (1 - ach.bonus.val);
+                    base.breakdown.cooldown.ach += ach.bonus.val;
+                }
+            }
+        });
+    }
+
+    base.hp = Math.floor(base.hp);
+    return base;
+};

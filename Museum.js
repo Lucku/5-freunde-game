@@ -1002,3 +1002,10 @@ class MuseumEntity {
         ctx.restore();
     }
 }
+
+// Global Museum Helpers
+window.openMuseum = function () {
+    document.getElementById('menu-overlay').style.display = 'none';
+    window.museum = new Museum();
+    if (window.setUIState) window.setUIState('MUSEUM');
+};

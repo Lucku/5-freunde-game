@@ -641,3 +641,15 @@ class Trap {
     }
 }
 
+window.getHeroTheme = function (type) {
+    if (type === 'fire') return { bg: '#2c0b0b', grid: '#521818' };
+    if (type === 'water') return { bg: '#0b1a2c', grid: '#183652' };
+    if (type === 'ice') return { bg: '#1a252a', grid: '#2c3e50' };
+    if (type === 'plant') return { bg: '#0b2c14', grid: '#185226' };
+    if (type === 'metal') return { bg: '#1a1a1a', grid: '#333' };
+    if (type === 'black') return { bg: '#000000', grid: '#2c3e50' };
+    if (type === 'lightning') return { bg: '#101020', grid: '#303060' };
+    if (type === 'earth') return { bg: '#2e2718', grid: '#584930' };
+    return { bg: '#1a1a1a', grid: '#333' };
+};
+
