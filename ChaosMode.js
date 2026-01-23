@@ -515,6 +515,7 @@ function completeChaosObjective(success) {
         }
         showNotification(`CHALLENGE COMPLETE! ${reward.icon} ${reward.name}`);
         createExplosion(player.x, player.y, '#2ecc71', 30);
+        if (typeof audioManager !== 'undefined') audioManager.play('challenge_success');
 
         // Apply Stat from Reward
         if (reward.id === 'damage') player.damageMultiplier = (player.damageMultiplier || 1) + reward.val;
@@ -547,6 +548,7 @@ function completeChaosObjective(success) {
             hud.innerHTML = `CHALLENGE FAILED`;
         }
         showNotification(`CHALLENGE FAILED`);
+        if (typeof audioManager !== 'undefined') audioManager.play('challenge_fail');
         currentChaosObjective.failed = true;
     }
 }

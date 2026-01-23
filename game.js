@@ -1187,7 +1187,7 @@ function showNotification(text) {
 // --- Daily Challenge Logic ---
 let activeMutators = [];
 let isDailyMode = false;
-let isChaosShuffleMode = false;
+var isChaosShuffleMode = false;
 let forcedEnemyType = null;
 
 function getDailySeed() {
@@ -2800,6 +2800,8 @@ function masterLoop(timestamp) {
                         `;
                         document.body.appendChild(notif);
 
+                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_card');
+
                         // Trigger animation
                         setTimeout(() => notif.classList.add('show'), 10);
 
@@ -2828,10 +2830,13 @@ function masterLoop(timestamp) {
 
                         showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
                         createExplosion(player.x, player.y, '#fff');
+                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_mask');
+
                         // Unlock Achievement if exists?
                     } else {
                         saveData[player.type].level++;
                         saveGame();
+                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_mask');
                         showNotification("PERMANENT LEVEL UP!");
                         createExplosion(player.x, player.y, '#f1c40f');
                     }

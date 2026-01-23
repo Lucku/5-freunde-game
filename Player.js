@@ -204,6 +204,7 @@ class Player {
             this.isDashing = true;
             this.dashFrames = 10;
             this.dashCooldown = this.dashMaxCooldown;
+            if (typeof audioManager !== 'undefined') audioManager.play('dash');
             createExplosion(this.x, this.y, '#fff');
         }
     }
@@ -460,7 +461,7 @@ class Player {
                 projectiles.push(p);
             }
         } else if (this.type === 'metal') {
-            if (typeof audioManager !== 'undefined') audioManager.play('special_iron');
+            if (typeof audioManager !== 'undefined') audioManager.play('special_metal');
             // Invincible
             let duration = 300;
             if (has('m2')) duration *= 1.5; // +50% Duration

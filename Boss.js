@@ -306,6 +306,7 @@ class Boss {
                     }
                     this.attackCooldown = 180;
                 } else if (this.type === 'SPEEDSTER') {
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
                     const a = Math.atan2(player.y - this.y, player.x - this.x);
                     const vel = { x: Math.cos(a) * 10, y: Math.sin(a) * 10 };
                     projectiles.push(new Projectile(this.x, this.y, vel, this.damage * 0.8, '#f1c40f', 5, 'enemy', 0, true));
@@ -340,6 +341,7 @@ class Boss {
                     this.attackCooldown = 200;
                 } else if (this.type === 'NOVA') {
                     // Spiral Pattern
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
                     for (let i = 0; i < 3; i++) {
                         const a = (frame * 0.1) + (Math.PI * 2 / 3) * i;
                         const vel = { x: Math.cos(a) * 4, y: Math.sin(a) * 4 };
@@ -348,6 +350,7 @@ class Boss {
                     this.attackCooldown = 5; // Very fast fire rate
                 } else if (this.type === 'HYDRA') {
                     // Triple Shot
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
                     const baseAngle = Math.atan2(player.y - this.y, player.x - this.x);
                     for (let i = -1; i <= 1; i++) {
                         const a = baseAngle + (i * 0.3);

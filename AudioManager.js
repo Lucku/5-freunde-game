@@ -17,15 +17,7 @@ class AudioManager {
             battle_thunder_2: new Audio('dlc/tournament_of_thunder/music/battle_2.wav'),
             zeus: new Audio('dlc/tournament_of_thunder/music/boss_zeus.wav'),
 
-            // SFX
-            level_up: new Audio('music/sounds/level_up.wav'),
-            pickup_card: new Audio('music/sounds/pick_up_collectors_card.wav'),
-            pickup_mask: new Audio('music/sounds/pick_up_golden_mark.wav'),
-            dash: new Audio('music/sounds/dash_all.wav'),
-            boss_shooter: new Audio('music/sounds/attack_boss_shooter.wav'),
-            challenge_success: new Audio('music/sounds/challenge_success.wav'),
-            challenge_fail: new Audio('music/sounds/challenge_fail.wav'),
-
+            // Attack SFX
             attack_fire: new Audio('music/sounds/attack_fire.wav'),
             attack_water: new Audio('music/sounds/attack_water.wav'),
             attack_ice: new Audio('music/sounds/attack_ice.wav'),
@@ -88,16 +80,6 @@ class AudioManager {
 
         this.tracks.zeus.loop = true;
         this.tracks.zeus.volume = 0.6;
-
-        if (this.tracks.level_up) {
-            this.tracks.level_up.volume = 0.5;
-        }
-        if (this.tracks.pickup_card) this.tracks.pickup_card.volume = 0.5;
-        if (this.tracks.pickup_mask) this.tracks.pickup_mask.volume = 0.6;
-        if (this.tracks.dash) this.tracks.dash.volume = 0.4;
-        if (this.tracks.boss_shooter) this.tracks.boss_shooter.volume = 0.4;
-        if (this.tracks.challenge_success) this.tracks.challenge_success.volume = 0.6;
-        if (this.tracks.challenge_fail) this.tracks.challenge_fail.volume = 0.6;
 
         if (this.tracks.attack_earth_roll) {
             this.tracks.attack_earth_roll.loop = true;
