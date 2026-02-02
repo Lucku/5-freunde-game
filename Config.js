@@ -35,7 +35,8 @@ const defaultConfig = {
     showFPS: false
 };
 
-let gameConfig = JSON.parse(JSON.stringify(defaultConfig));
+var gameConfig = JSON.parse(JSON.stringify(defaultConfig));
+if (typeof window !== 'undefined') window.gameConfig = gameConfig;
 
 function loadConfig() {
     let raw = null;
@@ -113,3 +114,4 @@ function toggleSetting(key) {
     }
     return false;
 }
+window.toggleSetting = toggleSetting;

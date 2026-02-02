@@ -7,9 +7,15 @@ class Altar {
         this.container.innerHTML = '';
 
         // 1. Render Hero Columns
-        const heroes = ['fire', 'water', 'ice', 'plant', 'metal', 'earth', 'lightning'];
+        // Dynamic Hero List from BASE_HERO_STATS
+        let heroes = ['fire', 'water', 'ice', 'plant', 'metal']; // Fallback
+        if (typeof BASE_HERO_STATS !== 'undefined') {
+            heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
+        }
 
         heroes.forEach(hero => {
+            if (!ALTAR_TREE[hero]) return; // Skip if no tree
+
             const col = document.createElement('div');
             col.className = 'altar-column';
             col.style.cssText = `

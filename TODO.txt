@@ -1,7 +1,8 @@
 General:
 
-- Voice all memory shards with different voices
+- Add sound for Titan boss charge attack
 
-Rise of the Rock:
+Champions of Chaos:
 
-- Elaborate memory shards
+- Fix skill tree nodes rendering correctly
+- Add voice lines, music and memory shards

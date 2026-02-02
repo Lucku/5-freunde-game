@@ -26,9 +26,32 @@ class ShopUI {
         const container = document.getElementById('perm-shop-container');
         container.innerHTML = '';
 
-        if (typeof PERM_UPGRADES !== 'undefined') {
-            for (let key in PERM_UPGRADES) {
-                const up = PERM_UPGRADES[key];
+        // Dynamic Skill Tree selection
+        let upgradesToRender = PERM_UPGRADES;
+        const selectedHero = window.selectedHeroType || 'fire'; // Default
+
+        if (window.HERO_LOGIC && window.HERO_LOGIC[selectedHero] && window.HERO_LOGIC[selectedHero].permUpgrades) {
+            upgradesToRender = window.HERO_LOGIC[selectedHero].permUpgrades;
+        }
+
+        if (typeof upgradesToRender !== 'undefined') {
+            for (let key in upgradesToRender) {
+                const up = upgradesToRender[key];
+                // Use a hero-specific key prefix if the pool is custom, to avoid shared progress with global stats
+                // BUT user might want shared progress? "fleshed out skill tree that are specific".
+                // Usually specific trees mean specific progress.
+                // However, the `metaUpgrades` object is global. 
+                // To keep it simple, we'll map them to the same keys (health, greed) if possible, OR use new keys.
+                // If I use new keys, I need to ensure `player.js` applies them.
+                // Current `Player.js` applies `window.saveData.metaUpgrades.health` etc.
+                // So if I change the key names, I must update Player.js logic or map them.
+
+                // DECISION: For now, I will reuse the keys 'health', 'greed', etc. but allow checking for custom keys too.
+                // But the user wants "specific skill sets". This implies different buffs.
+                // If I add 'void_mastery', Player.js won't know what to do with it.
+                // I will add a Generic Meta Upgrade Applicator in Player.js later if needed, but for now let's assume they might reuse keys or map to existing stats.
+
+                // Actually, let's just stick to the rendering logic here.
                 const level = window.saveData.metaUpgrades[key] || 0;
                 const cost = Math.floor(up.baseCost * Math.pow(up.costMult, level));
 

@@ -443,6 +443,14 @@ class BiomeZone {
             ctx.fillStyle = 'rgba(50, 50, 80, 0.4)'; // Dark Thundercloud
             ctx.strokeStyle = '#ffff00'; // Electric Yellow Outline
             ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 150) * 0.2; // Rapid flickering
+        } else if (this.type === 'VOID') {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Deep Void
+            ctx.strokeStyle = '#8e44ad'; // Purple Outline
+            ctx.globalAlpha = 0.8;
+        } else if (this.type === 'GLITCH') {
+            ctx.fillStyle = Math.random() < 0.1 ? '#fff' : 'rgba(0, 188, 212, 0.2)'; // Glitchy Clear/White
+            ctx.strokeStyle = '#00bcd4';
+            ctx.globalAlpha = 0.6 + Math.random() * 0.4;
         }
 
         ctx.fillRect(this.x, this.y, this.w, this.h);
@@ -650,6 +658,7 @@ window.getHeroTheme = function (type) {
     if (type === 'black') return { bg: '#000000', grid: '#2c3e50' };
     if (type === 'lightning') return { bg: '#101020', grid: '#303060' };
     if (type === 'earth') return { bg: '#2e2718', grid: '#584930' };
+    if (type === 'gravity') return { bg: '#1a0b2e', grid: '#4a235a' };
     return { bg: '#1a1a1a', grid: '#333' };
 };
 

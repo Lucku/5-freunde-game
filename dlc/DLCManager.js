@@ -11,12 +11,17 @@ class DLCManager {
                 title: "The Tournament of Thunder",
                 desc: "Enter the Cloud Kingdom! Introduces the Lightning Hero, Cloud Biome, and the legendary Tournament.",
                 icon: "⚡"
+            },
+            'champions_of_chaos': {
+                title: "Champions of Chaos",
+                desc: "Defy gravity! Introduces the new Purple Hero 'Gravity', a chaotic playstyle, a distorted dimension, and a story of entropy.",
+                icon: "🌌"
             }
         };
     }
 
     getDLCList() {
-        const enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock"]');
+        const enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos"]');
         return Object.keys(this.availableDLCs).map(id => ({
             id: id,
             ...this.availableDLCs[id],

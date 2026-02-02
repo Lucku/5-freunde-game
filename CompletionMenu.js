@@ -94,6 +94,22 @@ class CompletionMenu {
                 continue;
             }
 
+            if (hero === 'gravity' || hero === 'void') { // Champions of Chaos DLC
+                const stories = MEMORY_STORIES[hero];
+                // Champions of Chaos shares one DLC entry but separate memory tracks or just grouped?
+                // Grouping them under "Champions of Chaos"
+                const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
+                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                if (!Array.isArray(unlocked)) {
+                    for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
+                }
+
+                stories.forEach((story, i) => {
+                    addToDLC('Champions of Chaos', 'Memories', unlockedIndices.includes(i), `${hero.charAt(0).toUpperCase() + hero.slice(1)} Shard #${i + 1}`);
+                });
+                continue;
+            }
+
             const stories = MEMORY_STORIES[hero];
             const heroName = hero.charAt(0).toUpperCase() + hero.slice(1);
 
@@ -129,6 +145,14 @@ class CompletionMenu {
             // DLC Check
             if (ach.id.startsWith('rock_')) {
                 addToDLC('Rise of the Rock', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
+                return;
+            }
+            if (ach.id.startsWith('thunder_')) {
+                addToDLC('Tournament of Thunder', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
+                return;
+            }
+            if (ach.id.startsWith('chaos_') || ach.id.includes('gravity') || ach.id.includes('void') || ach.id === 'ENTROPY_LORD' || ach.id === 'GALAXY_S') {
+                addToDLC('Champions of Chaos', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
                 return;
             }
             if (ach.id.startsWith('thunder_')) {
@@ -202,6 +226,11 @@ class CompletionMenu {
             if (evt.id && evt.id.startsWith('thunder_')) {
                 const isUnlocked = saveData.story.unlockedChapters.includes(evt.id);
                 addToDLC('Tournament of Thunder', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
+                return;
+            }
+            if (evt.id && evt.id.startsWith('chaos_')) {
+                const isUnlocked = saveData.story.unlockedChapters.includes(evt.id);
+                addToDLC('Champions of Chaos', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
                 return;
             }
 

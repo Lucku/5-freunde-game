@@ -33,7 +33,7 @@ class LevelUpUI {
 
         document.getElementById('levelup-screen').style.display = 'flex';
         if (window.setUIState) window.setUIState('LEVELUP');
-        
+
         if (typeof audioManager !== 'undefined') {
             audioManager.play('level_up');
         }
@@ -49,7 +49,7 @@ class LevelUpUI {
             player.meleeRadius *= 1.25;
         }
         else if (type === 'projectile') {
-            if (player.heroType === 'EARTH') {
+            if (player.type === 'earth') {
                 // Earth Hero: Increase Ram Damage
                 player.stats.ramDmgMult = (player.stats.ramDmgMult || 1) + 0.2; // +20% Ram Damage
                 if (window.showNotification) window.showNotification("RAM DAMAGE INCREASED!");

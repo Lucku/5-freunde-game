@@ -155,10 +155,23 @@ class Player {
                 desc: desc,
                 icon: '🌟'
             };
-            const pool = [...UPGRADE_POOL].sort(() => 0.5 - Math.random());
+
+            // Check for Hero-Specific Upgrade Pool
+            let currentPool = UPGRADE_POOL;
+            if (window.HERO_LOGIC && window.HERO_LOGIC[this.type] && window.HERO_LOGIC[this.type].upgradePool) {
+                currentPool = window.HERO_LOGIC[this.type].upgradePool;
+            }
+
+            const pool = [...currentPool].sort(() => 0.5 - Math.random());
             options = [transformOption, pool[0]];
         } else {
-            const pool = [...UPGRADE_POOL].sort(() => 0.5 - Math.random());
+            // Check for Hero-Specific Upgrade Pool
+            let currentPool = UPGRADE_POOL;
+            if (window.HERO_LOGIC && window.HERO_LOGIC[this.type] && window.HERO_LOGIC[this.type].upgradePool) {
+                currentPool = window.HERO_LOGIC[this.type].upgradePool;
+            }
+
+            const pool = [...currentPool].sort(() => 0.5 - Math.random());
             options = pool.slice(0, 2);
         }
 

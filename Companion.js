@@ -21,6 +21,8 @@ class Companion {
             case 'plant': return '#2ecc71';
             case 'metal': return '#95a5a6';
             case 'water': return '#2980b9';
+            case 'gravity': return '#8e44ad';
+            case 'void': return '#00bcd4';
             default: return '#ffffff';
         }
     }
