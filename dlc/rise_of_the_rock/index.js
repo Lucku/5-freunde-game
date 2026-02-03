@@ -2,7 +2,7 @@
 
 const RISE_OF_THE_ROCK = {
     id: 'rise_of_the_rock',
-    name: "The Rise of the Rock",
+    name: "Rise of the Rock",
     hero: 'earth',
     description: "Introduces the Earth Hero, Rock Biome, and a new Story Campaign.",
 

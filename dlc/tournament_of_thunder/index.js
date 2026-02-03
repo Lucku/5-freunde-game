@@ -2,7 +2,7 @@
 
 const TOURNAMENT_OF_THUNDER = {
     id: 'tournament_of_thunder',
-    name: "The Tournament of Thunder",
+    name: "Tournament of Thunder",
     hero: 'lightning',
     description: "Enter the Cloud Kingdom! Introduces the Lightning Hero, Cloud Biome, and the legendary Tournament.",
 

@@ -72,6 +72,29 @@ class MainMenuUI {
         });
 
         this.updateStoryButton();
+        this.updateSkillTreeBadge();
+    }
+
+    updateSkillTreeBadge() {
+        const badge = document.getElementById('skill-tree-badge');
+        if (!badge) return;
+
+        const hero = window.selectedHeroType || 'fire';
+        if (window.saveData && window.saveData[hero]) {
+            const data = window.saveData[hero];
+            const level = data.level || 0;
+            const unlocked = data.unlocked || 0;
+            const points = level - unlocked;
+
+            if (points > 0) {
+                badge.style.display = 'inline-block';
+                badge.innerText = "!";
+            } else {
+                badge.style.display = 'none';
+            }
+        } else {
+            badge.style.display = 'none';
+        }
     }
 
     updateStoryButton() {

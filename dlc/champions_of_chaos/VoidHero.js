@@ -14,7 +14,7 @@ if (typeof BASE_HERO_STATS !== 'undefined') {
             rangeCd: 180, // Much slower (3s)
             meleeCd: 30, // Very fast melee
             meleeRadiusMult: 1.5, // Base large swipe
-            projectileSpeed: 3, // Very Slow
+            projectileSpeed: 5, // Very Slow
             projectileSize: 5,
             knockback: 5
         };
@@ -83,7 +83,7 @@ window.HERO_LOGIC['void'] = {
         player.speedMultiplier = 1.2;
         player.stats.meleeCd = 0.5; // Fast attacks
         player.stats.meleeRadiusMult = player.stats.meleeRadiusMult || 1.5; // Big swipes (allow tree growth)
-        
+
         // Enforce Decoy Pacing
         player.stats.rangeCd = 120;
         player.stats.projectileSpeed = 3;
@@ -149,7 +149,7 @@ window.HERO_LOGIC['void'] = {
                     size: size,
                     color: player.riftColor || '#00bcd4',
                     dmg: dmg,
-                    life: 60,
+                    life: 100, // Increased from 60 to 100 for better range/decoy duration
                     type: 'GLITCH_BOLT',
                     pierce: 1,
                     isCustom: true,

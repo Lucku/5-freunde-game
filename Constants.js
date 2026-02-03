@@ -178,7 +178,12 @@ const COLLECTOR_CARDS = {
     // DLC: Tournament of Thunder
     ...createCardSet('CLOUD_BAT', 'Cloud Bat', '#90a4ae', 'Cloud Bats move 50% slower', { type: 'special', id: 'CLOUD_BAT_SLOW' }),
     ...createCardSet('STORM_ELEMENTAL', 'Storm Elemental', '#fbc02d', '+20% Damage vs Storm Elementals', { type: 'damage_vs', val: 0.2, target: 'STORM_ELEMENTAL' }),
-    ...createCardSet('ZEUS_BOT', 'Zeus Bot', '#fff', 'Zeus Bots do not revive minions', { type: 'special', id: 'ZEUS_BOT_NERF' })
+    ...createCardSet('ZEUS_BOT', 'Zeus Bot', '#fff', 'Zeus Bots do not revive minions', { type: 'special', id: 'ZEUS_BOT_NERF' }),
+
+    // DLC: Champions of Chaos
+    ...createCardSet('VOID_WALKER', 'Void Walker', '#4a235a', 'Void Walkers have 20% less HP', { type: 'damage_vs', val: 0.2, target: 'VOID_WALKER' }),
+    ...createCardSet('GLITCH', 'Glitch', '#ff00ff', 'Glitch teleport range -50%', { type: 'special', id: 'GLITCH_TELE_NERF' }),
+    ...createCardSet('ENTROPY_MAGE', 'Entropy Mage', '#9b59b6', 'Enemy Projectiles move 50% slower', { type: 'special', id: 'ENTROPY_PROJ_SLOW' })
 };
 
 const MUTATORS = [

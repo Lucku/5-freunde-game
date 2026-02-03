@@ -275,6 +275,11 @@ class CompletionMenu {
                 return;
             }
 
+            if (['VOID', 'GLITCH', 'ENTROPY'].includes(type) || ['VOID_WALKER', 'ENTROPY_MAGE'].includes(type)) {
+                addToDLC('Champions of Chaos', 'Cards', saveData.collection.includes(id), card.name);
+                return;
+            }
+
             // Map type to nice name if needed, or just use type
             const typeName = type.charAt(0) + type.slice(1).toLowerCase();
 
@@ -309,6 +314,26 @@ class CompletionMenu {
                 addToDLC('Rise of the Rock', 'Altar', prestige >= node.req, `${node.name} (Req: Lv ${node.req})`);
             });
         }
+
+        // Tournament of Thunder Altar (DLC)
+        if (ALTAR_TREE['lightning']) {
+            const nodes = ALTAR_TREE['lightning'];
+            const prestige = saveData['lightning'] ? (saveData['lightning'].prestige || 0) : 0;
+            nodes.forEach(node => {
+                addToDLC('Tournament of Thunder', 'Altar', prestige >= node.req, `${node.name} (Req: Lv ${node.req})`);
+            });
+        }
+
+        // Champions of Chaos Altar (DLC)
+        ['gravity', 'void'].forEach(hero => {
+            if (ALTAR_TREE[hero]) {
+                 const nodes = ALTAR_TREE[hero];
+                 const prestige = saveData[hero] ? (saveData[hero].prestige || 0) : 0;
+                 nodes.forEach(node => {
+                    addToDLC('Champions of Chaos', 'Altar', prestige >= node.req, `${node.name} (Req: Lv ${node.req})`);
+                });
+            }
+        });
 
         ['fire', 'water', 'ice', 'plant', 'metal'].forEach(hero => {
             const heroName = hero.charAt(0).toUpperCase() + hero.slice(1);
