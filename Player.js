@@ -275,8 +275,8 @@ class Player {
         if (this.customSpecial) {
             if (this.customSpecial()) {
                 this.specialCooldown = this.specialMaxCooldown * this.cooldownMultiplier;
-                return;
             }
+            return; // Custom logic overrides default completely (prevents fallback cooldown)
         }
 
         showNotification(`${this.specialName}!`);
@@ -730,7 +730,7 @@ class Player {
         }
 
         if (this.isDashing) {
-            currentSpeed *= 4;
+            currentSpeed *= 4 * (this.dashSpeedMult || 1);
             this.dashFrames--;
             if (this.dashFrames <= 0) this.isDashing = false;
             if (frame % 2 === 0) particles.push(new Particle(this.x, this.y, this.stats.color));

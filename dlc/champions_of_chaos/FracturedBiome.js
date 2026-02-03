@@ -30,7 +30,7 @@ class FracturedBiome {
         }
     }
 
-    update(player) {
+    update(arena, player) {
         // Biome Effect: Screen Tearing / Random Teleportation of enemies
         this.pulseTimer++;
 
@@ -45,15 +45,19 @@ class FracturedBiome {
         }
 
         // Visuals: Binary Rain / Squares
-        if (Math.random() < 0.2) {
+        // Increase density and ensure they spawn around player correctly
+        // Since update(arena, player) was likely previously update(player), the args were mismatched.
+
+        if (player && Math.random() < 0.4) {
             this.particles.push({
-                x: player.x + (Math.random() - 0.5) * 1200,
-                y: player.y + (Math.random() - 0.5) * 800,
+                x: player.x + (Math.random() - 0.5) * 1400,
+                y: player.y + (Math.random() - 0.5) * 900,
                 vx: 0,
-                vy: 5 + Math.random() * 5, // Falling
-                life: 60,
-                color: Math.random() < 0.5 ? '#00bcd4' : '#0f0',
-                char: Math.random() > 0.5 ? '1' : '0'
+                vy: 5 + Math.random() * 5, // Falling speed
+                life: 120,
+                color: Math.random() < 0.2 ? '#fff' : (Math.random() < 0.5 ? '#00bcd4' : '#0f0'),
+                char: Math.random() > 0.5 ? '1' : '0',
+                size: 10 + Math.random() * 10
             });
         }
 
@@ -63,17 +67,35 @@ class FracturedBiome {
             p.x += p.vx;
             p.y += p.vy;
             p.life--;
+
+            // Random Glitch: Change char
+            if (Math.random() < 0.1) p.char = Math.random() > 0.5 ? '1' : '0';
+
             if (p.life <= 0) this.particles.splice(i, 1);
         }
     }
 
-    draw(ctx) {
+    draw(ctx, arena) {
         // Draw Particles (Matrix Rain)
-        ctx.font = "12px monospace";
+        const isGlitch = (Math.random() < 0.05);
+        ctx.font = isGlitch ? "bold 16px Courier New" : "14px monospace";
+
         this.particles.forEach(p => {
-            ctx.fillStyle = p.color;
+            const alpha = Math.min(1, p.life / 20);
+            ctx.fillStyle = p.color; // Reset color
+            ctx.globalAlpha = alpha;
+
+            if (isGlitch) {
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = p.color;
+            }
+
+            // Fix: fillText uses current fillStyle
             ctx.fillText(p.char, p.x, p.y);
+
+            ctx.shadowBlur = 0;
         });
+        ctx.globalAlpha = 1;
     }
 }
 

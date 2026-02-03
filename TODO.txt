@@ -4,5 +4,4 @@ General:
 
 Champions of Chaos:
 
-- Fix skill tree nodes rendering correctly
 - Add voice lines, music and memory shards

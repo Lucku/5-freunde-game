@@ -12,7 +12,7 @@ const CHAMPIONS_OF_CHAOS = {
         // Load Scripts
         if (window.dlcManager) {
             await window.dlcManager.loadScript('dlc/champions_of_chaos/GravityHero.js');
-            await window.dlcManager.loadScript('dlc/champions_of_chaos/VoidReaver.js'); // New Hero
+            await window.dlcManager.loadScript('dlc/champions_of_chaos/VoidHero.js'); // New Hero
             await window.dlcManager.loadScript('dlc/champions_of_chaos/ChaosBiome.js');
             await window.dlcManager.loadScript('dlc/champions_of_chaos/FracturedBiome.js'); // New Biome
             await window.dlcManager.loadScript('dlc/champions_of_chaos/ChaosEnemies.js');

@@ -39,7 +39,7 @@ class ChaosBiome {
         // arena.traps.push(...)
     }
 
-    update(player) {
+    update(arena, player) {
         // Biome Effect: Shifting Gravity
         // Every 10 seconds, gravity pulls the player slightly
         this.gravityShiftTimer++;
@@ -49,26 +49,46 @@ class ChaosBiome {
             const angle = Math.random() * Math.PI * 2;
             this.gravityDir = { x: Math.cos(angle) * 0.5, y: Math.sin(angle) * 0.5 };
             this.gravityShiftTimer = 0;
-            if (typeof showNotification === 'function') showNotification("GRAVITY SHIFT!");
+            if (typeof showNotification === 'function') showNotification("GRAVITY SHIFT!", "#8e44ad");
         }
 
-        // Apply Gravity Force to Player
+        // Apply Gravity Force to Player (with Collision Check)
         if (this.gravityDir.x !== 0 || this.gravityDir.y !== 0) {
-            player.x += this.gravityDir.x * player.speedMultiplier;
-            player.y += this.gravityDir.y * player.speedMultiplier;
+            const dx = this.gravityDir.x * player.speedMultiplier;
+            const dy = this.gravityDir.y * player.speedMultiplier;
+            const nextX = player.x + dx;
+            const nextY = player.y + dy;
+
+            // Check full move
+            if (!arena.checkCollision(nextX, nextY, player.radius)) {
+                player.x = nextX;
+                player.y = nextY;
+            } else {
+                // Try separate axes to allow sliding
+                if (!arena.checkCollision(nextX, player.y, player.radius)) {
+                    player.x = nextX;
+                } else if (!arena.checkCollision(player.x, nextY, player.radius)) {
+                    player.y = nextY;
+                }
+            }
         }
 
-        // Visuals
-        if (Math.random() < 0.1) {
+        // Visuals 1: Ambient Particles (Orbiting dust)
+        if (Math.random() < 0.2) {
             this.particles.push({
-                x: player.x + (Math.random() - 0.5) * 1000,
+                x: player.x + (Math.random() - 0.5) * 1400, // Wide spawn
                 y: player.y + (Math.random() - 0.5) * 1000,
-                vx: (Math.random() - 0.5) * 2,
-                vy: (Math.random() - 0.5) * 2,
-                life: 100,
-                color: Math.random() < 0.5 ? '#8e44ad' : '#000'
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                life: 300,
+                size: Math.random() * 2,
+                color: Math.random() < 0.3 ? '#9b59b6' : '#fff', // Purple or White
+                type: 'DUST'
             });
         }
+
+        // Visuals 2: Background Stars (Static relative to world, but we simulate them)
+        // Actually, let's just make particles that twinkle.
 
         // Update particles
         for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -76,22 +96,46 @@ class ChaosBiome {
             p.x += p.vx;
             p.y += p.vy;
             p.life--;
+
+            // Gravity effect on dust itself
+            p.x += this.gravityDir.x * 2;
+            p.y += this.gravityDir.y * 2;
+
             if (p.life <= 0) this.particles.splice(i, 1);
         }
     }
 
-    draw(ctx) {
-        // Draw Background Overlay
-        ctx.fillStyle = "rgba(26, 11, 46, 0.2)";
-        ctx.fillRect(0, 0, arena.width, arena.height); // Assuming global arena
+    draw(ctx, arena) {
+        // Draw Dark Nebula Overlay (Gradient)
+        // We draw this centered on the player/camera to fake a background
+        const camX = (typeof arena.camera !== 'undefined') ? arena.camera.x : 0;
+        const camY = (typeof arena.camera !== 'undefined') ? arena.camera.y : 0;
+
+        // Background Tint
+        ctx.fillStyle = "rgba(20, 10, 40, 0.3)"; // Deep void purple
+        // We can draw a massive rect covering the visible area
+        // Since ctx is already translated by -camera.x/y, we can just draw huge rects
+        // around the player or just cover the arena bounds if known.
+        // Assuming arena.width is valid:
+        ctx.fillRect(0, 0, arena.width, arena.height);
 
         // Draw Particles
         this.particles.forEach(p => {
+            ctx.globalAlpha = Math.min(1, p.life / 60);
             ctx.fillStyle = p.color;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, Math.random() * 3, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, p.size || 1, 0, Math.PI * 2);
             ctx.fill();
+
+            // Twinkle effect (Glow)
+            if (p.color === '#fff' && Math.random() < 0.05) {
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = "#fff";
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
         });
+        ctx.globalAlpha = 1;
     }
 }
 

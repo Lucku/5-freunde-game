@@ -170,6 +170,16 @@ class Enemy {
         // --- TARGETING LOGIC ---
         let targetX = player.x;
         let targetY = player.y;
+
+        // Hook for Decoys (e.g., Void Hero Projectiles)
+        if (typeof window.getDecoyTarget === 'function') {
+            const decoy = window.getDecoyTarget(this.x, this.y);
+            if (decoy) {
+                targetX = decoy.x;
+                targetY = decoy.y;
+            }
+        }
+
         let isTargetingSapling = false;
 
         if (typeof currentObjective !== 'undefined' && currentObjective && currentObjective.type === 'DEFENSE' && currentObjective.data.sapling) {

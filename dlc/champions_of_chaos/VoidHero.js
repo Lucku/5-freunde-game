@@ -11,9 +11,10 @@ if (typeof BASE_HERO_STATS !== 'undefined') {
             speed: 4.5,
             rangeDmg: 15,
             meleeDmg: 120,
-            rangeCd: 40,
+            rangeCd: 180, // Much slower (3s)
             meleeCd: 30, // Very fast melee
-            projectileSpeed: 10,
+            meleeRadiusMult: 1.5, // Base large swipe
+            projectileSpeed: 3, // Very Slow
             projectileSize: 5,
             knockback: 5
         };
@@ -49,12 +50,43 @@ window.HERO_LOGIC['void'] = {
     upgradePool: VOID_UPGRADE_POOL,
     permUpgrades: VOID_PERM_UPGRADES,
 
+    getSkillTreeWeights: function () {
+        return {
+            'BIG_DASH': 0.25,
+            'COOLDOWN': 0.15,
+            'RIFT_SIZE': 0.15,
+            'SPEED': 0.15,
+            'DAMAGE': 0.15,
+            'HEALTH': 0.10,
+            'ULT_DAMAGE': 0.05
+        };
+    },
+
+    getSkillNodeDetails: function (type, value, desc) {
+        if (type === 'BIG_DASH') return { val: 0.10, desc: "+10% Dash Speed" };
+        if (type === 'RIFT_SIZE') return { val: 0.05, desc: "+5% Rift Size" };
+        return { val: value, desc: desc };
+    },
+
+    applySkillNode: function (base, node) {
+        if (node.type === 'BIG_DASH') {
+            base.dashSpeedMult = (base.dashSpeedMult || 1) + node.value;
+        }
+        if (node.type === 'RIFT_SIZE') {
+            base.meleeRadiusMult = (base.meleeRadiusMult || 1) + node.value;
+        }
+    },
+
     init: function (player) {
         // Base Stats
         player.damageMultiplier = 1.2;
         player.speedMultiplier = 1.2;
         player.stats.meleeCd = 0.5; // Fast attacks
-        player.stats.meleeRadiusMult = 1.5; // Big swipes
+        player.stats.meleeRadiusMult = player.stats.meleeRadiusMult || 1.5; // Big swipes (allow tree growth)
+        
+        // Enforce Decoy Pacing
+        player.stats.rangeCd = 120;
+        player.stats.projectileSpeed = 3;
 
         // Custom Properties
         player.echoes = []; // Stored clones
@@ -311,3 +343,23 @@ window.HERO_LOGIC['void'] = {
         }
     }
 };
+
+// --- Global Decoy Hook for Void Projectiles ---
+if (typeof window.getDecoyTarget === 'undefined') {
+    window.getDecoyTarget = function (enemyX, enemyY) {
+        if (typeof projectiles === 'undefined') return null;
+        let closestDecoy = null;
+        let minDst = 300; // Decoy attraction radius (increased for better aggro)
+
+        for (const p of projectiles) {
+            if (p.type === 'GLITCH_BOLT' && !p.dead) {
+                const dst = Math.hypot(p.x - enemyX, p.y - enemyY);
+                if (dst < minDst) {
+                    minDst = dst;
+                    closestDecoy = p;
+                }
+            }
+        }
+        return closestDecoy;
+    };
+}
