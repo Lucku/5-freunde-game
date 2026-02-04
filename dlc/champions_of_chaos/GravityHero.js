@@ -231,7 +231,7 @@ window.HERO_LOGIC['gravity'] = {
 
         if (player.gravityMass >= 50) {
             player.gravityMass -= 50;
-            if (typeof audioManager !== 'undefined') audioManager.play('special_black');
+            if (typeof audioManager !== 'undefined') audioManager.startLoop('special_gravity');
 
             // Spawn Black Hole
             player.activeBlackHole = new BlackHole(player.x, player.y, player);
@@ -343,6 +343,7 @@ class BlackHole {
     collapse(player) {
         if (!this.active) return;
         this.active = false;
+        if (typeof audioManager !== 'undefined') audioManager.stopLoop('special_gravity');
         player.activeBlackHole = null;
         player.setupSpecial(); // Reset UI icon
 

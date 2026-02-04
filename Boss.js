@@ -210,6 +210,7 @@ class Boss {
                     this.state = 1;
                     this.chargeAngle = angle;
                     this.attackCooldown = 60; // Charge duration
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_rhino_charge');
                 }
             } else if (this.state === 1) {
                 // Charge fast
@@ -284,6 +285,7 @@ class Boss {
                 if (this.telegraphTimer <= 0) {
                     // Execute
                     if (this.telegraphData.type === 'CIRCLE') {
+                        if (typeof audioManager !== 'undefined') audioManager.play('boss_stomp');
                         createExplosion(this.telegraphData.x, this.telegraphData.y, '#e74c3c');
                         // Damage player if in range
                         const dist = Math.hypot(player.x - this.telegraphData.x, player.y - this.telegraphData.y);

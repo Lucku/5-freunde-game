@@ -217,7 +217,10 @@ class Player {
             this.isDashing = true;
             this.dashFrames = 10;
             this.dashCooldown = this.dashMaxCooldown;
-            if (typeof audioManager !== 'undefined') audioManager.play('dash');
+            if (typeof audioManager !== 'undefined') {
+                if (this.type === 'void') audioManager.play('dash_void');
+                else audioManager.play('dash');
+            }
             createExplosion(this.x, this.y, '#fff');
         }
     }

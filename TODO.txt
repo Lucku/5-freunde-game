@@ -1,6 +1,6 @@
 General:
 
-- Add sound for Titan boss charge attack
+- Add sound for when taking damage
 
 Champions of Chaos:
 

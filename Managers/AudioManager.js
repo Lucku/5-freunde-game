@@ -35,6 +35,9 @@ class AudioManager {
             attack_shooter: new Audio('music/sounds/attack_shooter.wav'),
             melee_all: new Audio('music/sounds/melee_all.wav'),
 
+            boss_rhino_charge: new Audio('music/sounds/attack_boss_rhino.wav'),
+            boss_stomp: new Audio('music/sounds/attack_boss_rhino_2.wav'),
+
 
             // Special SFX
             special_black: new Audio('music/sounds/special_black.wav'),
@@ -51,6 +54,14 @@ class AudioManager {
             attack_lightning: new Audio('dlc/tournament_of_thunder/music/sounds/attack_lightning.wav'),
             attack_lightning_charged: new Audio('dlc/tournament_of_thunder/music/sounds/attack_lightning_charged.wav'),
             special_lightning: new Audio('dlc/tournament_of_thunder/music/sounds/special_lightning.wav'),
+
+            // DLC Champions of Chaos
+            attack_gravity: new Audio('dlc/champions_of_chaos/music/sounds/attack_gravity.wav'),
+            special_gravity: new Audio('dlc/champions_of_chaos/music/sounds/special_gravity.wav'),
+            attack_void: new Audio('dlc/champions_of_chaos/music/sounds/attack_void.wav'),
+            melee_void: new Audio('dlc/champions_of_chaos/music/sounds/melee_void.wav'),
+            special_void: new Audio('dlc/champions_of_chaos/music/sounds/special_void.wav'),
+            dash_void: new Audio('dlc/champions_of_chaos/music/sounds/dash_void.wav'),
         };
 
         // Configuration
@@ -98,6 +109,18 @@ class AudioManager {
         if (this.tracks.boss_shooter) this.tracks.boss_shooter.volume = 0.4;
         if (this.tracks.challenge_success) this.tracks.challenge_success.volume = 0.6;
         if (this.tracks.challenge_fail) this.tracks.challenge_fail.volume = 0.6;
+        if (this.tracks.boss_rhino_charge) this.tracks.boss_rhino_charge.volume = 0.6;
+        if (this.tracks.boss_stomp) this.tracks.boss_stomp.volume = 0.6;
+
+        if (this.tracks.special_gravity) {
+            this.tracks.special_gravity.loop = true;
+            this.tracks.special_gravity.volume = 0.6;
+        }
+        if (this.tracks.attack_gravity) this.tracks.attack_gravity.volume = 0.4;
+        if (this.tracks.attack_void) this.tracks.attack_void.volume = 0.4;
+        if (this.tracks.melee_void) this.tracks.melee_void.volume = 0.5;
+        if (this.tracks.special_void) this.tracks.special_void.volume = 0.6;
+        if (this.tracks.dash_void) this.tracks.dash_void.volume = 0.6;
 
         if (this.tracks.attack_earth_roll) {
             this.tracks.attack_earth_roll.loop = true;

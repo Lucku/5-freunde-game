@@ -2973,6 +2973,11 @@ function masterLoop(timestamp) {
                         return; // No damage taken
                     }
 
+                    // Void Hero Realm Shift (Phasing)
+                    if (player.type === 'void' && player.inRealmShift) {
+                        return; // No collision damage
+                    }
+
                     let dmgTaken = 1 * (1 - player.damageReduction);
 
                     // Speedster Explosion

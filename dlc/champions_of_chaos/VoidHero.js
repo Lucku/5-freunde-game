@@ -128,6 +128,8 @@ window.HERO_LOGIC['void'] = {
         // Fires a "Glitch Bolt" using Range Stats
         if (player.rangeCooldown > 0) return;
 
+        if (typeof audioManager !== 'undefined') audioManager.play('attack_void');
+
         // Use standard find nearest logic or random
         let angle = player.aimAngle;
         let speed = player.stats.projectileSpeed;
@@ -194,6 +196,8 @@ window.HERO_LOGIC['void'] = {
         // Dash
         player.x += Math.cos(angle) * 30;
         player.y += Math.sin(angle) * 30;
+
+        if (typeof audioManager !== 'undefined') audioManager.play('melee_void');
 
         // Damage Area
         if (typeof enemies !== 'undefined') {
@@ -278,7 +282,7 @@ window.HERO_LOGIC['void'] = {
 
         player.inRealmShift = true;
         player.realmShiftTimer = 600; // 10s
-        if (typeof audioManager !== 'undefined') audioManager.play('special_fire'); // Placeholder
+        if (typeof audioManager !== 'undefined') audioManager.play('special_void');
         if (typeof showNotification === 'function') showNotification("REALM SHIFT ACTIVATED", "#00bcd4");
 
         // Buffs
