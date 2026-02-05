@@ -360,7 +360,7 @@ class Enemy {
 
     draw() {
         // DLC Hook: Draw
-        if (window.ENEMY_LOGIC && window.ENEMY_LOGIC[this.subType]) {
+        if (window.ENEMY_LOGIC && window.ENEMY_LOGIC[this.subType] && typeof window.ENEMY_LOGIC[this.subType].draw === 'function') {
             if (window.ENEMY_LOGIC[this.subType].draw(ctx, this)) {
                 return;
             }

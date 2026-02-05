@@ -7,7 +7,7 @@ const CHAMPIONS_OF_CHAOS = {
     description: "Introduces 'Gravity' (Purple Hero), the Void Biome, and the Champions of Chaos story campaign.",
 
     load: async function () {
-        console.log("Champions of Chaos: Injecting Content...");
+        console.log("[DLC] Loading: Champions of Chaos...");
 
         // Load Scripts
         if (window.dlcManager) {
@@ -27,12 +27,11 @@ const CHAMPIONS_OF_CHAOS = {
         this.injectAchievements();
         this.injectMemories();
 
-        console.log("Champions of Chaos: Content Injected Successfully.");
+        console.log("[DLC] Loaded: Champions of Chaos (Success)");
     },
 
     injectHero: function () {
         // Hero Definition is handled in GravityHero.js which extends/modifies Player prototype or data
-        console.log("Gravity Hero initialized.");
 
         // Inject into Base Stats for Menu Selection
         if (typeof BASE_HERO_STATS !== 'undefined') {
@@ -129,4 +128,5 @@ const CHAMPIONS_OF_CHAOS = {
 };
 
 // Register
+if (!window.DLC_REGISTRY) window.DLC_REGISTRY = {};
 window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;

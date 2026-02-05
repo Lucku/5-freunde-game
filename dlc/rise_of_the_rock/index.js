@@ -7,7 +7,7 @@ const RISE_OF_THE_ROCK = {
     description: "Introduces the Earth Hero, Rock Biome, and a new Story Campaign.",
 
     load: async function () {
-        console.log("Rise of the Rock: Injecting Content...");
+        console.log("[DLC] Loading: Rise of the Rock...");
 
         // Load Scripts
         if (window.dlcManager) {
@@ -23,6 +23,8 @@ const RISE_OF_THE_ROCK = {
         this.injectAltar();
         this.injectAchievements();
         this.injectMemories();
+
+        console.log("[DLC] Loaded: Rise of the Rock (Success)");
     },
 
     injectMemories: function () {

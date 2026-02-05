@@ -7,7 +7,7 @@ const TOURNAMENT_OF_THUNDER = {
     description: "Enter the Cloud Kingdom! Introduces the Lightning Hero, Cloud Biome, and the legendary Tournament.",
 
     load: async function () {
-        console.log("Tournament of Thunder: Injecting Content...");
+        console.log("[DLC] Loading: Tournament of Thunder...");
 
         // Load Scripts
         if (window.dlcManager) {
@@ -24,6 +24,8 @@ const TOURNAMENT_OF_THUNDER = {
         this.injectAltar();
         this.injectAchievements();
         this.injectMemories();
+
+        console.log("[DLC] Loaded: Tournament of Thunder (Success)");
     },
 
     injectHero: function () {
@@ -268,6 +270,5 @@ const TOURNAMENT_OF_THUNDER = {
 };
 
 // Register via global or Manager
-if (window.DLC_REGISTRY) {
-    window.DLC_REGISTRY['tournament_of_thunder'] = TOURNAMENT_OF_THUNDER;
-}
+if (!window.DLC_REGISTRY) window.DLC_REGISTRY = {};
+window.DLC_REGISTRY['tournament_of_thunder'] = TOURNAMENT_OF_THUNDER;
