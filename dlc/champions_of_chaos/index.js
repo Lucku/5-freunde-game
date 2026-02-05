@@ -100,29 +100,29 @@ const CHAMPIONS_OF_CHAOS = {
     injectMemories: function () {
         if (typeof MEMORY_STORIES !== 'undefined') {
             MEMORY_STORIES['gravity'] = [
-                "Everything falls. That is the only truth I knew.",
-                "I watched stars die and be born again in the silence between worlds.",
-                "They call it chaos, but I see the pattern. The spiral.",
-                "Gravity isn't just a force; it's a hunger. And I am starving.",
-                "The others fight to preserve their elements. I fight to consume them.",
-                "My power scares them. Good. Fear is heavy. Fear grounds them.",
-                "I remember the Void. It wasn't empty. It was full of whispers.",
-                "When I unleash the Galaxy, I feel at home.",
-                "The Entropy Lord thinks he owns the chaos. He is just a tourist.",
-                "I will show them what happens when the laws of physics break."
+                "My name was Aris. I studied the forces that hold the world together.",
+                "I tried to build a containment field for the Entropy. I failed.",
+                "The accident didn't kill me. It made me heavy. Infinite.",
+                "I remember a daughter. Her laugh was lighter than air. I miss that.",
+                "Now I carry the weight of the entire world on my shoulders.",
+                "The Void... Kael. He reminds me of the chaotic code I wrote.",
+                "I pull things close because I am terrified of being alone again.",
+                "The Event Horizon is not a line. It is a doorway I cannot close.",
+                "Every enemy I crush adds to the mass. I am becoming a black hole.",
+                "If I collapse, the whole world goes with me. I must stay strong."
             ];
 
             MEMORY_STORIES['void'] = [
-                "I am the glitch in the system. The error you cannot catch.",
-                "Reality is fragile. I enjoy breaking it.",
-                "They built walls to keep me out. I built a backdoor.",
-                "My echoes remember what I have forgotten.",
-                "Speed is an illusion. I am already there.",
-                "The Void is not empty. It is full of rejected data.",
-                "I don't kill. I merely delete.",
-                "The kernel panicked long before I arrived.",
-                "Do not fear the dark. Fear what hides within the code.",
-                "Sync complete. Resetting universe... Error."
+                "I was initialized as a defense protocol. Target: Entropy.",
+                "System Logs corrupted. Name: Kael. That is what Aris calls me.",
+                "I am not code. I feel... anger? Is this a bug?",
+                "The developers abandoned this server. I am the only admin left.",
+                "Aris is dense. Stubborn. But his logic is sound.",
+                "I remember the first crash. I rebooted, but the world didn't.",
+                "My blade is made of deleted files. The ghosts of the old version.",
+                "I dream of a stable build. A world without glitches.",
+                "The Entropy Mage is a virus. I am the antivirus.",
+                "If I am deleted, back me up in your memory, old friend."
             ];
         }
     }

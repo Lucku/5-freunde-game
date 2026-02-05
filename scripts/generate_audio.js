@@ -5,10 +5,17 @@ const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
 
 // --- Configuration ---
 const API_KEY = process.env.ELEVENLABS_API_KEY;
-const VOICE_ID = 'JBFqnCBsd6RMkjVDRZzb'; // Main Story Voice
 const MODEL_ID = 'eleven_multilingual_v2';
-const STORY_FILE = path.join(__dirname, '../Story.js');
-const OUTPUT_DIR = path.join(__dirname, '../music/story');
+
+// Voices
+const GRAVITY_VOICE_ID = 'esy0r39YPLQjOczyOib8';
+const VOID_VOICE_ID = '69Na567Zr0bPvmBYuGdc';
+
+// Paths for Champions of Chaos DLC
+const STORY_FILE = path.join(__dirname, '../dlc/champions_of_chaos/Story.js');
+const INDEX_FILE = path.join(__dirname, '../dlc/champions_of_chaos/index.js');
+const OUTPUT_DIR = path.join(__dirname, '../dlc/champions_of_chaos/music/story');
+const MEMORY_OUTPUT_DIR = path.join(__dirname, '../dlc/champions_of_chaos/music/memories');
 
 // --- Load Story Data ---
 if (!fs.existsSync(STORY_FILE)) {
@@ -19,8 +26,8 @@ if (!fs.existsSync(STORY_FILE)) {
 const fileContent = fs.readFileSync(STORY_FILE, 'utf8');
 const storyItems = [];
 
-// Parse window.STORY_EVENTS = [ ... ];
-const storyMatch = fileContent.match(/window\.STORY_EVENTS\s*=\s*(\[[\s\S]*?\]);/);
+// Parse window.CHAOS_STORY_CHAPTERS = [ ... ];
+const storyMatch = fileContent.match(/window\.CHAOS_STORY_CHAPTERS\s*=\s*(\[[\s\S]*?\]);/);
 
 if (storyMatch) {
     try {
@@ -28,17 +35,48 @@ if (storyMatch) {
         events.forEach(e => {
             if (e.text) {
                 storyItems.push({
-                    id: e.id || `wave_${e.wave}`, // Ensure ID
-                    text: e.text
+                    id: e.id || `chaos_wave_${e.wave}`,
+                    text: e.text,
+                    hero: e.hero, // 'gravity' or 'void'
+                    isMemory: false
                 });
             }
         });
     } catch (e) {
-        console.error("Error parsing STORY_EVENTS:", e);
+        console.error("Error parsing CHAOS_STORY_CHAPTERS:", e);
     }
+} else {
+    console.error("Could not find window.CHAOS_STORY_CHAPTERS in Story.js");
 }
 
-// Fallback or explicit additions could go here
+// --- Load Memory Data ---
+if (fs.existsSync(INDEX_FILE)) {
+    const indexContent = fs.readFileSync(INDEX_FILE, 'utf8');
+
+    const extractMemories = (hero) => {
+        const regex = new RegExp(`MEMORY_STORIES\\['${hero}'\\]\\s*=\\s*(\\[[\\s\\S]*?\\]);`);
+        const match = indexContent.match(regex);
+        if (match) {
+            try {
+                const memories = eval(match[1]);
+                memories.forEach((text, index) => {
+                    storyItems.push({
+                        id: `memory_${hero}_${index + 1}`,
+                        text: text,
+                        hero: hero,
+                        isMemory: true
+                    });
+                });
+                console.log(`Loaded ${memories.length} memories for ${hero}`);
+            } catch (e) {
+                console.error(`Error parsing memories for ${hero}:`, e);
+            }
+        }
+    };
+
+    extractMemories('gravity');
+    extractMemories('void');
+}
 
 if (storyItems.length === 0) {
     console.error("No story items found to generate.");
@@ -58,33 +96,50 @@ async function generateAudio() {
     if (!fs.existsSync(OUTPUT_DIR)) {
         fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     }
+    if (!fs.existsSync(MEMORY_OUTPUT_DIR)) {
+        fs.mkdirSync(MEMORY_OUTPUT_DIR, { recursive: true });
+    }
 
-    console.log(`Found ${storyItems.length} story events.`);
+    console.log(`Found ${storyItems.length} Chaos story events.`);
 
     for (const item of storyItems) {
         const text = item.text;
         const id = item.id;
-        const filePath = path.join(OUTPUT_DIR, `${id}.mp3`);
+        const hero = item.hero;
+
+        // Determine Output Path
+        const targetDir = item.isMemory ? MEMORY_OUTPUT_DIR : OUTPUT_DIR;
+        const filePath = path.join(targetDir, `${id}.mp3`);
 
         if (fs.existsSync(filePath)) {
             console.log(`Skipping ${id} (already exists)`);
             continue;
         }
 
-        console.log(`Generating audio for ${id}...`);
+        // Select Voice
+        let currentVoiceId = GRAVITY_VOICE_ID; // Default
+        if (hero === 'void') {
+            currentVoiceId = VOID_VOICE_ID;
+        } else if (hero === 'gravity') {
+            currentVoiceId = GRAVITY_VOICE_ID;
+        } else {
+            console.warn(`Unknown hero '${hero}' for ${id}, defaulting to Gravity.`);
+        }
+
+        console.log(`Generating audio for ${id} [${hero ? hero.toUpperCase() : 'UNKNOWN'}]...`);
 
         try {
             const response = await elevenlabs.textToSpeech.convert(
-                VOICE_ID,
+                currentVoiceId,
                 {
                     text: text,
                     model_id: MODEL_ID,
                     output_format: 'mp3_44100_128',
                     voice_settings: {
-                        stability: 1,
-                        similarity_boost: 1,
-                        use_speaker_boost: true,
+                        stability: 0.5,
+                        similarity_boost: 0.75,
                         style: 0,
+                        use_speaker_boost: true
                     },
                 }
             );
@@ -116,7 +171,7 @@ async function generateAudio() {
         }
     }
 
-    console.log("Done!");
+    console.log("Done generating Chaos Audio!");
 }
 
 generateAudio();
