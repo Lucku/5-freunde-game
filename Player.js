@@ -529,6 +529,7 @@ class Player {
             for (let i = 0; i < 20; i++) {
                 const angle = (Math.PI * 2 / 20) * i;
                 const p = new Projectile(this.x, this.y, { x: Math.cos(angle) * 10, y: Math.sin(angle) * 10 }, 30 * this.damageMultiplier, '#2ecc71', 5, 'plant', 10, false);
+                p.owner = this;
                 if (isWildfire) p.color = '#e67e22'; // Orange thorns
                 if (isCryo) p.color = '#aaddff'; // Blue thorns
                 // We need to handle these effects in Projectile collision or just assume basic damage for now
@@ -1076,6 +1077,7 @@ class Player {
 
                     // Spawn exactly at hero position
                     const extraProj = new Projectile(this.x, this.y, spreadVel, extraDmg, this.stats.color, size, this.type, knockback, false, false, isExtraCrit);
+                    extraProj.owner = this;
                     if (pierce > 0) extraProj.pierce = pierce;
                     projectiles.push(extraProj);
                     currentRunStats.missilesFired++; // Track Missiles
