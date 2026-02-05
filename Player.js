@@ -1,6 +1,7 @@
 class Player {
-    constructor(type) {
+    constructor(type, isCPU = false) {
         this.type = type;
+        this.isCPU = isCPU; // Flag for UI suppression
         this.stats = getHeroStats(type);
         this.x = canvas.width / 2;
         this.y = canvas.height / 2;
@@ -110,6 +111,14 @@ class Player {
         if (window.HERO_LOGIC && window.HERO_LOGIC[this.type]) {
             window.HERO_LOGIC[this.type].init(this);
         }
+
+        // Input Controller
+        if (this.isCPU) {
+            // Controller will be assigned by spawner usually, but nice to have distinct check
+            this.controller = null;
+        } else {
+            this.controller = new HumanController(0); // Default to P1 Human
+        }
     }
 
     gainXp(amount) {
@@ -202,9 +211,14 @@ class Player {
 
         if (this.dashCooldown > 0 || this.isDashing) return;
 
+        // Note: Controller already provides dx,dy via getInputs which are stored in this.moveInput eventually in update(), 
+        // but existing logic reads this.moveInput properties. 
+        // We need to ensure moveInput is updated before dash() is called if we call it from controller input loop.
+
         let dx = this.moveInput.x;
         let dy = this.moveInput.y;
 
+        /*
         // Keyboard fallback if moveInput is zero (though update handles this)
         if (dx === 0 && dy === 0) {
             if (keys['w'] || keys['arrowup']) dy = -1;
@@ -212,6 +226,7 @@ class Player {
             if (keys['a'] || keys['arrowleft']) dx = -1;
             if (keys['d'] || keys['arrowright']) dx = 1;
         }
+        */
 
         if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
             this.isDashing = true;
@@ -226,6 +241,35 @@ class Player {
     }
 
     setupSpecial() {
+        // UI updates should only happen for the main player
+        if (this.isCPU) {
+            // Setup internal stats WITHOUT touching DOM
+            if (this.type === 'fire') {
+                this.specialName = "INFERNO";
+                this.specialMaxCooldown = 900;
+            } else if (this.type === 'water') {
+                this.specialName = "TIDAL WAVE";
+                this.specialMaxCooldown = 600;
+            } else if (this.type === 'ice') {
+                this.specialName = "DEEP FREEZE";
+                this.specialMaxCooldown = 1200;
+            } else if (this.type === 'plant') {
+                this.specialName = "OVERGROWTH";
+                this.specialMaxCooldown = 1800;
+            } else if (this.type === 'metal') {
+                this.specialName = "IRON WILL";
+                this.specialMaxCooldown = 1200;
+            } else if (this.type === 'black') {
+                this.specialName = "VOID ERUPTION";
+                this.specialMaxCooldown = 900;
+            } else if (this.type === 'earth') {
+                // Earth special is handled via Transform or custom hook usually
+                this.specialName = "OBSIDIAN FORM";
+                this.specialMaxCooldown = 1200;
+            }
+            return;
+        }
+
         const iconEl = document.getElementById('special-icon');
         if (this.type === 'fire') {
             this.specialName = "INFERNO";
@@ -265,6 +309,21 @@ class Player {
             if (this.type === 'ice' && has('i1')) this.specialMaxCooldown *= 0.9;
             if (this.type === 'plant' && has('p1')) this.specialMaxCooldown *= 0.9;
             if (this.type === 'metal' && has('m1')) this.specialMaxCooldown *= 0.9;
+        }
+    }
+
+    takeDamage(amount) {
+        if (this.isInvincible) return;
+
+        // Apply Defense
+        let actualDamage = amount * (1 - this.damageReduction);
+        if (actualDamage < 0) actualDamage = 0;
+
+        this.hp -= actualDamage;
+
+        // Visual Feedback
+        if (typeof floatingTexts !== 'undefined') {
+            floatingTexts.push(new FloatingText(this.x, this.y - 40, actualDamage.toFixed(0), "#ff0000", 25));
         }
     }
 
@@ -651,6 +710,31 @@ class Player {
         if (keys['a'] || keys['arrowleft']) dx = -1;
         if (keys['d'] || keys['arrowright']) dx = 1;
 
+        // Controller Input
+        if (this.controller) {
+            const input = this.controller.getInput(this);
+            dx = input.x;
+            dy = input.y;
+            this.aimAngle = input.aimAngle;
+            this.usingGamepad = input.usingGamepad;
+
+            if (input.shoot) this.shoot();
+            if (input.melee) this.melee();
+            if (input.dash && !this.isDashing) this.dash();
+            if (input.special) this.useSpecial();
+
+            if (input.pause && this.pauseDebounce <= 0) {
+                if (typeof togglePause === 'function') togglePause();
+                this.pauseDebounce = 30;
+            }
+        }
+
+        /* 
+           Compatibility/Legacy Fallback Removed:
+           Direct Input polling moved to HumanController.
+        */
+
+        /*
         // Gamepad Polling
         const gamepads = navigator.getGamepads();
         let gp = null;
@@ -696,6 +780,7 @@ class Player {
             if (mouse.leftDown) this.shoot();
             if (mouse.rightDown) this.melee();
         }
+        */
 
         // Chaos: Inverted Controls
         if (typeof isChaosActive === 'function' && isChaosActive('INVERTED')) {
@@ -966,6 +1051,7 @@ class Player {
 
             const vel = { x: Math.cos(a) * speed, y: Math.sin(a) * speed };
             const proj = new Projectile(this.x, this.y, vel, finalDmg, color, size, this.type, knockback, false, isExplosive, isCrit);
+            proj.owner = this; // Set Owner for PVP logic
             if (pierce > 0) proj.pierce = pierce;
             projectiles.push(proj);
             currentRunStats.missilesFired++; // Track Missiles
@@ -1010,7 +1096,7 @@ class Player {
         const isCrit = Math.random() < this.critChance;
         const finalDmg = this.stats.meleeDmg * this.damageMultiplier * (isCrit ? this.critMultiplier : 1);
 
-        meleeAttacks.push(new MeleeSwipe(this.x, this.y, angle, finalDmg, this.stats.color, this.meleeRadius, isCrit));
+        meleeAttacks.push(new MeleeSwipe(this.x, this.y, angle, finalDmg, this.stats.color, this.meleeRadius, isCrit, this));
         this.meleeCooldown = this.meleeMaxCooldown * this.cooldownMultiplier;
     }
 }

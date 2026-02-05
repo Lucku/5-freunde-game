@@ -5,3 +5,6 @@ General:
 Champions of Chaos:
 
 - Add voice lines, music and memory shards
+    - boss_entropy_mage.wav
+    - battle_1.wav
+    - battle_2.wav

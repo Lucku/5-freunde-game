@@ -124,6 +124,20 @@ class Arena {
                     }
                 }
             }
+        } else if (layout === 'VERSUS_1V1') {
+            // Symmetrical 1v1 Layout
+            // Central cover (small)
+            this.obstacles.push(new Obstacle(cx - 50, cy - 150, 100, 300));
+
+            // Flanking pillars
+            this.obstacles.push(new Obstacle(cx - 600, cy - 400, 150, 150));
+            this.obstacles.push(new Obstacle(cx + 450, cy - 400, 150, 150));
+            this.obstacles.push(new Obstacle(cx - 600, cy + 250, 150, 150));
+            this.obstacles.push(new Obstacle(cx + 450, cy + 250, 150, 150));
+
+            // Outer barriers
+            this.obstacles.push(new Obstacle(cx - 1200, cy - 1000, 200, 2000)); // Left wall segment
+            this.obstacles.push(new Obstacle(cx + 1000, cy - 1000, 200, 2000)); // Right wall segment
         }
 
         // Ensure spawn area is clear
@@ -659,6 +673,6 @@ window.getHeroTheme = function (type) {
     if (type === 'lightning') return { bg: '#101020', grid: '#303060' };
     if (type === 'earth') return { bg: '#2e2718', grid: '#584930' };
     if (type === 'gravity') return { bg: '#1a0b2e', grid: '#4a235a' };
+    if (type === 'void') return { bg: '#0b0b1a', grid: '#004c54' }; // Low contrast cyan
     return { bg: '#1a1a1a', grid: '#333' };
 };
-

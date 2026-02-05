@@ -108,6 +108,13 @@ window.HERO_LOGIC['gravity'] = {
         // Setup Special UI via Hook
         const originalSetup = player.setupSpecial.bind(player);
         player.setupSpecial = function () {
+            // CPU Guard:
+            if (this.isCPU) {
+                this.specialName = "SINGULARITY";
+                if (this.activeBlackHole) this.specialName = "COLLAPSE";
+                return;
+            }
+
             // Override UI
             const iconEl = document.getElementById('special-icon');
             if (iconEl) {

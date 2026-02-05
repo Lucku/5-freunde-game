@@ -53,6 +53,8 @@ const defaultSaveData = {
 };
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
+let isVersusMode = false;
+let isChaosShuffleMode = false;
 window.saveData = {
     fire: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
@@ -1187,7 +1189,6 @@ function showNotification(text) {
 // --- Daily Challenge Logic ---
 let activeMutators = [];
 let isDailyMode = false;
-var isChaosShuffleMode = false;
 let forcedEnemyType = null;
 
 function getDailySeed() {
@@ -1785,20 +1786,22 @@ function advanceWave() {
 function resumeWaveGeneration() {
     if (isChaosShuffleMode && wave > 0) generateChaosObjective();
 
-    // Randomize Biome
-    let types = ['fire', 'water', 'ice', 'plant', 'metal'];
-    if (player && player.type === 'black') {
-        types = ['black']; // Keep Black in his own realm
-    }
+    // Randomize Biome (Skip in Versus Mode)
+    if (!isVersusMode) {
+        let types = ['fire', 'water', 'ice', 'plant', 'metal'];
+        if (player && player.type === 'black') {
+            types = ['black']; // Keep Black in his own realm
+        }
 
-    // Wave 1 starts in home biome
-    if (wave === 1 && player && player.type !== 'black') {
-        currentBiomeType = player.type;
-    } else {
-        currentBiomeType = types[Math.floor(Math.random() * types.length)];
-    }
+        // Wave 1 starts in home biome
+        if (wave === 1 && player && player.type !== 'black') {
+            currentBiomeType = player.type;
+        } else {
+            currentBiomeType = types[Math.floor(Math.random() * types.length)];
+        }
 
-    showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
+        showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
+    }
 
     let layoutOverride = null;
     let trapOverride = null;
@@ -1855,10 +1858,27 @@ function resumeWaveGeneration() {
 
     arena.generate(currentBiomeType, layoutOverride, trapOverride);
 
+    // Versus Mode Override: Force 1v1 Layout if somehow called here
+    if (isVersusMode) {
+        // We already generated it in startGame usually, but if wave advanced (e.g. rematch?), ensure layout
+        arena.generate(currentBiomeType, 'VERSUS_1V1');
+    }
+
     // Reset Player Position to Center
     if (player) {
-        player.x = arena.width / 2;
-        player.y = arena.height / 2;
+        if (isVersusMode) {
+            player.x = arena.width / 2 - 800; // Left Spawn
+            player.y = arena.height / 2;
+
+            // Update P2 if exists
+            if (window.additionalPlayers && window.additionalPlayers[0]) {
+                window.additionalPlayers[0].x = arena.width / 2 + 800; // Right Spawn
+                window.additionalPlayers[0].y = arena.height / 2;
+            }
+        } else {
+            player.x = arena.width / 2;
+            player.y = arena.height / 2;
+        }
     }
 
     // Reset Objective
@@ -1978,6 +1998,21 @@ function startGame(mode = 'NORMAL') {
     arena = new Arena(3000, 3000);
 
     isChaosShuffleMode = (mode === 'SHUFFLE');
+    isVersusMode = (mode === 'VERSUS');
+
+    // Handle Versus Biome Selection
+    if (isVersusMode && window.selectedBiome) {
+        if (window.selectedBiome === 'random') {
+            const biomes = ['fire', 'water', 'ice', 'plant', 'metal', 'rock', 'cloud', 'chaos'];
+            currentBiomeType = biomes[Math.floor(Math.random() * biomes.length)];
+        } else {
+            currentBiomeType = window.selectedBiome;
+        }
+        console.log("Versus Biome:", currentBiomeType);
+    } else {
+        currentBiomeType = selectedHeroType; // Default (Campaign)
+        if (currentBiomeType === 'black') currentBiomeType = 'chaos';
+    }
 
     // Check for Shadow Form Mutator BEFORE creating player
     let heroType = selectedHeroType;
@@ -1993,6 +2028,35 @@ function startGame(mode = 'NORMAL') {
     // Center Player in Arena
     player.x = arena.width / 2;
     player.y = arena.height / 2;
+
+    // --- VERSUS MODE SETUP ---
+    // Clear old AI / Additional Players from previous runs
+    if (typeof window.additionalPlayers !== 'undefined') window.additionalPlayers = [];
+
+    if (isVersusMode) {
+        // Spawn Opponent
+        let oppHero = window.selectedOpponent || 'random';
+        if (typeof HeroTypes !== 'undefined' && oppHero === 'random') {
+            // Redundant check
+        }
+
+        console.log("Spawning Versus AI:", oppHero);
+        const p2 = new Player(oppHero, true); // true = isCPU
+        p2.controller = new AIController(player);
+        p2.id = "PLAYER_2_AI";
+
+        // Initial Position (Will be enforced by resumeWaveGeneration too)
+        p2.x = arena.width / 2 + 800;
+        p2.y = arena.height / 2;
+
+        if (!window.additionalPlayers) window.additionalPlayers = [];
+        window.additionalPlayers.push(p2);
+
+        showNotification(`VERSUS: ${heroType.toUpperCase()} VS ${oppHero.toUpperCase()}`);
+
+        // Disable regular spawning setup
+        waveTimer = 999999;
+    }
 
     score = 0;
     wave = 0; // Start at 0, advanceWave will increment to 1
@@ -2359,7 +2423,7 @@ function masterLoop(timestamp) {
 
                     ctx.save();
                     ctx.translate(-arena.camera.x, -arena.camera.y);
-                    arena.draw(ctx, getHeroTheme(player ? player.type : selectedHeroType));
+                    arena.draw(ctx, getHeroTheme(currentBiomeType));
                     // Draw entities (static for slow-mo)
                     // ... (Ideally we'd draw entities here too, but for now just arena is fine or we duplicate draw calls)
                     // Actually, let's just draw the arena background and overlay
@@ -2460,7 +2524,7 @@ function masterLoop(timestamp) {
             ctx.translate(-arena.camera.x, -arena.camera.y);
 
             // Draw World
-            arena.draw(ctx, getHeroTheme(player ? player.type : selectedHeroType));
+            arena.draw(ctx, getHeroTheme(currentBiomeType));
 
             // Draw Objective Elements
             if (currentObjective && currentObjective.state === 'ACTIVE') {
@@ -2593,45 +2657,47 @@ function masterLoop(timestamp) {
                 }
             }
 
-            if (!bossActive && bossDeathTimer === 0) {
-                let spawnRate = Math.max(2, 40 - (wave * 2.5)); // Increased scaling
-                let forcedType = null;
+            if (!isVersusMode) {
+                if (!bossActive && bossDeathTimer === 0) {
+                    let spawnRate = Math.max(2, 40 - (wave * 2.5)); // Increased scaling
+                    let forcedType = null;
 
-                // Story Override
-                if (currentStoryEvent && currentStoryEvent.type === 'WAVE_OVERRIDE' && currentStoryEvent.data) {
-                    if (currentStoryEvent.data.spawnRateMod) {
-                        spawnRate = Math.max(5, spawnRate * currentStoryEvent.data.spawnRateMod);
+                    // Story Override
+                    if (currentStoryEvent && currentStoryEvent.type === 'WAVE_OVERRIDE' && currentStoryEvent.data) {
+                        if (currentStoryEvent.data.spawnRateMod) {
+                            spawnRate = Math.max(5, spawnRate * currentStoryEvent.data.spawnRateMod);
+                        }
+                        if (currentStoryEvent.data.forcedEnemyType) {
+                            forcedType = currentStoryEvent.data.forcedEnemyType;
+                        }
                     }
-                    if (currentStoryEvent.data.forcedEnemyType) {
-                        forcedType = currentStoryEvent.data.forcedEnemyType;
-                    }
-                }
 
-                if (frame % Math.floor(spawnRate) === 0) {
-                    let loops = 1;
-                    if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
+                    if (frame % Math.floor(spawnRate) === 0) {
+                        let loops = 1;
+                        if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
 
-                    for (let l = 0; l < loops; l++) {
-                        if (forcedType) {
-                            enemies.push(new Enemy(false, forcedType));
-                        } else {
-                            // Swarm Logic
-                            if (wave > 2 && Math.random() < 0.1) {
-                                for (let i = 0; i < 5; i++) {
-                                    const swarm = new Enemy(false, 'SWARM');
-                                    // Offset slightly
-                                    swarm.x += (Math.random() - 0.5) * 50;
-                                    swarm.y += (Math.random() - 0.5) * 50;
-                                    enemies.push(swarm);
-                                }
+                        for (let l = 0; l < loops; l++) {
+                            if (forcedType) {
+                                enemies.push(new Enemy(false, forcedType));
                             } else {
-                                enemies.push(new Enemy());
+                                // Swarm Logic
+                                if (wave > 2 && Math.random() < 0.1) {
+                                    for (let i = 0; i < 5; i++) {
+                                        const swarm = new Enemy(false, 'SWARM');
+                                        // Offset slightly
+                                        swarm.x += (Math.random() - 0.5) * 50;
+                                        swarm.y += (Math.random() - 0.5) * 50;
+                                        enemies.push(swarm);
+                                    }
+                                } else {
+                                    enemies.push(new Enemy());
+                                }
                             }
                         }
                     }
+                } else {
+                    if (frame % 150 === 0) enemies.push(new Enemy(true));
                 }
-            } else {
-                if (frame % 150 === 0) enemies.push(new Enemy(true));
             }
 
             if (frame % 600 === 0) powerUps.push(new PowerUp());
@@ -2888,6 +2954,48 @@ function masterLoop(timestamp) {
                     projectiles.splice(index, 1);
                     return;
                 }
+
+                // --- PVP LOGIC ---
+                // Check collision against AI Players (Avoiding Self-Damage)
+                if (typeof window.additionalPlayers !== 'undefined' && window.additionalPlayers.length > 0 && !proj.isEnemy) {
+                    window.additionalPlayers.forEach(p2 => {
+                        // Avoid self-damage 
+                        if (proj.owner === p2) return;
+
+                        if (Math.hypot(p2.x - proj.x, p2.y - proj.y) < p2.radius + proj.radius) {
+                            p2.hp -= proj.damage;
+                            floatingTexts.push(new FloatingText(p2.x, p2.y - 40, proj.damage.toFixed(0), "#ff0000", 25));
+                            proj.dead = true; // Mark dead
+                            createExplosion(proj.x, proj.y, proj.color);
+                            if (p2.hp <= 0) {
+                                let idx = window.additionalPlayers.indexOf(p2);
+                                if (idx > -1) window.additionalPlayers.splice(idx, 1);
+                                createExplosion(p2.x, p2.y, '#fff');
+                                showNotification("OPPONENT KO!");
+
+                                if (isVersusMode && window.additionalPlayers.length === 0) {
+                                    setTimeout(() => gameOver(true), 2000);
+                                }
+                            }
+                        }
+                    });
+
+                    // Also check collision against Main Player (Player 1) if owner is not Player 1
+                    if (proj.owner && proj.owner !== window.player) {
+                        const p1 = window.player;
+                        if (Math.hypot(p1.x - proj.x, p1.y - proj.y) < p1.radius + proj.radius) {
+                            p1.takeDamage(proj.damage); // Use standard take damage
+                            proj.dead = true;
+                            createExplosion(proj.x, proj.y, proj.color);
+                        }
+                    }
+
+                    if (proj.dead) {
+                        projectiles.splice(index, 1);
+                        return;
+                    }
+                }
+
                 proj.draw();
                 if (arena.checkCollision(proj.x, proj.y, proj.radius)) {
                     if (proj.isExplosive) {
@@ -2908,6 +3016,47 @@ function masterLoop(timestamp) {
 
             meleeAttacks.forEach((att, index) => {
                 att.update(); att.draw();
+
+                // PvP Collision: P1 vs P2 (AI)
+                if (att.owner === player && typeof window.additionalPlayers !== 'undefined') {
+                    window.additionalPlayers.forEach(p2 => {
+                        const pid = p2.id || 'P2';
+                        if (att.hitList.includes(pid)) return;
+                        if (Math.hypot(p2.x - att.x, p2.y - att.y) < att.radius + p2.radius) {
+                            let angleTo = Math.atan2(p2.y - att.y, p2.x - att.x);
+                            let diff = angleTo - att.angle;
+                            while (diff < -Math.PI) diff += Math.PI * 2;
+                            while (diff > Math.PI) diff -= Math.PI * 2;
+                            if (Math.abs(diff) < Math.PI / 3) {
+                                if (p2.hp > 0) {
+                                    p2.hp -= att.damage;
+                                    att.hitList.push(pid);
+                                    createExplosion(p2.x, p2.y, att.color);
+                                    floatingTexts.push(new FloatingText(p2.x, p2.y - 40, att.damage.toFixed(0), "#ff0000", 25));
+                                    if (p2.hp <= 0) showNotification("OPPONENT KO!");
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // PvP Collision: P2 (AI) vs P1
+                if (att.owner && att.owner !== player && !att.hitList.includes('PLAYER')) {
+                    if (Math.hypot(player.x - att.x, player.y - att.y) < att.radius + player.radius) {
+                        let angleTo = Math.atan2(player.y - att.y, player.x - att.x);
+                        let diff = angleTo - att.angle;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        if (Math.abs(diff) < Math.PI / 3) {
+                            if (!player.isInvincible && player.hp > 0) {
+                                player.takeDamage(att.damage);
+                                att.hitList.push('PLAYER');
+                                createExplosion(player.x, player.y, att.color);
+                            }
+                        }
+                    }
+                }
+
                 if (att.life <= 0) meleeAttacks.splice(index, 1);
             });
 
@@ -2921,6 +3070,28 @@ function masterLoop(timestamp) {
                 ft.update(); ft.draw();
                 if (ft.life <= 0) floatingTexts.splice(index, 1);
             });
+
+            // Draw Additional Players (Versus / AI)
+            if (typeof window.additionalPlayers !== 'undefined') {
+                window.additionalPlayers.forEach(p2 => {
+                    // Update P2
+                    if (p2.controller) {
+                        // Ensure input context is updated inside update() via controller
+                        p2.update();
+                    }
+
+                    p2.draw();
+
+                    // HP Bar for AI
+                    const percent = Math.max(0, p2.hp / p2.maxHp);
+                    ctx.save();
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(p2.x - 20, p2.y - 35, 40, 5);
+                    ctx.fillStyle = '#2ecc71';
+                    ctx.fillRect(p2.x - 20, p2.y - 35, 40 * percent, 5);
+                    ctx.restore();
+                });
+            }
 
             enemies.forEach((enemy, eIndex) => {
                 // Biome Effects on Enemy
@@ -3027,6 +3198,14 @@ function masterLoop(timestamp) {
                 }
 
                 projectiles.forEach((proj, pIndex) => {
+                    // Update: Additional Players Collision Logic (inserted here for performance to check against Enemy loop logic context?)
+                    // Actually, PVP Logic shouldn't be inside the Enemy loop. It should be outside.
+                    // But if this forEach iterates ALL projectiles, we can handle PVP here too if careful.
+                    // But wait, this `projectiles.forEach` is inside `enemies.forEach((enemy) => ...`
+                    // Line 3016: enemies.forEach((enemy) => { ...
+                    // So this loop runs ProjectilesCount * EnemyCount times. O(M*N).
+                    // This is for checking Projectile vs Current Enemy.
+
                     if (proj.isEnemy) {
                         const pDist = Math.hypot(proj.x - player.x, proj.y - player.y);
                         if (pDist < player.radius + proj.radius) {

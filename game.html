@@ -300,6 +300,9 @@
                     <button class="btn btn-large"
                         style="background: linear-gradient(45deg, #e74c3c, #8e44ad); border-color: #c0392b;"
                         onclick="checkNewGame('SHUFFLE')">Chaos Shuffle (BETA)</button>
+                    <button class="btn btn-large"
+                        style="background: linear-gradient(45deg, #34495e, #2c3e50); border-color: #2c3e50;"
+                        onclick="openVersusMenu()">Versus Mode (1v1)</button>
                     <button id="daily-challenge-btn" class="btn btn-gold" onclick="startDailyChallenge()">Daily
                         Challenge</button>
                     <button id="weekly-challenge-btn" class="btn btn-gold" onclick="startWeeklyChallenge()">Weekly
@@ -454,6 +457,42 @@
         </div>
     </div>
 
+    <!-- Versus Mode Selection Screen -->
+    <div id="versus-selection-screen"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10, 20, 30, 0.95); z-index:4000; flex-direction:column; align-items:center; justify-content:center;">
+        <h1 style="color:#3498db; font-size:50px; text-shadow: 0 0 20px #2980b9; margin-bottom: 20px;">VERSUS SETUP</h1>
+
+        <div style="display:flex; gap: 50px; align-items:flex-start; height: 60vh;">
+            <!-- Column 1: Opponent -->
+            <div style="display:flex; flex-direction:column; align-items:center;">
+                <h2 style="color:#fff;">Select Opponent</h2>
+                <div id="versus-opponent-grid"
+                    style="display:grid; grid-template-columns: repeat(3, 100px); gap:10px; overflow-y:auto; max-height: 50vh; padding:10px; background:rgba(0,0,0,0.3); border-radius:10px;">
+                    <!-- JS Injected -->
+                </div>
+                <div id="versus-selected-opponent" style="margin-top:10px; color:#f1c40f; font-weight:bold;">Random
+                </div>
+            </div>
+
+            <!-- Column 2: Arena -->
+            <div style="display:flex; flex-direction:column; align-items:center;">
+                <h2 style="color:#fff;">Select Arena</h2>
+                <div id="versus-biome-grid"
+                    style="display:flex; flex-direction:column; gap:10px; overflow-y:auto; max-height: 50vh; padding:10px; background:rgba(0,0,0,0.3); border-radius:10px; width: 200px;">
+                    <!-- JS Injected -->
+                </div>
+                <div id="versus-selected-biome" style="margin-top:10px; color:#2ecc71; font-weight:bold;">Green Hill
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:30px; display:flex; gap:20px;">
+            <button class="btn btn-large btn-green" onclick="startVersusMatch()">FIGHT!</button>
+            <button class="btn btn-large" onclick="closeVersusMenu()">CANCEL</button>
+        </div>
+    </div>
+
+
     <script src="Constants.js"></script>
     <script src="Config.js"></script>
     <script src="dlc/DLCManager.js"></script>
@@ -477,13 +516,20 @@
     <script src="Managers/SaveManager.js"></script>
     <script src="Managers/UIManager.js"></script>
 
+    <!-- Controllers -->
+    <script src="Entities/PlayerController.js"></script>
+
     <!-- UI Modules -->
     <script src="UI/Statistics.js"></script>
     <script src="UI/Shop.js"></script>
     <script src="UI/LevelUp.js"></script>
     <script src="UI/Options.js"></script>
+    <script src="UI/VersusMenu.js"></script>
     <script src="UI/MainMenu.js"></script>
     <script src="ChaosMode.js"></script>
+
+    <!-- Experimental Scripts -->
+    <script src="scripts/VersusTest.js"></script>
 
     <!-- Entities and Utils -->
     <script src="Utils.js"></script>

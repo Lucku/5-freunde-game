@@ -1,13 +1,23 @@
 class MeleeSwipe {
-    constructor(x, y, angle, damage, color, radius, isCrit = false) {
+    constructor(x, y, angle, damage, color, radius, isCrit = false, owner = null) {
         this.x = x; this.y = y; this.angle = angle;
         this.damage = damage; this.color = color;
         this.life = 15; this.maxLife = 15;
         this.radius = radius;
         this.hitList = [];
         this.isCrit = isCrit;
+        this.owner = owner;
     }
-    update() { this.x = player.x; this.y = player.y; this.life--; }
+    update() {
+        if (this.owner) {
+            this.x = this.owner.x;
+            this.y = this.owner.y;
+        } else if (typeof player !== 'undefined') {
+            this.x = player.x;
+            this.y = player.y;
+        }
+        this.life--;
+    }
     draw() {
         ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
         ctx.beginPath(); ctx.arc(0, 0, this.radius, -Math.PI / 3, Math.PI / 3);

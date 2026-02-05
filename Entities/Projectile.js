@@ -6,6 +6,7 @@ class Projectile {
         this.isExplosive = isExplosive;
         this.isCrit = isCrit; // Store crit status
         this.pierce = (type === 'ice' && !isEnemy) ? 2 : 0;
+        this.owner = null; // Reference to the entity that fired this
 
         if (this.isCrit) {
             this.radius *= 1.5; // Visual indicator

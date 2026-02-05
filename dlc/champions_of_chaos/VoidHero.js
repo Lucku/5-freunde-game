@@ -97,6 +97,13 @@ window.HERO_LOGIC['void'] = {
         // Override UI
         const originalSetup = player.setupSpecial.bind(player);
         player.setupSpecial = function () {
+            // CPU Guard
+            if (this.isCPU) {
+                this.specialName = "REALM SHIFT";
+                this.specialMaxCooldown = 1200;
+                return;
+            }
+
             const iconEl = document.getElementById('special-icon');
             if (iconEl) {
                 this.specialName = "REALM SHIFT";
@@ -114,6 +121,7 @@ window.HERO_LOGIC['void'] = {
         // Hooks
         player.customMelee = () => this.meleeAttack(player);
         player.customSpecial = () => this.useSpecial(player);
+        player.getAIInput = (p, c, t) => this.getAIInput(p, c, t);
 
         // Passive Projectile Override
         player.shoot = () => this.shootBolt(player);
@@ -345,6 +353,46 @@ window.HERO_LOGIC['void'] = {
                 if (typeof showNotification === 'function') showNotification(`REALM SHATTERED: ${count} KILLS`, "#fff");
             }
         }
+    },
+
+    getAIInput: function (player, controller, target) {
+        // Void AI: Aggressive Melee & Glitch Step
+        if (!target) return { x: 0, y: 0, shoot: false, melee: false };
+
+        const dx = target.x - player.x;
+        const dy = target.y - player.y;
+        const dist = Math.hypot(dx, dy);
+        const aimAngle = Math.atan2(dy, dx);
+
+        // Movement: Always chase aggressively
+        let moveX = Math.cos(aimAngle);
+        let moveY = Math.sin(aimAngle);
+
+        let shoot = false;
+        let melee = false;
+        let dash = false;
+        let special = false;
+
+        // "Engage in Melee as much as he can"
+        if (dist < 200) {
+            melee = true;
+            // Also use special if available to cause chaos in close range
+            // Realm Shift causes explosions when ending, so it's good in melee
+            if (Math.random() < 0.05) special = true;
+        } else {
+            // Gap Closing
+            // Use Glitch Bolt (Shoot) to create decoys while closing in
+            if (dist < 600) shoot = true;
+
+            // Glitch Step (Dash) to close distance
+            if (Math.random() < 0.05) dash = true;
+        }
+
+        // Random Erratic Movement ("Glitch")
+        // Occasionally stop or teleport sideways? 
+        // No, keep it aggressive as requested.
+
+        return { x: moveX, y: moveY, aimAngle, shoot, melee, dash, special, pause: false };
     }
 };
 

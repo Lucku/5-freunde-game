@@ -15,8 +15,10 @@ class LightningHero {
         // Cooldown: 15 seconds
         player.specialMaxCooldown = 15000;
 
-        const iconEl = document.getElementById('special-icon');
-        if (iconEl) iconEl.innerText = "⚡";
+        if (!player.isCPU) {
+            const iconEl = document.getElementById('special-icon');
+            if (iconEl) iconEl.innerText = "⚡";
+        }
 
         // Override Form Name Logic for Level 10 Transformation
         // This makes the game recognize "FLASH" as the target form.

@@ -27,6 +27,7 @@ class EarthHero {
         player.melee = () => EarthHero.melee(player); // Tremor Attack
         player.shoot = () => EarthHero.shoot(player); // Rock Throw
         player.customOnDamage = (dmg) => EarthHero.onDamage(player, dmg); // Shield Logic
+        player.getAIInput = (p, c, t) => EarthHero.getAIInput(p, c, t); // Custom AI
 
         // Altar Checks
         const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
@@ -37,8 +38,11 @@ class EarthHero {
         let cd = 2400; // 40s (Increased from 20s)
         if (has('e1')) cd *= 0.9; // Cooldown Reduction
         player.specialMaxCooldown = cd;
-        const iconEl = document.getElementById('special-icon');
-        if (iconEl) iconEl.innerText = "🛡️";
+
+        if (!player.isCPU) {
+            const iconEl = document.getElementById('special-icon');
+            if (iconEl) iconEl.innerText = "🛡️";
+        }
     }
 
     // --- DLC OFFLOADING METHODS ---
@@ -251,6 +255,7 @@ class EarthHero {
                 25, // Knockback (Increased for effect)
                 false // isEnemy
             );
+            proj.owner = player;
 
             // Optional: Allow rock to pierce 1 enemy
             proj.pierce = 1;
@@ -509,6 +514,53 @@ class EarthHero {
                     }
                 });
             }
+
+            // Versus Mode: Check collision with other players
+            if (typeof isVersusMode !== 'undefined' && isVersusMode) {
+                const targets = [];
+                // Add global P1 if it's not 'this' player
+                // Note: 'player' variable here comes from argument, shadowing global 'player'
+                if (typeof window.player !== 'undefined' && window.player !== player) targets.push(window.player);
+
+                // Add additional players
+                if (typeof window.additionalPlayers !== 'undefined') {
+                    window.additionalPlayers.forEach(p => {
+                        if (p !== player) targets.push(p);
+                    });
+                }
+
+                targets.forEach(e => {
+                    const dist = Math.hypot(e.x - player.x, e.y - player.y);
+                    if (dist < player.radius + e.radius) {
+                        if (e.isInvincible) return;
+
+                        // RAM DAMAGE calculation
+                        let damage = player.stats.meleeDmg * (player.momentum / 100) * player.damageMultiplier * (player.stats.ramDmgMult || 1);
+
+                        // Ultimate Bonus
+                        if (player.transformActive) damage *= 2;
+
+                        // Apply Damage
+                        e.hp -= damage;
+
+                        // Visuals
+                        if (typeof createExplosion === 'function') createExplosion(e.x, e.y, '#8d6e63');
+                        if (typeof FloatingText === 'function' && typeof floatingTexts !== 'undefined') {
+                            floatingTexts.push(new FloatingText(e.x, e.y - 20, Math.floor(damage), "#8d6e63", 25));
+                        }
+
+                        // Knockback
+                        const angle = Math.atan2(e.y - player.y, e.x - player.x);
+                        // Use default knockback if stat undefined (fallback)
+                        const knockback = player.stats.knockback || 10;
+                        e.x += Math.cos(angle) * knockback;
+                        e.y += Math.sin(angle) * knockback;
+
+                        // Slight momentum loss on impact
+                        player.momentum *= 0.95;
+                    }
+                });
+            }
         }
 
         return true; // Return true to block default Player.update movement
@@ -632,6 +684,75 @@ class EarthHero {
         ctx.shadowBlur = 0; // Reset shadow
 
         return true; // Block default draw
+    }
+
+    static getAIInput(player, controller, target) {
+        // Stick to Cardinal Directions to build Momentum ("Roll")
+        // Try to "Ram" the player by aligning on one axis and charging.
+
+        if (!target) return { x: 0, y: 0, shoot: false, melee: false };
+
+        const dx = target.x - player.x;
+        const dy = target.y - player.y;
+        const dist = Math.hypot(dx, dy);
+
+        // Cardinal Alignment Logic
+        // Whichever axis has greater distance, prioritize that one to close gap
+        // But if we are already moving fast, commit to current axis until we hit or stop.
+
+        let moveX = 0;
+        let moveY = 0;
+
+        // If high momentum, try to maintain current axis unless way off
+        const currentAngle = player.lastMoveAngle || 0;
+        const isMovingHoriz = Math.abs(Math.cos(currentAngle)) > 0.8;
+        const isMovingVert = Math.abs(Math.sin(currentAngle)) > 0.8;
+
+        if (player.momentum > 40) {
+            // Commit to current direction
+            if (isMovingHoriz) {
+                moveX = Math.sign(dx) || 1;
+                // However, if we overshoot (passed the target in X), we should probably stop or turn.
+                // But the sign(dx) handles direction. 
+                // If |dy| becomes huge (player dodged), we might want to switch.
+                if (Math.abs(dy) > 200) moveX = 0; // Curve? or Stop?
+            } else if (isMovingVert) {
+                moveY = Math.sign(dy) || 1;
+                if (Math.abs(dx) > 200) moveY = 0;
+            } else {
+                // Diagonal? Should resolve to cardinal.
+                if (Math.abs(dx) > Math.abs(dy)) moveX = Math.sign(dx);
+                else moveY = Math.sign(dy);
+            }
+        } else {
+            // Low momentum: Turn to face nicely
+            if (Math.abs(dx) > Math.abs(dy)) {
+                moveX = Math.sign(dx);
+            } else {
+                moveY = Math.sign(dy);
+            }
+        }
+
+        // Just enforce strict cardinal for input
+        if (moveX !== 0) moveY = 0;
+
+        let melee = false;
+        let shoot = false;
+        let special = false;
+
+        // Shoot (Rock Throw) at mid-range
+        if (dist < 400 && dist > 100 && Math.random() < 0.05) shoot = true;
+
+        // Melee (Tremor) if close
+        if (dist < 150) melee = true;
+
+        // Special (Shield) if about to hit or being hit
+        if (dist < 200 && (player.hp < player.maxHp * 0.5) && Math.random() < 0.02) special = true;
+
+        // Aim is just direction
+        const aimAngle = Math.atan2(dy, dx);
+
+        return { x: moveX, y: moveY, aimAngle, shoot, melee, dash: false, special, pause: false };
     }
 }
 
