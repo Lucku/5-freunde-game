@@ -17,6 +17,12 @@ class AudioManager {
             battle_thunder_2: new Audio('dlc/tournament_of_thunder/music/battle_2.wav'),
             zeus: new Audio('dlc/tournament_of_thunder/music/boss_zeus.wav'),
 
+            // DLC Champions of Chaos
+            battle_chaos_1: new Audio('dlc/champions_of_chaos/music/battle_1.wav'),
+            battle_chaos_2: new Audio('dlc/champions_of_chaos/music/battle_2.wav'),
+            boss_chaos_all: new Audio('dlc/champions_of_chaos/music/boss_all.wav'),
+            boss_entropy: new Audio('dlc/champions_of_chaos/music/boss_entropy_mage.wav'),
+
             // SFX
             level_up: new Audio('music/sounds/level_up.wav'),
             pickup_card: new Audio('music/sounds/pick_up_collectors_card.wav'),
@@ -34,6 +40,7 @@ class AudioManager {
             attack_black: new Audio('music/sounds/attack_black.wav'),
             attack_shooter: new Audio('music/sounds/attack_shooter.wav'),
             melee_all: new Audio('music/sounds/melee_all.wav'),
+            damage: new Audio('music/sounds/damage.wav'),
 
             boss_rhino_charge: new Audio('music/sounds/attack_boss_rhino.wav'),
             boss_stomp: new Audio('music/sounds/attack_boss_rhino_2.wav'),
@@ -92,6 +99,15 @@ class AudioManager {
         this.tracks.golem.loop = true;
         this.tracks.golem.volume = 0.6;
 
+        this.tracks.battle_chaos_1.loop = true;
+        this.tracks.battle_chaos_1.volume = 0.4;
+        this.tracks.battle_chaos_2.loop = true;
+        this.tracks.battle_chaos_2.volume = 0.4;
+        this.tracks.boss_chaos_all.loop = true;
+        this.tracks.boss_chaos_all.volume = 0.6;
+        this.tracks.boss_entropy.loop = true;
+        this.tracks.boss_entropy.volume = 0.6;
+
         this.tracks.battle_thunder_1.loop = true;
         this.tracks.battle_thunder_1.volume = 0.4;
         this.tracks.battle_thunder_2.loop = true;
@@ -121,6 +137,7 @@ class AudioManager {
         if (this.tracks.melee_void) this.tracks.melee_void.volume = 0.5;
         if (this.tracks.special_void) this.tracks.special_void.volume = 0.6;
         if (this.tracks.dash_void) this.tracks.dash_void.volume = 0.6;
+        if (this.tracks.damage) this.tracks.damage.volume = 0.4;
 
         if (this.tracks.attack_earth_roll) {
             this.tracks.attack_earth_roll.loop = true;
@@ -249,7 +266,12 @@ class AudioManager {
     }
 
     play(trackName) {
-        const musicTracks = ['menu', 'museum', 'makuta', 'goblin', 'battle', 'gameover', 'battle_rock_1', 'battle_rock_2', 'golem', 'battle_thunder_1', 'battle_thunder_2', 'zeus'];
+        const musicTracks = [
+            'menu', 'museum', 'makuta', 'goblin', 'battle', 'gameover',
+            'battle_rock_1', 'battle_rock_2', 'golem',
+            'battle_thunder_1', 'battle_thunder_2', 'zeus',
+            'battle_chaos_1', 'battle_chaos_2', 'boss_chaos_all', 'boss_entropy'
+        ];
         const isMusic = musicTracks.includes(trackName);
 
         if (isMusic) {
@@ -281,7 +303,12 @@ class AudioManager {
 
     // New helper to stop only music
     stopAllMusic() {
-        const musicTracks = ['menu', 'museum', 'makuta', 'goblin', 'battle', 'gameover', 'battle_rock_1', 'battle_rock_2', 'golem', 'battle_thunder_1', 'battle_thunder_2', 'zeus'];
+        const musicTracks = [
+            'menu', 'museum', 'makuta', 'goblin', 'battle', 'gameover',
+            'battle_rock_1', 'battle_rock_2', 'golem',
+            'battle_thunder_1', 'battle_thunder_2', 'zeus',
+            'battle_chaos_1', 'battle_chaos_2', 'boss_chaos_all', 'boss_entropy'
+        ];
         musicTracks.forEach(key => this.stop(key));
     }
 
@@ -329,6 +356,14 @@ class AudioManager {
                 typeof enemies !== 'undefined' &&
                 enemies.some(e => e instanceof Boss && e.type === 'ZEUS');
 
+            const isEntropyMageActive = typeof bossActive !== 'undefined' && bossActive &&
+                typeof enemies !== 'undefined' &&
+                enemies.some(e => e instanceof Boss && e.type === 'ENTROPY_LORD');
+
+            const isChaosBossActive = typeof bossActive !== 'undefined' && bossActive &&
+                typeof enemies !== 'undefined' &&
+                enemies.some(e => e instanceof Boss && (e.type === 'VOID_WALKER_BOSS' || e.type === 'GLITCH_BOSS'));
+
             if (isMakutaActive) {
                 this.stopAllExcept('makuta');
                 this.play('makuta');
@@ -341,11 +376,19 @@ class AudioManager {
             } else if (isZeusActive) {
                 this.stopAllExcept('zeus');
                 this.play('zeus');
+            } else if (isEntropyMageActive) {
+                this.stopAllExcept('boss_entropy');
+                this.play('boss_entropy');
+            } else if (isChaosBossActive) {
+                this.stopAllExcept('boss_chaos_all');
+                this.play('boss_chaos_all');
             } else {
                 // If the Earth hero is active in the run, prefer DLC rock battle variants (randomized)
                 // Story Mode only (Not Daily/Weekly)
                 const isEarthActive = typeof player !== 'undefined' && player && player.type === 'earth';
                 const isLightningActive = typeof player !== 'undefined' && player && player.type === 'lightning';
+                const isGravityActive = typeof player !== 'undefined' && player && player.type === 'gravity';
+                const isVoidActive = typeof player !== 'undefined' && player && player.type === 'void';
                 const isStoryMode = typeof isDailyMode !== 'undefined' && !isDailyMode &&
                     typeof isWeeklyMode !== 'undefined' && !isWeeklyMode &&
                     typeof saveData !== 'undefined' && saveData.story && saveData.story.enabled;
@@ -378,6 +421,12 @@ class AudioManager {
                         this.stopAllExcept(pick);
                         this.play(pick);
                     }
+                } else if (isGravityActive && isStoryMode) {
+                    this.stopAllExcept('battle_chaos_1');
+                    this.play('battle_chaos_1');
+                } else if (isVoidActive && isStoryMode) {
+                    this.stopAllExcept('battle_chaos_2');
+                    this.play('battle_chaos_2');
                 } else {
                     this.stopAllExcept('battle');
                     this.play('battle');

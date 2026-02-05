@@ -2367,6 +2367,7 @@ function masterLoop(timestamp) {
                         if (frame % 60 === 0) {
                             if (!player.isInvincible) {
                                 player.hp -= 5;
+                                try { audioManager.play('damage'); } catch (e) { }
                                 currentRunStats.damageTaken += 5;
                                 floatingTexts.push(new FloatingText(player.x, player.y - 20, "STORM!", "#3498db", 20));
                             }
@@ -2392,7 +2393,10 @@ function masterLoop(timestamp) {
                 } else if (currentObjective.type === 'IRON_WILL') {
                     // Decay HP
                     if (frame % 60 === 0) {
-                        if (!player.isInvincible) player.hp -= 2; // Lose 2 HP per second
+                        if (!player.isInvincible) {
+                            player.hp -= 2; // Lose 2 HP per second
+                            audioManager.play('damage');
+                        }
                         if (player.hp <= 0) {
                             currentObjective.state = 'FAILED';
                             gameOver();
@@ -2734,6 +2738,7 @@ function masterLoop(timestamp) {
                             const lavaDmg = 5 * (1 - player.damageReduction);
                             if (!player.isInvincible) {
                                 player.hp -= lavaDmg;
+                                audioManager.play('damage');
                                 floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.floor(lavaDmg), "#e74c3c", 20));
                                 currentRunStats.damageTaken += 5;
                             }
@@ -3179,6 +3184,7 @@ function masterLoop(timestamp) {
 
                         if (!damagePrevented) {
                             player.hp -= dmgTaken;
+                            audioManager.play('damage');
                             if (isChaosShuffleMode) checkChaosEvent('HIT');
                             floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
                             currentRunStats.damageTaken += dmgTaken; // Track Damage
@@ -3228,6 +3234,7 @@ function masterLoop(timestamp) {
 
                             if (!player.isInvincible) {
                                 player.hp -= dmgTaken;
+                                audioManager.play('damage');
                                 // Player takes damage number
                                 floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
                                 currentRunStats.damageTaken += dmgTaken; // Track Damage
@@ -3403,6 +3410,7 @@ function masterLoop(timestamp) {
                         if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 100) {
                             if (!player.isInvincible) {
                                 player.hp -= 10 * (1 - player.damageReduction);
+                                audioManager.play('damage');
                                 floatingTexts.push(new FloatingText(player.x, player.y - 20, "10", "#e74c3c", 20));
                             }
                         }
@@ -3494,6 +3502,7 @@ function masterLoop(timestamp) {
                                 if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < radius) {
                                     if (!player.isInvincible) {
                                         player.hp -= 30 * (1 - player.damageReduction);
+                                        audioManager.play('damage');
                                         floatingTexts.push(new FloatingText(player.x, player.y - 20, "30", "#e74c3c", 20));
                                     }
                                 }

@@ -321,6 +321,11 @@ class Player {
 
         this.hp -= actualDamage;
 
+        // Audio Feedback
+        if (actualDamage > 0 && typeof audioManager !== 'undefined' && audioManager) {
+            audioManager.play('damage');
+        }
+
         // Visual Feedback
         if (typeof floatingTexts !== 'undefined') {
             floatingTexts.push(new FloatingText(this.x, this.y - 40, actualDamage.toFixed(0), "#ff0000", 25));
