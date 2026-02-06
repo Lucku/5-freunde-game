@@ -262,6 +262,7 @@ class LightningHero {
                 [],
                 hasRailgun
             );
+            mainProj.owner = player;
             if (typeof projectiles !== 'undefined') projectiles.push(mainProj);
             else if (window.projectiles) window.projectiles.push(mainProj);
 
@@ -282,6 +283,7 @@ class LightningHero {
                         [],
                         hasRailgun
                     );
+                    buffProj.owner = player;
                     if (typeof projectiles !== 'undefined') projectiles.push(buffProj);
                     else if (window.projectiles) window.projectiles.push(buffProj);
                 });
@@ -310,7 +312,7 @@ class LightningHero {
                         [],
                         hasRailgun
                     );
-
+                    extraProj.owner = player;
                     if (typeof projectiles !== 'undefined') projectiles.push(extraProj);
                     else if (window.projectiles) window.projectiles.push(extraProj);
                 }

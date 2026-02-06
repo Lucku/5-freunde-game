@@ -2427,7 +2427,13 @@ function masterLoop(timestamp) {
 
                     ctx.save();
                     ctx.translate(-arena.camera.x, -arena.camera.y);
-                    arena.draw(ctx, getHeroTheme(currentBiomeType));
+
+                    // Ensure background strictly follows hero type unless in Versus Mode
+                    let themeType = currentBiomeType;
+                    if (!isVersusMode && player) {
+                        themeType = player.type;
+                    }
+                    arena.draw(ctx, getHeroTheme(themeType));
                     // Draw entities (static for slow-mo)
                     // ... (Ideally we'd draw entities here too, but for now just arena is fine or we duplicate draw calls)
                     // Actually, let's just draw the arena background and overlay
@@ -2528,7 +2534,13 @@ function masterLoop(timestamp) {
             ctx.translate(-arena.camera.x, -arena.camera.y);
 
             // Draw World
-            arena.draw(ctx, getHeroTheme(currentBiomeType));
+            // Ensure background strictly follows hero type unless in Versus Mode
+            let themeType = currentBiomeType;
+            if (!isVersusMode && player) {
+                themeType = player.type;
+            }
+            arena.draw(ctx, getHeroTheme(themeType));
+
 
             // Draw Objective Elements
             if (currentObjective && currentObjective.state === 'ACTIVE') {

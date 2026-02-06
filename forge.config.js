@@ -7,13 +7,15 @@ module.exports = {
   },
   rebuildConfig: {},
   makers: [
+    /* 
     {
       name: '@electron-forge/maker-squirrel',
       config: {},
-    },
+    }, 
+    */
     {
       name: '@electron-forge/maker-zip',
-      platforms: ['darwin', 'linux'],
+      platforms: ['darwin', 'linux', 'win32'],
     },
     /* 
     // RPM and DEB makers often fail on macOS without specific tools installed.
