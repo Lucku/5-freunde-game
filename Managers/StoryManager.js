@@ -221,10 +221,32 @@ class StoryManager {
     }
 
     getEventForWave(wave, heroType) {
-        // 1. Look for Hero-Specific Event
-        let event = STORY_EVENTS.find(e => e.wave === wave && e.hero === heroType);
+        // Normalize
+        const type = heroType.toUpperCase();
 
-        // 2. Look for General Event ("ALL")
+        // 1. Look for Exact Hero Match
+        let event = STORY_EVENTS.find(e => {
+            if (e.wave !== wave) return false;
+            if (e.hero === "ALL") return false;
+            return e.hero.toUpperCase() === type;
+        });
+
+        // 2. If not found, look for Shared Campaign Partner (Champions of Chaos)
+        if (!event) {
+            event = STORY_EVENTS.find(e => {
+                if (e.wave !== wave) return false;
+                if (e.hero === "ALL") return false;
+
+                const target = e.hero.toUpperCase();
+                // Chaos Shared Logic: Gravity <-> Void
+                if ((type === 'GRAVITY' || type === 'VOID') && (target === 'GRAVITY' || target === 'VOID')) {
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        // 3. Look for General Event ("ALL")
         if (!event) {
             event = STORY_EVENTS.find(e => e.wave === wave && e.hero === "ALL");
         }

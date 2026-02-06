@@ -116,7 +116,10 @@ window.HERO_LOGIC['void'] = {
                 }
             }
         };
-        player.setupSpecial(); // Apply immediately
+        // Override Form Name Logic for Level 10 Transformation
+        player.getFormName = function () {
+            return 'ENTROPY';
+        };
 
         // Hooks
         player.customMelee = () => this.meleeAttack(player);
@@ -304,6 +307,47 @@ window.HERO_LOGIC['void'] = {
     },
 
     update: function (player, dx, dy) {
+        // 1. ENTROPY Form Logic (Level 10 Transformation)
+        if (player.transformActive) {
+            if (player.currentForm !== 'ENTROPY') {
+                player.currentForm = 'ENTROPY';
+                if (typeof showNotification === 'function') showNotification("FORM: ENTROPY DETECTED", "#ff0000");
+            }
+
+            // Visual: Unstable Glitching
+            if (Math.random() < 0.2 && typeof createExplosion !== 'undefined') {
+                createExplosion(player.x + (Math.random() - 0.5) * 40, player.y + (Math.random() - 0.5) * 40, "#000", 5);
+            }
+
+            // Passive: "System Corruption" Area (Radius 200)
+            if (typeof enemies !== 'undefined') {
+                // Throttle to every few frames
+                if (window.frame % 15 === 0) {
+                    enemies.forEach(e => {
+                        const dist = Math.hypot(e.x - player.x, e.y - player.y);
+                        if (dist < 200) {
+                            // Heavy True Damage
+                            const dmg = 20 * player.damageMultiplier;
+                            e.hp -= dmg;
+
+                            // Visual Glitch on enemy
+                            if (typeof FloatingText !== 'undefined' && Math.random() < 0.3) {
+                                floatingTexts.push(new FloatingText(e.x, e.y - 30, "CORRUPT", "#ff0000", 16));
+                            }
+
+                            // Chance to instant delete weak enemies
+                            if (!e.isBoss && e.hp < e.maxHp * 0.3 && Math.random() < 0.05) {
+                                e.hp = -999;
+                                if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, "#ff0044", 15);
+                            }
+
+                            if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
+                        }
+                    });
+                }
+            }
+        }
+
         if (player.inRealmShift) {
             player.realmShiftTimer--;
 

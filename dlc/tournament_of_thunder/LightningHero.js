@@ -42,8 +42,8 @@ class LightningHero {
                 player.currentForm = 'FLASH';
             }
 
-            // Auto-fire lightning sparks
-            if (Math.random() < 0.3) {
+            // Auto-fire lightning sparks (Reduced frequency)
+            if (Math.random() < 0.15) {
                 LightningHero.shoot(player, 0, 0, true);
             }
         }
@@ -170,8 +170,8 @@ class LightningHero {
         // Cooldown:
         // Increase base cooldown significantly to reduce frequency
         // Base: 1000ms (1 shot/sec) - modified by stats
-        let baseCd = 1000; // Increased massively from 400 to nerf OP nature
-        if (player.currentForm === 'FLASH') baseCd = 250;
+        let baseCd = 1000;
+        if (player.currentForm === 'FLASH') baseCd = 400; // Slower auto-fire (was 250)
 
         // Treat rangeCd as a reduction in MS, but clamp to safe minimum
         const cdReduct = player.stats.rangeCd || 0;

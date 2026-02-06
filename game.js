@@ -1596,6 +1596,16 @@ function openStory(story) {
             baseAudio.play().catch(() => { /* ignore */ });
             currentStoryAudio = baseAudio;
         });
+    } else if (story.hero === 'GRAVITY' || story.hero === 'VOID') {
+        const dlcPath = `dlc/champions_of_chaos/music/story/${story.id}.mp3`;
+        const dlcAudio = new Audio(dlcPath);
+        dlcAudio.play().then(() => {
+            currentStoryAudio = dlcAudio;
+        }).catch(() => {
+            const baseAudio = new Audio(basePath);
+            baseAudio.play().catch(() => { /* ignore */ });
+            currentStoryAudio = baseAudio;
+        });
     } else {
         currentStoryAudio = new Audio(basePath);
         currentStoryAudio.play().catch(() => { /* ignore */ });
@@ -1617,6 +1627,16 @@ function closeStory() {
     if (currentStoryEvent && currentStoryEvent.type === 'THE_END') {
         gameOver(true); // Victory!
         return;
+    }
+
+    // Champions of Chaos: Force Hero Swap to match Narrative
+    if (currentStoryEvent && (currentStoryEvent.hero === 'GRAVITY' || currentStoryEvent.hero === 'VOID')) {
+        // Ensure player matches the narrator
+        // Convert to lowercase because player types are lowercase (gravity/void)
+        const requiredHero = currentStoryEvent.hero.toLowerCase();
+        if (player.type !== requiredHero) {
+            shuffleHero(requiredHero);
+        }
     }
 
     // Proceed to Shop or Next Wave
