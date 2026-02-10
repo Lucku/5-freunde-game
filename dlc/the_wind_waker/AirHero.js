@@ -94,7 +94,7 @@ class AirHero {
     }
 
     static applyWindShift(player) {
-         if (player.type === 'air' && player.weatherVane) {
+        if (player.type === 'air' && player.weatherVane) {
             const dirs = ['NORTH', 'SOUTH', 'EAST', 'WEST'];
             const current = player.weatherVane.direction;
             let next = current;
@@ -182,7 +182,7 @@ class AirHero {
             if (typeof window.enemiesKilledInWave !== 'undefined' && typeof window.ENEMIES_PER_WAVE !== 'undefined') {
                 const maxKills = window.ENEMIES_PER_WAVE * currentWave;
                 if (window.enemiesKilledInWave >= maxKills - 1) {
-                    window.enemiesKilledInWave = maxKills - 1; 
+                    window.enemiesKilledInWave = maxKills - 1;
                 }
             }
         } else {
@@ -207,6 +207,11 @@ class AirHero {
         player.damageMultiplier = Math.max(player.damageMultiplier, 1.5);
 
         // Visuals: The Hurricane (Only if upgraded)
+        // Sync transformation state
+        if (player.transformActive && player.currentForm === 'ZEPHYR') {
+            player.hurricaneActive = true;
+        }
+        
         if (player.hurricaneActive && window.ctx) {
             const ctx = window.ctx;
             ctx.save();
@@ -295,6 +300,28 @@ class AirHero {
                 const ctx = window.ctx;
                 ctx.save();
                 ctx.translate(t.x, t.y);
+
+                // --- RESTORED: Floating Ring (Suction Range) ---
+                ctx.save();
+                ctx.rotate(frame * 0.05); // Slow rotation
+
+                // Broad translucent ring
+                ctx.beginPath();
+                ctx.arc(0, 0, 200, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(64, 224, 208, 0.2)`;
+                ctx.lineWidth = 20;
+                ctx.stroke();
+
+                // Dashed detail ring
+                ctx.beginPath();
+                ctx.arc(0, 0, 200, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255, 255, 255, 0.5)`;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([40, 40]);
+                ctx.stroke();
+
+                ctx.restore();
+                // -----------------------------------------------
 
                 // Draw multiple layers rotating at different speeds
                 // Base
@@ -739,34 +766,127 @@ class AirHero {
                 owner: player,
                 life: props.life || 60,
                 damage: props.damage,
-                radius: props.radius || (player.stats.projectileSize * 1.5), // FIXED: radius, not size
+                radius: props.radius || (player.stats.projectileSize * 1.5),
                 knockback: props.knockback || 4,
                 color: props.color || "#e0f7fa",
-                type: 'WIND_BURST', // Generic Type for logic
+                type: 'WIND_BURST',
                 pierce: props.pierce || 0,
+                windStyle: props.windStyle || 'DEFAULT', // NEW: Style prop
 
                 update: function () {
                     this.x += this.vx;
                     this.y += this.vy;
-                    this.life--; // Fix undefined life decrement
+                    this.life--;
                     if (this.life <= 0) this.dead = true;
 
                     // WIND VISUAL (Particles Trail)
                     if (typeof createExplosion !== 'undefined' && Math.random() < 0.3) {
-                        // Create small wind puff
-                        // Using particle system if available or small explosions
-                        // Assuming createExplosion takes (x, y, color, radius)
                         createExplosion(this.x, this.y, '#e0f7fa', 2);
                     }
                 },
                 draw: function () {
                     const ctx = window.ctx;
+                    if (!ctx) return;
+
                     ctx.save();
                     ctx.translate(this.x, this.y);
-                    ctx.fillStyle = this.color;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.fill();
+
+                    const rot = Math.atan2(this.vy, this.vx);
+                    ctx.rotate(rot);
+
+                    if (this.windStyle === 'SCATTER') {
+                        // NORTH: Shotgun (Chaotic puffs)
+                        ctx.fillStyle = this.color;
+                        ctx.globalAlpha = 0.8;
+                        ctx.beginPath();
+                        // Draw a rough "cloud" shape
+                        for (let i = 0; i < 6; i++) {
+                            const a = (i / 6) * Math.PI * 2;
+                            const r = this.radius * (0.6 + Math.random() * 0.4);
+                            ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+                        }
+                        ctx.fill();
+
+                        // Inner detail
+                        ctx.fillStyle = '#fff';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius * 0.4, 0, Math.PI * 2);
+                        ctx.fill();
+
+                    } else if (this.windStyle === 'LANCE') {
+                        // SOUTH: Sniper (Sharp Lance)
+                        // Glowing core
+                        ctx.fillStyle = '#fff';
+                        ctx.shadowColor = this.color;
+                        ctx.shadowBlur = 10;
+                        ctx.beginPath();
+                        ctx.moveTo(this.radius * 2, 0); // Tip
+                        ctx.lineTo(-this.radius, -this.radius * 0.4);
+                        ctx.lineTo(-this.radius * 0.5, 0);
+                        ctx.lineTo(-this.radius, this.radius * 0.4);
+                        ctx.fill();
+
+                        // Trailing lines
+                        ctx.shadowBlur = 0;
+                        ctx.strokeStyle = this.color;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(-this.radius * 2, 0);
+                        ctx.lineTo(-this.radius, 0);
+                        ctx.stroke();
+
+                    } else if (this.windStyle === 'BLADE') {
+                        // EAST: Rifle (Crescent Wind Blades)
+                        ctx.strokeStyle = this.color;
+                        ctx.lineWidth = 3;
+                        ctx.lineCap = 'round';
+
+                        // Curve
+                        ctx.beginPath();
+                        ctx.arc(-this.radius, 0, this.radius * 1.5, -Math.PI / 3, Math.PI / 3);
+                        ctx.stroke();
+
+                        // Inner white blade
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.arc(-this.radius, 0, this.radius * 1.5, -Math.PI / 4, Math.PI / 4);
+                        ctx.stroke();
+
+                    } else if (this.windStyle === 'ORB') {
+                        // WEST: Orb (Spinning Vortex)
+                        const spin = (Date.now() / 100) % (Math.PI * 2);
+
+                        // We must undo the velocity rotation to make it spin on its own axis relative to world,
+                        // OR adds to it. Let's start from 0 for local spin.
+                        ctx.rotate(-rot); // Reset direction rotation to spin locally freely? 
+                        // Actually, keep it moving, but spin visual:
+                        ctx.rotate(spin);
+
+                        // Core
+                        ctx.fillStyle = 'rgba(64, 224, 208, 0.4)';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Arms
+                        ctx.strokeStyle = this.color;
+                        ctx.lineWidth = 2;
+                        for (let i = 0; i < 3; i++) {
+                            ctx.rotate((Math.PI * 2) / 3);
+                            ctx.beginPath();
+                            ctx.moveTo(0, 0);
+                            ctx.quadraticCurveTo(this.radius, this.radius, this.radius * 1.2, 0);
+                            ctx.stroke();
+                        }
+                    } else {
+                        // Default
+                        ctx.fillStyle = this.color;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
                     ctx.restore();
                 }
             };
@@ -780,21 +900,23 @@ class AirHero {
                     angle: angle + (i * 0.15),
                     speed: speed * 0.9,
                     damage: dmg * 0.8,
-                    life: 40, // Short range
-                    radius: 5,
-                    color: '#40e0d0' // Turquoise
+                    life: 40,
+                    radius: 6,
+                    color: '#40e0d0', // Turquoise
+                    windStyle: 'SCATTER'
                 });
             }
         } else if (dir === 'SOUTH') {
             // SOUTH: SNIPER (Pierce, high reload, high damage)
             spawnProj({
                 angle: angle,
-                speed: speed * 2.5, // FAST
-                damage: dmg * 5.0, // HIGH DMG
+                speed: speed * 2.5,
+                damage: dmg * 5.0,
                 life: 120,
-                radius: 4,
+                radius: 8,
                 color: '#81eff7', // Lighter Turquoise/Cyan
-                pierce: 999
+                pierce: 999,
+                windStyle: 'LANCE'
             });
         } else if (dir === 'EAST') {
             // EAST: FAST RIFLE (Rapid fire, low dmg)
@@ -803,19 +925,22 @@ class AirHero {
                 speed: speed * 1.3,
                 damage: dmg * 0.6,
                 life: 80,
-                color: '#20b2aa' // Light Sea Green (Darker Turquoise)
+                radius: 6,
+                color: '#20b2aa', // Light Sea Green
+                windStyle: 'BLADE'
             });
 
         } else {
             // WEST: ORB (Slow, big, lingers, pierces all)
             spawnProj({
                 angle: angle,
-                speed: speed * 0.3, // Slow
+                speed: speed * 0.3,
                 damage: dmg * 1.5,
-                life: 150, // Long life
-                radius: 15, // Big
+                life: 150,
+                radius: 15,
                 color: '#00ced1', // Dark Turquoise
-                pierce: 999
+                pierce: 999,
+                windStyle: 'ORB'
             });
         }
     }
@@ -831,7 +956,8 @@ const AirHeroLogic = {
     // OFFLOADING
     getSkillTreeWeights: AirHero.getSkillTreeWeights,
     getSkillNodeDetails: AirHero.getSkillNodeDetails,
-    applySkillNode: AirHero.applySkillNode
+    applySkillNode: AirHero.applySkillNode,
+    applyWindShift: AirHero.applyWindShift // Fix for Level Up item
 };
 
 // Register Hero Logic for Injection

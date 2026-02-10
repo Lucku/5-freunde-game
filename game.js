@@ -1111,6 +1111,22 @@ inputManager.onKeyDown = e => {
             }
         }
 
+        // DEBUG: Activate Ultimate Form with 'U'
+        if ((e.code === 'KeyU' || e.key === 'u') && gameRunning && !gamePaused && player) {
+            if (player.getFormName) {
+                player.transformActive = true;
+                player.currentForm = player.getFormName();
+                // Air Hero visual fix: Activate Hurricane for Zephyr form
+                if (player.type === 'air' && player.currentForm === 'ZEPHYR') {
+                    player.hurricaneActive = true;
+                }
+                showNotification(`DEBUG: ${player.currentForm} FORM ACTIVATED!`);
+                if (window.createExplosion) createExplosion(player.x, player.y, '#fff');
+            } else {
+                showNotification("DEBUG: NO ULTIMATE FORM AVAILABLE");
+            }
+        }
+
         // DEBUG: Select Black Hero in Menu with 'B'
         if (e.code === 'KeyB' && uiState === 'MENU') {
             selectedHeroType = 'black';

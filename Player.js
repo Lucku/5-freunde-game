@@ -927,9 +927,13 @@ class Player {
         if (this.transformActive) {
             ctx.beginPath(); ctx.arc(0, 0, this.radius + 15, 0, Math.PI * 2);
             ctx.lineWidth = 4;
-            if (this.currentForm === 'BLACK ICE') ctx.strokeStyle = '#000';
-            if (this.currentForm === 'LAVA') ctx.strokeStyle = '#e74c3c';
-            ctx.stroke();
+            let strokeSet = false;
+
+            if (this.currentForm === 'BLACK ICE') { ctx.strokeStyle = '#000'; strokeSet = true; }
+            if (this.currentForm === 'LAVA') { ctx.strokeStyle = '#e74c3c'; strokeSet = true; }
+            if (this.currentForm === 'ZEPHYR') { ctx.strokeStyle = '#40e0d0'; strokeSet = true; } // Turquoise for Air
+
+            if (strokeSet) ctx.stroke();
         }
 
         if (this.buffs.speed > 0) {
