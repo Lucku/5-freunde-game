@@ -1282,6 +1282,7 @@ input:checked+.slider:before {
     display: flex;
     flex-direction: column;
     border-right: 2px solid #444;
+    overflow-y: auto;
 }
 
 .tab-btn {

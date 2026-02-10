@@ -129,12 +129,110 @@ const Tutorial = {
                 </ul>
                 <p style="color:#e74c3c">Warning: Effects stack! Activating too many can make the game impossible.</p>
             `
+        },
+        rock: {
+            title: "Rise of the Rock",
+            html: `
+                <h2>DLC: Rise of the Rock</h2>
+                <p>Unearth the power of the ancients with this content expansion.</p>
+                
+                <h3>New Hero: Earth (Brown)</h3>
+                <p>A resilient defender who commands the ground itself.</p>
+                <ul>
+                    <li><b>Passive:</b> Stone Skin - Reduces incoming damage permanently.</li>
+                    <li><b>Ability:</b> Seismic Slam - Creates a shockwave that stuns enemies.</li>
+                    <li><b>Ultimate:</b> Tectonic Shift - Reshapes the battlefield to block enemy paths.</li>
+                </ul>
+
+                <h3>New Biome: The Canyons</h3>
+                <p>A rugged landscape filled with golems and falling rocks. Watch your step!</p>
+            `
+        },
+        wind: {
+            title: "The Wind Waker",
+            html: `
+                <h2>DLC: The Wind Waker</h2>
+                <p>Master the skies and flow like the breeze.</p>
+                
+                <h3>New Hero: Air (Turquoise)</h3>
+                <p>Agile and evasive, the Air Hero controls the battlefield from a distance.</p>
+                <ul>
+                    <li><b>Passive:</b> Tailwind - Movement speed increases over time.</li>
+                    <li><b>Ability:</b> Zephyr Form - Transform into pure energy, changing your attacks.</li>
+                    <li><b>Ultimate:</b> Hurricane - Summon a massive storm that pushes enemies away.</li>
+                </ul>
+
+                <h3>New Mechanics</h3>
+                <p><b>Pushback:</b> Use your wind attacks to keep enemies at bay rather than faceting them directly.</p>
+            `
+        },
+        thunder: {
+            title: "Tournament of Thunder",
+            html: `
+                <h2>DLC: Tournament of Thunder</h2>
+                <p>Enter the arena and prove your worth to the Storm Gods.</p>
+                
+                <h3>New Hero: Lightning (Yellow)</h3>
+                <p>High speed, high damage, but very fragile.</p>
+                <ul>
+                    <li><b>Passive:</b> Static Charge - Moving builds up charge for a powerful next attack.</li>
+                    <li><b>Ability:</b> Chain Lightning - Attacks arc between nearby enemies.</li>
+                    <li><b>Ultimate:</b> Thunderstrike - Global damage to all enemies on screen.</li>
+                </ul>
+
+                <h3>The Tournament</h3>
+                <p>A special wave-based mode where you face champions instead of mindless hordes.</p>
+            `
+        },
+        chaos_dlc: {
+            title: "Champions of Chaos",
+            html: `
+                <h2>DLC: Champions of Chaos</h2>
+                <p>Embrace the entropy and wield the power of the void.</p>
+                
+                <h3>New Hero: Gravity (Purple)</h3>
+                <p>Manipulates the fundamental forces of the universe.</p>
+                <ul>
+                    <li><b>Passive:</b> Event Horizon - Enemies near you are slowed down.</li>
+                    <li><b>Ability:</b> Black Hole - Sucks enemies into a central point for massive damage.</li>
+                    <li><b>Ultimate:</b> Singularity - Compresses all matter, dealing fatal damage.</li>
+                </ul>
+
+                <h3>New Hero: Void (Dark Grey)</h3>
+                <p>A glitch in reality, the Void Hero is a melee assassin with strange powers.</p>
+                <ul>
+                    <li><b>Passive:</b> Glitch Step - Chance to phase through enemies and damage.</li>
+                    <li><b>Melee:</b> Spatial Tear - Opens rifts that damage enemies over time.</li>
+                    <li><b>Ultimate:</b> Reality Crash - Breaks the game logic to deal massive damage to everything.</li>
+                </ul>
+
+                <h3>Distorted Dimension</h3>
+                <p>A realm where physics are mere suggestions. Prepare for inverted controls and time dilation.</p>
+            `
         }
     },
 
     open: function () {
         document.getElementById('menu-overlay').style.display = 'none';
         document.getElementById('tutorial-screen').style.display = 'flex';
+
+        // Check for DLCs and show buttons
+        if (window.dlcManager) {
+            const list = window.dlcManager.getDLCList();
+
+            const rock = list.find(d => d.id === 'rise_of_the_rock');
+            if (rock && rock.active) document.getElementById('btn-tutorial-rock').style.display = 'block';
+
+            const wind = list.find(d => d.id === 'the_wind_waker');
+            if (wind && wind.active) document.getElementById('btn-tutorial-wind').style.display = 'block';
+
+            const thunder = list.find(d => d.id === 'tournament_of_thunder');
+            if (thunder && thunder.active) document.getElementById('btn-tutorial-thunder').style.display = 'block';
+
+            const chaos = list.find(d => d.id === 'champions_of_chaos');
+            if (chaos && chaos.active) document.getElementById('btn-tutorial-chaos-dlc').style.display = 'block';
+        }
+
         this.showTab('basics');
         setUIState('TUTORIAL');
     },
@@ -159,6 +257,7 @@ const Tutorial = {
             btn.classList.remove('active');
             if (btn.getAttribute('onclick').includes(tabId)) {
                 btn.classList.add('active');
+                btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
         });
     },

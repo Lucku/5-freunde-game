@@ -211,7 +211,7 @@ class AirHero {
         if (player.transformActive && player.currentForm === 'ZEPHYR') {
             player.hurricaneActive = true;
         }
-        
+
         if (player.hurricaneActive && window.ctx) {
             const ctx = window.ctx;
             ctx.save();
@@ -376,7 +376,42 @@ class AirHero {
                 ctx.save();
                 ctx.translate(eff.x, eff.y);
 
-                if (eff.type === 'BARRIER') {
+                if (eff.type === 'HEALING') {
+                    // Draw Healing Circle
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#a2f1c1';
+                    ctx.lineWidth = 4;
+                    ctx.arc(0, 0, 100, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.fillStyle = 'rgba(162, 241, 193, 0.15)';
+                    ctx.fill();
+
+                    // Plus signs
+                    if (frame % 20 === 0) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const r = Math.random() * 80;
+                        // (Particles would be better, but purely drawing here)
+                    }
+
+                    // Logic: Gentle Push + Regen Tick
+                    if (window.enemies) {
+                        window.enemies.forEach(e => {
+                            const d = Math.hypot(e.x - eff.x, e.y - eff.y);
+                            if (d < 100) {
+                                const a = Math.atan2(e.y - eff.y, e.x - eff.x);
+                                e.x += Math.cos(a) * 2; // Gentle push
+                                e.y += Math.sin(a) * 2;
+                            }
+                        });
+                    }
+                    // Regen tick every second
+                    eff.interval++;
+                    if (eff.interval % 60 === 0 && player.hp < player.maxHp) {
+                        player.hp += 1;
+                        if (typeof FloatingText !== 'undefined') new FloatingText(player.x, player.y - 40, "+1", '#a2f1c1', 60);
+                    }
+
+                } else if (eff.type === 'BARRIER') {
                     // Draw Barrier
                     ctx.beginPath();
                     ctx.strokeStyle = '#00ff00';
@@ -717,16 +752,31 @@ class AirHero {
             if (typeof showNotification === 'function') showNotification("TORNADO ACTIVE!");
 
         } else {
-            // NORTH (BARRIER) or WEST (VORTEX)
-            let type = (dir === 'NORTH') ? 'BARRIER' : 'VORTEX';
+            // NORTH (SOOTHING BREEZE - Healing) or WEST (VORTEX)
+            let type = (dir === 'NORTH') ? 'HEALING' : 'VORTEX';
 
-            player.activeEffect = {
-                x: player.x,
-                y: player.y,
-                timer: 300,
-                type: type
-            };
-            if (typeof showNotification === 'function') showNotification(`${type} ACTIVE!`);
+            if (type === 'HEALING') {
+                // HEALING: SOOTHING BREEZE
+                player.hp = Math.min(player.maxHp, player.hp + 15); // Heal 15 HP
+                if (window.showNotification) window.showNotification("SOOTHING BREEZE! +15 HP", '#a2f1c1');
+
+                // Active effect: Gentle Push + Minor Regen?
+                player.activeEffect = {
+                    x: player.x,
+                    y: player.y,
+                    timer: 300,
+                    type: 'HEALING',
+                    interval: 0
+                };
+            } else {
+                player.activeEffect = {
+                    x: player.x,
+                    y: player.y,
+                    timer: 300,
+                    type: type
+                };
+                if (typeof showNotification === 'function') showNotification(`${type} ACTIVE!`);
+            }
         }
     }
 
@@ -736,11 +786,12 @@ class AirHero {
         const dir = player.weatherVane.direction;
 
         // Cooldown Multipliers (Reload Times)
+        // General adjustment: Slower attacks overall (increased multipliers)
         let cdMult = 1.0;
-        if (dir === 'NORTH') cdMult = 3.0; // Shotgun: Slow reload
-        if (dir === 'SOUTH') cdMult = 4.0; // Sniper: Very slow reload
-        if (dir === 'EAST') cdMult = 0.3;  // Rifle: Very fast
-        if (dir === 'WEST') cdMult = 2.0;  // Orb: Slow
+        if (dir === 'NORTH') cdMult = 4.0; // Healing stance: Much slower reload (was 3.0)
+        if (dir === 'SOUTH') cdMult = 5.0; // Sniper: Very slow reload (was 4.0)
+        if (dir === 'EAST') cdMult = 0.5;  // Rifle: Fast, but slower than before (was 0.3)
+        if (dir === 'WEST') cdMult = 3.0;  // Orb: Slow (was 2.0)
 
         const now = Date.now();
         const baseCd = (player.stats.rangeCd || 200) * player.cooldownMultiplier;
@@ -795,7 +846,7 @@ class AirHero {
                     ctx.rotate(rot);
 
                     if (this.windStyle === 'SCATTER') {
-                        // NORTH: Shotgun (Chaotic puffs)
+                        // NORTH: HEALING SHOTGUN (Cloud/Mist particles)
                         ctx.fillStyle = this.color;
                         ctx.globalAlpha = 0.8;
                         ctx.beginPath();
@@ -894,15 +945,16 @@ class AirHero {
         };
 
         if (dir === 'NORTH') {
-            // NORTH: SHOTGUN (High spread, high reload)
+            // NORTH: HEALING SHOTGUN (Short range, low frequency)
+            // Reverted to multi-projectile but kept healing color/theme
             for (let i = -2; i <= 2; i++) {
                 spawnProj({
                     angle: angle + (i * 0.15),
                     speed: speed * 0.9,
-                    damage: dmg * 0.8,
-                    life: 40,
-                    radius: 6,
-                    color: '#40e0d0', // Turquoise
+                    damage: dmg * 0.5, // Reduced damage relative to original shotgun (was 0.8)
+                    life: 25, // Short range (was 40/60)
+                    radius: 5,
+                    color: '#a2f1c1', // Healing Green
                     windStyle: 'SCATTER'
                 });
             }
