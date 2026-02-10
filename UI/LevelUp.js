@@ -72,6 +72,11 @@ class LevelUpUI {
             if (window.showNotification) window.showNotification(`${player.currentForm} ACTIVATED!`);
             if (window.createExplosion) window.createExplosion(player.x, player.y, '#fff');
         }
+        else if (type === 'wind_shift') {
+            if (window.HERO_LOGIC && window.HERO_LOGIC['air'] && window.HERO_LOGIC['air'].applyWindShift) {
+                window.HERO_LOGIC['air'].applyWindShift(player);
+            }
+        }
 
         window.isLevelingUp = false;
         document.getElementById('levelup-screen').style.display = 'none';

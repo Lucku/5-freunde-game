@@ -85,10 +85,20 @@ class Boss {
             this.knockbackResist = 0.8;
             this.state = 'IDLE';
             this.stormTimer = 0;
+        } else if (typeof WindBosses !== 'undefined' && WindBosses.isWindBoss(this.type)) {
+            WindBosses.init(this);
         }
     }
 
     update() {
+        if (typeof WindBosses !== 'undefined' && WindBosses.isWindBoss(this.type)) {
+            WindBosses.update(this, player, arena);
+            // Clamp position
+            this.x = Math.max(this.radius, Math.min(arena.width - this.radius, this.x));
+            this.y = Math.max(this.radius, Math.min(arena.height - this.radius, this.y));
+            return;
+        }
+
         // ZEUS Logic
         if (this.type === 'ZEUS') {
             // Check phases
@@ -376,6 +386,11 @@ class Boss {
     }
 
     draw() {
+        if (typeof WindBosses !== 'undefined' && WindBosses.isWindBoss(this.type)) {
+            WindBosses.draw(ctx, this);
+            return;
+        }
+
         ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(frame * 0.02);
         ctx.fillStyle = this.color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
         ctx.beginPath();

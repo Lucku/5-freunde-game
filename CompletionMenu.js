@@ -94,6 +94,20 @@ class CompletionMenu {
                 continue;
             }
 
+            if (hero === 'air') { // The Wind Waker DLC
+                const stories = MEMORY_STORIES[hero];
+                const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
+                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                if (!Array.isArray(unlocked)) {
+                    for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
+                }
+
+                stories.forEach((story, i) => {
+                    addToDLC('The Wind Waker', 'Memories', unlockedIndices.includes(i), `Shard #${i + 1}`);
+                });
+                continue;
+            }
+
             if (hero === 'gravity' || hero === 'void') { // Champions of Chaos DLC
                 const stories = MEMORY_STORIES[hero];
                 // Champions of Chaos shares one DLC entry but separate memory tracks or just grouped?
@@ -149,6 +163,10 @@ class CompletionMenu {
             }
             if (ach.id.startsWith('thunder_')) {
                 addToDLC('Tournament of Thunder', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
+                return;
+            }
+            if (ach.id.startsWith('wind_') || ach.id === 'AIR_UNLOCK' || ach.id === 'TEMPEST_KING') {
+                addToDLC('The Wind Waker', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
                 return;
             }
             if (ach.id.startsWith('chaos_') || ach.id.includes('gravity') || ach.id.includes('void') || ach.id === 'ENTROPY_LORD' || ach.id === 'GALAXY_S') {
@@ -228,6 +246,11 @@ class CompletionMenu {
                 addToDLC('Tournament of Thunder', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
                 return;
             }
+            if (evt.id && evt.id.startsWith('wind_')) {
+                const isUnlocked = saveData.story.unlockedChapters.includes(evt.id);
+                addToDLC('The Wind Waker', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
+                return;
+            }
             if (evt.id && evt.id.startsWith('chaos_')) {
                 const isUnlocked = saveData.story.unlockedChapters.includes(evt.id);
                 addToDLC('Champions of Chaos', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
@@ -264,6 +287,11 @@ class CompletionMenu {
             const card = COLLECTOR_CARDS[id];
             // Extract type from ID (e.g., BASIC_1 -> BASIC)
             const type = id.split('_')[0];
+
+            if (['HARPY', 'AERO'].includes(type) || id.includes('CLOUD_MANTA')) {
+                addToDLC('The Wind Waker', 'Cards', saveData.collection.includes(id), card.name);
+                return;
+            }
 
             if (['GOLEM', 'BURROWER'].includes(type)) {
                 addToDLC('Rise of the Rock', 'Cards', saveData.collection.includes(id), card.name);

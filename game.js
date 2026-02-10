@@ -988,10 +988,10 @@ var isShopping = false;
 var isStatsOpen = false;
 
 let score = 0;
-let wave = 1;
+var wave = 1; // Exposed for DLC
 let frame = 0;
-let enemiesKilledInWave = 0;
-let bossActive = false;
+var enemiesKilledInWave = 0; // Exposed for DLC
+var bossActive = false;      // Exposed for DLC
 let bossDeathTimer = 0; // Timer for slow-mo effect
 
 // Weather

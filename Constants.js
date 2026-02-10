@@ -12,6 +12,7 @@ const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI', 'AUTOAIM'];
 const BOSS_TYPES = ['TANK', 'SPEEDSTER', 'SUMMONER', 'NOVA', 'RHINO', 'HYDRA'];
 const ENEMY_TYPES = ['BASIC', 'SHOOTER', 'BRUTE', 'SPEEDSTER', 'SWARM', 'SUMMONER', 'GHOST', 'SNIPER', 'BOMBER', 'TOXIC', 'SHIELDER'];
 const ENEMIES_PER_WAVE = 30;
+window.ENEMIES_PER_WAVE = ENEMIES_PER_WAVE; // Expose for DLC
 const SKILL_TREE_SIZE = 100;
 
 
@@ -183,7 +184,12 @@ const COLLECTOR_CARDS = {
     // DLC: Champions of Chaos
     ...createCardSet('VOID_WALKER', 'Void Walker', '#4a235a', 'Void Walkers have 20% less HP', { type: 'damage_vs', val: 0.2, target: 'VOID_WALKER' }),
     ...createCardSet('GLITCH', 'Glitch', '#ff00ff', 'Glitch teleport range -50%', { type: 'special', id: 'GLITCH_TELE_NERF' }),
-    ...createCardSet('ENTROPY_MAGE', 'Entropy Mage', '#9b59b6', 'Enemy Projectiles move 50% slower', { type: 'special', id: 'ENTROPY_PROJ_SLOW' })
+    ...createCardSet('ENTROPY_MAGE', 'Entropy Mage', '#9b59b6', 'Enemy Projectiles move 50% slower', { type: 'special', id: 'ENTROPY_PROJ_SLOW' }),
+
+    // DLC: The Wind Waker
+    ...createCardSet('HARPY', 'Harpy', '#00bcd4', 'Harpies take +50% Knockback', { type: 'stat_vs', val: 1.5, stat: 'knockback', target: 'HARPY' }),
+    ...createCardSet('AERO_DRONE', 'Aero Drone', '#607d8b', 'Drones have 30% less HP', { type: 'damage_vs', val: 0.3, target: 'AERO_DRONE' }),
+    ...createCardSet('CLOUD_MANTA', 'Cloud Manta', '#cfd8dc', 'Mantas cannot stealth', { type: 'special', id: 'MANTA_NO_STEALTH' })
 };
 
 const MUTATORS = [

@@ -16,12 +16,17 @@ class DLCManager {
                 title: "Champions of Chaos",
                 desc: "Defy gravity! Introduces the new Purple Hero 'Gravity', a chaotic playstyle, a distorted dimension, and a story of entropy.",
                 icon: "🌌"
+            },
+            'the_wind_waker': {
+                title: "The Wind Waker",
+                desc: "Soar through the skies! Introduces the Turquoise Hero 'Air', the Sky Palace biome, and a tale of freedom.",
+                icon: "🌪️"
             }
         };
     }
 
     getDLCList() {
-        const enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos"]');
+        const enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "the_wind_waker"]');
         return Object.keys(this.availableDLCs).map(id => ({
             id: id,
             ...this.availableDLCs[id],
@@ -33,7 +38,7 @@ class DLCManager {
         console.log("Initializing DLC Manager...");
 
         // Load enabled DLCs from storage (default to enabled for now)
-        const enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock"]');
+        const enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "the_wind_waker"]');
 
         for (const id of enabledDLCs) {
             if (this.availableDLCs.hasOwnProperty(id)) {
