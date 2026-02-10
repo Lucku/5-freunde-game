@@ -313,7 +313,16 @@ class BlackHole {
                 // Pull Range: 3x current radius
                 if (dist < this.radius * 3) {
                     const angle = Math.atan2(dy, dx);
-                    const force = (1000 / (dist + 10)) * 2; // Stronger as you get closer
+                    let force = (1000 / (dist + 10)) * 2; // Stronger as you get closer
+
+                    // Boss Resistance
+                    if (e.knockbackResist) {
+                        force *= (1 - e.knockbackResist);
+                    }
+                    if (e instanceof Boss || e.subType === 'BRUTE' || e.subType === 'VOID_WALKER') {
+                        force *= 0.1; // Extra resistance for bosses/elites
+                    }
+
                     e.x += Math.cos(angle) * force;
                     e.y += Math.sin(angle) * force;
 
@@ -323,14 +332,27 @@ class BlackHole {
 
                     // Eat
                     if (dist < 20) {
-                        e.hp -= 1000; // Instakill most non-bosses
-                        if (e.hp <= 0 && !e.dead) {
-                            // e.dead is not standard, checks hp usually
-                            // Just ensure we count it once
-                            this.eaten++;
-                            this.radius = Math.min(300, this.radius + 2); // Grow on eat
-                            if (typeof createExplosion === 'function') createExplosion(this.x, this.y, "#8e44ad", 5);
-                            // Visual: shrink enemy? can't easily.
+                        // Boss & Elite Protection: Don't check HP threshold, just deal DoT damage
+                        if ((typeof Boss !== 'undefined' && e instanceof Boss) || (e.subType === 'BRUTE') || (e.maxHp > 2000)) {
+                            // Deal DOT instead of instant kill
+                            // Original was 1000 per frame. Reduce to 20 per frame (~1200 DPS) which is strong but survived by bosses
+                            e.hp -= 20 * (this.owner.damageMultiplier || 1);
+
+                            // Visual feedback
+                            if (window.frame % 10 === 0 && typeof createExplosion === 'function') {
+                                createExplosion(this.x, this.y, "#8e44ad", 3);
+                            }
+                        } else {
+                            // Standard Minion Logic
+                            e.hp -= 1000; // Instakill most non-bosses
+                            if (e.hp <= 0 && !e.dead) {
+                                // e.dead is not standard, checks hp usually
+                                // Just ensure we count it once
+                                this.eaten++;
+                                this.radius = Math.min(300, this.radius + 2); // Grow on eat
+                                if (typeof createExplosion === 'function') createExplosion(this.x, this.y, "#8e44ad", 5);
+                                // Visual: shrink enemy? can't easily.
+                            }
                         }
                     }
                 }
