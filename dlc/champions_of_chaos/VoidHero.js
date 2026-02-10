@@ -210,6 +210,10 @@ window.HERO_LOGIC['void'] = {
 
         if (typeof audioManager !== 'undefined') audioManager.play('melee_void');
 
+        // Altar Checks
+        const active = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const has = (id) => active.includes(id);
+
         // Damage Area
         if (typeof enemies !== 'undefined') {
             enemies.forEach(e => {
@@ -223,12 +227,40 @@ window.HERO_LOGIC['void'] = {
 
                     if (Math.abs(diff) < Math.PI / 1.5) { // Cone
                         const dmg = 50 * player.damageMultiplier;
-                        e.hp -= dmg;
+
+                        // EXECUTE LOGIC (v3 + c32)
+                        let executeThreshold = 0;
+                        if (has('v3')) executeThreshold = 0.15; // 15% Default Execute
+                        // c32: Null Freeze (Ice + Void)
+                        if (has('c32') && e.frozenTimer > 0) executeThreshold = 0.25; // 25% if Frozen
+
+                        let executed = false;
+                        if (!e.isBoss && e.hp < e.maxHp * executeThreshold) {
+                            e.hp = -9999;
+                            executed = true;
+                            if (typeof FloatingText !== 'undefined') floatingTexts.push(new FloatingText(e.x, e.y - 60, "DELETE", "#ff0000", 30));
+                        } else {
+                            e.hp -= dmg;
+                        }
+
+                        // c34: Glitch (Lightning + Void) - Chain Lightning on Execute
+                        if (executed && has('c34')) {
+                            if (typeof projectiles !== 'undefined') {
+                                for (let k = 0; k < 3; k++) {
+                                    const a = Math.random() * Math.PI * 2;
+                                    projectiles.push(new Projectile(
+                                        e.x, e.y,
+                                        { x: Math.cos(a) * 10, y: Math.sin(a) * 10 },
+                                        30, '#ffff00', 4, 'friend', 0
+                                    ));
+                                }
+                            }
+                        }
 
                         // Digital Glitch Stun
                         if (Math.random() < 0.3) e.frozenTimer = 30;
 
-                        if (typeof floatingTexts !== 'undefined') {
+                        if (typeof floatingTexts !== 'undefined' && !executed) {
                             floatingTexts.push(new FloatingText(e.x, e.y - 40, dmg.toFixed(0), "#00bcd4", 25));
                         }
 

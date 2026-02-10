@@ -72,6 +72,7 @@ class Museum {
             { name: 'fire', x: 50, y: 50, w: 750, h: 550, color: '#2c0b0b' },
             { name: 'water', x: 850, y: 50, w: 750, h: 550, color: '#0b1a2c' },
             { name: 'ice', x: 1650, y: 50, w: 700, h: 550, color: '#1a252a' },
+            // Air room removed as requested, moving to gallery
             { name: 'plant', x: 50, y: 650, w: 550, h: 1100, color: '#0b2c14' }, // Left Wing
             { name: 'metal', x: 1800, y: 650, w: 550, h: 1100, color: '#1a1a1a' }, // Right Wing
             { name: 'gallery', x: 650, y: 650, w: 1100, h: 1100, color: '#84806bcc' } // Central/Main
@@ -297,6 +298,22 @@ class Museum {
                         color: '#8e44ad',
                         type: 'MEMORY',
                         hero: 'makuta'
+                    });
+                }
+            }
+
+            // Special Air Memory in Gallery (Wind Waker DLC)
+            if (saveData.memories['air'] && Array.isArray(saveData.memories['air']) && saveData.memories['air'].length > 0) {
+                const count = saveData.memories['air'].length;
+                const room = this.rooms.find(r => r.name === 'gallery');
+                if (room) {
+                    this.artifacts.push({
+                        x: room.x + room.w / 2 + 300,
+                        y: room.y + 50, // Top Right
+                        text: `Sky: ${count}`,
+                        color: '#40e0d0',
+                        type: 'MEMORY',
+                        hero: 'air'
                     });
                 }
             }

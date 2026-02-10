@@ -783,6 +783,9 @@ class AirHero {
     static shoot(player, dx, dy) {
         if (!gameRunning || gamePaused || isLevelingUp || isShopping) return;
 
+        // Mutation Helper (Altar of Mastery)
+        const has = (id) => (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active && saveData.altar.active.includes(id));
+
         const dir = player.weatherVane.direction;
 
         // Cooldown Multipliers (Reload Times)
@@ -809,6 +812,10 @@ class AirHero {
         // --- COMPASS ATTACK LOGIC ---
         // Pushes to window.projectiles
         const spawnProj = (props) => {
+            // ALTAR: Typhoon (c23) - Increased Knockback
+            let finalKnockback = props.knockback || 4;
+            if (has('c23')) finalKnockback *= 1.5;
+
             const p = {
                 x: player.x,
                 y: player.y,
@@ -818,11 +825,48 @@ class AirHero {
                 life: props.life || 60,
                 damage: props.damage,
                 radius: props.radius || (player.stats.projectileSize * 1.5),
-                knockback: props.knockback || 4,
+                knockback: finalKnockback,
                 color: props.color || "#e0f7fa",
                 type: 'WIND_BURST',
                 pierce: props.pierce || 0,
                 windStyle: props.windStyle || 'DEFAULT', // NEW: Style prop
+
+                // ALTAR ON-HIT EFFECTS
+                onHit: function (enemy) {
+                    // C22: Firestorm (Burn)
+                    if (has('c22')) {
+                        enemy.hp -= 5;
+                        if (typeof createExplosion !== 'undefined') createExplosion(enemy.x, enemy.y, '#e74c3c', 1);
+                    }
+                    // C24: Blizzard (Shatter Frozen)
+                    if (has('c24') && enemy.frozenTimer > 0) {
+                        enemy.hp -= 25;
+                        if (typeof createExplosion !== 'undefined') createExplosion(enemy.x, enemy.y, '#aaddff', 5);
+                        if (typeof FloatingText !== 'undefined') new FloatingText(enemy.x, enemy.y - 30, "SHATTER!", '#fff', 14);
+                    }
+                    // C25: Pollen (Heal)
+                    if (has('c25') && Math.random() < 0.2) {
+                        player.hp = Math.min(player.hp + 1, player.maxHp);
+                        if (typeof FloatingText !== 'undefined') new FloatingText(player.x, player.y - 40, "+1", '#2ecc71', 14);
+                    }
+                    // C26: Shrapnel (Bleed)
+                    if (has('c26')) {
+                        enemy.hp -= 3; // Bleed damage
+                        if (typeof createExplosion !== 'undefined') createExplosion(enemy.x, enemy.y, '#95a5a6', 2);
+                    }
+                    // C27: Sandstorm (Blind/Stun)
+                    if (has('c27') && Math.random() < 0.3) {
+                        enemy.frozenTimer = 30; // 0.5s stun
+                        if (typeof FloatingText !== 'undefined') new FloatingText(enemy.x, enemy.y - 25, "BLIND", '#e67e22', 12);
+                    }
+                    // C28: Thunderhead (Sparks)
+                    if (has('c28')) {
+                        enemy.hp -= 5;
+                        if (typeof createExplosion !== 'undefined') createExplosion(enemy.x, enemy.y, '#f1c40f', 2);
+                    }
+                    
+                    return 'CONTINUE'; // Continue standard processing
+                },
 
                 update: function () {
                     this.x += this.vx;

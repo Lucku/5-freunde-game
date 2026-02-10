@@ -88,6 +88,7 @@ class Enemy {
         this.shootCooldown = 0;
         this.summonCooldown = 0;
         this.frozenTimer = 0;
+        this.slowTimer = 0;
 
         // Chaos: Giant Enemies
         if (typeof isChaosActive === 'function' && isChaosActive('GIANT_ENEMIES')) {
@@ -196,8 +197,12 @@ class Enemy {
 
         const angle = Math.atan2(targetY - this.y, targetX - this.x);
         let moveX = 0, moveY = 0;
-        let currentSpeed = this.speed * this.biomeSpeedMod;
+        let currentSpeed = this.speed * (this.biomeSpeedMod || 1); // Fix biomeSpeedMod undefined
         if (currentWeather && currentWeather.id === 'BLIZZARD') currentSpeed *= 0.5;
+        if (this.slowTimer > 0) {
+            currentSpeed *= 0.5;
+            this.slowTimer--;
+        }
 
         // --- Behavior Logic ---
         if (this.subType === 'GHOST') {

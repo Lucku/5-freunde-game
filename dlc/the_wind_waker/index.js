@@ -93,18 +93,29 @@ const THE_WIND_WAKER = {
         if (typeof ALTAR_TREE !== 'undefined') {
             // AIR HERO SKILLS
             ALTAR_TREE['air'] = [
-                { id: 'a1', req: 1, type: 'stat', stat: 'speed', val: 1.15, desc: 'Tailwind: Movement Speed +15%' },
-                { id: 'a2', req: 3, type: 'stat', stat: 'knockback', val: 1.5, desc: 'Gale Force: Knockback +50%' },
-                { id: 'a3', req: 5, type: 'unique', desc: 'Updraft: Dashing grants unconditional invincibility for 0.5s' }
+                { id: 'a1', req: 1, type: 'stat', stat: 'cooldown', val: 0.9, desc: 'Wind Shear Cooldown -10%' },
+                { id: 'a2', req: 3, type: 'stat', stat: 'knockback', val: 1.3, desc: 'Gust: Pushback +30%' },
+                { id: 'a3', req: 5, type: 'unique', desc: 'Headwind: Enemies moving towards you are slowed' }
             ];
+
             // CROSS CONVERGENCE SKILLS
-            // Fire + Air = Plasma
-            if (!ALTAR_TREE['fire'].find(n => n.id === 'fa_conv')) {
-                ALTAR_TREE['fire'].push({ id: 'fa_conv', req: 10, type: 'convergence', partner: 'air', desc: 'Plasma Storm: Fire trails spread with wind speed.' });
-            }
-            // Water + Air = Mist
-            if (!ALTAR_TREE['water'].find(n => n.id === 'wa_conv')) {
-                ALTAR_TREE['water'].push({ id: 'wa_conv', req: 10, type: 'convergence', partner: 'air', desc: 'Typhoon: Knocked back enemies are drenched (+dmg).' });
+            const airMutations = [
+                { id: 'c22', req: { fire: 5, air: 5 }, type: 'mutation', desc: 'Firestorm: Wind attacks spread fire' },
+                { id: 'c23', req: { water: 5, air: 5 }, type: 'mutation', desc: 'Typhoon: Knockback distance increased by 50%' },
+                { id: 'c24', req: { ice: 5, air: 5 }, type: 'mutation', desc: 'Blizzard: Frozen enemies shatter when pushed' },
+                { id: 'c25', req: { plant: 5, air: 5 }, type: 'mutation', desc: 'Pollen: Wind attacks heal for small amounts' },
+                { id: 'c26', req: { metal: 5, air: 5 }, type: 'mutation', desc: 'Shrapnel: Wind attacks cause bleeding' },
+                { id: 'c27', req: { earth: 5, air: 5 }, type: 'mutation', desc: 'Sandstorm: Blinds enemies, reducing their accuracy' },
+                { id: 'c28', req: { lightning: 5, air: 5 }, type: 'mutation', desc: 'Thunderhead: Wind attacks generate static sparks' }
+            ];
+
+            // Add only if not already present
+            if (ALTAR_TREE.convergence) {
+                airMutations.forEach(m => {
+                    if (!ALTAR_TREE.convergence.find(ex => ex.id === m.id)) {
+                        ALTAR_TREE.convergence.push(m);
+                    }
+                });
             }
         }
     },

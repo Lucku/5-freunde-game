@@ -84,6 +84,23 @@ const CHAMPIONS_OF_CHAOS = {
                 { id: 'v3', req: 5, type: 'unique', desc: 'Kernel Panic: Execute enemies below 15% HP' }
             ];
 
+            // CONVERGENCES
+            const chaosMutations = [
+                { id: 'c30', req: { gravity: 5, void: 5 }, type: 'mutation', desc: 'Entropy: Gravity Wells apply Decay (Stacks)' },
+                { id: 'c31', req: { earth: 5, gravity: 5 }, type: 'mutation', desc: 'Asteroid Belt: Rocks orbit the Gravity Well' },
+                { id: 'c32', req: { ice: 5, void: 5 }, type: 'mutation', desc: 'Null Freeze: Frozen enemies are executed at 25% HP' },
+                { id: 'c33', req: { fire: 5, gravity: 5 }, type: 'mutation', desc: 'Quasar: Gravity Wells explode on expiry' },
+                { id: 'c34', req: { lightning: 5, void: 5 }, type: 'mutation', desc: 'Glitch: Executions trigger Chain Lightning' }
+            ];
+
+            if (ALTAR_TREE.convergence) {
+                chaosMutations.forEach(m => {
+                    if (!ALTAR_TREE.convergence.find(ex => ex.id === m.id)) {
+                        ALTAR_TREE.convergence.push(m);
+                    }
+                });
+            }
+
             console.log("Champions of Chaos: Altar Skills Injected.");
         }
     },

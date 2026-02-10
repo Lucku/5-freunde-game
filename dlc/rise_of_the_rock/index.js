@@ -433,8 +433,27 @@ const RISE_OF_THE_ROCK = {
             ALTAR_TREE['earth'] = [
                 { id: 'e1', req: 1, type: 'stat', stat: 'cooldown', val: 0.9, desc: 'Seismic Slam Cooldown -10%' },
                 { id: 'e2', req: 3, type: 'stat', stat: 'radius', val: 1.2, desc: 'Seismic Slam Radius +20%' },
-                { id: 'e3', req: 5, type: 'unique', desc: 'Aftershock: Seismic Slam triggers twice' }
+                { id: 'e3', req: 5, type: 'unique', desc: 'Aftershock: Seismic Slam triggers a second time' }
             ];
+
+            // CONVERGENCES
+            const earthMutations = [
+                { id: 'c11', req: { fire: 5, earth: 5 }, type: 'mutation', desc: 'Magma Roll: Rolling leaves a fire trail' },
+                { id: 'c12', req: { water: 5, earth: 5 }, type: 'mutation', desc: 'Mudslide: Seismic Slam slows enemies' },
+                { id: 'c13', req: { ice: 5, earth: 5 }, type: 'mutation', desc: 'Ice Breaker: Ramming frozen enemies deals 3x damage' },
+                { id: 'c14', req: { plant: 5, earth: 5 }, type: 'mutation', desc: 'Nature\'s Embrace: Ramming heals for 1% HP' },
+                { id: 'c15', req: { metal: 5, earth: 5 }, type: 'mutation', desc: 'Steel Ball: +50% Armor while rolling' },
+                { id: 'c21', req: { earth: 5, lightning: 5 }, type: 'mutation', desc: 'Grounding: Seismic Slam releases electric shockwaves' },
+                { id: 'c27', req: { earth: 5, air: 5 }, type: 'mutation', desc: 'Sandstorm: Blinds enemies, reducing their accuracy' }
+            ];
+
+            if (ALTAR_TREE.convergence) {
+                earthMutations.forEach(m => {
+                    if (!ALTAR_TREE.convergence.find(ex => ex.id === m.id)) {
+                        ALTAR_TREE.convergence.push(m);
+                    }
+                });
+            }
         }
     },
 

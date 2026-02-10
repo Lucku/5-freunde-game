@@ -190,8 +190,32 @@ const TOURNAMENT_OF_THUNDER = {
     },
 
     injectAltar: function () {
-        // Altar Data is now handled directly in AltarData.js
-        console.log("Tournament of Thunder: Altar Data managed in core file.");
+        if (typeof ALTAR_TREE !== 'undefined') {
+            ALTAR_TREE['lightning'] = [
+                { id: 'l1', req: 1, type: 'stat', stat: 'cooldown', val: 0.9, desc: 'Lightning Strike Cooldown -10%' },
+                { id: 'l2', req: 3, type: 'stat', stat: 'chains', val: 2.0, desc: 'Chain Lightning +2 Bounces' },
+                { id: 'l3', req: 5, type: 'unique', desc: 'Thunder Lord: Attacks have 20% chance to stun' }
+            ];
+
+            // CONVERGENCES
+            const thunderMutations = [
+                { id: 'c16', req: { fire: 5, lightning: 5 }, type: 'mutation', desc: 'Plasma: Fire explosions arc lightning' },
+                { id: 'c17', req: { ice: 5, lightning: 5 }, type: 'mutation', desc: 'Superconductor: Frozen enemies conduct double lightning damage' },
+                { id: 'c18', req: { metal: 5, lightning: 5 }, type: 'mutation', desc: 'Railgun: Projectiles pierce through enemies' },
+                { id: 'c19', req: { water: 5, lightning: 5 }, type: 'mutation', desc: 'Storm Surge: Tidal Wave releases electric sparks' },
+                { id: 'c20', req: { plant: 5, lightning: 5 }, type: 'mutation', desc: 'Bio-Electricity: Healing pulse electrocutes nearby enemies' },
+                { id: 'c21', req: { earth: 5, lightning: 5 }, type: 'mutation', desc: 'Grounding: Seismic Slam releases electric shockwaves' },
+                { id: 'c28', req: { lightning: 5, air: 5 }, type: 'mutation', desc: 'Thunderhead: Wind attacks generate static sparks' }
+            ];
+
+            if (ALTAR_TREE.convergence) {
+                thunderMutations.forEach(m => {
+                    if (!ALTAR_TREE.convergence.find(ex => ex.id === m.id)) {
+                        ALTAR_TREE.convergence.push(m);
+                    }
+                });
+            }
+        }
     },
 
     injectAchievements: function () {

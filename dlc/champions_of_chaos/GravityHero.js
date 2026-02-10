@@ -303,6 +303,10 @@ class BlackHole {
         this.rotation += 0.1;
         this.life--;
 
+        // Altar Checks
+        const active = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const has = (id) => active.includes(id);
+
         // Suck Enemies
         if (typeof enemies !== 'undefined') {
             enemies.forEach(e => {
@@ -329,6 +333,23 @@ class BlackHole {
                     // Rotate enemy around center (Spaghettification visual)
                     e.x += Math.sin(this.rotation) * 2;
                     e.y += Math.cos(this.rotation) * 2;
+
+                    // c30: Entropy (Gravity Wells apply Decay/DoT)
+                    if (has('c30')) {
+                        e.hp -= 2 * (this.owner.damageMultiplier || 1);
+                        // Visual for Entropy?
+                    }
+
+                    // c31: Asteroid Belt (Rocks orbit and damage)
+                    if (has('c31')) {
+                        // Check collision with "orbiting rocks" (abstracted to distance check)
+                        // Assume rocks are at radius * 2 distance
+                        // If enemy is crossing the "Belt", take damage
+                        const beltDist = Math.abs(dist - (this.radius * 2));
+                        if (beltDist < 30) {
+                            e.hp -= 5 * (this.owner.damageMultiplier || 1);
+                        }
+                    }
 
                     // Eat
                     if (dist < 20) {
@@ -376,13 +397,25 @@ class BlackHole {
         player.activeBlackHole = null;
         player.setupSpecial(); // Reset UI icon
 
+        // Altar Checks
+        const active = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const has = (id) => active.includes(id);
+
         // Explosion
-        const dmg = 500 + (this.eaten * 50);
-        const boomRadius = this.radius * 2;
+        let dmg = 500 + (this.eaten * 50);
+        let boomRadius = this.radius * 2;
+
+        // c33: Quasar (Fire + Gravity)
+        const isQuasar = has('c33');
+        if (isQuasar) {
+            dmg *= 1.2;
+            boomRadius *= 1.4;
+        }
 
         if (typeof createExplosion === 'function') {
             createExplosion(this.x, this.y, "#fff", this.radius);
             createExplosion(this.x, this.y, "#000", this.radius * 0.8);
+            if (isQuasar) createExplosion(this.x, this.y, '#e74c3c', boomRadius);
         }
         if (typeof showNotification === 'function') showNotification(`QUASAR BLAST! ${this.eaten} consumed`, "#fff");
 
@@ -391,6 +424,12 @@ class BlackHole {
             enemies.forEach(e => {
                 if (Math.hypot(e.x - this.x, e.y - this.y) < boomRadius) {
                     e.hp -= dmg * player.damageMultiplier;
+
+                    if (isQuasar) {
+                        e.hp -= dmg * 0.2; // Extra burn
+                        if (Math.random() < 0.3) if (typeof FloatingText !== 'undefined') floatingTexts.push(new FloatingText(e.x, e.y - 40, "MELT", "#e74c3c", 20));
+                    }
+
                     if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
                 }
             });
@@ -425,6 +464,23 @@ class BlackHole {
             const a = Math.random() * Math.PI * 2;
             ctx.fillStyle = "#fff";
             ctx.fillRect(Math.cos(a) * r, Math.sin(a) * r, 2, 2);
+        }
+
+        // c31: Asteroid Belt Visuals
+        const active = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        if (active.includes('c31')) {
+            const numRocks = 5;
+            for (let i = 0; i < numRocks; i++) {
+                // Counter-rotate or sync-rotate check?
+                // Using 'i' for distribute
+                // Use this.rotation for spin
+                const angle = this.rotation + (i * ((Math.PI * 2) / numRocks));
+                const rockDist = this.radius * 2;
+                ctx.beginPath();
+                ctx.arc(Math.cos(angle) * rockDist, Math.sin(angle) * rockDist, 5 + (i % 2) * 2, 0, Math.PI * 2);
+                ctx.fillStyle = "#795548"; // Earth Brown
+                ctx.fill();
+            }
         }
 
         ctx.restore();

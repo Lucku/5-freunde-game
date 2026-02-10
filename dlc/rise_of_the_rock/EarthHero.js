@@ -199,10 +199,30 @@ class EarthHero {
 
         // Hit Enemies
         if (typeof enemies !== 'undefined') {
+            const active = player.activeAltarNodes || [];
+            const has = (id) => active.includes(id);
+
             enemies.forEach(e => {
                 const dist = Math.hypot(e.x - player.x, e.y - player.y);
                 if (dist < radius) {
                     e.hp -= damage;
+
+                    // c12: Mudslide (Slow)
+                    if (has('c12')) {
+                        e.slowTimer = 180; // Slow for 3 seconds
+                    }
+
+                    // c21: Grounding (Electric Shockwaves)
+                    if (has('c21') && typeof projectiles !== 'undefined') {
+                        for (let i = 0; i < 3; i++) {
+                            const a = Math.random() * Math.PI * 2;
+                            projectiles.push(new Projectile(
+                                e.x, e.y,
+                                { x: Math.cos(a) * 5, y: Math.sin(a) * 5 },
+                                damage * 0.3, '#f1c40f', 5, 'friend', 0
+                            ));
+                        }
+                    }
 
                     // Knockback
                     const angle = Math.atan2(e.y - player.y, e.x - player.x);
