@@ -675,5 +675,7 @@ window.getHeroTheme = function (type) {
     if (type === 'gravity') return { bg: '#1a0b2e', grid: '#4a235a' };
     if (type === 'void') return { bg: '#0b0b1a', grid: '#004c54' }; // Low contrast cyan
     if (type === 'air') return { bg: '#87CEEB', grid: '#E0F7FA' }; // Sky Palace
+    if (type === 'spirit') return { bg: '#2a2000', grid: '#4a3b00' }; // Temple Gold
+    if (type === 'chance') return { bg: '#1a0b1a', grid: '#4a004a' }; // Casino Neon
     return { bg: '#1a1a1a', grid: '#333' };
 };

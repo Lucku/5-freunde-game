@@ -1,1 +1,11 @@
-Nothing to see here...
+# General
+
+- Add general game statistics in the "Statistics" menu (playtime, enemies killed, etc.)
+
+# DLC: Waker of Winds
+
+- Add sound effects and music
+
+# DLC: Faith of Fortune
+
+- Add proper story implementation

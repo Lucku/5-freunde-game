@@ -25,6 +25,11 @@ class Enemy {
             this.subType = forcedEnemyType;
         }
 
+        // DLC/Biome Spawn Logic Hook
+        if (!this.subType && typeof window.getBiomeEnemyType === 'function') {
+            this.subType = window.getBiomeEnemyType(wave, this);
+        }
+
         if (!this.subType) {
             const rand = Math.random();
             if (wave > 10 && rand < 0.05) this.subType = 'SNIPER';

@@ -21,13 +21,18 @@ class DLCManager {
                 title: "Waker of Winds",
                 desc: "Soar through the skies! Introduces the Turquoise Hero 'Air', the Sky Palace biome, and a tale of freedom.",
                 icon: "🌪️"
+            },
+            'faith_of_fortune': {
+                title: "Faith of Fortune",
+                desc: "Balance vs Chaos! Introduces 'Spirit' and 'Chance'. Temples, Casinos, and the search for the Mask.",
+                icon: "🎰"
             }
         };
     }
 
     getDLCList() {
         // Migration: Check for old ID
-        let enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "waker_of_winds"]');
+        let enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "waker_of_winds", "faith_of_fortune"]');
         if (enabledDLCs.includes('the_wind_waker')) {
             enabledDLCs = enabledDLCs.filter(e => e !== 'the_wind_waker');
             if (!enabledDLCs.includes('waker_of_winds')) enabledDLCs.push('waker_of_winds');
@@ -45,7 +50,7 @@ class DLCManager {
         console.log("Initializing DLC Manager...");
 
         // Load enabled DLCs from storage (default to enabled for now)
-        let enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "waker_of_winds"]');
+        let enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "waker_of_winds", "faith_of_fortune"]');
 
         // Migration check again to be safe
         if (enabledDLCs.includes('the_wind_waker')) {
