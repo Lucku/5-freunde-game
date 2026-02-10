@@ -1,4 +1,4 @@
-// The Wind Waker - Story Campaign
+// Waker of Winds - Story Campaign
 
 window.WIND_STORY_CHAPTERS = [
     // --- ARC 1: THE WHISPER OF THE WIND (Weeks 1-10) ---

@@ -1,21 +1,21 @@
-// The Wind Waker - DLC Manifest
+// Waker of Winds - DLC Manifest
 
-const THE_WIND_WAKER = {
-    id: 'the_wind_waker',
-    name: "The Wind Waker",
+const WAKER_OF_WINDS = {
+    id: 'waker_of_winds',
+    name: "Waker of Winds",
     heroes: ['air'],
-    description: "Introduces 'Air' (Turquoise Hero), the Sky Palace Biome, and the 'Wind Waker' story campaign.",
+    description: "Introduces 'Air' (Turquoise Hero), the Sky Palace Biome, and the 'Waker of Winds' story campaign.",
     icon: "🌪️",
 
     load: async function () {
-        console.log("[DLC] Loading: The Wind Waker...");
+        console.log("[DLC] Loading: Waker of Winds...");
 
         if (window.dlcManager) {
-            await window.dlcManager.loadScript('dlc/the_wind_waker/AirHero.js');
-            await window.dlcManager.loadScript('dlc/the_wind_waker/WindBiome.js');
-            await window.dlcManager.loadScript('dlc/the_wind_waker/WindEnemies.js');
-            await window.dlcManager.loadScript('dlc/the_wind_waker/WindBosses.js');
-            await window.dlcManager.loadScript('dlc/the_wind_waker/Story.js');
+            await window.dlcManager.loadScript('dlc/waker_of_winds/AirHero.js');
+            await window.dlcManager.loadScript('dlc/waker_of_winds/WindBiome.js');
+            await window.dlcManager.loadScript('dlc/waker_of_winds/WindEnemies.js');
+            await window.dlcManager.loadScript('dlc/waker_of_winds/WindBosses.js');
+            await window.dlcManager.loadScript('dlc/waker_of_winds/Story.js');
         }
 
         this.injectHero();
@@ -26,7 +26,7 @@ const THE_WIND_WAKER = {
         this.injectAchievements();
         this.injectMemories();
 
-        console.log("[DLC] Loaded: The Wind Waker (Success)");
+        console.log("[DLC] Loaded: Waker of Winds (Success)");
     },
 
     injectHero: function () {
@@ -159,6 +159,5 @@ const THE_WIND_WAKER = {
 };
 
 // Register
-if (window.DLC_REGISTRY) {
-    window.DLC_REGISTRY['the_wind_waker'] = THE_WIND_WAKER;
-}
+if (!window.DLC_REGISTRY) window.DLC_REGISTRY = {};
+window.DLC_REGISTRY['waker_of_winds'] = WAKER_OF_WINDS;
