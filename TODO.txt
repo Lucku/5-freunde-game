@@ -8,4 +8,4 @@
 
 # DLC: Faith of Fortune
 
-- Add proper story implementation
+- [x] Add proper story implementation

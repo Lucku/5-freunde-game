@@ -24,11 +24,109 @@ const FAITH_OF_FORTUNE = {
         this.injectBiome();
         this.injectEnemies();
         this.injectStory();
+        this.injectStoryHooks();
         this.injectAltar();
         this.injectAchievements();
         this.injectMemories();
 
         console.log("[DLC] Loaded: Faith of Fortune (Success)");
+    },
+
+    injectStoryHooks: function () {
+        // Hook Story Choices
+        const originalHandleStoryChoice = window.handleStoryChoice;
+        window.handleStoryChoice = function (choice) {
+            // Try DLC handler
+            if (FAITH_OF_FORTUNE.handleDLCStoryChoice(choice)) return;
+            // Otherwise call original
+            if (originalHandleStoryChoice) originalHandleStoryChoice(choice);
+        };
+
+        // Register Custom Spawn Handlers
+        if (!window.customSpawnHandlers) window.customSpawnHandlers = {};
+        window.customSpawnHandlers['BLACK_HERO_1V1'] = this.startStoryDuel;
+        window.customSpawnHandlers['RIVAL_1V1'] = this.startStoryDuel;
+    },
+
+    handleDLCStoryChoice: function (choice) {
+        if (!choice.effect && !choice.outcome) return false;
+
+        // Biome Modifiers
+        if (choice.effect === 'biomemod_madness') {
+            currentBiomeType = 'chance';
+            arena.generate(currentBiomeType);
+            showNotification("BIOME SHIFT: MADNESS", "#ff00ff");
+            return true;
+        } else if (choice.effect === 'biomemod_temple') {
+            currentBiomeType = 'spirit';
+            arena.generate(currentBiomeType);
+            showNotification("BIOME SHIFT: TEMPLE", "#f1c40f");
+            return true;
+        }
+        // Stat Buffs
+        else if (choice.effect === 'heal_full') {
+            player.hp = player.maxHp;
+            createExplosion(player.x, player.y, '#2ecc71');
+            showNotification("FULL HEAL");
+            return true;
+        } else if (choice.effect === 'buff_damage') {
+            player.damageMultiplier += 0.5;
+            showNotification("DAMAGE BOOST!", "#e74c3c");
+            return true;
+        }
+        // Hero Swaps (Climax)
+        else if (choice.outcome === 'set_hero_spirit') {
+            changeHeroInGame('spirit');
+            showNotification("YOU ARE SPIRIT", "#f1c40f");
+            return true;
+        } else if (choice.outcome === 'set_hero_chance') {
+            changeHeroInGame('chance');
+            showNotification("YOU ARE CHANCE", "#ff00ff");
+            return true;
+        }
+        // Endings
+        else if (choice.outcome === 'fight_chance') {
+            showNotification("DEFEAT CHANCE!", "#ff00ff");
+            return true;
+        } else if (choice.outcome === 'fight_spirit') {
+            showNotification("DEFEAT SPIRIT!", "#f1c40f");
+            return true;
+        }
+        return false;
+    },
+
+    startStoryDuel: function (enemyType) {
+        // Clear existing enemies
+        enemies = [];
+        bossActive = true; // Block wave progression
+
+        // Determine Rival Type
+        let rivalType = 'black'; // Default
+        if (enemyType === 'BLACK_HERO_1V1') rivalType = 'black';
+        else if (enemyType === 'RIVAL_1V1') {
+            // If player is Spirit, fight Chance. If player is Chance, fight Spirit.
+            rivalType = (player.type === 'spirit') ? 'chance' : 'spirit';
+        }
+
+        console.log(`Starting Story Duel: ${player.type} VS ${rivalType}`);
+
+        if (typeof AIController === 'undefined') {
+            console.error("AIController not found! Cannot start duel.");
+            bossActive = false;
+            return;
+        }
+
+        const p2 = new Player(rivalType, true); // true = isCPU
+        p2.controller = new AIController(player);
+        p2.x = arena.width / 2 + 600;
+        p2.y = arena.height / 2;
+        p2.hp *= 2; // Buff Boss HP
+        p2.maxHp *= 2;
+
+        if (!window.additionalPlayers) window.additionalPlayers = [];
+        window.additionalPlayers.push(p2);
+
+        showNotification("DUEL STARTED!", "#ff0000");
     },
 
     injectHero: function () {

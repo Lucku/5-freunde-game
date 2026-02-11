@@ -1574,6 +1574,31 @@ function openStory(story) {
     document.getElementById('story-screen').style.display = 'flex';
     document.getElementById('story-title').innerText = story.title;
     document.getElementById('story-text').innerText = story.text;
+
+    // Choice Logic
+    const choiceContainer = document.getElementById('story-choices');
+    const continueBtn = document.getElementById('story-continue-btn');
+    choiceContainer.innerHTML = '';
+
+    if (story.choices && story.choices.length > 0) {
+        continueBtn.style.display = 'none';
+        story.choices.forEach(choice => {
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.innerText = choice.text;
+            btn.onclick = () => {
+                handleStoryChoice(choice);
+                closeStory();
+            };
+            // Style differently for emphasis if needed
+            if (choice.text.includes("Chance")) btn.style.borderColor = "#ff00ff";
+            if (choice.text.includes("Spirit")) btn.style.borderColor = "#f1c40f";
+            choiceContainer.appendChild(btn);
+        });
+    } else {
+        continueBtn.style.display = 'block';
+    }
+
     setUIState('STORY');
 
     // Save progress
@@ -1648,22 +1673,52 @@ function closeStory() {
     // Champions of Chaos: Force Hero Swap to match Narrative
     if (currentStoryEvent && (currentStoryEvent.hero === 'GRAVITY' || currentStoryEvent.hero === 'VOID')) {
         // Ensure player matches the narrator
-        // Convert to lowercase because player types are lowercase (gravity/void)
-        const requiredHero = currentStoryEvent.hero.toLowerCase();
-        if (player.type !== requiredHero) {
-            shuffleHero(requiredHero);
-        }
+        // ... (existing logic)
+    }
+}
+
+// --- Story Choice Handler ---
+window.handleStoryChoice = function (choice) {
+    console.log("Story Choice Selected:", choice);
+    if (!choice.effect && !choice.outcome) return;
+
+    // This base function can be extended by DLCs (see dlc/index.js or specific dlc init)
+};
+
+function changeHeroInGame(newType) {
+    if (!player) return;
+    const oldHpRatio = player.hp / player.maxHp;
+    const oldGold = player.gold;
+    const oldStats = player.stats;
+    const oldBuffs = player.buffs;
+
+    player = new Player(newType);
+    player.x = arena.width / 2;
+    player.y = arena.height / 2;
+    player.gold = oldGold;
+    // Preserve HP Ratio
+    player.hp = player.maxHp * oldHpRatio;
+
+    // Notify
+    if (window.createExplosion) createExplosion(player.x, player.y, '#fff');
+}
+
+// Convert to lowercase because player types are lowercase (gravity/void)
+const requiredHero = currentStoryEvent.hero.toLowerCase();
+if (player.type !== requiredHero) {
+    shuffleHero(requiredHero);
+}
     }
 
-    // Proceed to Shop or Next Wave
-    // Special case: If wave is 0 (Intro), always advance to Wave 1
-    if (wave === 0) {
-        advanceWave();
-    } else if (wave % 4 === 0) {
-        openShop();
-    } else {
-        advanceWave();
-    }
+// Proceed to Shop or Next Wave
+// Special case: If wave is 0 (Intro), always advance to Wave 1
+if (wave === 0) {
+    advanceWave();
+} else if (wave % 4 === 0) {
+    openShop();
+} else {
+    advanceWave();
+}
 }
 
 let currentObjective = null;
@@ -1853,6 +1908,17 @@ function resumeWaveGeneration() {
     if (typeof nextWaveIsNemesis !== 'undefined' && nextWaveIsNemesis) {
         storyBossId = nextWaveIsNemesis;
         nextWaveIsNemesis = null;
+    }
+
+    // Check Story Duel (1v1) - or other custom spawns handled by DLCs
+    if (!storyBossId && currentStoryEvent && currentStoryEvent.data && currentStoryEvent.data.spawnEnemy) {
+        const enemyId = currentStoryEvent.data.spawnEnemy;
+        if (window.customSpawnHandlers && window.customSpawnHandlers[enemyId]) {
+            console.log("Starting Custom Spawn:", enemyId);
+            window.customSpawnHandlers[enemyId](enemyId);
+        } else {
+            console.warn("No handler found for custom spawn:", enemyId);
+        }
     }
 
     if (!storyBossId && currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT' && currentStoryEvent.data) {
