@@ -1670,10 +1670,26 @@ function closeStory() {
         return;
     }
 
-    // Champions of Chaos: Force Hero Swap to match Narrative
-    if (currentStoryEvent && (currentStoryEvent.hero === 'GRAVITY' || currentStoryEvent.hero === 'VOID')) {
+    // Force Hero Swap to match Narrative (Generic Logic for Chaos/Fortune/etc)
+    if (currentStoryEvent && currentStoryEvent.hero) {
+        // Convert to lowercase because player types are lowercase (gravity/void/spirit/chance)
+        const requiredHero = currentStoryEvent.hero.toLowerCase();
+
         // Ensure player matches the narrator
-        // ... (existing logic)
+        if (player.type !== requiredHero) {
+            // Use changeHeroInGame for direct swap preserving stats
+            changeHeroInGame(requiredHero);
+        }
+    }
+
+    // Proceed to Shop or Next Wave
+    // Special case: If wave is 0 (Intro), always advance to Wave 1
+    if (wave === 0) {
+        advanceWave();
+    } else if (wave % 4 === 0) {
+        openShop();
+    } else {
+        advanceWave();
     }
 }
 
@@ -1701,24 +1717,6 @@ function changeHeroInGame(newType) {
 
     // Notify
     if (window.createExplosion) createExplosion(player.x, player.y, '#fff');
-}
-
-// Convert to lowercase because player types are lowercase (gravity/void)
-const requiredHero = currentStoryEvent.hero.toLowerCase();
-if (player.type !== requiredHero) {
-    shuffleHero(requiredHero);
-}
-    }
-
-// Proceed to Shop or Next Wave
-// Special case: If wave is 0 (Intro), always advance to Wave 1
-if (wave === 0) {
-    advanceWave();
-} else if (wave % 4 === 0) {
-    openShop();
-} else {
-    advanceWave();
-}
 }
 
 let currentObjective = null;
@@ -2265,6 +2263,43 @@ function gameOver(isVictory = false) {
     } else {
         // Victory! Track max prestige win
         const currentP = saveData[player.type].prestige || 0;
+
+        // SPECIAL: Faith of Fortune Shared Prestige
+        // If finishing the Fortune story, count it for both Spirit and Chance
+        if (currentStoryEvent && currentStoryEvent.id && currentStoryEvent.id.startsWith('fortune_')) {
+            const spiritRec = saveData['spirit'].maxWinPrestige ?? -1;
+            const chanceRec = saveData['chance'].maxWinPrestige ?? -1;
+            // Spirit
+            if ((saveData['spirit'].prestige || 0) > spiritRec) {
+                saveData['spirit'].maxWinPrestige = (saveData['spirit'].prestige || 0);
+            }
+            // Chance
+            if ((saveData['chance'].prestige || 0) > chanceRec) {
+                saveData['chance'].maxWinPrestige = (saveData['chance'].prestige || 0);
+            }
+        }
+
+        // SPECIAL: Champions of Chaos Shared Prestige
+        // If finishing the Chaos story, count it for both Gravity and Void
+        if (currentStoryEvent && currentStoryEvent.id && currentStoryEvent.id.startsWith('chaos_')) {
+            // Ensure data exists (safe check)
+            if (!saveData['gravity']) saveData['gravity'] = { prestige: 0, maxWinPrestige: -1 };
+            if (!saveData['void']) saveData['void'] = { prestige: 0, maxWinPrestige: -1 };
+
+            const gravityRec = saveData['gravity'].maxWinPrestige ?? -1;
+            const voidRec = saveData['void'].maxWinPrestige ?? -1;
+
+            // Gravity
+            if ((saveData['gravity'].prestige || 0) > gravityRec) {
+                saveData['gravity'].maxWinPrestige = (saveData['gravity'].prestige || 0);
+            }
+            // Void
+            if ((saveData['void'].prestige || 0) > voidRec) {
+                saveData['void'].maxWinPrestige = (saveData['void'].prestige || 0);
+            }
+        }
+
+        // Standard Prestige Track
         const recorded = saveData[player.type].maxWinPrestige ?? -1;
         if (currentP > recorded) {
             saveData[player.type].maxWinPrestige = currentP;

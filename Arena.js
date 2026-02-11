@@ -24,6 +24,7 @@ class Arena {
     }
 
     generate(biomeType, layoutOverride = null, trapOverride = null) {
+        this.biomeType = biomeType; // Store for update/draw hooks
         this.obstacles = [];
         this.biomeZones = [];
         const layout = layoutOverride !== null ? layoutOverride : Math.floor(Math.random() * 8);
@@ -251,6 +252,11 @@ class Arena {
         ctx.lineWidth = 5;
         ctx.strokeRect(0, 0, this.width, this.height);
 
+        // DLC Hook for Biome Custom Drawing (e.g. Falling Floors)
+        if (this.biomeType && window.BIOME_LOGIC && window.BIOME_LOGIC[this.biomeType] && window.BIOME_LOGIC[this.biomeType].draw) {
+            window.BIOME_LOGIC[this.biomeType].draw(ctx, this);
+        }
+
         // Draw Biome Zones
         this.biomeZones.forEach(zone => zone.draw(ctx));
 
@@ -262,6 +268,11 @@ class Arena {
     }
 
     update(player) {
+        // DLC Hook for Biome Custom Update
+        if (this.biomeType && window.BIOME_LOGIC && window.BIOME_LOGIC[this.biomeType] && window.BIOME_LOGIC[this.biomeType].update) {
+            window.BIOME_LOGIC[this.biomeType].update(); // It uses window.arena internally
+        }
+
         // Check Trap Collisions
         this.traps.forEach(trap => {
             trap.update(); // Update state
