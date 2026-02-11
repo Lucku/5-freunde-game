@@ -11,6 +11,13 @@ class TempleBiome {
         this.patternOffset = 0;
     }
 
+    generate(arena) {
+        // Called when biome switches to this
+        this.lanterns = [];
+        this.sanctuaries = [];
+        console.log("[TempleBiome] Generated.");
+    }
+
     update(arena, player, enemies) {
         this.patternOffset = (this.patternOffset + 0.2) % 100;
 
@@ -145,12 +152,77 @@ class TempleBiome {
 
             ctx.restore();
 
-            // Text label
-            ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-            ctx.textAlign = "center";
-            ctx.font = "12px Arial";
-            ctx.fillText("SANCTUARY", s.x + s.r, s.y + s.r - s.r - 10);
+            // Text label removed as per request
         });
+
+        // Draw Torches (Random placements based on grid logic to seem persistent)
+        // We use a pseudo-random check on the grid coordinates
+        ctx.save();
+        const tSize = 100; // Same as pattern size
+        const tOff = this.patternOffset;
+
+        const cStartX = Math.floor(cam.x / tSize) * tSize;
+        const cStartY = Math.floor(cam.y / tSize) * tSize;
+        const cEndX = cam.x + cam.width;
+        const cEndY = cam.y + cam.height;
+
+        for (let x = cStartX - tSize; x < cEndX + tSize; x += tSize) {
+            for (let y = cStartY - tSize; y < cEndY + tSize; y += tSize) {
+                // Pseudo-random but deterministic placement based on coordinate
+                // Simple hash: abs(sin(x * y)) > 0.985 (Reduced density)
+                const hash = Math.abs(Math.sin(x * 0.123 + y * 0.456));
+                if (hash > 0.985) {
+                    // Draw Torch
+                    const imgX = x + tSize / 2;
+                    const imgY = y + tSize / 2;
+
+                    // Torch Stand
+                    ctx.fillStyle = "#8d6e63";
+                    ctx.fillRect(imgX - 4, imgY - 10, 8, 20);
+
+                    // Flame
+                    const flameH = 10 + Math.sin(window.frame * 0.2 + x) * 3;
+                    ctx.fillStyle = (window.frame % 10 < 5) ? "#e74c3c" : "#f1c40f";
+                    ctx.beginPath();
+                    ctx.moveTo(imgX - 4, imgY - 10);
+                    ctx.lineTo(imgX + 4, imgY - 10);
+                    ctx.lineTo(imgX, imgY - 10 - flameH);
+                    ctx.fill();
+
+                    // Glow
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = "#e67e22";
+                    ctx.fillStyle = "rgba(230, 126, 34, 0.2)";
+                    ctx.beginPath();
+                    ctx.arc(imgX, imgY - 15, 20 + Math.sin(window.frame * 0.1) * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+
+                // Prayer Statues (New Spiritual Object)
+                const hash2 = Math.abs(Math.sin(x * 0.789 + y * 0.321));
+                if (hash2 > 0.997) { // Much rarer (only top 0.3%)
+                    const imgX = x + tSize / 2;
+                    const imgY = y + tSize / 2;
+
+                    // Stone Color (Solid Grey)
+                    ctx.fillStyle = "#7f8c8d"; // Darker Grey
+
+                    // Base
+                    ctx.fillRect(imgX - 6, imgY + 8, 12, 6);
+
+                    // Body
+                    ctx.beginPath();
+                    ctx.arc(imgX, imgY, 10, Math.PI, 0); // Semicircle top
+                    ctx.lineTo(imgX + 10, imgY + 8);
+                    ctx.lineTo(imgX - 10, imgY + 8);
+                    ctx.fill();
+
+                    // No red bib - pure stone
+                }
+            }
+        }
+        ctx.restore();
 
         // Draw Lanterns (Foreground-ish)
         this.lanterns.forEach(l => {

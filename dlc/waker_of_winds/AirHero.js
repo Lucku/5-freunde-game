@@ -19,7 +19,7 @@ class AirHero {
         // Hooks
         player.customUpdate = (dx, dy) => AirHero.update(player, dx, dy);
         player.shoot = (dx, dy) => AirHero.shoot(player, dx, dy);
-        player.customSpecial = () => AirHero.useUltimate(player);
+        player.customSpecial = () => AirHero.useSpecial(player);
 
         // Ult Icon
         player.icon = "🌪️";
@@ -710,7 +710,7 @@ class AirHero {
         ctx.restore();
     }
 
-    static useUltimate(player) {
+    static useSpecial(player) {
         if (player.activeEffect || player.activeTornado) return;
         if (player.weatherVane) player.weatherVane.ultimatesUsedThisWave++;
 
@@ -864,7 +864,7 @@ class AirHero {
                         enemy.hp -= 5;
                         if (typeof createExplosion !== 'undefined') createExplosion(enemy.x, enemy.y, '#f1c40f', 2);
                     }
-                    
+
                     return 'CONTINUE'; // Continue standard processing
                 },
 

@@ -7,7 +7,7 @@ class LightningHero {
         // Hooks
         player.customUpdate = (dx, dy) => LightningHero.update(player, dx, dy);
         player.shoot = (dx, dy) => LightningHero.shoot(player, dx, dy);
-        player.customSpecial = () => LightningHero.useUltimate(player);
+        player.customSpecial = () => LightningHero.useSpecial(player);
 
         // Setup Special UI: STORM SURGE
         // This is the active spacebar ability.
@@ -333,7 +333,7 @@ class LightningHero {
         }
     }
 
-    static useUltimate(player) {
+    static useSpecial(player) {
         // Special Ability: "THUNDER GOD'S WRATH"
         // Unleashes a storm of random lightning strikes for 5 seconds.
 

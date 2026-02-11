@@ -19,8 +19,8 @@ class SpiritHero {
         player.specialCooldown = 0; // Uses Resource instead of time (mostly)
 
         player.customUpdate = (dx, dy) => SpiritHero.update(player, dx, dy);
-        player.customSpecial = () => SpiritHero.useUltimate(player);
-        player.shoot = (dx, dy) => SpiritHero.shootMantra(player, dx, dy);
+        player.customSpecial = () => SpiritHero.useSpecial(player);
+        player.shoot = () => SpiritHero.shootMantra(player);
 
         // Override takeDamage to lose Inner Peace
         player._originalTakeDamage = player.takeDamage;
@@ -45,7 +45,8 @@ class SpiritHero {
             { id: 'max_peace', title: 'Deep Breaths', desc: '+50 Max Inner Peace.', icon: '🧘' },
             { id: 'regen', title: 'Regeneration', desc: 'Regenerate HP while meditating.', icon: '💖' },
             { id: 'mantra', title: 'Mantra', desc: 'Attacks pierce +1 enemy.', icon: '🔆' },
-            { id: 'shield', title: 'Spirit Shell', desc: 'Take 20% less damage when Peace > 50.', icon: '🛡️' }
+            { id: 'shield', title: 'Spirit Shell', desc: 'Take 20% less damage when Peace > 50.', icon: '🛡️' },
+            { id: 'refill_peace', title: 'Tranquility', desc: 'Instantly restore 100% Inner Peace.', icon: '🕊️' }
         ];
 
         window.HERO_LOGIC['spirit'].upgradePool = upgradePool;
@@ -57,6 +58,15 @@ class SpiritHero {
     }
 
     static update(player, dx, dy) {
+        // Handle Instant Skill Triggers
+        if (player.triggerRefillPeace) {
+            player.triggerRefillPeace = false;
+            player.innerPeace = player.maxInnerPeace;
+            if (typeof showNotification === 'function') showNotification("PEACE RESTORED", "#F0D080");
+            if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, "#F0D080", 50);
+            if (typeof audioManager !== 'undefined') audioManager.play('menu_open');
+        }
+
         // 1. Meditation Logic
         const isMoving = (dx !== 0 || dy !== 0) || (keys && (keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight']));
 
@@ -80,6 +90,12 @@ class SpiritHero {
         } else {
             player.meditationTimer = 0;
         }
+
+        // Draw UI Meter (Attached to Player logic to ensure it draws every frame)
+        // We inject the draw logic directly if it's missing, or we can use a dedicated UI hook.
+        // For simplicity, we'll assume the main loop doesn't draw this automatically, so we'll draw it here.
+        // BUT 'update' is for logic. 'draw' handles rendering.
+        // Since there is no 'draw' override on player yet, we can attach a UI draw hook to 'HERO_LOGIC'.
 
         // 2. Transcendent State (Ultimate Active)
         if (player.transformActive && player.currentForm === 'ENLIGHTENED') {
@@ -118,10 +134,22 @@ class SpiritHero {
         }
     }
 
-    static shootMantra(player, dx, dy) {
+    static shootMantra(player) {
         if (player.rangeCooldown > 0) return;
 
+        // Calculate direction from player's aim angle (since args are not passed by standard shoot call)
+        const dx = Math.cos(player.aimAngle);
+        const dy = Math.sin(player.aimAngle);
+
         if (typeof audioManager !== 'undefined') audioManager.play('shoot_weak');
+
+        // Ensure properties exist
+        if (typeof player.innerPeace === 'undefined') player.innerPeace = 50;
+
+        // Muzzle Flash
+        if (typeof createExplosion !== 'undefined') {
+            createExplosion(player.x + dx * 20, player.y + dy * 20, "#F0D080", 8);
+        }
 
         // Damage scales with Inner Peace
         // 0 Peace = 50% dmg, 100 Peace = 150% dmg
@@ -134,13 +162,25 @@ class SpiritHero {
                 y: player.y,
                 vx: dx * 8, // Slower, steady speed
                 vy: dy * 8,
-                radius: 8, // Changed from scalar 'size' to 'radius' for collision logic
+                radius: 10, // Slightly larger
                 color: "#F0D080",
                 dmg: dmg,
                 life: 100,
                 damage: dmg, // Map dmg property for standard collision
                 pierce: player.pierceCount || 1, // Default 1 pierce
                 type: 'MANTRA',
+
+                onHit: function (enemy) {
+                    // Spirit Mechanics: Violence disturbs peace
+                    if (player && typeof player.innerPeace !== 'undefined') {
+                        player.innerPeace = Math.max(0, player.innerPeace - 5);
+                        // Visual Float Text if possible
+                        if (typeof floatingTexts !== 'undefined' && Math.random() < 0.3) {
+                            floatingTexts.push(new FloatingText(player.x, player.y - 40, "-Peace", "#cfcfcf", 15));
+                        }
+                    }
+                    return 'DEFAULT';
+                },
 
                 update: function () {
                     this.x += this.vx;
@@ -156,32 +196,37 @@ class SpiritHero {
                     ctx.save();
                     ctx.translate(this.x, this.y);
 
-                    // Glowing Orb
+                    // Glowing Core
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = this.color;
+                    ctx.fillStyle = "#fff"; // White core
                     ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = this.color;
+                    ctx.arc(0, 0, this.radius / 2, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // Outer Ring
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius + 4, 0, Math.PI * 2);
-                    ctx.strokeStyle = "rgba(240, 208, 128, 0.5)";
+                    // Outer Halo
+                    ctx.shadowBlur = 0;
+                    ctx.strokeStyle = this.color;
                     ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                     ctx.stroke();
+
+                    // Trailing bits (simple)
+                    if (window.frame % 2 === 0) {
+                        ctx.fillStyle = this.color;
+                        ctx.fillRect(-this.radius, -2, 4, 4);
+                    }
 
                     ctx.restore();
                 }
             });
         }
 
-        // Attack costs a tiny bit of peace? No, builds it on hit maybe? 
-        // Let's make it build peace on hit inside Enemy logic, or just passive gain.
-        // For now, easier: just passive gain when still.
-
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
     }
 
-    static useUltimate(player) {
+    static useSpecial(player) {
         if (player.transformActive) return; // Already active
 
         if (player.innerPeace < 30) {
@@ -200,9 +245,94 @@ class SpiritHero {
         if (typeof showNotification === 'function') showNotification("TRANSCENDENCE", "#F0D080");
         if (typeof audioManager !== 'undefined') audioManager.play('level_up');
 
-        // Peace consumes over time in update()
+        // Spawn Visual Aura
+        if (typeof projectiles !== 'undefined') {
+            projectiles.push({
+                x: player.x,
+                y: player.y,
+                vx: 0,
+                vy: 0,
+                life: 9999, // Managed by update
+                type: 'SPIRIT_AURA',
+                radius: 100, // Visual radius
+                angle: 0,
+                owner: player,
+                damage: 0, // No collision damage, logic handled in SpiritHero.update
+
+                update: function () {
+                    if (!this.owner.transformActive || this.owner.currentForm !== 'ENLIGHTENED') {
+                        this.dead = true;
+                        return;
+                    }
+                    this.x = this.owner.x;
+                    this.y = this.owner.y;
+                    this.angle += 0.05;
+                },
+
+                draw: function () {
+                    const ctx = window.ctx;
+                    if (!ctx) return;
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.angle);
+
+                    // Draw Mandala / Shield
+                    ctx.strokeStyle = "rgba(240, 208, 128, 0.6)";
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 60 + Math.sin(this.angle * 2) * 5, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // Rotating Squares
+                    ctx.beginPath();
+                    ctx.rect(-40, -40, 80, 80);
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                    ctx.stroke();
+
+                    ctx.rotate(Math.PI / 4);
+                    ctx.beginPath();
+                    ctx.rect(-40, -40, 80, 80);
+                    ctx.stroke();
+
+                    ctx.restore();
+                }
+            });
+        }
     }
 }
 
 if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
 window.HERO_LOGIC['spirit'] = SpiritHero;
+
+// Hook UI Drawing
+window.HERO_LOGIC['spirit'].drawUI = function (ctx) {
+    if (!window.player || window.player.type !== 'spirit') return;
+
+    // Draw Peace Meter UNDER player
+    const p = window.player;
+    // Calculate screen position
+    const screenX = p.x - (window.arena ? window.arena.camera.x : 0);
+    const screenY = p.y - (window.arena ? window.arena.camera.y : 0);
+
+    const max = p.maxInnerPeace || 100;
+    const cur = p.innerPeace || 0;
+    const pct = Math.min(1, Math.max(0, cur / max));
+
+    const w = 40;
+    const h = 4;
+    const x = screenX - w / 2;
+    const y = screenY + 30; // Below player
+
+    // Bg
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.fillRect(x, y, w, h);
+
+    // Bar
+    ctx.fillStyle = "#F0D080";
+    ctx.fillRect(x, y, w * pct, h); // Fill based on percentage
+
+    // Border (optional for small bar)
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#aaa";
+    ctx.strokeRect(x, y, w, h);
+};

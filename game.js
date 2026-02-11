@@ -11,6 +11,7 @@ if (isElectron) {
 }
 
 const canvas = document.getElementById('gameCanvas');
+window.canvas = canvas; // Expose for DLCs
 const ctx = canvas.getContext('2d');
 window.ctx = ctx; // Expose for DLCs
 const buffContainer = document.getElementById('buff-container');
@@ -1014,6 +1015,7 @@ window.enemies = enemies;
 window.particles = particles;
 window.floatingTexts = floatingTexts;
 window.meleeAttacks = meleeAttacks;
+window.arena = arena; // Expose Arena to Window for DLCs
 let powerUps = [];
 // obstacles and biomeZones moved to Arena class
 let holyMasks = [];
@@ -1087,6 +1089,12 @@ inputManager.onKeyDown = e => {
         if (e.code === 'KeyI' && gameRunning && !gamePaused) {
             player.isInvincible = !player.isInvincible;
             showNotification(`DEBUG: INVINCIBILITY ${player.isInvincible ? 'ON' : 'OFF'}`);
+        }
+
+        // DEBUG: Level Up with 'L'
+        if (e.code === 'KeyL' && gameRunning && !gamePaused) {
+            player.levelUp();
+            showNotification("DEBUG: LEVEL UP");
         }
 
         // DEBUG: Jump to Wave/Chapter with 'J'
@@ -2096,6 +2104,7 @@ function checkAchievements() {
 function startGame(mode = 'NORMAL') {
     // Initialize Arena (3000x3000)
     arena = new Arena(3000, 3000);
+    window.arena = arena; // Expose to window for DLCs
 
     isChaosShuffleMode = (mode === 'SHUFFLE');
     isVersusMode = (mode === 'VERSUS');
@@ -2440,6 +2449,15 @@ function masterLoop(timestamp) {
             return; // Skip normal game loop
         }
 
+        // --- BIG GAMBLE STATE (FROZEN CONTEXT) ---
+        if (typeof window.isBigGambleActive !== 'undefined' && window.isBigGambleActive) {
+            if (window.HERO_LOGIC && window.HERO_LOGIC['chance']) {
+                window.HERO_LOGIC['chance'].updateBigGamble(window.player);
+                window.HERO_LOGIC['chance'].drawBigGamble(ctx);
+            }
+            return; // Skip normal update/draw
+        }
+
         if (gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen) {
 
             if (isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
@@ -2744,6 +2762,7 @@ function masterLoop(timestamp) {
             }
 
             frame++;
+            window.frame = frame; // Expose for DLCs
 
             // Weather Logic
             if (currentWeather) {
@@ -3698,6 +3717,11 @@ function masterLoop(timestamp) {
                 ctx.translate(-arena.camera.x, -arena.camera.y);
                 window.BIOME_LOGIC[currentBiomeType].draw(ctx, arena);
                 ctx.restore();
+            }
+
+            // DLC Hook: Hero UI (e.g. Spirit Meter)
+            if (window.HERO_LOGIC && player && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawUI) {
+                window.HERO_LOGIC[player.type].drawUI(ctx);
             }
 
             // Chaos: Darkness (Fog of War) OR Mutator: Low Visibility

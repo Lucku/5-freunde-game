@@ -77,6 +77,15 @@ class LevelUpUI {
                 window.HERO_LOGIC['air'].applyWindShift(player);
             }
         }
+        else {
+            // Check for DLC specific logic
+            if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].applySkillNode) {
+                // Construct a node object compatible with applySkillNode
+                // ChanceHero expects uppercase type for BIG_GAMBLE
+                const node = { type: type.toUpperCase(), value: 0 };
+                window.HERO_LOGIC[player.type].applySkillNode(player, node);
+            }
+        }
 
         window.isLevelingUp = false;
         document.getElementById('levelup-screen').style.display = 'none';

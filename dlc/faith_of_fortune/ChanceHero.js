@@ -20,7 +20,7 @@ class ChanceHero {
         player.specialMaxCooldown = 900; // 15s
 
         player.customUpdate = (dx, dy) => ChanceHero.update(player, dx, dy);
-        player.customSpecial = () => ChanceHero.useUltimate(player);
+        player.customSpecial = () => ChanceHero.useSpecial(player);
         player.shoot = (dx, dy) => ChanceHero.shootDice(player, dx, dy);
 
         // Form Name
@@ -44,22 +44,24 @@ class ChanceHero {
 
     static injectSkillTree() {
         const upgradePool = [
-            { id: 'luck', title: 'Lucky Charm', desc: '+10 Luck. Improves all rolls.', icon: '🍀' },
+            { id: 'chance_luck', title: 'Lucky Charm', desc: '+10 Luck. Improves all rolls.', icon: '🍀' },
             { id: 'crit', title: 'High Roller', desc: '+10% Crit Chance.', icon: '🎲' },
             { id: 'damage', title: 'All In', desc: '+20% Max Damage Potential.', icon: '🎰' },
             { id: 'speed', title: 'Shuffle', desc: '+10% Movement Speed.', icon: '🃏' },
-            { id: 'cooldown', title: 'Quick Spin', desc: '-10% Cooldowns.', icon: '⚡' }
+            { id: 'cooldown', title: 'Quick Spin', desc: '-10% Cooldowns.', icon: '⚡' },
+            { id: 'big_gamble', title: 'The Big Gamble', desc: 'Monumental Risk. Monumental Reward.', icon: '🎡' }
         ];
 
         window.HERO_LOGIC['chance'].upgradePool = upgradePool;
 
         window.HERO_LOGIC['chance'].getSkillNodeDetails = (type, val, desc) => {
-            if (type === 'LUCK') return { val: 10, desc: "+10 Luck" };
+            if (type === 'chance_luck' || type === 'CHANCE_LUCK') return { val: 10, desc: "+10 Luck" };
             return { val, desc };
         };
 
         window.HERO_LOGIC['chance'].applySkillNode = (base, node) => {
-            if (node.type === 'LUCK') base.luck = (base.luck || 10) + node.value;
+            if (node.type === 'CHANCE_LUCK') base.luck = (base.luck || 10) + node.value;
+            if (node.type === 'BIG_GAMBLE') base.triggerBigGamble = true;
             // Standard stats handled generic player logic usually, or here if strict override needed
         };
     }
@@ -88,7 +90,26 @@ class ChanceHero {
             }
         }
 
-        // Slot Machine Logic
+        // BIG GAMBLE LOGIC
+        if (player.triggerBigGamble) {
+            player.triggerBigGamble = false;
+            player.bigSlotMachine = {
+                active: true,
+                timer: 180, // 3 Seconds to build tension
+                reels: [0, 0, 0],
+                outcome: null
+            };
+
+            // Freeze Context
+            if (window.ctx && window.canvas) {
+                ChanceHero.snapshot = window.ctx.getImageData(0, 0, window.canvas.width, window.canvas.height);
+                window.isBigGambleActive = true;
+            }
+
+            if (typeof audioManager !== 'undefined') audioManager.play('menu_open');
+        }
+
+        // Standard Slot Machine Logic (Mini)
         if (player.slotMachine.active) {
             player.slotMachine.timer--;
 
@@ -107,30 +128,107 @@ class ChanceHero {
                 ChanceHero.resolveSlots(player);
                 player.slotMachine.active = false;
             }
+        }
+    }
 
-            // Draw Slots UI (Hack: Draw directly to canvas here)
-            const ctx = window.ctx;
-            if (ctx) {
-                ctx.save();
-                ctx.translate(player.x, player.y - 60);
-                // Box
-                ctx.fillStyle = "#222";
-                ctx.strokeStyle = "#ff00ff";
-                ctx.lineWidth = 2;
-                ctx.fillRect(-45, -20, 90, 40);
-                ctx.strokeRect(-45, -20, 90, 40);
+    static updateBigGamble(player) {
+        if (!player.bigSlotMachine || !player.bigSlotMachine.active) return;
 
-                // Reels
-                const symbols = ['🍒', '🔔', '➖', '7️⃣', '💎', '💀'];
-                ctx.fillStyle = "#fff";
-                ctx.font = "20px Arial";
-                ctx.textAlign = "center";
-                ctx.fillText(symbols[player.slotMachine.reels[0]], -25, 8);
-                ctx.fillText(symbols[player.slotMachine.reels[1]], 0, 8);
-                ctx.fillText(symbols[player.slotMachine.reels[2]], 25, 8);
+        player.bigSlotMachine.timer--;
 
-                ctx.restore();
+        // Spin Animation
+        if (player.bigSlotMachine.timer > 0 && player.bigSlotMachine.timer % 5 === 0) {
+            player.bigSlotMachine.reels = [
+                Math.floor(Math.random() * 6),
+                Math.floor(Math.random() * 6),
+                Math.floor(Math.random() * 6)
+            ];
+            if (typeof audioManager !== 'undefined') audioManager.play('menu_click');
+        }
+
+        // Resolve
+        if (player.bigSlotMachine.timer <= 0) {
+            ChanceHero.resolveBigSlots(player);
+            player.bigSlotMachine.active = false;
+
+            // Unfreeze
+            window.isBigGambleActive = false;
+            ChanceHero.snapshot = null;
+        }
+    }
+
+    static drawBigGamble(ctx) {
+        // Draw Snapshot (Frozen Background)
+        if (ChanceHero.snapshot) {
+            ctx.putImageData(ChanceHero.snapshot, 0, 0);
+        }
+
+        // Draw UI Overlay
+        ChanceHero.drawUI(ctx);
+    }
+
+    static resolveBigSlots(player) {
+        // Determine Outcome based on Luck but with high stakes
+        // Logic similar to useSpecial but more extreme
+        let pBad = 0.30 - (player.luck * 0.002); // Higher chance of bad initially
+        let pMeh = 0.40 - (player.luck * 0.002);
+        let pGood = 0.15 + (player.luck * 0.002);
+        let pDiamond = 0.10 + (player.luck * 0.001);
+        let pJackpot = 0.05 + (player.luck * 0.001);
+
+        const roll = Math.random();
+        let outcome = 'MEH';
+
+        if (roll < pJackpot) outcome = 'JACKPOT';
+        else if (roll < pJackpot + pDiamond) outcome = 'DIAMOND';
+        else if (roll < pJackpot + pDiamond + pGood) outcome = 'GOOD';
+        else if (roll < pJackpot + pDiamond + pGood + pMeh) outcome = 'MEH';
+        else outcome = 'BAD';
+
+        player.bigSlotMachine.outcome = outcome;
+
+        // Visuals
+        if (outcome === 'JACKPOT') player.bigSlotMachine.reels = [3, 3, 3]; // 777
+        else if (outcome === 'BAD') player.bigSlotMachine.reels = [5, 5, 5]; // Skulls
+        else if (outcome === 'GOOD') player.bigSlotMachine.reels = [0, 0, 0]; // Cherries
+        else if (outcome === 'MEH') player.bigSlotMachine.reels = [1, 2, 4]; // Random
+        else if (outcome === 'DIAMOND') player.bigSlotMachine.reels = [4, 4, 4];
+
+        if (typeof showNotification === 'function')
+            showNotification("BIG GAMBLE: " + outcome, outcome === 'BAD' ? "#ff0000" : "#ff00ff");
+
+        // Effects
+        if (outcome === 'JACKPOT') {
+            // IMMORTALITY... almost
+            player.maxHp += 777;
+            player.hp = player.maxHp;
+            player.damageMultiplier += 2.0; // Permanent +200%
+            if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, "#ff00ff", 100);
+            if (typeof audioManager !== 'undefined') audioManager.play('level_up');
+        }
+        else if (outcome === 'BAD') {
+            // 1 HP.
+            player.hp = 1;
+            window.showNotification("HP REDUCED TO 1", "#ff0000");
+            // Debuff
+            player.speedMultiplier *= 0.5;
+            setTimeout(() => player.speedMultiplier /= 0.5, 5000); // 5s slow
+        }
+        else if (outcome === 'GOOD') {
+            // Heal Full + Gold
+            player.hp = player.maxHp;
+            if (typeof goldDrops !== 'undefined') {
+                for (let i = 0; i < 50; i++) goldDrops.push(new GoldDrop(player.x, player.y, 50));
             }
+        }
+        else if (outcome === 'DIAMOND') {
+            // 60s Invincibility
+            player.invincibleTimer = 3600; // 60s
+            window.showNotification("60s INVINCIBILITY", "#00ffff");
+        }
+        else {
+            // MEH - Nothing, just sad sound
+            window.showNotification("BETTER LUCK NEXT TIME", "#aaaaaa");
         }
     }
 
@@ -224,7 +322,7 @@ class ChanceHero {
             for (let i = 0; i < count; i++) {
                 const spread = (i - (count - 1) / 2) * 0.2;
                 const angle = player.aimAngle + spread;
-                const speed = 12 + Math.random() * 2; // Faster than typical, but not insane
+                const speed = 22 + Math.random() * 6; // Start fast for "toss" effect
 
                 const isExplosive = allMatch;
 
@@ -260,9 +358,17 @@ class ChanceHero {
                     },
 
                     update: function () {
+                        // Friction for "sliding/rolling" effect
+                        this.vx *= 0.94;
+                        this.vy *= 0.94;
+
                         this.x += this.vx;
                         this.y += this.vy;
-                        this.rotation += this.spinSpeed;
+
+                        // Spin based on current speed
+                        const currentSpeed = Math.hypot(this.vx, this.vy);
+                        this.rotation += currentSpeed * 0.05;
+
                         this.life--;
                         if (this.life <= 0) this.dead = true;
                     },
@@ -294,7 +400,8 @@ class ChanceHero {
                         ctx.strokeRect(-this.radius, -this.radius, size, size);
 
                         // Dots
-                        ctx.fillStyle = this.color;
+                        // If color is white (on white body), use black for dots
+                        ctx.fillStyle = (this.color === '#ffffff' || this.color === '#fff') ? '#000000' : this.color;
                         const dotSize = size / 5;
                         const q = size / 4;
 
@@ -322,7 +429,7 @@ class ChanceHero {
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
     }
 
-    static useUltimate(player) {
+    static useSpecial(player) {
         if (player.slotMachine.active) return;
 
         player.slotMachine.active = true;
@@ -378,6 +485,81 @@ class ChanceHero {
 
         // Trigger Cooldown
         player.specialCooldown = player.specialMaxCooldown;
+    }
+
+    static drawUI(ctx) {
+        if (!window.player || window.player.type !== 'chance') return;
+        const player = window.player;
+
+        // Draw Big Gamble Overlay
+        if (player.bigSlotMachine && player.bigSlotMachine.active) {
+            ctx.save();
+            // Note: Context is already in Screen Space from game.js
+            // Do NOT reset transform as it might break global scaling
+
+            const cx = window.canvas.width / 2;
+            const cy = window.canvas.height / 2;
+
+            // Overlay Dim
+            ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+            ctx.fillRect(0, 0, window.canvas.width, window.canvas.height);
+
+            // Machine Body
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = "#ff00ff";
+            ctx.fillStyle = "#222";
+            ctx.fillRect(cx - 200, cy - 100, 400, 200);
+
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = `hsl(${Math.floor(Date.now() / 10) % 360}, 100%, 50%)`; // Rainbow border
+            ctx.strokeRect(cx - 200, cy - 100, 400, 200);
+
+            ctx.shadowBlur = 0;
+
+            // Title
+            ctx.fillStyle = "#fff";
+            ctx.font = "bold 30px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("BIG GAMBLE", cx, cy - 60);
+
+            // Reels
+            if (player.bigSlotMachine.reels) {
+                const symbols = ['🍒', '🔔', '➖', '7️⃣', '💎', '💀'];
+                ctx.font = "80px Arial";
+                ctx.fillText(symbols[player.bigSlotMachine.reels[0]], cx - 100, cy + 30);
+                ctx.fillText(symbols[player.bigSlotMachine.reels[1]], cx, cy + 30);
+                ctx.fillText(symbols[player.bigSlotMachine.reels[2]], cx + 100, cy + 30);
+            }
+
+            ctx.restore();
+        }
+
+        // Draw Mini Slots Logic UI (Overlay but smaller/contextual)
+        if (player.slotMachine && player.slotMachine.active) {
+            // Calculate screen position
+            const screenX = player.x - (window.arena ? window.arena.camera.x : 0);
+            const screenY = player.y - (window.arena ? window.arena.camera.y : 0);
+
+            ctx.save();
+            ctx.translate(screenX, screenY - 60);
+            // Box
+            ctx.fillStyle = "#222";
+            ctx.strokeStyle = "#ff00ff";
+            ctx.lineWidth = 2;
+            ctx.fillRect(-45, -20, 90, 40);
+            ctx.strokeRect(-45, -20, 90, 40);
+
+            // Reels
+            const symbols = ['🍒', '🔔', '➖', '7️⃣', '💎', '💀'];
+            ctx.fillStyle = "#fff";
+            ctx.font = "20px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(symbols[player.slotMachine.reels[0]], -25, 8);
+            ctx.fillText(symbols[player.slotMachine.reels[1]], 0, 8);
+            ctx.fillText(symbols[player.slotMachine.reels[2]], 25, 8);
+
+            ctx.restore();
+        }
     }
 }
 
