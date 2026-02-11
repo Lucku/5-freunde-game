@@ -1,5 +1,6 @@
 class ThunderBoss {
     constructor(wave, prestige) {
+        this.isBoss = true;
         this.type = 'ZEUS'; // Visual tag
         // Spawn Center
         this.x = arena.width / 2;

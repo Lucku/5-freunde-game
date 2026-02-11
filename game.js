@@ -3692,7 +3692,7 @@ function masterLoop(timestamp) {
             ctx.restore();
 
             // DLC Hook: Biome Draw (e.g. Falling Rock Shadows)
-            if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType]) {
+            if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType] && window.BIOME_LOGIC[currentBiomeType].draw) {
                 ctx.save();
                 // Apply camera transform again for biome effects
                 ctx.translate(-arena.camera.x, -arena.camera.y);

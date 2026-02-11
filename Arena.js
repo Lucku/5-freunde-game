@@ -223,6 +223,15 @@ class Arena {
             Math.min(this.height - this.camera.y, this.camera.height)
         );
 
+        // DLC Hook for Biome Custom Drawing (Background Layer - e.g. Floor Tiles)
+        if (this.biomeType && window.BIOME_LOGIC && window.BIOME_LOGIC[this.biomeType] && window.BIOME_LOGIC[this.biomeType].drawBackground) {
+            window.BIOME_LOGIC[this.biomeType].drawBackground(ctx, this);
+        }
+        // Fallback for older method signature if drawBackground not defined but draw is
+        else if (this.biomeType && window.BIOME_LOGIC && window.BIOME_LOGIC[this.biomeType] && window.BIOME_LOGIC[this.biomeType].draw) {
+            window.BIOME_LOGIC[this.biomeType].draw(ctx, this);
+        }
+
         // Draw Grid
         ctx.strokeStyle = theme.grid;
         ctx.lineWidth = 2;
@@ -252,11 +261,6 @@ class Arena {
         ctx.lineWidth = 5;
         ctx.strokeRect(0, 0, this.width, this.height);
 
-        // DLC Hook for Biome Custom Drawing (e.g. Falling Floors)
-        if (this.biomeType && window.BIOME_LOGIC && window.BIOME_LOGIC[this.biomeType] && window.BIOME_LOGIC[this.biomeType].draw) {
-            window.BIOME_LOGIC[this.biomeType].draw(ctx, this);
-        }
-
         // Draw Biome Zones
         this.biomeZones.forEach(zone => zone.draw(ctx));
 
@@ -270,7 +274,7 @@ class Arena {
     update(player) {
         // DLC Hook for Biome Custom Update
         if (this.biomeType && window.BIOME_LOGIC && window.BIOME_LOGIC[this.biomeType] && window.BIOME_LOGIC[this.biomeType].update) {
-            window.BIOME_LOGIC[this.biomeType].update(); // It uses window.arena internally
+            window.BIOME_LOGIC[this.biomeType].update(this, player, typeof enemies !== 'undefined' ? enemies : []);
         }
 
         // Check Trap Collisions

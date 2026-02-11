@@ -1,6 +1,7 @@
 
 class Boss {
     constructor(type) {
+        this.isBoss = true; // Flag for special interactions (e.g. Void Biome)
         this.type = type || BOSS_TYPES[Math.floor(Math.random() * BOSS_TYPES.length)];
         const cam = arena.camera;
         // Spawn near player but ensure inside map
