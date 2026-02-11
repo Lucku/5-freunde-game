@@ -137,14 +137,22 @@ const FAITH_OF_FORTUNE = {
                 speed: 3.5,
                 rangeDmg: 5,
                 meleeDmg: 20,
+                rangeCd: 20, // Fast low dmg
+                meleeCd: 120,
+                projectileSpeed: 8,
+                projectileSize: 6,
                 description: "A monk of balance. Heals over time, low damage."
             };
             BASE_HERO_STATS['chance'] = {
                 color: '#ff00ff', // Magenta
-                hp: 77,
+                hp: 100, // Increased base HP from 77
                 speed: 4.5,
                 rangeDmg: 7,
                 meleeDmg: 77,
+                rangeCd: 30, // Slower fire rate
+                meleeCd: 100,
+                projectileSpeed: 10,
+                projectileSize: 8,
                 description: "A gambler. High risk, random outcomes."
             };
         }

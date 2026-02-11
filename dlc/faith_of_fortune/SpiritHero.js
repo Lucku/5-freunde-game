@@ -134,10 +134,11 @@ class SpiritHero {
                 y: player.y,
                 vx: dx * 8, // Slower, steady speed
                 vy: dy * 8,
-                size: 8,
+                radius: 8, // Changed from scalar 'size' to 'radius' for collision logic
                 color: "#F0D080",
                 dmg: dmg,
                 life: 100,
+                damage: dmg, // Map dmg property for standard collision
                 pierce: player.pierceCount || 1, // Default 1 pierce
                 type: 'MANTRA',
 
@@ -157,13 +158,13 @@ class SpiritHero {
 
                     // Glowing Orb
                     ctx.beginPath();
-                    ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                     ctx.fillStyle = this.color;
                     ctx.fill();
 
                     // Outer Ring
                     ctx.beginPath();
-                    ctx.arc(0, 0, this.size + 4, 0, Math.PI * 2);
+                    ctx.arc(0, 0, this.radius + 4, 0, Math.PI * 2);
                     ctx.strokeStyle = "rgba(240, 208, 128, 0.5)";
                     ctx.lineWidth = 2;
                     ctx.stroke();

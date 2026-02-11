@@ -194,45 +194,70 @@ class ChanceHero {
     static shootDice(player, dx, dy) {
         if (player.rangeCooldown > 0) return;
 
-        if (typeof audioManager !== 'undefined') audioManager.play('shoot_weak'); // Todo: Dice sound
+        if (typeof audioManager !== 'undefined') audioManager.play('shoot_weak');
 
-        // RNG Damage: Negligible (1) to Massive (1000)
-        // Heavily influenced by Luck
+        // RNG Damage logic
         const minDmg = 1;
-        const maxDmg = 500 * (1 + (player.luck / 100)); // Luck boosts max potential
-
-        let dmg = ChanceHero.roll(maxDmg, player.luck, minDmg);
+        const maxDmg = 500 * (1 + (player.luck / 100));
+        let baseDmg = ChanceHero.roll(maxDmg, player.luck, minDmg);
 
         // Crit Logic
         let isCrit = false;
         if (Math.random() < player.critChance + (player.luck / 200)) {
-            dmg *= player.critMultiplier;
+            baseDmg *= player.critMultiplier;
             isCrit = true;
         }
 
-        const size = Math.max(5, Math.min(20, dmg / 20)); // Size based on damage
+        const radius = Math.max(5, Math.min(15, baseDmg / 20)); // Size based on damage
 
-        // Create Projectile
         if (typeof projectiles !== 'undefined') {
-            const count = 1 + (player.extraProjectiles || 0); // Multi-dice
+            const count = 1 + (player.extraProjectiles || 0);
+
+            // Check for Match (Explosive Pair)
+            const faces = [];
+            // Generate faces first
+            for (let k = 0; k < count; k++) faces.push(Math.floor(Math.random() * 6) + 1);
+
+            // Determine mismatch/match logic (if all match, big boom)
+            const allMatch = count > 1 && faces.every(f => f === faces[0]);
 
             for (let i = 0; i < count; i++) {
                 const spread = (i - (count - 1) / 2) * 0.2;
                 const angle = player.aimAngle + spread;
+                const speed = 12 + Math.random() * 2; // Faster than typical, but not insane
+
+                const isExplosive = allMatch;
 
                 projectiles.push({
                     x: player.x,
                     y: player.y,
-                    vx: Math.cos(angle) * (6 + Math.random() * 4), // Random speed
-                    vy: Math.sin(angle) * (6 + Math.random() * 4),
-                    size: size,
-                    color: i === 0 && isCrit ? "#ff0000" : "#ff00ff", // Red if crit
-                    dmg: dmg,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: radius, // Using 'radius' for collision
+                    color: isExplosive ? "#ff0000" : (i === 0 && isCrit ? "#ff00ff" : "#ffffff"),
+                    damage: baseDmg * (isExplosive ? 2 : 1), // Double damage on pair
+                    dmg: baseDmg, // Legacy prop
                     life: 60,
-                    type: 'DICE',
-                    face: Math.floor(Math.random() * 6) + 1,
+                    type: isExplosive ? 'EXPLOSIVE_DICE' : 'DICE',
+                    face: faces[i],
                     rotation: 0,
-                    spinSpeed: (Math.random() - 0.5) * 0.5,
+                    spinSpeed: 0.2, // Fixed spin visual
+
+                    // Custom collision hook for Game.js
+                    onHit: function (enemy) {
+                        if (this.type === 'EXPLOSIVE_DICE') {
+                            if (typeof createExplosion !== 'undefined') createExplosion(this.x, this.y, '#ff00ff', 60);
+                            // Area damage
+                            if (typeof enemies !== 'undefined') {
+                                enemies.forEach(e => {
+                                    if (Math.hypot(e.x - this.x, e.y - this.y) < 100) {
+                                        e.hp -= this.damage;
+                                    }
+                                });
+                            }
+                        }
+                        return 'DEFAULT'; // Let standard system apply direct hit damage too
+                    },
 
                     update: function () {
                         this.x += this.vx;
@@ -250,35 +275,39 @@ class ChanceHero {
                         ctx.translate(this.x, this.y);
                         ctx.rotate(this.rotation);
 
-                        // Draw Dice Cube
+                        // Draw like Void Orb (Circle with core) but 'Dice' flavor
+                        // Use square shape but with glow
+                        const size = this.radius * 2;
+
+                        // Glow
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = this.color;
+
                         ctx.fillStyle = "#fff";
-                        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+                        ctx.fillRect(-this.radius, -this.radius, size, size);
+
+                        ctx.shadowBlur = 0; // Reset for dots
+
+                        // Border
                         ctx.strokeStyle = this.color;
                         ctx.lineWidth = 2;
-                        ctx.strokeRect(-this.size / 2, -this.size / 2, this.size, this.size);
+                        ctx.strokeRect(-this.radius, -this.radius, size, size);
 
-                        // Dots (Simplified - just draw center dists)
+                        // Dots
                         ctx.fillStyle = this.color;
-                        // Change face every few frames to simulate spinning
-                        if (window.frame % 5 === 0) this.face = Math.floor(Math.random() * 6) + 1;
+                        const dotSize = size / 5;
+                        const q = size / 4;
 
-                        const dotSize = this.size / 5;
-                        const q = this.size / 4;
-
-                        // Logic to draw dots based on 'face' (1-6)
                         // 1: Center
                         if (this.face % 2 === 1) ctx.fillRect(-dotSize / 2, -dotSize / 2, dotSize, dotSize);
-                        // 2, 4, 5, 6: TL, BR
                         if (this.face > 1) {
                             ctx.fillRect(-q - dotSize / 2, -q - dotSize / 2, dotSize, dotSize); // TL
                             ctx.fillRect(q - dotSize / 2, q - dotSize / 2, dotSize, dotSize);   // BR
                         }
-                        // 4, 5, 6: TR, BL
                         if (this.face > 3) {
                             ctx.fillRect(q - dotSize / 2, -q - dotSize / 2, dotSize, dotSize);  // TR
                             ctx.fillRect(-q - dotSize / 2, q - dotSize / 2, dotSize, dotSize);  // BL
                         }
-                        // 6: ML, MR
                         if (this.face === 6) {
                             ctx.fillRect(-q - dotSize / 2, -dotSize / 2, dotSize, dotSize);     // ML
                             ctx.fillRect(q - dotSize / 2, -dotSize / 2, dotSize, dotSize);      // MR

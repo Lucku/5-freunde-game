@@ -295,10 +295,14 @@ class Player {
             this.specialName = "VOID ERUPTION";
             this.specialMaxCooldown = 900; // 15s
             iconEl.innerText = "🌑";
-        }
-
-        // Apply Altar Stats (Passive)
-        if (saveData.altar && saveData.altar.active) {
+        } else if (this.type === 'spirit') {
+            this.specialName = "TRANSCEND";
+            this.specialMaxCooldown = 0; // Usage based
+            iconEl.innerText = "🧘";
+        } else if (this.type === 'chance') {
+            this.specialName = "SLOTS";
+            this.specialMaxCooldown = 900; // 15s
+            iconEl.innerText = "🎰";
             const active = saveData.altar.active;
             // Helper to check if node is active
             const has = (id) => active.includes(id);
