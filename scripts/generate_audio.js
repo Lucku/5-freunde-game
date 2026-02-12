@@ -63,7 +63,7 @@ if (fs.existsSync(INDEX_FILE)) {
                 const memories = eval(match[1]);
                 memories.forEach((text, index) => {
                     storyItems.push({
-                        id: `memory_${hero}_${index + 1}`,
+                        id: `${hero}_${index + 1}`,
                         text: text,
                         hero: hero,
                         isMemory: true
