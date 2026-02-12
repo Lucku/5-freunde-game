@@ -83,6 +83,7 @@ window.HERO_LOGIC['void'] = {
         player.speedMultiplier = 1.2;
         player.stats.meleeCd = 0.5; // Fast attacks
         player.stats.meleeRadiusMult = player.stats.meleeRadiusMult || 1.5; // Big swipes (allow tree growth)
+        player.meleeRadius = 150; // Explicit Base, overrides default connection to Mult until Level Up scales it
 
         // Enforce Decoy Pacing
         player.stats.rangeCd = 120;
@@ -218,7 +219,8 @@ window.HERO_LOGIC['void'] = {
         if (typeof enemies !== 'undefined') {
             enemies.forEach(e => {
                 const dist = Math.hypot(e.x - player.x, e.y - player.y);
-                if (dist < 150) { // Large area
+                const radius = player.meleeRadius || 150;
+                if (dist < radius) { // Large area
                     // Directional check (180 degree cone)
                     const angToEnemy = Math.atan2(e.y - player.y, e.x - player.x);
                     let diff = angToEnemy - angle;

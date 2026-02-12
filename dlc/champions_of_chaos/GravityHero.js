@@ -80,6 +80,14 @@ window.HERO_LOGIC['gravity'] = {
         }
     },
 
+    applyUpgrade: function(player, type) {
+        if (type === 'radius') {
+             player.gravityWellSize = (player.gravityWellSize || 100) * 1.25;
+             return true;
+        }
+        return false;
+    },
+
     init: function (player) {
         player.orbitals = [];
         player.gravityWellSize = player.stats.gravityWellSize || 100;
