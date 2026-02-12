@@ -242,6 +242,10 @@ class StoryManager {
                 if ((type === 'GRAVITY' || type === 'VOID') && (target === 'GRAVITY' || target === 'VOID')) {
                     return true;
                 }
+                // Fortune Shared Logic: Spirit <-> Chance
+                if ((type === 'SPIRIT' || type === 'CHANCE') && (target === 'SPIRIT' || target === 'CHANCE')) {
+                    return true;
+                }
                 return false;
             });
         }
