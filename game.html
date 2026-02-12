@@ -180,13 +180,13 @@
         <button class="btn" onclick="closeAchievements()">Back to Menu</button>
     </div>
 
-    <!-- High Score Screen -->
+    <!-- Statistics Screen -->
     <div id="highscore-screen">
-        <h1 style="color: #f1c40f;">HIGH SCORES</h1>
+        <h1 style="color: #f1c40f;">STATISTICS</h1>
         <div id="highscore-content" style="width: 80%; max-width: 600px; max-height: 60vh; overflow-y: auto;">
             <!-- Generated via JS -->
         </div>
-        <button class="btn" onclick="closeHighScores()">Back to Menu</button>
+        <button class="btn" onclick="closeStatistics()">Back to Menu</button>
     </div>
 
     <!-- Skill Tree Screen -->
@@ -206,9 +206,9 @@
         <button class="btn" onclick="closeSkillTree()">Back to Menu</button>
     </div>
 
-    <!-- NEW STATISTICS SCREEN -->
+    <!-- Hero Details Screen -->
     <div id="stats-screen">
-        <h1>GLOBAL STATISTICS</h1>
+        <h1>HERO DETAILS</h1>
         <h2 id="stats-hero-title" style="color: #aaa; margin-bottom: 20px;"></h2>
 
         <div id="stats-content">
@@ -236,7 +236,7 @@
                 </div>
             </div>
         </div>
-        <button class="btn" onclick="closeStats()">Back to Menu</button>
+        <button class="btn" onclick="closeHeroDetails()">Back to Menu</button>
     </div>
 
     <!-- Collection Screen -->
@@ -338,8 +338,8 @@
                 <div class="menu-column">
                     <h3>Extras</h3>
                     <button class="btn btn-gold" onclick="openAchievements()">Achievements</button>
-                    <button class="btn btn-gold" onclick="openHighScores()">High Scores</button>
-                    <button class="btn btn-blue" onclick="openStats()">Statistics</button>
+                    <button class="btn btn-gold" onclick="openStatistics()">Statistics</button>
+                    <button class="btn btn-blue" onclick="openHeroDetails()">Hero Details</button>
                     <button class="btn btn-blue" onclick="openCompletion()">Completion</button>
                     <button class="btn btn-blue" onclick="Tutorial.open()">Tutorial</button>
                     <button class="btn btn-purple" onclick="openDLCMenu()">DLCs</button>
@@ -531,6 +531,10 @@
     <script src="Entities/PlayerController.js"></script>
 
     <!-- UI Modules -->
+    <script src="UI/HeroDetails.js"></script>
+    <script src="UI/Collection.js"></script>
+    <script src="UI/SkillTree.js"></script>
+    <script src="UI/Achievements.js"></script>
     <script src="UI/Statistics.js"></script>
     <script src="UI/Shop.js"></script>
     <script src="UI/LevelUp.js"></script>

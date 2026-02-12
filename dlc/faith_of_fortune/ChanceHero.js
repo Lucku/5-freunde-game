@@ -37,7 +37,6 @@ class ChanceHero {
         // Upgrade Pool
         if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
         window.HERO_LOGIC['chance'] = ChanceHero;
-        ChanceHero.injectSkillTree();
     }
 
     static checkConvergence(player, id) {
@@ -46,35 +45,68 @@ class ChanceHero {
         return false;
     }
 
-    static injectSkillTree() {
-        const upgradePool = [
-            { id: 'chance_luck', title: 'Lucky Charm', desc: '+10 Luck. Improves all rolls.', icon: '🍀' },
-            { id: 'crit', title: 'High Roller', desc: '+10% Crit Chance.', icon: '🎲' },
-            { id: 'damage', title: 'All In', desc: '+20% Max Damage Potential.', icon: '🎰' },
-            { id: 'projectile', title: 'Double Down', desc: 'Throw +1 Extra Die.', icon: '🎲' },
-            { id: 'speed', title: 'Shuffle', desc: '+10% Movement Speed.', icon: '🃏' },
-            { id: 'cooldown', title: 'Quick Spin', desc: '-10% Cooldowns.', icon: '⚡' },
-            { id: 'big_gamble', title: 'The Big Gamble', desc: 'Monumental Risk. Monumental Reward.', icon: '🎡' }
-        ];
+    static getSkillTreeWeights() {
+        return { CHANCE_LUCK: 0.30, CRIT: 0.20, DAMAGE: 0.15, SPEED: 0.15, COOLDOWN: 0.10, PROJECTILE: 0.10 };
+    }
 
-        window.HERO_LOGIC['chance'].upgradePool = upgradePool;
+    static getSkillNodeDetails(type, val, desc) {
+        if (type === 'CHANCE_LUCK') return { val: 10, desc: "+10 Luck" };
+        if (type === 'PROJECTILE') return { val: 1, desc: "+1 Projectile" };
+        return { val, desc };
+    }
 
-        window.HERO_LOGIC['chance'].getSkillNodeDetails = (type, val, desc) => {
-            if (type === 'chance_luck' || type === 'CHANCE_LUCK') return { val: 10, desc: "+10 Luck" };
-            return { val, desc };
-        };
+    // SKILL TREE: Permanent Meta-Progression
+    static applySkillNode(base, node) {
+        if (node.type === 'CHANCE_LUCK') base.luck = (base.luck || 10) + (node.value || 10);
+        if (node.type === 'PROJECTILE') base.extraProjectiles = (base.extraProjectiles || 0) + (node.value || 1);
+        
+        // Standard Stats
+        if (node.type === 'CRIT') base.critChance = (base.critChance || 0) + 0.1;
+        if (node.type === 'DAMAGE') base.damageMultiplier = (base.damageMultiplier || 1) + 0.2;
+        if (node.type === 'SPEED') base.speedMultiplier = (base.speedMultiplier || 1) + 0.1;
+        if (node.type === 'COOLDOWN') base.cooldownMultiplier = (base.cooldownMultiplier || 1) - 0.1;
+        
+        // Ensure values are numbers
+        if (typeof base.extraProjectiles !== 'number') base.extraProjectiles = 0;
+    }
 
-        window.HERO_LOGIC['chance'].applySkillNode = (base, node) => {
-            if (node.type === 'CHANCE_LUCK') base.luck = (base.luck || 10) + node.value;
-            if (node.type === 'BIG_GAMBLE') base.triggerBigGamble = true;
-            // Standard stats handled generic player logic usually, or here if strict override needed
-        };
+    // LEVEL UP: Per-Run Upgrades
+    static applyUpgrade(player, type) {
+        if (type === 'chance_luck') {
+            player.luck = (player.luck || 10) + 10;
+            return true;
+        }
+        if (type === 'big_gamble') {
+            player.triggerBigGamble = true;
+            return true;
+        }
+        if (type === 'projectile') {
+            player.extraProjectiles = (player.extraProjectiles || 0) + 1;
+            return true;
+        }
+        
+        // Overrides for Standard Types (Chance Hero has stronger/different variants)
+        if (type === 'crit') {
+            player.critChance = (player.critChance || 0) + 0.10; // +10%
+            return true;
+        }
+        if (type === 'damage') {
+            player.damageMultiplier = (player.damageMultiplier || 1) + 0.20; // +20%
+            return true;
+        }
+        if (type === 'speed') {
+            player.speedMultiplier = (player.speedMultiplier || 1) + 0.10; // +10%
+            return true;
+        }
+        if (type === 'cooldown') {
+            player.cooldownMultiplier = (player.cooldownMultiplier || 1) - 0.10; // -10%
+            return true;
+        }
+
+        return false;
     }
 
     static roll(max, luck, min = 1) {
-        // RNG Logic skewed by Luck
-        // Luck 0: Pure Random
-        // Luck 100: Roll twice, take higher, + bias
 
         let val = Math.random();
 
@@ -264,8 +296,13 @@ class ChanceHero {
         }
         else if (outcome === 'BAD') {
             // 1 HP.
-            player.hp = 1;
-            window.showNotification("HP REDUCED TO 1", "#ff0000");
+            if (player.isCPU) {
+                // AI Safety: Don't suicide. Take 25% max HP dmg.
+                player.hp = Math.max(1, player.hp - (player.maxHp * 0.25));
+            } else {
+                player.hp = 1;
+                window.showNotification("HP REDUCED TO 1", "#ff0000");
+            }
             // Debuff
             player.speedMultiplier *= 0.5;
             setTimeout(() => player.speedMultiplier /= 0.5, 5000); // 5s slow
@@ -316,7 +353,7 @@ class ChanceHero {
         }
         else if (outcome === 'BAD') {
             // Self Damage or Debuff
-            player.takeDamage(10);
+            if (!player.isCPU) player.takeDamage(10);
             if (typeof enemies !== 'undefined') enemies.forEach(e => {
                 // But also damage enemies near
                 if (Math.hypot(e.x - player.x, e.y - player.y) < 200) e.hp -= 50;
@@ -639,11 +676,15 @@ class ChanceHero {
 if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
 window.HERO_LOGIC['chance'] = ChanceHero;
 
-// Hook UI Drawing
-window.HERO_LOGIC['chance'].drawUI = function (ctx) {
-    if (!window.player || window.player.type !== 'chance') return;
-    ChanceHero.drawUI(ctx);
-};
+ChanceHero.upgradePool = [
+    { id: 'chance_luck', title: 'Lucky Charm', desc: '+10 Luck. Improves all rolls.', icon: '🍀' },
+    { id: 'crit', title: 'High Roller', desc: '+10% Crit Chance.', icon: '🎲' },
+    { id: 'damage', title: 'All In', desc: '+20% Max Damage Potential.', icon: '🎰' },
+    { id: 'projectile', title: 'Double Down', desc: 'Throw +1 Extra Die.', icon: '🎲' },
+    { id: 'speed', title: 'Shuffle', desc: '+10% Movement Speed.', icon: '🃏' },
+    { id: 'cooldown', title: 'Quick Spin', desc: '-10% Cooldowns.', icon: '⚡' },
+    { id: 'big_gamble', title: 'The Big Gamble', desc: 'Monumental Risk. Monumental Reward.', icon: '🎡' }
+];
 
 // Hook Gold Gain (Convergence)
 window.HERO_LOGIC['chance'].onGainGold = function (player, amount) {

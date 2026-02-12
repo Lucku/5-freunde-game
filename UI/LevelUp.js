@@ -12,12 +12,10 @@ class LevelUpUI {
 
         options.forEach(opt => {
             let displayOpt = { ...opt };
-            // Earth Hero Description Swaps
-            if (player.type === 'earth') {
-                if (opt.id === 'projectile') {
-                    displayOpt.title = 'Ram Damage';
-                    displayOpt.desc = '+20% Ram Damage';
-                }
+
+            // Allow Hero to Modify Option (Description/Icon)
+            if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && typeof window.HERO_LOGIC[player.type].modifyUpgradeOption === 'function') {
+                displayOpt = window.HERO_LOGIC[player.type].modifyUpgradeOption(player, displayOpt);
             }
 
             const card = document.createElement('div');
@@ -40,6 +38,18 @@ class LevelUpUI {
     }
 
     chooseUpgrade(type, player) {
+        // 1. Try Hero Specific Upgrade Logic
+        // Defined in Hero Class (e.g. SpiritHero.applyUpgrade)
+        if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && typeof window.HERO_LOGIC[player.type].applyUpgrade === 'function') {
+            if (window.HERO_LOGIC[player.type].applyUpgrade(player, type)) {
+                // Handled successfully by hero
+                window.isLevelingUp = false;
+                document.getElementById('levelup-screen').style.display = 'none';
+                if (window.setUIState) window.setUIState('GAME');
+                return;
+            }
+        }
+
         if (type === 'health') {
             player.maxHp += 25;
             player.hp = Math.min(player.maxHp, player.hp + (player.maxHp * 0.2));
@@ -49,16 +59,10 @@ class LevelUpUI {
             player.meleeRadius *= 1.25;
         }
         else if (type === 'projectile') {
-            if (player.type === 'earth') {
-                // Earth Hero: Increase Ram Damage
-                player.stats.ramDmgMult = (player.stats.ramDmgMult || 1) + 0.2; // +20% Ram Damage
-                if (window.showNotification) window.showNotification("RAM DAMAGE INCREASED!");
-            } else {
-                player.extraProjectiles += 1;
-                player.runBuffs.projectiles += 1;
-                // Balance: -20% Damage (Additive divisor) per split, similar to Skill Tree
-                player.stats.rangeDmg /= 1.2;
-            }
+            player.extraProjectiles += 1;
+            player.runBuffs.projectiles += 1;
+            // Balance: -20% Damage (Additive divisor) per split, similar to Skill Tree
+            player.stats.rangeDmg /= 1.2;
         }
         else if (type === 'speed') { player.speedMultiplier += 0.1; player.runBuffs.speed += 0.1; }
         else if (type === 'cooldown') { player.cooldownMultiplier *= 0.9; player.runBuffs.cooldown += 0.1; }
@@ -72,19 +76,8 @@ class LevelUpUI {
             if (window.showNotification) window.showNotification(`${player.currentForm} ACTIVATED!`);
             if (window.createExplosion) window.createExplosion(player.x, player.y, '#fff');
         }
-        else if (type === 'wind_shift') {
-            if (window.HERO_LOGIC && window.HERO_LOGIC['air'] && window.HERO_LOGIC['air'].applyWindShift) {
-                window.HERO_LOGIC['air'].applyWindShift(player);
-            }
-        }
         else {
-            // Check for DLC specific logic
-            if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].applySkillNode) {
-                // Construct a node object compatible with applySkillNode
-                // ChanceHero expects uppercase type for BIG_GAMBLE
-                const node = { type: type.toUpperCase(), value: 0 };
-                window.HERO_LOGIC[player.type].applySkillNode(player, node);
-            }
+            console.log("Unknown Upgrade Type: " + type);
         }
 
         window.isLevelingUp = false;

@@ -24,7 +24,7 @@ class DLCManager {
             },
             'faith_of_fortune': {
                 title: "Faith of Fortune",
-                desc: "Balance vs Chaos! Introduces 'Spirit' and 'Chance'. Temples, Casinos, and the search for the Mask.",
+                desc: "Balance vs Chaos! Introduces 'Spirit' and 'Chance'. Temples, madness, and the search for the Mask.",
                 icon: "🎰"
             }
         };

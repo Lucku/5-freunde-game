@@ -64,6 +64,24 @@ class EarthHero {
         if (node.type === 'MOMENTUM_DECAY') base.momentumDecayMult = (base.momentumDecayMult || 1) - node.value;
     }
 
+    static applyUpgrade(player, type) {
+        if (type === 'projectile') {
+            // Earth Hero: Increase Ram Damage instead of projectiles
+            player.stats.ramDmgMult = (player.stats.ramDmgMult || 1) + 0.2; // +20% Ram Damage
+            if (window.showNotification) window.showNotification("RAM DAMAGE INCREASED!");
+            return true;
+        }
+        return false;
+    }
+
+    static modifyUpgradeOption(player, opt) {
+        if (opt.id === 'projectile') {
+            opt.title = 'Ram Damage';
+            opt.desc = '+20% Ram Damage';
+        }
+        return opt;
+    }
+
     static startObjective(objective) {
         objective.type = 'TECTONIC_SHIFT';
         objective.target = 5000; // Deal 5000 Ram Damage

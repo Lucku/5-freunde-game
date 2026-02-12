@@ -47,6 +47,11 @@ class SpiritHero {
                 });
             }
 
+            // Skill: Spirit Shell
+            if (player.peaceShield && player.innerPeace > 50) {
+                amount *= 0.8; // 20% Damage Reduction
+            }
+
             player.innerPeace = Math.max(0, player.innerPeace - 15); // Lose focus on hit
             player.meditationTimer = 0; // Break concentration
             if (player._originalTakeDamage) player._originalTakeDamage.call(player, amount);
@@ -59,7 +64,6 @@ class SpiritHero {
         // Register in logic system
         if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
         window.HERO_LOGIC['spirit'] = SpiritHero;
-        SpiritHero.injectSkillTree();
     }
 
     static checkConvergence(player, id) {
@@ -70,21 +74,43 @@ class SpiritHero {
         return false;
     }
 
-    static injectSkillTree() {
-        const upgradePool = [
-            { id: 'max_peace', title: 'Deep Breaths', desc: '+50 Max Inner Peace.', icon: '🧘' },
-            { id: 'regen', title: 'Regeneration', desc: 'Regenerate HP while meditating.', icon: '💖' },
-            { id: 'mantra', title: 'Mantra', desc: 'Attacks pierce +1 enemy.', icon: '🔆' },
-            { id: 'shield', title: 'Spirit Shell', desc: 'Take 20% less damage when Peace > 50.', icon: '🛡️' },
-            { id: 'refill_peace', title: 'Tranquility', desc: 'Instantly restore 100% Inner Peace.', icon: '🕊️' }
-        ];
+    static getSkillTreeWeights() {
+        return { HEALTH: 0.25, PEACE_REGEN: 0.20, COOLDOWN: 0.20, ARMOR: 0.15, DAMAGE: 0.10, ULT_SPEED: 0.10 };
+    }
 
-        window.HERO_LOGIC['spirit'].upgradePool = upgradePool;
+    static getSkillNodeDetails(type, val, desc) {
+        if (type === 'PEACE_REGEN') return { val: 2, desc: "+2 Peace Recharge Rate" };
+        return { val, desc };
+    }
 
-        window.HERO_LOGIC['spirit'].applySkillNode = (base, node) => {
-            if (node.id === 'max_peace') base.maxInnerPeace = (base.maxInnerPeace || 100) + 50;
-            if (node.id === 'mantra') base.pierceCount = (base.pierceCount || 1) + 1;
-        };
+    // SKILL TREE: Permanent Meta-Progression
+    static applySkillNode(base, node) {
+        if (node.type === 'PEACE_REGEN') base.peaceRechargeRate = (base.peaceRechargeRate || 0) + node.value;
+    }
+
+    // LEVEL UP: Per-Run Upgrades
+    static applyUpgrade(player, type) {
+        if (type === 'max_peace') {
+            player.maxInnerPeace = (player.maxInnerPeace || 100) + 50;
+            return true;
+        }
+        if (type === 'mantra') {
+            player.pierceCount = (player.pierceCount || 1) + 1;
+            return true;
+        }
+        if (type === 'regen') {
+            player.meditationRegen = true;
+            return true;
+        }
+        if (type === 'shield') {
+            player.peaceShield = true;
+            return true;
+        }
+        if (type === 'refill_peace') {
+            player.triggerRefillPeace = true;
+            return true;
+        }
+        return false; // Not handled
     }
 
     static update(player, dx, dy) {
@@ -148,14 +174,24 @@ class SpiritHero {
                     createExplosion(player.x, player.y, "#F0D080", 3); // Gentle glow
             }
 
-            // Gain Peace
-            if (player.meditationTimer > 30 && window.frame % 10 === 0) {
-                player.innerPeace = Math.min(player.maxInnerPeace, player.innerPeace + 1);
+            // Recharge Inner Peace
+            if (player.meditationTimer > 30) {
+                // Base Rate: 0.2 per frame -> ~12 per second
+                const rate = 0.2 + ((player.peaceRechargeRate || 0) * 0.05);
+                player.innerPeace = Math.min(player.maxInnerPeace, player.innerPeace + rate);
             }
 
             // Passive Regen (Skill or Base low regen)
             if (player.meditationTimer > 120 && window.frame % 60 === 0) {
+                // Base drip
                 if (player.hp < player.maxHp) player.hp += 1;
+
+                // Skill: Regeneration
+                if (player.meditationRegen && player.hp < player.maxHp) {
+                    player.hp += 5;
+                    if (typeof FloatingText !== 'undefined') new FloatingText(player.x, player.y - 20, "+5", "#ff69b4", 12);
+                }
+
                 else if (hasLotus) {
                     // Overheal -> Vines
                     if (typeof projectiles !== 'undefined') {
@@ -444,6 +480,14 @@ class SpiritHero {
 
 if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
 window.HERO_LOGIC['spirit'] = SpiritHero;
+
+SpiritHero.upgradePool = [
+    { id: 'max_peace', title: 'Deep Breaths', desc: '+50 Max Inner Peace.', icon: '🧘' },
+    { id: 'regen', title: 'Regeneration', desc: 'Regenerate HP while meditating.', icon: '💖' },
+    { id: 'mantra', title: 'Mantra', desc: 'Attacks pierce +1 enemy.', icon: '🔆' },
+    { id: 'shield', title: 'Spirit Shell', desc: 'Take 20% less damage when Peace > 50.', icon: '🛡️' },
+    { id: 'refill_peace', title: 'Tranquility', desc: 'Instantly restore 100% Inner Peace.', icon: '🕊️' }
+];
 
 // Hook UI Drawing
 window.HERO_LOGIC['spirit'].drawUI = function (ctx) {

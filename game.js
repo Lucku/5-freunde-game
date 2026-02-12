@@ -2146,6 +2146,17 @@ function gameOver(isVictory = false) {
     // Safety: Ensure stats object exists
     if (!saveData.stats) saveData.stats = {};
 
+    // --- NEW STATS TRACKING ---
+    // 1. Total Time Played
+    const sessionTimeSec = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
+    if (!saveData.global.totalTimePlayed) saveData.global.totalTimePlayed = 0;
+    saveData.global.totalTimePlayed += sessionTimeSec;
+
+    // 2. Hero Pick Counts
+    if (!saveData.global.heroRuns) saveData.global.heroRuns = {};
+    const hType = player.type;
+    saveData.global.heroRuns[hType] = (saveData.global.heroRuns[hType] || 0) + 1;
+
     // Track Games and Deaths
     saveData.global.totalGames = (saveData.global.totalGames || 0) + 1;
     if (!isVictory) {

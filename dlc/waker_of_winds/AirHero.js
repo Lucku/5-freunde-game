@@ -105,6 +105,14 @@ class AirHero {
         }
     }
 
+    static applyUpgrade(player, type) {
+        if (type === 'wind_shift') {
+            AirHero.applyWindShift(player);
+            return true; // Handled
+        }
+        return false; // Not handled
+    }
+
     static update(player, dx, dy) {
         // 0. Story Mechanic: Weather Vane & Objectives
         const currentWave = typeof wave !== 'undefined' ? wave : 1;
@@ -1051,6 +1059,7 @@ const AirHeroLogic = {
     getSkillTreeWeights: AirHero.getSkillTreeWeights,
     getSkillNodeDetails: AirHero.getSkillNodeDetails,
     applySkillNode: AirHero.applySkillNode,
+    applyUpgrade: AirHero.applyUpgrade, // Added
     applyWindShift: AirHero.applyWindShift // Fix for Level Up item
 };
 
