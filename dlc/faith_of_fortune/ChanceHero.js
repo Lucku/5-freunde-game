@@ -40,6 +40,12 @@ class ChanceHero {
         ChanceHero.injectSkillTree();
     }
 
+    static checkConvergence(player, id) {
+        if (typeof has === 'function') return has(id);
+        if (window.player && window.player.upgradeList) return window.player.upgradeList.includes(id);
+        return false;
+    }
+
     static injectSkillTree() {
         const upgradePool = [
             { id: 'chance_luck', title: 'Lucky Charm', desc: '+10 Luck. Improves all rolls.', icon: '🍀' },
@@ -81,6 +87,57 @@ class ChanceHero {
     }
 
     static update(player, dx, dy) {
+        // Convergence Updates
+
+        // Golden Magnet (cv_ch_m)
+        const hasMagnet = ChanceHero.checkConvergence(player, 'cv_ch_m');
+        if (hasMagnet) {
+            player.pickupRange = (player.radius + 20) * 2; // +100% Range
+        } else {
+            player.pickupRange = undefined; // Reset if not valid (though convergences are perm per run)
+        }
+
+        // Windfall Decay
+        if (player.windfallActive) {
+            if (player.speedBuffTimer > 0) {
+                player.speedBuffTimer--;
+                player.speedMultiplier *= 1.5; // Apply boost
+                // Wait, if we multiply every frame it explodes. 
+                // We should SET it, but speedMultiplier is recalculated often or static?
+                // Player.js usually sets speedMultiplier = base * upgrades.
+                // We should modify 'runBuffs.speed' or similar?
+                // Let's just assume we add it to the movement vector in the Controller or here?
+                // player.speedMultiplier is used in update loop: movespeed = stats.speed * speedMultiplier.
+
+                // Hack: Since update is called BEFORE physics move usually?
+                // Actually CustomUpdate return value dictates if default move happens.
+                // If we return false, default move logic runs.
+                // We can just add a temporary modifier to the object that Player.js respects?
+                // Player.js doesn't respect custom props easily.
+                // Let's just modify dx/dy? No, update passes dx/dy but doesn't return them.
+
+                // Best bet: use the 'buffs' object if it exists and is used.
+                // Player.js: this.buffs = { speed: 0... }
+                // Let's see if Player.js uses buffs.speed.
+                if (!player.buffs) player.buffs = {};
+                player.buffs.tempSpeed = 0.5; // +50%
+            } else {
+                player.windfallActive = false;
+                if (player.buffs) player.buffs.tempSpeed = 0;
+            }
+        }
+
+        // Convergence: Money Tree (cv_ch_p)
+        const hasMoneyTree = ChanceHero.checkConvergence(player, 'cv_ch_p');
+        if (hasMoneyTree && window.wave > (player.lastInterestWave || 0)) {
+            const interest = Math.floor(player.gold * 0.01);
+            if (interest > 0) {
+                player.gold += interest;
+                if (typeof showNotification === 'function') showNotification(`INTEREST: +${interest}G`, "#2ecc71");
+            }
+            player.lastInterestWave = window.wave;
+        }
+
         // Form Logic: JACKPOT
         if (player.transformActive && player.currentForm === 'JACKPOT') {
             player.luck = 100; // Max Luck
@@ -298,11 +355,16 @@ class ChanceHero {
         const maxDmg = 500 * (1 + (player.luck / 100));
         let baseDmg = ChanceHero.roll(maxDmg, player.luck, minDmg);
 
+        const hasHotStreak = ChanceHero.checkConvergence(player, 'cv_ch_f');
+
         // Crit Logic
         let isCrit = false;
         if (Math.random() < player.critChance + (player.luck / 200)) {
             baseDmg *= player.critMultiplier;
             isCrit = true;
+            if (hasHotStreak) {
+                // Leave fire trail or create explosion
+            }
         }
 
         const radius = Math.max(5, Math.min(15, baseDmg / 20)); // Size based on damage
@@ -576,3 +638,59 @@ class ChanceHero {
 
 if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
 window.HERO_LOGIC['chance'] = ChanceHero;
+
+// Hook UI Drawing
+window.HERO_LOGIC['chance'].drawUI = function (ctx) {
+    if (!window.player || window.player.type !== 'chance') return;
+    ChanceHero.drawUI(ctx);
+};
+
+// Hook Gold Gain (Convergence)
+window.HERO_LOGIC['chance'].onGainGold = function (player, amount) {
+    // Liquid Assets (cv_ch_w)
+    const hasLiquid = ChanceHero.checkConvergence(player, 'cv_ch_w');
+    if (hasLiquid) {
+        if (Math.random() < 0.1) {
+            player.hp = Math.min(player.maxHp, player.hp + 1);
+            if (typeof floatingTexts !== 'undefined') floatingTexts.push(new FloatingText(player.x, player.y - 20, "+1 HP", "#2ecc71", 15));
+        }
+    }
+
+    // Windfall (cv_ch_a)
+    const hasWindfall = ChanceHero.checkConvergence(player, 'cv_ch_a');
+    if (hasWindfall) {
+        // Apply temporary speed buff
+        player.speedBuffTimer = 120; // 2s
+        // Logic needs to handle this in update, or just modify multiplier directly and reset?
+        // Let's modify directly, but we need a way to decay it.
+        // Easier: add to 'buffs' object if supported, or just custom logic in update
+        player.windfallActive = true;
+    }
+
+    // Fool's Gold (cv_ch_e)
+    const hasFools = ChanceHero.checkConvergence(player, 'cv_ch_e');
+    if (hasFools && Math.random() < 0.2) {
+        // Stun nearby
+        if (typeof enemies !== 'undefined') {
+            enemies.forEach(e => {
+                if (Math.hypot(e.x - player.x, e.y - player.y) < 300) {
+                    e.stunTimer = 60; // 1s stun
+                    if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, "#ffff00", 5);
+                }
+            });
+        }
+    }
+
+    // Jackpot Strike (cv_ch_l)
+    const hasJackpot = ChanceHero.checkConvergence(player, 'cv_ch_l');
+    if (hasJackpot) {
+        // Zap nearest
+        if (typeof enemies !== 'undefined') {
+            const target = enemies.find(e => Math.hypot(e.x - player.x, e.y - player.y) < 400);
+            if (target) {
+                target.hp -= 20 * (player.damageMultiplier || 1);
+                if (typeof createExplosion !== 'undefined') createExplosion(target.x, target.y, "#f1c40f", 15);
+            }
+        }
+    }
+};

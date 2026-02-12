@@ -121,6 +121,13 @@ class Player {
         }
     }
 
+    gainGold(amount) {
+        this.gold += amount;
+        if (window.HERO_LOGIC && window.HERO_LOGIC[this.type] && window.HERO_LOGIC[this.type].onGainGold) {
+            window.HERO_LOGIC[this.type].onGainGold(this, amount);
+        }
+    }
+
     gainXp(amount) {
         this.xp += amount * (this.stats.xpMultiplier || 1);
         if (this.xp >= this.maxXp) {

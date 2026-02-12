@@ -3005,10 +3005,14 @@ function masterLoop(timestamp) {
             // Gold Drops
             goldDrops.forEach((drop, index) => {
                 drop.draw();
+                // Golden Magnet (Chance Convergence)
+                const pickupRad = player.pickupRange || (player.radius + 20);
                 const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
-                if (dist < player.radius + 20) {
+                if (dist < pickupRad) {
                     const amount = Math.floor(drop.value * player.goldMultiplier);
-                    player.gold += amount;
+                    if (player.gainGold) player.gainGold(amount); // Use new method
+                    else player.gold += amount; // Fallback
+
                     if (isChaosShuffleMode) checkChaosEvent('GOLD', amount);
                     currentRunStats.moneyGained += amount; // Track Gold
                     saveData.global.totalGold += drop.value; // Track for achievement

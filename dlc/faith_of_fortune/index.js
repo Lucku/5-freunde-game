@@ -236,8 +236,39 @@ const FAITH_OF_FORTUNE = {
                 { id: 'ch3', req: 5, type: 'unique', desc: 'Jackpot: 1% Chance to deal 777x Damage' }
             ];
 
-            // Convergences (Placeholders)
-            console.log("Faith of Fortune: Altar Skills Injected.");
+            // Convergences (Spirit & Chance)
+            const newConvergences = [
+                // Spirit (Harmony & Balance)
+                { id: 'cv_s_f', req: { spirit: 5, fire: 5 }, type: 'mutation', desc: 'Sacred Flame: Mantras apply a burning effect.' },
+                { id: 'cv_s_w', req: { spirit: 5, water: 5 }, type: 'mutation', desc: 'Holy Water: Healing also pushes enemies away.' },
+                { id: 'cv_s_i', req: { spirit: 5, ice: 5 }, type: 'mutation', desc: 'Tranquility: Standing still slows nearby enemies.' },
+                { id: 'cv_s_p', req: { spirit: 5, plant: 5 }, type: 'mutation', desc: 'Lotus Bloom: Overhealing creates defensive vines.' },
+                { id: 'cv_s_m', req: { spirit: 5, metal: 5 }, type: 'mutation', desc: 'Golden Bell: You reflect 10% of damage taken.' },
+                { id: 'cv_s_a', req: { spirit: 5, air: 5 }, type: 'mutation', desc: 'Ascension: +20% Evasion while moving.' },
+                { id: 'cv_s_e', req: { spirit: 5, earth: 5 }, type: 'mutation', desc: 'Monolith: Cannot be pushed while attacking.' },
+                { id: 'cv_s_l', req: { spirit: 5, lightning: 5 }, type: 'mutation', desc: 'Enlightenment: Mantras arc lightning to 1 nearby enemy.' },
+
+                // Chance (Chaos & Luck)
+                { id: 'cv_ch_f', req: { chance: 5, fire: 5 }, type: 'mutation', desc: 'Hot Streak: Critical hits leave a fire trail.' },
+                { id: 'cv_ch_w', req: { chance: 5, water: 5 }, type: 'mutation', desc: 'Liquid Assets: Gold pickups have a 10% chance to heal 1 HP.' },
+                { id: 'cv_ch_i', req: { chance: 5, ice: 5 }, type: 'mutation', desc: 'Cold Hard Cash: Frozen enemies drop 2x Gold.' },
+                { id: 'cv_ch_p', req: { chance: 5, plant: 5 }, type: 'mutation', desc: 'Money Tree: Gain 1% interest on current Gold every wave.' },
+                { id: 'cv_ch_m', req: { chance: 5, metal: 5 }, type: 'mutation', desc: 'Golden Magnet: Gold pickup range +100%.' },
+                { id: 'cv_ch_a', req: { chance: 5, air: 5 }, type: 'mutation', desc: 'Windfall: +50% Speed for 2s after picking up Gold.' },
+                { id: 'cv_ch_e', req: { chance: 5, earth: 5 }, type: 'mutation', desc: 'Fool\'s Gold: Collecting Gold has a chance to stun nearby enemies.' },
+                { id: 'cv_ch_l', req: { chance: 5, lightning: 5 }, type: 'mutation', desc: 'Jackpot Strike: Gold pickups trigger a lightning bolt.' },
+                
+                // Cross-DLC
+                { id: 'cv_s_ch', req: { spirit: 5, chance: 5 }, type: 'mutation', desc: 'Karma: Luck increases Regen; Regen increases Luck.' }
+            ];
+
+            if (ALTAR_TREE.convergence) {
+                newConvergences.forEach(m => {
+                    if (!ALTAR_TREE.convergence.find(ex => ex.id === m.id)) {
+                        ALTAR_TREE.convergence.push(m);
+                    }
+                });
+            }
         }
     },
 

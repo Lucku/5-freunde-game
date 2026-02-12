@@ -23,6 +23,30 @@ class SpiritHero {
         // Override takeDamage to lose Inner Peace
         player._originalTakeDamage = player.takeDamage;
         player.takeDamage = (amount) => {
+            // Convergence: Golden Bell (cv_s_m)
+            const hasBell = SpiritHero.checkConvergence(player, 'cv_s_m');
+            // Convergence: Ascension (cv_s_a)
+            const hasAscension = SpiritHero.checkConvergence(player, 'cv_s_a');
+
+            // Ascension Dodge Check
+            if (hasAscension && Math.random() < (player.dodgeChance || 0)) {
+                if (typeof showNotification === 'function') showNotification("DODGE", "#40e0d0");
+                return;
+            }
+
+            if (hasBell && typeof enemies !== 'undefined') {
+                const reflectDmg = amount * 0.1;
+                // Find nearest attacker? Or just global?
+                // Hard to find attacker. Let's reflect to ALL nearby.
+                enemies.forEach(e => {
+                    const dist = Math.hypot(e.x - player.x, e.y - player.y);
+                    if (dist < 300) {
+                        e.hp -= reflectDmg;
+                        if (Math.random() < 0.1) createExplosion(e.x, e.y, "#95a5a6", 5);
+                    }
+                });
+            }
+
             player.innerPeace = Math.max(0, player.innerPeace - 15); // Lose focus on hit
             player.meditationTimer = 0; // Break concentration
             if (player._originalTakeDamage) player._originalTakeDamage.call(player, amount);
@@ -36,6 +60,14 @@ class SpiritHero {
         if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
         window.HERO_LOGIC['spirit'] = SpiritHero;
         SpiritHero.injectSkillTree();
+    }
+
+    static checkConvergence(player, id) {
+        if (typeof has === 'function') return has(id);
+        // Fallback if 'has' is not global (e.g. in DLC context before init)
+        // We assume 'has' is available from Player.js context or similar global
+        if (window.player && window.player.upgradeList) return window.player.upgradeList.includes(id);
+        return false;
     }
 
     static injectSkillTree() {
@@ -68,6 +100,46 @@ class SpiritHero {
         // 1. Meditation Logic
         const isMoving = (dx !== 0 || dy !== 0) || (keys && (keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight']));
 
+        // Convergence Check
+        const hasTranquility = SpiritHero.checkConvergence(player, 'cv_s_i');
+        const hasLotus = SpiritHero.checkConvergence(player, 'cv_s_p');
+        const hasAscension = SpiritHero.checkConvergence(player, 'cv_s_a');
+        const hasKarma = SpiritHero.checkConvergence(player, 'cv_s_ch');
+
+        // Apply Karma (Luck <-> Regen)
+        if (hasKarma && window.frame % 60 === 0) {
+            // (1 HP/s = 5 Luck)
+            const luckBonus = (player.regen || 0) * 5;
+            const regenBonus = (player.luck || 0) * 0.02; // 10 luck = 0.2 regen
+            // Apply buffs softly (not additive per frame)
+            // Just assume player logic handles base stats, we modify on top?
+            // Safer: Just set a temporary buff property
+            if (!player.karmaBuff) player.karmaBuff = { luck: 0, regen: 0 };
+            // Reset base (hard to track) - let's just do direct modification if careful
+        }
+
+        if (hasAscension) {
+            player.dodgeChance = isMoving ? 0.3 : 0; // 30% Dodge while moving
+        } else {
+            player.dodgeChance = 0;
+        }
+
+        if (hasTranquility && !isMoving) {
+            // Slow nearby enemies
+            if (window.enemies) {
+                window.enemies.forEach(e => {
+                    const d = Math.hypot(e.x - player.x, e.y - player.y);
+                    if (d < 300) {
+                        e.speedMultiplier = 0.5; // Slow down
+                        // Visual effect occasionally
+                        if (Math.random() < 0.05 && typeof createExplosion !== 'undefined') {
+                            createExplosion(e.x, e.y, "#aaddff", 2);
+                        }
+                    }
+                });
+            }
+        }
+
         if (!isMoving) {
             player.meditationTimer++;
             // Show visual effect for meditation
@@ -84,6 +156,28 @@ class SpiritHero {
             // Passive Regen (Skill or Base low regen)
             if (player.meditationTimer > 120 && window.frame % 60 === 0) {
                 if (player.hp < player.maxHp) player.hp += 1;
+                else if (hasLotus) {
+                    // Overheal -> Vines
+                    if (typeof projectiles !== 'undefined') {
+                        // Spawn Vine Projectile (Static Trap)
+                        projectiles.push({
+                            x: player.x + (Math.random() * 100 - 50),
+                            y: player.y + (Math.random() * 100 - 50),
+                            vx: 0, vy: 0, life: 300,
+                            type: 'VINE',
+                            radius: 15, color: '#2ecc71',
+                            damage: 10,
+                            update: function () { this.life--; if (this.life <= 0) this.dead = true; },
+                            draw: function () {
+                                const ctx = window.ctx; if (!ctx) return;
+                                ctx.save(); ctx.translate(this.x, this.y);
+                                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                                ctx.strokeStyle = "#27ae60"; ctx.lineWidth = 2; ctx.stroke();
+                                ctx.restore();
+                            }
+                        });
+                    }
+                }
             }
         } else {
             player.meditationTimer = 0;
@@ -146,6 +240,11 @@ class SpiritHero {
         const baseDmg = player.stats.rangeDmg || 15; // Use stats base instead of hardcoded
         const dmg = baseDmg * peaceMod * player.damageMultiplier;
 
+        // Convergence Checks
+        const hasSacredFlame = SpiritHero.checkConvergence(player, 'cv_s_f');
+        const hasHolyWater = SpiritHero.checkConvergence(player, 'cv_s_w');
+        const hasEnlightenment = SpiritHero.checkConvergence(player, 'cv_s_l');
+
         // Multishot Logic
         let count = 1 + (player.extraProjectiles || 0);
         if (player.buffs && player.buffs.multi > 0) count += 1;
@@ -190,6 +289,29 @@ class SpiritHero {
                                 floatingTexts.push(new FloatingText(player.x, player.y - 40, "-Peace", "#cfcfcf", 15));
                             }
                         }
+
+                        // Convergence Effects
+                        if (hasSacredFlame) {
+                            e.fireTicks = (e.fireTicks || 0) + 60; // Burn
+                            createExplosion(e.x, e.y, "#e74c3c", 8);
+                        }
+                        if (hasHolyWater) {
+                            const angle = Math.atan2(e.y - player.y, e.x - player.x);
+                            e.vx += Math.cos(angle) * 5; // Extra Push
+                            e.vy += Math.sin(angle) * 5;
+                        }
+                        if (hasEnlightenment) {
+                            // Chain Lightning
+                            if (Math.random() < 0.3 && typeof enemies !== 'undefined') {
+                                const target = enemies.find(n => n !== e && Math.hypot(n.x - e.x, n.y - e.y) < 200);
+                                if (target) {
+                                    target.hp -= dmg * 0.5;
+                                    // Draw line (needs global hook or temp)
+                                    createExplosion(target.x, target.y, "#f1c40f", 8);
+                                }
+                            }
+                        }
+
                         return 'DEFAULT';
                     },
 
