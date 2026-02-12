@@ -185,6 +185,9 @@ window.HERO_LOGIC['gravity'] = {
         // Let's hook 'shoot' to inject custom projectile visuals after creation.
         const originalShoot = player.shoot.bind(player);
         player.shoot = function () {
+            // Play Attack Sound
+            if (typeof audioManager !== 'undefined') audioManager.play('attack_gravity');
+
             // We need to capture the newly added projectile.
             // Assuming shoot() adds to the end of projectiles array.
             const initialLen = typeof projectiles !== 'undefined' ? projectiles.length : 0;

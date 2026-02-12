@@ -23,7 +23,7 @@ window.WIND_STORY_CHAPTERS = [
     {
         id: "wind_4", wave: 4, hero: "AIR", type: "OBJECTIVE_WAVE",
         title: "Growing Strength",
-        text: "To lead the wind, you must command power. Reach Level 20 to unlock the next gate.",
+        text: "To lead the wind, you must command power. Become stronger to unlock the next gate.",
         data: { trial: { type: 'LEVEL_REACH', params: { level: 20 } } }
     },
     {
@@ -91,7 +91,7 @@ window.WIND_STORY_CHAPTERS = [
     {
         id: "wind_15", wave: 15, hero: "AIR", type: "OBJECTIVE_WAVE",
         title: "Threshold of Power",
-        text: "The inner sanctum requires strength. Reach Level 30 or be cast out.",
+        text: "The inner sanctum requires strength. Become stronger or be cast out.",
         data: { trial: { type: 'LEVEL_REACH', params: { level: 30 } } }
     },
     {
@@ -146,7 +146,7 @@ window.WIND_STORY_CHAPTERS = [
     },
     {
         id: "wind_25", wave: 25, hero: "AIR", type: "OBJECTIVE_WAVE", title: "Mid-Ascension",
-        text: "The air is too thin for the weak. Reach Level 40 before the summit.",
+        text: "The air is too thin for the weak. Become stronger before the summit.",
         data: { trial: { type: 'LEVEL_REACH', params: { level: 40 } } }
     },
     {
@@ -175,7 +175,7 @@ window.WIND_STORY_CHAPTERS = [
     { id: "wind_31", wave: 31, hero: "AIR", type: "NARRATIVE", title: "Self Mastery", text: "You have conquered yourself. Now, become lighter than air.", data: { trial: { type: 'FLOW', params: { threshold: 50 } } } },
     { id: "wind_32", wave: 32, hero: "AIR", type: "COMPANION_JOIN", title: "An Old Ally", text: "The Fire Hero sends aid. Fire joins Wind.", data: { companionType: "fire" } },
     { id: "wind_33", wave: 33, hero: "AIR", type: "NARRATIVE", title: "Convergence", text: "Together you are stronger. Clear the path quickly.", data: { trial: { type: 'SPEED', params: { time: 50 } } } },
-    { id: "wind_34", wave: 34, hero: "AIR", type: "OBJECTIVE_WAVE", title: "Peak Condition", text: "The Storm King wakes. You must be at Level 50 to face him.", data: { trial: { type: 'LEVEL_REACH', params: { level: 50 } } } },
+    { id: "wind_34", wave: 34, hero: "AIR", type: "OBJECTIVE_WAVE", title: "Peak Condition", text: "The Storm King wakes. You must become stronger to face him.", data: { trial: { type: 'LEVEL_REACH', params: { level: 50 } } } },
     { id: "wind_35", wave: 35, hero: "AIR", type: "NARRATIVE", title: "The Warning", text: "The palace shakes. The King demands perfection.", data: { trial: { type: 'NO_HIT', params: { hits: 2 } } } },
     { id: "wind_36", wave: 36, hero: "AIR", type: "NARRATIVE", title: "Hurricane", text: "Debris fills the air. Flow around it.", data: { trial: { type: 'FLOW', params: { threshold: 90 } } } },
     { id: "wind_37", wave: 37, hero: "AIR", type: "WAVE_OVERRIDE", title: "Debris Field", text: "Giant rocks are thrown by the storm. Dodge them.", data: { chaosMode: 'GIANT_ENEMIES', trial: { type: 'NO_HIT', params: { hits: 4 } } } },
@@ -186,7 +186,7 @@ window.WIND_STORY_CHAPTERS = [
     // Arc 5
     { id: "wind_41", wave: 41, hero: "AIR", type: "NARRATIVE", title: "The Truth", text: "The King was once a hero like you. He tests you now.", data: { trial: { type: 'SPEED', params: { time: 60 } } } },
     { id: "wind_42", wave: 42, hero: "AIR", type: "NARRATIVE", title: "Inheritance", text: "To take his place, you must be untouchable.", data: { trial: { type: 'NO_HIT', params: { hits: 2 } } } },
-    { id: "wind_43", wave: 43, hero: "AIR", type: "OBJECTIVE_WAVE", title: "Final Gate", text: "Prove complete mastery. Reach Level 60.", data: { trial: { type: 'LEVEL_REACH', params: { level: 60 } } } },
+    { id: "wind_43", wave: 43, hero: "AIR", type: "OBJECTIVE_WAVE", title: "Final Gate", text: "Prove complete mastery. Become stronger.", data: { trial: { type: 'LEVEL_REACH', params: { level: 60 } } } },
     { id: "wind_44", wave: 44, hero: "AIR", type: "NARRATIVE", title: "Unleashed", text: "The storm crashes around you. Maintain 100% Flow.", data: { trial: { type: 'FLOW', params: { threshold: 100 } } } },
     { id: "wind_45", wave: 45, hero: "AIR", type: "WAVE_OVERRIDE", title: "Cat. 5", text: "Survival is unlikely. The wind screams.", data: { spawnRateMod: 3.0, trial: { type: 'NO_HIT', params: { hits: 10 } } } },
     { id: "wind_46", wave: 46, hero: "AIR", type: "NARRATIVE", title: "Eye of the Needle", text: "Thread the needle. One path forward.", data: { trial: { type: 'SPEED', params: { time: 50 } } } },

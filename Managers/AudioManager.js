@@ -23,6 +23,22 @@ class AudioManager {
             boss_chaos_all: new Audio('dlc/champions_of_chaos/music/boss_all.wav'),
             boss_entropy: new Audio('dlc/champions_of_chaos/music/boss_entropy_mage.wav'),
 
+            // DLC Waker of Winds
+            battle_air_1: new Audio('dlc/waker_of_winds/music/battle_1.mp3'),
+            battle_air_2: new Audio('dlc/waker_of_winds/music/battle_2.mp3'),
+            boss_air: new Audio('dlc/waker_of_winds/music/boss.mp3'),
+
+            // New Air Hero SFX
+            attack_air_1: new Audio('dlc/waker_of_winds/music/sounds/attack_air_1.wav'),
+            attack_air_2: new Audio('dlc/waker_of_winds/music/sounds/attack_air_2.wav'),
+            attack_air_3: new Audio('dlc/waker_of_winds/music/sounds/attack_air_3.wav'),
+            attack_air_4: new Audio('dlc/waker_of_winds/music/sounds/attack_air_4.wav'),
+
+            special_air_1: new Audio('dlc/waker_of_winds/music/sounds/special_air_1.wav'),
+            special_air_2: new Audio('dlc/waker_of_winds/music/sounds/special_air_2.wav'),
+            special_air_3: new Audio('dlc/waker_of_winds/music/sounds/special_air_3.wav'),
+            special_air_4: new Audio('dlc/waker_of_winds/music/sounds/special_air_4.wav'),
+
             // SFX
             level_up: new Audio('music/sounds/level_up.wav'),
             pickup_card: new Audio('music/sounds/pick_up_collectors_card.wav'),
@@ -108,6 +124,13 @@ class AudioManager {
         this.tracks.boss_entropy.loop = true;
         this.tracks.boss_entropy.volume = 0.6;
 
+        this.tracks.battle_air_1.loop = true;
+        this.tracks.battle_air_1.volume = 0.4;
+        this.tracks.battle_air_2.loop = true;
+        this.tracks.battle_air_2.volume = 0.4;
+        this.tracks.boss_air.loop = true;
+        this.tracks.boss_air.volume = 0.6;
+
         this.tracks.battle_thunder_1.loop = true;
         this.tracks.battle_thunder_1.volume = 0.4;
         this.tracks.battle_thunder_2.loop = true;
@@ -142,6 +165,12 @@ class AudioManager {
         if (this.tracks.attack_earth_roll) {
             this.tracks.attack_earth_roll.loop = true;
             this.tracks.attack_earth_roll.volume = 0.3;
+        }
+
+        // Air SFX config
+        for (let i = 1; i <= 4; i++) {
+            if (this.tracks[`attack_air_${i}`]) this.tracks[`attack_air_${i}`].volume = 0.3;
+            if (this.tracks[`special_air_${i}`]) this.tracks[`special_air_${i}`].volume = 0.5;
         }
 
         // SFX Configuration, 'attack_shooter', 'special_black', 'special_fire', 'special_ice', 'special_metal', 'special_plant', 'special_water', 'special_lightning'
@@ -222,6 +251,10 @@ class AudioManager {
             path = `dlc/rise_of_the_rock/music/memories/${hero}_${id}.mp3`;
         } else if (hero === 'lightning') {
             path = `dlc/tournament_of_thunder/music/memories/${hero}_${id}.mp3`;
+        } else if (hero === 'gravity' || hero === 'void') {
+            path = `dlc/champions_of_chaos/music/memories/${hero}_${id}.mp3`;
+        } else if (hero === 'air') {
+            path = `dlc/waker_of_winds/music/memories/${hero}_${id}.mp3`;
         } else {
             // Standard Heroes (and potentially others if added strictly to base)
             path = `music/memories/${hero}_${id}.mp3`;
@@ -265,14 +298,31 @@ class AudioManager {
         }
     }
 
+    isMusic(trackName) {
+        const track = this.tracks[trackName];
+        if (!track) return false;
+
+        // Use src to detect type based on folder structure
+        // Note: src is absolute path (file:// or http://)
+        const src = track.src;
+
+        // SFX: stored in "music/sounds/" or "music/memories/"
+        // (User's explicit rule: prevents false positives if file name contains 'music')
+        if (src.includes('/sounds/') || src.includes('/memories/')) {
+            return false;
+        }
+
+        // Music: stored in "music/" root or "dlc/.../music/" (but not in sounds/memories substrs above)
+        // This covers "music/main_menu.wav" as well as "dlc/X/music/battle.wav"
+        if (src.includes('/music/')) {
+            return true;
+        }
+
+        return false; // Fallback to SFX logic if untracked? Or assume SFX.
+    }
+
     play(trackName) {
-        const musicTracks = [
-            'menu', 'museum', 'makuta', 'goblin', 'battle', 'gameover',
-            'battle_rock_1', 'battle_rock_2', 'golem',
-            'battle_thunder_1', 'battle_thunder_2', 'zeus',
-            'battle_chaos_1', 'battle_chaos_2', 'boss_chaos_all', 'boss_entropy'
-        ];
-        const isMusic = musicTracks.includes(trackName);
+        const isMusic = this.isMusic(trackName);
 
         if (isMusic) {
             if (!this.musicEnabled) return;
@@ -303,13 +353,11 @@ class AudioManager {
 
     // New helper to stop only music
     stopAllMusic() {
-        const musicTracks = [
-            'menu', 'museum', 'makuta', 'goblin', 'battle', 'gameover',
-            'battle_rock_1', 'battle_rock_2', 'golem',
-            'battle_thunder_1', 'battle_thunder_2', 'zeus',
-            'battle_chaos_1', 'battle_chaos_2', 'boss_chaos_all', 'boss_entropy'
-        ];
-        musicTracks.forEach(key => this.stop(key));
+        for (const key in this.tracks) {
+            if (this.isMusic(key)) {
+                this.stop(key);
+            }
+        }
     }
 
     stopAllExcept(trackName) {
@@ -363,6 +411,9 @@ class AudioManager {
             const isChaosBossActive = typeof bossActive !== 'undefined' && bossActive &&
                 typeof enemies !== 'undefined' &&
                 enemies.some(e => e instanceof Boss && (e.type === 'VOID_WALKER_BOSS' || e.type === 'GLITCH_BOSS'));
+            const isAirBossActive = typeof bossActive !== 'undefined' && bossActive &&
+                typeof enemies !== 'undefined' &&
+                enemies.some(e => e instanceof Boss && ['CLOUD_GOLEM', 'STORM_CROW', 'TORNADO_MACHINA', 'TEMP_EST'].includes(e.type));
 
             if (isMakutaActive) {
                 this.stopAllExcept('makuta');
@@ -382,12 +433,16 @@ class AudioManager {
             } else if (isChaosBossActive) {
                 this.stopAllExcept('boss_chaos_all');
                 this.play('boss_chaos_all');
+            } else if (isAirBossActive) {
+                this.stopAllExcept('boss_air');
+                this.play('boss_air');
             } else {
                 // If the Earth hero is active in the run, prefer DLC rock battle variants (randomized)
                 // Story Mode only (Not Daily/Weekly)
                 const isEarthActive = typeof player !== 'undefined' && player && player.type === 'earth';
                 const isLightningActive = typeof player !== 'undefined' && player && player.type === 'lightning';
                 const isGravityActive = typeof player !== 'undefined' && player && player.type === 'gravity';
+                const isAirActive = typeof player !== 'undefined' && player && player.type === 'air';
                 const isVoidActive = typeof player !== 'undefined' && player && player.type === 'void';
                 const isStoryMode = typeof isDailyMode !== 'undefined' && !isDailyMode &&
                     typeof isWeeklyMode !== 'undefined' && !isWeeklyMode &&
@@ -427,6 +482,19 @@ class AudioManager {
                 } else if (isVoidActive && isStoryMode) {
                     this.stopAllExcept('battle_chaos_2');
                     this.play('battle_chaos_2');
+                } else if (isAirActive && isStoryMode && this.tracks['battle_air_1'] && this.tracks['battle_air_2']) {
+                    const t1 = this.tracks['battle_air_1'];
+                    const t2 = this.tracks['battle_air_2'];
+
+                    if (!t1.paused) {
+                        this.stopAllExcept('battle_air_1');
+                    } else if (!t2.paused) {
+                        this.stopAllExcept('battle_air_2');
+                    } else {
+                        const pick = Math.random() < 0.5 ? 'battle_air_1' : 'battle_air_2';
+                        this.stopAllExcept(pick);
+                        this.play(pick);
+                    }
                 } else {
                     this.stopAllExcept('battle');
                     this.play('battle');

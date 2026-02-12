@@ -302,6 +302,72 @@ class Museum {
                 }
             }
 
+            // Special DLC Memories in Gallery
+
+            // Earth (Top Left)
+            if (saveData.memories['earth'] && Array.isArray(saveData.memories['earth']) && saveData.memories['earth'].length > 0) {
+                const count = saveData.memories['earth'].length;
+                const room = this.rooms.find(r => r.name === 'gallery');
+                if (room) {
+                    this.artifacts.push({
+                        x: room.x + room.w / 2 - 300,
+                        y: room.y + 100,
+                        text: `Rock: ${count}`,
+                        color: '#8d6e63',
+                        type: 'MEMORY',
+                        hero: 'earth'
+                    });
+                }
+            }
+
+            // Lightning (Bottom Right)
+            if (saveData.memories['lightning'] && Array.isArray(saveData.memories['lightning']) && saveData.memories['lightning'].length > 0) {
+                const count = saveData.memories['lightning'].length;
+                const room = this.rooms.find(r => r.name === 'gallery');
+                if (room) {
+                    this.artifacts.push({
+                        x: room.x + room.w / 2 + 300,
+                        y: room.y + room.h - 100,
+                        text: `Thunder: ${count}`,
+                        color: '#f1c40f',
+                        type: 'MEMORY',
+                        hero: 'lightning'
+                    });
+                }
+            }
+
+            // Gravity (Bottom Left)
+            if (saveData.memories['gravity'] && Array.isArray(saveData.memories['gravity']) && saveData.memories['gravity'].length > 0) {
+                const count = saveData.memories['gravity'].length;
+                const room = this.rooms.find(r => r.name === 'gallery');
+                if (room) {
+                    this.artifacts.push({
+                        x: room.x + room.w / 2 - 300,
+                        y: room.y + room.h - 100,
+                        text: `Singularity: ${count}`,
+                        color: '#8e44ad',
+                        type: 'MEMORY',
+                        hero: 'gravity'
+                    });
+                }
+            }
+
+            // Void (Middle Left)
+            if (saveData.memories['void'] && Array.isArray(saveData.memories['void']) && saveData.memories['void'].length > 0) {
+                const count = saveData.memories['void'].length;
+                const room = this.rooms.find(r => r.name === 'gallery');
+                if (room) {
+                    this.artifacts.push({
+                        x: room.x + 100, // Left wall
+                        y: room.y + room.h / 2,
+                        text: `Entropy: ${count}`,
+                        color: '#2c3e50',
+                        type: 'MEMORY',
+                        hero: 'void'
+                    });
+                }
+            }
+
             // Special Air Memory in Gallery (Wind Waker DLC)
             if (saveData.memories['air'] && Array.isArray(saveData.memories['air']) && saveData.memories['air'].length > 0) {
                 const count = saveData.memories['air'].length;

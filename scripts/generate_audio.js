@@ -10,12 +10,14 @@ const MODEL_ID = 'eleven_multilingual_v2';
 // Voices
 const GRAVITY_VOICE_ID = 'esy0r39YPLQjOczyOib8';
 const VOID_VOICE_ID = '69Na567Zr0bPvmBYuGdc';
+const AIR_VOICE_ID = 'wyWA56cQNU2KqUW4eCsI';
+const AIR_MEMORY_VOICE_ID = '86ZLAUcyPNBrbdJKn3u6';
 
-// Paths for Champions of Chaos DLC
-const STORY_FILE = path.join(__dirname, '../dlc/champions_of_chaos/Story.js');
-const INDEX_FILE = path.join(__dirname, '../dlc/champions_of_chaos/index.js');
-const OUTPUT_DIR = path.join(__dirname, '../dlc/champions_of_chaos/music/story');
-const MEMORY_OUTPUT_DIR = path.join(__dirname, '../dlc/champions_of_chaos/music/memories');
+// Paths for Waker of Winds DLC
+const STORY_FILE = path.join(__dirname, '../dlc/waker_of_winds/Story.js');
+const INDEX_FILE = path.join(__dirname, '../dlc/waker_of_winds/index.js');
+const OUTPUT_DIR = path.join(__dirname, '../dlc/waker_of_winds/music/story');
+const MEMORY_OUTPUT_DIR = path.join(__dirname, '../dlc/waker_of_winds/music/memories');
 
 // --- Load Story Data ---
 if (!fs.existsSync(STORY_FILE)) {
@@ -26,8 +28,8 @@ if (!fs.existsSync(STORY_FILE)) {
 const fileContent = fs.readFileSync(STORY_FILE, 'utf8');
 const storyItems = [];
 
-// Parse window.CHAOS_STORY_CHAPTERS = [ ... ];
-const storyMatch = fileContent.match(/window\.CHAOS_STORY_CHAPTERS\s*=\s*(\[[\s\S]*?\]);/);
+// Parse window.WIND_STORY_CHAPTERS = [ ... ];
+const storyMatch = fileContent.match(/window\.WIND_STORY_CHAPTERS\s*=\s*(\[[\s\S]*?\]);/);
 
 if (storyMatch) {
     try {
@@ -35,18 +37,18 @@ if (storyMatch) {
         events.forEach(e => {
             if (e.text) {
                 storyItems.push({
-                    id: e.id || `chaos_wave_${e.wave}`,
+                    id: e.id || `wind_wave_${e.wave}`,
                     text: e.text,
-                    hero: e.hero, // 'gravity' or 'void'
+                    hero: e.hero, // 'AIR'
                     isMemory: false
                 });
             }
         });
     } catch (e) {
-        console.error("Error parsing CHAOS_STORY_CHAPTERS:", e);
+        console.error("Error parsing WIND_STORY_CHAPTERS:", e);
     }
 } else {
-    console.error("Could not find window.CHAOS_STORY_CHAPTERS in Story.js");
+    console.error("Could not find window.WIND_STORY_CHAPTERS in Story.js");
 }
 
 // --- Load Memory Data ---
@@ -74,8 +76,7 @@ if (fs.existsSync(INDEX_FILE)) {
         }
     };
 
-    extractMemories('gravity');
-    extractMemories('void');
+    extractMemories('air');
 }
 
 if (storyItems.length === 0) {
@@ -122,6 +123,12 @@ async function generateAudio() {
             currentVoiceId = VOID_VOICE_ID;
         } else if (hero === 'gravity') {
             currentVoiceId = GRAVITY_VOICE_ID;
+        } else if (hero === 'air' || hero === 'AIR') {
+            if (item.isMemory) {
+                currentVoiceId = AIR_MEMORY_VOICE_ID;
+            } else {
+                currentVoiceId = AIR_VOICE_ID;
+            }
         } else {
             console.warn(`Unknown hero '${hero}' for ${id}, defaulting to Gravity.`);
         }
@@ -171,7 +178,7 @@ async function generateAudio() {
         }
     }
 
-    console.log("Done generating Chaos Audio!");
+    console.log("Done generating Wind Audio!");
 }
 
 generateAudio();

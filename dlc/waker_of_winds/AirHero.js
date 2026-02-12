@@ -245,6 +245,49 @@ class AirHero {
             ctx.restore();
         }
 
+        // Visuals: Zephyr Wings (Dash Effect)
+        if (player.wingsVisual) {
+            player.wingsVisual.timer--;
+            if (player.wingsVisual.timer <= 0) {
+                player.wingsVisual = null;
+            } else if (window.ctx) {
+                const ctx = window.ctx;
+                const v = player.wingsVisual;
+                const alpha = v.timer / 30;
+
+                ctx.save();
+                ctx.translate(player.x, player.y); // Draw attached to player (or v.x if we want static)
+                // Let's attach to player so they "wear" the wings upon arrival
+                ctx.rotate(v.angle + Math.PI / 2); // Rotate to face movement direction (assuming 0 is right, but wings usually spread perpendicular?)
+                // Actually wings spread out from the back. If aiming right (0), back is left (PI).
+                // Let's rotate to aimAngle.
+
+                ctx.globalAlpha = alpha;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#40e0d0';
+
+                // Left Wing
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(-40, -40, -80, -20); // Top curve
+                ctx.quadraticCurveTo(-60, 0, -50, 20);    // Bottom feathers
+                ctx.quadraticCurveTo(-20, 10, 0, 0);      // Return to body
+                ctx.fillStyle = 'rgba(64, 224, 208, 0.8)';
+                ctx.fill();
+
+                // Right Wing
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(40, -40, 80, -20);
+                ctx.quadraticCurveTo(60, 0, 50, 20);
+                ctx.quadraticCurveTo(20, 10, 0, 0);
+                ctx.fillStyle = 'rgba(64, 224, 208, 0.8)';
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
         // Mechanic: Orbiting Projectiles
         // Any projectile fired doesn't leave immediately; it orbits for 1s then launches
         // (Handled partially in shoot, but let's override behavior here or add passive damage aura)
@@ -718,6 +761,20 @@ class AirHero {
 
     static useSpecial(player) {
         if (player.activeEffect || player.activeTornado) return;
+
+        // --- SOUND ---
+        if (typeof audioManager !== 'undefined') {
+            const windDir = (player.weatherVane && player.weatherVane.direction) ? player.weatherVane.direction : 'NORTH';
+            const dirs = ['NORTH', 'EAST', 'SOUTH', 'WEST'];
+            const idx = dirs.indexOf(windDir);
+            const trackName = `special_air_${idx + 1}`;
+            if (audioManager.tracks[trackName]) {
+                const sfx = audioManager.tracks[trackName].cloneNode();
+                sfx.volume = 0.5;
+                sfx.play().catch(e => { });
+            }
+        }
+
         if (player.weatherVane) player.weatherVane.ultimatesUsedThisWave++;
 
         // Reset CD
@@ -747,6 +804,14 @@ class AirHero {
                 });
             }
             if (typeof showNotification === 'function') showNotification("ZEPHYR DASH!");
+
+            // Visual: Wings Effect
+            player.wingsVisual = {
+                timer: 30,
+                x: player.x,
+                y: player.y,
+                angle: dAngle
+            };
 
         } else if (dir === 'SOUTH') {
             // SOUTH: TORNADO
@@ -809,7 +874,20 @@ class AirHero {
         if (player.lastShotTime && (now - player.lastShotTime < cd)) return;
         player.lastShotTime = now;
 
-        if (typeof audioManager !== 'undefined') audioManager.play('shoot_weak');
+        if (typeof audioManager !== 'undefined') {
+            const windDir = (player.weatherVane && player.weatherVane.direction) ? player.weatherVane.direction : 'NORTH';
+            const dirs = ['NORTH', 'EAST', 'SOUTH', 'WEST'];
+            const idx = dirs.indexOf(windDir);
+            const trackName = `attack_air_${idx + 1}`;
+
+            if (audioManager.tracks[trackName]) {
+                const sfx = audioManager.tracks[trackName].cloneNode();
+                sfx.volume = 0.3;
+                sfx.play().catch(e => { });
+            } else {
+                audioManager.play('shoot_weak');
+            }
+        }
 
         let angle = player.aimAngle;
         let speed = player.stats.projectileSpeed * 2.0;
