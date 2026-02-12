@@ -25,6 +25,7 @@ const WAKER_OF_WINDS = {
         this.injectAltar();
         this.injectAchievements();
         this.injectMemories();
+        this.injectCards();
 
         console.log("[DLC] Loaded: Waker of Winds (Success)");
     },
@@ -154,6 +155,30 @@ const WAKER_OF_WINDS = {
                 "I don't know if I'm surviving or evolving. The difference feels meaningless. All that matters is the next gust, the next jump, the next kill.",
                 "If I reach the top... if I clear these skies... will I find answers? Or just more empty air? I have to know. I have to keep climbing."
             ];
+        }
+    },
+
+    injectCards: function () {
+        console.log("[DLC] Injecting Collector Cards...");
+
+        const createCardSet = (type, name, color, specialDesc, specialBonus) => {
+            return {
+                [`${type}_1`]: { name: `${name} Bronze`, desc: `Unlock Card`, chance: 0.05, color: '#cd7f32', bonus: { type: 'unlock', target: type } },
+                [`${type}_2`]: { name: `${name} Silver`, desc: `+10% Def vs ${name}s`, chance: 0.01, color: '#c0c0c0', bonus: { type: 'defense_vs', val: 0.1, target: type } },
+                [`${type}_3`]: { name: `${name} Gold`, desc: `+20% XP from ${name}s`, chance: 0.001, color: '#ffd700', bonus: { type: 'xp_vs', val: 0.2, target: type } },
+                [`${type}_4`]: { name: `${name} Platinum`, desc: specialDesc, chance: 0.0005, color: '#e5e4e2', bonus: specialBonus }
+            };
+        };
+
+        if (typeof COLLECTOR_CARDS !== 'undefined') {
+            const newCards = {
+                ...createCardSet('HARPY', 'Harpy', '#00bcd4', 'Harpies take +50% Knockback', { type: 'stat_vs', val: 1.5, stat: 'knockback', target: 'HARPY' }),
+                ...createCardSet('AERO_DRONE', 'Aero Drone', '#607d8b', 'Drones have 30% less HP', { type: 'damage_vs', val: 0.3, target: 'AERO_DRONE' }),
+                ...createCardSet('CLOUD_MANTA', 'Cloud Manta', '#cfd8dc', 'Mantas cannot stealth', { type: 'special', id: 'MANTA_NO_STEALTH' })
+            };
+
+            Object.assign(COLLECTOR_CARDS, newCards);
+            console.log("[DLC] Cards injected into COLLECTOR_CARDS");
         }
     }
 };

@@ -212,28 +212,75 @@ class StatisticsUI {
         container.style.flexDirection = 'column';
         container.style.gap = '20px';
 
-        // Build types list dynamically from ENEMY_TYPES + BOSS + ELITES
-        let types = [];
-        if (typeof ENEMY_TYPES !== 'undefined') {
-            types = [...ENEMY_TYPES];
-        } else {
-            types = ['BASIC', 'SHOOTER', 'BRUTE', 'SPEEDSTER', 'SWARM', 'SUMMONER', 'GHOST', 'SNIPER', 'BOMBER', 'TOXIC', 'SHIELDER'];
+        // Dynamically discover all card types from COLLECTOR_CARDS
+        const typesSet = new Set();
+        if (typeof COLLECTOR_CARDS !== 'undefined') {
+            Object.keys(COLLECTOR_CARDS).forEach(key => {
+                // Match pattern "TYPE_NUMBER" (e.g., "BASIC_1", "CLOUD_BAT_2")
+                const match = key.match(/^(.*)_\d+$/);
+                if (match) {
+                    typesSet.add(match[1]);
+                }
+            });
         }
 
-        if (!types.includes('BOSS')) types.push('BOSS');
+        const types = Array.from(typesSet);
 
-        // Add DLC types if not already in ENEMY_TYPES (just in case)
-        if (window.dlcManager && window.dlcManager.isDLCActive('rise_of_the_rock')) {
-            if (!types.includes('GOLEM')) types.push('GOLEM');
-            if (!types.includes('BURROWER')) types.push('BURROWER');
-        }
+        // types.forEach(type => {
+        //     // Check if we actually have cards for this type
+        //     if (!COLLECTOR_CARDS[`${type}_1`]) return;
 
-        // Add Elite Types
-        const elites = ['ELITE_AURA_SPEED', 'ELITE_AURA_HEAL', 'ELITE_EXPLODER', 'ELITE_TANK'];
-        types.push(...elites);
+        //     const row = document.createElement('div');
+        //     row.className = 'collection-row';
+        //     row.style.display = 'flex';
+        //     row.style.gap = '10px';
+        //     row.style.justifyContent = 'center';
+        //     row.style.flexWrap = 'wrap';
 
+        //     // Header for row
+        //     const header = document.createElement('h3');
+        //     header.style.width = '100%';
+        //     header.style.textAlign = 'center';
+        //     header.style.color = '#ccc';
+        //     header.style.marginBottom = '5px';
+        //     header.innerText = type.replace('_', ' ');
+        //     row.appendChild(header);
+
+        //     for (let i = 1; i <= 4; i++) {
+        //         const cardKey = `${type}_${i}`;
+        //         const cardData = COLLECTOR_CARDS[cardKey];
+        //         const isCollected = window.saveData.collection.includes(cardKey);
+
+        //         if (cardData) {
+        //             const el = document.createElement('div');
+        //             el.className = `collection-card ${isCollected ? 'collected' : 'locked'}`;
+        //             el.style.border = `2px solid ${cardData.rarity === 'common' ? '#bdc3c7' : cardData.rarity === 'rare' ? '#3498db' : cardData.rarity === 'epic' ? '#9b59b6' : '#f1c40f'}`;
+
+        //             let bg = '#333';
+        //             if (isCollected) bg = cardData.rarity === 'common' ? '#2c3e50' : cardData.rarity === 'rare' ? '#2980b9' : cardData.rarity === 'epic' ? '#8e44ad' : '#f39c12';
+
+        //             el.style.background = bg;
+        //             el.style.padding = '10px';
+        //             el.style.width = '120px';
+        //             el.style.borderRadius = '5px';
+        //             el.style.display = 'flex';
+        //             el.style.flexDirection = 'column';
+        //             el.style.alignItems = 'center';
+        //             el.style.opacity = isCollected ? 1 : 0.5;
+
+        //             el.innerHTML = `
+        //                 <div style="font-size: 24px;">${isCollected ? '🃏' : '🔒'}</div>
+        //                 <div style="font-weight: bold; margin: 5px 0; font-size: 12px; text-align: center;">${cardData.name}</div>
+        //                 <div style="font-size: 10px; text-align: center; color: #ddd;">${isCollected ? parseBonusDesc(cardData.bonus) : '???'}</div>
+        //             `;
+        //             row.appendChild(el);
+        //         }
+        //     }
+        //     container.appendChild(row);
+        // });
         types.forEach(type => {
             // Check if we actually have cards for this type
+            // (Prevents showing empty rows if a type exists but has no cards)
             if (!COLLECTOR_CARDS[`${type}_1`]) return;
 
             const row = document.createElement('div');
@@ -244,43 +291,44 @@ class StatisticsUI {
             row.style.flexWrap = 'wrap';
 
             // Header for row
-            const header = document.createElement('h3');
+            const header = document.createElement('div');
             header.style.width = '100%';
             header.style.textAlign = 'center';
-            header.style.color = '#ccc';
+            header.style.color = '#aaa';
             header.style.marginBottom = '5px';
-            header.innerText = type.replace('_', ' ');
+            header.style.fontSize = '14px';
+            header.innerText = type.replace(/_/g, ' ');
             row.appendChild(header);
 
             for (let i = 1; i <= 4; i++) {
-                const cardKey = `${type}_${i}`;
-                const cardData = COLLECTOR_CARDS[cardKey];
-                const isCollected = window.saveData.collection.includes(cardKey);
+                const key = `${type}_${i}`;
+                const card = COLLECTOR_CARDS[key];
+                if (!card) continue;
 
-                if (cardData) {
-                    const el = document.createElement('div');
-                    el.className = `collection-card ${isCollected ? 'collected' : 'locked'}`;
-                    el.style.border = `2px solid ${cardData.rarity === 'common' ? '#bdc3c7' : cardData.rarity === 'rare' ? '#3498db' : cardData.rarity === 'epic' ? '#9b59b6' : '#f1c40f'}`;
+                const unlocked = saveData.collection.includes(key);
 
-                    let bg = '#333';
-                    if (isCollected) bg = cardData.rarity === 'common' ? '#2c3e50' : cardData.rarity === 'rare' ? '#2980b9' : cardData.rarity === 'epic' ? '#8e44ad' : '#f39c12';
+                const el = document.createElement('div');
+                el.className = 'collection-card';
+                if (!unlocked) el.classList.add('locked');
 
-                    el.style.background = bg;
-                    el.style.padding = '10px';
-                    el.style.width = '120px';
-                    el.style.borderRadius = '5px';
-                    el.style.display = 'flex';
-                    el.style.flexDirection = 'column';
-                    el.style.alignItems = 'center';
-                    el.style.opacity = isCollected ? 1 : 0.5;
+                el.style.borderColor = unlocked ? card.color : '#333';
+                el.style.boxShadow = unlocked ? `0 0 15px ${card.color}20` : 'none';
+                el.style.width = '180px'; // Fixed width for consistency
 
-                    el.innerHTML = `
-                        <div style="font-size: 24px;">${isCollected ? '🃏' : '🔒'}</div>
-                        <div style="font-weight: bold; margin: 5px 0; font-size: 12px; text-align: center;">${cardData.name}</div>
-                        <div style="font-size: 10px; text-align: center; color: #ddd;">${isCollected ? parseBonusDesc(cardData.bonus) : '???'}</div>
-                    `;
-                    row.appendChild(el);
-                }
+                el.innerHTML = `
+                <div class="card-icon" style="background: ${unlocked ? card.color : '#222'}">
+                    ${unlocked ? (i === 4 ? '👑' : i === 3 ? '💰' : i === 2 ? '🛡️' : '⚔️') : '?'}
+                </div>
+                <div class="card-info">
+                    <div class="card-name" style="color: ${unlocked ? card.color : '#666'}">
+                        ${unlocked ? card.name : 'Unknown'}
+                    </div>
+                    <div class="card-desc" style="color: ${unlocked ? '#ccc' : '#444'}">
+                        ${unlocked ? card.desc : 'Find this card to unlock bonus.'}
+                    </div>
+                </div>
+            `;
+                row.appendChild(el);
             }
             container.appendChild(row);
         });
@@ -307,6 +355,8 @@ window.closeStats = () => statisticsUI.closeStats();
 window.openCompletion = () => statisticsUI.openCompletion();
 window.closeCompletion = () => statisticsUI.closeCompletion();
 window.getCollectionBonuses = (t) => statisticsUI.getCollectionBonuses(t);
+window.openCollection = () => statisticsUI.openCollection();
+window.closeCollection = () => statisticsUI.closeCollection();
 window.openCollection = () => statisticsUI.openCollection();
 window.closeCollection = () => statisticsUI.closeCollection();
 

@@ -1,6 +1,7 @@
 # General
 
 - Add general game statistics in the "Statistics" menu (playtime, enemies killed, etc.)
+- Add loading screen for game+DLCs on landing page
 
 # DLC: Waker of Winds
 
@@ -8,4 +9,14 @@
 
 # DLC: Faith of Fortune
 
-- [x] Add proper story implementation
+- Add sound effects and music
+- Test 1V1 implementation in story
+
+# Future
+
+- "Sound" hero DLC
+    - attacks are sound waves (similar design like melee attack)
+    - attacks are stronger when synchronous to "beat"
+    - different levels = different beats with different BPM (e.g., 60, 100, 120)
+- "Time" hero DLC
+- "Love" hero DLC

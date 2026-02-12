@@ -19,6 +19,14 @@ class TempleGuardian {
         this.name = "Ivory Guardian";
         this.shieldActive = true;
         this.shieldTimer = 0;
+        
+        // Card Nerf: No Shields
+        if (typeof saveData !== 'undefined' && saveData.collection && saveData.collection.includes('GUARDIAN_4')) {
+            this.shieldActive = false; // Start disabled
+            this.shieldsDisabled = true; // Permanent flag
+        } else {
+            this.shieldsDisabled = false;
+        }
     }
 
     update(player) {
@@ -32,9 +40,13 @@ class TempleGuardian {
         // Or just high defense.
 
         this.shieldTimer++;
-        if (this.shieldTimer > 300) { // Every 5 seconds, toggle shield
-            this.shieldActive = !this.shieldActive;
-            this.shieldTimer = 0;
+        if (!this.shieldsDisabled) {
+            if (this.shieldTimer > 300) { // Every 5 seconds, toggle shield
+                this.shieldActive = !this.shieldActive;
+                this.shieldTimer = 0;
+            }
+        } else {
+            this.shieldActive = false;
         }
     }
 
@@ -87,6 +99,12 @@ class SpiritMonk {
         this.name = "Silent Monk";
         this.state = 'MEDITATE'; // MEDITATE, CHASE
         this.timer = 0;
+
+        // Card Nerf: No Healing
+        this.healingDisabled = false;
+        if (typeof saveData !== 'undefined' && saveData.collection && saveData.collection.includes('MONK_4')) {
+            this.healingDisabled = true;
+        }
     }
 
     update(player) {
@@ -94,7 +112,7 @@ class SpiritMonk {
 
         if (this.state === 'MEDITATE') {
             // Regeneration / Buffing allies if we had that logic
-            if (this.hp < this.maxHp) this.hp += 0.1;
+            if (!this.healingDisabled && this.hp < this.maxHp) this.hp += 0.1;
 
             // Switch to Attack if close or random
             const dist = Math.hypot(player.x - this.x, player.y - this.y);

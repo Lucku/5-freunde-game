@@ -20,6 +20,11 @@ class GlitchEnemy {
         
         // Madness Props
         this.teleportTimer = 0;
+        this.teleportThreshold = 120;
+        // Card Nerf: Glitch Teleport Nerf
+        if (typeof saveData !== 'undefined' && saveData.collection && saveData.collection.includes('GLITCH_4')) {
+            this.teleportThreshold = 240;
+        }
         this.glitchOffset = {x:0, y:0};
     }
 
@@ -35,7 +40,7 @@ class GlitchEnemy {
 
         // 2. Teleport (Packet Loss)
         this.teleportTimer++;
-        if (this.teleportTimer > 120 && Math.random() < 0.05) {
+        if (this.teleportTimer > this.teleportThreshold && Math.random() < 0.05) {
              this.x += (Math.random() - 0.5) * 300;
              this.y += (Math.random() - 0.5) * 300;
              this.teleportTimer = 0;
@@ -79,6 +84,12 @@ class RNGTurret {
         this.type = 'TURRET';
         this.name = "RNGesus";
         this.shootTimer = 0;
+        this.shootInterval = 60;
+        
+        // Card Nerf: Turret Fire Speed
+        if (typeof saveData !== 'undefined' && saveData.collection && saveData.collection.includes('TURRET_4')) {
+            this.shootInterval = 120; // 50% slower -> 2x interval
+        }
     }
 
     update(player) {
@@ -87,7 +98,7 @@ class RNGTurret {
         this.y += Math.cos(window.frame * 0.03);
 
         this.shootTimer++;
-        if (this.shootTimer > 60) {
+        if (this.shootTimer > this.shootInterval) {
             this.shoot(player);
             this.shootTimer = 0;
         }

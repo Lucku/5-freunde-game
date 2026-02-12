@@ -124,6 +124,20 @@ class CompletionMenu {
                 continue;
             }
 
+            if (hero === 'spirit' || hero === 'chance') { // Faith of Fortune DLC
+                const stories = MEMORY_STORIES[hero];
+                const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
+                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                if (!Array.isArray(unlocked)) {
+                    for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
+                }
+
+                stories.forEach((story, i) => {
+                    addToDLC('Faith of Fortune', 'Memories', unlockedIndices.includes(i), `${hero.charAt(0).toUpperCase() + hero.slice(1)} Shard #${i + 1}`);
+                });
+                continue;
+            }
+
             const stories = MEMORY_STORIES[hero];
             const heroName = hero.charAt(0).toUpperCase() + hero.slice(1);
 
@@ -171,6 +185,10 @@ class CompletionMenu {
             }
             if (ach.id.startsWith('chaos_') || ach.id.includes('gravity') || ach.id.includes('void') || ach.id === 'ENTROPY_LORD' || ach.id === 'GALAXY_S') {
                 addToDLC('Champions of Chaos', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
+                return;
+            }
+            if (ach.id.startsWith('fortune_') || ach.id.includes('spirit') || ach.id.includes('chance')) {
+                addToDLC('Faith of Fortune', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
                 return;
             }
             if (ach.id.startsWith('thunder_')) {
@@ -256,6 +274,11 @@ class CompletionMenu {
                 addToDLC('Champions of Chaos', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
                 return;
             }
+            if (evt.id && evt.id.startsWith('fortune_')) {
+                const isUnlocked = saveData.story.unlockedChapters.includes(evt.id);
+                addToDLC('Faith of Fortune', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
+                return;
+            }
 
             let cat = 'Act 5 (81-100)';
             if (evt.wave <= 20) cat = 'Act 1 (1-20)';
@@ -303,8 +326,13 @@ class CompletionMenu {
                 return;
             }
 
-            if (['VOID', 'GLITCH', 'ENTROPY'].includes(type) || ['VOID_WALKER', 'ENTROPY_MAGE'].includes(type)) {
+            if (['VOID', 'ENTROPY'].includes(type) || ['VOID_WALKER', 'ENTROPY_MAGE'].includes(type)) {
                 addToDLC('Champions of Chaos', 'Cards', saveData.collection.includes(id), card.name);
+                return;
+            }
+
+            if (['GLITCH', 'TURRET', 'GUARDIAN', 'MONK'].includes(type)) {
+                addToDLC('Faith of Fortune', 'Cards', saveData.collection.includes(id), card.name);
                 return;
             }
 
@@ -355,9 +383,9 @@ class CompletionMenu {
         // Champions of Chaos Altar (DLC)
         ['gravity', 'void'].forEach(hero => {
             if (ALTAR_TREE[hero]) {
-                 const nodes = ALTAR_TREE[hero];
-                 const prestige = saveData[hero] ? (saveData[hero].prestige || 0) : 0;
-                 nodes.forEach(node => {
+                const nodes = ALTAR_TREE[hero];
+                const prestige = saveData[hero] ? (saveData[hero].prestige || 0) : 0;
+                nodes.forEach(node => {
                     addToDLC('Champions of Chaos', 'Altar', prestige >= node.req, `${node.name} (Req: Lv ${node.req})`);
                 });
             }

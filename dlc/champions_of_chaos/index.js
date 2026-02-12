@@ -26,6 +26,7 @@ const CHAMPIONS_OF_CHAOS = {
         this.injectAltar();
         this.injectAchievements();
         this.injectMemories();
+        this.injectCards();
 
         console.log("[DLC] Loaded: Champions of Chaos (Success)");
     },
@@ -140,6 +141,29 @@ const CHAMPIONS_OF_CHAOS = {
                 "The Entropy Mage is a virus. I am the antivirus.",
                 "If I am deleted, back me up in your memory, old friend."
             ];
+        }
+    },
+
+    injectCards: function () {
+        console.log("[DLC] Injecting Collector Cards...");
+
+        const createCardSet = (type, name, color, specialDesc, specialBonus) => {
+            return {
+                [`${type}_1`]: { name: `${name} Bronze`, desc: `Unlock Card`, chance: 0.05, color: '#cd7f32', bonus: { type: 'unlock', target: type } },
+                [`${type}_2`]: { name: `${name} Silver`, desc: `+10% Def vs ${name}s`, chance: 0.01, color: '#c0c0c0', bonus: { type: 'defense_vs', val: 0.1, target: type } },
+                [`${type}_3`]: { name: `${name} Gold`, desc: `+20% XP from ${name}s`, chance: 0.001, color: '#ffd700', bonus: { type: 'xp_vs', val: 0.2, target: type } },
+                [`${type}_4`]: { name: `${name} Platinum`, desc: specialDesc, chance: 0.0005, color: '#e5e4e2', bonus: specialBonus }
+            };
+        };
+
+        if (typeof COLLECTOR_CARDS !== 'undefined') {
+            const newCards = {
+                ...createCardSet('VOID_WALKER', 'Void Walker', '#4a235a', 'Void Walkers have 20% less HP', { type: 'damage_vs', val: 0.2, target: 'VOID_WALKER' }),
+                ...createCardSet('ENTROPY_MAGE', 'Entropy Mage', '#9b59b6', 'Enemy Projectiles move 50% slower', { type: 'special', id: 'ENTROPY_PROJ_SLOW' })
+            };
+
+            Object.assign(COLLECTOR_CARDS, newCards);
+            console.log("[DLC] Cards injected into COLLECTOR_CARDS");
         }
     }
 };

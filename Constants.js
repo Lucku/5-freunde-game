@@ -170,26 +170,7 @@ const COLLECTOR_CARDS = {
     ...createCardSet('ELITE_AURA_SPEED', 'Elite Commander', '#f1c40f', 'Elites have 10% less HP', { type: 'damage_vs', val: 0.1, target: 'ELITE' }),
     ...createCardSet('ELITE_AURA_HEAL', 'Elite Mender', '#2ecc71', 'Elites heal 50% less', { type: 'special', id: 'ELITE_HEAL_NERF' }),
     ...createCardSet('ELITE_EXPLODER', 'Elite Volatile', '#e74c3c', 'Explosion radius -20%', { type: 'special', id: 'ELITE_EXPLODE_NERF' }),
-    ...createCardSet('ELITE_TANK', 'Elite Juggernaut', '#34495e', '+20% Damage vs Elites', { type: 'damage_vs', val: 0.2, target: 'ELITE' }),
-
-    // DLC: Rise of the Rock
-    ...createCardSet('GOLEM', 'Golem', '#795548', 'Golems do not split on death', { type: 'special', id: 'GOLEM_NO_SPLIT' }),
-    ...createCardSet('BURROWER', 'Burrower', '#5d4037', 'Can hit Burrowers underground', { type: 'special', id: 'BURROWER_PIERCE' }),
-
-    // DLC: Tournament of Thunder
-    ...createCardSet('CLOUD_BAT', 'Cloud Bat', '#90a4ae', 'Cloud Bats move 50% slower', { type: 'special', id: 'CLOUD_BAT_SLOW' }),
-    ...createCardSet('STORM_ELEMENTAL', 'Storm Elemental', '#fbc02d', '+20% Damage vs Storm Elementals', { type: 'damage_vs', val: 0.2, target: 'STORM_ELEMENTAL' }),
-    ...createCardSet('ZEUS_BOT', 'Zeus Bot', '#fff', 'Zeus Bots do not revive minions', { type: 'special', id: 'ZEUS_BOT_NERF' }),
-
-    // DLC: Champions of Chaos
-    ...createCardSet('VOID_WALKER', 'Void Walker', '#4a235a', 'Void Walkers have 20% less HP', { type: 'damage_vs', val: 0.2, target: 'VOID_WALKER' }),
-    ...createCardSet('GLITCH', 'Glitch', '#ff00ff', 'Glitch teleport range -50%', { type: 'special', id: 'GLITCH_TELE_NERF' }),
-    ...createCardSet('ENTROPY_MAGE', 'Entropy Mage', '#9b59b6', 'Enemy Projectiles move 50% slower', { type: 'special', id: 'ENTROPY_PROJ_SLOW' }),
-
-    // DLC: The Wind Waker
-    ...createCardSet('HARPY', 'Harpy', '#00bcd4', 'Harpies take +50% Knockback', { type: 'stat_vs', val: 1.5, stat: 'knockback', target: 'HARPY' }),
-    ...createCardSet('AERO_DRONE', 'Aero Drone', '#607d8b', 'Drones have 30% less HP', { type: 'damage_vs', val: 0.3, target: 'AERO_DRONE' }),
-    ...createCardSet('CLOUD_MANTA', 'Cloud Manta', '#cfd8dc', 'Mantas cannot stealth', { type: 'special', id: 'MANTA_NO_STEALTH' })
+    ...createCardSet('ELITE_TANK', 'Elite Juggernaut', '#34495e', '+20% Damage vs Elites', { type: 'damage_vs', val: 0.2, target: 'ELITE' })
 };
 
 const MUTATORS = [

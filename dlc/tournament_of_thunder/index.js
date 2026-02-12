@@ -24,6 +24,7 @@ const TOURNAMENT_OF_THUNDER = {
         this.injectAltar();
         this.injectAchievements();
         this.injectMemories();
+        this.injectCards();
 
         console.log("[DLC] Loaded: Tournament of Thunder (Success)");
     },
@@ -289,6 +290,30 @@ const TOURNAMENT_OF_THUNDER = {
                     }
                 }
             }
+        }
+    },
+
+    injectCards: function () {
+        console.log("[DLC] Injecting Collector Cards...");
+
+        const createCardSet = (type, name, color, specialDesc, specialBonus) => {
+            return {
+                [`${type}_1`]: { name: `${name} Bronze`, desc: `Unlock Card`, chance: 0.05, color: '#cd7f32', bonus: { type: 'unlock', target: type } },
+                [`${type}_2`]: { name: `${name} Silver`, desc: `+10% Def vs ${name}s`, chance: 0.01, color: '#c0c0c0', bonus: { type: 'defense_vs', val: 0.1, target: type } },
+                [`${type}_3`]: { name: `${name} Gold`, desc: `+20% XP from ${name}s`, chance: 0.001, color: '#ffd700', bonus: { type: 'xp_vs', val: 0.2, target: type } },
+                [`${type}_4`]: { name: `${name} Platinum`, desc: specialDesc, chance: 0.0005, color: '#e5e4e2', bonus: specialBonus }
+            };
+        };
+
+        if (typeof COLLECTOR_CARDS !== 'undefined') {
+            const newCards = {
+                ...createCardSet('CLOUD_BAT', 'Cloud Bat', '#90a4ae', 'Cloud Bats move 50% slower', { type: 'special', id: 'CLOUD_BAT_SLOW' }),
+                ...createCardSet('STORM_ELEMENTAL', 'Storm Elemental', '#fbc02d', '+20% Damage vs Storm Elementals', { type: 'damage_vs', val: 0.2, target: 'STORM_ELEMENTAL' }),
+                ...createCardSet('ZEUS_BOT', 'Zeus Bot', '#fff', 'Zeus Bots do not revive minions', { type: 'special', id: 'ZEUS_BOT_NERF' })
+            };
+
+            Object.assign(COLLECTOR_CARDS, newCards);
+            console.log("[DLC] Cards injected into COLLECTOR_CARDS");
         }
     }
 };
