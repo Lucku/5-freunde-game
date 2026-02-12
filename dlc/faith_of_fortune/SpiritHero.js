@@ -5,8 +5,6 @@
 class SpiritHero {
     static init(player) {
         // Base Stats (Tanky, Balanced)
-        player.hp = 120;
-        player.maxHp = 120;
         player.speedMultiplier = 0.95; // Slightly slower
         player.damageMultiplier = 0.8; // Lower base damage
 
@@ -137,90 +135,111 @@ class SpiritHero {
     static shootMantra(player) {
         if (player.rangeCooldown > 0) return;
 
-        // Calculate direction from player's aim angle (since args are not passed by standard shoot call)
-        const dx = Math.cos(player.aimAngle);
-        const dy = Math.sin(player.aimAngle);
-
         if (typeof audioManager !== 'undefined') audioManager.play('shoot_weak');
 
         // Ensure properties exist
         if (typeof player.innerPeace === 'undefined') player.innerPeace = 50;
 
-        // Muzzle Flash
-        if (typeof createExplosion !== 'undefined') {
-            createExplosion(player.x + dx * 20, player.y + dy * 20, "#F0D080", 8);
-        }
-
         // Damage scales with Inner Peace
         // 0 Peace = 50% dmg, 100 Peace = 150% dmg
         const peaceMod = 0.5 + (player.innerPeace / 100);
-        const dmg = 15 * peaceMod * player.damageMultiplier;
+        const baseDmg = player.stats.rangeDmg || 15; // Use stats base instead of hardcoded
+        const dmg = baseDmg * peaceMod * player.damageMultiplier;
 
-        if (typeof projectiles !== 'undefined') {
-            projectiles.push({
-                x: player.x,
-                y: player.y,
-                vx: dx * 8, // Slower, steady speed
-                vy: dy * 8,
-                radius: 10, // Slightly larger
-                color: "#F0D080",
-                dmg: dmg,
-                life: 100,
-                damage: dmg, // Map dmg property for standard collision
-                pierce: player.pierceCount || 1, // Default 1 pierce
-                type: 'MANTRA',
+        // Multishot Logic
+        let count = 1 + (player.extraProjectiles || 0);
+        if (player.buffs && player.buffs.multi > 0) count += 1;
 
-                onHit: function (enemy) {
-                    // Spirit Mechanics: Violence disturbs peace
-                    if (player && typeof player.innerPeace !== 'undefined') {
-                        player.innerPeace = Math.max(0, player.innerPeace - 5);
-                        // Visual Float Text if possible
-                        if (typeof floatingTexts !== 'undefined' && Math.random() < 0.3) {
-                            floatingTexts.push(new FloatingText(player.x, player.y - 40, "-Peace", "#cfcfcf", 15));
+        for (let i = 0; i < count; i++) {
+            // Spread calculation: centered around aimAngle
+            // e.g. 1 proj: 0 offset
+            // 2 proj: -0.05, +0.05
+            // 3 proj: -0.1, 0, +0.1
+            const spread = 0.1; // radians between shots
+            const offset = (i - (count - 1) / 2) * spread;
+            const finalAngle = player.aimAngle + offset;
+
+            const dx = Math.cos(finalAngle);
+            const dy = Math.sin(finalAngle);
+
+            // Muzzle Flash (only once or for each?) - Let's do for each for cool effect
+            if (typeof createExplosion !== 'undefined') {
+                createExplosion(player.x + dx * 20, player.y + dy * 20, "#F0D080", 4);
+            }
+
+            if (typeof projectiles !== 'undefined') {
+                projectiles.push({
+                    x: player.x,
+                    y: player.y,
+                    vx: dx * 8, // Slower, steady speed
+                    vy: dy * 8,
+                    radius: 10, // Slightly larger
+                    color: "#F0D080",
+                    dmg: dmg,
+                    life: 100,
+                    damage: dmg, // Map dmg property for standard collision
+                    pierce: player.pierceCount || 1, // Default 1 pierce
+                    type: 'MANTRA',
+
+                    onHit: function (enemy) {
+                        // Spirit Mechanics: Violence disturbs peace
+                        if (player && typeof player.innerPeace !== 'undefined') {
+                            player.innerPeace = Math.max(0, player.innerPeace - 5);
+                            // Visual Float Text if possible
+                            if (typeof floatingTexts !== 'undefined' && Math.random() < 0.3) {
+                                floatingTexts.push(new FloatingText(player.x, player.y - 40, "-Peace", "#cfcfcf", 15));
+                            }
                         }
-                    }
-                    return 'DEFAULT';
-                },
+                        return 'DEFAULT';
+                    },
 
-                update: function () {
-                    this.x += this.vx;
-                    this.y += this.vy;
-                    this.life--;
-                    if (this.life <= 0) this.dead = true;
-                },
+                    update: function () {
+                        this.x += this.vx;
+                        this.y += this.vy;
+                        this.life--;
+                        if (this.life <= 0) this.dead = true;
+                    },
 
-                draw: function () {
-                    const ctx = window.ctx;
-                    if (!ctx) return;
+                    draw: function () {
+                        const ctx = window.ctx;
+                        if (!ctx) return;
 
-                    ctx.save();
-                    ctx.translate(this.x, this.y);
+                        ctx.save();
+                        ctx.translate(this.x, this.y);
 
-                    // Glowing Core
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = this.color;
-                    ctx.fillStyle = "#fff"; // White core
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius / 2, 0, Math.PI * 2);
-                    ctx.fill();
+                        // Glowing Core
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = this.color;
+                        ctx.fillStyle = "#fff"; // White core
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius / 2, 0, Math.PI * 2);
+                        ctx.fill();
 
-                    // Outer Halo
-                    ctx.shadowBlur = 0;
-                    ctx.strokeStyle = this.color;
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.stroke();
+                        // Outer Halo
+                        ctx.shadowBlur = 0;
+                        ctx.strokeStyle = this.color;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                        ctx.stroke();
 
-                    // Trailing bits (simple)
-                    if (window.frame % 2 === 0) {
+                        // Longer Spur (Tail)
+                        const angle = Math.atan2(this.vy, this.vx);
+                        ctx.rotate(angle);
+
                         ctx.fillStyle = this.color;
-                        ctx.fillRect(-this.radius, -2, 4, 4);
-                    }
+                        ctx.globalAlpha = 0.6;
+                        ctx.beginPath();
+                        ctx.moveTo(-this.radius, -this.radius / 2);
+                        ctx.lineTo(-this.radius * 4, 0); // Tail length
+                        ctx.lineTo(-this.radius, this.radius / 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1.0;
 
-                    ctx.restore();
-                }
-            });
+                        ctx.restore();
+                    }
+                });
+            }
         }
 
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;

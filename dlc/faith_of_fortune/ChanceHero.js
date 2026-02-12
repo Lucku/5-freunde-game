@@ -5,8 +5,6 @@
 class ChanceHero {
     static init(player) {
         // Base Stats (Volatile)
-        player.hp = 77; // Lucky number
-        player.maxHp = 77;
         player.speedMultiplier = 1.1;
         player.damageMultiplier = 1.0;
 
@@ -47,6 +45,7 @@ class ChanceHero {
             { id: 'chance_luck', title: 'Lucky Charm', desc: '+10 Luck. Improves all rolls.', icon: '🍀' },
             { id: 'crit', title: 'High Roller', desc: '+10% Crit Chance.', icon: '🎲' },
             { id: 'damage', title: 'All In', desc: '+20% Max Damage Potential.', icon: '🎰' },
+            { id: 'projectile', title: 'Double Down', desc: 'Throw +1 Extra Die.', icon: '🎲' },
             { id: 'speed', title: 'Shuffle', desc: '+10% Movement Speed.', icon: '🃏' },
             { id: 'cooldown', title: 'Quick Spin', desc: '-10% Cooldowns.', icon: '⚡' },
             { id: 'big_gamble', title: 'The Big Gamble', desc: 'Monumental Risk. Monumental Reward.', icon: '🎡' }
@@ -309,42 +308,47 @@ class ChanceHero {
         const radius = Math.max(5, Math.min(15, baseDmg / 20)); // Size based on damage
 
         if (typeof projectiles !== 'undefined') {
-            const count = 1 + (player.extraProjectiles || 0);
+            let count = 1 + (player.extraProjectiles || 0);
+            if (player.buffs && player.buffs.multi > 0) count += 1; // Support Spread/Multi Buff
 
-            // Check for Match (Explosive Pair)
+            // Generate faces
             const faces = [];
-            // Generate faces first
             for (let k = 0; k < count; k++) faces.push(Math.floor(Math.random() * 6) + 1);
 
-            // Determine mismatch/match logic (if all match, big boom)
+            // Determine mismatch/match logic (if all match and count > 1, big boom)
             const allMatch = count > 1 && faces.every(f => f === faces[0]);
 
             for (let i = 0; i < count; i++) {
-                const spread = (i - (count - 1) / 2) * 0.2;
-                const angle = player.aimAngle + spread;
+                // Fan Spread for Chance
+                // Center is aimAngle
+                const spread = 0.2; // Radians
+                const angle = player.aimAngle + ((i - (count - 1) / 2) * spread);
                 const speed = 22 + Math.random() * 6; // Start fast for "toss" effect
 
                 const isExplosive = allMatch;
+                const isPair = !allMatch && count > 1 && faces.filter(f => f === faces[i]).length > 1;
+
+                const projScale = (isExplosive ? 2.0 : (isPair ? 1.5 : 1.0));
 
                 projectiles.push({
                     x: player.x,
                     y: player.y,
                     vx: Math.cos(angle) * speed,
                     vy: Math.sin(angle) * speed,
-                    radius: radius, // Using 'radius' for collision
-                    color: isExplosive ? "#ff0000" : (i === 0 && isCrit ? "#ff00ff" : "#ffffff"),
-                    damage: baseDmg * (isExplosive ? 2 : 1), // Double damage on pair
-                    dmg: baseDmg, // Legacy prop
+                    radius: radius * projScale, // Using 'radius' for collision
+                    color: isExplosive ? "#ff0000" : (isPair ? "#ff00ff" : "#ffffff"),
+                    damage: baseDmg * projScale, // Double damage on pair/explosive
+                    dmg: baseDmg * projScale, // Legacy prop
                     life: 60,
                     type: isExplosive ? 'EXPLOSIVE_DICE' : 'DICE',
                     face: faces[i],
                     rotation: 0,
-                    spinSpeed: 0.2, // Fixed spin visual
+                    spinSpeed: (Math.random() - 0.5) * 0.4, // Randomized spin
 
                     // Custom collision hook for Game.js
                     onHit: function (enemy) {
                         if (this.type === 'EXPLOSIVE_DICE') {
-                            if (typeof createExplosion !== 'undefined') createExplosion(this.x, this.y, '#ff00ff', 60);
+                            if (typeof createExplosion !== 'undefined') createExplosion(this.x, this.y, '#ff0000', 60);
                             // Area damage
                             if (typeof enemies !== 'undefined') {
                                 enemies.forEach(e => {
@@ -367,7 +371,7 @@ class ChanceHero {
 
                         // Spin based on current speed
                         const currentSpeed = Math.hypot(this.vx, this.vy);
-                        this.rotation += currentSpeed * 0.05;
+                        this.rotation += currentSpeed * 0.05 + ((this.spinSpeed || 0.1) * 0.5);
 
                         this.life--;
                         if (this.life <= 0) this.dead = true;
@@ -390,6 +394,7 @@ class ChanceHero {
                         ctx.shadowColor = this.color;
 
                         ctx.fillStyle = "#fff";
+                        // Draw centered square
                         ctx.fillRect(-this.radius, -this.radius, size, size);
 
                         ctx.shadowBlur = 0; // Reset for dots
@@ -401,23 +406,29 @@ class ChanceHero {
 
                         // Dots
                         // If color is white (on white body), use black for dots
+                        // If color is Red/Magenta, use that color heavily
                         ctx.fillStyle = (this.color === '#ffffff' || this.color === '#fff') ? '#000000' : this.color;
+
+                        // Dots calculation relative to size
                         const dotSize = size / 5;
                         const q = size / 4;
 
                         // 1: Center
                         if (this.face % 2 === 1) ctx.fillRect(-dotSize / 2, -dotSize / 2, dotSize, dotSize);
+                        // 2: TL, BR
                         if (this.face > 1) {
-                            ctx.fillRect(-q - dotSize / 2, -q - dotSize / 2, dotSize, dotSize); // TL
-                            ctx.fillRect(q - dotSize / 2, q - dotSize / 2, dotSize, dotSize);   // BR
+                            ctx.fillRect(-q - dotSize / 2, -q - dotSize / 2, dotSize, dotSize);
+                            ctx.fillRect(q - dotSize / 2, q - dotSize / 2, dotSize, dotSize);
                         }
+                        // 4: TR, BL
                         if (this.face > 3) {
-                            ctx.fillRect(q - dotSize / 2, -q - dotSize / 2, dotSize, dotSize);  // TR
-                            ctx.fillRect(-q - dotSize / 2, q - dotSize / 2, dotSize, dotSize);  // BL
+                            ctx.fillRect(q - dotSize / 2, -q - dotSize / 2, dotSize, dotSize);
+                            ctx.fillRect(-q - dotSize / 2, q - dotSize / 2, dotSize, dotSize);
                         }
+                        // 6: ML, MR
                         if (this.face === 6) {
-                            ctx.fillRect(-q - dotSize / 2, -dotSize / 2, dotSize, dotSize);     // ML
-                            ctx.fillRect(q - dotSize / 2, -dotSize / 2, dotSize, dotSize);      // MR
+                            ctx.fillRect(-q - dotSize / 2, -dotSize / 2, dotSize, dotSize);
+                            ctx.fillRect(q - dotSize / 2, -dotSize / 2, dotSize, dotSize);
                         }
 
                         ctx.restore();

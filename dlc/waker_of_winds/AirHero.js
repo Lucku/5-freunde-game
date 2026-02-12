@@ -11,8 +11,6 @@ class AirHero {
         player.flowDecay = 0.5;
 
         // Base Stats Override (Weak body, Strong movement)
-        player.maxHp = 60; // Adjusted: Buffed from 40 to 60 (Standard Low)
-        player.hp = 60;
         player.damageMultiplier = 0.85; // Adjusted: Nerfed damage (was 1.0)
         player.speedMultiplier = 1.2;
 

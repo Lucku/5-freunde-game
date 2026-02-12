@@ -145,7 +145,7 @@ const FAITH_OF_FORTUNE = {
             };
             BASE_HERO_STATS['chance'] = {
                 color: '#ff00ff', // Magenta
-                hp: 100, // Increased base HP from 77
+                hp: 77, // Lucky number
                 speed: 4.5,
                 rangeDmg: 7,
                 meleeDmg: 77,

@@ -34,7 +34,7 @@ const WAKER_OF_WINDS = {
         if (typeof BASE_HERO_STATS !== 'undefined') {
             BASE_HERO_STATS['air'] = {
                 color: '#40e0d0', // Turquoise
-                hp: 65,
+                hp: 60,
                 speed: 5.5, // Fastest base speed
                 rangeDmg: 20,
                 meleeDmg: 80,

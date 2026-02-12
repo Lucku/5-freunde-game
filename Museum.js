@@ -775,6 +775,8 @@ class Museum {
         if (this.player.type === 'void') color = '#2c3e50'; // Cyan
         if (this.player.type === 'gravity') color = '#8e44ad'; // Purple
         if (this.player.type === 'air') color = '#40e0d0'; // Turquoise
+        if (this.player.type === 'spirit') color = '#F0D080'; // Soft Amber / Ivory-Gold
+        if (this.player.type === 'chance') color = '#ff00ff'; // Magenta
 
         ctx.fillStyle = color;
         ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();

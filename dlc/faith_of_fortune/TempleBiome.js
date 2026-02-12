@@ -199,7 +199,8 @@ class TempleBiome {
                     ctx.shadowBlur = 0;
                 }
 
-                // Prayer Statues (New Spiritual Object)
+                // Prayer Statues (Removed as per design request)
+                /*
                 const hash2 = Math.abs(Math.sin(x * 0.789 + y * 0.321));
                 if (hash2 > 0.997) { // Much rarer (only top 0.3%)
                     const imgX = x + tSize / 2;
@@ -220,6 +221,7 @@ class TempleBiome {
 
                     // No red bib - pure stone
                 }
+                */
             }
         }
         ctx.restore();
