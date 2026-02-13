@@ -20,7 +20,7 @@ except ImportError:
 # You can add custom voices to the tortoise voices directory.
 VOICE_NAME = 'tom' 
 PRESET = 'fast' # Options: 'ultra_fast', 'fast', 'standard', 'high_quality'
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '../music/story')
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '../audio/story')
 
 # --- Helper: Parse JS Object to Dict ---
 def parse_js_objects(text):

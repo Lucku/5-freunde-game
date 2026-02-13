@@ -1503,9 +1503,9 @@ function openStory(story) {
     }
 
     // Prefer DLC story audio for Earth hero if available; fall back to base story audio on failure
-    const basePath = `music/story/${story.id}.mp3`;
+    const basePath = `audio/story/${story.id}.mp3`;
     if (story.hero === 'EARTH') {
-        const dlcPath = `dlc/rise_of_the_rock/music/story/${story.id}.mp3`;
+        const dlcPath = `dlc/rise_of_the_rock/audio/story/${story.id}.mp3`;
         const dlcAudio = new Audio(dlcPath);
         dlcAudio.play().then(() => {
             currentStoryAudio = dlcAudio;
@@ -1516,7 +1516,7 @@ function openStory(story) {
             currentStoryAudio = baseAudio;
         });
     } else if (story.hero === 'LIGHTNING') {
-        const dlcPath = `dlc/tournament_of_thunder/music/story/${story.id}.mp3`;
+        const dlcPath = `dlc/tournament_of_thunder/audio/story/${story.id}.mp3`;
         const dlcAudio = new Audio(dlcPath);
         dlcAudio.play().then(() => {
             currentStoryAudio = dlcAudio;
@@ -1527,7 +1527,7 @@ function openStory(story) {
             currentStoryAudio = baseAudio;
         });
     } else if (story.hero === 'GRAVITY' || story.hero === 'VOID') {
-        const dlcPath = `dlc/champions_of_chaos/music/story/${story.id}.mp3`;
+        const dlcPath = `dlc/champions_of_chaos/audio/story/${story.id}.mp3`;
         const dlcAudio = new Audio(dlcPath);
         dlcAudio.play().then(() => {
             currentStoryAudio = dlcAudio;

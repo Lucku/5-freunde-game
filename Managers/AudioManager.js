@@ -1,90 +1,90 @@
 class AudioManager {
     constructor() {
         this.tracks = {
-            menu: new Audio('music/main_menu.wav'),
-            museum: new Audio('music/museum.wav'),
-            makuta: new Audio('music/boss_makuta.wav'),
-            goblin: new Audio('music/boss_green_goblin.wav'),
-            battle: new Audio('music/battle.wav'),
-            gameover: new Audio('music/game_over.wav'),
+            menu: new Audio('audio/music/main_menu.wav'),
+            museum: new Audio('audio/music/museum.wav'),
+            makuta: new Audio('audio/music/boss_makuta.wav'),
+            goblin: new Audio('audio/music/boss_green_goblin.wav'),
+            battle: new Audio('audio/music/battle.wav'),
+            gameover: new Audio('audio/music/game_over.wav'),
 
             // DLC Battle variants (may be overwritten/added by DLC on load)
-            battle_rock_1: new Audio('dlc/rise_of_the_rock/music/battle_1.wav'),
-            battle_rock_2: new Audio('dlc/rise_of_the_rock/music/battle_2.wav'),
-            golem: new Audio('dlc/rise_of_the_rock/music/boss_dark_golem.wav'),
+            battle_rock_1: new Audio('dlc/rise_of_the_rock/audio/music/battle_1.wav'),
+            battle_rock_2: new Audio('dlc/rise_of_the_rock/audio/music/battle_2.wav'),
+            golem: new Audio('dlc/rise_of_the_rock/audio/music/boss_dark_golem.wav'),
 
-            battle_thunder_1: new Audio('dlc/tournament_of_thunder/music/battle_1.wav'),
-            battle_thunder_2: new Audio('dlc/tournament_of_thunder/music/battle_2.wav'),
-            zeus: new Audio('dlc/tournament_of_thunder/music/boss_zeus.wav'),
+            battle_thunder_1: new Audio('dlc/tournament_of_thunder/audio/music/battle_1.wav'),
+            battle_thunder_2: new Audio('dlc/tournament_of_thunder/audio/music/battle_2.wav'),
+            zeus: new Audio('dlc/tournament_of_thunder/audio/music/boss_zeus.wav'),
 
             // DLC Champions of Chaos
-            battle_chaos_1: new Audio('dlc/champions_of_chaos/music/battle_1.wav'),
-            battle_chaos_2: new Audio('dlc/champions_of_chaos/music/battle_2.wav'),
-            boss_chaos_all: new Audio('dlc/champions_of_chaos/music/boss_all.wav'),
-            boss_entropy: new Audio('dlc/champions_of_chaos/music/boss_entropy_mage.wav'),
+            battle_chaos_1: new Audio('dlc/champions_of_chaos/audio/music/battle_1.wav'),
+            battle_chaos_2: new Audio('dlc/champions_of_chaos/audio/music/battle_2.wav'),
+            boss_chaos_all: new Audio('dlc/champions_of_chaos/audio/music/boss_all.wav'),
+            boss_entropy: new Audio('dlc/champions_of_chaos/audio/music/boss_entropy_mage.wav'),
 
             // DLC Waker of Winds
-            battle_air_1: new Audio('dlc/waker_of_winds/music/battle_1.mp3'),
-            battle_air_2: new Audio('dlc/waker_of_winds/music/battle_2.mp3'),
-            boss_air: new Audio('dlc/waker_of_winds/music/boss.mp3'),
+            battle_air_1: new Audio('dlc/waker_of_winds/audio/music/battle_1.mp3'),
+            battle_air_2: new Audio('dlc/waker_of_winds/audio/music/battle_2.mp3'),
+            boss_air: new Audio('dlc/waker_of_winds/audio/music/boss.mp3'),
 
             // New Air Hero SFX
-            attack_air_1: new Audio('dlc/waker_of_winds/music/sounds/attack_air_1.wav'),
-            attack_air_2: new Audio('dlc/waker_of_winds/music/sounds/attack_air_2.wav'),
-            attack_air_3: new Audio('dlc/waker_of_winds/music/sounds/attack_air_3.wav'),
-            attack_air_4: new Audio('dlc/waker_of_winds/music/sounds/attack_air_4.wav'),
+            attack_air_1: new Audio('dlc/waker_of_winds/audio/sounds/attack_air_1.wav'),
+            attack_air_2: new Audio('dlc/waker_of_winds/audio/sounds/attack_air_2.wav'),
+            attack_air_3: new Audio('dlc/waker_of_winds/audio/sounds/attack_air_3.wav'),
+            attack_air_4: new Audio('dlc/waker_of_winds/audio/sounds/attack_air_4.wav'),
 
-            special_air_1: new Audio('dlc/waker_of_winds/music/sounds/special_air_1.wav'),
-            special_air_2: new Audio('dlc/waker_of_winds/music/sounds/special_air_2.wav'),
-            special_air_3: new Audio('dlc/waker_of_winds/music/sounds/special_air_3.wav'),
-            special_air_4: new Audio('dlc/waker_of_winds/music/sounds/special_air_4.wav'),
+            special_air_1: new Audio('dlc/waker_of_winds/audio/sounds/special_air_1.wav'),
+            special_air_2: new Audio('dlc/waker_of_winds/audio/sounds/special_air_2.wav'),
+            special_air_3: new Audio('dlc/waker_of_winds/audio/sounds/special_air_3.wav'),
+            special_air_4: new Audio('dlc/waker_of_winds/audio/sounds/special_air_4.wav'),
 
             // SFX
-            level_up: new Audio('music/sounds/level_up.wav'),
-            pickup_card: new Audio('music/sounds/pick_up_collectors_card.wav'),
-            pickup_mask: new Audio('music/sounds/pick_up_golden_mark.wav'),
-            dash: new Audio('music/sounds/dash_all.wav'),
-            boss_shooter: new Audio('music/sounds/attack_boss_shooter.wav'),
-            challenge_success: new Audio('music/sounds/challenge_success.wav'),
-            challenge_fail: new Audio('music/sounds/challenge_fail.wav'),
+            level_up: new Audio('audio/sounds/level_up.wav'),
+            pickup_card: new Audio('audio/sounds/pick_up_collectors_card.wav'),
+            pickup_mask: new Audio('audio/sounds/pick_up_golden_mark.wav'),
+            dash: new Audio('audio/sounds/dash_all.wav'),
+            boss_shooter: new Audio('audio/sounds/attack_boss_shooter.wav'),
+            challenge_success: new Audio('audio/sounds/challenge_success.wav'),
+            challenge_fail: new Audio('audio/sounds/challenge_fail.wav'),
 
-            attack_fire: new Audio('music/sounds/attack_fire.wav'),
-            attack_water: new Audio('music/sounds/attack_water.wav'),
-            attack_ice: new Audio('music/sounds/attack_ice.wav'),
-            attack_plant: new Audio('music/sounds/attack_plant.wav'),
-            attack_metal: new Audio('music/sounds/attack_metal.wav'),
-            attack_black: new Audio('music/sounds/attack_black.wav'),
-            attack_shooter: new Audio('music/sounds/attack_shooter.wav'),
-            melee_all: new Audio('music/sounds/melee_all.wav'),
-            damage: new Audio('music/sounds/damage.wav'),
+            attack_fire: new Audio('audio/sounds/attack_fire.wav'),
+            attack_water: new Audio('audio/sounds/attack_water.wav'),
+            attack_ice: new Audio('audio/sounds/attack_ice.wav'),
+            attack_plant: new Audio('audio/sounds/attack_plant.wav'),
+            attack_metal: new Audio('audio/sounds/attack_metal.wav'),
+            attack_black: new Audio('audio/sounds/attack_black.wav'),
+            attack_shooter: new Audio('audio/sounds/attack_shooter.wav'),
+            melee_all: new Audio('audio/sounds/melee_all.wav'),
+            damage: new Audio('audio/sounds/damage.wav'),
 
-            boss_rhino_charge: new Audio('music/sounds/attack_boss_rhino.wav'),
-            boss_stomp: new Audio('music/sounds/attack_boss_rhino_2.wav'),
+            boss_rhino_charge: new Audio('audio/sounds/attack_boss_rhino.wav'),
+            boss_stomp: new Audio('audio/sounds/attack_boss_rhino_2.wav'),
 
 
             // Special SFX
-            special_black: new Audio('music/sounds/special_black.wav'),
-            special_fire: new Audio('music/sounds/special_fire.wav'),
-            special_ice: new Audio('music/sounds/special_ice.wav'),
-            special_metal: new Audio('music/sounds/special_metal.wav'), // Note: iron vs metal in filename
-            special_plant: new Audio('music/sounds/special_plant.wav'),
-            special_water: new Audio('music/sounds/special_water.wav'),
+            special_black: new Audio('audio/sounds/special_black.wav'),
+            special_fire: new Audio('audio/sounds/special_fire.wav'),
+            special_ice: new Audio('audio/sounds/special_ice.wav'),
+            special_metal: new Audio('audio/sounds/special_metal.wav'), // Note: iron vs metal in filename
+            special_plant: new Audio('audio/sounds/special_plant.wav'),
+            special_water: new Audio('audio/sounds/special_water.wav'),
 
-            attack_earth: new Audio('dlc/rise_of_the_rock/music/sounds/attack_earth.wav'),
-            attack_earth_roll: new Audio('dlc/rise_of_the_rock/music/sounds/attack_earth_roll.wav'),
-            melee_earth: new Audio('dlc/rise_of_the_rock/music/sounds/melee_earth.wav'),
+            attack_earth: new Audio('dlc/rise_of_the_rock/audio/sounds/attack_earth.wav'),
+            attack_earth_roll: new Audio('dlc/rise_of_the_rock/audio/sounds/attack_earth_roll.wav'),
+            melee_earth: new Audio('dlc/rise_of_the_rock/audio/sounds/melee_earth.wav'),
 
-            attack_lightning: new Audio('dlc/tournament_of_thunder/music/sounds/attack_lightning.wav'),
-            attack_lightning_charged: new Audio('dlc/tournament_of_thunder/music/sounds/attack_lightning_charged.wav'),
-            special_lightning: new Audio('dlc/tournament_of_thunder/music/sounds/special_lightning.wav'),
+            attack_lightning: new Audio('dlc/tournament_of_thunder/audio/sounds/attack_lightning.wav'),
+            attack_lightning_charged: new Audio('dlc/tournament_of_thunder/audio/sounds/attack_lightning_charged.wav'),
+            special_lightning: new Audio('dlc/tournament_of_thunder/audio/sounds/special_lightning.wav'),
 
             // DLC Champions of Chaos
-            attack_gravity: new Audio('dlc/champions_of_chaos/music/sounds/attack_gravity.wav'),
-            special_gravity: new Audio('dlc/champions_of_chaos/music/sounds/special_gravity.wav'),
-            attack_void: new Audio('dlc/champions_of_chaos/music/sounds/attack_void.wav'),
-            melee_void: new Audio('dlc/champions_of_chaos/music/sounds/melee_void.wav'),
-            special_void: new Audio('dlc/champions_of_chaos/music/sounds/special_void.wav'),
-            dash_void: new Audio('dlc/champions_of_chaos/music/sounds/dash_void.wav'),
+            attack_gravity: new Audio('dlc/champions_of_chaos/audio/sounds/attack_gravity.wav'),
+            special_gravity: new Audio('dlc/champions_of_chaos/audio/sounds/special_gravity.wav'),
+            attack_void: new Audio('dlc/champions_of_chaos/audio/sounds/attack_void.wav'),
+            melee_void: new Audio('dlc/champions_of_chaos/audio/sounds/melee_void.wav'),
+            special_void: new Audio('dlc/champions_of_chaos/audio/sounds/special_void.wav'),
+            dash_void: new Audio('dlc/champions_of_chaos/audio/sounds/dash_void.wav'),
         };
 
         // Configuration
@@ -248,16 +248,16 @@ class AudioManager {
 
         // DLC: Rise of the Rock (Earth Hero)
         if (hero === 'earth') {
-            path = `dlc/rise_of_the_rock/music/memories/${hero}_${id}.mp3`;
+            path = `dlc/rise_of_the_rock/audio/memories/${hero}_${id}.mp3`;
         } else if (hero === 'lightning') {
-            path = `dlc/tournament_of_thunder/music/memories/${hero}_${id}.mp3`;
+            path = `dlc/tournament_of_thunder/audio/memories/${hero}_${id}.mp3`;
         } else if (hero === 'gravity' || hero === 'void') {
-            path = `dlc/champions_of_chaos/music/memories/${hero}_${id}.mp3`;
+            path = `dlc/champions_of_chaos/audio/memories/${hero}_${id}.mp3`;
         } else if (hero === 'air') {
-            path = `dlc/waker_of_winds/music/memories/${hero}_${id}.mp3`;
+            path = `dlc/waker_of_winds/audio/memories/${hero}_${id}.mp3`;
         } else {
             // Standard Heroes (and potentially others if added strictly to base)
-            path = `music/memories/${hero}_${id}.mp3`;
+            path = `audio/memories/${hero}_${id}.mp3`;
         }
 
         this.voice = new Audio(path);
@@ -306,19 +306,12 @@ class AudioManager {
         // Note: src is absolute path (file:// or http://)
         const src = track.src;
 
-        // SFX: stored in "music/sounds/" or "music/memories/"
-        // (User's explicit rule: prevents false positives if file name contains 'music')
-        if (src.includes('/sounds/') || src.includes('/memories/')) {
-            return false;
-        }
-
-        // Music: stored in "music/" root or "dlc/.../music/" (but not in sounds/memories substrs above)
-        // This covers "music/main_menu.wav" as well as "dlc/X/music/battle.wav"
-        if (src.includes('/music/')) {
+        // Verify if it's in the audio/music subdirectory
+        if (src.includes('/audio/music/')) {
             return true;
         }
 
-        return false; // Fallback to SFX logic if untracked? Or assume SFX.
+        return false;
     }
 
     play(trackName) {

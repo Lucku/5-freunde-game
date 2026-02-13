@@ -16,8 +16,8 @@ const AIR_MEMORY_VOICE_ID = '86ZLAUcyPNBrbdJKn3u6';
 // Paths for Waker of Winds DLC
 const STORY_FILE = path.join(__dirname, '../dlc/waker_of_winds/Story.js');
 const INDEX_FILE = path.join(__dirname, '../dlc/waker_of_winds/index.js');
-const OUTPUT_DIR = path.join(__dirname, '../dlc/waker_of_winds/music/story');
-const MEMORY_OUTPUT_DIR = path.join(__dirname, '../dlc/waker_of_winds/music/memories');
+const OUTPUT_DIR = path.join(__dirname, '../dlc/waker_of_winds/audio/story');
+const MEMORY_OUTPUT_DIR = path.join(__dirname, '../dlc/waker_of_winds/audio/memories');
 
 // --- Load Story Data ---
 if (!fs.existsSync(STORY_FILE)) {
