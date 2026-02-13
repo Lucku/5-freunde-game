@@ -12,12 +12,15 @@ const GRAVITY_VOICE_ID = 'esy0r39YPLQjOczyOib8';
 const VOID_VOICE_ID = '69Na567Zr0bPvmBYuGdc';
 const AIR_VOICE_ID = 'wyWA56cQNU2KqUW4eCsI';
 const AIR_MEMORY_VOICE_ID = '86ZLAUcyPNBrbdJKn3u6';
+const TEMPLE_VOICE_ID = 'wyWA56cQNU2KqUW4eCsI'; // Spirit/Chance Narrator
+const SPIRIT_MEMORY_VOICE_ID = 'JumjzZVR2Q07VpW0bxMh';
+const CHANCE_MEMORY_VOICE_ID = '3SF4rB1fGBMXU9xRM7pz';
 
-// Paths for Waker of Winds DLC
-const STORY_FILE = path.join(__dirname, '../dlc/waker_of_winds/Story.js');
-const INDEX_FILE = path.join(__dirname, '../dlc/waker_of_winds/index.js');
-const OUTPUT_DIR = path.join(__dirname, '../dlc/waker_of_winds/audio/story');
-const MEMORY_OUTPUT_DIR = path.join(__dirname, '../dlc/waker_of_winds/audio/memories');
+// Paths for Faith of Fortune DLC
+const STORY_FILE = path.join(__dirname, '../dlc/faith_of_fortune/Story.js');
+const INDEX_FILE = path.join(__dirname, '../dlc/faith_of_fortune/index.js');
+const OUTPUT_DIR = path.join(__dirname, '../dlc/faith_of_fortune/audio/story');
+const MEMORY_OUTPUT_DIR = path.join(__dirname, '../dlc/faith_of_fortune/audio/memories');
 
 // --- Load Story Data ---
 if (!fs.existsSync(STORY_FILE)) {
@@ -28,8 +31,8 @@ if (!fs.existsSync(STORY_FILE)) {
 const fileContent = fs.readFileSync(STORY_FILE, 'utf8');
 const storyItems = [];
 
-// Parse window.WIND_STORY_CHAPTERS = [ ... ];
-const storyMatch = fileContent.match(/window\.WIND_STORY_CHAPTERS\s*=\s*(\[[\s\S]*?\]);/);
+// Parse window.FORTUNE_STORY_CHAPTERS = [ ... ];
+const storyMatch = fileContent.match(/window\.FORTUNE_STORY_CHAPTERS\s*=\s*(\[[\s\S]*?\]);/);
 
 if (storyMatch) {
     try {
@@ -37,18 +40,18 @@ if (storyMatch) {
         events.forEach(e => {
             if (e.text) {
                 storyItems.push({
-                    id: e.id || `wind_wave_${e.wave}`,
+                    id: e.id || `fortune_${e.wave}`,
                     text: e.text,
-                    hero: e.hero, // 'AIR'
+                    hero: e.hero, // 'SPIRIT' or 'CHANCE'
                     isMemory: false
                 });
             }
         });
     } catch (e) {
-        console.error("Error parsing WIND_STORY_CHAPTERS:", e);
+        console.error("Error parsing FORTUNE_STORY_CHAPTERS:", e);
     }
 } else {
-    console.error("Could not find window.WIND_STORY_CHAPTERS in Story.js");
+    console.error("Could not find window.FORTUNE_STORY_CHAPTERS in Story.js");
 }
 
 // --- Load Memory Data ---
@@ -76,7 +79,8 @@ if (fs.existsSync(INDEX_FILE)) {
         }
     };
 
-    extractMemories('air');
+    extractMemories('spirit');
+    extractMemories('chance');
 }
 
 if (storyItems.length === 0) {
@@ -101,7 +105,7 @@ async function generateAudio() {
         fs.mkdirSync(MEMORY_OUTPUT_DIR, { recursive: true });
     }
 
-    console.log(`Found ${storyItems.length} Chaos story events.`);
+    console.log(`Found ${storyItems.length} Fortune story events.`);
 
     for (const item of storyItems) {
         const text = item.text;
@@ -119,7 +123,17 @@ async function generateAudio() {
 
         // Select Voice
         let currentVoiceId = GRAVITY_VOICE_ID; // Default
-        if (hero === 'void') {
+
+        // Use the requested voice ID for all Fortune content
+        if (hero === 'SPIRIT' || hero === 'CHANCE' || hero === 'spirit' || hero === 'chance') {
+            if (item.isMemory) {
+                if (hero === 'spirit') currentVoiceId = SPIRIT_MEMORY_VOICE_ID;
+                else if (hero === 'chance') currentVoiceId = CHANCE_MEMORY_VOICE_ID;
+                else currentVoiceId = TEMPLE_VOICE_ID; // Fallback
+            } else {
+                currentVoiceId = TEMPLE_VOICE_ID;
+            }
+        } else if (hero === 'void') {
             currentVoiceId = VOID_VOICE_ID;
         } else if (hero === 'gravity') {
             currentVoiceId = GRAVITY_VOICE_ID;
