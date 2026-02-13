@@ -156,22 +156,26 @@ const RISE_OF_THE_ROCK = {
                 {
                     id: "rock_start", wave: 1, hero: "EARTH", type: "NARRATIVE",
                     title: "The Cage",
-                    text: "Darkness. That is all you knew. You woke up trapped in a crystal cage, deep within the earth. But something changed. A surge of power. You shattered the crystal with a single touch. You are free, but you are deep underground. You must climb."
+                    text: "Darkness. That is all you knew. You woke up trapped in a crystal cage, deep within the earth. But something changed. A surge of power. You shattered the crystal with a single touch. You are free, but you are deep underground. You must climb.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_2", wave: 2, hero: "EARTH", type: "NARRATIVE",
                     title: "First Steps",
-                    text: "Your legs feel heavy, like stone pillars. Every step shakes the ground. You are not just walking; you are colliding with the world. You must learn to control this weight."
+                    text: "Your legs feel heavy, like stone pillars. Every step shakes the ground. You are not just walking; you are colliding with the world. You must learn to control this weight.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_3", wave: 3, hero: "EARTH", type: "NARRATIVE",
                     title: "The Hunger",
-                    text: "Creatures of the deep sense your awakening. They are blind, driven by hunger. They swarm towards the vibration of your footsteps. You have no weapon but your own body."
+                    text: "Creatures of the deep sense your awakening. They are blind, driven by hunger. They swarm towards the vibration of your footsteps. You have no weapon but your own body.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_4", wave: 4, hero: "EARTH", type: "NARRATIVE",
                     title: "Hardened Skin",
-                    text: "A beast bites your arm, but its teeth shatter. Your skin is not flesh; it is living rock. You realize you are not soft like the creatures that hunt you. You are the mountain."
+                    text: "A beast bites your arm, but its teeth shatter. Your skin is not flesh; it is living rock. You realize you are not soft like the creatures that hunt you. You are the mountain.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_5", wave: 5, hero: "EARTH", type: "NARRATIVE",
@@ -186,40 +190,46 @@ const RISE_OF_THE_ROCK = {
                 {
                     id: "rock_7", wave: 7, hero: "EARTH", type: "NARRATIVE",
                     title: "Crystal Veins",
-                    text: "You pass veins of glowing crystal. They pulse with the same energy you feel in your chest. You touch one, and it dims, its light flowing into you. You are part of this place."
+                    text: "You pass veins of glowing crystal. They pulse with the same energy you feel in your chest. You touch one, and it dims, its light flowing into you. You are part of this place.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_8", wave: 8, hero: "EARTH", type: "NARRATIVE",
                     title: "Tremors",
-                    text: "The ground shakes violently. Not from you, but from below. Something massive is moving in the deep. You must climb higher, faster."
+                    text: "The ground shakes violently. Not from you, but from below. Something massive is moving in the deep. You must climb higher, faster.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_9", wave: 9, hero: "EARTH", type: "NARRATIVE",
                     title: "The Crumbling",
-                    text: "Dust falls from the ceiling. The tunnel is unstable. The fighting is causing the cave to collapse. You need to break through before you are buried."
+                    text: "Dust falls from the ceiling. The tunnel is unstable. The fighting is causing the cave to collapse. You need to break through before you are buried.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_10", wave: 10, hero: "EARTH", type: "OBJECTIVE_WAVE",
                     title: "The Collapse",
                     text: "The tunnel ahead is collapsing! You must use your momentum to smash through the falling debris before you are buried alive. Run!",
-                    data: { objective: true }
+                    data: { objective: true, biome: 'HERO' }
                 },
 
                 // --- ARC 2: THE CLIMB ---
                 {
                     id: "rock_11", wave: 11, hero: "EARTH", type: "NARRATIVE",
                     title: "Upward",
-                    text: "You burst through the rubble into a larger cavern. The air is slightly fresher here. There is a draft coming from above. A path."
+                    text: "You burst through the rubble into a larger cavern. The air is slightly fresher here. There is a draft coming from above. A path.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_12", wave: 12, hero: "EARTH", type: "NARRATIVE",
                     title: "Bioluminescence",
-                    text: "Giant mushrooms glow with a soft blue light. It's beautiful, but deadly. Spores drift in the air, choking and toxic. Even stone can erode."
+                    text: "Giant mushrooms glow with a soft blue light. It's beautiful, but deadly. Spores drift in the air, choking and toxic. Even stone can erode.",
+                    data: { biome: 'plant' }
                 },
                 {
                     id: "rock_13", wave: 13, hero: "EARTH", type: "NARRATIVE",
                     title: "The Swarm",
-                    text: "Burrowers erupt from the walls! They don't just attack; they try to drag you back down. They are the jailer's hounds. Kick them off!"
+                    text: "Burrowers erupt from the walls! They don't just attack; they try to drag you back down. They are the jailer's hounds. Kick them off!",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_14", wave: 14, hero: "EARTH", type: "NARRATIVE",
@@ -229,12 +239,14 @@ const RISE_OF_THE_ROCK = {
                 {
                     id: "rock_15", wave: 15, hero: "EARTH", type: "NARRATIVE",
                     title: "Unstoppable",
-                    text: "Fear is giving way to amazement. You are not just strong; you are a force of nature. The rocks that once trapped you now crumble before your charge. You are beginning to enjoy this."
+                    text: "Fear is giving way to amazement. You are not just strong; you are a force of nature. The rocks that once trapped you now crumble before your charge. You are beginning to enjoy this.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_16", wave: 16, hero: "EARTH", type: "NARRATIVE",
                     title: "Ancient Bones",
-                    text: "You stumble upon a graveyard of massive bones. Creatures larger than any you've seen. What killed them? And why do the bones look... gnawed?"
+                    text: "You stumble upon a graveyard of massive bones. Creatures larger than any you've seen. What killed them? And why do the bones look... gnawed?",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_17", wave: 17, hero: "EARTH", type: "NARRATIVE",
@@ -244,25 +256,28 @@ const RISE_OF_THE_ROCK = {
                 {
                     id: "rock_18", wave: 18, hero: "EARTH", type: "NARRATIVE",
                     title: "The Trap",
-                    text: "The floor gives way! It's a pitfall trap. You catch the ledge just in time. This was not nature; this was design. Someone wants you to fall."
+                    text: "The floor gives way! It's a pitfall trap. You catch the ledge just in time. This was not nature; this was design. Someone wants you to fall.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_19", wave: 19, hero: "EARTH", type: "NARRATIVE",
                     title: "Dark Whispers",
-                    text: "A voice slithers into your mind. 'Go back to sleep, little rock. The surface is not for you.' It tries to make your limbs heavy. Fight it!"
+                    text: "A voice slithers into your mind. 'Go back to sleep, little rock. The surface is not for you.' It tries to make your limbs heavy. Fight it!",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_20", wave: 20, hero: "EARTH", type: "BOSS_FIGHT",
                     title: "The Jailer",
                     text: "A shadow blocks your path. It feels familiar... cold. 'You were not meant to wake,' it hisses. It is the one who caged you. Makuta. He will not let his prisoner escape so easily.",
-                    data: { bossId: 'MAKUTA' } // Small Makuta fight
+                    data: { bossId: 'MAKUTA', biome: 'HERO' } // Small Makuta fight
                 },
 
                 // --- ARC 3: THE SURFACE ---
                 {
                     id: "rock_21", wave: 21, hero: "EARTH", type: "NARRATIVE",
                     title: "Aftermath",
-                    text: "The shadow disperses, laughing as it fades. 'This is but a fragment,' it mocks. You are tired, cracked, but victorious. You climb over his defeated form."
+                    text: "The shadow disperses, laughing as it fades. 'This is but a fragment,' it mocks. You are tired, cracked, but victorious. You climb over his defeated form.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_22", wave: 22, hero: "EARTH", type: "NARRATIVE",
@@ -272,75 +287,88 @@ const RISE_OF_THE_ROCK = {
                 {
                     id: "rock_23", wave: 23, hero: "EARTH", type: "NARRATIVE",
                     title: "Roots",
-                    text: "Thick roots penetrate the ceiling here. Life from above reaching down. If trees can break through the rock to reach the deep, you can break through to reach the sky."
+                    text: "Thick roots penetrate the ceiling here. Life from above reaching down. If trees can break through the rock to reach the deep, you can break through to reach the sky.",
+                    data: { biome: 'plant' }
                 },
                 {
                     id: "rock_24", wave: 24, hero: "EARTH", type: "NARRATIVE",
                     title: "Hope",
-                    text: "The weight on your chest lifts. The fear of the dark recedes. You are no longer running away; you are running towards something."
+                    text: "The weight on your chest lifts. The fear of the dark recedes. You are no longer running away; you are running towards something.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_25", wave: 25, hero: "EARTH", type: "NARRATIVE",
                     title: "A Glimmer",
-                    text: "You defeated the shadow, but he vanished into smoke. You press on. Above, you see it—a faint, pale light. Not the glow of crystals, but true sunlight. You are close."
+                    text: "You defeated the shadow, but he vanished into smoke. You press on. Above, you see it—a faint, pale light. Not the glow of crystals, but true sunlight. You are close.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_26", wave: 26, hero: "EARTH", type: "NARRATIVE",
                     title: "Stone Sentinels",
-                    text: "Statues line the path. Ancient warriors of stone. As you pass, their eyes glow red. They are the guardians of the gate, and they do not recognize you as friend."
+                    text: "Statues line the path. Ancient warriors of stone. As you pass, their eyes glow red. They are the guardians of the gate, and they do not recognize you as friend.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_27", wave: 27, hero: "EARTH", type: "NARRATIVE",
                     title: "The Guardian's Warning",
-                    text: "A booming voice fills the chamber. 'TURN BACK. THE SURFACE IS FORBIDDEN.' The sentinels step off their pedestals. They are slow, but they are many."
+                    text: "A booming voice fills the chamber. 'TURN BACK. THE SURFACE IS FORBIDDEN.' The sentinels step off their pedestals. They are slow, but they are many.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_28", wave: 28, hero: "EARTH", type: "NARRATIVE",
                     title: "Defiance",
-                    text: "'No.' You speak for the first time. Your voice is like grinding tectonic plates. 'I. Will. Rise.' The sentinels charge."
+                    text: "'No.' You speak for the first time. Your voice is like grinding tectonic plates. 'I. Will. Rise.' The sentinels charge.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_29", wave: 29, hero: "EARTH", type: "NARRATIVE",
                     title: "Near the Top",
-                    text: "The light is blinding now. You can see the exit, a jagged tear in the cavern roof. Just a little further. The sentinels are relentless."
+                    text: "The light is blinding now. You can see the exit, a jagged tear in the cavern roof. Just a little further. The sentinels are relentless.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_30", wave: 30, hero: "EARTH", type: "OBJECTIVE_WAVE",
                     title: "The Gauntlet",
                     text: "The path to the surface is guarded by ancient defenses. Stone sentinels awaken to stop you. Prove that you are the master of the earth, not its prisoner.",
-                    data: { objective: true }
+                    data: { objective: true, biome: 'HERO' }
                 },
                 {
                     id: "rock_31", wave: 31, hero: "EARTH", type: "NARRATIVE",
                     title: "Broken Chains",
-                    text: "You smash the last sentinel. The magic binding you to this place snaps. You feel light. Lighter than stone should be."
+                    text: "You smash the last sentinel. The magic binding you to this place snaps. You feel light. Lighter than stone should be.",
+                    data: { biome: 'HERO' }
                 },
 
                 // --- ARC 4: THE OBSIDIAN MAZE ---
                 {
                     id: "rock_32", wave: 32, hero: "EARTH", type: "NARRATIVE",
                     title: "The False Summit",
-                    text: "You expect the sky, but you find another wall. A layer of black obsidian, slick and impenetrable. The path didn't end; it changed."
+                    text: "You expect the sky, but you find another wall. A layer of black obsidian, slick and impenetrable. The path didn't end; it changed.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_33", wave: 33, hero: "EARTH", type: "NARRATIVE",
                     title: "Reflection",
-                    text: "The obsidian is like a mirror. You see yourself, but twisted. A monster of stone and rage. Is this what you are becoming?"
+                    text: "The obsidian is like a mirror. You see yourself, but twisted. A monster of stone and rage. Is this what you are becoming?",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_34", wave: 34, hero: "EARTH", type: "NARRATIVE",
                     title: "The Void",
-                    text: "Between the layers of rock, there is a void. No sound. No vibration. It is deafening to someone who sees with their feet."
+                    text: "Between the layers of rock, there is a void. No sound. No vibration. It is deafening to someone who sees with their feet.",
+                    data: { biome: 'black' }
                 },
                 {
                     id: "rock_35", wave: 35, hero: "EARTH", type: "NARRATIVE",
                     title: "Whispers of the Lost",
-                    text: "You find statues here. Not carved, but petrified. Previous prisoners who gave up hope. Their despair lingers like a fog."
+                    text: "You find statues here. Not carved, but petrified. Previous prisoners who gave up hope. Their despair lingers like a fog.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_36", wave: 36, hero: "EARTH", type: "NARRATIVE",
                     title: "Inner Fire",
-                    text: "The cold of the void tries to freeze your core. You must stoke the magma within. Anger is a fuel. Use it."
+                    text: "The cold of the void tries to freeze your core. You must stoke the magma within. Anger is a fuel. Use it.",
+                    data: { biome: 'fire' }
                 },
                 {
                     id: "rock_37", wave: 37, hero: "EARTH", type: "NARRATIVE",
@@ -350,23 +378,26 @@ const RISE_OF_THE_ROCK = {
                 {
                     id: "rock_38", wave: 38, hero: "EARTH", type: "NARRATIVE",
                     title: "Diamond Dust",
-                    text: "The air is filled with razor-sharp dust. It scratches your surface. You polish yourself against the pain. You are becoming harder. Diamond hard."
+                    text: "The air is filled with razor-sharp dust. It scratches your surface. You polish yourself against the pain. You are becoming harder. Diamond hard.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_39", wave: 39, hero: "EARTH", type: "NARRATIVE",
                     title: "Resonance",
-                    text: "You stop fighting the vibration and start creating it. You hum a low frequency. The obsidian begins to crack. It cannot withstand your song."
+                    text: "You stop fighting the vibration and start creating it. You hum a low frequency. The obsidian begins to crack. It cannot withstand your song.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_40", wave: 40, hero: "EARTH", type: "OBJECTIVE_WAVE",
                     title: "Shatterpoint",
                     text: "You found the flaw in the obsidian wall. It requires one massive, sustained impact to shatter. Defend your position while you charge the blow!",
-                    data: { objective: true }
+                    data: { objective: true, biome: 'HERO' }
                 },
                 {
                     id: "rock_41", wave: 41, hero: "EARTH", type: "NARRATIVE",
                     title: "Breakthrough",
-                    text: "With a roar that shakes the mountain, the black wall explodes outward. Light floods in. Real light."
+                    text: "With a roar that shakes the mountain, the black wall explodes outward. Light floods in. Real light.",
+                    data: { biome: 'HERO' }
                 },
 
                 // --- ARC 5: THE REVELATION ---
@@ -378,17 +409,20 @@ const RISE_OF_THE_ROCK = {
                 {
                     id: "rock_43", wave: 43, hero: "EARTH", type: "NARRATIVE",
                     title: "Memories",
-                    text: "As the sunlight hits your skin, flashes of memory return. You weren't always a rock. You were... someone. Someone who laughed. Someone who had friends."
+                    text: "As the sunlight hits your skin, flashes of memory return. You weren't always a rock. You were... someone. Someone who laughed. Someone who had friends.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_44", wave: 44, hero: "EARTH", type: "NARRATIVE",
                     title: "Identity",
-                    text: "You are Earth. But you are also... a protector. You remember a promise. 'We will stand together.' Who were you promising?"
+                    text: "You are Earth. But you are also... a protector. You remember a promise. 'We will stand together.' Who were you promising?",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_45", wave: 45, hero: "EARTH", type: "NARRATIVE",
                     title: "The Question",
-                    text: "As you near the surface, a thought troubles you. If there was a Jailer, are there others like you? Other prisoners? You hope that under the sun, you will find answers. And maybe... friends."
+                    text: "As you near the surface, a thought troubles you. If there was a Jailer, are there others like you? Other prisoners? You hope that under the sun, you will find answers. And maybe... friends.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_46", wave: 46, hero: "EARTH", type: "NARRATIVE",
@@ -398,23 +432,26 @@ const RISE_OF_THE_ROCK = {
                 {
                     id: "rock_47", wave: 47, hero: "EARTH", type: "NARRATIVE",
                     title: "Gathering Strength",
-                    text: "The ground beneath you hums. The planet itself is angry at this corruption. It lends you its strength. You are the avatar of the world's wrath."
+                    text: "The ground beneath you hums. The planet itself is angry at this corruption. It lends you its strength. You are the avatar of the world's wrath.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_48", wave: 48, hero: "EARTH", type: "NARRATIVE",
                     title: "The Earth's Pulse",
-                    text: "Your heart beats in sync with the tremors. Thump. Thump. Thump. The dome cracks. Something is coming through."
+                    text: "Your heart beats in sync with the tremors. Thump. Thump. Thump. The dome cracks. Something is coming through.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_49", wave: 49, hero: "EARTH", type: "NARRATIVE",
                     title: "Confrontation",
-                    text: "The ground explodes. From the shards of the dome, a massive figure forms. Obsidian and hate. The Dark Golem. It roars, challenging your right to exist."
+                    text: "The ground explodes. From the shards of the dome, a massive figure forms. Obsidian and hate. The Dark Golem. It roars, challenging your right to exist.",
+                    data: { biome: 'HERO' }
                 },
                 {
                     id: "rock_50", wave: 50, hero: "EARTH", type: "BOSS_FIGHT",
                     title: "The Gatekeeper",
                     text: "You stand at the exit, the light blindingly bright. But the way is barred. A massive construct of obsidian and dark magic rises. The Dark Golem. The final lock on your cage. Break it!",
-                    data: { bossId: 'DARK_GOLEM' } // Unique Boss
+                    data: { bossId: 'DARK_GOLEM', biome: 'HERO' } // Unique Boss
                 },
                 {
                     id: "rock_51", wave: 51, hero: "EARTH", type: "THE_END",

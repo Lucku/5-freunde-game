@@ -187,5 +187,3 @@ class CloudBiome {
 
 window.CloudBiome = CloudBiome;
 window.BIOME_LOGIC['lightning'] = CloudBiome; // Register logic
-
-window.CloudBiome = CloudBiome;

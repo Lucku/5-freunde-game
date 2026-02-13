@@ -1564,8 +1564,8 @@ function closeStory() {
         // Convert to lowercase because player types are lowercase (gravity/void/spirit/chance)
         const requiredHero = currentStoryEvent.hero.toLowerCase();
 
-        // Ensure player matches the narrator
-        if (player.type !== requiredHero) {
+        // Ensure player matches the narrator, BUT ignore "all"
+        if (requiredHero !== 'all' && player.type !== requiredHero) {
             // Use changeHeroInGame for direct swap preserving stats
             changeHeroInGame(requiredHero);
         }
@@ -1767,6 +1767,17 @@ function resumeWaveGeneration() {
     // Randomize Biome (Skip in Versus Mode)
     if (!isVersusMode) {
         let types = ['fire', 'water', 'ice', 'plant', 'metal'];
+
+        // Add Enabled DLC Biomes (Only included in Standard/Challenge runs, NOT in active Story Mode)
+        const isStoryRun = (saveData.story && saveData.story.enabled !== false) && !isDailyMode && !isWeeklyMode;
+
+        if (!isStoryRun && window.BIOME_LOGIC) {
+            const dlcBiomes = ['earth', 'lightning', 'air', 'gravity', 'void', 'spirit', 'chance'];
+            dlcBiomes.forEach(b => {
+                if (window.BIOME_LOGIC[b]) types.push(b);
+            });
+        }
+
         if (player && player.type === 'black') {
             types = ['black']; // Keep Black in his own realm
         }
@@ -1774,7 +1785,16 @@ function resumeWaveGeneration() {
         // Wave 1 starts in home biome
         if (wave === 1 && player && player.type !== 'black') {
             currentBiomeType = player.type;
-        } else {
+        }
+        // Narrative Override (e.g. Arc 2 forces Hero Biome)
+        else if (currentStoryEvent && currentStoryEvent.data && currentStoryEvent.data.biome) {
+            if (currentStoryEvent.data.biome === 'HERO') {
+                currentBiomeType = player.type;
+            } else {
+                currentBiomeType = currentStoryEvent.data.biome;
+            }
+        }
+        else {
             currentBiomeType = types[Math.floor(Math.random() * types.length)];
         }
 
@@ -2475,11 +2495,10 @@ function masterLoop(timestamp) {
                     ctx.save();
                     ctx.translate(-arena.camera.x, -arena.camera.y);
 
-                    // Ensure background strictly follows hero type unless in Versus Mode
+                    // Background follows Biome Type
                     let themeType = currentBiomeType;
-                    if (!isVersusMode && player) {
-                        themeType = player.type;
-                    }
+                    if (arena) arena.biomeType = themeType;
+
                     arena.draw(ctx, getHeroTheme(themeType));
                     // Draw entities (static for slow-mo)
                     // ... (Ideally we'd draw entities here too, but for now just arena is fine or we duplicate draw calls)
@@ -2581,11 +2600,10 @@ function masterLoop(timestamp) {
             ctx.translate(-arena.camera.x, -arena.camera.y);
 
             // Draw World
-            // Ensure background strictly follows hero type unless in Versus Mode
+            // Background follows Biome Type
             let themeType = currentBiomeType;
-            if (!isVersusMode && player) {
-                themeType = player.type;
-            }
+            if (arena) arena.biomeType = themeType;
+
             arena.draw(ctx, getHeroTheme(themeType));
 
 
