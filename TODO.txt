@@ -20,3 +20,4 @@
     - different levels = different beats with different BPM (e.g., 60, 100, 120)
 - "Time" hero DLC
 - "Love" hero DLC
+- "Toxic" hero DLC
