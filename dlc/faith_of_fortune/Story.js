@@ -130,6 +130,6 @@ window.FORTUNE_STORY_CHAPTERS = [
     {
         id: "fortune_50", wave: 50, title: "The Ultimate Showdown", type: "BOSS_FIGHT",
         text: "Spirit must defeat Chance to complete the ritual. Chance must defeat Spirit to claim the prize. FIGHT!",
-        data: { biome: 'HERO', spawnEnemy: 'RIVAL_1V1' }
+        data: { biome: 'HERO', spawnEnemy: 'RIVAL_1V1', suppressMinions: true }
     }
 ];

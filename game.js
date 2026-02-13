@@ -2735,7 +2735,9 @@ function masterLoop(timestamp) {
                             enemies.unshift(new Boss());
                         }
                     }
-                    for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
+                    if (!currentStoryEvent || !currentStoryEvent.data || !currentStoryEvent.data.suppressMinions) {
+                        for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
+                    }
                 }
             }
 
@@ -2778,7 +2780,11 @@ function masterLoop(timestamp) {
                         }
                     }
                 } else {
-                    if (frame % 150 === 0) enemies.push(new Enemy(true));
+                    let suppress = false;
+                    if (currentStoryEvent && currentStoryEvent.data && currentStoryEvent.data.suppressMinions) {
+                        suppress = true;
+                    }
+                    if (!suppress && frame % 150 === 0) enemies.push(new Enemy(true));
                 }
             }
 
@@ -3062,6 +3068,15 @@ function masterLoop(timestamp) {
 
                                 if (isVersusMode && window.additionalPlayers.length === 0) {
                                     setTimeout(() => gameOver(true), 2000);
+                                } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
+                                    // Story Mode Duel Victory
+                                    bossActive = false;
+                                    bossDeathTimer = 180; // 3 seconds for dramatic effect
+
+                                    // Clear any remaining enemies/projectiles
+                                    enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
+                                    enemies = [];
+                                    projectiles = [];
                                 }
                             }
                         }
@@ -3120,7 +3135,22 @@ function masterLoop(timestamp) {
                                     att.hitList.push(pid);
                                     createExplosion(p2.x, p2.y, att.color);
                                     floatingTexts.push(new FloatingText(p2.x, p2.y - 40, att.damage.toFixed(0), "#ff0000", 25));
-                                    if (p2.hp <= 0) showNotification("OPPONENT KO!");
+                                    if (p2.hp <= 0) {
+                                        let idx = window.additionalPlayers.indexOf(p2);
+                                        if (idx > -1) window.additionalPlayers.splice(idx, 1);
+                                        createExplosion(p2.x, p2.y, '#fff');
+                                        showNotification("OPPONENT KO!");
+
+                                        if (isVersusMode && window.additionalPlayers.length === 0) {
+                                            setTimeout(() => gameOver(true), 2000);
+                                        } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
+                                            bossActive = false;
+                                            bossDeathTimer = 180;
+                                            enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
+                                            enemies = [];
+                                            projectiles = [];
+                                        }
+                                    }
                                 }
                             }
                         }
