@@ -960,11 +960,28 @@ class Player {
             ctx.strokeStyle = '#9b59b6'; ctx.lineWidth = 2; ctx.stroke();
         }
 
-        ctx.fillStyle = this.stats.color;
+        // True Golden Mask Visuals
+        if (this.isGolden) {
+            // Golden Aura
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 15, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(241, 196, 15, 0.3)'; // Golden glow
+            ctx.fill();
+
+            // Rotating Ring
+            const time = Date.now() / 500;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 20, time, time + Math.PI * 1.5);
+            ctx.strokeStyle = '#f1c40f'; // Gold
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = this.isGolden ? '#f1c40f' : this.stats.color;
         ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
         ctx.lineWidth = 3; ctx.strokeStyle = '#111'; ctx.stroke();
         ctx.fillStyle = '#000'; ctx.fillRect(0, -4, 16, 8);
-        ctx.fillStyle = shadeColor(this.stats.color, -40);
+        ctx.fillStyle = this.isGolden ? '#f39c12' : shadeColor(this.stats.color, -40);
         ctx.beginPath(); ctx.arc(0, -15, 8, 0, Math.PI * 2); ctx.arc(0, 15, 8, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
 

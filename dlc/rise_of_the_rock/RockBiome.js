@@ -23,6 +23,68 @@ class RockBiome {
         }
     }
 
+    static drawBackground(ctx, arena) {
+        const cam = arena.camera;
+        const cellSize = 400; // Large grid for sparse decoration
+
+        const sx = Math.floor(cam.x / cellSize) * cellSize;
+        const sy = Math.floor(cam.y / cellSize) * cellSize;
+        const ex = sx + cam.width + cellSize;
+        const ey = sy + cam.height + cellSize;
+
+        ctx.save();
+        for (let x = sx; x <= ex; x += cellSize) {
+            for (let y = sy; y <= ey; y += cellSize) {
+                // Deterministic pseudo-random based on coordinates
+                const hash = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+                const val = hash - Math.floor(hash); // 0.0 to 1.0
+
+                // 1. Large Cracks on Floor
+                if (val > 0.6) {
+                    const cx = x + (val * 1337) % cellSize;
+                    const cy = y + (val * 7331) % cellSize;
+
+                    ctx.strokeStyle = "rgba(62, 39, 35, 0.2)"; // Dark Brown
+                    ctx.lineWidth = 4;
+                    ctx.lineCap = 'round';
+
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.lineTo(cx + 30 * val, cy + 40 * val);
+                    ctx.lineTo(cx + 10 * val, cy + 80 * val);
+                    ctx.lineTo(cx + 50 * val, cy + 100 * val);
+                    ctx.stroke();
+                }
+
+                // 2. Embedded Rocks/Stones
+                if (val < 0.4) {
+                    const rx = x + (val * 9999) % cellSize;
+                    const ry = y + (val * 8888) % cellSize;
+                    const rSize = 10 + val * 20;
+
+                    // Shadow
+                    ctx.fillStyle = "rgba(0,0,0,0.3)";
+                    ctx.beginPath();
+                    ctx.arc(rx + 3, ry + 3, rSize, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Rock Body
+                    ctx.fillStyle = "#4e4030"; // Darker Brown (Blends better with bg)
+                    ctx.beginPath();
+                    ctx.arc(rx, ry, rSize, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Highlight
+                    ctx.fillStyle = "rgba(255,255,255,0.05)"; // Subtler highlight
+                    ctx.beginPath();
+                    ctx.arc(rx - rSize * 0.3, ry - rSize * 0.3, rSize * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+        ctx.restore();
+    }
+
     static update(arena, player, enemies) {
         // 1. Handle Zone Effects
         arena.biomeZones.forEach(zone => {

@@ -68,6 +68,8 @@ class Boss {
             this.maxHp *= 0.8;
             this.hp = this.maxHp;
             this.magnetStrength = 0.8; // Reduced from 2.0 to 0.8
+            this.magnetTimer = 0; // Active time
+            this.magnetCooldown = 180; // Wait time
         } else if (this.type === 'DARK_GOLEM') {
             this.color = '#212121'; // Dark Obsidian
             this.radius = 90; // Massive
@@ -183,25 +185,35 @@ class Boss {
             }
         }
 
-        // Green Goblin Magnet
+        // Green Goblin Magnet (Pulsing)
         if (this.type === 'GREEN_GOBLIN') {
-            const dist = Math.hypot(player.x - this.x, player.y - this.y);
-            if (dist < 400) { // Reduced range from 500 to 400
-                const pullAngle = Math.atan2(this.y - player.y, this.x - player.x);
-                // Pull player
-                player.x += Math.cos(pullAngle) * this.magnetStrength;
-                player.y += Math.sin(pullAngle) * this.magnetStrength;
+            if (this.magnetCooldown > 0) {
+                this.magnetCooldown--;
+                if (this.magnetCooldown <= 0) {
+                    this.magnetTimer = 120; // Active for 2 seconds
+                    if (typeof showNotification === 'function') showNotification("MAGNET ACTIVATE!", "#2ecc71");
+                }
+            } else if (this.magnetTimer > 0) {
+                this.magnetTimer--;
+                if (this.magnetTimer <= 0) this.magnetCooldown = 300; // Cooldown 5 seconds
 
-                // Visual effect for magnet
-                if (frame % 10 === 0) {
-                    ctx.save();
-                    ctx.strokeStyle = '#2ecc71';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(player.x, player.y);
-                    ctx.lineTo(this.x, this.y);
-                    ctx.stroke();
-                    ctx.restore();
+                const dist = Math.hypot(player.x - this.x, player.y - this.y);
+                if (dist < 500) {
+                    const pullAngle = Math.atan2(this.y - player.y, this.x - player.x);
+                    player.x += Math.cos(pullAngle) * this.magnetStrength;
+                    player.y += Math.sin(pullAngle) * this.magnetStrength;
+
+                    // Visual effect
+                    if (frame % 5 === 0) {
+                        ctx.save();
+                        ctx.strokeStyle = '#2ecc71';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(player.x, player.y);
+                        ctx.lineTo(this.x, this.y);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
                 }
             }
         }
@@ -261,6 +273,35 @@ class Boss {
             }
 
             this.attackCooldown--;
+        } else if (this.type === 'GREEN_GOBLIN') {
+            // Hover/Kite Behavior
+            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            const idealDist = 350;
+
+            if (dist < 200) {
+                // Too close! Retreat
+                nextX -= Math.cos(angle) * (this.speed * 1.2);
+                nextY -= Math.sin(angle) * (this.speed * 1.2);
+            } else if (dist > 500) {
+                // Too far! Chase
+                nextX += Math.cos(angle) * this.speed;
+                nextY += Math.sin(angle) * this.speed;
+            } else {
+                // Sweet spot! Strafe around player
+                // Move perpendicular to angle
+                const strafeAngle = angle + Math.PI / 2;
+                nextX += Math.cos(strafeAngle) * (this.speed * 0.8);
+                nextY += Math.sin(strafeAngle) * (this.speed * 0.8);
+
+                // Slight drift towards ideal distance
+                if (dist > idealDist) {
+                    nextX += Math.cos(angle) * 0.5;
+                    nextY += Math.sin(angle) * 0.5;
+                } else {
+                    nextX -= Math.cos(angle) * 0.5;
+                    nextY -= Math.sin(angle) * 0.5;
+                }
+            }
         } else {
             // Standard movement
             nextX += Math.cos(angle) * this.speed;

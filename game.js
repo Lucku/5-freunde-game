@@ -1762,6 +1762,17 @@ function advanceWave() {
 }
 
 function resumeWaveGeneration() {
+    // True Golden Mask Spawn (Wave 90 Narrative Event) - STORY MODE ONLY
+    const isStoryMode = (saveData.story && saveData.story.enabled !== false) &&
+        !isDailyMode && !isWeeklyMode && !isChaosShuffleMode && !isVersusMode;
+
+    if (isStoryMode && wave === 90) {
+        // Spawn in center
+        holyMasks.push(new HolyMask(arena.width / 2, arena.height / 2, true));
+        showNotification("THE GOLDEN MASK APPEARS!");
+        createExplosion(arena.width / 2, arena.height / 2, '#f1c40f');
+    }
+
     if (isChaosShuffleMode && wave > 0) generateChaosObjective();
 
     // Randomize Biome (Skip in Versus Mode)
@@ -2987,6 +2998,9 @@ function masterLoop(timestamp) {
                         player.hp += 50;
                         player.cooldownMultiplier *= 0.8; // -20% Cooldown
 
+                        // Visual Flag
+                        player.isGolden = true;
+
                         showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
                         createExplosion(player.x, player.y, '#fff');
                         if (typeof audioManager !== 'undefined') audioManager.play('pickup_mask');
@@ -3550,11 +3564,10 @@ function masterLoop(timestamp) {
                         // CHAOS EVENT HOOK
                         if (typeof checkChaosEvent === 'function') checkChaosEvent('BOSS_KILL', enemy.type);
 
-                        // True Golden Mask Drop (Makuta Wave 100+)
+                        // Unlock Hero Story Achievement
                         if (enemy.type === 'MAKUTA' && wave >= 100) {
-                            holyMasks.push(new HolyMask(enemy.x, enemy.y, true));
+                            // True Golden Mask moved to Wave 90 start
 
-                            // Unlock Hero Story Achievement
                             if (player.type === 'fire') unlockAchievement('STORY_FIRE');
                             if (player.type === 'water') unlockAchievement('STORY_WATER');
                             if (player.type === 'ice') unlockAchievement('STORY_ICE');
@@ -3712,10 +3725,22 @@ loadGame();
 // Initialize DLCs then Menu
 if (window.dlcManager) {
     window.dlcManager.init().then(() => {
+        // Hide Loading Screen
+        const loader = document.getElementById('loading-screen');
+        if (loader) {
+            loader.style.transition = 'opacity 0.5s';
+            loader.style.opacity = '0';
+            setTimeout(() => loader.remove(), 500);
+        }
+
         initMenu();
         masterLoop();
     });
 } else {
+    // Hide Loading Screen
+    const loader = document.getElementById('loading-screen');
+    if (loader) loader.style.display = 'none';
+
     initMenu();
     masterLoop();
 }

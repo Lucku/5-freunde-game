@@ -152,8 +152,15 @@ class MadnessBiome {
                 const t = getTile(player.x, player.y);
                 if (t && t.state === 'VOID') {
                     if (!player.invincibleTimer && !player.isFlying) {
-                        player.takeDamage(9999);
-                        if (typeof showNotification === 'function') showNotification("FELL INTO VOID!", "#ff00ff");
+                        // Nerf: Instead of instant death (9999), take heavy damage
+                        // 60 dmg is significant (approx 25-30% HP) but survivable
+                        let voidDmg = 60;
+
+                        player.takeDamage(voidDmg);
+                        player.invincibleTimer = 90; // 1.5s invincibility to escape
+
+                        if (typeof showNotification === 'function') showNotification("VOID DAMAGE!", "#ff00ff");
+                        createExplosion(player.x, player.y, "#ff00ff");
                     }
                 }
             }
