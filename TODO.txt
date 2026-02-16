@@ -1,16 +1,10 @@
 # General
 
-- Add general game statistics in the "Statistics" menu (playtime, enemies killed, etc.)
-- Add loading screen for game+DLCs on landing page
-
-# DLC: Waker of Winds
-
-- Add sound effects and music
+- Add death sound
 
 # DLC: Faith of Fortune
 
-- Add sound effects and music
-- Test 1V1 implementation in story
+- Add sound effects
 
 # Future
 
@@ -19,5 +13,9 @@
     - attacks are stronger when synchronous to "beat"
     - different levels = different beats with different BPM (e.g., 60, 100, 120)
 - "Time" hero DLC
+    - has ability to slow and speed-up time
 - "Love" hero DLC
+    - can spawn companion
+    - can seduce enemies
 - "Toxic" hero DLC
+    - has short-range, cicular damage and DoT

@@ -875,6 +875,8 @@ let frame = 0;
 var enemiesKilledInWave = 0; // Exposed for DLC
 var bossActive = false;      // Exposed for DLC
 let bossDeathTimer = 0; // Timer for slow-mo effect
+var isPlayerDying = false; // Player death animation flag - Exposed for Player.js
+let playerDeathTimer = 0; // Timer for player death animation
 
 // Weather
 let currentWeather = null;
@@ -1320,8 +1322,9 @@ function updateUI() {
     }
 
     const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
+    const displayHp = Math.max(0, Math.ceil(player.hp));
     document.getElementById('health-fill').style.width = hpPercent + '%';
-    document.getElementById('health-text').innerText = Math.ceil(player.hp) + " / " + player.maxHp;
+    document.getElementById('health-text').innerText = displayHp + " / " + player.maxHp;
 
     const xpPercent = Math.min(100, (player.xp / player.maxXp) * 100);
     document.getElementById('xp-fill').style.width = xpPercent + '%';
@@ -2095,6 +2098,8 @@ function startGame(mode = 'NORMAL') {
     cardDrops = [];
     memoryShards = [];
     companions = [];
+    isPlayerDying = false;
+    playerDeathTimer = 0;
     forcedEnemyType = null;
     currentObjective = null; // Reset Objective
     currentStoryEvent = null; // Reset Story Event to prevent leaks
@@ -2868,7 +2873,13 @@ function masterLoop(timestamp) {
             });
             player.biomeSpeedMod = biomeSpeedMod;
 
-            player.update();
+            if (isPlayerDying) {
+                // Freeze player during death sequence
+                player.vx = 0;
+                player.vy = 0;
+            } else {
+                player.update();
+            }
             player.draw();
 
             // Update Companions
@@ -3712,8 +3723,54 @@ function masterLoop(timestamp) {
             }
 
             updateUI();
+
+            // Player Death Logic
             if (player.hp <= 0) {
-                gameOver();
+                if (!isPlayerDying) {
+                    isPlayerDying = true;
+                    playerDeathTimer = 180; // 3 seconds animation
+                    createExplosion(player.x, player.y, '#c0392b');
+
+                    // Force Stop Movement
+                    player.isDashing = false;
+                    player.moveInput = { x: 0, y: 0 };
+                    player.isInvincible = true; // Prevent further damage (negative HP)
+
+                    // Sound
+                    if (typeof audioManager !== 'undefined') {
+                        // Play Death Sound
+                        try { audioManager.play('death'); } catch (e) { }
+                    }
+                }
+            }
+
+            if (isPlayerDying) {
+                playerDeathTimer--;
+
+                // Slow Motion / Freeze Frame Effect Logic could go here
+
+                // Visuals: Fade to Black + Text
+                ctx.save();
+                ctx.fillStyle = `rgba(0, 0, 0, ${(180 - playerDeathTimer) / 200})`; // Slow fade
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Blood Explosions
+                if (playerDeathTimer % 15 === 0) {
+                    createExplosion(player.x + (Math.random() - 0.5) * 60, player.y + (Math.random() - 0.5) * 60, '#c0392b');
+                }
+
+                // Shake Screen
+                const shake = (playerDeathTimer / 180) * 5;
+                ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+
+                ctx.restore();
+
+                // Finish
+                if (playerDeathTimer <= 0) {
+                    isPlayerDying = false;
+                    gameOver();
+                }
+                return; // Stop processing frame
             }
         }
     }

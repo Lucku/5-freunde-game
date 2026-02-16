@@ -57,6 +57,7 @@ class AudioManager {
             attack_shooter: new Audio('audio/sounds/attack_shooter.wav'),
             melee_all: new Audio('audio/sounds/melee_all.wav'),
             damage: new Audio('audio/sounds/damage.wav'),
+            death: new Audio('audio/sounds/death.wav'),
 
             boss_rhino_charge: new Audio('audio/sounds/attack_boss_rhino.wav'),
             boss_stomp: new Audio('audio/sounds/attack_boss_rhino_2.wav'),
@@ -161,6 +162,7 @@ class AudioManager {
         if (this.tracks.special_void) this.tracks.special_void.volume = 0.6;
         if (this.tracks.dash_void) this.tracks.dash_void.volume = 0.6;
         if (this.tracks.damage) this.tracks.damage.volume = 0.4;
+        if (this.tracks.death) this.tracks.death.volume = 0.6;
 
         if (this.tracks.attack_earth_roll) {
             this.tracks.attack_earth_roll.loop = true;

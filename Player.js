@@ -154,6 +154,8 @@ class Player {
     }
 
     levelUp() {
+        if (typeof isPlayerDying !== 'undefined' && isPlayerDying) return; // Prevent level up during death animation
+
         this.level++;
         this.maxXp = Math.floor(this.maxXp * 1.2);
         isLevelingUp = true;
