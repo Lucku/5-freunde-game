@@ -86,6 +86,24 @@ class AudioManager {
             melee_void: new Audio('dlc/champions_of_chaos/audio/sounds/melee_void.wav'),
             special_void: new Audio('dlc/champions_of_chaos/audio/sounds/special_void.wav'),
             dash_void: new Audio('dlc/champions_of_chaos/audio/sounds/dash_void.wav'),
+
+            // DLC Faith of Fortune
+            attack_chance: new Audio('dlc/faith_of_fortune/audio/sounds/attack_chance.wav'),
+            special_chance: new Audio('dlc/faith_of_fortune/audio/sounds/special_chance.wav'),
+            special_chance_jackpot: new Audio('dlc/faith_of_fortune/audio/sounds/special_chance_jackpot.wav'),
+            special_chance_win: new Audio('dlc/faith_of_fortune/audio/sounds/special_chance_win.wav'),
+            special_chance_neutral: new Audio('dlc/faith_of_fortune/audio/sounds/special_chance_neutral.wav'),
+            special_chance_lose: new Audio('dlc/faith_of_fortune/audio/sounds/special_chance_lose.wav'),
+            big_gamble: new Audio('dlc/faith_of_fortune/audio/sounds/big_gamble.wav'),
+            big_gamble_jackpot: new Audio('dlc/faith_of_fortune/audio/sounds/big_gamble_jackpot.wav'),
+            big_gamble_win: new Audio('dlc/faith_of_fortune/audio/sounds/big_gamble_win.wav'),
+            big_gamble_neutral: new Audio('dlc/faith_of_fortune/audio/sounds/big_gamble_neutral.wav'),
+            big_gamble_lose: new Audio('dlc/faith_of_fortune/audio/sounds/big_gamble_lose.wav'),
+
+            // DLC Faith of Fortune - Spirit Hero
+            attack_spirit: new Audio('dlc/faith_of_fortune/audio/sounds/attack_spirit.wav'),
+            special_spirit: new Audio('dlc/faith_of_fortune/audio/sounds/special_spirit.wav'),
+            special_spirit_charging: new Audio('dlc/faith_of_fortune/audio/sounds/special_spirit_charging.wav'),
         };
 
         // Configuration
@@ -168,6 +186,29 @@ class AudioManager {
             this.tracks.attack_earth_roll.loop = true;
             this.tracks.attack_earth_roll.volume = 0.3;
         }
+
+        if (this.tracks.big_gamble) {
+            this.tracks.big_gamble.loop = true;
+            this.tracks.big_gamble.volume = 0.5;
+        }
+        if (this.tracks.special_chance) {
+            this.tracks.special_chance.loop = true;
+            this.tracks.special_chance.volume = 0.5;
+        }
+        if (this.tracks.special_spirit_charging) {
+            this.tracks.special_spirit_charging.loop = true;
+            this.tracks.special_spirit_charging.volume = 0.4;
+        }
+        if (this.tracks.attack_chance) this.tracks.attack_chance.volume = 0.3;
+        if (this.tracks.attack_spirit) this.tracks.attack_spirit.volume = 0.3;
+        if (this.tracks.special_spirit) this.tracks.special_spirit.volume = 0.5;
+
+        ['special_chance_jackpot', 'special_chance_win', 'special_chance_neutral', 'special_chance_lose'].forEach(k => {
+            if (this.tracks[k]) this.tracks[k].volume = 0.6;
+        });
+        ['big_gamble_jackpot', 'big_gamble_win', 'big_gamble_neutral', 'big_gamble_lose'].forEach(k => {
+            if (this.tracks[k]) this.tracks[k].volume = 0.6;
+        });
 
         // Air SFX config
         for (let i = 1; i <= 4; i++) {

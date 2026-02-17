@@ -176,6 +176,13 @@ class SpiritHero {
 
             // Recharge Inner Peace
             if (player.meditationTimer > 30) {
+                // Audio Loop Trigger
+                if (player.innerPeace < player.maxInnerPeace) {
+                    if (typeof audioManager !== 'undefined') audioManager.startLoop('special_spirit_charging');
+                } else {
+                    if (typeof audioManager !== 'undefined') audioManager.stopLoop('special_spirit_charging');
+                }
+
                 // Base Rate: 0.2 per frame -> ~12 per second
                 const rate = 0.2 + ((player.peaceRechargeRate || 0) * 0.05);
                 player.innerPeace = Math.min(player.maxInnerPeace, player.innerPeace + rate);
@@ -217,6 +224,7 @@ class SpiritHero {
             }
         } else {
             player.meditationTimer = 0;
+            if (typeof audioManager !== 'undefined') audioManager.stopLoop('special_spirit_charging');
         }
 
         // Draw UI Meter (Attached to Player logic to ensure it draws every frame)
@@ -265,7 +273,7 @@ class SpiritHero {
     static shootMantra(player) {
         if (player.rangeCooldown > 0) return;
 
-        if (typeof audioManager !== 'undefined') audioManager.play('shoot_weak');
+        if (typeof audioManager !== 'undefined') audioManager.play('attack_spirit');
 
         // Ensure properties exist
         if (typeof player.innerPeace === 'undefined') player.innerPeace = 50;
@@ -420,7 +428,7 @@ class SpiritHero {
         player.hp = Math.min(player.maxHp, player.hp + (player.innerPeace / 2));
 
         if (typeof showNotification === 'function') showNotification("TRANSCENDENCE", "#F0D080");
-        if (typeof audioManager !== 'undefined') audioManager.play('level_up');
+        if (typeof audioManager !== 'undefined') audioManager.play('special_spirit');
 
         // Spawn Visual Aura
         if (typeof projectiles !== 'undefined') {

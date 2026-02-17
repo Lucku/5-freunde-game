@@ -59,13 +59,13 @@ class ChanceHero {
     static applySkillNode(base, node) {
         if (node.type === 'CHANCE_LUCK') base.luck = (base.luck || 10) + (node.value || 10);
         if (node.type === 'PROJECTILE') base.extraProjectiles = (base.extraProjectiles || 0) + (node.value || 1);
-        
+
         // Standard Stats
         if (node.type === 'CRIT') base.critChance = (base.critChance || 0) + 0.1;
         if (node.type === 'DAMAGE') base.damageMultiplier = (base.damageMultiplier || 1) + 0.2;
         if (node.type === 'SPEED') base.speedMultiplier = (base.speedMultiplier || 1) + 0.1;
         if (node.type === 'COOLDOWN') base.cooldownMultiplier = (base.cooldownMultiplier || 1) - 0.1;
-        
+
         // Ensure values are numbers
         if (typeof base.extraProjectiles !== 'number') base.extraProjectiles = 0;
     }
@@ -84,7 +84,7 @@ class ChanceHero {
             player.extraProjectiles = (player.extraProjectiles || 0) + 1;
             return true;
         }
-        
+
         // Overrides for Standard Types (Chance Hero has stronger/different variants)
         if (type === 'crit') {
             player.critChance = (player.critChance || 0) + 0.10; // +10%
@@ -194,7 +194,10 @@ class ChanceHero {
                 window.isBigGambleActive = true;
             }
 
-            if (typeof audioManager !== 'undefined') audioManager.play('menu_open');
+            if (typeof audioManager !== 'undefined') {
+                audioManager.play('menu_open');
+                audioManager.startLoop('big_gamble');
+            }
         }
 
         // Standard Slot Machine Logic (Mini)
@@ -208,13 +211,14 @@ class ChanceHero {
                     Math.floor(Math.random() * 6),
                     Math.floor(Math.random() * 6)
                 ];
-                if (typeof audioManager !== 'undefined') audioManager.play('menu_click'); // Tick sound
+                // Sound handled by loop
             }
 
             // Resolve
             if (player.slotMachine.timer <= 0) {
                 ChanceHero.resolveSlots(player);
                 player.slotMachine.active = false;
+                if (typeof audioManager !== 'undefined') audioManager.stopLoop('special_chance');
             }
         }
     }
@@ -231,13 +235,14 @@ class ChanceHero {
                 Math.floor(Math.random() * 6),
                 Math.floor(Math.random() * 6)
             ];
-            if (typeof audioManager !== 'undefined') audioManager.play('menu_click');
+            // Sound handled by loop
         }
 
         // Resolve
         if (player.bigSlotMachine.timer <= 0) {
             ChanceHero.resolveBigSlots(player);
             player.bigSlotMachine.active = false;
+            if (typeof audioManager !== 'undefined') audioManager.stopLoop('big_gamble');
 
             // Unfreeze
             window.isBigGambleActive = false;
@@ -285,6 +290,13 @@ class ChanceHero {
         if (typeof showNotification === 'function')
             showNotification("BIG GAMBLE: " + outcome, outcome === 'BAD' ? "#ff0000" : "#ff00ff");
 
+        if (typeof audioManager !== 'undefined') {
+            if (outcome === 'JACKPOT') audioManager.play('big_gamble_jackpot');
+            else if (outcome === 'BAD') audioManager.play('big_gamble_lose');
+            else if (outcome === 'GOOD' || outcome === 'DIAMOND') audioManager.play('big_gamble_win');
+            else audioManager.play('big_gamble_neutral');
+        }
+
         // Effects
         if (outcome === 'JACKPOT') {
             // IMMORTALITY... almost
@@ -292,7 +304,7 @@ class ChanceHero {
             player.hp = player.maxHp;
             player.damageMultiplier += 2.0; // Permanent +200%
             if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, "#ff00ff", 100);
-            if (typeof audioManager !== 'undefined') audioManager.play('level_up');
+            // Audio handled above
         }
         else if (outcome === 'BAD') {
             // 1 HP.
@@ -342,6 +354,14 @@ class ChanceHero {
         if (typeof showNotification === 'function')
             showNotification(outcome === 'JACKPOT' ? "JACKPOT!!!" : outcome, "#ff00ff");
 
+        // Audio Logic
+        if (typeof audioManager !== 'undefined') {
+            if (outcome === 'JACKPOT') audioManager.play('special_chance_jackpot');
+            else if (outcome === 'BAD') audioManager.play('special_chance_lose');
+            else if (outcome === 'GOOD' || outcome === 'DIAMOND') audioManager.play('special_chance_win');
+            else audioManager.play('special_chance_neutral');
+        }
+
         // Effects
         if (outcome === 'JACKPOT') {
             // Screen Wipe Damage
@@ -349,7 +369,7 @@ class ChanceHero {
                 e.hp -= 7777;
                 createExplosion(e.x, e.y, "#ff00ff", 20);
             });
-            if (typeof audioManager !== 'undefined') audioManager.play('level_up'); // Big sound
+            // Sound handled above
         }
         else if (outcome === 'BAD') {
             // Self Damage or Debuff
@@ -385,7 +405,7 @@ class ChanceHero {
     static shootDice(player, dx, dy) {
         if (player.rangeCooldown > 0) return;
 
-        if (typeof audioManager !== 'undefined') audioManager.play('shoot_weak');
+        if (typeof audioManager !== 'undefined') audioManager.play('attack_chance');
 
         // RNG Damage logic
         const minDmg = 1;
@@ -544,6 +564,8 @@ class ChanceHero {
 
         player.slotMachine.active = true;
         player.slotMachine.timer = 120; // 2 seconds spin
+
+        if (typeof audioManager !== 'undefined') audioManager.startLoop('special_chance');
 
         // Determine Outcome Immediately based on Luck
         // Base Weights:
