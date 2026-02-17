@@ -351,7 +351,7 @@ class EarthHero {
 
                             // SFX / VFX
                             if (typeof createExplosion !== 'undefined') createExplosion(p.x, p.y, '#fff', 5);
-                            if (typeof audioManager !== 'undefined') audioManager.play('shield_hit'); // If exists, or fallback
+                            if (typeof audioManager !== 'undefined') audioManager.play('attack_metal'); // Shield deflect sound
                         }
                     }
                 }

@@ -656,7 +656,7 @@ class AirHero {
             obj.state = 'COMPLETED'; // Unlock game loop spawn logic
 
             if (typeof showNotification === 'function') showNotification("OBJECTIVE COMPLETE! BOSS PHASE!", '#40e0d0');
-            if (typeof audioManager !== 'undefined') audioManager.play('challenge_completed');
+            if (typeof audioManager !== 'undefined') audioManager.play('challenge_success');
 
             // FORCE BOSS PHASE
             // Set global kill count to max to trigger standard game loop boss spawn
@@ -723,7 +723,7 @@ class AirHero {
                     player.windArtifacts.splice(i, 1);
                     if (player.currentObjective.type === 'COLLECT') {
                         player.currentObjective.current++;
-                        if (typeof audioManager !== 'undefined') audioManager.play('coin');
+                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_mask'); // Or card
                     }
                 }
             });
@@ -885,7 +885,7 @@ class AirHero {
                 sfx.volume = 0.3;
                 sfx.play().catch(e => { });
             } else {
-                audioManager.play('shoot_weak');
+                audioManager.play('attack_shooter'); // Fallback
             }
         }
 

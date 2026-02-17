@@ -120,7 +120,7 @@ class SpiritHero {
             player.innerPeace = player.maxInnerPeace;
             if (typeof showNotification === 'function') showNotification("PEACE RESTORED", "#F0D080");
             if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, "#F0D080", 50);
-            if (typeof audioManager !== 'undefined') audioManager.play('menu_open');
+            // if (typeof audioManager !== 'undefined') audioManager.play('menu_open');
         }
 
         // 1. Meditation Logic

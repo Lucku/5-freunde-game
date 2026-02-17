@@ -195,7 +195,7 @@ class ChanceHero {
             }
 
             if (typeof audioManager !== 'undefined') {
-                audioManager.play('menu_open');
+                // audioManager.play('menu_open');
                 audioManager.startLoop('big_gamble');
             }
         }

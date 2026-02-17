@@ -45,7 +45,7 @@ class GlitchEnemy {
              this.y += (Math.random() - 0.5) * 300;
              this.teleportTimer = 0;
              // Audio glitch
-             if (typeof audioManager !== 'undefined') audioManager.play('menu_click'); 
+             if (typeof audioManager !== 'undefined') audioManager.play('dash'); 
         }
 
         // 3. Visual Glitch Offset
