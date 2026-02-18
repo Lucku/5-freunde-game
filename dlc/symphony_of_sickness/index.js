@@ -1,0 +1,270 @@
+// Symphony of Sickness DLC Entry Point
+const DLC_ID = 'symphony_of_sickness';
+
+const SymphonyDLC = {
+    id: DLC_ID,
+    load: async function () {
+        console.log("Loading Symphony of Sickness DLC...");
+
+        // Load Dependency Scripts
+        const scripts = [
+            'dlc/symphony_of_sickness/SoundHero.js',
+            'dlc/symphony_of_sickness/PoisonHero.js',
+            'dlc/symphony_of_sickness/SoundStory.js',
+            'dlc/symphony_of_sickness/PoisonStory.js',
+            // Biomes will be loaded here too once created
+            'dlc/symphony_of_sickness/SoundBiome.js',
+            'dlc/symphony_of_sickness/PoisonBiome.js'
+        ];
+
+        // Load files sequentially or in parallel? Parallel is fine for these.
+        for (const script of scripts) {
+            try {
+                // If the DLCManager helper is available, use it. Otherwise use a fallback.
+                if (window.dlcManager && window.dlcManager.loadScript) {
+                    await window.dlcManager.loadScript(script);
+                } else {
+                    await new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = script;
+                        s.onload = resolve;
+                        s.onerror = reject;
+                        document.head.appendChild(s);
+                    });
+                }
+            } catch (e) {
+                console.error(`Failed to load ${script}:`, e);
+            }
+        }
+
+        this.init();
+    },
+
+    init: function () {
+        console.log("Initializing Symphony of Sickness DLC Logic...");
+
+        // 1. Inject Heroes into BASE_HERO_STATS for Main Menu
+        if (typeof BASE_HERO_STATS !== 'undefined') {
+            BASE_HERO_STATS['sound'] = {
+                color: '#4fc3f7',
+                description: "Master of Rhythm. Time your attacks to the beat for massive damage.",
+                speed: 5,
+                hp: 100,
+                rangeDmg: 15,
+                meleeDmg: 10,
+                rangeCd: 40,
+                meleeCd: 45,
+                projectileSpeed: 10,
+                projectileSize: 8,
+                knockback: 4
+            };
+            BASE_HERO_STATS['poison'] = {
+                color: '#76ff03',
+                description: "Spreader of Decay. Expands a deadly miasma that drains life.",
+                speed: 4,
+                hp: 120,
+                rangeDmg: 6,
+                meleeDmg: 8,
+                rangeCd: 30,
+                meleeCd: 50,
+                projectileSpeed: 6,
+                projectileSize: 10,
+                knockback: 2,
+                gasRadius: 120 // Custom Stat
+            };
+        }
+
+        // Init Global State
+        window.SYMPHONY_STATE = {
+            biomeTransformation: 0, // 0 to 100%
+            targetBiome: 'sound',
+            bpm: 120, // Default BPM
+            lastBeatTime: 0,
+            onBeat: false,
+            // Sound Hero Specifics
+            totems: [],
+            totemsConquered: 0,
+            // Poison Hero Specifics
+            infectionTarget: 15, // Number of simultaneous infections needed
+            currentInfectionCount: 0,
+            originalBiome: null // To revert or track base state
+        };
+
+        // Helper to Trigger Biome Swap
+        window.SYMPHONY_STATE.triggerBiomeAssimilation = (type) => {
+            if (window.currentBiome === type) return; // Already there
+
+            console.log(`ASSIMILATING BIOME INTO: ${type.toUpperCase()}`);
+            if (typeof showNotification === 'function') {
+                const msg = type === 'sound' ? "THE RHYTHM TAKES OVER!" : "THE TOXINS CONSUME ALL!";
+                const color = type === 'sound' ? '#00e5ff' : '#76ff03';
+                showNotification(msg, color, 300);
+            }
+
+            // Save original if not set
+            if (!window.SYMPHONY_STATE.originalBiome) window.SYMPHONY_STATE.originalBiome = window.currentBiome;
+
+            // Force Biome Swap
+            window.currentBiome = type;
+
+            // Visual Flair
+            if (type === 'sound') {
+                // Clear any nearby enemies with a shockwave?
+                window.enemies.forEach(e => {
+                    const dist = Math.hypot(e.x - window.player.x, e.y - window.player.y);
+                    if (dist < 800) e.pushbackX = (e.x - window.player.x) * 0.1;
+                });
+            } else if (type === 'poison') {
+                // Kill all currently infected enemies
+                window.enemies.forEach(e => {
+                    if (e.debuffs && e.debuffs.poison > 0) {
+                        e.hp = 0; // Instant death
+                        // Spawn a visual cloud?
+                    }
+                });
+            }
+        };
+
+        // Start Beat Loop
+        setInterval(() => this.updateBeat(), 16);
+
+        console.log("Symphony of Sickness DLC Initialized");
+    },
+
+    updateBeat: function () {
+        if (!window.SYMPHONY_STATE || !window.player) return;
+
+        // Logic runs if player is Sound Hero OR current biome is Sound Plains
+        const isSoundRelevant = (window.player.type === 'sound' || (window.currentBiome && window.currentBiome.includes('sound')));
+
+        if (isSoundRelevant) {
+            const now = Date.now();
+            const beatInterval = 60000 / (window.SYMPHONY_STATE.bpm || 120);
+
+            if (now - window.SYMPHONY_STATE.lastBeatTime >= beatInterval) {
+                window.SYMPHONY_STATE.lastBeatTime = now;
+                window.SYMPHONY_STATE.onBeat = true;
+
+                // Reset flag shortly after (150ms window)
+                setTimeout(() => {
+                    if (window.SYMPHONY_STATE) window.SYMPHONY_STATE.onBeat = false;
+                }, 150);
+            }
+        }
+    }
+};
+
+// Register in DLC Manager (if present) or Global Registry
+if (!window.DLC_REGISTRY) window.DLC_REGISTRY = {};
+window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
+
+// --- Shadow Boss Implementation (Injected) ---
+// Since we can't easily modify game.js spawning logic, we monkey-patch the Boss class
+// to support our custom boss types.
+
+(function () {
+    // Wait for Boss class to be defined
+    const integrityCheck = setInterval(() => {
+        if (typeof window.Boss !== 'undefined') {
+            clearInterval(integrityCheck);
+            patchBossClass();
+        }
+    }, 100);
+
+    function patchBossClass() {
+        const OriginalBoss = window.Boss;
+
+        window.Boss = class extends OriginalBoss {
+            constructor(type) {
+                // Intercept custom types
+                if (type === 'SHADOW_CLONE' || type === 'SOUND_MASTER' || type === 'POISON_KING') {
+                    super(type); // Call base constructor with type
+                    // Override properties for custom boss
+                    this.initCustomBoss(type);
+                } else {
+                    super(type);
+                }
+            }
+
+            initCustomBoss(type) {
+                if (type === 'SHADOW_CLONE') {
+                    this.name = "Shadow Self";
+                    this.color = "#000000"; // Pitch black
+                    // Mimic player stats?
+                    if (window.player) {
+                        this.maxHp = window.player.maxHp * 50; // Tanky
+                        this.hp = this.maxHp;
+                        this.damage = window.player.damageMultiplier * 20;
+                        this.speed = window.player.speedMultiplier * 1.2;
+                    }
+                    this.phase = 1;
+                }
+            }
+
+            // Hook update to add custom logic if needed
+            update(player) {
+                if (this.type === 'SHADOW_CLONE') {
+                    // Custom AI: Mimic player movement somewhat?
+                    // For now, standard boss AI (chase) with teleports
+                    if (Math.random() < 0.02) {
+                        // Blink behind player
+                        const angle = Math.random() * Math.PI * 2;
+                        this.x = player.x + Math.cos(angle) * 150;
+                        this.y = player.y + Math.sin(angle) * 150;
+                        // Effect
+                        if (typeof createExplosion === 'function') createExplosion(this.x, this.y, "#000", 30);
+                    }
+                }
+
+                // Call original update
+                if (super.update) super.update(player);
+                // If the original class doesn't have update on prototype (defined in class body?)
+                // Since this extends OriginalBoss, we rely on its update unless we fully replaced it.
+                // Assuming standard ES6 class structure, super.update works.
+            }
+
+            draw(ctx) {
+                if (this.type === 'SHADOW_CLONE') {
+                    // Draw shadow aura
+                    ctx.save();
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = "#000";
+                    super.draw(ctx);
+                    ctx.restore();
+                } else {
+                    super.draw(ctx);
+                }
+            }
+        };
+
+        // Copy prototype methods just in case (if OriginalBoss used direct prototype assignment)
+        // Usually 'extends' handles this.
+        console.log("Symphony DLC: Boss Class Patched for Shadow Clone support.");
+    }
+})();
+
+// --- Story Injection ---
+(function () {
+    const storyCheck = setInterval(() => {
+        if (typeof window.STORY_EVENTS !== 'undefined' && window.SOUND_STORY_CHAPTERS && window.POISON_STORY_CHAPTERS) {
+            clearInterval(storyCheck);
+            injectStory();
+        }
+    }, 100);
+
+    function injectStory() {
+        // Prevent double injection
+        if (window.SYMPHONY_STORY_INJECTED) return;
+        window.SYMPHONY_STORY_INJECTED = true;
+
+        if (window.SOUND_STORY_CHAPTERS) {
+            window.STORY_EVENTS = window.STORY_EVENTS.concat(window.SOUND_STORY_CHAPTERS);
+        }
+        if (window.POISON_STORY_CHAPTERS) {
+            window.STORY_EVENTS = window.STORY_EVENTS.concat(window.POISON_STORY_CHAPTERS);
+        }
+
+        console.log("Symphony DLC: Full Story Events Injected.");
+    }
+})();
+

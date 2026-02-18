@@ -26,6 +26,11 @@ class DLCManager {
                 title: "Faith of Fortune",
                 desc: "Balance vs Chaos! Introduces 'Spirit' and 'Chance'. Temples, madness, and the search for the Mask.",
                 icon: "🎰"
+            },
+            'symphony_of_sickness': {
+                title: "Symphony of Sickness",
+                desc: "Rhythm vs Decay! Introduces 'Sound' and 'Poison' Heroes. Master the beat or spread the plague.",
+                icon: "🎵"
             }
         };
     }
@@ -50,7 +55,7 @@ class DLCManager {
         console.log("Initializing DLC Manager...");
 
         // Load enabled DLCs from storage (default to enabled for now)
-        let enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "waker_of_winds", "faith_of_fortune"]');
+        let enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "waker_of_winds", "faith_of_fortune", "symphony_of_sickness"]');
 
         // Migration check again to be safe
         if (enabledDLCs.includes('the_wind_waker')) {
