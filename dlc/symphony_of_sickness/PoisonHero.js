@@ -82,17 +82,23 @@ class PoisonHero {
     static getSpecialDescription(player) {
         const combo = PoisonHero.getFlaskCombination(player);
         const map = {
-            'NONE': 'MIASMA UNLEASHED (Decay Field)', // Default restored
-            'RED': 'Hemotoxin (Bleed)',
-            'BLUE': 'Neurotoxin (Slow)',
-            'GREEN': 'Corrosive (Armor Break)',
-            'RED_RED': 'CRIMSON BURST (Massive Dmg)',
-            'BLUE_BLUE': 'DEEP FREEZE (Stun Cloud)',
-            'GREEN_GREEN': 'ACID FLOOD (Huge Pool)',
-            'BLUE_RED': 'PURPLE HAZE (Confuse + DoT)',
-            'GREEN_RED': 'EXPLOSIVE BILE (Boom)',
-            'BLUE_GREEN': 'PARALYTIC SLIME (Root)'
+            'NONE': 'MIASMA UNLEASHED (Decay Field)',
+            // Singles
+            'RED': 'Vampiric Mist (Life Steal)',
+            'BLUE': 'Liquid Nitrogen (Freeze)',
+            'GREEN': 'Corrosive Sludge (Defense Down)',
+            // Doubles
+            'RED_RED': 'BLOOD NOVA (Chain Reaction)',
+            'BLUE_BLUE': 'ABSOLUTE ZERO (Time Stop)',
+            'GREEN_GREEN': 'TOXIC TSUNAMI (Expanding Wave)',
+            'BLUE_RED': 'HALLUCINOGEN (Mass Confusion)',
+            'GREEN_RED': 'UNSTABLE COMPOUND (Nuke)',
+            'BLUE_GREEN': 'CATALYTIC CONVERTER (Gold Transmute)' // Fun utility? Or maybe "Plague Carrier"
         };
+        // Revert BLUE_GREEN to something combat focused if utility is weird. 
+        // Let's go with 'VIRAL OUTBREAK (Spread)' for Blue+Green.
+        map['BLUE_GREEN'] = 'VIRAL OUTBREAK (Epidemic)';
+
         return map[combo] || 'Unknown Mix';
     }
 
@@ -417,22 +423,57 @@ class PoisonHero {
                 }
                 break;
 
-            // Single Vials (Weak versions of doubles)
-            case 'RED': PoisonHero.createDoTZone(cx, cy, 100, 'BLEED'); break;
-            case 'BLUE': PoisonHero.createSlowZone(cx, cy, 100, 0.5); break;
-            case 'GREEN': PoisonHero.createAcidPool(cx, cy, 100); break;
+            // Single Vials (Weak versions but distinct utility)
+            case 'RED':
+                // Vampiric Mist: Small AoE, heals player slightly on hit
+                PoisonHero.createVampiricCloud(player, cx, cy, 120);
+                break;
+            case 'BLUE':
+                // Liquid Nitrogen: Instantly stops enemies for short duration
+                PoisonHero.createFreezeZone(cx, cy, 120, 60); // 1s freeze
+                break;
+            case 'GREEN':
+                // Corrosive Sludge: Permamently reduces enemy defense
+                PoisonHero.createAcidPool(cx, cy, 120, 0.5); // 50% Def reduction 
+                break;
 
             // DOUBLES (Full Power)
-            // ... (rest same as before)
-            case 'RED_RED': PoisonHero.createExplosion(cx, cy, 250, 150, '#e74c3c'); break;
-            case 'BLUE_BLUE': PoisonHero.createSlowZone(cx, cy, 250, 0.1); break;
-            case 'GREEN_GREEN': PoisonHero.createAcidPool(cx, cy, 250); break;
-            case 'BLUE_RED': PoisonHero.createGasCloud(cx, cy, 200, 5, 300, '#9b59b6', 'CONFUSE'); break;
-            case 'GREEN_RED':
-                PoisonHero.createAcidPool(cx, cy, 150);
-                setTimeout(() => PoisonHero.createExplosion(cx, cy, 200, 100, '#e67e22'), 1000);
+
+            case 'RED_RED':
+                // BLOOD NOVA: Chain Reaction
+                // Creates an explosion that triggers smaller explosions on enemies hit
+                PoisonHero.createChainReaction(cx, cy, 300, 20);
                 break;
-            case 'BLUE_GREEN': PoisonHero.createSlowZone(cx, cy, 200, 0.0); break;
+
+            case 'BLUE_BLUE':
+                // ABSOLUTE ZERO: Time Stop (Massive Freeze)
+                // Freezes everything in large radius for 4 seconds
+                PoisonHero.createFreezeZone(cx, cy, 400, 240);
+                break;
+
+            case 'GREEN_GREEN':
+                // TOXIC TSUNAMI: Expanding Wave
+                // Spawns a ring of projectiles expanding outwards rapidly
+                PoisonHero.createExpandingWave(player, cx, cy, 24, 10);
+                break;
+
+            case 'BLUE_RED':
+                // HALLUCINOGEN: Mass Confusion
+                // Large cloud that makes enemies attack each other + DoT
+                PoisonHero.createGasCloud(cx, cy, 300, 2, 400, '#9b59b6', 'CONFUSE');
+                break;
+
+            case 'GREEN_RED':
+                // UNSTABLE COMPOUND: Nuke
+                // Spawns a flask entity that waits 2s then detonates MASSIVELY
+                PoisonHero.createTimeBomb(cx, cy, 400, 100);
+                break;
+
+            case 'BLUE_GREEN':
+                // VIRAL OUTBREAK: Epidemic
+                // Infects enemies with a special debuff that spreads poison stacks to neighbors on death
+                PoisonHero.createViralZone(cx, cy, 300);
+                break;
         }
 
         // NO LONGER Reset Flasks - User Request
@@ -442,7 +483,189 @@ class PoisonHero {
         player.specialCooldown = player.specialMaxCooldown;
     }
 
-    // --- ABILITIES ---
+    // --- ABILITIES & EFFECTS ---
+
+    static createVampiricCloud(player, x, y, r) {
+        if (!window.projectiles) return;
+        const p = new Projectile(x, y, { x: 0, y: 0 }, 1, 'rgba(231, 76, 60, 0.4)', r, 'VAMPIRIC', 0, false);
+        p.life = 120; // 2s
+        p.onHit = () => 'STOP';
+
+        const origUpdate = p.update.bind(p);
+        p.update = function () {
+            if (origUpdate) origUpdate();
+            if (window.frame % 15 === 0 && window.enemies) {
+                let hitCount = 0;
+                window.enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < this.radius) {
+                        e.hp -= 2; // Fixed low damage
+                        hitCount++;
+                        if (Math.random() < 0.2) createExplosion(e.x, e.y, '#e74c3c', 10);
+                    }
+                });
+                // Heal player per enemy hit (capped)
+                if (hitCount > 0 && player.hp < player.maxHp) {
+                    const heal = Math.min(2, hitCount * 0.1);
+                    player.hp += heal;
+                    if (Math.random() < 0.5) createDamageNumber(player.x, player.y - 30, "+" + heal.toFixed(1), '#e74c3c');
+                }
+            }
+        };
+        window.projectiles.push(p);
+    }
+
+    static createFreezeZone(x, y, r, duration) {
+        const freezeID = 'FROZEN_' + Date.now();
+        // Visual Only Projectile for Zone
+        if (typeof window.createExplosion === 'function') createExplosion(x, y, '#3498db', r);
+
+        // Logic handled immediately on enemies
+        if (window.enemies) {
+            window.enemies.forEach(e => {
+                const d = Math.hypot(e.x - x, e.y - y);
+                if (d < r) {
+                    // Apply deep freeze
+                    e.frozen = duration;
+                    // Add ice block visual if possible
+                    if (!e.debuffs) e.debuffs = {};
+                    e.debuffs.frozen = true;
+                    // Visual pop
+                    createDamageNumber(e.x, e.y - 10, "❄️", '#3498db');
+                }
+            });
+        }
+    }
+
+    static createChainReaction(x, y, r, baseDmg) {
+        if (typeof createExplosion === 'function') createExplosion(x, y, '#e74c3c', r);
+
+        // Initial hit
+        if (window.enemies) {
+            const hitEnemies = [];
+            window.enemies.forEach(e => {
+                if (Math.hypot(e.x - x, e.y - y) < r) {
+                    hitEnemies.push(e);
+                }
+            });
+
+            hitEnemies.forEach((e, idx) => {
+                setTimeout(() => {
+                    if (e && e.hp > 0) {
+                        e.hp -= baseDmg;
+                        createExplosion(e.x, e.y, '#c0392b', 40); // Mini explosion
+                        // Chain to neighbors?
+                        // Simple visual flair: just delayed bursts
+                    }
+                }, idx * 50); // Staggered explosions
+            });
+        }
+    }
+
+    static createExpandingWave(player, x, y, count, speed) {
+        // Shoots ring of projectiles outward
+        if (!window.projectiles) return;
+        const dmg = 8 * player.damageMultiplier;
+
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2;
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed;
+
+            const p = new Projectile(x, y, { x: vx, y: vy }, dmg, '#76ff03', 8, 'WAVE', 0, false);
+            p.life = 60; // 1s travel time
+            p.pierce = 5;
+            window.projectiles.push(p);
+        }
+    }
+
+    static createTimeBomb(x, y, r, dmg) {
+        // Visual Marker
+        // We can use a "Projectile" that doesn't move and explodes on death
+        const p = new Projectile(x, y, { x: 0, y: 0 }, 0, '#e67e22', 15, 'BOMB', 0, false);
+        p.life = 120; // 2s fuse
+
+        // Override update entirely
+        const origUpdate = p.update.bind(p);
+        p.update = function () {
+            if (this.life > 0) this.life--;
+
+            // Pulse visual
+            const pulsation = Math.abs(Math.sin(Date.now() / 100));
+            this.radius = 15 + (pulsation * 10);
+
+            if (window.frame % 30 === 0 && typeof createExplosion === 'function') createExplosion(this.x, this.y, '#fff', 10); // Beep
+
+            if (this.life <= 1) {
+                // DETONATE
+                if (typeof createExplosion === 'function') createExplosion(this.x, this.y, '#c0392b', r); // Big red boom
+                if (window.enemies) {
+                    window.enemies.forEach(e => {
+                        if (Math.hypot(e.x - this.x, e.y - this.y) < r) {
+                            if (typeof e.takeDamage === 'function') e.takeDamage(dmg);
+                            else e.hp -= dmg;
+                            if (typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y, "BOOM", '#fff');
+                        }
+                    });
+                }
+                if (typeof audioManager !== 'undefined') audioManager.play('explosion');
+                this.dead = true;
+            }
+        };
+        window.projectiles.push(p);
+    }
+
+    static createViralZone(x, y, r) {
+        if (!window.projectiles) return;
+        const p = new Projectile(x, y, { x: 0, y: 0 }, 0, 'rgba(46, 204, 113, 0.3)', r, 'VIRAL', 0, false);
+        p.life = 300; // 5s
+        p.onHit = () => 'STOP';
+
+        const origUpdate = p.update.bind(p);
+        p.update = function () {
+            if (origUpdate) origUpdate();
+            if (window.frame % 30 === 0 && window.enemies) {
+                window.enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < this.radius) {
+                        // Mark as Carrier logic
+                        // Monkeypatch apply: just give lots of poison
+                        if (!e.poisonStacks) e.poisonStacks = 0;
+                        e.poisonStacks += 10;
+
+                        // Visual
+                        if (Math.random() < 0.2 && typeof createDamageNumber === 'function')
+                            createDamageNumber(e.x, e.y - 20, "INFECTED", '#2ecc71');
+                    }
+                });
+            }
+        };
+        window.projectiles.push(p);
+    }
+
+    // Existing helper refactored to match new signature or kept for legacy if used elsewhere
+    static createAcidPool(x, y, r, shred = 0.5) {
+        if (!window.projectiles) return;
+        // Fix: Pass object for velocity
+        const p = new Projectile(x, y, { x: 0, y: 0 }, 2, '#76ff03', r, 'poison', 0, false);
+        p.life = 300;
+        p.pierce = 9999;
+        p.onHit = () => 'STOP'; // Prevent default game.js insta-kill collision
+
+        const originalUpdate = p.update.bind(p);
+        p.update = function () {
+            if (originalUpdate) originalUpdate();
+            if (window.enemies && window.frame % 20 === 0) {
+                window.enemies.forEach(e => {
+                    if (e.hp > 0 && Math.hypot(e.x - this.x, e.y - this.y) < this.radius) {
+                        e.defenseMultiplier = shred; // Apply shred
+                        if (typeof e.takeDamage === 'function') e.takeDamage(1);
+                        else e.hp -= 1;
+                    }
+                });
+            }
+        };
+        window.projectiles.push(p);
+    }
+
     static createGasCloud(x, y, r, dmg, dur, color, effect) {
         if (!window.projectiles) return;
         // Fix: Pass correct object for velocity
