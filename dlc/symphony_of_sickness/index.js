@@ -106,6 +106,12 @@ const SymphonyDLC = {
 
             // Force Biome Swap
             window.currentBiome = type;
+            // Also update global currentBiomeType used by game.js spawning logic
+            if (typeof currentBiomeType !== 'undefined') {
+                currentBiomeType = type;
+            } else {
+                window.currentBiomeType = type;
+            }
 
             // Visual Flair
             if (type === 'sound') {
@@ -157,6 +163,52 @@ const SymphonyDLC = {
 // Register in DLC Manager (if present) or Global Registry
 if (!window.DLC_REGISTRY) window.DLC_REGISTRY = {};
 window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
+
+// --- Enemy Type Injection for Biome Transformation ---
+(function () {
+    const waitForGame = setInterval(() => {
+        if (typeof window.Enemy !== 'undefined') {
+            clearInterval(waitForGame);
+            injectEnemyLogic();
+        }
+    }, 100);
+
+    function injectEnemyLogic() {
+        if (typeof window.getBiomeEnemyType === 'undefined') {
+            // Define base function if missing
+            window.getBiomeEnemyType = function (wave, enemy) { return null; };
+        }
+
+        const originalGetBiomeEnemyType = window.getBiomeEnemyType;
+        window.getBiomeEnemyType = function (wave, enemyInstance) {
+            // Check Current Biome
+            let current = null;
+            if (typeof currentBiomeType !== 'undefined') current = currentBiomeType;
+            if (window.currentBiome) current = window.currentBiome;
+
+            if (current) {
+                const c = current.toLowerCase();
+                if (c.includes('poison') || c === 'sickness') {
+                    // Poison Biome Spawns
+                    // Return types defined in PoisonEnemies (or assume standard if not loaded 3rd party classes)
+                    // Currently using standard types but modified by Biome? 
+                    // Let's use standard 'TOXIC' + chance for 'SLIME'
+                    if (Math.random() < 0.3) return 'TOXIC';
+                    return null; // Fallback to standard rng
+                }
+                if (c.includes('sound') || c === 'rhythm') {
+                    // Sound Biome Spawns
+                    if (Math.random() < 0.3) return 'SPEEDSTER'; // Fast tempo
+                    return null;
+                }
+            }
+
+            // Call original chain
+            return originalGetBiomeEnemyType(wave, enemyInstance);
+        };
+        console.log("Symphony DLC: Biome Spawn Logic Injected.");
+    }
+})();
 
 // --- Shadow Boss Implementation (Injected) ---
 // Since we can't easily modify game.js spawning logic, we monkey-patch the Boss class

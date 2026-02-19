@@ -13,7 +13,7 @@ class PoisonBiome {
         // Only spawn if player is Poison Hero (mechanic requirement) or if we want anyone to see them (flavor)
         // Prompt says "in his biome there should be ... poison flasks"
         // Let's spawn them globally in this biome, but only he can pick them up or they do nothing for others.
-        
+
         if (Math.random() < 0.005) { // 0.5% chance per frame (~1 every 3s)
             // Cap max flasks on ground
             const count = arena.obstacles.filter(o => o instanceof PoisonFlask).length;
@@ -106,11 +106,11 @@ class PoisonBiome {
             // Cap flasks
             const flasks = arena.obstacles.filter(o => o instanceof PoisonFlask);
             if (flasks.length < 3) { // Max 3 on map
-               const x = Math.random() * (arena.width - 100) + 50;
-               const y = Math.random() * (arena.height - 100) + 50;
-               if(!arena.checkCollision(x, y, 30)) {
-                   arena.obstacles.push(new PoisonFlask(x, y));
-               }
+                const x = Math.random() * (arena.width - 100) + 50;
+                const y = Math.random() * (arena.height - 100) + 50;
+                if (!arena.checkCollision(x, y, 30)) {
+                    arena.obstacles.push(new PoisonFlask(x, y));
+                }
             }
         }
 
@@ -118,7 +118,7 @@ class PoisonBiome {
         // Wait, Arena obstacles are usually static blocks. If we add dynamic entities there, we need to ensure they are updated.
         // Arena.update calls objects if they have update? No, usually not.
         // Let's manually manage them here to be safe.
-        
+
         for (let i = arena.obstacles.length - 1; i >= 0; i--) {
             const obs = arena.obstacles[i];
             if (obs instanceof PoisonFlask) {
@@ -169,15 +169,15 @@ window.BIOME_LOGIC['POISON_SWAMP'] = window.BIOME_LOGIC['poison'];
 // --- ENTITIES ---
 class PoisonFlask {
     constructor(x, y) {
-        this.x = x; 
+        this.x = x;
         this.y = y;
         this.w = 30; // Hitbox width
         this.h = 30;
         this.radius = 15;
-        
+
         const types = ['RED', 'BLUE', 'GREEN'];
         this.type = types[Math.floor(Math.random() * types.length)];
-        
+
         this.life = 1200; // Disappear after 20s if not picked up
         this.bobOffset = Math.random() * Math.PI;
     }
@@ -192,7 +192,7 @@ class PoisonFlask {
         const drawY = this.y + bob;
 
         ctx.save();
-        
+
         // Flask Shape
         let color = '#fff';
         if (this.type === 'RED') color = '#e74c3c';
@@ -218,7 +218,7 @@ class PoisonFlask {
         ctx.shadowColor = color;
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
         ctx.beginPath();
-        ctx.arc(this.x - 3, drawY - 3, 3, 0, Math.PI*2);
+        ctx.arc(this.x - 3, drawY - 3, 3, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.restore();
@@ -226,22 +226,45 @@ class PoisonFlask {
 
     // Called by Arena collision loop if implemented, otherwise we check in update loop
     checkCollision(player) {
-         if (player.type !== 'poison') return false; // Only Poison Hero can use them
-         
-         const dist = Math.hypot(player.x - this.x, player.y - this.y);
-         if (dist < player.radius + this.radius) {
-             // Pick up
-             if (player.poisonFlasks) {
-                 player.poisonFlasks.push(this.type);
-                 if (player.poisonFlasks.length > 2) {
-                     player.poisonFlasks.shift(); // Remove oldest (FIFO)
-                 }
-                 if (typeof playSound === 'function') playSound('potion_pickup');
-                 if (typeof showNotification === 'function') showNotification(`Got ${this.type} Flask!`, '#fff');
-             }
-             return true; // Destroy me
-         }
-         return false;
+        if (player.type !== 'poison') return false; // Only Poison Hero can use them
+
+        // Fix: Handle players without radius (Box collision fallback)
+        let hit = false;
+        if (typeof player.radius === 'number') {
+            const dist = Math.hypot(player.x - this.x, player.y - this.y);
+            if (dist < player.radius + this.radius) hit = true;
+        } else {
+            // Box collision (using width/height)
+            // Approx center-to-center or simple box
+            const px = player.x - (player.width || 30) / 2;
+            const py = player.y - (player.height || 30) / 2;
+            const pw = player.width || 30;
+            const ph = player.height || 30;
+
+            // Simple circle-rect collision or just box-box for ease
+            // Doing box-box against Flask radius (treated as box)
+            const fx = this.x - this.radius;
+            const fy = this.y - this.radius;
+            const fs = this.radius * 2;
+
+            if (px < fx + fs && px + pw > fx && py < fy + fs && py + ph > fy) {
+                hit = true;
+            }
+        }
+
+        if (hit) {
+            // Pick up
+            if (player.poisonFlasks) {
+                player.poisonFlasks.push(this.type);
+                if (player.poisonFlasks.length > 2) {
+                    player.poisonFlasks.shift(); // Remove oldest (FIFO)
+                }
+                if (typeof playSound === 'function') playSound('potion_pickup');
+                if (typeof showNotification === 'function') showNotification(`Got ${this.type} Flask!`, '#fff');
+            }
+            return true; // Destroy me
+        }
+        return false;
     }
 }
 
