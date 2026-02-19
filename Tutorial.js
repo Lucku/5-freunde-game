@@ -144,26 +144,8 @@ const Tutorial = {
                     <li><b>Ultimate:</b> Tectonic Shift - Reshapes the battlefield to block enemy paths.</li>
                 </ul>
 
-                <h3>New Biome: The Canyons</h3>
+                <h3>New Biome: The Cave</h3>
                 <p>A rugged landscape filled with golems and falling rocks. Watch your step!</p>
-            `
-        },
-        wind: {
-            title: "The Wind Waker",
-            html: `
-                <h2>DLC: The Wind Waker</h2>
-                <p>Master the skies and flow like the breeze.</p>
-                
-                <h3>New Hero: Air (Turquoise)</h3>
-                <p>Agile and evasive, the Air Hero controls the battlefield from a distance.</p>
-                <ul>
-                    <li><b>Passive:</b> Tailwind - Movement speed increases over time.</li>
-                    <li><b>Ability:</b> Zephyr Form - Transform into pure energy, changing your attacks.</li>
-                    <li><b>Ultimate:</b> Hurricane - Summon a massive storm that pushes enemies away.</li>
-                </ul>
-
-                <h3>New Mechanics</h3>
-                <p><b>Pushback:</b> Use your wind attacks to keep enemies at bay rather than faceting them directly.</p>
             `
         },
         thunder: {
@@ -184,7 +166,7 @@ const Tutorial = {
                 <p>A special wave-based mode where you face champions instead of mindless hordes.</p>
             `
         },
-        chaos_dlc: {
+        chaos: {
             title: "Champions of Chaos",
             html: `
                 <h2>DLC: Champions of Chaos</h2>
@@ -209,6 +191,59 @@ const Tutorial = {
                 <h3>Distorted Dimension</h3>
                 <p>A realm where physics are mere suggestions. Prepare for inverted controls and time dilation.</p>
             `
+        },
+        wind: {
+            title: "Waker of Winds",
+            html: `
+                <h2>DLC: Waker of Winds</h2>
+                <p>Master the skies and flow like the breeze.</p>
+                
+                <h3>New Hero: Air (Turquoise)</h3>
+                <p>Agile and evasive, the Air Hero controls the battlefield using the winds.</p>
+                <ul>
+                    <li><b>Passive:</b> Flow - Movement builds up a resource that increases speed and damage.</li>
+                    <li><b>Unique Mechanic:</b> The Compass - Your attack and special ability change based on the current Wind Direction.</li>
+                </ul>
+
+                <h3>The Four Winds</h3>
+                <ul>
+                    <li><b>North (Healing):</b> Fires a spread shot. Special: Soothing Breeze (Heals HP).</li>
+                    <li><b>South (Power):</b> Fires a high-damage sniper shot. Special: Tornado.</li>
+                    <li><b>East (Speed):</b> Rapid-fire attacks. Special: Zephyr Dash.</li>
+                    <li><b>West (Control):</b> Fires a slow, piercing orb. Special: Vortex.</li>
+                </ul>
+                <p><i>Tip: Look for "Shift Winds" upgrades to change your compass direction!</i></p>
+
+                <h3>New Mechanics</h3>
+                <p><b>Pushback:</b> Use your wind attacks to keep enemies at bay rather than facing them directly.</p>
+            `
+        },
+        faith: {
+            title: "Faith of Fortune",
+            html: `
+                <h2>DLC: Faith of Fortune</h2>
+                <p>A battle between divine order and chaotic luck.</p>
+                
+                <h3>New Hero: Spirit (Gold)</h3>
+                <p>A monk who balances combat with meditation.</p>
+                <ul>
+                    <li><b>Passive:</b> Inner Peace - Regenerate health while standing still.</li>
+                    <li><b>Ability:</b> Mantra - Fires piercing projectiles that recharge Peace.</li>
+                    <li><b>Ultimate:</b> Transcendence - Enter an enlightened state of invincibility and area damage.</li>
+                </ul>
+
+                <h3>New Hero: Chance (Magenta)</h3>
+                <p>A gambler who relies on luck to survive.</p>
+                <ul>
+                    <li><b>Passive:</b> Luck - Increases critical hits, item drops, and skill effectiveness.</li>
+                    <li><b>Ability:</b> Dice Toss - Throws dice with random damage values. Pairs and triples deal bonus damage.</li>
+                    <li><b>Ultimate:</b> The Big Gamble - Spin the slot machine for massive rewards... or devastating punishment.</li>
+                </ul>
+
+                <h3>New Biomes</h3>
+                <p><b>The Temple:</b> A serene sanctuary guarded by spirits.</p>
+                <p><b>The Casino:</b> A neon-lit madness where greed is deadly.</p>
+            `
         }
     },
 
@@ -223,14 +258,17 @@ const Tutorial = {
             const rock = list.find(d => d.id === 'rise_of_the_rock');
             if (rock && rock.active) document.getElementById('btn-tutorial-rock').style.display = 'block';
 
-            const wind = list.find(d => d.id === 'the_wind_waker');
+            const wind = list.find(d => d.id === 'waker_of_winds');
             if (wind && wind.active) document.getElementById('btn-tutorial-wind').style.display = 'block';
 
             const thunder = list.find(d => d.id === 'tournament_of_thunder');
             if (thunder && thunder.active) document.getElementById('btn-tutorial-thunder').style.display = 'block';
 
             const chaos = list.find(d => d.id === 'champions_of_chaos');
-            if (chaos && chaos.active) document.getElementById('btn-tutorial-chaos-dlc').style.display = 'block';
+            if (chaos && chaos.active) document.getElementById('btn-tutorial-chaos').style.display = 'block';
+
+            const faith = list.find(d => d.id === 'faith_of_fortune');
+            if (faith && faith.active) document.getElementById('btn-tutorial-faith').style.display = 'block';
         }
 
         this.showTab('basics');
