@@ -121,13 +121,41 @@ const SymphonyDLC = {
                     if (dist < 800) e.pushbackX = (e.x - window.player.x) * 0.1;
                 });
             } else if (type === 'poison') {
-                // Kill all currently infected enemies
-                window.enemies.forEach(e => {
-                    if (e.debuffs && e.debuffs.poison > 0) {
-                        e.hp = 0; // Instant death
-                        // Spawn a visual cloud?
+                // SCREEN CLEAR / MASS POISON
+                if (window.enemies) {
+                    window.enemies.forEach(e => {
+                        // Apply Heavy Poison to ALL enemies
+                        if (!e.poisonStacks) e.poisonStacks = 0;
+                        e.poisonStacks += 50; // Massive dose
+
+                        // Visual Float
+                        if (typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y - 30, "TOXIC SURGE!", '#76ff03');
+                    });
+                }
+
+                // COOL ANIMATION: Expanding Poison Wave
+                const player = window.player;
+                if (player && typeof Projectile !== 'undefined') {
+                    // Create a purely visual expanding ring
+                    // modifying Projectile to handle 'VISUAL_RING' if needed, or just standard
+                    // Actually, let's just spawn a bunch of visual particles or a custom "Wave" object if engine supports it.
+                    // Fallback to standard explosion if no custom shader.
+                    if (typeof createExplosion !== 'undefined') {
+                        // Center burst
+                        createExplosion(player.x, player.y, '#76ff03', 100);
+
+                        // Ring effect (delayed explosions)
+                        for (let r = 100; r <= 800; r += 100) {
+                            setTimeout(() => {
+                                const count = 8 + (r / 50);
+                                for (let i = 0; i < count; i++) {
+                                    const ang = (i / count) * Math.PI * 2;
+                                    createExplosion(player.x + Math.cos(ang) * r, player.y + Math.sin(ang) * r, '#76ff03', 30);
+                                }
+                            }, r / 2); // Speed of wave
+                        }
                     }
-                });
+                }
             }
         };
 
