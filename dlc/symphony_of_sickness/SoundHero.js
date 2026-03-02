@@ -35,6 +35,11 @@ class SoundHero {
         player.customSpecial = () => SoundHero.useSpecial(player);
         player.shoot = (dx, dy) => SoundHero.shootNote(player, dx, dy);
 
+        // Altar: cooldown reduction (so1)
+        const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const has = (id) => active.includes(id);
+        if (has('so1')) player.specialMaxCooldown = Math.floor(player.specialMaxCooldown * 0.9);
+
         player.getFormName = function () { return 'PERFORMER'; };
         player.visualPulse = 0;
 
@@ -121,6 +126,12 @@ class SoundHero {
                     player.syncStateActive = false;
                     player.syncMeter = 0;
                     if (typeof showNotification === 'function') showNotification("SYNC FADED", "#90caf9");
+
+                    // cv_so_m: Steel Tempo — remove damage reduction bonus on exit
+                    if (player.steelTempoApplied) {
+                        player.steelTempoApplied = false;
+                        player.damageReduction = Math.max(0, (player.damageReduction || 0) - 0.3);
+                    }
                 }
             }
 
@@ -129,6 +140,13 @@ class SoundHero {
                 player.syncStateActive = true;
                 player.syncStateDuration = 600; // 10 seconds at 60fps
                 if (typeof showNotification === 'function') showNotification("IN SYNC!", "#00e5ff");
+
+                // cv_so_m: Steel Tempo — gain 30% damage reduction on Sync State entry
+                const altActive = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+                if (altActive.includes('cv_so_m') && !player.steelTempoApplied) {
+                    player.steelTempoApplied = true;
+                    player.damageReduction = (player.damageReduction || 0) + 0.3;
+                }
             }
         } else {
             // Outside Sound biome: sync state cannot exist
@@ -475,12 +493,18 @@ class SoundHero {
         let scale = 1.0;
 
         if (isOnBeat) {
-            dmg *= 2.0;
+            // Altar so2: On-Beat Bonus +25%
+            const altarActive = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+            const has = (id) => altarActive.includes(id);
+            const beatMult = has('so2') ? 2.25 : 2.0;
+            dmg *= beatMult;
             color = '#00bcd4';
             scale = 1.5;
             // Sync meter only fills in Sound biome
             if (inSoundBiome) {
-                player.syncMeter = Math.min(player.maxSyncMeter, player.syncMeter + 5);
+                // Altar cv_so_w: Sonar Current — fill Sync Meter 50% faster on beat
+                const syncGain = has('cv_so_w') ? 7.5 : 5;
+                player.syncMeter = Math.min(player.maxSyncMeter, player.syncMeter + syncGain);
                 player.beatStreak++;
             }
             if (typeof showNotification === 'function' && Math.random() < 0.2) showNotification("PERFECT!", color);
@@ -603,6 +627,17 @@ class SoundHero {
     static spawnResonanceRing(player) {
         if (typeof projectiles === 'undefined') return;
         const dmg = 45 * player.damageMultiplier;
+
+        // Altar checks (read once for the ring's lifetime via closure)
+        const altarActive = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const ringHas = (id) => altarActive.includes(id);
+        const hasSurge   = ringHas('so3');
+        const hasFlame   = ringHas('cv_so_f');
+        const hasCryo    = ringHas('cv_so_i');
+        const hasRoots   = ringHas('cv_so_p');
+        const hasToxFreq = ringHas('cv_so_po');
+        let ringHealCount = 0;
+
         projectiles.push({
             x: player.x, y: player.y,
             radius: 30,
@@ -622,17 +657,42 @@ class SoundHero {
                     const dist = Math.hypot(e.x - this.x, e.y - this.y);
                     if (Math.abs(dist - this.radius) < 28) {
                         this.hitEnemies.push(e);
-                        if (typeof e.takeDamage === 'function') e.takeDamage(this.damage);
-                        else e.hp -= this.damage;
+
+                        // so3: Resonance Surge — double damage to already-resonating enemies
+                        let hitDmg = this.damage;
+                        if (hasSurge && e.resonating > 0) hitDmg *= 2;
+
+                        if (typeof e.takeDamage === 'function') e.takeDamage(hitDmg);
+                        else e.hp -= hitDmg;
                         e.resonating = 180; // 3 seconds resonating
                         // Knockback away from epicenter
                         const a = Math.atan2(e.y - this.y, e.x - this.x);
                         e.x += Math.cos(a) * 80;
                         e.y += Math.sin(a) * 80;
-                        if (typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y, Math.floor(this.damage), '#00e5ff');
+                        if (typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y, Math.floor(hitDmg), '#00e5ff');
                         if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, '#4fc3f7', 20);
+
+                        // cv_so_f: Resonant Flame — ignite hit enemies
+                        if (hasFlame) e.burnTimer = Math.max(e.burnTimer || 0, 120);
+
+                        // cv_so_i: Cryosonic — freeze hit enemies for 1.5s
+                        if (hasCryo) e.frozen = Math.max(e.frozen || 0, 90);
+
+                        // cv_so_po: Toxic Frequency — apply 30 poison stacks
+                        if (hasToxFreq) e.poisonStacks = Math.min((e.poisonStacks || 0) + 30, 100);
+
+                        // cv_so_p: Resonant Roots — track hits to heal after
+                        if (hasRoots) ringHealCount++;
                     }
                 });
+
+                // cv_so_p: Resonant Roots — heal player 1 HP per enemy hit this frame
+                if (hasRoots && ringHealCount > 0 && player && player.hp < player.maxHp) {
+                    if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
+                        player.hp = Math.min(player.maxHp, player.hp + ringHealCount);
+                    }
+                    ringHealCount = 0;
+                }
             },
             draw() {
                 const ctx = window.ctx; if (!ctx) return;

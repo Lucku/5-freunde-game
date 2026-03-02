@@ -24,6 +24,18 @@ class PoisonHero {
         player.customSpecial = () => PoisonHero.useSpecial(player);
         player.shoot = (dx, dy) => PoisonHero.shootGas(player, dx, dy);
 
+        // Altar checks
+        const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const has = (id) => active.includes(id);
+
+        // po1: Alchemical Mix Cooldown -10%
+        if (has('po1')) player.specialMaxCooldown = Math.floor(player.specialMaxCooldown * 0.9);
+
+        // po2: Virulence +20% — boost dotMultiplier at init
+        if (has('po2')) {
+            player.stats.dotMultiplier = (player.stats.dotMultiplier || 1) * 1.2;
+        }
+
         // Form Name
         player.getFormName = function () { return 'PLAGUEBRINGER'; };
 
@@ -158,16 +170,22 @@ class PoisonHero {
         // --- GLOBAL POISON DOT LOGIC (INJECTED) ---
         // Since core game loop doesn't handle poisonStacks, we do it here.
         if (window.enemies && window.frame % 30 === 0) { // Tick every 0.5s
+            // Altar checks (read once per tick for performance)
+            const dotActive = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+            const dotHas = (id) => dotActive.includes(id);
+            const hasFrozenPlague  = dotHas('cv_po_i');
+            const hasBurningToxin  = dotHas('cv_po_f');
+            const hasPlagueBoom    = dotHas('cv_po_p');
+            const hasCorrosive     = dotHas('cv_po_m');
+            const hasVirulent      = dotHas('po3');
+
             let activePoisonTicks = 0;
             window.enemies.forEach(e => {
                 if (e.poisonStacks > 0 && e.hp > 0) {
                     activePoisonTicks++;
-                    // Calculate DoT Damage
-                    // User Request: "percentual per enemy" to avoid instant kill but ensure impact
-                    // Logic: 1 stack = 0.1% Max HP damage? 100 stacks = 10%
 
                     const percentDmg = (e.maxHp * 0.001) * e.poisonStacks;
-                    const flatDmg = e.poisonStacks * 0.1; // Small Flat component
+                    const flatDmg = e.poisonStacks * 0.1;
 
                     let totalDmg = Math.max(1, percentDmg + flatDmg);
 
@@ -175,17 +193,52 @@ class PoisonHero {
                     const potency = (player.stats.dotMultiplier || 1);
                     totalDmg = totalDmg * player.damageMultiplier * potency;
 
-                    // Cap damage to prevent one-shots on bosses from crazy stacks (max 5% current HP per tick)
+                    // cv_po_i: Frozen Plague — double DoT on frozen enemies
+                    if (hasFrozenPlague && (e.frozen > 0 || e.frozenTimer > 0)) totalDmg *= 2;
+
+                    // cv_po_m: Corrosive Alloy — reduce defense while poisoned
+                    if (hasCorrosive) e.defenseMultiplier = Math.min(e.defenseMultiplier || 1, 0.75);
+
+                    // cv_po_f: Burning Toxin — ignite enemies with heavy poison
+                    if (hasBurningToxin && e.poisonStacks >= 80) {
+                        e.burnTimer = Math.max(e.burnTimer || 0, 120);
+                    }
+
+                    // Cap damage (max 5% current HP per tick)
                     totalDmg = Math.min(totalDmg, e.hp * 0.05 + 10);
+
+                    const hpBefore = e.hp;
 
                     // Apply Damage
                     if (typeof e.takeDamage === 'function') e.takeDamage(totalDmg);
                     else e.hp -= totalDmg;
 
-                    // Visuals (Always show distinct effect while poisoned)
+                    // cv_po_p: Plague Bloom — heal player on poison kill
+                    if (hasPlagueBoom && hpBefore > 0 && e.hp <= 0) {
+                        const heal = player.maxHp * 0.005;
+                        if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
+                            player.hp = Math.min(player.maxHp, player.hp + heal);
+                        }
+                        if (typeof createDamageNumber === 'function') createDamageNumber(player.x, player.y - 30, '+' + heal.toFixed(1), '#76ff03');
+                    }
+
+                    // po3: Virulent Strain — spread stacks on poison kill
+                    if (hasVirulent && hpBefore > 0 && e.hp <= 0 && !e.pandemicSpread) {
+                        e.pandemicSpread = true;
+                        const spreadStacks = Math.floor(e.poisonStacks * 0.5);
+                        if (spreadStacks > 0 && window.enemies) {
+                            window.enemies.forEach(other => {
+                                if (other !== e && other.hp > 0 && Math.hypot(other.x - e.x, other.y - e.y) < 150) {
+                                    other.poisonStacks = Math.min((other.poisonStacks || 0) + spreadStacks, 100);
+                                    if (typeof createExplosion !== 'undefined') createExplosion(other.x, other.y, '#76ff03', 15);
+                                }
+                            });
+                        }
+                        if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, '#76ff03', 30);
+                    }
+
+                    // Visuals
                     if (typeof createExplosion !== 'undefined') {
-                        // Small green puff on every tick to indicate active poison
-                        // Use a smaller radius (10) to not look like a huge explosion
                         createExplosion(e.x, e.y, '#76ff03', 10);
                     }
 
@@ -194,14 +247,7 @@ class PoisonHero {
                     }
                     if (e.isPoisonedVisual > 0) e.isPoisonedVisual--;
 
-                    // Decay Stacks slowly 
-                    // Adjusted by Skill Tree (DOT_DURATION) - reduces decay chance
-                    // Default duration: 300 ticks (stats.dotDuration) / 60 = 5s? 
-                    // No, wait, decay is per TICK (every 30 frames = 0.5s).
-                    // If Duration is high, decay chance is low.
-                    // Let's say baseline dotDuration is 300. 
-                    // If we have +60 (360), decay should be less frequent.
-
+                    // Decay Stacks
                     const decayChance = 300 / (player.stats.dotDuration || 300);
                     if (Math.random() < decayChance) {
                         e.poisonStacks = Math.max(0, e.poisonStacks - 1);

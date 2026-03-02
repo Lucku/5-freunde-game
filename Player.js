@@ -434,6 +434,8 @@ class Player {
 
             // Convergence: Storm Surge (c19)
             const isStormSurge = has('c19');
+            // Convergence: Acid Rain (cv_po_w) — Tidal Wave applies poison stacks
+            const isAcidRain = has('cv_po_w');
 
             enemies.forEach(e => {
                 const angle = Math.atan2(e.y - this.y, e.x - this.x);
@@ -460,6 +462,10 @@ class Player {
                 if (isMuddy) {
                     e.speedMult = (e.speedMult || 1) * 0.5;
                     floatingTexts.push(new FloatingText(e.x, e.y - 60, "SLOW", "#8d6e63", 16));
+                }
+                if (isAcidRain) {
+                    e.poisonStacks = Math.min((e.poisonStacks || 0) + 30, 100);
+                    floatingTexts.push(new FloatingText(e.x, e.y - 80, "TOXIC", "#76ff03", 16));
                 }
             });
         } else if (this.type === 'ice') {

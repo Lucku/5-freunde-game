@@ -43,6 +43,12 @@ const SymphonyDLC = {
     init: function () {
         console.log("Initializing Symphony of Sickness DLC Logic...");
 
+        // 0. Ensure saveData entries exist for DLC heroes (lazy-init, matching other DLC pattern)
+        if (typeof saveData !== 'undefined') {
+            if (!saveData['sound']) saveData['sound'] = { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 };
+            if (!saveData['poison']) saveData['poison'] = { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 };
+        }
+
         // 1. Inject Heroes into BASE_HERO_STATS for Main Menu
         if (typeof BASE_HERO_STATS !== 'undefined') {
             BASE_HERO_STATS['sound'] = {
@@ -162,7 +168,73 @@ const SymphonyDLC = {
         // Start Beat Loop
         setInterval(() => this.updateBeat(), 16);
 
+        // 3. Inject Altar of Mastery skills
+        this.injectAltar();
+
         console.log("Symphony of Sickness DLC Initialized");
+    },
+
+    injectAltar: function () {
+        if (typeof ALTAR_TREE === 'undefined') return;
+
+        // ── SOUND HERO ──
+        ALTAR_TREE['sound'] = [
+            { id: 'so1', req: 1, type: 'stat', stat: 'cooldown', val: 0.9,
+              desc: 'Crescendo Cooldown -10%' },
+            { id: 'so2', req: 3, type: 'stat', stat: 'beatBonus', val: 0.25,
+              desc: 'On-Beat Bonus +25%: Perfect-beat attacks deal even more damage' },
+            { id: 'so3', req: 5, type: 'unique',
+              desc: 'Resonance Surge: CRESCENDO ring deals double damage to already-resonating enemies' }
+        ];
+
+        // ── POISON HERO ──
+        ALTAR_TREE['poison'] = [
+            { id: 'po1', req: 1, type: 'stat', stat: 'cooldown', val: 0.9,
+              desc: 'Alchemical Mix Cooldown -10%' },
+            { id: 'po2', req: 3, type: 'stat', stat: 'dotDamage', val: 1.2,
+              desc: 'Virulence +20%: Poison DoT damage increased by 20%' },
+            { id: 'po3', req: 5, type: 'unique',
+              desc: 'Virulent Strain: Enemies killed by poison spread 50% of their stacks to all enemies within 150px' }
+        ];
+
+        // ── CONVERGENCES ──
+        const symphonyConvergences = [
+            // Sound ×5 base heroes
+            { id: 'cv_so_f',  req: { sound: 5, fire: 5 },   type: 'mutation',
+              desc: 'Resonant Flame: CRESCENDO ring ignites all enemies hit' },
+            { id: 'cv_so_w',  req: { sound: 5, water: 5 },  type: 'mutation',
+              desc: 'Sonar Current: On-beat attacks fill the Sync Meter 50% faster' },
+            { id: 'cv_so_i',  req: { sound: 5, ice: 5 },    type: 'mutation',
+              desc: 'Cryosonic: CRESCENDO ring freezes all enemies hit for 1.5s' },
+            { id: 'cv_so_p',  req: { sound: 5, plant: 5 },  type: 'mutation',
+              desc: 'Resonant Roots: Heal 1 HP for every enemy hit by CRESCENDO ring' },
+            { id: 'cv_so_m',  req: { sound: 5, metal: 5 },  type: 'mutation',
+              desc: 'Steel Tempo: Sync State grants 30% damage reduction' },
+            // Poison ×5 base heroes
+            { id: 'cv_po_f',  req: { poison: 5, fire: 5 },  type: 'mutation',
+              desc: 'Burning Toxin: Enemies with 80+ poison stacks also catch fire' },
+            { id: 'cv_po_w',  req: { poison: 5, water: 5 }, type: 'mutation',
+              desc: 'Acid Rain: Tidal Wave applies 30 poison stacks to all enemies hit' },
+            { id: 'cv_po_i',  req: { poison: 5, ice: 5 },   type: 'mutation',
+              desc: 'Frozen Plague: Frozen enemies take double poison DoT damage' },
+            { id: 'cv_po_p',  req: { poison: 5, plant: 5 }, type: 'mutation',
+              desc: 'Plague Bloom: Heal 0.5% max HP when an enemy dies from poison' },
+            { id: 'cv_po_m',  req: { poison: 5, metal: 5 }, type: 'mutation',
+              desc: 'Corrosive Alloy: Poisoned enemies have 25% reduced defense' },
+            // Cross-DLC: Sound + Poison
+            { id: 'cv_so_po', req: { sound: 5, poison: 5 }, type: 'mutation',
+              desc: 'Toxic Frequency: CRESCENDO ring applies 30 poison stacks to all enemies hit' }
+        ];
+
+        if (ALTAR_TREE.convergence) {
+            symphonyConvergences.forEach(m => {
+                if (!ALTAR_TREE.convergence.find(ex => ex.id === m.id)) {
+                    ALTAR_TREE.convergence.push(m);
+                }
+            });
+        }
+
+        console.log("Symphony of Sickness: Altar Skills Injected.");
     },
 
     updateBeat: function () {
