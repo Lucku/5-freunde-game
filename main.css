@@ -1364,46 +1364,16 @@ input:checked+.slider:before {
     font-size: 14px;
 }
 
-/* --- New Main Menu Styles --- */
+/* --- Main Menu Styles --- */
 .game-title {
-    font-size: 60px;
-    margin-bottom: 10px;
-    text-shadow: 0 0 20px rgba(52, 152, 219, 0.5);
-    background: linear-gradient(to right, #3498db, #9b59b6);
+    font-size: 56px;
+    margin: 0 0 6px 0;
+    letter-spacing: 6px;
+    text-shadow: 0 0 40px rgba(88, 101, 242, 0.35);
+    background: linear-gradient(135deg, #5865f2, #9b59b6, #3498db);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-}
-
-.menu-grid-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 20px;
-    width: 90%;
-    max-width: 1200px;
-    margin-top: 10px;
-}
-
-.menu-column {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    background: rgba(0, 0, 0, 0.3);
-    padding: 15px;
-    border-radius: 15px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.menu-column h3 {
-    text-align: center;
-    margin-top: 0;
-    margin-bottom: 15px;
-    color: #aaa;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    font-size: 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 10px;
 }
 
 .menu-section {
@@ -1417,24 +1387,252 @@ input:checked+.slider:before {
     margin-bottom: 10px;
 }
 
-.system-buttons {
+/* Two-column main layout */
+.menu-main {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 14px;
+    width: 92%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding-bottom: 16px;
+}
+
+/* Shared panel style */
+.menu-play-panel,
+.menu-lib-panel {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    padding: 18px;
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 10px;
+}
+
+.menu-lib-panel {
+    justify-content: space-between;
+}
+
+/* Section label */
+.menu-panel-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: rgba(255, 255, 255, 0.28);
+    margin-bottom: 2px;
+}
+
+/* ── Continue button ── */
+.menu-continue-btn {
+    background: rgba(241, 196, 15, 0.12) !important;
+    border: 1px solid rgba(241, 196, 15, 0.45) !important;
+    color: #f1c40f !important;
+    border-radius: 10px !important;
+    padding: 13px 16px !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    text-align: left !important;
+    line-height: 1.4;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 !important;
+    transition: all 0.15s !important;
+}
+
+.menu-continue-btn:hover {
+    background: rgba(241, 196, 15, 0.22) !important;
+    border-color: rgba(241, 196, 15, 0.7) !important;
+}
+
+.menu-continue-sub {
+    font-size: 11px;
+    color: rgba(241, 196, 15, 0.65);
+    font-weight: 400;
+    display: block;
+}
+
+/* ── Standard Run (primary CTA) ── */
+.menu-primary-btn {
+    background: linear-gradient(135deg, #27ae60, #2ecc71) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 18px 20px !important;
+    font-size: 19px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 !important;
+    box-shadow: 0 4px 18px rgba(46, 204, 113, 0.28);
+    transition: all 0.15s !important;
+}
+
+.menu-primary-btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 24px rgba(46, 204, 113, 0.42) !important;
+}
+
+/* ── Secondary mode buttons ── */
+.menu-modes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+
+.menu-mode-btn {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    padding: 11px 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+    transition: all 0.15s !important;
+    text-align: center;
+}
+
+.menu-mode-btn:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: #fff !important;
+}
+
+.menu-mode-chaos {
+    border-color: rgba(231, 76, 60, 0.3) !important;
+    color: rgba(255, 150, 140, 0.9) !important;
+}
+
+.menu-mode-chaos:hover {
+    background: rgba(231, 76, 60, 0.1) !important;
+    border-color: rgba(231, 76, 60, 0.5) !important;
+}
+
+.menu-mode-versus {
+    border-color: rgba(52, 152, 219, 0.3) !important;
+    color: rgba(130, 195, 255, 0.9) !important;
+}
+
+.menu-mode-versus:hover {
+    background: rgba(52, 152, 219, 0.1) !important;
+    border-color: rgba(52, 152, 219, 0.5) !important;
+}
+
+/* ── Challenge buttons ── */
+.menu-challenges {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.menu-challenge-btn {
+    background: rgba(241, 196, 15, 0.07) !important;
+    color: rgba(241, 196, 15, 0.85) !important;
+    border: 1px solid rgba(241, 196, 15, 0.22) !important;
+    border-radius: 8px !important;
+    padding: 10px 8px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+    transition: all 0.15s !important;
+    text-align: center;
+}
+
+.menu-challenge-btn:hover {
+    background: rgba(241, 196, 15, 0.15) !important;
+    border-color: rgba(241, 196, 15, 0.4) !important;
+    color: #f1c40f !important;
+}
+
+/* ── Library sections ── */
+.menu-lib-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.menu-lib-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.menu-lib-btn {
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+    border-radius: 8px !important;
+    padding: 10px 6px !important;
+    font-size: 11.5px !important;
+    font-weight: 500 !important;
+    margin: 0 !important;
+    transition: all 0.15s !important;
+    text-align: center;
+    line-height: 1.35;
+    position: relative;
+}
+
+.menu-lib-btn:hover {
+    background: rgba(255, 255, 255, 0.09) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    color: #fff !important;
+}
+
+.menu-lib-badge {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    background: #e74c3c;
+    color: #fff;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
     justify-content: center;
+    line-height: 1;
 }
 
-/* Button Variants */
-.btn-story {
-    background: linear-gradient(45deg, #2c3e50, #34495e);
-    border: 1px solid #3498db;
+/* ── System bar ── */
+.menu-system {
+    display: flex;
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    flex-wrap: wrap;
 }
 
-.btn-story:hover {
-    background: linear-gradient(45deg, #34495e, #2c3e50);
-    box-shadow: 0 0 15px rgba(52, 152, 219, 0.4);
+.menu-sys-btn {
+    background: transparent !important;
+    color: rgba(255, 255, 255, 0.32) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 6px !important;
+    padding: 5px 11px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    margin: 0 !important;
+    transition: all 0.15s !important;
+    cursor: pointer;
 }
 
+.menu-sys-btn:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+.menu-sys-exit:hover {
+    color: rgba(231, 76, 60, 0.75) !important;
+    border-color: rgba(231, 76, 60, 0.3) !important;
+}
+
+/* ── Legacy button variants (still used elsewhere in UI) ── */
 .btn-void {
     background: linear-gradient(45deg, #8e44ad, #9b59b6);
 }
@@ -1453,11 +1651,15 @@ input:checked+.slider:before {
     min-width: auto;
 }
 
-/* Responsive adjustments */
-@media (max-width: 1000px) {
-    .menu-grid-container {
+/* ── Responsive ── */
+@media (max-width: 900px) {
+    .menu-main {
         grid-template-columns: 1fr;
         max-width: 500px;
+    }
+
+    .menu-modes-grid {
+        grid-template-columns: 1fr 1fr;
     }
 }
 

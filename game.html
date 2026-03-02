@@ -316,67 +316,67 @@
             <h1 class="game-title">5 Freunde</h1>
 
             <div class="menu-section hero-section">
-                <h2>Select Hero</h2>
                 <div class="hero-select" id="hero-select-container">
                     <!-- Generated via JS -->
                 </div>
             </div>
 
-            <div class="menu-grid-container">
-                <!-- Column 1: Play -->
-                <div class="menu-column">
-                    <h3>Play</h3>
-                    <button id="continue-btn" class="btn btn-large btn-green" style="display:none; margin-bottom: 10px;"
+            <div class="menu-main">
+                <!-- Play Panel -->
+                <div class="menu-play-panel">
+                    <div class="menu-panel-label">Play</div>
+
+                    <button id="continue-btn" class="btn menu-continue-btn" style="display:none;"
                         onclick="continueRun()">
-                        Continue Run<br><span id="continue-subtitle" style="font-size:12px; color:#ddd;"></span>
+                        ↩ Continue Run<br><span id="continue-subtitle" class="menu-continue-sub"></span>
                     </button>
-                    <button class="btn btn-large btn-start" onclick="checkNewGame('STANDARD')">Standard Run</button>
-                    <button class="btn btn-large btn-story" onclick="checkNewGame('STORY')">Story Mode</button>
-                    <button class="btn btn-large"
-                        style="background: linear-gradient(45deg, #e74c3c, #8e44ad); border-color: #c0392b;"
-                        onclick="checkNewGame('SHUFFLE')">Chaos Shuffle (BETA)</button>
-                    <button class="btn btn-large"
-                        style="background: linear-gradient(45deg, #34495e, #2c3e50); border-color: #2c3e50;"
-                        onclick="openVersusMenu()">Versus Mode (1v1)</button>
-                    <button id="daily-challenge-btn" class="btn btn-gold" onclick="startDailyChallenge()">Daily
-                        Challenge</button>
-                    <button id="weekly-challenge-btn" class="btn btn-gold" onclick="startWeeklyChallenge()">Weekly
-                        Challenge</button>
+
+                    <button class="btn menu-primary-btn" onclick="checkNewGame('STANDARD')">▶ Standard Run</button>
+
+                    <div class="menu-modes-grid">
+                        <button class="btn btn-story menu-mode-btn" onclick="checkNewGame('STORY')">Story Mode</button>
+                        <button class="btn menu-mode-btn menu-mode-chaos" onclick="checkNewGame('SHUFFLE')">Chaos Shuffle</button>
+                        <button class="btn menu-mode-btn menu-mode-versus" onclick="openVersusMenu()">Versus Mode</button>
+                    </div>
+
+                    <div class="menu-challenges">
+                        <button id="daily-challenge-btn" class="btn menu-challenge-btn" onclick="startDailyChallenge()">⭐ Daily Challenge</button>
+                        <button id="weekly-challenge-btn" class="btn menu-challenge-btn" onclick="startWeeklyChallenge()">📅 Weekly Challenge</button>
+                    </div>
                 </div>
 
-                <!-- Column 2: Progression -->
-                <div class="menu-column">
-                    <h3>Progression</h3>
-                    <button id="btn-skill-tree" class="btn btn-blue" onclick="openSkillTree()">Skill Tree <span
-                            id="skill-tree-badge"
-                            style="display:none; background:#e74c3c; color:#fff; border-radius:10px; padding:2px 6px; font-size:12px; margin-left:5px; font-weight:bold;">!</span></button>
-                    <button class="btn btn-void" onclick="openPermShop()">Void Shop</button>
-                    <button class="btn btn-chaos" onclick="openChaosShop()">Chaos Shop</button>
-                    <button id="altar-btn" class="btn btn-altar" style="display:none;" onclick="openAltar()">Altar of
-                        Mastery</button>
-                    <button class="btn btn-gold" onclick="openMuseum()">Museum</button>
-                    <button class="btn btn-gold" onclick="openCollection()">Collection</button>
-                </div>
+                <!-- Library Panel: Progression + Extras + System -->
+                <div class="menu-lib-panel">
+                    <div class="menu-lib-section">
+                        <div class="menu-panel-label">Progression</div>
+                        <div class="menu-lib-grid">
+                            <button id="btn-skill-tree" class="btn menu-lib-btn" onclick="openSkillTree()">🌳 Skill Tree<span id="skill-tree-badge" style="display:none;" class="menu-lib-badge">!</span></button>
+                            <button class="btn menu-lib-btn" onclick="openPermShop()">✦ Void Shop</button>
+                            <button class="btn menu-lib-btn" onclick="openChaosShop()">🔥 Chaos Shop</button>
+                            <button id="altar-btn" class="btn menu-lib-btn" style="display:none;" onclick="openAltar()">⚡ Altar</button>
+                            <button class="btn menu-lib-btn" onclick="openMuseum()">🏛 Museum</button>
+                            <button class="btn menu-lib-btn" onclick="openCollection()">📖 Collection</button>
+                        </div>
+                    </div>
 
-                <!-- Column 3: Extras & System -->
-                <div class="menu-column">
-                    <h3>Extras</h3>
-                    <button class="btn btn-gold" onclick="openAchievements()">Achievements</button>
-                    <button class="btn btn-gold" onclick="openStatistics()">Statistics</button>
-                    <button class="btn btn-blue" onclick="openHeroDetails()">Hero Details</button>
-                    <button class="btn btn-blue" onclick="openCompletion()">Completion</button>
-                    <button class="btn btn-blue" onclick="Tutorial.open()">Tutorial</button>
-                    <button class="btn btn-purple" onclick="openDLCMenu()">DLCs</button>
+                    <div class="menu-lib-section">
+                        <div class="menu-panel-label">Extras</div>
+                        <div class="menu-lib-grid">
+                            <button class="btn menu-lib-btn" onclick="openAchievements()">🏆 Achievements</button>
+                            <button class="btn menu-lib-btn" onclick="openStatistics()">📊 Statistics</button>
+                            <button class="btn menu-lib-btn" onclick="openHeroDetails()">🧙 Hero Details</button>
+                            <button class="btn menu-lib-btn" onclick="openCompletion()">✓ Completion</button>
+                            <button class="btn menu-lib-btn" onclick="Tutorial.open()">📚 Tutorial</button>
+                            <button class="btn menu-lib-btn" onclick="openDLCMenu()">🔌 DLCs</button>
+                        </div>
+                    </div>
 
-                    <h3 style="margin-top: 20px;">System</h3>
-                    <div class="system-buttons">
-                        <button class="btn btn-purple" onclick="openOptions()">Options</button>
-                        <button id="btn-export-save" class="btn btn-small" onclick="exportSave()">Export Save</button>
+                    <div class="menu-system">
+                        <button class="btn menu-sys-btn" onclick="openOptions()">⚙ Options</button>
+                        <button id="btn-export-save" class="btn menu-sys-btn" onclick="exportSave()">Export Save</button>
                         <input type="file" id="import-file" style="display: none;" onchange="importSave(this)">
-                        <button id="btn-import-save" class="btn btn-small"
-                            onclick="document.getElementById('import-file').click()">Import
-                            Save</button>
-                        <button class="btn btn-danger btn-small" onclick="closeGame()">Exit</button>
+                        <button id="btn-import-save" class="btn menu-sys-btn" onclick="document.getElementById('import-file').click()">Import Save</button>
+                        <button class="btn menu-sys-btn menu-sys-exit" onclick="closeGame()">Exit</button>
                     </div>
                 </div>
             </div>
