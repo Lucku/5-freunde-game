@@ -43,7 +43,7 @@ class OptionsUI {
             if (btn) {
                 const isActive = window.gameConfig[k];
                 btn.innerText = isActive ? "ON" : "OFF";
-                btn.className = isActive ? "btn btn-green btn-small" : "btn btn-red btn-small";
+                btn.className = isActive ? "opt-toggle-btn active" : "opt-toggle-btn";
             }
         }
     }

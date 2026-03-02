@@ -56,8 +56,8 @@ class PoisonHero {
     }
 
     static applySkillNode(base, node) {
-        if (node.type === 'DOT_DURATION') base.stats.dotDuration = (base.stats.dotDuration || 300) + node.value;
-        if (node.type === 'RADIUS') base.stats.attackRange = (base.stats.attackRange || 15) + node.value;
+        if (node.type === 'DOT_DURATION') base.dotDuration = (base.dotDuration || 300) + node.value;
+        if (node.type === 'RADIUS') base.attackRange = (base.attackRange || 15) + node.value;
     }
 
     // --- LEVEL UP INTERCEPTION ---
