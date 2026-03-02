@@ -63,8 +63,8 @@ class TempleBiome {
             let s = this.sanctuaries[i];
             s.life--;
 
-            // Effect: Heal / Peace gain
-            if (typeof player !== 'undefined') {
+            // Effect: Heal / Peace gain — Spirit hero only (like Fire hero immunity to lava)
+            if (typeof player !== 'undefined' && player.type === 'spirit') {
                 const dist = Math.hypot(player.x - (s.x + s.r), player.y - (s.y + s.r));
                 if (dist < s.r) {
                     if (window.frame % 60 === 0) {

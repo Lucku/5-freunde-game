@@ -1,18 +1,25 @@
 // Sound Hero (Light Blue) Logic
 // Playstyle: Rhythm/Timing based. Strong when synced, weak when off-beat.
-// Unique: "Sync Meter", "Sound Wave" Ultimate
-// Weakness: Needs Sound Biome for full potential
+// Unique Mechanics:
+//   - Ritual of Resonance: conquer 3 totems (random map positions, one per wave)
+//     to transform the biome — only available outside the Sound biome
+//   - Sync Meter: fills from on-beat attacks ONLY while in Sound biome → 10s Sync State
+//   - CRESCENDO Special: omnidirectional wave burst + 10s AoE Performer form
 
 class SoundHero {
     static init(player) {
         // Base Stats
         player.speedMultiplier = 1.0;
-        player.damageMultiplier = 1.0; // Standard until modified by Beat
+        player.damageMultiplier = 1.0;
 
         // Unique Resource: Sync Meter
         player.syncMeter = 0;
         player.maxSyncMeter = 100;
-        player.beatStreak = 0; // Consecutive on-beat hits
+        player.beatStreak = 0;
+
+        // Sync State (triggered by filling the meter while in Sound biome)
+        player.syncStateActive = false;
+        player.syncStateDuration = 0;
 
         player.specialName = "CRESCENDO";
         player.specialMaxCooldown = 900; // 15s
@@ -20,7 +27,6 @@ class SoundHero {
         const iconEl = document.getElementById('special-icon');
         if (iconEl) iconEl.innerText = "🎵";
 
-        // Double check special name assignment
         if (!player.specialName || player.specialName === "undefined") {
             player.specialName = "CRESCENDO";
         }
@@ -29,16 +35,14 @@ class SoundHero {
         player.customSpecial = () => SoundHero.useSpecial(player);
         player.shoot = (dx, dy) => SoundHero.shootNote(player, dx, dy);
 
-        // Form Name
         player.getFormName = function () { return 'PERFORMER'; };
-
-        // Visuals
         player.visualPulse = 0;
 
         // Reset DLC State
         if (window.SYMPHONY_STATE) {
             window.SYMPHONY_STATE.totems = [];
             window.SYMPHONY_STATE.totemsConquered = 0;
+            window.SYMPHONY_STATE._lastWave = null;
         }
     }
 
@@ -54,57 +58,128 @@ class SoundHero {
 
     static getSkillNodeDetails(type, val, desc) {
         if (type === 'SYNC_CAP') return { val: 20, desc: "+20 Max Sync" };
-        if (type === 'BEAT_WINDOW') return { val: 10, desc: "+10ms Beat Window" }; // Logic needs access to this
+        if (type === 'BEAT_WINDOW') return { val: 10, desc: "+10ms Beat Window" };
         return { val, desc };
     }
 
     static applySkillNode(base, node) {
         if (node.type === 'SYNC_CAP') base.maxSyncMeter = (base.maxSyncMeter || 100) + node.value;
-        // Standard
         if (node.type === 'DAMAGE') base.damageMultiplier = (base.damageMultiplier || 1) + 0.1;
     }
 
     static applyUpgrade(player, type) {
         if (type === 'metronome') {
-            player.autoSync = true; // Skill: Auto-hit perfectly every 4th beat?
+            player.autoSync = true;
             return true;
         }
         return false;
     }
 
+    static isInSoundBiome() {
+        const check = (val) => typeof val === 'string' && (val.toLowerCase().includes('sound') || val.toLowerCase() === 'rhythm');
+        if (check(window.currentBiome)) return true;
+        if (typeof currentBiomeType !== 'undefined' && check(currentBiomeType)) return true;
+        if (check(window.currentBiomeType)) return true;
+        return false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MAIN UPDATE
+    // ─────────────────────────────────────────────────────────────────────────
+
     static update(player, dx, dy) {
-        // 1. Initialize Totems if needed
-        if (!window.SYMPHONY_STATE.totems || window.SYMPHONY_STATE.totems.length === 0) {
-            SoundHero.startTotems(player);
+        const inSoundBiome = SoundHero.isInSoundBiome();
+
+        // ── Totem system: only active when NOT already in Sound biome ──
+        if (!inSoundBiome) {
+            // Reset totems at the start of each new wave
+            const currentWave = window.wave || 1;
+            if (window.SYMPHONY_STATE._lastWave !== currentWave) {
+                window.SYMPHONY_STATE._lastWave = currentWave;
+                window.SYMPHONY_STATE.totems = [];
+                window.SYMPHONY_STATE.totemsConquered = 0;
+            }
+
+            if (!window.SYMPHONY_STATE.totems || window.SYMPHONY_STATE.totems.length === 0) {
+                SoundHero.startTotems(player);
+            }
+
+            SoundHero.updateTotems(player);
         }
 
-        // 2. Logic: Totem Conquest (Biome Assimilation)
-        SoundHero.updateTotems(player);
+        // ── Sync meter: only active in Sound biome ──
+        if (inSoundBiome) {
+            // Decay when not in sync state
+            if (!player.syncStateActive && player.syncMeter > 0 && window.frame % 60 === 0) {
+                player.syncMeter = Math.max(0, player.syncMeter - 2);
+            }
 
-        // 3. Biome Buffs/Debuffs
-        const currentBiome = window.currentBiome || 'standard';
-        // Note: We removed the "Story Mode" debuff to focus on the mechanic.
-        // Instead, the player is just "neutral" until they assimilate.
+            // Sync state countdown
+            if (player.syncStateActive) {
+                player.syncStateDuration--;
+                if (player.syncStateDuration <= 0) {
+                    player.syncStateActive = false;
+                    player.syncMeter = 0;
+                    if (typeof showNotification === 'function') showNotification("SYNC FADED", "#90caf9");
+                }
+            }
 
-        // Sync Meter Decay
-        if (player.syncMeter > 0 && window.frame % 60 === 0) {
-            player.syncMeter = Math.max(0, player.syncMeter - 2);
+            // Trigger sync state when meter fills
+            if (!player.syncStateActive && player.syncMeter >= player.maxSyncMeter) {
+                player.syncStateActive = true;
+                player.syncStateDuration = 600; // 10 seconds at 60fps
+                if (typeof showNotification === 'function') showNotification("IN SYNC!", "#00e5ff");
+            }
+        } else {
+            // Outside Sound biome: sync state cannot exist
+            if (player.syncStateActive) {
+                player.syncStateActive = false;
+                player.syncStateDuration = 0;
+            }
+            player.syncMeter = 0;
         }
 
-        // 4. Passive Logic (Pulse, UI, Ultimate)
+        // ── Visuals, AoE, and UI ──
         SoundHero.handlePassiveLogic(player);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // RITUAL OF RESONANCE – TOTEM SYSTEM
+    // ─────────────────────────────────────────────────────────────────────────
+
     static startTotems(player) {
-        // Spawn 3 Totems in a triangle around the center, or random
-        // Arena is usually -2000 to 2000 approx, or 4000x4000
-        // Let's check Arena.width if possible, else assume standard large map
-        const range = 800;
-        window.SYMPHONY_STATE.totems = [
-            { x: player.x + range, y: player.y + range, radius: 150, progress: 0, max: 600, state: 'neutral', id: 1 },
-            { x: player.x - range, y: player.y + range, radius: 150, progress: 0, max: 600, state: 'neutral', id: 2 },
-            { x: player.x, y: player.y - range, radius: 150, progress: 0, max: 600, state: 'neutral', id: 3 }
-        ];
+        const aw = (window.arena && window.arena.width) ? window.arena.width : 4000;
+        const ah = (window.arena && window.arena.height) ? window.arena.height : 4000;
+        const margin = 350;
+        const minFromPlayer = 500;
+        const minBetween = 600;
+
+        const totems = [];
+        let attempts = 0;
+
+        while (totems.length < 3 && attempts < 300) {
+            attempts++;
+            const tx = margin + Math.random() * (aw - margin * 2);
+            const ty = margin + Math.random() * (ah - margin * 2);
+
+            if (Math.hypot(tx - player.x, ty - player.y) < minFromPlayer) continue;
+
+            let tooClose = false;
+            for (const t of totems) {
+                if (Math.hypot(tx - t.x, ty - t.y) < minBetween) { tooClose = true; break; }
+            }
+            if (tooClose) continue;
+
+            totems.push({
+                x: tx, y: ty,
+                radius: 150,
+                progress: 0, max: 600,
+                state: 'neutral', // neutral | capturing | contested | conquered
+                id: totems.length + 1
+            });
+        }
+
+        window.SYMPHONY_STATE.totems = totems;
         window.SYMPHONY_STATE.totemsConquered = 0;
     }
 
@@ -114,50 +189,51 @@ class SoundHero {
         let conqueredCount = 0;
 
         window.SYMPHONY_STATE.totems.forEach(totem => {
-            if (totem.state === 'conquered') {
-                conqueredCount++;
-                return;
-            }
+            if (totem.state === 'conquered') { conqueredCount++; return; }
 
-            // 1. Check Player Presence
-            const distPlayer = Math.hypot(player.x - totem.x, player.y - totem.y);
-            const playerInside = distPlayer < totem.radius;
+            const playerInside = Math.hypot(player.x - totem.x, player.y - totem.y) < totem.radius;
 
-            // 2. Check Enemy Presence
-            let enemyInside = false;
             if (playerInside) {
-                // Optimization: Only check if player is there to save perf
+                let enemyInside = false;
                 for (const enemy of window.enemies) {
                     if (enemy.hp > 0 && Math.hypot(enemy.x - totem.x, enemy.y - totem.y) < totem.radius) {
                         enemyInside = true;
                         break;
                     }
                 }
-            }
 
-            // 3. Logic
-            if (playerInside) {
                 if (enemyInside) {
-                    // Contested! Reset progress or halt? User said "progress stops/resets"
+                    // Contested: enemy presence halts progress
                     totem.state = 'contested';
-                    if (totem.progress > 0) totem.progress -= 5; // Rapid decay
                 } else {
-                    // Capturing
+                    // Capturing: player alone fills the meter
                     totem.state = 'capturing';
-                    totem.progress++;
+                    totem.progress = Math.min(totem.max, totem.progress + 1);
                     if (totem.progress >= totem.max) {
                         totem.state = 'conquered';
-                        totem.progress = totem.max;
-                        // Boom effect
                         if (typeof showNotification === 'function') showNotification("TOTEM HARMONIZED!", "#4fc3f7");
-                        // Push back enemies?
                     }
                 }
             } else {
-                // Abandoned
-                if (totem.progress > 0) {
+                // Player not inside: check for enemy-only presence
+                let enemyInside = false;
+                for (const enemy of window.enemies) {
+                    if (enemy.hp > 0 && Math.hypot(enemy.x - totem.x, enemy.y - totem.y) < totem.radius) {
+                        enemyInside = true;
+                        break;
+                    }
+                }
+
+                if (enemyInside) {
+                    // Enemy alone: instant reset
+                    totem.progress = 0;
                     totem.state = 'neutral';
-                    totem.progress = Math.max(0, totem.progress - 1); // Slow decay
+                } else if (totem.progress > 0) {
+                    // Abandoned: very slow decay (1 per 10 frames → ~100s to fully empty)
+                    totem.state = 'neutral';
+                    if ((window.frame || 0) % 10 === 0) {
+                        totem.progress = Math.max(0, totem.progress - 1);
+                    }
                 } else {
                     totem.state = 'neutral';
                 }
@@ -166,221 +242,332 @@ class SoundHero {
 
         window.SYMPHONY_STATE.totemsConquered = conqueredCount;
 
-        // Check Victory
-        if (conqueredCount >= 3 && window.currentBiome !== 'sound' && window.SYMPHONY_STATE.triggerBiomeAssimilation) {
+        if (conqueredCount >= 2 && !SoundHero.isInSoundBiome() && window.SYMPHONY_STATE.triggerBiomeAssimilation) {
             window.SYMPHONY_STATE.triggerBiomeAssimilation('sound');
         }
     }
 
+    // Draw totems — called while camera transform IS active (world space coordinates)
     static drawTotems(ctx, player) {
-        if (!window.SYMPHONY_STATE.totems) return;
+        if (!window.SYMPHONY_STATE.totems || !ctx) return;
+        if (SoundHero.isInSoundBiome()) return; // No ritual needed once in Sound biome
 
         ctx.save();
-        window.SYMPHONY_STATE.totems.forEach(totem => {
-            // Screen Culling (Simple)
-            if (Math.abs(totem.x - player.x) > 1000 || Math.abs(totem.y - player.y) > 1000) return;
 
-            // Draw Base
+        window.SYMPHONY_STATE.totems.forEach(totem => {
+            if (Math.abs(totem.x - player.x) > 1400 || Math.abs(totem.y - player.y) > 1400) return;
+
+            // ── Territory circle ──
             ctx.beginPath();
-            ctx.arc(totem.x - window.cameraX, totem.y - window.cameraY, totem.radius, 0, Math.PI * 2);
-            ctx.strokeStyle = totem.state === 'conquered' ? '#00e5ff' : '#555';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
+            ctx.arc(totem.x, totem.y, totem.radius, 0, Math.PI * 2);
+            ctx.setLineDash([8, 6]);
+            if (totem.state === 'conquered') {
+                ctx.strokeStyle = 'rgba(0, 229, 255, 0.7)';
+                ctx.lineWidth = 3;
+            } else if (totem.state === 'capturing') {
+                ctx.strokeStyle = 'rgba(79, 195, 247, 0.6)';
+                ctx.lineWidth = 2;
+            } else if (totem.state === 'contested') {
+                ctx.strokeStyle = 'rgba(255, 82, 82, 0.7)';
+                ctx.lineWidth = 2;
+            } else {
+                ctx.strokeStyle = 'rgba(120, 120, 140, 0.35)';
+                ctx.lineWidth = 1.5;
+            }
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Draw Progress Fill
-            if (totem.progress > 0) {
+            // ── Territory fill tint ──
+            ctx.beginPath();
+            ctx.arc(totem.x, totem.y, totem.radius, 0, Math.PI * 2);
+            if (totem.state === 'conquered') ctx.fillStyle = 'rgba(0, 229, 255, 0.07)';
+            else if (totem.state === 'capturing') ctx.fillStyle = 'rgba(79, 195, 247, 0.05)';
+            else if (totem.state === 'contested') ctx.fillStyle = 'rgba(255, 82, 82, 0.06)';
+            else ctx.fillStyle = 'rgba(0,0,0,0)';
+            ctx.fill();
+
+            // ── Capture progress arc (outside the ring) ──
+            if (totem.progress > 0 && totem.state !== 'conquered') {
                 ctx.beginPath();
-                ctx.arc(totem.x - window.cameraX, totem.y - window.cameraY, totem.radius, -Math.PI / 2, (-Math.PI / 2) + (Math.PI * 2 * (totem.progress / totem.max)));
-                ctx.strokeStyle = totem.state === 'contested' ? '#ff0000' : '#4fc3f7';
-                ctx.lineWidth = 4;
+                const arcStart = -Math.PI / 2;
+                ctx.arc(totem.x, totem.y, totem.radius + 9, arcStart, arcStart + Math.PI * 2 * (totem.progress / totem.max));
+                ctx.strokeStyle = totem.state === 'contested' ? '#ff5252' : '#4fc3f7';
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
                 ctx.stroke();
+                ctx.lineCap = 'butt';
             }
 
-            // Draw Center Icon
-            ctx.fillStyle = totem.state === 'conquered' ? '#00e5ff' : (totem.state === 'contested' ? '#ff5252' : '#888');
-            ctx.font = '30px Arial';
+            // ── Center icon ──
+            ctx.font = '28px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(totem.state === 'conquered' ? '♫' : '⚠', totem.x - window.cameraX, totem.y - window.cameraY);
+            if (totem.state === 'conquered') {
+                ctx.fillStyle = '#00e5ff';
+                ctx.fillText('♫', totem.x, totem.y);
+            } else if (totem.state === 'contested') {
+                ctx.fillStyle = '#ff5252';
+                ctx.fillText('✕', totem.x, totem.y);
+            } else {
+                ctx.fillStyle = totem.state === 'capturing' ? '#4fc3f7' : '#555';
+                ctx.fillText('♩', totem.x, totem.y);
+            }
 
-            // Draw Label
-            /*
-            ctx.fillStyle = '#fff';
-            ctx.font = '12px Arial';
-            ctx.fillText(totem.state.toUpperCase(), totem.x - window.cameraX, totem.y - window.cameraY + 40);
-            */
+            // ── Progress % label ──
+            if (totem.state !== 'conquered' && totem.progress > 0) {
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.font = 'bold 11px Arial';
+                ctx.fillText(Math.floor((totem.progress / totem.max) * 100) + '%', totem.x, totem.y + 24);
+            }
         });
+
+        ctx.restore();
+
+        // ── Screen-space HUD: ritual tracker ──
+        // Reset transform temporarily to draw at fixed screen position
+        const cvs = window.canvas || document.getElementById('gameCanvas');
+        if (!cvs) return;
+
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        const conquered = window.SYMPHONY_STATE.totemsConquered || 0;
+        const total = (window.SYMPHONY_STATE.totems || []).length;
+        const REQUIRED = 2;
+        const allDone = conquered >= REQUIRED && total > 0;
+
+        const hudX = cvs.width / 2;
+        const hudY = 52;
+        const hudW = 150;
+        const hudH = 24;
+
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(hudX - hudW / 2, hudY - hudH / 2, hudW, hudH);
+
+        ctx.fillStyle = allDone ? '#00e5ff' : '#4fc3f7';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(allDone ? '♫ RITUAL COMPLETE' : `♩ RITUAL: ${conquered} / ${REQUIRED} TOTEMS`, hudX, hudY);
+
         ctx.restore();
     }
 
-    // 4. Visual Pulse (Beat Visualization) & Logic Update
-    // Merged logic that was previously floating outside class methods
+    // ─────────────────────────────────────────────────────────────────────────
+    // PASSIVE LOGIC (called each frame while camera transform IS active)
+    // ─────────────────────────────────────────────────────────────────────────
+
     static handlePassiveLogic(player) {
         const isStoryMode = (typeof saveData !== 'undefined' && saveData.story && saveData.story.enabled);
-
-        // Secondary Objective / Passive Conversion
         if (isStoryMode && player.syncMeter > 80 && window.frame % 60 === 0) {
             window.SYMPHONY_STATE.biomeTransformation = Math.min(100, (window.SYMPHONY_STATE.biomeTransformation || 0) + 1);
         }
 
-        // Visual Pulse
+        // Beat pulse visual (always active for feel, regardless of biome)
         if (window.SYMPHONY_STATE && window.SYMPHONY_STATE.onBeat) {
             player.visualPulse = 10;
         }
         if (player.visualPulse > 0) player.visualPulse--;
 
-        // Ultimate Form Update
-        if (player.transformActive && player.currentForm === 'PERFORMER') {
-            player.syncMeter = player.maxSyncMeter; // Infinite Sync
-            // AoE Pulse damage around player
-            if (window.frame % 30 === 0) {
-                if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, "#4fc3f7", 40);
-                if (window.enemies) {
-                    window.enemies.forEach(e => {
-                        if (Math.hypot(e.x - player.x, e.y - player.y) < 200) {
-                            e.hp -= 20 * player.damageMultiplier;
-                            // Push back
-                            const angle = Math.atan2(e.y - player.y, e.x - player.x);
-                            e.x += Math.cos(angle) * 10;
-                            e.y += Math.sin(angle) * 10;
-                        }
-                    });
-                }
+
+        // All drawing goes through here while camera transform is active
+        const ctx = window.ctx;
+        if (ctx) {
+            SoundHero.drawTotems(ctx, player);
+            SoundHero.drawUI(player, ctx);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // HUD DRAWING — sync meter + aura (world space, camera transform active)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    static drawUI(player, ctx) {
+        // game.js calls this as drawUI(ctx) — first arg is ctx, second arg is absent.
+        // All drawing already happens via handlePassiveLogic, so return early to
+        // prevent a ghost image rendered in screen space with world coordinates.
+        if (!ctx) return;
+
+        // Ensure player is a valid player object, not the ctx passed by the game.js hook
+        if (!player || typeof player.syncMeter === 'undefined') return;
+
+        const inSoundBiome = SoundHero.isInSoundBiome();
+
+        // ── Sync meter bar (above player, world coords) ──
+        // Only draw when in Sound biome (outside it the meter doesn't exist)
+        if (inSoundBiome) {
+            const x = player.x - 20;
+            const y = player.y + 36;
+            const w = 40, h = 4;
+
+            ctx.fillStyle = '#0d0d1a';
+            ctx.fillRect(x, y, w, h);
+
+            if (player.syncStateActive) {
+                const pulse = Math.abs(Math.sin((window.frame || 0) * 0.1));
+                ctx.fillStyle = `rgba(0, 229, 255, ${0.8 + 0.2 * pulse})`;
+            } else {
+                ctx.fillStyle = '#4fc3f7';
+            }
+            ctx.fillRect(x, y, w * (player.syncMeter / player.maxSyncMeter), h);
+
+            // ── Sync state aura ──
+            if (player.syncStateActive) {
+                const t = (window.frame || 0) * 0.08;
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(0, 229, 255, ${0.4 + 0.2 * Math.sin(t)})`;
+                ctx.lineWidth = 2;
+                ctx.arc(player.x, player.y, 30 + Math.sin(t) * 4, 0, Math.PI * 2);
+                ctx.stroke();
             }
         }
 
-        SoundHero.drawUI(player);
-    }
-
-    static drawUI(player) {
-        if (!window.ctx) return;
-        const ctx = window.ctx;
-
-        // Draw Sync Meter
-        const x = player.x - 20;
-        const y = player.y + 35;
-        const w = 40, h = 4;
-
-        ctx.fillStyle = "#333";
-        ctx.fillRect(x, y, w, h);
-
-        ctx.fillStyle = "#4fc3f7";
-        ctx.fillRect(x, y, w * (player.syncMeter / player.maxSyncMeter), h);
-
-        // Visual Pulse Ring
+        // ── Beat pulse ring (visible regardless of biome, for timing feedback) ──
         if (player.visualPulse > 0) {
             ctx.beginPath();
             ctx.strokeStyle = `rgba(79, 195, 247, ${player.visualPulse / 10})`;
-            ctx.lineWidth = 3;
-            ctx.arc(player.x, player.y, 20 + (10 - player.visualPulse) * 2, 0, Math.PI * 2);
+            ctx.lineWidth = 2;
+            ctx.arc(player.x, player.y, 22 + (10 - player.visualPulse) * 2, 0, Math.PI * 2);
             ctx.stroke();
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // ATTACK: SHOOT NOTE (normal, beat-synced; fires waves in Sync State)
+    // ─────────────────────────────────────────────────────────────────────────
+
     static shootNote(player, dx, dy) {
         if (player.rangeCooldown > 0) return;
 
-        // Fix: Calculate direction if missing (called from Player.shoot())
         if (dx === undefined || dy === undefined) {
-            let angle = player.aimAngle || 0;
+            const angle = player.aimAngle || 0;
             dx = Math.cos(angle);
             dy = Math.sin(angle);
         }
 
-        // Check rhythm
-        const isOnBeat = window.SYMPHONY_STATE && window.SYMPHONY_STATE.onBeat;
-
-        let dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier;
-        let color = "#4fc3f7";
-        let scale = 1.0;
-        let isPowerChord = false;
-
-        if (isOnBeat) {
-            dmg *= 2.0; // Crit
-            color = "#00bcd4"; // Darker Blue
-            scale = 1.5;
-            player.syncMeter = Math.min(player.maxSyncMeter, player.syncMeter + 5);
-            player.beatStreak++;
-            isPowerChord = true;
-            if (typeof showNotification === 'function' && Math.random() < 0.2) showNotification("PERFECT!", color);
-            // Audio
-            if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_perfect'); // Need to map this
-        } else {
-            dmg *= 0.5; // Weak hit
-            player.beatStreak = 0;
-            // Audio
-            if (typeof audioManager !== 'undefined') audioManager.play('shoot_weak');
+        // ── Auto-aim: redirect toward nearest enemy when buff active ──
+        if (player.buffs && player.buffs.autoaim > 0 && window.enemies) {
+            let nearest = null, minDst = Infinity;
+            window.enemies.forEach(e => {
+                if (e.hp <= 0) return;
+                const d = Math.hypot(e.x - player.x, e.y - player.y);
+                if (d < minDst) { minDst = d; nearest = e; }
+            });
+            if (nearest) {
+                const a = Math.atan2(nearest.y - player.y, nearest.x - player.x);
+                dx = Math.cos(a);
+                dy = Math.sin(a);
+            }
         }
 
-        // Ultimate Wave Check
-        if (player.syncMeter >= player.maxSyncMeter) {
-            SoundHero.fireSoundWave(player);
-            player.syncMeter = 0; // Reset
+        // ── In Sync State: fire directional wave projectiles ──
+        if (player.syncStateActive) {
+            SoundHero.fireSyncWave(player, dx, dy);
             return;
         }
 
+        // ── Normal attack: check beat timing ──
+        const isOnBeat = window.SYMPHONY_STATE && window.SYMPHONY_STATE.onBeat;
+        const inSoundBiome = SoundHero.isInSoundBiome();
+
+        let dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier;
+        let color = '#4fc3f7';
+        let scale = 1.0;
+
+        if (isOnBeat) {
+            dmg *= 2.0;
+            color = '#00bcd4';
+            scale = 1.5;
+            // Sync meter only fills in Sound biome
+            if (inSoundBiome) {
+                player.syncMeter = Math.min(player.maxSyncMeter, player.syncMeter + 5);
+                player.beatStreak++;
+            }
+            if (typeof showNotification === 'function' && Math.random() < 0.2) showNotification("PERFECT!", color);
+            if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_perfect');
+        } else {
+            dmg *= 0.5;
+            if (inSoundBiome) player.beatStreak = 0;
+            if (typeof audioManager !== 'undefined') audioManager.play('shoot_weak');
+        }
+
+        // Build shot angle list, respecting multi-projectile
+        const baseAngle = Math.atan2(dy, dx);
+        let shotCount = 1 + (player.extraProjectiles || 0);
+        if (player.buffs && player.buffs.multi > 0) shotCount += 1;
+        const angles = [];
+        for (let i = 0; i < shotCount; i++) {
+            const offset = shotCount === 1 ? 0 : (i - (shotCount - 1) / 2) * 0.3;
+            angles.push(baseAngle + offset);
+        }
+
         if (typeof projectiles !== 'undefined') {
-            projectiles.push({
-                x: player.x,
-                y: player.y,
-                vx: dx * 10,
-                vy: dy * 10,
-                radius: 8 * scale,
-                color: color,
-                damage: dmg,
-                life: 60,
-                type: 'NOTE',
-                update: function () {
-                    this.x += this.vx;
-                    this.y += this.vy;
-                    this.life--;
-                    if (this.life <= 0) this.dead = true;
-                },
-                draw: function (ctx) {
-                    if (!ctx) ctx = window.ctx;
-                    if (!ctx) return;
-                    ctx.save();
-                    ctx.translate(this.x, this.y);
-                    ctx.fillStyle = this.color;
-
-                    // Draw Music Note Head (Using Text)
-                    ctx.font = (this.radius * 3) + "px Arial";
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "middle";
-                    ctx.fillText("♪", 0, 0);
-
-                    ctx.restore();
-                }
+            angles.forEach(angle => {
+                projectiles.push({
+                    x: player.x, y: player.y,
+                    vx: Math.cos(angle) * 10,
+                    vy: Math.sin(angle) * 10,
+                    radius: 8 * scale,
+                    color: color,
+                    damage: dmg,
+                    life: 60,
+                    type: 'NOTE',
+                    update: function () {
+                        this.x += this.vx;
+                        this.y += this.vy;
+                        this.life--;
+                        if (this.life <= 0) this.dead = true;
+                    },
+                    draw: function (ctx) {
+                        if (!ctx) ctx = window.ctx;
+                        if (!ctx) return;
+                        ctx.save();
+                        ctx.translate(this.x, this.y);
+                        ctx.fillStyle = this.color;
+                        ctx.font = (this.radius * 3) + 'px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('♪', 0, 0);
+                        ctx.restore();
+                    }
+                });
             });
         }
 
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
     }
 
-    static fireSoundWave(player) {
-        // Radial or Conical Wave logic
-        if (typeof showNotification === 'function') showNotification("SOUND WAVE!", "#4fc3f7");
+    // ─────────────────────────────────────────────────────────────────────────
+    // ATTACK: SYNC WAVE (fired during Sync State, directional fan)
+    // ─────────────────────────────────────────────────────────────────────────
 
-        const count = 12; // 360 degrees
-        for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 / count) * i;
-            if (typeof projectiles !== 'undefined') {
+    static fireSyncWave(player, dx, dy) {
+        const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier * 1.8;
+        const baseAngle = Math.atan2(dy, dx);
+
+        // Base fan of 3; extra outer waves per additional projectile
+        const fanAngles = [-0.28, 0, 0.28];
+        const extraCount = (player.extraProjectiles || 0) + (player.buffs && player.buffs.multi > 0 ? 1 : 0);
+        for (let i = 1; i <= extraCount; i++) {
+            fanAngles.push(-0.28 * (i + 1), 0.28 * (i + 1));
+        }
+
+        if (typeof projectiles !== 'undefined') {
+            fanAngles.forEach(offset => {
+                const angle = baseAngle + offset;
                 projectiles.push({
-                    x: player.x,
-                    y: player.y,
-                    vx: Math.cos(angle) * 8,
-                    vy: Math.sin(angle) * 8,
-                    radius: 12,
-                    color: "#00bcd4",
-                    damage: 30 * player.damageMultiplier,
-                    life: 40,
+                    x: player.x, y: player.y,
+                    vx: Math.cos(angle) * 7,
+                    vy: Math.sin(angle) * 7,
+                    radius: 8,
+                    color: '#00e5ff',
+                    damage: dmg,
+                    life: 48,
                     type: 'WAVE',
                     update: function () {
                         this.x += this.vx;
                         this.y += this.vy;
-                        this.radius += 0.5; // Grow
+                        this.radius += 0.4;
                         this.life--;
                         if (this.life <= 0) this.dead = true;
                     },
@@ -388,36 +575,109 @@ class SoundHero {
                         const ctx = window.ctx;
                         if (!ctx) return;
                         ctx.save();
-                        ctx.translate(this.x, this.y);
+                        ctx.globalAlpha = this.life / 48;
                         ctx.strokeStyle = this.color;
-                        ctx.lineWidth = 3;
+                        ctx.lineWidth = 2.5;
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = this.color;
                         ctx.beginPath();
-                        ctx.arc(0, 0, this.radius, 0, Math.PI * 2); // Ring
+                        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                         ctx.stroke();
                         ctx.restore();
                     }
                 });
-            }
+            });
         }
+
+        player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // CRESCENDO: RESONANCE CASCADE — expanding shockwave ring
+    // Sweeps outward across the entire arena, hitting each enemy exactly once,
+    // knocking them back, and applying a Resonating debuff (3s).
+    // While the player is in PERFORMER form, on-beat attacks auto-fire homing
+    // echo notes toward the nearest enemy and resonating enemies pulse with damage.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    static spawnResonanceRing(player) {
+        if (typeof projectiles === 'undefined') return;
+        const dmg = 45 * player.damageMultiplier;
+        projectiles.push({
+            x: player.x, y: player.y,
+            radius: 30,
+            damage: dmg,
+            color: '#00e5ff',
+            life: 120,       // 2 seconds to expand
+            type: 'CRESCENDO_RING',
+            hitEnemies: [],
+            update() {
+                // Expand from 30 → 950 over 120 frames
+                this.radius += (950 - 30) / 120;
+                this.life--;
+                if (this.life <= 0) { this.dead = true; return; }
+                if (!window.enemies) return;
+                window.enemies.forEach(e => {
+                    if (e.hp <= 0 || this.hitEnemies.includes(e)) return;
+                    const dist = Math.hypot(e.x - this.x, e.y - this.y);
+                    if (Math.abs(dist - this.radius) < 28) {
+                        this.hitEnemies.push(e);
+                        if (typeof e.takeDamage === 'function') e.takeDamage(this.damage);
+                        else e.hp -= this.damage;
+                        e.resonating = 180; // 3 seconds resonating
+                        // Knockback away from epicenter
+                        const a = Math.atan2(e.y - this.y, e.x - this.x);
+                        e.x += Math.cos(a) * 80;
+                        e.y += Math.sin(a) * 80;
+                        if (typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y, Math.floor(this.damage), '#00e5ff');
+                        if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, '#4fc3f7', 20);
+                    }
+                });
+            },
+            draw() {
+                const ctx = window.ctx; if (!ctx) return;
+                const t = this.life / 120; // 1 → 0 as ring expands
+                ctx.save();
+                // Outer bright ring
+                ctx.globalAlpha = t * 0.85;
+                ctx.shadowBlur = 30; ctx.shadowColor = '#00e5ff';
+                ctx.strokeStyle = '#00e5ff';
+                ctx.lineWidth = 6 + (1 - t) * 6;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                // Inner glow trail
+                ctx.globalAlpha = t * 0.35;
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = '#b2ebf2';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius - 14, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SPECIAL ABILITY: CRESCENDO
+    // ─────────────────────────────────────────────────────────────────────────
+
     static useSpecial(player) {
-        if (player.transformActive) return false;
+        SoundHero.spawnResonanceRing(player);
 
-        player.transformActive = true;
-        player.currentForm = 'PERFORMER';
-        player.syncMeter = player.maxSyncMeter; // Fill
+        // Bonus: immediately fill the sync meter if in Sound biome
+        if (SoundHero.isInSoundBiome()) {
+            player.syncMeter = player.maxSyncMeter;
+        }
 
-        // Duration: 10s (600 frames)
-        player.transformDuration = 600;
+        if (typeof showNotification === 'function') showNotification("CRESCENDO!", "#00e5ff");
 
-        if (typeof showNotification === 'function') showNotification(player.specialName + "!", "#4fc3f7");
-
-        return true; // Signal success to Player.js to apply cooldown
+        return true;
     }
 }
 
-// Register in logic system
+// Register in the hero logic system
 if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
 window.HERO_LOGIC['sound'] = SoundHero;
 window.SoundHero = SoundHero;

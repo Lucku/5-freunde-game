@@ -843,6 +843,8 @@ class Museum {
         if (this.player.type === 'air') color = '#40e0d0'; // Turquoise
         if (this.player.type === 'spirit') color = '#F0D080'; // Soft Amber / Ivory-Gold
         if (this.player.type === 'chance') color = '#ff00ff'; // Magenta
+        if (this.player.type === 'sound') color = '#4fc3f7';  // Light Blue
+        if (this.player.type === 'poison') color = '#76ff03'; // Toxic Green
 
         ctx.fillStyle = color;
         ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
