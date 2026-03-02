@@ -37,9 +37,13 @@
 
     <div id="ui-layer">
         <div id="top-ui">
-            <div style="display:flex;">
-                <div id="score-board">Score: <span id="scoreVal">0</span> | Wave: <span id="waveVal">1</span></div>
-                <div id="gold-display">Gold: <span id="goldVal">0</span></div>
+            <div id="hud-top-left">
+                <div id="score-board">
+                    <span class="hud-lbl">SCORE</span><span id="scoreVal">0</span>
+                    <span class="hud-vsep"></span>
+                    <span class="hud-lbl">WAVE</span><span id="waveVal">1</span>
+                </div>
+                <div id="gold-display">🪙 <span id="goldVal">0</span></div>
             </div>
             <div id="chaos-challenge-hud"
                 style="display:none; color: #ff5e5e; font-weight:bold; margin-top:5px; font-size: 14px; text-shadow: 0 0 5px red;">
@@ -66,10 +70,8 @@
         </div>
 
         <div id="bottom-ui">
-            <div style="display: flex; align-items: flex-end;">
-                <div>
-                    <div id="buff-container"></div>
-                </div>
+            <div id="bottom-left">
+                <div id="buff-container"></div>
                 <!-- Special Ability Icon -->
                 <div id="special-container">
                     <div id="special-icon">★</div>
@@ -79,19 +81,27 @@
             </div>
 
             <div id="bars-container">
-                <div class="bar-wrap">
-                    <div id="health-fill"></div>
-                    <div id="health-text" class="bar-text"></div>
+                <div class="bar-row">
+                    <div class="bar-header">
+                        <span class="bar-lbl">❤ HP</span>
+                        <span id="health-text" class="bar-val"></span>
+                    </div>
+                    <div class="bar-wrap"><div id="health-fill"></div></div>
                 </div>
-                <div class="bar-wrap" style="border-color: #9b59b6;">
-                    <div id="xp-fill"></div>
-                    <div id="xp-text" class="bar-text">Level 1</div>
+                <div class="bar-row">
+                    <div class="bar-header">
+                        <span class="bar-lbl">✦ XP</span>
+                        <span id="xp-text" class="bar-val">Level 1</span>
+                    </div>
+                    <div class="bar-wrap"><div id="xp-fill"></div></div>
                 </div>
-                <div class="bar-wrap" style="border-color: #f39c12;">
-                    <div id="melee-fill"></div>
-                    <div id="melee-text" class="bar-text">Melee Ready</div>
+                <div class="bar-row">
+                    <div class="bar-header">
+                        <span class="bar-lbl">⚔ MELEE</span>
+                        <span id="melee-text" class="bar-val">Ready</span>
+                    </div>
+                    <div class="bar-wrap"><div id="melee-fill"></div></div>
                 </div>
-                <!-- New Stats Row -->
                 <div id="stats-row"></div>
             </div>
         </div>

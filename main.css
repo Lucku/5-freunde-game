@@ -27,6 +27,9 @@ canvas {
     z-index: 5;
 }
 
+/* === IN-GAME HUD === */
+
+/* — Top HUD — */
 #top-ui {
     display: flex;
     justify-content: space-between;
@@ -34,29 +37,70 @@ canvas {
     width: 100%;
 }
 
+#hud-top-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 7px 14px;
+}
+
 #score-board {
-    font-size: 24px;
-    font-weight: bold;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.hud-lbl {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: rgba(255, 255, 255, 0.38);
+    text-transform: uppercase;
+}
+
+.hud-vsep {
+    display: inline-block;
+    width: 1px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.14);
+    margin: 0 4px;
+    vertical-align: middle;
 }
 
 #gold-display {
-    font-size: 24px;
-    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    font-weight: 700;
     color: #f1c40f;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-    margin-left: 20px;
+    background: rgba(241, 196, 15, 0.1);
+    border: 1px solid rgba(241, 196, 15, 0.2);
+    border-radius: 8px;
+    padding: 5px 11px;
 }
 
 #combo-display {
-    font-size: 40px;
+    font-size: 26px;
     font-weight: 900;
-    color: #e67e22;
-    text-shadow: 0 0 10px #d35400;
+    letter-spacing: 3px;
+    color: #f1c40f;
+    text-shadow: 0 0 24px rgba(241, 196, 15, 0.9), 0 2px 4px rgba(0, 0, 0, 0.7);
     opacity: 0;
     transition: opacity 0.2s;
+    pointer-events: none;
 }
 
+/* — Weather / Event text — */
 #weather-display {
     position: absolute;
     top: 80px;
@@ -82,39 +126,31 @@ canvas {
 }
 
 @keyframes pulse {
-    0% {
-        transform: scale(1);
-        text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
-    }
-
-    50% {
-        transform: scale(1.1);
-        text-shadow: 0 0 20px rgba(241, 196, 15, 1);
-    }
-
-    100% {
-        transform: scale(1);
-        text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
-    }
+    0%   { transform: scale(1);   text-shadow: 0 0 10px rgba(241, 196, 15, 0.5); }
+    50%  { transform: scale(1.1); text-shadow: 0 0 20px rgba(241, 196, 15, 1);   }
+    100% { transform: scale(1);   text-shadow: 0 0 10px rgba(241, 196, 15, 0.5); }
 }
 
+/* — Boss HP — */
 #boss-hp-container {
     display: none;
-    width: 50%;
-    height: 30px;
-    background: #333;
-    border: 3px solid #e74c3c;
-    border-radius: 15px;
+    width: 38%;
+    height: 22px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    border-radius: 6px;
     overflow: hidden;
     position: absolute;
-    top: 60px;
-    left: 25%;
+    top: 64px;
+    left: 31%;
 }
 
 #boss-hp-fill {
     width: 100%;
     height: 100%;
-    background: #c0392b;
+    background: linear-gradient(90deg, #7b1212, #e74c3c);
     transition: width 0.2s;
 }
 
@@ -122,36 +158,68 @@ canvas {
     position: absolute;
     width: 100%;
     text-align: center;
-    line-height: 30px;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px black;
+    line-height: 22px;
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    pointer-events: none;
 }
 
+/* — Bottom HUD Layout — */
 #bottom-ui {
     display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+#bottom-left {
+    display: flex;
     flex-direction: column;
-    gap: 10px;
+    align-items: center;
+    gap: 8px;
 }
 
-#bars-container {
-    width: 300px;
+/* — Buff Icons — */
+#buff-container {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 70px;
 }
 
-/* Special Ability UI */
-#special-container {
-    position: relative;
-    width: 60px;
-    height: 60px;
-    background: #333;
-    border: 2px solid #fff;
-    border-radius: 50%;
-    margin-left: 15px;
+.buff-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 14px;
+}
+
+/* — Special Ability — */
+#special-container {
+    position: relative;
+    width: 70px;
+    height: 70px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
     cursor: pointer;
     overflow: hidden;
+    transition: border-color 0.25s, box-shadow 0.25s;
 }
 
 #special-cooldown-overlay {
@@ -160,100 +228,109 @@ canvas {
     left: 0;
     width: 100%;
     height: 0%;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.62);
     transition: height 0.1s linear;
+    pointer-events: none;
 }
 
 #special-key {
     position: absolute;
-    bottom: -5px;
-    right: -5px;
-    background: #fff;
-    color: #000;
-    font-size: 10px;
+    bottom: 5px;
+    right: 5px;
+    background: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 9px;
     padding: 2px 5px;
-    border-radius: 5px;
-    font-weight: bold;
+    border-radius: 4px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    pointer-events: none;
 }
 
-/* New Stats Row */
-#stats-row {
-    display: flex;
-    gap: 15px;
-    margin-top: 5px;
-    font-size: 14px;
-    font-weight: bold;
-    color: #ddd;
-    text-shadow: 1px 1px 2px black;
+/* — Bars Container — */
+#bars-container {
+    width: 250px;
 }
 
-#stats-row span {
+.bar-row {
+    margin-bottom: 8px;
+}
+
+.bar-header {
     display: flex;
-    align-items: center;
-    gap: 5px;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+}
+
+.bar-lbl {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: rgba(255, 255, 255, 0.38);
+    text-transform: uppercase;
+}
+
+.bar-val {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.55);
 }
 
 .bar-wrap {
     width: 100%;
-    height: 20px;
-    background: #333;
-    border: 2px solid #fff;
-    border-radius: 10px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
     overflow: hidden;
     position: relative;
-    margin-bottom: 5px;
 }
 
 #health-fill {
     width: 100%;
     height: 100%;
-    background: #e74c3c;
-    transition: width 0.2s;
+    background: linear-gradient(90deg, #b71c1c, #e53935);
+    box-shadow: 0 0 8px rgba(229, 57, 53, 0.55);
+    transition: width 0.2s, background 0.4s;
+    border-radius: 3px;
 }
 
 #xp-fill {
     width: 0%;
     height: 100%;
-    background: #9b59b6;
+    background: linear-gradient(90deg, #5e35b1, #9c27b0);
+    box-shadow: 0 0 8px rgba(156, 39, 176, 0.5);
     transition: width 0.2s;
+    border-radius: 3px;
 }
 
 #melee-fill {
     width: 100%;
     height: 100%;
-    background: #f39c12;
+    background: linear-gradient(90deg, #e65100, #ff9800);
+    box-shadow: 0 0 8px rgba(255, 152, 0, 0.5);
     transition: width 0.1s;
+    border-radius: 3px;
 }
 
-.bar-text {
-    position: absolute;
-    width: 100%;
-    text-align: center;
-    font-size: 12px;
-    line-height: 20px;
-    color: white;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px black;
-    top: 0;
-    left: 0;
-}
-
-#buff-container {
+/* Stats Row */
+#stats-row {
     display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 8px;
 }
 
-.buff-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 5px;
+#stats-row span {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 20px;
-    box-shadow: 0 0 5px white;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 5px;
+    padding: 2px 6px;
 }
 
 #pause-screen,
@@ -609,48 +686,61 @@ h2 {
 /* Level Up Cards */
 .upgrade-container {
     display: flex;
-    gap: 30px;
+    gap: 24px;
+}
+
+@keyframes card-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .upgrade-card {
-    width: 190px;
-    height: 260px;
+    width: 185px;
+    height: 255px;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
+    border-radius: 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.15s;
-    padding: 20px;
+    transition: transform 0.18s, border-color 0.18s, background 0.18s, box-shadow 0.18s;
+    padding: 22px;
     text-align: center;
+    animation: card-in 0.28s ease backwards;
 }
 
+.upgrade-card:nth-child(1) { animation-delay: 0.04s; }
+.upgrade-card:nth-child(2) { animation-delay: 0.11s; }
+.upgrade-card:nth-child(3) { animation-delay: 0.18s; }
+
 .upgrade-card:hover {
-    transform: translateY(-5px);
-    border-color: rgba(241, 196, 15, 0.45);
+    transform: translateY(-6px);
+    border-color: rgba(241, 196, 15, 0.5);
     background: rgba(255, 255, 255, 0.07);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(241, 196, 15, 0.12);
 }
 
 .upgrade-icon {
-    font-size: 50px;
-    margin-bottom: 20px;
+    font-size: 46px;
+    margin-bottom: 16px;
+    line-height: 1;
 }
 
 .upgrade-title {
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 700;
     margin-bottom: 10px;
-    color: rgba(255, 255, 255, 0.9);
-    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.92);
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 .upgrade-desc {
-    font-size: 14px;
-    color: #ecf0f1;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.5;
 }
 
 /* Shop */
