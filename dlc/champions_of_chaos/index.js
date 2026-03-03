@@ -107,11 +107,32 @@ const CHAMPIONS_OF_CHAOS = {
     },
 
     injectAchievements: function () {
-        if (typeof addAch === 'function') {
-            addAch('GRAVITY_UNLOCK', 'Master of Gravity', 'Unlock all Gravity Hero Altar skills.', 10, 'unlock_gravity', 'damage', 0.1, '+10% Dmg');
-            addAch('ENTROPY_LORD', 'Entropy Lord', 'Defeat the Chaos Superboss.', 50, 'chaos_boss_kill', 'damage', 0.25, '+25% Dmg');
-            addAch('GALAXY_S', 'Galactic Conqueror', 'Complete Story Mode with Gravity Hero.', 50, 'story_gravity', 'damage', 0.15, '+15% Dmg');
-        }
+        const achievements = window.ACHIEVEMENTS || (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS : null);
+        if (!achievements) return;
+
+        const addDLCAch = (id, title, desc, req, stat, type, val, text) => {
+            if (!achievements.some(a => a.id === id)) {
+                achievements.push({ id, title, desc, req, stat, bonus: { type, val, text } });
+            }
+        };
+
+        // Gravity Hero — story & progression
+        addDLCAch('chaos_gravity_story',   'Galactic Conqueror', 'Complete Story Mode with the Gravity Hero.',                      1,   'story_gravity',         'damage', 0.10, '+10% Dmg');
+        addDLCAch('chaos_gravity_prestige','Singularity',        'Reach Prestige 5 with the Gravity Hero.',                         5,   'gravity_prestige',      'damage', 0.05, '+5% Dmg');
+
+        // Gravity Hero — unique mechanics
+        addDLCAch('chaos_black_hole',      'Event Horizon',      'Pull 1000 enemies into Gravity Wells across all runs.',           1000,'gravity_pull_count',     'damage', 0.05, '+5% Dmg');
+        addDLCAch('chaos_realm_shift',     'Dimension Breaker',  'Activate REALM SHIFT 25 times across all runs.',                 25,  'gravity_realm_shifts',  'cooldown',0.05,'-5% CD');
+
+        // Void Hero — story & progression
+        addDLCAch('chaos_void_story',      'Into the Void',      'Complete Story Mode with the Void Hero.',                         1,   'story_void',            'damage', 0.10, '+10% Dmg');
+        addDLCAch('chaos_void_prestige',   'System Administrator','Reach Prestige 5 with the Void Hero.',                          5,   'void_prestige',         'damage', 0.05, '+5% Dmg');
+
+        // Void Hero — unique mechanics
+        addDLCAch('chaos_execute',         'Kernel Panic',       'Execute 500 enemies with the Void Hero.',                         500, 'void_execute_count',    'damage', 0.05, '+5% Dmg');
+
+        // Shared milestone
+        addDLCAch('chaos_superboss',       'Entropy Lord',       'Defeat the Chaos Superboss.',                                    1,   'chaos_boss_kill',       'damage', 0.25, '+25% Dmg');
     },
 
     injectMemories: function () {

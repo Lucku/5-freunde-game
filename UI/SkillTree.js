@@ -35,8 +35,27 @@ class SkillTreeUI {
         const titleEl = document.getElementById('skill-tree-title');
         if (titleEl) titleEl.innerText = title;
 
+        // Update points display
         const ptsEl = document.getElementById('skill-points-display');
-        if (ptsEl) ptsEl.innerText = `Points Available: ${pointsAvailable}`;
+        if (ptsEl) {
+            const ST_SIZE_pts = (typeof SKILL_TREE_SIZE !== 'undefined') ? SKILL_TREE_SIZE : 100;
+            if (pointsAvailable > 0) {
+                ptsEl.textContent = `${heroData.unlocked}/${ST_SIZE_pts}  ·  ${pointsAvailable} pt${pointsAvailable !== 1 ? 's' : ''}`;
+                ptsEl.style.borderColor = 'rgba(241,196,15,0.45)';
+                ptsEl.style.color = '#f1c40f';
+            } else {
+                ptsEl.textContent = `${heroData.unlocked}/${ST_SIZE_pts}`;
+                ptsEl.style.borderColor = 'rgba(255,255,255,0.1)';
+                ptsEl.style.color = 'rgba(255,255,255,0.4)';
+            }
+        }
+
+        // Update progress bar
+        const progressFill = document.getElementById('skill-tree-progress-fill');
+        if (progressFill) {
+            const ST_SIZE_prog = (typeof SKILL_TREE_SIZE !== 'undefined') ? SKILL_TREE_SIZE : 100;
+            progressFill.style.width = `${(heroData.unlocked / ST_SIZE_prog * 100).toFixed(1)}%`;
+        }
 
         treeData.forEach((node, index) => {
             const el = document.createElement('div');
@@ -44,26 +63,33 @@ class SkillTreeUI {
 
             const isUnlocked = index < heroData.unlocked;
             const isAvailable = index === heroData.unlocked && pointsAvailable > 0;
+            const isMilestone = (index + 1) % 10 === 0;
 
             if (isUnlocked) el.classList.add('unlocked');
             else if (isAvailable) el.classList.add('available');
             else el.classList.add('locked');
+            if (isMilestone) el.classList.add('milestone');
 
-            // Determine Icon based on type
+            // Determine icon based on type
             let icon = "⚔️";
             if (node.type === 'HEALTH') icon = "❤️";
-            if (node.type === 'SPEED') icon = "👟";
-            if (node.type === 'COOLDOWN') icon = "⏳";
-            if (node.type === 'ARMOR') icon = "🛡️";
-            if (node.type === 'PIERCE' || node.type === 'SPLIT') icon = "🏹";
-            if (node.type.includes('ULT')) icon = "✨";
+            else if (node.type === 'SPEED') icon = "👟";
+            else if (node.type === 'COOLDOWN') icon = "⏳";
+            else if (node.type === 'ARMOR') icon = "🛡️";
+            else if (node.type === 'PIERCE' || node.type === 'SPLIT') icon = "🏹";
+            else if (node.type.includes('ULT')) icon = "✨";
+            else if (node.type === 'KNOCK') icon = "💥";
+            else if (node.type === 'MELEE') icon = "🥊";
+            else if (node.type === 'EXPLODE_CHANCE' || node.type === 'BLAST') icon = "💣";
+
+            // Strip "MAJOR: " prefix for the inline label — tooltip keeps full text
+            const shortDesc = node.desc.replace(/^MAJOR:\s*/i, '');
 
             el.innerHTML = `
-                <div class="skill-level">${index + 1}</div>
+                <span class="skill-level">${index + 1}</span>
                 <div class="skill-icon">${icon}</div>
-                <div class="skill-tooltip">
-                    ${node.desc}
-                </div>
+                <div class="skill-desc">${shortDesc}</div>
+                <div class="skill-tooltip">${node.desc}</div>
             `;
 
             if (isAvailable) {

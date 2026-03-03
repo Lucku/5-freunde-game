@@ -122,13 +122,28 @@ const WAKER_OF_WINDS = {
     },
 
     injectAchievements: function () {
-        if (typeof addAch === 'function') {
-            addAch('AIR_UNLOCK', 'Wind Waker', 'Unlock all Air Hero Altar skills.', 10, 'unlock_air', 'speed', 0.1, '+10% Speed');
-            addAch('TEMPEST_KING', 'Tempest King', 'Defeat the Storm Bringer Superboss.', 50, 'wind_boss_kill', 'damage', 0.25, '+25% Dmg');
+        const achievements = window.ACHIEVEMENTS || (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS : null);
+        if (!achievements) return;
 
-            // New DLC Achievements
-            addAch('wind_perfect_flow', 'Untouchable', 'Clear a Wind Waker wave without taking damage.', 15, 'no_hit_wind', 'knockback', 0.2, '+20% KB');
-        }
+        const addDLCAch = (id, title, desc, req, stat, type, val, text) => {
+            if (!achievements.some(a => a.id === id)) {
+                achievements.push({ id, title, desc, req, stat, bonus: { type, val, text } });
+            }
+        };
+
+        // Air Hero — story & progression
+        addDLCAch('wind_story',        'Sky Sovereign',    'Complete Story Mode with the Air Hero.',                        1,   'story_air',           'speed',  0.10, '+10% Speed');
+        addDLCAch('wind_prestige_5',   'Tempest King',     'Reach Prestige 5 with the Air Hero.',                          5,   'air_prestige',        'damage', 0.05, '+5% Dmg');
+
+        // Air Hero — unique mechanics
+        addDLCAch('wind_tornado_30',   'Eye of the Tornado','Activate TORNADO 30 times across all runs.',                  30,  'air_tornado_count',   'damage', 0.05, '+5% Dmg');
+        addDLCAch('wind_no_hit',       'Untouchable',      'Clear a wave in the Sky Palace without taking damage.',         1,   'no_hit_wind',         'knockback',0.20,'+20% KB');
+
+        // Air Hero — enemy encounters
+        addDLCAch('wind_harpy_kills',  'Harpy Hunter',     'Kill 500 Harpies.',                                             500, 'kill_HARPY',          'speed',  0.05, '+5% Speed');
+
+        // Survival
+        addDLCAch('wind_wave_25',      'Above the Clouds', 'Reach Wave 25 in the Sky Palace Biome.',                       25,  'wind_max_wave',       'health', 0.05, '+5% HP');
     },
 
     injectMemories: function () {

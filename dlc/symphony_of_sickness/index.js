@@ -171,6 +171,9 @@ const SymphonyDLC = {
         // 3. Inject Altar of Mastery skills
         this.injectAltar();
 
+        // 4. Inject Achievements
+        this.injectAchievements();
+
         console.log("Symphony of Sickness DLC Initialized");
     },
 
@@ -269,6 +272,29 @@ const SymphonyDLC = {
         }
 
         console.log("Symphony of Sickness: Altar Skills Injected.");
+    },
+
+    injectAchievements: function () {
+        const achievements = window.ACHIEVEMENTS || (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS : null);
+        if (!achievements) return;
+
+        const addDLCAch = (id, title, desc, req, stat, type, val, text) => {
+            if (!achievements.some(a => a.id === id)) {
+                achievements.push({ id, title, desc, req, stat, bonus: { type, val, text } });
+            }
+        };
+
+        // Sound Hero
+        addDLCAch('sickness_sound_story', 'Sonic Boom', 'Complete Story Mode with the Sound Hero.', 1, 'story_sound', 'damage', 0.05, '+5% Dmg');
+        addDLCAch('sickness_sound_prestige', 'Maestro', 'Reach Prestige 5 with the Sound Hero.', 5, 'sound_prestige', 'cooldown', 0.05, '-5% CD');
+        addDLCAch('sickness_crescendo', 'Perfect Pitch', 'Hit 1000 enemies with CRESCENDO rings.', 1000, 'sound_crescendo_hits', 'damage', 0.05, '+5% Dmg');
+
+        // Poison Hero
+        addDLCAch('sickness_poison_story', 'Plague Bearer', 'Complete Story Mode with the Poison Hero.', 1, 'story_poison', 'health', 0.05, '+5% HP');
+        addDLCAch('sickness_poison_prestige', 'Virulent', 'Reach Prestige 5 with the Poison Hero.', 5, 'poison_prestige', 'damage', 0.05, '+5% Dmg');
+        addDLCAch('sickness_pandemic', 'Pandemic', 'Apply 10000 total poison stacks across all runs.', 10000, 'poison_total_stacks', 'damage', 0.10, '+10% Dmg');
+
+        console.log("Symphony of Sickness: Achievements Injected.");
     },
 
     updateBeat: function () {

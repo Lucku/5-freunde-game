@@ -89,31 +89,26 @@ const RISE_OF_THE_ROCK = {
     },
 
     injectAchievements: function () {
-        // Ensure we are using the global array
         const achievements = window.ACHIEVEMENTS || (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS : null);
+        if (!achievements) { console.error("Rise of the Rock: Could not find ACHIEVEMENTS to inject into."); return; }
 
-        if (achievements) {
-            // Helper to add achievement if not exists
-            const addDLCAch = (id, title, desc, req, stat, type, val, text) => {
-                if (!achievements.some(a => a.id === id)) {
-                    achievements.push({ id, title, desc, req, stat, bonus: { type, val, text } });
-                }
-            };
+        const addDLCAch = (id, title, desc, req, stat, type, val, text) => {
+            if (!achievements.some(a => a.id === id)) {
+                achievements.push({ id, title, desc, req, stat, bonus: { type, val, text } });
+            }
+        };
 
-            // 1. Earth Hero Prestige
-            addDLCAch('rock_prestige_10', 'Earth Master', 'Rise of the Rock: Reach Prestige 10 with Earth Hero.', 10, 'earth_prestige', 'damage', 0.05, '+5% Dmg');
+        // Earth Hero — story & progression
+        addDLCAch('rock_story',        'Earthshaker',    'Complete Story Mode with the Earth Hero.',                       1,    'story_earth',         'health', 0.05, '+5% HP');
+        addDLCAch('rock_prestige_5',   'Living Mountain', 'Reach Prestige 5 with the Earth Hero.',                        5,    'earth_prestige',      'damage', 0.05, '+5% Dmg');
 
-            // 2. Rock Biome Survival
-            addDLCAch('rock_wave_50', 'Survivor', 'Rise of the Rock: Reach Wave 50 in Rock Biome.', 50, 'rock_max_wave', 'health', 0.10, '+10% HP');
+        // Earth Hero — unique mechanics
+        addDLCAch('rock_golem_summons','Colossus',       'Summon the Obsidian Golem 20 times across all runs.',           20,   'earth_golem_summons', 'damage', 0.05, '+5% Dmg');
+        addDLCAch('rock_wave_25',      'Stone Wall',     'Reach Wave 25 in the Rock Biome.',                              25,   'rock_max_wave',       'health', 0.05, '+5% HP');
 
-            // 3. Golem Slayer
-            addDLCAch('rock_kill_golem', 'Golem Breaker', 'Rise of the Rock: Kill 500 Golems.', 500, 'kill_GOLEM', 'damage', 0.05, '+5% Dmg vs Golems');
-
-            // 4. Burrower Slayer
-            addDLCAch('rock_kill_burrower', 'Exterminator', 'Rise of the Rock: Kill 500 Burrowers.', 500, 'kill_BURROWER', 'speed', 0.05, '+5% Speed');
-        } else {
-            console.error("Rise of the Rock: Could not find ACHIEVEMENTS to inject into.");
-        }
+        // Earth Hero — enemy encounters
+        addDLCAch('rock_golem_kills',  'Golem Breaker',  'Kill 500 Golems.',                                              500,  'kill_GOLEM',          'damage', 0.05, '+5% Dmg');
+        addDLCAch('rock_burrower_kills','Exterminator',  'Kill 500 Burrowers.',                                           500,  'kill_BURROWER',       'speed',  0.05, '+5% Speed');
     },
 
     injectHero: function () {

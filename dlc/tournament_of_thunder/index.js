@@ -223,16 +223,25 @@ const TOURNAMENT_OF_THUNDER = {
 
     injectAchievements: function () {
         const achievements = window.ACHIEVEMENTS || (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS : null);
-        if (achievements) {
-            const addDLCAch = (id, title, desc, req, stat, type, val, text) => {
-                if (!achievements.some(a => a.id === id)) {
-                    achievements.push({ id, title, desc, req, stat, bonus: { type, val, text } });
-                }
-            };
+        if (!achievements) return;
 
-            addDLCAch('thunder_prestige_10', 'Thunder God', 'Tournament of Thunder: Reach Prestige 10 with Lightning Hero.', 10, 'lightning_prestige', 'damage', 0.05, '+5% Dmg');
-            addDLCAch('thunder_clear', 'Champion', 'Tournament of Thunder: Complete the story.', 1, 'story_lightning', 'speed', 0.10, '+10% Speed');
-        }
+        const addDLCAch = (id, title, desc, req, stat, type, val, text) => {
+            if (!achievements.some(a => a.id === id)) {
+                achievements.push({ id, title, desc, req, stat, bonus: { type, val, text } });
+            }
+        };
+
+        // Lightning Hero — story & progression
+        addDLCAch('thunder_story',       'Tournament Victor',  'Complete Story Mode with the Lightning Hero.',                     1,   'story_lightning',      'speed',  0.10, '+10% Speed');
+        addDLCAch('thunder_prestige_5',  'Thunder God',        'Reach Prestige 5 with the Lightning Hero.',                       5,   'lightning_prestige',   'damage', 0.05, '+5% Dmg');
+
+        // Lightning Hero — unique mechanics
+        addDLCAch('thunder_storm_25',    'Eye of the Storm',   'Activate STORM 25 times across all runs.',                        25,  'lightning_storm_count','damage', 0.05, '+5% Dmg');
+        addDLCAch('thunder_charge_50',   'Fully Charged',      'Reach maximum Static Charge 50 times across all runs.',           50,  'lightning_max_charges','damage', 0.05, '+5% Dmg');
+        addDLCAch('thunder_chain_100',   'Chain Reaction',     'Chain Lightning through 5+ enemies 100 times across all runs.',   100, 'lightning_chain_5_count','damage', 0.05, '+5% Dmg');
+
+        // Survival
+        addDLCAch('thunder_wave_25',     'Storm Survivor',     'Reach Wave 25 in the Cloud Biome.',                               25,  'lightning_max_wave',   'health', 0.05, '+5% HP');
     },
 
     injectMemories: function () {
