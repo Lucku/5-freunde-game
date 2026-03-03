@@ -29,7 +29,7 @@ class StatisticsUI {
             if (key === 'timeSurvived') {
                 val = `${Math.floor(val / 60)}:${(val % 60).toString().padStart(2, '0')}`;
             }
-            html += `<tr><td>${labels[key]}</td><td class="stats-val">${val}</td></tr>`;
+            html += `<tr class="stat-row"><td>${labels[key]}</td><td class="stats-val">${val}</td></tr>`;
         }
         html += `</tbody></table>`;
 
@@ -41,20 +41,20 @@ class StatisticsUI {
         <table class="stats-table">
             <thead><tr><th>Statistic</th><th style="text-align:right">Total</th></tr></thead>
             <tbody>
-                <tr><td>Total Play Time</td><td class="stats-val" style="color:#2ecc71">${timeAndHero.formattedTime}</td></tr>
-                <tr><td>Most Favorite Hero</td><td class="stats-val" style="color:#f1c40f">${timeAndHero.mostPlayed}</td></tr>
-                <tr><td>Least Favorite Hero</td><td class="stats-val" style="color:#e74c3c">${timeAndHero.leastPlayed}</td></tr>
-                <tr><td>Total Games Played</td><td class="stats-val" style="color:#fff">${window.saveData.global.totalGames || 0}</td></tr>
-                <tr><td>Total Kills</td><td class="stats-val" style="color:#3498db">${window.saveData.global.totalKills}</td></tr>
-                <tr><td>Total Gold Collected</td><td class="stats-val" style="color:#f1c40f">${window.saveData.global.totalGold}</td></tr>
-                <tr><td>Total Bosses Slain</td><td class="stats-val" style="color:#e74c3c">${window.saveData.global.totalBosses}</td></tr>
-                <tr><td>Total Damage Dealt</td><td class="stats-val" style="color:#9b59b6">${(window.saveData.global.totalDamage / 1000000).toFixed(2)}M</td></tr>
-                <tr><td>Highest Wave Ever</td><td class="stats-val" style="color:#2ecc71">${window.saveData.global.maxWave}</td></tr>
+                <tr class="stat-row"><td>Total Play Time</td><td class="stats-val" style="color:#2ecc71">${timeAndHero.formattedTime}</td></tr>
+                <tr class="stat-row"><td>Most Favorite Hero</td><td class="stats-val" style="color:#f1c40f">${timeAndHero.mostPlayed}</td></tr>
+                <tr class="stat-row"><td>Least Favorite Hero</td><td class="stats-val" style="color:#e74c3c">${timeAndHero.leastPlayed}</td></tr>
+                <tr class="stat-row"><td>Total Games Played</td><td class="stats-val" style="color:#fff">${window.saveData.global.totalGames || 0}</td></tr>
+                <tr class="stat-row"><td>Total Kills</td><td class="stats-val" style="color:#3498db">${window.saveData.global.totalKills}</td></tr>
+                <tr class="stat-row"><td>Total Gold Collected</td><td class="stats-val" style="color:#f1c40f">${window.saveData.global.totalGold}</td></tr>
+                <tr class="stat-row"><td>Total Bosses Slain</td><td class="stats-val" style="color:#e74c3c">${window.saveData.global.totalBosses}</td></tr>
+                <tr class="stat-row"><td>Total Damage Dealt</td><td class="stats-val" style="color:#9b59b6">${(window.saveData.global.totalDamage / 1000000).toFixed(2)}M</td></tr>
+                <tr class="stat-row"><td>Highest Wave Ever</td><td class="stats-val" style="color:#2ecc71">${window.saveData.global.maxWave}</td></tr>
             </tbody>
         </table>`;
 
         document.getElementById('highscore-content').innerHTML = html;
-        if (window.setUIState) window.setUIState('HIGHSCORES');
+        if (window.setUIState) window.setUIState('HIGHSCORE');
     }
 
     closeStatistics() {

@@ -558,6 +558,15 @@ function initMenu() {
 }
 
 // --- DLC Menu Logic ---
+const DLC_META = {
+    rise_of_the_rock:      { rgb: '180,120,60'  },
+    tournament_of_thunder: { rgb: '241,196,15'  },
+    champions_of_chaos:    { rgb: '155,89,182'  },
+    waker_of_winds:        { rgb: '64,224,208'  },
+    faith_of_fortune:      { rgb: '240,180,100' },
+    symphony_of_sickness:  { rgb: '100,180,255' },
+};
+
 function openDLCMenu() {
     setUIState('DLC');
     document.getElementById('menu-overlay').style.display = 'none';
@@ -575,49 +584,40 @@ function renderDLCList() {
     container.innerHTML = '';
 
     if (!window.dlcManager) {
-        container.innerHTML = '<div style="color:red;">DLC Manager not found.</div>';
+        container.innerHTML = '<div style="color:rgba(231,76,60,0.7); text-align:center; padding:40px;">DLC Manager not found.</div>';
         return;
     }
 
     const dlcs = window.dlcManager.getDLCList();
 
     if (dlcs.length === 0) {
-        container.innerHTML = '<div style="color:#777; text-align:center;">No DLCs found.</div>';
+        container.innerHTML = '<div style="color:rgba(255,255,255,0.2); text-align:center; padding:40px;">No expansions found.</div>';
         return;
     }
 
     dlcs.forEach(dlc => {
+        const meta = DLC_META[dlc.id] || { rgb: '150,150,150' };
         const card = document.createElement('div');
-        card.className = 'dlc-card';
-        card.style.cssText = `
-            background: rgba(255,255,255,0.05);
-            border: 1px solid ${dlc.active ? '#2ecc71' : '#555'};
-            border-radius: 10px;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            transition: all 0.2s;
-        `;
+        card.className = `dlc-card${dlc.active ? ' dlc-active' : ''}`;
+        card.style.setProperty('--dlc-rgb', meta.rgb);
 
         card.innerHTML = `
-            <div style="font-size: 40px;">${dlc.icon}</div>
-            <div style="flex-grow: 1;">
-                <h2 style="margin: 0; color: ${dlc.active ? '#fff' : '#aaa'};">${dlc.title}</h2>
-                <div style="color: #888; margin-top: 5px;">${dlc.desc}</div>
+            <div class="dlc-icon-wrap">${dlc.icon}</div>
+            <div class="dlc-info">
+                <div class="dlc-name">${dlc.title}</div>
+                <div class="dlc-desc">${dlc.desc}</div>
             </div>
-            <div>
-                <button class="btn ${dlc.active ? 'btn-red' : 'btn-green'}" style="min-width: 100px;">
-                    ${dlc.active ? 'DISABLE' : 'ENABLE'}
-                </button>
+            <div class="dlc-status-col">
+                <div class="dlc-badge ${dlc.active ? 'badge-active' : 'badge-inactive'}">
+                    ${dlc.active ? '✓ ACTIVE' : '○ INACTIVE'}
+                </div>
+                <div class="dlc-action-btn">${dlc.active ? 'DISABLE' : 'ENABLE'}</div>
             </div>
         `;
 
-        // Toggle Button Logic
-        const btn = card.querySelector('button');
-        btn.onclick = () => {
+        card.onclick = () => {
             window.dlcManager.toggleDLC(dlc.id, !dlc.active);
-            renderDLCList(); // Refresh list
+            renderDLCList();
         };
 
         container.appendChild(card);
@@ -1264,11 +1264,41 @@ function createExplosion(x, y, color, count = 10) {
     for (let i = 0; i < 8; i++) { particles.push(new Particle(x, y, color)); }
 }
 
+function spawnLevelUpAura(x, y, color) {
+    // Upward-rising aura particles — staggered with setTimeout for a flowing effect
+    for (let i = 0; i < 40; i++) {
+        setTimeout(() => {
+            if (!particles) return;
+            const ox = (Math.random() - 0.5) * 28; // spread around player
+            const oy = (Math.random() - 0.5) * 10;
+            const p = new Particle(x + ox, y + oy, color);
+            p.velocity.x = (Math.random() - 0.5) * 1.8;
+            p.velocity.y = -(Math.random() * 3.2 + 1.2); // drift upward
+            p.life      = Math.random() * 0.008 + 0.005;  // slow fade (~120-200 frames)
+            particles.push(p);
+        }, i * 28);
+    }
+    // Burst ring at moment of level-up
+    const ringCount = 18;
+    for (let i = 0; i < ringCount; i++) {
+        const angle = (i / ringCount) * Math.PI * 2;
+        const speed = Math.random() * 1.5 + 1.5;
+        const p = new Particle(x, y, color);
+        p.velocity.x = Math.cos(angle) * speed;
+        p.velocity.y = Math.sin(angle) * speed;
+        p.life = 0.025;
+        particles.push(p);
+    }
+}
+window.spawnLevelUpAura = spawnLevelUpAura;
+
 // generateArena removed - moved to Arena.js
 
 // checkWallCollision removed - moved to Arena.js
 
 // drawArena removed - moved to Arena.js
+
+let _hudPrevHp = null, _hudPrevXp = null, _hudPrevMeleeReady = null;
 
 function updateUI() {
     document.getElementById('scoreVal').innerText = score;
@@ -1323,16 +1353,44 @@ function updateUI() {
 
     const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
     const displayHp = Math.max(0, Math.ceil(player.hp));
-    document.getElementById('health-fill').style.width = hpPercent + '%';
+    const hpFill   = document.getElementById('health-fill');
+    hpFill.style.width = hpPercent + '%';
     document.getElementById('health-text').innerText = displayHp + " / " + player.maxHp;
+    if (_hudPrevHp !== null && player.hp < _hudPrevHp) {
+        const hpWrap = hpFill.parentElement;
+        if (!hpWrap.classList.contains('bar-glow-health')) {
+            hpWrap.classList.add('bar-glow-health');
+            setTimeout(() => hpWrap.classList.remove('bar-glow-health'), 550);
+        }
+    }
+    _hudPrevHp = player.hp;
 
     const xpPercent = Math.min(100, (player.xp / player.maxXp) * 100);
-    document.getElementById('xp-fill').style.width = xpPercent + '%';
+    const xpFill    = document.getElementById('xp-fill');
+    xpFill.style.width = xpPercent + '%';
     document.getElementById('xp-text').innerText = "Level " + player.level;
+    if (_hudPrevXp !== null && xpPercent > _hudPrevXp) {
+        const xpWrap = xpFill.parentElement;
+        if (!xpWrap.classList.contains('bar-glow-xp')) {
+            xpWrap.classList.add('bar-glow-xp');
+            setTimeout(() => xpWrap.classList.remove('bar-glow-xp'), 550);
+        }
+    }
+    _hudPrevXp = xpPercent;
 
-    const meleePercent = Math.max(0, 100 - (player.meleeCooldown / player.meleeMaxCooldown * 100));
-    document.getElementById('melee-fill').style.width = meleePercent + '%';
+    const meleePercent  = Math.max(0, 100 - (player.meleeCooldown / player.meleeMaxCooldown * 100));
+    const meleeFill     = document.getElementById('melee-fill');
+    meleeFill.style.width = meleePercent + '%';
     document.getElementById('melee-text').innerText = player.meleeCooldown <= 0 ? "MELEE READY" : "RECHARGING";
+    const meleeReady = player.meleeCooldown <= 0;
+    if (_hudPrevMeleeReady === false && meleeReady) {
+        const meleeWrap = meleeFill.parentElement;
+        if (!meleeWrap.classList.contains('bar-glow-melee')) {
+            meleeWrap.classList.add('bar-glow-melee');
+            setTimeout(() => meleeWrap.classList.remove('bar-glow-melee'), 550);
+        }
+    }
+    _hudPrevMeleeReady = meleeReady;
 
     const bossContainer = document.getElementById('boss-hp-container');
     if (bossActive && enemies.length > 0 && enemies[0] instanceof Boss) {

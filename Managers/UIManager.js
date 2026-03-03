@@ -39,7 +39,12 @@ class UIManager {
         const screen = document.getElementById(screenId);
         if (!screen) return [];
 
-        const elements = Array.from(screen.querySelectorAll('button, .hero-card, .upgrade-card, .shop-item, .skill-node, .collection-card, .switch, .altar-node, .achievement-row, .stat-row, .summary-card'));
+        const elements = Array.from(screen.querySelectorAll(
+            'button, .hero-card, .upgrade-card, .shop-item, .skill-node,' +
+            '.collection-card, .coll-set,' +
+            '.switch, .altar-node, .altar-pill, .altar-rune, .altar-conv-item,' +
+            '.achievement-row, .stat-row, .summary-card, .dlc-card'
+        ));
         return elements.filter(el => el.offsetParent !== null);
     }
 

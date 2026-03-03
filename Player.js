@@ -160,6 +160,12 @@ class Player {
         this.maxXp = Math.floor(this.maxXp * 1.2);
         isLevelingUp = true;
 
+        if (window.spawnLevelUpAura) {
+            const heroColor = (typeof BASE_HERO_STATS !== 'undefined' && BASE_HERO_STATS[this.type])
+                ? BASE_HERO_STATS[this.type].color : '#ffffff';
+            window.spawnLevelUpAura(this.x, this.y, heroColor);
+        }
+
         let options = [];
 
         if (this.level % 10 === 0) {
