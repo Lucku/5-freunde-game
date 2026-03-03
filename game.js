@@ -2499,42 +2499,89 @@ function masterLoop(timestamp) {
                 }
             }
 
-            // Boss Death Slow-Mo Sequence
+            // Boss Death Cinematic Sequence
             if (bossDeathTimer > 0) {
                 bossDeathTimer--;
 
-                // Slow down game logic (only run every 3rd frame)
-                if (bossDeathTimer % 3 !== 0) {
-                    // Still draw to keep it smooth, but don't update logic
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const _progress = 1 - bossDeathTimer / 180; // 0 at sequence start → 1 at end
 
-                    ctx.save();
-                    ctx.translate(-arena.camera.x, -arena.camera.y);
+                // --- Cinematic frame drawn every frame (no strobe) ---
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                    // Background follows Biome Type
-                    let themeType = currentBiomeType;
-                    if (arena) arena.biomeType = themeType;
+                // 1. Frozen arena background
+                ctx.save();
+                ctx.translate(-arena.camera.x, -arena.camera.y);
+                if (arena) arena.draw(ctx, getHeroTheme(currentBiomeType));
+                ctx.restore();
 
-                    arena.draw(ctx, getHeroTheme(themeType));
-                    // Draw entities (static for slow-mo)
-                    // ... (Ideally we'd draw entities here too, but for now just arena is fine or we duplicate draw calls)
-                    // Actually, let's just draw the arena background and overlay
-                    ctx.restore();
-
-                    // Draw "VICTORY" text overlay
-                    ctx.save();
-                    ctx.fillStyle = `rgba(0, 0, 0, ${0.5 - (bossDeathTimer / 360)})`; // Fade in bg
+                // 2. White impact flash — bright burst at start, fades in ~0.25s
+                if (_progress < 0.15) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${(1 - _progress / 0.15) * 0.88})`;
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
 
-                    ctx.fillStyle = '#f1c40f';
-                    ctx.font = 'bold 60px Arial';
+                // 3. Cinematic dark overlay, deepens over the sequence
+                ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.78, _progress * 1.15)})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 4. Deterministic gold & white particle shower
+                if (_progress > 0.08) {
+                    const _pA = Math.min(1, (_progress - 0.08) / 0.35);
+                    ctx.save();
+                    for (let _i = 0; _i < 28; _i++) {
+                        const _elapsed = (_progress - 0.08) * 180;
+                        const _x = ((_i * 1.618 * 97) % 1) * canvas.width;
+                        const _y = (((_i * 2.236 * 83 + 40) % 1) * canvas.height + _elapsed * (1.0 + (_i % 5) * 0.5) * 2.2) % canvas.height;
+                        ctx.globalAlpha = _pA * (0.35 + 0.65 * Math.abs(Math.sin(_progress * 14 + _i * 0.9))) * 0.65;
+                        ctx.fillStyle = _i % 3 === 0 ? '#ffffff' : '#f1c40f';
+                        ctx.beginPath();
+                        ctx.arc(_x, _y, 1.5 + (_i % 4) * 1.2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+
+                // 5. "BOSS DEFEATED" heading — eases in with cubic after flash clears
+                if (_progress > 0.15) {
+                    const _eased = 1 - Math.pow(1 - Math.min(1, (_progress - 0.15) / 0.28), 3);
+                    ctx.save();
+                    ctx.globalAlpha = _eased;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.shadowColor = 'black';
-                    ctx.shadowBlur = 20;
-                    ctx.fillText("BOSS DEFEATED", canvas.width / 2, canvas.height / 2);
+                    // Broad gold halo pass
+                    ctx.shadowColor = '#f1c40f';
+                    ctx.shadowBlur = 70;
+                    ctx.fillStyle = 'rgba(241, 196, 15, 0.22)';
+                    ctx.font = `bold ${Math.round(64 + (1 - _eased) * 14)}px Arial`;
+                    ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
+                    // Crisp white text on top
+                    ctx.shadowBlur = 16;
+                    ctx.shadowColor = 'rgba(241, 196, 15, 0.85)';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 64px Arial';
+                    ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
                     ctx.restore();
-                    return;
+                }
+
+                // 6. "WAVE X CLEARED" subtitle — fades in a beat after the heading
+                if (_progress > 0.46) {
+                    const _sT = Math.min(1, (_progress - 0.46) / 0.22);
+                    ctx.save();
+                    ctx.globalAlpha = _sT * 0.82;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.shadowColor = '#f1c40f';
+                    ctx.shadowBlur = 10;
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.font = '13px Arial';
+                    ctx.fillText(`\u2014 WAVE ${wave} CLEARED \u2014`, canvas.width / 2, canvas.height / 2 + 48);
+                    ctx.restore();
+                }
+
+                // 7. Fade to black in the final stretch
+                if (_progress > 0.8) {
+                    ctx.fillStyle = `rgba(0, 0, 0, ${((_progress - 0.8) / 0.2) * 0.9})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
                 }
 
                 if (bossDeathTimer === 0) {
@@ -2593,6 +2640,7 @@ function masterLoop(timestamp) {
 
                     triggerStory(wave);
                 }
+                return; // Always prevent normal render during cinematic
             }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
