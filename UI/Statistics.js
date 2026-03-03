@@ -18,7 +18,7 @@ class StatisticsUI {
         };
 
         let html = `
-        <h2 style="color:#f1c40f; margin-bottom:10px;">BEST RUN RECORDS</h2>
+        <h2 style="color:#f1c40f;">BEST RUN RECORDS</h2>
         <table class="stats-table">
             <thead><tr><th>Statistic</th><th style="text-align:right">Best Record</th></tr></thead>
             <tbody>`;
@@ -29,7 +29,7 @@ class StatisticsUI {
             if (key === 'timeSurvived') {
                 val = `${Math.floor(val / 60)}:${(val % 60).toString().padStart(2, '0')}`;
             }
-            html += `<tr><td>${labels[key]}</td><td class="stats-val" style="color:#fff">${val}</td></tr>`;
+            html += `<tr><td>${labels[key]}</td><td class="stats-val">${val}</td></tr>`;
         }
         html += `</tbody></table>`;
 
@@ -37,7 +37,7 @@ class StatisticsUI {
         const timeAndHero = this.calculateTotalTimeAndHeroes();
 
         html += `
-        <h2 style="color:#3498db; margin-top:30px; margin-bottom:10px;">LIFETIME TOTALS</h2>
+        <h2 style="color:#3498db;">LIFETIME TOTALS</h2>
         <table class="stats-table">
             <thead><tr><th>Statistic</th><th style="text-align:right">Total</th></tr></thead>
             <tbody>

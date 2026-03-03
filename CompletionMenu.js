@@ -502,7 +502,8 @@ class CompletionMenu {
         categories.forEach(cat => {
             const p = progress[cat.id];
             const el = document.createElement('div');
-            el.className = 'completion-item';
+            // DLC card spans both columns since it has many sub-entries
+            el.className = cat.id === 'dlc' ? 'completion-item completion-item--wide' : 'completion-item';
 
             // Main Header (Button for focus)
             const header = document.createElement('button');
