@@ -1401,6 +1401,113 @@ button.btn-gold:hover {
     }
 }
 
+/* Achievement Unlock Toast */
+#ach-notif {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 300px;
+    background: rgba(5, 18, 8, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(46, 204, 113, 0.28);
+    border-radius: 12px;
+    padding: 14px 16px 0;
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.55), 0 0 18px rgba(46, 204, 113, 0.10);
+    pointer-events: none;
+    z-index: 9999;
+    transform: translateX(calc(100% + 28px));
+    overflow: hidden;
+}
+
+#ach-notif.slide-in  { animation: achSlideIn  0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+#ach-notif.slide-out { animation: achSlideOut 0.30s cubic-bezier(0.55, 0, 1, 0.45) forwards; }
+
+@keyframes achSlideIn {
+    from { transform: translateX(calc(100% + 28px)); }
+    to   { transform: translateX(0); }
+}
+
+@keyframes achSlideOut {
+    from { transform: translateX(0); }
+    to   { transform: translateX(calc(100% + 28px)); }
+}
+
+.ach-notif-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: rgba(46, 204, 113, 0.65);
+    margin-bottom: 8px;
+}
+
+.ach-notif-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+
+.ach-notif-icon {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.ach-notif-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.92);
+    line-height: 1.2;
+}
+
+.ach-notif-desc {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.38);
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ach-notif-reward {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(241, 196, 15, 0.85);
+    background: rgba(241, 196, 15, 0.08);
+    border: 1px solid rgba(241, 196, 15, 0.18);
+    border-radius: 5px;
+    padding: 3px 9px;
+    margin-bottom: 12px;
+}
+
+.ach-notif-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.ach-notif-bar-fill {
+    height: 100%;
+    background: rgba(46, 204, 113, 0.55);
+    width: 100%;
+    transform-origin: left;
+}
+
+#ach-notif.timing .ach-notif-bar-fill {
+    animation: achBarDrain var(--ach-duration, 3s) linear forwards;
+}
+
+@keyframes achBarDrain {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+}
+
 /* Weather Overlay */
 #weather-overlay {
     position: absolute;

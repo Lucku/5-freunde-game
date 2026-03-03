@@ -763,7 +763,7 @@ class AirHero {
         if (player.activeEffect || player.activeTornado) return;
 
         // --- SOUND ---
-        if (typeof audioManager !== 'undefined') {
+        if (typeof audioManager !== 'undefined' && audioManager.sfxEnabled) {
             const windDir = (player.weatherVane && player.weatherVane.direction) ? player.weatherVane.direction : 'NORTH';
             const dirs = ['NORTH', 'EAST', 'SOUTH', 'WEST'];
             const idx = dirs.indexOf(windDir);
@@ -877,7 +877,7 @@ class AirHero {
         if (player.lastShotTime && (now - player.lastShotTime < cd)) return;
         player.lastShotTime = now;
 
-        if (typeof audioManager !== 'undefined') {
+        if (typeof audioManager !== 'undefined' && audioManager.sfxEnabled) {
             const windDir = (player.weatherVane && player.weatherVane.direction) ? player.weatherVane.direction : 'NORTH';
             const dirs = ['NORTH', 'EAST', 'SOUTH', 'WEST'];
             const idx = dirs.indexOf(windDir);

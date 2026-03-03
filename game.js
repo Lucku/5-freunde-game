@@ -1751,13 +1751,14 @@ function shuffleHero(targetHeroType = null) {
 
 function advanceWave() {
     // No-hit wave tracking for wind_no_hit achievement
-    if (player?.type === 'air' && typeof saveData !== 'undefined') {
-        const dmgThisWave = currentRunStats.damageTaken - (advanceWave._waveStartDmg || 0);
+    // Uses currentRunStats._noHitBaseline (resets per run) instead of a function property (persists across runs)
+    if (player?.type === 'air' && typeof saveData !== 'undefined' && wave > 0) {
+        const dmgThisWave = currentRunStats.damageTaken - (currentRunStats._noHitBaseline || 0);
         if (dmgThisWave === 0) {
             saveData.global.no_hit_wind = (saveData.global.no_hit_wind || 0) + 1;
         }
     }
-    advanceWave._waveStartDmg = currentRunStats.damageTaken;
+    currentRunStats._noHitBaseline = currentRunStats.damageTaken;
 
     wave++;
     enemiesKilledInWave = 0;
@@ -1961,13 +1962,57 @@ function unlockAchievement(id) {
         const ach = ACHIEVEMENTS.find(a => a.id === id);
         if (ach) {
             saveData.global.unlockedAchievements.push(id);
-            showNotification(`ACHIEVEMENT: ${ach.title}`);
+            showAchievementNotif(ach);
             saveGame();
         }
     }
 }
 window.unlockAchievement = unlockAchievement;
 window.DLC_STORY_ACHIEVEMENTS = {}; // bossType → achievementId (or direct unlockAchievement target)
+
+const _achNotifQueue = [];
+let _achNotifBusy = false;
+
+function showAchievementNotif(ach) {
+    // Deduplicate: don't queue the same achievement if it's already showing or waiting
+    const alreadyQueued = _achNotifQueue.some(a => a.id === ach.id);
+    const currentlyShowing = _achNotifBusy && document.querySelector('#ach-notif .ach-notif-title')?.textContent === ach.title;
+    if (alreadyQueued || currentlyShowing) return;
+    _achNotifQueue.push(ach);
+    if (!_achNotifBusy) _processAchNotifQueue();
+}
+
+function _processAchNotifQueue() {
+    if (_achNotifQueue.length === 0) { _achNotifBusy = false; return; }
+    _achNotifBusy = true;
+    const ach = _achNotifQueue.shift();
+    const el = document.getElementById('ach-notif');
+    if (!el) { _achNotifBusy = false; return; }
+
+    const HOLD = 3000;
+
+    el.querySelector('.ach-notif-title').textContent = ach.title;
+    el.querySelector('.ach-notif-desc').textContent  = ach.desc;
+    el.querySelector('.ach-notif-reward').textContent = ach.bonus.text;
+    el.style.setProperty('--ach-duration', (HOLD / 1000) + 's');
+
+    el.classList.remove('slide-in', 'slide-out', 'timing');
+    void el.offsetWidth; // force reflow so animations restart cleanly
+
+    el.classList.add('slide-in');
+    setTimeout(() => el.classList.add('timing'), 350);
+
+    setTimeout(() => {
+        el.classList.remove('timing');
+        el.classList.add('slide-out');
+        setTimeout(() => {
+            el.classList.remove('slide-out');
+            _processAchNotifQueue();
+        }, 300);
+    }, 350 + HOLD);
+}
+
+window.showAchievementNotif = showAchievementNotif;
 
 function checkAchievements() {
     saveData.global.totalKills++;
@@ -2030,7 +2075,7 @@ function checkAchievements() {
 
             if (unlocked) {
                 saveData.global.unlockedAchievements.push(ach.id);
-                showNotification(`ACHIEVEMENT: ${ach.title}`);
+                showAchievementNotif(ach);
                 saveGame();
             }
         }
