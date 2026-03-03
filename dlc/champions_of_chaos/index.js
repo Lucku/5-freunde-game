@@ -131,8 +131,12 @@ const CHAMPIONS_OF_CHAOS = {
         // Void Hero — unique mechanics
         addDLCAch('chaos_execute',         'Kernel Panic',       'Execute 500 enemies with the Void Hero.',                         500, 'void_execute_count',    'damage', 0.05, '+5% Dmg');
 
-        // Shared milestone
-        addDLCAch('chaos_superboss',       'Entropy Lord',       'Defeat the Chaos Superboss.',                                    1,   'chaos_boss_kill',       'damage', 0.25, '+25% Dmg');
+        // Shared milestone — unlocked directly when ENTROPY_LORD boss dies
+        addDLCAch('chaos_superboss', 'Entropy Lord', 'Defeat the Chaos Superboss.', 1, 'chaos_boss_kill', 'damage', 0.25, '+25% Dmg');
+
+        // Register superboss for boss-death hook in game.js
+        window.DLC_STORY_ACHIEVEMENTS = window.DLC_STORY_ACHIEVEMENTS || {};
+        window.DLC_STORY_ACHIEVEMENTS['ENTROPY_LORD'] = 'chaos_superboss';
     },
 
     injectMemories: function () {

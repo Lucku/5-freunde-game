@@ -422,6 +422,9 @@ class SpiritHero {
         // Activate Transcendence
         player.transformActive = true;
         player.currentForm = 'ENLIGHTENED';
+        if (typeof saveData !== 'undefined') {
+            saveData.global.spirit_transcend_count = (saveData.global.spirit_transcend_count || 0) + 1;
+        }
         player.speedMultiplier = 1.3; // Move faster inside form
 
         // Instant Heal based on Peace

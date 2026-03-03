@@ -360,6 +360,12 @@ class EarthHero {
 
         // --- ULTIMATE: OBSIDIAN GOLEM ---
         if (player.transformActive) {
+            // Count each new activation (rising-edge detection)
+            if (!player._golemWasActive && typeof saveData !== 'undefined') {
+                saveData.global.earth_golem_summons = (saveData.global.earth_golem_summons || 0) + 1;
+            }
+            player._golemWasActive = true;
+
             // Infinite Momentum
             player.momentum = player.maxMomentum;
             player.isRolling = true;
@@ -370,7 +376,10 @@ class EarthHero {
             if (player.transformTimer <= 0) {
                 player.transformActive = false;
                 player.transformTimer = 0;
+                player._golemWasActive = false;
             }
+        } else {
+            player._golemWasActive = false;
         }
 
 

@@ -74,6 +74,9 @@ class ChanceHero {
     static applyUpgrade(player, type) {
         if (type === 'chance_luck') {
             player.luck = (player.luck || 10) + 10;
+            if (typeof saveData !== 'undefined') {
+                saveData.global.chance_total_luck = (saveData.global.chance_total_luck || 0) + 10;
+            }
             return true;
         }
         if (type === 'big_gamble') {
@@ -369,6 +372,9 @@ class ChanceHero {
                 e.hp -= 7777;
                 createExplosion(e.x, e.y, "#ff00ff", 20);
             });
+            if (typeof saveData !== 'undefined') {
+                saveData.global.chance_jackpots = (saveData.global.chance_jackpots || 0) + 1;
+            }
             // Sound handled above
         }
         else if (outcome === 'BAD') {

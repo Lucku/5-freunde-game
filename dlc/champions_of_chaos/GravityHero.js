@@ -253,6 +253,9 @@ window.HERO_LOGIC['gravity'] = {
 
             // Spawn Black Hole
             player.activeBlackHole = new BlackHole(player.x, player.y, player);
+            if (typeof saveData !== 'undefined') {
+                saveData.global.gravity_black_holes = (saveData.global.gravity_black_holes || 0) + 1;
+            }
 
             if (typeof showNotification === 'function') showNotification("SINGULARITY OPENED", "#8e44ad");
             player.setupSpecial();
@@ -280,6 +283,9 @@ window.HERO_LOGIC['gravity'] = {
                     const angle = Math.atan2(player.y - e.y, player.x - e.x);
                     e.x += Math.cos(angle) * 0.5; // Gentle constant pull
                     e.y += Math.sin(angle) * 0.5;
+                    if (typeof saveData !== 'undefined') {
+                        saveData.global.gravity_pull_count = (saveData.global.gravity_pull_count || 0) + 1;
+                    }
                 }
             });
         }

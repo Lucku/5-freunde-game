@@ -189,6 +189,9 @@ class LightningHero {
         if (player.staticCharge >= 100) {
             player.staticCharge = 0;
             isSuper = true; // Unleash the storm
+            if (typeof saveData !== 'undefined') {
+                saveData.global.lightning_max_charges = (saveData.global.lightning_max_charges || 0) + 1;
+            }
         }
 
         // Play Sound
@@ -340,6 +343,9 @@ class LightningHero {
         // 1. Activate Mode
         player.thunderWrath = 300; // 5 seconds (60fps)
         player.invincibleTimer = 60; // Brief I-frame
+        if (typeof saveData !== 'undefined') {
+            saveData.global.lightning_storm_count = (saveData.global.lightning_storm_count || 0) + 1;
+        }
 
         // 2. Consume Charge
         player.staticCharge = 0;
@@ -591,6 +597,9 @@ class LightningProjectile {
             // Robust Push
             if (typeof projectiles !== 'undefined') projectiles.push(nextProj);
             else if (window.projectiles) window.projectiles.push(nextProj);
+            if (typeof saveData !== 'undefined') {
+                saveData.global.lightning_chain_5_count = (saveData.global.lightning_chain_5_count || 0) + 1;
+            }
 
         }
     }

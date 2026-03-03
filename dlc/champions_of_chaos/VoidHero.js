@@ -240,6 +240,9 @@ window.HERO_LOGIC['void'] = {
                         if (!e.isBoss && e.hp < e.maxHp * executeThreshold) {
                             e.hp = -9999;
                             executed = true;
+                            if (typeof saveData !== 'undefined') {
+                                saveData.global.void_execute_count = (saveData.global.void_execute_count || 0) + 1;
+                            }
                             if (typeof FloatingText !== 'undefined') floatingTexts.push(new FloatingText(e.x, e.y - 60, "DELETE", "#ff0000", 30));
                         } else {
                             e.hp -= dmg;
@@ -327,6 +330,9 @@ window.HERO_LOGIC['void'] = {
 
         player.inRealmShift = true;
         player.realmShiftTimer = 600; // 10s
+        if (typeof saveData !== 'undefined') {
+            saveData.global.gravity_realm_shifts = (saveData.global.gravity_realm_shifts || 0) + 1;
+        }
         if (typeof audioManager !== 'undefined') audioManager.play('special_void');
         if (typeof showNotification === 'function') showNotification("REALM SHIFT ACTIVATED", "#00bcd4");
 

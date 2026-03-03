@@ -1750,6 +1750,15 @@ function shuffleHero(targetHeroType = null) {
 }
 
 function advanceWave() {
+    // No-hit wave tracking for wind_no_hit achievement
+    if (player?.type === 'air' && typeof saveData !== 'undefined') {
+        const dmgThisWave = currentRunStats.damageTaken - (advanceWave._waveStartDmg || 0);
+        if (dmgThisWave === 0) {
+            saveData.global.no_hit_wind = (saveData.global.no_hit_wind || 0) + 1;
+        }
+    }
+    advanceWave._waveStartDmg = currentRunStats.damageTaken;
+
     wave++;
     enemiesKilledInWave = 0;
     masksDroppedInWave = 0; // Reset mask cap
@@ -1957,6 +1966,8 @@ function unlockAchievement(id) {
         }
     }
 }
+window.unlockAchievement = unlockAchievement;
+window.DLC_STORY_ACHIEVEMENTS = {}; // bossType → achievementId (or direct unlockAchievement target)
 
 function checkAchievements() {
     saveData.global.totalKills++;
@@ -2002,6 +2013,20 @@ function checkAchievements() {
             if (ach.stat === 'rock_max_wave' && rockMaxWave >= ach.req) unlocked = true;
             if (ach.stat === 'kill_GOLEM' && killGolem >= ach.req) unlocked = true;
             if (ach.stat === 'kill_BURROWER' && killBurrower >= ach.req) unlocked = true;
+
+            // Generic: 'hero_prestige' → saveData[hero].prestige (covers all DLC heroes)
+            if (!unlocked && ach.stat.endsWith('_prestige')) {
+                const hero = ach.stat.slice(0, -8);
+                if ((saveData[hero]?.prestige || 0) >= ach.req) unlocked = true;
+            }
+            // Generic: 'kill_TYPE' → saveData.stats['kill_TYPE'] (covers all DLC enemy types)
+            if (!unlocked && ach.stat.startsWith('kill_')) {
+                if ((saveData.stats[ach.stat] || 0) >= ach.req) unlocked = true;
+            }
+            // Generic global fallback: any mechanic counter written to saveData.global is auto-checked
+            if (!unlocked && typeof saveData.global[ach.stat] === 'number') {
+                if (saveData.global[ach.stat] >= ach.req) unlocked = true;
+            }
 
             if (unlocked) {
                 saveData.global.unlockedAchievements.push(ach.id);
@@ -2240,6 +2265,22 @@ function gameOver(isVictory = false) {
         const recorded = saveData[player.type].maxWinPrestige ?? -1;
         if (currentP > recorded) {
             saveData[player.type].maxWinPrestige = currentP;
+        }
+    }
+
+    // DLC story completion achievements (fires on any victory in story mode at wave ≥ 50)
+    if (isVictory && player && wave >= 50) {
+        const isStoryRun = (saveData.story && saveData.story.enabled !== false) &&
+            !isDailyMode && !isWeeklyMode && !isChaosShuffleMode && !isVersusMode;
+        if (isStoryRun) {
+            const dlcStoryMap = {
+                earth: 'rock_story', lightning: 'thunder_story',
+                air: 'wind_story', gravity: 'chaos_gravity_story', void: 'chaos_void_story',
+                spirit: 'faith_spirit_story', chance: 'faith_chance_story',
+                sound: 'sickness_sound_story', poison: 'sickness_poison_story'
+            };
+            const achId = dlcStoryMap[player.type];
+            if (achId) unlockAchievement(achId);
         }
     }
 
@@ -3632,6 +3673,11 @@ function masterLoop(timestamp) {
                             if (player.type === 'ice') unlockAchievement('STORY_ICE');
                             if (player.type === 'plant') unlockAchievement('STORY_PLANT');
                             if (player.type === 'metal') unlockAchievement('STORY_METAL');
+                        }
+
+                        // DLC boss-specific achievements (superbosses, etc.)
+                        if (window.DLC_STORY_ACHIEVEMENTS[enemy.type]) {
+                            unlockAchievement(window.DLC_STORY_ACHIEVEMENTS[enemy.type]);
                         }
 
                         enemies.splice(eIndex, 1);

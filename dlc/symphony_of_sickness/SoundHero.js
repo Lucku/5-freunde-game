@@ -657,6 +657,9 @@ class SoundHero {
                     const dist = Math.hypot(e.x - this.x, e.y - this.y);
                     if (Math.abs(dist - this.radius) < 28) {
                         this.hitEnemies.push(e);
+                        if (typeof saveData !== 'undefined') {
+                            saveData.global.sound_crescendo_hits = (saveData.global.sound_crescendo_hits || 0) + 1;
+                        }
 
                         // so3: Resonance Surge — double damage to already-resonating enemies
                         let hitDmg = this.damage;

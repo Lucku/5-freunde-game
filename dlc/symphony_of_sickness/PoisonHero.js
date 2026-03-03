@@ -432,6 +432,9 @@ class PoisonHero {
                                         // Apply Poison Stacks
                                         if (typeof e.poisonStacks === 'undefined') e.poisonStacks = 0;
                                         e.poisonStacks = Math.min(e.poisonStacks + 5, 100);
+                                        if (typeof saveData !== 'undefined') {
+                                            saveData.global.poison_total_stacks = (saveData.global.poison_total_stacks || 0) + 5;
+                                        }
 
                                         // Visual Feedback on Enemy
                                         if (typeof createExplosion === 'function' && Math.random() < 0.3) {

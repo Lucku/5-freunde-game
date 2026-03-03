@@ -820,6 +820,9 @@ class AirHero {
                 y: player.y,
                 timer: 400 // Longer duration for Tornado
             };
+            if (typeof saveData !== 'undefined') {
+                saveData.global.air_tornado_count = (saveData.global.air_tornado_count || 0) + 1;
+            }
             if (typeof showNotification === 'function') showNotification("TORNADO ACTIVE!");
 
         } else {
