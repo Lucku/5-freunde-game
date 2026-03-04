@@ -3815,12 +3815,13 @@ function masterLoop(timestamp) {
                         if (!saveData.stats[killKey]) saveData.stats[killKey] = 0;
                         saveData.stats[killKey]++;
 
-                        score += 10; player.gainXp(20); createExplosion(enemy.x, enemy.y, '#aaa');
+                        const _xpMod = bossActive ? 0.15 : 1;
+                        score += 10; player.gainXp(Math.round(20 * _xpMod)); createExplosion(enemy.x, enemy.y, '#aaa');
 
                         // Elite Logic on Death
                         if (enemy.isElite) {
                             score += 500;
-                            player.gainXp(200);
+                            player.gainXp(Math.round(200 * _xpMod));
                             createExplosion(enemy.x, enemy.y, enemy.eliteType.color);
 
                             // Elite Card Drop

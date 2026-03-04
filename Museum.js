@@ -643,28 +643,19 @@ class Museum {
                     ctx.fillText(countText, 0, 34);
                 }
 
-                // --- Near-proximity name label above pedestal ---
+                // --- Near-proximity name + prompt above pedestal ---
                 if (Math.hypot(this.player.x - a.x, this.player.y - a.y) < 90) {
-                    ctx.fillStyle = 'rgba(255,255,255,0.70)';
                     ctx.font = 'bold 13px Arial';
-                    ctx.fillText(a.hero.toUpperCase(), 0, -46);
+                    ctx.fillStyle = 'rgba(255,255,255,0.70)';
+                    ctx.fillText(a.hero.toUpperCase(), 0, -58);
+                    ctx.font = 'bold 11px Arial';
+                    ctx.fillStyle = 'rgba(255,255,255,0.90)';
+                    ctx.fillText("PRESS E OR (A) TO VIEW", 0, -44);
                 }
 
                 ctx.restore();
             }
         });
-
-        // Draw Interaction Prompt
-        const closest = this.artifacts.find(a => a.type === 'MEMORY' && Math.hypot(this.player.x - a.x, this.player.y - a.y) < 50);
-        if (closest && closest.type === 'MEMORY') {
-            ctx.save();
-            ctx.translate(closest.x, closest.y - 60);
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText("PRESS E OR (A) TO VIEW", 0, 0);
-            ctx.restore();
-        }
 
         // Draw Player
         this.drawPlayer(ctx);
