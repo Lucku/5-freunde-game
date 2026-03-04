@@ -576,39 +576,26 @@
     </div>
 
     <!-- Versus Mode Selection Screen -->
-    <div id="versus-selection-screen"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10, 20, 30, 0.97); z-index:4000; flex-direction:column; align-items:center; justify-content:center;">
-        <div class="screen-header" style="margin-bottom: 20px;">
-            <div class="screen-title st-blue">VERSUS SETUP</div>
+    <div id="versus-selection-screen" style="display:none;">
+        <div class="vs-bg-glow"></div>
+        <div class="vs-header">
+            <div class="vs-eyebrow">⚔ DUEL ARENA ⚔</div>
+            <div class="vs-title-text">CHALLENGER SELECT</div>
+            <div class="vs-subtitle-text">Choose your opponent and step into the arena</div>
         </div>
-
-        <div style="display:flex; gap: 50px; align-items:flex-start; height: 60vh;">
-            <!-- Column 1: Opponent -->
-            <div style="display:flex; flex-direction:column; align-items:center;">
-                <div class="versus-col-label">Select Opponent</div>
-                <div id="versus-opponent-grid"
-                    style="display:grid; grid-template-columns: repeat(3, 100px); gap:10px; overflow-y:auto; max-height: 50vh; padding:10px; background:rgba(0,0,0,0.3); border-radius:10px;">
-                    <!-- JS Injected -->
-                </div>
-                <div id="versus-selected-opponent" style="margin-top:10px; color:#f1c40f; font-weight:bold;">Random
-                </div>
-            </div>
-
-            <!-- Column 2: Arena -->
-            <div style="display:flex; flex-direction:column; align-items:center;">
-                <div class="versus-col-label">Select Arena</div>
-                <div id="versus-biome-grid"
-                    style="display:flex; flex-direction:column; gap:10px; overflow-y:auto; max-height: 50vh; padding:10px; background:rgba(0,0,0,0.3); border-radius:10px; width: 200px;">
-                    <!-- JS Injected -->
-                </div>
-                <div id="versus-selected-biome" style="margin-top:10px; color:#2ecc71; font-weight:bold;">Green Hill
-                </div>
-            </div>
+        <div class="vs-section">
+            <div class="vs-section-label">Opponent</div>
+            <div id="versus-opponent-grid" class="vs-hero-grid"></div>
+            <div class="vs-selection-display">vs&nbsp; <span id="versus-selected-opponent">RANDOM</span></div>
         </div>
-
-        <div style="margin-top:30px; display:flex; gap:16px; align-items:center;">
-            <button class="screen-action-btn blue" onclick="startVersusMatch()">FIGHT!</button>
-            <button class="screen-back-btn" style="margin: 0;" onclick="closeVersusMenu()">← CANCEL</button>
+        <div class="vs-section">
+            <div class="vs-section-label">Arena</div>
+            <div id="versus-biome-grid" class="vs-biome-grid"></div>
+            <div class="vs-selection-display">arena&nbsp; <span id="versus-selected-biome">RANDOM</span></div>
+        </div>
+        <div class="vs-actions">
+            <button id="versus-start-btn" class="screen-action-btn blue" onclick="startVersusMatch()">⚔ FIGHT</button>
+            <button class="screen-back-btn" style="margin:0;" onclick="closeVersusMenu()">← CANCEL</button>
         </div>
     </div>
 

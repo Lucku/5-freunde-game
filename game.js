@@ -1188,7 +1188,7 @@ function startWeeklyChallenge() {
         list.appendChild(item);
     });
 
-    const btn = document.querySelector('#daily-info-modal .btn-gold');
+    const btn = document.querySelector('#daily-info-modal .screen-action-btn');
     btn.onclick = confirmWeeklyStart;
 
     document.getElementById('daily-info-modal').style.display = 'flex';
@@ -1224,7 +1224,7 @@ function startDailyChallenge() {
         list.appendChild(item);
     });
 
-    const btn = document.querySelector('#daily-info-modal .btn-gold');
+    const btn = document.querySelector('#daily-info-modal .screen-action-btn');
     btn.onclick = confirmDailyStart;
 
     document.getElementById('daily-info-modal').style.display = 'flex';
