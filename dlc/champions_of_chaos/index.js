@@ -23,6 +23,7 @@ const CHAMPIONS_OF_CHAOS = {
         this.injectBiome();
         this.injectEnemies();
         this.injectStory();
+        this.injectStoryArcLabels();
         this.injectAltar();
         this.injectAchievements();
         this.injectMemories();
@@ -59,6 +60,19 @@ const CHAMPIONS_OF_CHAOS = {
     injectEnemies: function () {
         // Enemy Logic is handled in ChaosEnemies.js
         console.log("Chaos Enemies initialized.");
+    },
+
+    injectStoryArcLabels: function () {
+        window.STORY_ARC_LABELS = window.STORY_ARC_LABELS || {};
+        const labels = function (w) {
+            if (w <= 10) return '✦  ARC I  ·  THE ARTIFACT  ✦';
+            if (w <= 20) return '✦  ARC II  ·  THE ENCOUNTER  ✦';
+            if (w <= 30) return '✦  ARC III  ·  THE REVELATION  ✦';
+            if (w <= 40) return '✦  ARC IV  ·  THE BOND  ✦';
+            return '✦  ARC V  ·  THE ENTROPY MAGE  ✦';
+        };
+        window.STORY_ARC_LABELS['gravity'] = labels;
+        window.STORY_ARC_LABELS['void'] = labels;
     },
 
     injectStory: function () {

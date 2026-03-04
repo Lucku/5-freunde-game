@@ -3,6 +3,8 @@ const DLC_ID = 'symphony_of_sickness';
 
 const SymphonyDLC = {
     id: DLC_ID,
+    name: "Symphony of Sickness",
+    heroes: ['sound', 'poison'],
     load: async function () {
         console.log("Loading Symphony of Sickness DLC...");
 
@@ -168,13 +170,41 @@ const SymphonyDLC = {
         // Start Beat Loop
         setInterval(() => this.updateBeat(), 16);
 
-        // 3. Inject Altar of Mastery skills
+        // 3. Inject story arc labels and themes
+        this.injectStoryArcLabels();
+        this.injectStoryTheme();
+
+        // 4. Inject Altar of Mastery skills
         this.injectAltar();
 
-        // 4. Inject Achievements
+        // 5. Inject Achievements
         this.injectAchievements();
 
         console.log("Symphony of Sickness DLC Initialized");
+    },
+
+    injectStoryArcLabels: function () {
+        window.STORY_ARC_LABELS = window.STORY_ARC_LABELS || {};
+        window.STORY_ARC_LABELS['sound'] = function (w) {
+            if (w <= 10) return '✦  ARC I  ·  THE RESONANT PLAIN  ✦';
+            if (w <= 20) return '✦  ARC II  ·  THE EMBER STAGE  ✦';
+            if (w <= 30) return '✦  ARC III  ·  THE JUNGLE CHORUS  ✦';
+            if (w <= 40) return '✦  ARC IV  ·  THE MACHINE AMPHITHEATER  ✦';
+            return '✦  ARC V  ·  THE OVATION  ✦';
+        };
+        window.STORY_ARC_LABELS['poison'] = function (w) {
+            if (w <= 10) return '✦  ARC I  ·  THE SWAMP  ✦';
+            if (w <= 20) return '✦  ARC II  ·  THE LIVING FOREST  ✦';
+            if (w <= 30) return '✦  ARC III  ·  THE DEPTHS & THE FLAMES  ✦';
+            if (w <= 40) return '✦  ARC IV  ·  THE IRON LUNG  ✦';
+            return '✦  ARC V  ·  THE TERMINAL PHASE  ✦';
+        };
+    },
+
+    injectStoryTheme: function () {
+        window.STORY_THEME_OVERRIDES = window.STORY_THEME_OVERRIDES || {};
+        window.STORY_THEME_OVERRIDES['sound'] = { rgb: '79,195,247', icon: '🎵' };
+        window.STORY_THEME_OVERRIDES['poison'] = { rgb: '118,255,3', icon: '☠️' };
     },
 
     injectAltar: function () {

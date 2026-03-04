@@ -20,6 +20,7 @@ const RISE_OF_THE_ROCK = {
         this.injectBiome();
         this.injectEnemies();
         this.injectStory();
+        this.injectStoryArcLabels();
         this.injectAltar();
         this.injectAchievements();
         this.injectMemories();
@@ -135,6 +136,18 @@ const RISE_OF_THE_ROCK = {
         // 2. Register Logic
         if (!window.HERO_LOGIC) window.HERO_LOGIC = {};
         window.HERO_LOGIC['earth'] = window.EarthHero;
+    },
+
+    injectStoryArcLabels: function () {
+        window.STORY_ARC_LABELS = window.STORY_ARC_LABELS || {};
+        window.STORY_ARC_LABELS['earth'] = function (w) {
+            if (w <= 10) return '✦  ARC I  ·  THE AWAKENING  ✦';
+            if (w <= 20) return '✦  ARC II  ·  THE CLIMB  ✦';
+            if (w <= 30) return '✦  ARC III  ·  THE SURFACE  ✦';
+            if (w <= 40) return '✦  ARC IV  ·  THE OBSIDIAN MAZE  ✦';
+            if (w <= 50) return '✦  ARC V  ·  THE REVELATION  ✦';
+            return '✦  FREEDOM  ✦';
+        };
     },
 
     injectStory: function () {

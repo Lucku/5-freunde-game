@@ -22,6 +22,8 @@ const WAKER_OF_WINDS = {
         this.injectBiome();
         this.injectEnemies();
         this.injectStory();
+        this.injectStoryArcLabels();
+        this.injectStoryTheme();
         this.injectAltar();
         this.injectAchievements();
         this.injectMemories();
@@ -88,6 +90,22 @@ const WAKER_OF_WINDS = {
             window.STORY_EVENTS = window.STORY_EVENTS.concat(window.WIND_STORY_CHAPTERS);
             console.log(`The Wind Waker: Injected ${window.WIND_STORY_CHAPTERS.length} story chapters.`);
         }
+    },
+
+    injectStoryArcLabels: function () {
+        window.STORY_ARC_LABELS = window.STORY_ARC_LABELS || {};
+        window.STORY_ARC_LABELS['air'] = function (w) {
+            if (w <= 10) return '✦  ARC I  ·  THE WHISPER OF THE WIND  ✦';
+            if (w <= 20) return '✦  ARC II  ·  THE GATHERING STORM  ✦';
+            if (w <= 30) return '✦  ARC III  ·  THE ASCENSION  ✦';
+            if (w <= 40) return '✦  ARC IV  ·  THE KING\'S PATH  ✦';
+            return '✦  ARC V  ·  THE WINDS OF CHANGE  ✦';
+        };
+    },
+
+    injectStoryTheme: function () {
+        window.STORY_THEME_OVERRIDES = window.STORY_THEME_OVERRIDES || {};
+        window.STORY_THEME_OVERRIDES['air'] = { rgb: '64,224,208', icon: '🌪️' };
     },
 
     injectAltar: function () {

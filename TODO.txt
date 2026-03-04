@@ -1,21 +1,25 @@
 # General
 
-- Add death sound
+- Tutorial mode that starts at first game launch and consists of the the 5 heroes awakening with their new powers (only 5 chapters)
+- rename "Tutorial" menu with "Manual"
 
-# DLC: Faith of Fortune
+- overhaul design of in-game standard notifications
+- overhaul general player design
+- have a general design for when player enters Ultimate form
 
-- Add sound effects
+# Champions of Chaos
+
+- give special bosses unique designs and mechanics
+
+# Symphony of Sickness
+
+- Add memory shard contents
+- Different levels = different beats with different BPM (e.g., 60, 100, 120)
 
 # Future
 
-- "Sound" hero DLC
-    - attacks are sound waves (similar design like melee attack)
-    - attacks are stronger when synchronous to "beat"
-    - different levels = different beats with different BPM (e.g., 60, 100, 120)
 - "Time" hero DLC
     - has ability to slow and speed-up time
 - "Love" hero DLC
-    - can spawn companion
-    - can seduce enemies
-- "Toxic" hero DLC
-    - has short-range, cicular damage and DoT
+    - can spawn companion (Ultimate)
+    - can seduce enemies (seduction aura?)

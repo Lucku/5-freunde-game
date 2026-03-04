@@ -24,6 +24,7 @@ const FAITH_OF_FORTUNE = {
         this.injectBiome();
         this.injectEnemies();
         this.injectStory();
+        this.injectStoryArcLabels();
         this.injectStoryHooks();
         this.injectAltar();
         this.injectAchievements();
@@ -212,6 +213,19 @@ const FAITH_OF_FORTUNE = {
                 return oldSpawn(wave, enemyInstance);
             };
         }
+    },
+
+    injectStoryArcLabels: function () {
+        window.STORY_ARC_LABELS = window.STORY_ARC_LABELS || {};
+        const labels = function (w) {
+            if (w <= 10) return '✦  ARC I  ·  THE SPLIT PATH  ✦';
+            if (w <= 20) return '✦  ARC II  ·  THE ALLIANCE & THE HUNT  ✦';
+            if (w <= 30) return '✦  ARC III  ·  THE VOID ENCOUNTER  ✦';
+            if (w <= 40) return '✦  ARC IV  ·  THE RACE FINISHES  ✦';
+            return '✦  ARC V  ·  THE FINAL WAGER  ✦';
+        };
+        window.STORY_ARC_LABELS['spirit'] = labels;
+        window.STORY_ARC_LABELS['chance'] = labels;
     },
 
     injectStory: function () {

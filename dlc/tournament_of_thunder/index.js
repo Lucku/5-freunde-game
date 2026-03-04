@@ -21,6 +21,7 @@ const TOURNAMENT_OF_THUNDER = {
         this.injectBiome();
         this.injectEnemies();
         this.injectStory();
+        this.injectStoryArcLabels();
         this.injectAltar();
         this.injectAchievements();
         this.injectMemories();
@@ -73,6 +74,18 @@ const TOURNAMENT_OF_THUNDER = {
         if (window.ThunderEnemies) {
             window.ThunderEnemies.inject();
         }
+    },
+
+    injectStoryArcLabels: function () {
+        window.STORY_ARC_LABELS = window.STORY_ARC_LABELS || {};
+        window.STORY_ARC_LABELS['lightning'] = function (w) {
+            if (w <= 10) return '✦  ARC I  ·  THE TOURNAMENT BEGINS  ✦';
+            if (w <= 20) return '✦  ARC II  ·  THE RISING CHAMPION  ✦';
+            if (w <= 30) return '✦  ARC III  ·  THE SPARK OF REBELLION  ✦';
+            if (w <= 40) return '✦  ARC IV  ·  THE REBELLION  ✦';
+            if (w <= 50) return '✦  ARC V  ·  THE FINAL ASCENT  ✦';
+            return '✦  CHAMPION OF THUNDER  ✦';
+        };
     },
 
     injectStory: function () {

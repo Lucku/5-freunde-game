@@ -214,16 +214,23 @@
     </div>
 
     <!-- Story Screen -->
-    <div id="story-screen"
-        style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); flex-direction: column; justify-content: center; align-items: center; z-index: 200;">
-        <h1 id="story-title" class="story-title-el">STORY TITLE</h1>
-        <div id="story-text" class="story-text-el">
-            Story text goes here...
+    <div id="story-screen" style="display:none;">
+        <div class="story-bg-glow"></div>
+        <div class="story-corner story-corner-tl"></div>
+        <div class="story-corner story-corner-tr"></div>
+        <div class="story-corner story-corner-bl"></div>
+        <div class="story-corner story-corner-br"></div>
+        <div class="story-inner">
+            <div class="story-arc-label" id="story-arc-label">✦ ARC I · THE AWAKENING ✦</div>
+            <div class="story-divider"></div>
+            <div class="story-hero-icon" id="story-hero-icon">✦</div>
+            <div id="story-type-badge" class="story-type-badge" style="display:none;"></div>
+            <h1 id="story-title" class="story-title-el">STORY TITLE</h1>
+            <p id="story-text" class="story-text-el">Story text goes here...</p>
+            <div class="story-divider"></div>
+            <div id="story-choices" class="story-choices-wrap"></div>
+            <button id="story-continue-btn" class="story-continue-btn" onclick="closeStory()">CONTINUE →</button>
         </div>
-        <div id="story-choices" style="display: flex; gap: 20px; margin-bottom: 20px;">
-            <!-- Buttons injected here -->
-        </div>
-        <button id="story-continue-btn" class="screen-action-btn" onclick="closeStory()">CONTINUE →</button>
     </div>
 
     <!-- Achievements Screen -->

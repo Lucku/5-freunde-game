@@ -2641,24 +2641,129 @@ input:checked+.slider:before {
     color: #e74c3c;
 }
 
-/* Story Screen elements */
-.story-title-el {
-    font-size: 32px;
-    font-weight: 800;
-    letter-spacing: 3px;
-    color: #3498db;
-    text-align: center;
-    margin: 0 0 18px 0;
-    text-transform: uppercase;
+/* === STORY CHAPTER SCREEN === */
+#story-screen {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    flex-direction: column; justify-content: center; align-items: center;
+    z-index: 200;
+    --story-rgb: 212,175,55;
+    background: radial-gradient(ellipse 75% 55% at 50% 42%, rgba(var(--story-rgb), 0.07) 0%, rgba(0,0,0,0.95) 62%);
 }
 
+/* Ambient hero-color glow that pulses */
+.story-bg-glow {
+    position: absolute; top: 38%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 800px; height: 420px;
+    background: radial-gradient(ellipse, rgba(var(--story-rgb), 0.10), transparent 68%);
+    filter: blur(55px); pointer-events: none;
+    animation: storyGlowPulse 5s ease-in-out infinite;
+}
+@keyframes storyGlowPulse {
+    0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1);   }
+    50%       { opacity: 1.00; transform: translate(-50%, -50%) scale(1.12); }
+}
+
+/* Corner ornaments */
+.story-corner {
+    position: absolute; width: 44px; height: 44px;
+    border-color: rgba(var(--story-rgb), 0.38); border-style: solid;
+    pointer-events: none;
+}
+.story-corner-tl { top: 22px; left: 22px;  border-width: 2px 0 0 2px; }
+.story-corner-tr { top: 22px; right: 22px; border-width: 2px 2px 0 0; }
+.story-corner-bl { bottom: 22px; left: 22px;  border-width: 0 0 2px 2px; }
+.story-corner-br { bottom: 22px; right: 22px; border-width: 0 2px 2px 0; }
+
+/* Inner content panel */
+.story-inner {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; align-items: center;
+    max-width: 620px; width: 100%; padding: 0 32px;
+    animation: storyFadeIn 0.5s ease-out both;
+}
+@keyframes storyFadeIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* Arc eyebrow label */
+.story-arc-label {
+    font-size: 9px; letter-spacing: 5px; text-transform: uppercase;
+    color: rgba(212,175,55,0.45); text-align: center; margin-bottom: 10px;
+}
+
+/* Decorative divider */
+.story-divider {
+    width: 100%; max-width: 500px; height: 1px;
+    background: linear-gradient(to right, transparent, rgba(var(--story-rgb), 0.45), transparent);
+    margin: 14px 0;
+}
+
+/* Hero icon — floating, glowing */
+.story-hero-icon {
+    font-size: 38px; line-height: 1; margin-bottom: 14px;
+    filter: drop-shadow(0 0 14px rgba(var(--story-rgb), 0.65));
+    animation: storyIconFloat 3.5s ease-in-out infinite;
+}
+@keyframes storyIconFloat {
+    0%, 100% { transform: translateY(0);   }
+    50%       { transform: translateY(-6px); }
+}
+
+/* Story type badge (BOSS ENCOUNTER / ALLY JOINS) */
+.story-type-badge {
+    font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+    padding: 3px 14px; border-radius: 4px; margin-bottom: 10px;
+}
+.badge-boss {
+    background: rgba(231,76,60,0.14); border: 1px solid rgba(231,76,60,0.48);
+    color: rgba(255,120,100,0.95);
+}
+.badge-ally {
+    background: rgba(212,175,55,0.12); border: 1px solid rgba(212,175,55,0.42);
+    color: rgba(212,175,55,0.90);
+}
+
+/* Chapter title */
+.story-title-el {
+    font-size: 26px; font-weight: 800; letter-spacing: 6px; text-transform: uppercase;
+    color: rgba(var(--story-rgb), 0.95);
+    text-shadow: 0 0 32px rgba(var(--story-rgb), 0.28), 0 2px 0 rgba(0,0,0,0.9);
+    text-align: center; margin: 0 0 6px;
+}
+
+/* Narrative text */
 .story-text-el {
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 18px;
-    max-width: 600px;
-    text-align: center;
-    line-height: 1.7;
-    margin: 0 0 32px 0;
+    font-size: 16px; line-height: 1.80; color: rgba(255,255,255,0.78);
+    text-align: center; max-width: 560px; margin: 4px 0 6px;
+}
+
+/* Choice buttons */
+.story-choices-wrap {
+    display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 4px;
+}
+.story-choices-wrap .btn {
+    background: rgba(var(--story-rgb), 0.07); border: 1px solid rgba(var(--story-rgb), 0.30);
+    color: rgba(255,255,255,0.82); padding: 10px 26px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    border-radius: 7px; cursor: pointer; transition: background 0.15s, border-color 0.15s;
+}
+.story-choices-wrap .btn:hover {
+    background: rgba(var(--story-rgb), 0.15); border-color: rgba(var(--story-rgb), 0.60);
+}
+
+/* Continue button */
+.story-continue-btn {
+    margin-top: 4px; padding: 11px 40px;
+    background: rgba(var(--story-rgb), 0.08); border: 1px solid rgba(var(--story-rgb), 0.38);
+    color: rgba(var(--story-rgb), 0.92);
+    font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+    border-radius: 8px; cursor: pointer; transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
+}
+.story-continue-btn:hover {
+    background: rgba(var(--story-rgb), 0.16); border-color: rgba(var(--story-rgb), 0.68);
+    box-shadow: 0 0 18px rgba(var(--story-rgb), 0.22);
 }
 
 /* === VERSUS ARENA SELECTION === */

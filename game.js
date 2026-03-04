@@ -1519,11 +1519,75 @@ function triggerStory(completedWave) {
 
 let currentStoryAudio = null;
 
+const _STORY_THEMES = {
+    all:       { rgb: '212,175,55',  icon: '✦'  },
+    fire:      { rgb: '231,76,60',   icon: '🔥' },
+    water:     { rgb: '52,152,219',  icon: '💧' },
+    ice:       { rgb: '170,200,218', icon: '❄️' },
+    plant:     { rgb: '46,204,113',  icon: '🌿' },
+    metal:     { rgb: '149,165,166', icon: '⚙️' },
+    earth:     { rgb: '141,110,99',  icon: '🪨' },
+    lightning: { rgb: '241,196,15',  icon: '⚡' },
+    gravity:   { rgb: '155,89,182',  icon: '🌀' },
+    void:      { rgb: '0,188,212',   icon: '☯️' },
+    spirit:    { rgb: '240,208,128', icon: '✨' },
+    chance:    { rgb: '224,64,251',  icon: '🎲' },
+};
+
+function _getStoryArcLabel(wave, hero) {
+    const h = (hero || 'ALL').toLowerCase();
+    const w = wave || 1;
+
+    // DLC-injected arc labels (each DLC registers its own hero labels here)
+    if (window.STORY_ARC_LABELS && typeof window.STORY_ARC_LABELS[h] === 'function') {
+        return window.STORY_ARC_LABELS[h](w);
+    }
+
+    // Base game (fire, water, ice, plant, metal, ALL)
+    if (w <= 10)  return '✦  ARC I  ·  THE AWAKENING  ✦';
+    if (w <= 20)  return '✦  ARC II  ·  ELEMENTAL MASTERY  ✦';
+    if (w <= 30)  return '✦  ARC III  ·  THE SHADOW DEEPENS  ✦';
+    if (w <= 40)  return '✦  ARC IV  ·  THE CORRUPTION  ✦';
+    if (w <= 50)  return '✦  ARC V  ·  THE INNER CONFLICT  ✦';
+    if (w <= 60)  return '✦  ARC VI  ·  THE UNITY  ✦';
+    if (w <= 70)  return '✦  ARC VII  ·  THE MASK\'S POWER  ✦';
+    if (w <= 80)  return '✦  ARC VIII  ·  THE VOID APPROACHES  ✦';
+    if (w <= 90)  return '✦  ARC IX  ·  THE MASK REVEALED  ✦';
+    return '✦  ARC X  ·  THE FINAL STAND  ✦';
+}
+
 function openStory(story) {
     isStoryOpen = true;
-    document.getElementById('story-screen').style.display = 'flex';
+
+    // Apply hero theme
+    const heroKey = (story.hero || 'ALL').toLowerCase();
+    const theme = (window.STORY_THEME_OVERRIDES && window.STORY_THEME_OVERRIDES[heroKey]) || _STORY_THEMES[heroKey] || _STORY_THEMES.all;
+    const screen = document.getElementById('story-screen');
+    screen.style.setProperty('--story-rgb', theme.rgb);
+    screen.style.display = 'flex';
+
+    document.getElementById('story-hero-icon').textContent = theme.icon;
+    document.getElementById('story-arc-label').textContent = _getStoryArcLabel(story.wave || 1, story.hero);
     document.getElementById('story-title').innerText = story.title;
     document.getElementById('story-text').innerText = story.text;
+
+    // Type badge
+    const badge = document.getElementById('story-type-badge');
+    if (story.type === 'BOSS_FIGHT') {
+        badge.textContent = '⚔  BOSS ENCOUNTER';
+        badge.className = 'story-type-badge badge-boss';
+        badge.style.display = 'block';
+    } else if (story.type === 'COMPANION_JOIN') {
+        badge.textContent = '✦  ALLY JOINS';
+        badge.className = 'story-type-badge badge-ally';
+        badge.style.display = 'block';
+    } else if (story.type === 'THE_END') {
+        badge.textContent = '✦  JOURNEY\'S END';
+        badge.className = 'story-type-badge badge-ally';
+        badge.style.display = 'block';
+    } else {
+        badge.style.display = 'none';
+    }
 
     // Choice Logic
     const choiceContainer = document.getElementById('story-choices');
@@ -1540,9 +1604,6 @@ function openStory(story) {
                 handleStoryChoice(choice);
                 closeStory();
             };
-            // Style differently for emphasis if needed
-            if (choice.text.includes("Chance")) btn.style.borderColor = "#ff00ff";
-            if (choice.text.includes("Spirit")) btn.style.borderColor = "#f1c40f";
             choiceContainer.appendChild(btn);
         });
     } else {
