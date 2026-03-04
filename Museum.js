@@ -10,7 +10,7 @@ const MUSEUM_DIALOGUES = {
 class Museum {
     constructor() {
         this.width = 2400;
-        this.height = 1800;
+        this.height = 2200;
         this.camera = { x: 0, y: 0, width: canvas.width, height: canvas.height };
         this.entities = [];
         this.walls = [];
@@ -22,7 +22,7 @@ class Museum {
         this.activeDialogue = null; // { text: "...", x: 0, y: 0, timer: 0 }
 
         // Player Avatar in Museum (defaults to selected hero)
-        this.player = { x: 1200, y: 1600, radius: 20, speed: 5, type: selectedHeroType, angle: 0 };
+        this.player = { x: 1200, y: 1300, radius: 20, speed: 5, type: selectedHeroType, angle: 0 };
 
         this.generateLayout();
         this.generateDecorations(); // Generate Decorations
@@ -31,51 +31,47 @@ class Museum {
     }
 
     generateLayout() {
-        // Define Rooms
-        // Main Hall: 800, 1200 to 1600, 1800 (Entrance)
-        // Central Hub: 800, 800 to 1600, 1200
-        // Hero Rooms: Top (3), Left (1), Right (1)
-        // Gallery: Bottom Left/Right or separate wing? 
-        // Let's make a cross shape with extra rooms.
-
         // Walls (x, y, w, h)
         this.walls = [
-            // Outer Boundary
-            { x: 0, y: 0, w: 2400, h: 50 }, // Top
-            { x: 0, y: 1750, w: 2400, h: 50 }, // Bottom
-            { x: 0, y: 0, w: 50, h: 1800 }, // Left
-            { x: 2350, y: 0, w: 50, h: 1800 }, // Right
+            // Outer Boundary (world is now 2400 x 2200)
+            { x: 0,    y: 0,    w: 2400, h: 50 },    // Top
+            { x: 0,    y: 2150, w: 2400, h: 50 },    // Bottom (extended for jail)
+            { x: 0,    y: 0,    w: 50,   h: 2200 },  // Left
+            { x: 2350, y: 0,    w: 50,   h: 2200 },  // Right
 
-            // Room Dividers
-            // Horizontal Line at y=600 (Top Rooms)
-            // Fire Room Door (Gap at 350-450)
-            { x: 0, y: 600, w: 350, h: 50 },
-            { x: 450, y: 600, w: 450, h: 50 }, // Ends at 900
+            // Top Room Dividers (horizontal at y=600)
+            { x: 0,    y: 600, w: 350, h: 50 },   // Fire door left
+            { x: 450,  y: 600, w: 450, h: 50 },   // Fire/Water gap wall
+            { x: 1500, y: 600, w: 450, h: 50 },   // Water/Ice gap wall
+            { x: 2050, y: 600, w: 350, h: 50 },   // Ice door right
 
-            // Water Room Door (Gap at 900-1500) - Already exists as gap between 900 and 1500
+            // Vertical Top Room Dividers
+            { x: 800,  y: 0, w: 50, h: 600 },  // Fire / Water
+            { x: 1600, y: 0, w: 50, h: 600 },  // Water / Ice
 
-            // Ice Room Door (Gap at 1950-2050)
-            { x: 1500, y: 600, w: 450, h: 50 }, // Starts at 1500, ends at 1950
-            { x: 2050, y: 600, w: 350, h: 50 }, // Starts at 2050, ends at 2400
-
-            // Vertical Lines for Top Rooms (3 rooms: 0-800, 800-1600, 1600-2400)
-            { x: 800, y: 0, w: 50, h: 600 },
-            { x: 1600, y: 0, w: 50, h: 600 },
-
-            // Central Hub Walls
-            { x: 600, y: 600, w: 50, h: 600 }, // Left Hub Wall
+            // Hub Walls (gallery sides, only upper section)
+            { x: 600,  y: 600, w: 50, h: 600 }, // Left Hub Wall
             { x: 1750, y: 600, w: 50, h: 600 }, // Right Hub Wall
+
+            // Lower floor: plant/metal room bottom walls (gap in centre for jail entrance)
+            { x: 50,   y: 1750, w: 550, h: 50 },  // Plant room bottom
+            { x: 1800, y: 1750, w: 550, h: 50 },  // Metal room bottom
+            // Gap at x=600-1800 leads down into the Creature Wing
+
+            // Creature Wing (Jail) side walls
+            { x: 600,  y: 1800, w: 50, h: 350 }, // Jail left wall
+            { x: 1750, y: 1800, w: 50, h: 350 }, // Jail right wall
         ];
 
-        // Define Zones for Logic/Decor
+        // Define Zones for Logic / Decor
         this.rooms = [
-            { name: 'fire', x: 50, y: 50, w: 750, h: 550, color: '#2c0b0b' },
-            { name: 'water', x: 850, y: 50, w: 750, h: 550, color: '#0b1a2c' },
-            { name: 'ice', x: 1650, y: 50, w: 700, h: 550, color: '#1a252a' },
-            // Air room removed as requested, moving to gallery
-            { name: 'plant', x: 50, y: 650, w: 550, h: 1100, color: '#0b2c14' }, // Left Wing
-            { name: 'metal', x: 1800, y: 650, w: 550, h: 1100, color: '#1a1a1a' }, // Right Wing
-            { name: 'gallery', x: 650, y: 650, w: 1100, h: 1100, color: '#84806bcc' } // Central/Main
+            { name: 'fire',    x: 50,   y: 50,   w: 750,  h: 550,  color: '#3c1212' },
+            { name: 'water',   x: 850,  y: 50,   w: 750,  h: 550,  color: '#111e2e' },
+            { name: 'ice',     x: 1650, y: 50,   w: 700,  h: 550,  color: '#1e2e35' },
+            { name: 'plant',   x: 50,   y: 650,  w: 550,  h: 1100, color: '#102e18' },
+            { name: 'metal',   x: 1800, y: 650,  w: 550,  h: 1100, color: '#212122' },
+            { name: 'gallery', x: 650,  y: 650,  w: 1100, h: 1100, color: '#272320' },
+            { name: 'jail',    x: 650,  y: 1800, w: 1100, h: 350,  color: '#171210' },
         ];
     }
 
@@ -118,6 +114,14 @@ class Museum {
         // Hallway Benches
         this.decorations.push({ type: 'BENCH', x: 750, y: 1400, w: 30, h: 80, angle: 0 });
         this.decorations.push({ type: 'BENCH', x: 1620, y: 1400, w: 30, h: 80, angle: 0 });
+
+        // Jail entrance bars (decorative vertical bars at the top of the creature wing)
+        const jail = this.rooms.find(r => r.name === 'jail');
+        if (jail) {
+            for (let bx = jail.x + 80; bx <= jail.x + jail.w - 80; bx += 110) {
+                this.decorations.push({ type: 'JAIL_BAR', x: bx, y: jail.y });
+            }
+        }
     }
 
     generateTrophies() {
@@ -227,161 +231,77 @@ class Museum {
         if (this.player.type !== 'plant') this.entities.push(new MuseumEntity(300, 1200, 'plant', true));
         if (this.player.type !== 'metal') this.entities.push(new MuseumEntity(2100, 1200, 'metal', true));
 
-        // Spawn Collected Enemies in Gallery
+        // Spawn Collected Enemies in the Creature Wing (Jail) — one per unique type, free-roaming
+        const jailRoom = this.rooms.find(r => r.name === 'jail');
         const collected = saveData.collection || [];
-        collected.forEach((id, index) => {
-            // Simple grid layout in Gallery
-            const col = index % 10;
-            const row = Math.floor(index / 10);
-            const x = 700 + col * 100;
-            const y = 800 + row * 100;
-
-            // Parse ID to get type (e.g., "BASIC_1" -> "BASIC", "ELITE_AURA_SPEED_1" -> "ELITE_AURA_SPEED")
+        const seenTypes = new Set();
+        collected.forEach(id => {
             const parts = id.split('_');
-            parts.pop(); // Remove the number suffix
+            parts.pop();
             const type = parts.join('_');
-            this.entities.push(new MuseumEntity(x, y, type, false));
+            if (!seenTypes.has(type)) {
+                seenTypes.add(type);
+                const jx = jailRoom ? jailRoom.x + 80 + Math.random() * (jailRoom.w - 160) : 700 + Math.random() * 900;
+                const jy = jailRoom ? jailRoom.y + 60 + Math.random() * (jailRoom.h - 120) : 1860 + Math.random() * 200;
+                this.entities.push(new MuseumEntity(jx, jy, type, false));
+            }
         });
 
         // Spawn Memory Displays
         if (saveData.memories) {
-            const heroes = ['fire', 'water', 'ice', 'plant', 'metal'];
-            heroes.forEach(h => {
-                let count = 0;
-                if (Array.isArray(saveData.memories[h])) {
-                    count = saveData.memories[h].length;
-                } else {
-                    count = saveData.memories[h] || 0;
-                }
+            const getTotal = h => (typeof MEMORY_STORIES !== 'undefined' && MEMORY_STORIES[h]) ? MEMORY_STORIES[h].length : '?';
+            const getCount = h => Array.isArray(saveData.memories[h]) ? saveData.memories[h].length : (saveData.memories[h] || 0);
 
+            // Base heroes — displayed in their own rooms, centered lower
+            const baseHeroes = ['fire', 'water', 'ice', 'plant', 'metal'];
+            const heroColors = { fire: '#e74c3c', water: '#3498db', ice: '#aac8d8', plant: '#2ecc71', metal: '#95a5a6' };
+            baseHeroes.forEach(h => {
+                const count = getCount(h);
                 if (count > 0) {
-                    // Find room center
                     const room = this.rooms.find(r => r.name === h);
                     if (room) {
                         this.artifacts.push({
                             x: room.x + room.w / 2,
-                            y: room.y + room.h - 50,
-                            text: `Memories: ${count}`,
-                            color: '#fff',
-                            type: 'MEMORY',
-                            hero: h
+                            y: room.y + room.h - 120,
+                            text: `${h}: ${count}`,
+                            color: heroColors[h] || '#fff',
+                            type: 'MEMORY', hero: h,
+                            count, total: getTotal(h)
                         });
                     }
                 }
             });
 
-            // Special Black Memory in Gallery
-            if (saveData.memories['black'] && Array.isArray(saveData.memories['black']) && saveData.memories['black'].length > 0) {
-                const count = saveData.memories['black'].length;
-                const room = this.rooms.find(r => r.name === 'gallery');
-                if (room) {
-                    this.artifacts.push({
-                        x: room.x + room.w / 2,
-                        y: room.y + 50, // Top of the gallery
-                        text: `Shadows: ${count}`,
-                        color: '#000',
-                        type: 'MEMORY',
-                        hero: 'black'
-                    });
-                }
-            }
+            // Gallery DLC / special memories — evenly spaced 2-column grid
+            const galleryRoom = this.rooms.find(r => r.name === 'gallery');
+            if (galleryRoom) {
+                const gx = galleryRoom.x;
+                const gy = galleryRoom.y;
 
-            // Special Makuta Memory in Gallery
-            if (saveData.memories['makuta'] && Array.isArray(saveData.memories['makuta']) && saveData.memories['makuta'].length > 0) {
-                const count = saveData.memories['makuta'].length;
-                const room = this.rooms.find(r => r.name === 'gallery');
-                if (room) {
-                    this.artifacts.push({
-                        x: room.x + room.w / 2,
-                        y: room.y + room.h - 50, // Bottom of the gallery
-                        text: `Darkness: ${count}`,
-                        color: '#8e44ad',
-                        type: 'MEMORY',
-                        hero: 'makuta'
-                    });
-                }
-            }
-
-            // Special DLC Memories in Gallery
-
-            // Earth (Top Left)
-            if (saveData.memories['earth'] && Array.isArray(saveData.memories['earth']) && saveData.memories['earth'].length > 0) {
-                const count = saveData.memories['earth'].length;
-                const room = this.rooms.find(r => r.name === 'gallery');
-                if (room) {
-                    this.artifacts.push({
-                        x: room.x + room.w / 2 - 300,
-                        y: room.y + 100,
-                        text: `Rock: ${count}`,
-                        color: '#8d6e63',
-                        type: 'MEMORY',
-                        hero: 'earth'
-                    });
-                }
-            }
-
-            // Lightning (Bottom Right)
-            if (saveData.memories['lightning'] && Array.isArray(saveData.memories['lightning']) && saveData.memories['lightning'].length > 0) {
-                const count = saveData.memories['lightning'].length;
-                const room = this.rooms.find(r => r.name === 'gallery');
-                if (room) {
-                    this.artifacts.push({
-                        x: room.x + room.w / 2 + 300,
-                        y: room.y + room.h - 100,
-                        text: `Thunder: ${count}`,
-                        color: '#f1c40f',
-                        type: 'MEMORY',
-                        hero: 'lightning'
-                    });
-                }
-            }
-
-            // Gravity (Bottom Left)
-            if (saveData.memories['gravity'] && Array.isArray(saveData.memories['gravity']) && saveData.memories['gravity'].length > 0) {
-                const count = saveData.memories['gravity'].length;
-                const room = this.rooms.find(r => r.name === 'gallery');
-                if (room) {
-                    this.artifacts.push({
-                        x: room.x + room.w / 2 - 300,
-                        y: room.y + room.h - 100,
-                        text: `Singularity: ${count}`,
-                        color: '#8e44ad',
-                        type: 'MEMORY',
-                        hero: 'gravity'
-                    });
-                }
-            }
-
-            // Void (Middle Left)
-            if (saveData.memories['void'] && Array.isArray(saveData.memories['void']) && saveData.memories['void'].length > 0) {
-                const count = saveData.memories['void'].length;
-                const room = this.rooms.find(r => r.name === 'gallery');
-                if (room) {
-                    this.artifacts.push({
-                        x: room.x + 100, // Left wall
-                        y: room.y + room.h / 2,
-                        text: `Entropy: ${count}`,
-                        color: '#2c3e50',
-                        type: 'MEMORY',
-                        hero: 'void'
-                    });
-                }
-            }
-
-            // Special Air Memory in Gallery (Wind Waker DLC)
-            if (saveData.memories['air'] && Array.isArray(saveData.memories['air']) && saveData.memories['air'].length > 0) {
-                const count = saveData.memories['air'].length;
-                const room = this.rooms.find(r => r.name === 'gallery');
-                if (room) {
-                    this.artifacts.push({
-                        x: room.x + room.w / 2 + 300,
-                        y: room.y + 50, // Top Right
-                        text: `Sky: ${count}`,
-                        color: '#40e0d0',
-                        type: 'MEMORY',
-                        hero: 'air'
-                    });
-                }
+                // Row positions inside gallery
+                const gallerySlots = [
+                    { hero: 'black',     x: gx + 550, y: gy + 110,  color: '#888888' }, // top centre
+                    { hero: 'air',       x: gx + 350, y: gy + 310,  color: '#40e0d0' }, // left col row1
+                    { hero: 'void',      x: gx + 750, y: gy + 310,  color: '#5a7a90' }, // right col row1
+                    { hero: 'gravity',   x: gx + 250, y: gy + 810,  color: '#8e44ad' }, // left col row3
+                    { hero: 'spirit',    x: gx + 550, y: gy + 810,  color: '#F0D080' }, // centre row3
+                    { hero: 'chance',    x: gx + 850, y: gy + 810,  color: '#e040fb' }, // right col row3
+                    { hero: 'sound',     x: gx + 250, y: gy + 1010, color: '#4fc3f7' }, // left col row4
+                    { hero: 'poison',    x: gx + 550, y: gy + 1010, color: '#76ff03' }, // centre row4
+                    { hero: 'makuta',    x: gx + 850, y: gy + 1010, color: '#8e44ad' }, // right col row4
+                ];
+                gallerySlots.forEach(slot => {
+                    const count = getCount(slot.hero);
+                    if (count > 0 && Array.isArray(saveData.memories[slot.hero])) {
+                        this.artifacts.push({
+                            x: slot.x, y: slot.y,
+                            text: `${slot.hero}: ${count}`,
+                            color: slot.color,
+                            type: 'MEMORY', hero: slot.hero,
+                            count, total: getTotal(slot.hero)
+                        });
+                    }
+                });
             }
         }
     }
@@ -564,7 +484,7 @@ class Museum {
         ctx.translate(-this.camera.x, -this.camera.y);
 
         // Draw Floor
-        ctx.fillStyle = '#111';
+        ctx.fillStyle = '#1d1810';
         ctx.fillRect(0, 0, this.width, this.height);
 
         // Draw Rooms
@@ -573,10 +493,11 @@ class Museum {
             ctx.fillRect(r.x, r.y, r.w, r.h);
 
             // Room Label
-            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            ctx.fillStyle = 'rgba(255,255,255,0.13)';
             ctx.font = 'bold 40px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(r.name.toUpperCase(), r.x + r.w / 2, r.y + r.h / 2);
+            const label = r.name === 'jail' ? 'CREATURE WING' : r.name.toUpperCase();
+            ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2);
 
             // Draw Artifacts (Prestige)
             if (['fire', 'water', 'ice', 'plant', 'metal'].includes(r.name)) {
@@ -590,10 +511,10 @@ class Museum {
         });
 
         // Draw Walls
-        ctx.fillStyle = '#444';
+        ctx.fillStyle = '#4a4540';
         this.walls.forEach(w => {
             ctx.fillRect(w.x, w.y, w.w, w.h);
-            ctx.strokeStyle = '#000';
+            ctx.strokeStyle = '#2a2520';
             ctx.strokeRect(w.x, w.y, w.w, w.h);
         });
 
@@ -667,22 +588,68 @@ class Museum {
                 }
 
                 ctx.restore();
-            } else {
+            } else if (a.type === 'MEMORY') {
                 ctx.save();
-                ctx.fillStyle = a.color;
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(a.text, a.x, a.y);
+                ctx.translate(a.x, a.y);
 
-                // Draw Icon
+                // Shard color — ensure visibility on dark backgrounds
+                const shardColor = (a.color === '#000' || a.color === '#2c3e50')
+                    ? (a.color === '#000' ? '#888' : '#5a7a90') : a.color;
+
+                const bobY = Math.sin(Date.now() * 0.0018 + a.x * 0.01) * 4;
+
+                // --- Pedestal ---
+                ctx.fillStyle = '#2e2b26';
+                ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.roundRect(-24, 8, 48, 30, 4); ctx.fill(); ctx.stroke();
+                // Pedestal top lip
+                ctx.fillStyle = '#3a3732';
+                ctx.beginPath(); ctx.roundRect(-20, 4, 40, 8, 2); ctx.fill();
+
+                // --- Floating shard ---
+                ctx.save();
+                ctx.translate(0, bobY - 20);
+                ctx.shadowBlur = 18;
+                ctx.shadowColor = shardColor;
+                ctx.fillStyle = shardColor;
+                ctx.globalAlpha = 0.92;
                 ctx.beginPath();
-                ctx.moveTo(a.x, a.y - 30);
-                ctx.lineTo(a.x + 10, a.y - 15);
-                ctx.lineTo(a.x, a.y);
-                ctx.lineTo(a.x - 10, a.y - 15);
-                ctx.closePath();
-                ctx.fillStyle = '#f1c40f';
-                ctx.fill();
+                ctx.moveTo(0, -13); ctx.lineTo(10, 0); ctx.lineTo(0, 13); ctx.lineTo(-10, 0);
+                ctx.closePath(); ctx.fill();
+                // Inner gleam
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255,255,255,0.38)';
+                ctx.beginPath();
+                ctx.moveTo(0, -7); ctx.lineTo(5, 0); ctx.lineTo(0, 7); ctx.lineTo(-5, 0);
+                ctx.closePath(); ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.restore();
+
+                // --- Hero name on pedestal ---
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255,255,255,0.88)';
+                ctx.font = 'bold 9px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(a.hero.toUpperCase(), 0, 23);
+
+                // --- Count badge ---
+                const countText = (a.count !== undefined && a.total !== undefined)
+                    ? `${a.count} / ${a.total}` : (a.text ? a.text.match(/\d+/)?.[0] : '');
+                if (countText) {
+                    ctx.fillStyle = 'rgba(212,175,55,0.80)';
+                    ctx.font = '8px Arial';
+                    ctx.fillText(countText, 0, 34);
+                }
+
+                // --- Near-proximity name label above pedestal ---
+                if (Math.hypot(this.player.x - a.x, this.player.y - a.y) < 90) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.70)';
+                    ctx.font = 'bold 13px Arial';
+                    ctx.fillText(a.hero.toUpperCase(), 0, -46);
+                }
+
                 ctx.restore();
             }
         });
@@ -796,6 +763,19 @@ class Museum {
                 ctx.beginPath(); ctx.arc(d.x, d.y - 10, 20, 0, Math.PI * 2); ctx.fill();
                 ctx.fillStyle = '#27ae60';
                 ctx.beginPath(); ctx.arc(d.x - 5, d.y - 15, 15, 0, Math.PI * 2); ctx.fill();
+            } else if (d.type === 'JAIL_BAR') {
+                // Vertical iron bar at jail entrance
+                ctx.strokeStyle = '#3a3530';
+                ctx.lineWidth = 7;
+                ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x, d.y + 60); ctx.stroke();
+                // Highlight edge
+                ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(d.x - 2, d.y); ctx.lineTo(d.x - 2, d.y + 60); ctx.stroke();
+                // Horizontal crossbar
+                ctx.strokeStyle = '#3a3530';
+                ctx.lineWidth = 5;
+                ctx.beginPath(); ctx.moveTo(d.x - 55, d.y + 28); ctx.lineTo(d.x + 55, d.y + 28); ctx.stroke();
             }
             ctx.restore();
         });
@@ -860,69 +840,183 @@ class Museum {
         ctx.restore();
     }
 
-    drawStory(ctx) {
-        ctx.fillStyle = 'rgba(0,0,0,0.95)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    _getHeroColor(h) {
+        const map = {
+            fire: '#e74c3c', water: '#3498db', ice: '#aac8d8', plant: '#2ecc71',
+            metal: '#95a5a6', earth: '#8d6e63', lightning: '#f1c40f', air: '#40e0d0',
+            spirit: '#F0D080', chance: '#e040fb', gravity: '#8e44ad', void: '#5a7a90',
+            sound: '#4fc3f7', poison: '#76ff03', black: '#999', makuta: '#9b59b6',
+        };
+        return map[h] || '#d4af37';
+    }
 
+    _hexToRgb(hex) {
+        const h = hex.replace('#', '');
+        return [
+            parseInt(h.substring(0, 2), 16),
+            parseInt(h.substring(2, 4), 16),
+            parseInt(h.substring(4, 6), 16)
+        ].join(',');
+    }
+
+    drawStory(ctx) {
+        const W = canvas.width;
+        const H = canvas.height;
         const hero = this.viewingStory;
         const stories = MEMORY_STORIES[hero] || [];
         const unlocked = saveData.memories[hero];
 
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 30px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${hero.toUpperCase()} MEMORIES`, canvas.width / 2, 50);
+        let collected = 0;
+        if (Array.isArray(unlocked)) collected = unlocked.length;
+        else if (typeof unlocked === 'number') collected = unlocked;
+        const total = stories.length;
 
-        ctx.font = '18px Arial';
-        ctx.textAlign = 'left';
+        const heroColor = this._getHeroColor(hero);
+        const heroRgb = this._hexToRgb(heroColor);
+
+        // --- Background ---
+        ctx.fillStyle = '#07060f';
+        ctx.fillRect(0, 0, W, H);
+
+        // Top ambient glow
+        const topGlow = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, 280);
+        topGlow.addColorStop(0, `rgba(${heroRgb},0.18)`);
+        topGlow.addColorStop(1, 'transparent');
+        ctx.fillStyle = topGlow;
+        ctx.fillRect(0, 0, W, 200);
+
+        // --- Header ---
+        const HEADER_H = 108;
+
+        // Thin hero-color strip at very top
+        ctx.fillStyle = heroColor;
+        ctx.globalAlpha = 0.7;
+        ctx.fillRect(0, 0, W, 3);
+        ctx.globalAlpha = 1;
+
+        // Eyebrow
+        ctx.fillStyle = `rgba(${heroRgb},0.55)`;
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText('✦  MEMORY ARCHIVE  ✦', W / 2, 28);
+
+        // Hero name
+        ctx.shadowBlur = 28;
+        ctx.shadowColor = heroColor;
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 26px Arial';
+        ctx.fillText(hero.toUpperCase(), W / 2, 60);
+        ctx.shadowBlur = 0;
+
+        // Progress bar
+        const barW = Math.min(380, W - 100);
+        const barX = W / 2 - barW / 2;
+        const barY = 72;
+        // Track
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.beginPath(); ctx.roundRect(barX, barY, barW, 3, 2); ctx.fill();
+        // Fill
+        const pct = total > 0 ? Math.min(collected / total, 1) : 0;
+        ctx.fillStyle = heroColor;
+        ctx.globalAlpha = 0.65;
+        if (pct > 0) { ctx.beginPath(); ctx.roundRect(barX, barY, barW * pct, 3, 2); ctx.fill(); }
+        ctx.globalAlpha = 1;
+        // Progress text
+        ctx.font = '10px Arial';
+        ctx.fillStyle = 'rgba(255,255,255,0.40)';
+        ctx.fillText(`${collected} / ${total}  memories`, W / 2, barY + 16);
+
+        // Divider
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(40, HEADER_H); ctx.lineTo(W - 40, HEADER_H); ctx.stroke();
+
+        // --- Story list ---
+        const ENTRY_H = 52;
+        const LIST_TOP = HEADER_H + 8;
+        const LIST_BTM = H - 52;
+        const PAD = Math.max(36, (W - 660) / 2);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, LIST_TOP, W, LIST_BTM - LIST_TOP); ctx.clip();
 
         for (let i = 0; i < stories.length; i++) {
-            let y = 120 + i * 40 + this.scrollY;
+            const ey = LIST_TOP + i * ENTRY_H + this.scrollY;
+            if (ey < LIST_TOP - ENTRY_H || ey > LIST_BTM) continue;
 
-            if (y < -50 || y > canvas.height + 50) continue;
-
-            let text = "???";
+            let text = '???';
             let isOwned = false;
+            if (saveData.debug) isOwned = true;
+            if (Array.isArray(unlocked) && unlocked.includes(i)) { text = stories[i]; isOwned = true; }
+            else if (typeof unlocked === 'number' && i < unlocked) { text = stories[i]; isOwned = true; }
 
-            if (saveData.debug) isOwned = true; // Debug helper
-            if (Array.isArray(unlocked) && unlocked.includes(i)) {
-                text = stories[i];
-                isOwned = true;
-            } else if (typeof unlocked === 'number' && i < unlocked) {
-                text = stories[i];
-                isOwned = true;
+            const isSel = (i === this.selectedStoryIndex);
+            const rowX = PAD;
+            const rowW = W - PAD * 2;
+
+            // Row card background
+            if (isSel) {
+                ctx.fillStyle = `rgba(${heroRgb},0.11)`;
+                ctx.beginPath(); ctx.roundRect(rowX, ey + 3, rowW, ENTRY_H - 6, 6); ctx.fill();
+                ctx.strokeStyle = `rgba(${heroRgb},0.48)`;
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.roundRect(rowX, ey + 3, rowW, ENTRY_H - 6, 6); ctx.stroke();
+            } else {
+                ctx.fillStyle = isOwned ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.015)';
+                ctx.beginPath(); ctx.roundRect(rowX, ey + 3, rowW, ENTRY_H - 6, 6); ctx.fill();
             }
 
-            if (i === this.selectedStoryIndex) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-                ctx.fillRect(50, y - 25, canvas.width - 100, 35);
-                ctx.strokeStyle = '#f1c40f';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(50, y - 25, canvas.width - 100, 35);
+            // Number badge
+            ctx.font = isSel ? 'bold 10px Arial' : '10px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = isOwned
+                ? (isSel ? heroColor : 'rgba(255,255,255,0.30)')
+                : 'rgba(255,255,255,0.12)';
+            ctx.fillText(String(i + 1).padStart(2, '0'), rowX + 14, ey + ENTRY_H / 2);
+
+            // Story text
+            if (text === '???') {
+                ctx.fillStyle = 'rgba(255,255,255,0.16)';
+                ctx.font = 'italic 13px Arial';
+                ctx.fillText('🔒  ???', rowX + 42, ey + ENTRY_H / 2);
+            } else {
+                // Clip text to fit row
+                ctx.font = isSel ? 'bold 13px Arial' : '13px Arial';
+                ctx.fillStyle = isSel ? '#fff' : 'rgba(255,255,255,0.72)';
+                const maxW = rowW - 100;
+                let disp = text;
+                while (ctx.measureText(disp).width > maxW && disp.length > 8) disp = disp.slice(0, -1);
+                if (disp !== text) disp += '…';
+                ctx.fillText(disp, rowX + 42, ey + ENTRY_H / 2);
             }
 
-            ctx.fillStyle = (text === "???") ? '#555' : '#ddd';
-            if (i === this.selectedStoryIndex) ctx.fillStyle = '#fff';
-
-            ctx.fillText(`${i + 1}. ${text}`, 100, y);
-
+            // Audio icon
             if (isOwned && audioManager.hasVoice(hero, i)) {
-                ctx.fillText("🔊", 65, y);
-                if (i === this.selectedStoryIndex) {
-                    ctx.save();
-                    ctx.fillStyle = '#f1c40f';
-                    ctx.font = 'bold 12px Arial';
-                    ctx.textAlign = 'right';
-                    ctx.fillText("[PRESS E / (A) TO PLAY]", canvas.width - 60, y);
-                    ctx.restore();
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText('🔊', rowX + rowW - 12, ey + ENTRY_H / 2);
+                if (isSel) {
+                    ctx.fillStyle = `rgba(${heroRgb},0.65)`;
+                    ctx.font = 'bold 9px Arial';
+                    ctx.fillText('E / (A)  PLAY', rowX + rowW - 32, ey + ENTRY_H / 2);
                 }
             }
         }
+        ctx.restore();
 
-        ctx.fillStyle = '#f1c40f';
+        // --- Footer bar ---
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillRect(0, H - 50, W, 50);
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, H - 50); ctx.lineTo(W, H - 50); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.28)';
+        ctx.font = '10px Arial';
         ctx.textAlign = 'center';
-        ctx.font = '20px Arial';
-        ctx.fillText("PRESS ESC OR (B) TO CLOSE | ▲▼ NAVIGATE", canvas.width / 2, canvas.height - 30);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('ESC / (B)  CLOSE    ·    ↑ ↓  NAVIGATE    ·    E / (A)  PLAY VOICE', W / 2, H - 26);
     }
 }
 
@@ -990,7 +1084,7 @@ class MuseumEntity {
 
         let hitWall = false;
         // Boundary
-        if (nextX < 0 || nextX > 2400 || nextY < 0 || nextY > 1800) hitWall = true;
+        if (nextX < 0 || nextX > 2400 || nextY < 0 || nextY > 2200) hitWall = true;
 
         // Walls
         if (!hitWall) {
