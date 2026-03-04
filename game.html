@@ -400,6 +400,7 @@
                             Shuffle</button>
                         <button class="btn menu-mode-btn menu-mode-versus" onclick="openVersusMenu()">Versus
                             Mode</button>
+                        <button class="btn menu-mode-btn menu-mode-tutorial" onclick="checkNewGame('TUTORIAL')">▶ Tutorial</button>
                     </div>
 
                     <div class="menu-challenges">
@@ -434,7 +435,7 @@
                             <button class="btn menu-lib-btn" onclick="openStatistics()">📊 Statistics</button>
                             <button class="btn menu-lib-btn" onclick="openHeroDetails()">🧙 Hero Details</button>
                             <button class="btn menu-lib-btn" onclick="openCompletion()">✓ Completion</button>
-                            <button class="btn menu-lib-btn" onclick="Tutorial.open()">📚 Tutorial</button>
+                            <button class="btn menu-lib-btn" onclick="Manual.open()">📚 Manual</button>
                             <button class="btn menu-lib-btn" onclick="openDLCMenu()">🔌 DLCs</button>
                         </div>
                     </div>
@@ -662,6 +663,19 @@
     <script src="Entities/FloatingText.js"></script>
 
     <script src="game.js"></script>
+    <script src="TutorialMode.js"></script>
+
+    <!-- Tutorial Welcome Overlay (first launch) -->
+    <div id="tutorial-welcome-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10000; justify-content:center; align-items:center;">
+        <div style="background:#1a1a2e; border:2px solid rgba(241,196,15,0.6); border-radius:16px; padding:40px; max-width:480px; text-align:center; color:#fff;">
+            <h2 style="font-size:28px; margin-bottom:12px; color:#f1c40f;">Welcome to 5 Freunde!</h2>
+            <p style="font-size:15px; line-height:1.6; color:#ccc; margin-bottom:28px;">This is your first time here. Would you like to play the Tutorial? It guides you through the basics with all 5 heroes.</p>
+            <div style="display:flex; gap:16px; justify-content:center;">
+                <button id="tutorial-accept-btn" class="btn" onclick="acceptTutorialPrompt()" style="padding:12px 28px; font-size:16px; background:#f1c40f; color:#000; border:2px solid transparent; border-radius:8px; cursor:pointer; font-weight:bold;">▶ Play Tutorial</button>
+                <button id="tutorial-skip-btn" class="btn" onclick="skipTutorialPrompt()" style="padding:12px 28px; font-size:16px; background:#333; color:#fff; border:2px solid #555; border-radius:8px; cursor:pointer;">Skip for now</button>
+            </div>
+        </div>
+    </div>
 
     <div id="ach-notif" aria-live="polite">
         <div class="ach-notif-label">Achievement Unlocked</div>

@@ -1,4 +1,4 @@
-const Tutorial = {
+const Manual = {
     state: {
         activeTab: 'basics',
         scrollOffset: 0
@@ -501,7 +501,7 @@ const Tutorial = {
             if (sickness && sickness.active) document.getElementById('btn-tutorial-sickness').style.display = 'block';
         }
 
-        this.showTab('basics');
+        Manual.showTab('basics');
         setUIState('TUTORIAL');
     },
 
@@ -511,8 +511,8 @@ const Tutorial = {
     },
 
     showTab: function (tabId) {
-        this.state.activeTab = tabId;
-        const data = this.content[tabId];
+        Manual.state.activeTab = tabId;
+        const data = Manual.content[tabId];
 
         // Update Content
         const contentDiv = document.getElementById('tutorial-content');
@@ -538,11 +538,11 @@ const Tutorial = {
         // Navigate Tabs (Up/Down)
         if (gamepad.axes[1] < -0.5 && uiDebounce <= 0) { // Up
             currentIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-            this.showTab(tabs[currentIndex]);
+            Manual.showTab(tabs[currentIndex]);
             uiDebounce = 10;
         } else if (gamepad.axes[1] > 0.5 && uiDebounce <= 0) { // Down
             currentIndex = (currentIndex + 1) % tabs.length;
-            this.showTab(tabs[currentIndex]);
+            Manual.showTab(tabs[currentIndex]);
             uiDebounce = 10;
         }
 
@@ -559,3 +559,6 @@ const Tutorial = {
         }
     }
 };
+
+window.Manual = Manual;
+window.Tutorial = Manual; // Backward-compatibility alias

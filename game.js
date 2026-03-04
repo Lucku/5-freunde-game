@@ -50,12 +50,14 @@ const defaultSaveData = {
     memories: {}, // New Memory System
     altar: { active: [] }, // New Altar Data
     chaos: { shards: 0, unlocked: [], active: [] }, // Chaos Shop Data
-    savedRun: null // Slot for mid-run save
+    savedRun: null, // Slot for mid-run save
+    tutorial: { seen: false, completed: false }, // First-launch & completion tracking
 };
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
 let isVersusMode = false;
 let isChaosShuffleMode = false;
+let isTutorialMode = false;
 window.saveData = {
     fire: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
@@ -297,6 +299,27 @@ function handleGamepadMenu() {
         return;
     }
 
+    // --- TUTORIAL WELCOME PROMPT ---
+    if (uiState === 'TUTORIAL_PROMPT') {
+        const acceptBtn = document.getElementById('tutorial-accept-btn');
+        const skipBtn = document.getElementById('tutorial-skip-btn');
+        if (left || right) {
+            if (document.activeElement === acceptBtn) skipBtn.focus();
+            else acceptBtn.focus();
+            uiDebounce = 15;
+        }
+        if (a) {
+            if (document.activeElement === skipBtn) skipTutorialPrompt();
+            else acceptTutorialPrompt();
+            uiDebounce = 20;
+        }
+        if (b) {
+            skipTutorialPrompt();
+            uiDebounce = 20;
+        }
+        return;
+    }
+
     // --- SCROLLING LOGIC (Right Stick - REMOVED, now handled by selection) ---
     if (uiState === 'MENU') {
         // Music Toggle (still needed on Y)
@@ -455,6 +478,27 @@ function startShuffleGame() {
     startGame('SHUFFLE');
 }
 
+function startTutorialGame() {
+    if (!saveData.story) saveData.story = { unlockedChapters: [], enabled: false };
+    saveData.story.enabled = false;
+    selectedHeroType = 'fire';
+    startGame('TUTORIAL');
+}
+
+function acceptTutorialPrompt() {
+    document.getElementById('tutorial-welcome-overlay').style.display = 'none';
+    saveData.tutorial.seen = true;
+    saveGame();
+    checkNewGame('TUTORIAL');
+}
+
+function skipTutorialPrompt() {
+    document.getElementById('tutorial-welcome-overlay').style.display = 'none';
+    saveData.tutorial.seen = true;
+    saveGame();
+    setUIState('MENU');
+}
+
 function startStoryGame() {
     if (!saveData.story) {
         saveData.story = { unlockedChapters: [], enabled: true };
@@ -555,6 +599,17 @@ function initMenu() {
     renderHeroSelect();
     updateContinueButton();
     setUIState('MENU'); // Set State
+
+    // First-launch tutorial prompt
+    if (saveData.tutorial && !saveData.tutorial.seen) {
+        const overlay = document.getElementById('tutorial-welcome-overlay');
+        if (overlay) overlay.style.display = 'flex';
+        setUIState('TUTORIAL_PROMPT');
+        setTimeout(() => {
+            const btn = document.getElementById('tutorial-accept-btn');
+            if (btn) btn.focus();
+        }, 50);
+    }
 }
 
 // --- DLC Menu Logic ---
@@ -788,6 +843,7 @@ function checkNewGame(mode) {
     } else {
         if (mode === 'STORY') startStoryGame();
         else if (mode === 'SHUFFLE') startShuffleGame();
+        else if (mode === 'TUTORIAL') startTutorialGame();
         else startStandardGame();
     }
 }
@@ -797,6 +853,7 @@ function confirmNewGame() {
     closeConfirmDialog();
     if (pendingGameMode === 'STORY') startStoryGame();
     else if (pendingGameMode === 'SHUFFLE') startShuffleGame();
+    else if (pendingGameMode === 'TUTORIAL') startTutorialGame();
     else startStandardGame();
 }
 
@@ -1032,6 +1089,16 @@ inputManager.onKeyDown = e => {
             saveGame();
             renderHeroSelect();
             showNotification(`DEBUG: +1 Point for ${selectedHeroType.toUpperCase()}`);
+        }
+
+        // DEBUG: Simulate first launch (reset tutorial seen flag) with 'T' in Menu
+        if (e.code === 'KeyT' && uiState === 'MENU') {
+            saveData.tutorial = { seen: false, completed: false };
+            saveGame();
+            const overlay = document.getElementById('tutorial-welcome-overlay');
+            if (overlay) overlay.style.display = 'flex';
+            setUIState('TUTORIAL_PROMPT');
+            showNotification('DEBUG: FIRST LAUNCH SIMULATED');
         }
     }
 };
@@ -1612,8 +1679,8 @@ function openStory(story) {
 
     setUIState('STORY');
 
-    // Save progress
-    if (!saveData.story.unlockedChapters.includes(story.id)) {
+    // Save progress (skip for tutorial stages)
+    if (!story.fromTutorial && !saveData.story.unlockedChapters.includes(story.id)) {
         saveData.story.unlockedChapters.push(story.id);
         saveGame();
     }
@@ -1695,7 +1762,7 @@ function closeStory() {
 
     // Proceed to Shop or Next Wave
     // Special case: If wave is 0 (Intro), always advance to Wave 1
-    if (wave === 0) {
+    if (wave === 0 || isTutorialMode) {
         advanceWave();
     } else if (wave % 4 === 0) {
         openShop();
@@ -1884,6 +1951,7 @@ function advanceWave() {
     masksDroppedInWave = 0; // Reset mask cap
     enemies = [];
     bossActive = false;
+    if (isTutorialMode && window.TutorialMode) TutorialMode.startObjective();
 
     // CHAOS GAMBLE
     if (isChaosShuffleMode && wave > 1) {
@@ -2122,7 +2190,7 @@ function _processAchNotifQueue() {
     setTimeout(() => el.classList.add('timing'), 350);
 
     setTimeout(() => {
-        el.classList.remove('timing');
+        el.classList.remove('timing', 'slide-in');
         el.classList.add('slide-out');
         setTimeout(() => {
             el.classList.remove('slide-out');
@@ -2212,6 +2280,7 @@ function startGame(mode = 'NORMAL') {
 
     isChaosShuffleMode = (mode === 'SHUFFLE');
     isVersusMode = (mode === 'VERSUS');
+    isTutorialMode = (mode === 'TUTORIAL');
 
     // Handle Versus Biome Selection
     if (isVersusMode && window.selectedBiome) {
@@ -2333,6 +2402,14 @@ function startGame(mode = 'NORMAL') {
             return;
         }
     }
+
+    if (mode === 'TUTORIAL') {
+        isDailyMode = false;
+        isWeeklyMode = false;
+        activeMutators = [];
+        TutorialMode.init();
+        return;
+    }
     // Daily/Weekly mode is set in startDailyChallenge/startWeeklyChallenge
 
     // Apply Mutators (Initial)
@@ -2364,6 +2441,7 @@ function startGame(mode = 'NORMAL') {
 
 function gameOver(isVictory = false) {
     gameRunning = false;
+    isTutorialMode = false;
 
     // Clear Saved Run on Death
     clearSavedRun();
@@ -2843,6 +2921,7 @@ function masterLoop(timestamp) {
                         return;
                     }
 
+                    if (isTutorialMode) { TutorialMode.onBossDefeated(); return; }
                     triggerStory(wave);
                 }
                 return; // Always prevent normal render during cinematic
@@ -2985,27 +3064,34 @@ function masterLoop(timestamp) {
 
             // --- Spawning Logic ---
             // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
-            if (!bossActive && bossDeathTimer === 0 && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
+            if (!bossActive && bossDeathTimer === 0 && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave && (!isTutorialMode || TutorialMode.bossForced)) {
                 if (currentObjective && currentObjective.state === 'ACTIVE') {
                     // Do nothing, wait for objective completion logic
                 } else {
                     bossActive = true;
-                    // Standard Boss Spawning
-                    if (Math.random() < 0.05) {
-                        document.getElementById('event-text').style.display = 'block';
-                        setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
-                        enemies.unshift(new Boss(), new Boss());
+                    if (isTutorialMode) {
+                        // Tutorial: one plain boss (no type modifier), reduced HP, no minions
+                        const tutBoss = new Boss('BASIC');
+                        tutBoss.hp = tutBoss.maxHp = Math.max(1, Math.floor(tutBoss.maxHp * 0.4));
+                        enemies.unshift(tutBoss);
                     } else {
-                        // Mutator: Double Boss
-                        if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'DOUBLE_BOSS')) {
+                        // Standard Boss Spawning
+                        if (Math.random() < 0.05) {
+                            document.getElementById('event-text').style.display = 'block';
+                            setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
                             enemies.unshift(new Boss(), new Boss());
-                            showNotification("DOUBLE BOSS SPAWN!");
                         } else {
-                            enemies.unshift(new Boss());
+                            // Mutator: Double Boss
+                            if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'DOUBLE_BOSS')) {
+                                enemies.unshift(new Boss(), new Boss());
+                                showNotification("DOUBLE BOSS SPAWN!");
+                            } else {
+                                enemies.unshift(new Boss());
+                            }
                         }
-                    }
-                    if (!currentStoryEvent || !currentStoryEvent.data || !currentStoryEvent.data.suppressMinions) {
-                        for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
+                        if (!currentStoryEvent || !currentStoryEvent.data || !currentStoryEvent.data.suppressMinions) {
+                            for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
+                        }
                     }
                 }
             }
@@ -3054,6 +3140,21 @@ function masterLoop(timestamp) {
                         suppress = true;
                     }
                     if (!suppress && frame % 150 === 0) enemies.push(new Enemy(true));
+                }
+            }
+
+            // Tutorial: scale new non-boss enemy HP to 40% and cap count at 8
+            if (isTutorialMode) {
+                enemies.forEach(e => {
+                    if (!(e instanceof Boss) && !e._tutorialScaled) {
+                        e._tutorialScaled = true;
+                        e.hp = e.maxHp = Math.max(1, Math.floor(e.maxHp * 0.4));
+                    }
+                });
+                const nonBoss = enemies.filter(e => !(e instanceof Boss));
+                if (nonBoss.length > 8) {
+                    const excess = new Set(nonBoss.slice(8));
+                    enemies = enemies.filter(e => !excess.has(e));
                 }
             }
 
@@ -3205,6 +3306,7 @@ function masterLoop(timestamp) {
                     else player.gold += amount; // Fallback
 
                     if (isChaosShuffleMode) checkChaosEvent('GOLD', amount);
+                    if (isTutorialMode && window.TutorialMode) TutorialMode.onGold();
                     currentRunStats.moneyGained += amount; // Track Gold
                     saveData.global.totalGold += drop.value; // Track for achievement
                     goldDrops.splice(index, 1);
@@ -3764,6 +3866,7 @@ function masterLoop(timestamp) {
                         if (Math.abs(diff) < Math.PI / 3) {
                             enemy.hp -= att.damage;
                             if (enemy.hp <= 0 && enemy.hp + att.damage > 0) enemy.lastHitBy = 'MELEE';
+                            if (isTutorialMode && window.TutorialMode) TutorialMode.onMelee();
 
                             // Melee damage number
                             const isCrit = att.isCrit;
@@ -3785,6 +3888,7 @@ function masterLoop(timestamp) {
 
                 if (enemy.hp <= 0) {
                     if (isChaosShuffleMode) checkChaosEvent('KILL', { isMelee: (enemy.lastHitBy === 'MELEE') });
+                    if (isTutorialMode && window.TutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
                     // Boss Minion Logic
                     if (enemy.isSummonedMinion && enemy.parentBoss) {
                         enemy.parentBoss.minionsToKill--;
@@ -3950,6 +4054,9 @@ function masterLoop(timestamp) {
             if (window.HERO_LOGIC && player && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawUI) {
                 window.HERO_LOGIC[player.type].drawUI(ctx);
             }
+
+            // Tutorial HUD
+            if (isTutorialMode && window.TutorialMode) TutorialMode.drawHUD(ctx);
 
             // Chaos: Darkness (Fog of War) OR Mutator: Low Visibility
             const isLowVis = (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'LOW_VISIBILITY'));

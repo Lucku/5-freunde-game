@@ -2,6 +2,7 @@
 
 - Tutorial mode that starts at first game launch and consists of the the 5 heroes awakening with their new powers (only 5 chapters)
 - rename "Tutorial" menu with "Manual"
+- Update base game sections in the Manual screen
 
 - overhaul design of in-game standard notifications
 - overhaul general player design

@@ -113,6 +113,9 @@ for (let i = 1; i <= 10; i++) {
     addAch(`MAKUTA_HM_${i}`, `Makuta Hard Mode ${i}`, `Defeat Makuta with Prestige ${i}+.`, 1, `makuta_hm_${i}`, 'damage', 0.05, '+5% Dmg');
 }
 
+// Tutorial Achievement
+addAch('TUTORIAL_COMPLETE', 'First Steps', 'Complete the Tutorial.', 1, 'tutorial_complete', 'health', 0.02, '+2% HP');
+
 // Challenge Achievements
 addAch('DAILY_CHALLENGE', 'Daily Routine', 'Complete a Daily Challenge.', 1, 'daily_wins', 'gold', 0.10, '+10% Gold');
 addAch('WEEKLY_CHALLENGE', 'Weekly Warrior', 'Complete a Weekly Challenge.', 1, 'weekly_wins', 'gold', 0.20, '+20% Gold');

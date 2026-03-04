@@ -252,6 +252,7 @@ class Player {
                 else audioManager.play('dash');
             }
             createExplosion(this.x, this.y, '#fff');
+            if (typeof isTutorialMode !== 'undefined' && isTutorialMode && window.TutorialMode) TutorialMode.onDash();
         }
     }
 
@@ -356,6 +357,7 @@ class Player {
 
         // Chaos Hook
         if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) checkChaosEvent('SPECIAL');
+        if (typeof isTutorialMode !== 'undefined' && isTutorialMode && window.TutorialMode) TutorialMode.onAbility();
 
         // --- DLC HOOK: Custom Special ---
         if (this.customSpecial) {
