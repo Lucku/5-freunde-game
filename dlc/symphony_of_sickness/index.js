@@ -180,7 +180,40 @@ const SymphonyDLC = {
         // 5. Inject Achievements
         this.injectAchievements();
 
+        // 6. Inject Memory Stories
+        this.injectMemories();
+
         console.log("Symphony of Sickness DLC Initialized");
+    },
+
+    injectMemories: function () {
+        if (typeof MEMORY_STORIES === 'undefined') return;
+
+        MEMORY_STORIES['sound'] = [
+            "Music was my whole world. Before the silence.",
+            "I was ten years old when the sounds stopped. They never came back. Until now.",
+            "I don't just hear anymore. I feel the sounds pass through me like something sacred.",
+            "The forest speaks in frequencies no one else can sense. I could listen forever.",
+            "There are creatures out there that choke the world's song. I cannot stand that. I will not.",
+            "Every enemy I defeat is a note returned to the silence they tried to create.",
+            "But the wonder faded. What was once a miracle is now just... normal. I want more.",
+            "I heard Makuta may be the reason my powers feel capped. I went looking for him.",
+            "The five heroes already ended him. But the ceiling remains. I found a ritual in an ancient library that might help.",
+            "I amplified the world's frequency. It felt like godhood. I know this road is wrong. I'm walking it anyway."
+        ];
+
+        MEMORY_STORIES['poison'] = [
+            "I woke up as a hero. But that morning, I felt like I was dying.",
+            "Rashes. Fever. A cough that cracked my ribs. The illness came from nowhere.",
+            "Seven days of waking up worse than the day before.",
+            "I thought I was cursed. I wasn't. The world just wasn't built for me.",
+            "The swamp found me first. Or maybe I found it. Either way, I felt alive for the first time.",
+            "In the poison, the pain lifted. That should have scared me. It didn't.",
+            "I started mixing compounds. Crude things at first. Then more precise. More dangerous.",
+            "I cannot live far from the toxins. So I have started finding ways to bring them with me.",
+            "I know what I'm doing. I know what it does to others. I do it anyway. That is the worst part.",
+            "Something dark is growing inside me. I tell myself it is the chemicals. I am no longer sure."
+        ];
     },
 
     injectStoryArcLabels: function () {
