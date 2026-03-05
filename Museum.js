@@ -817,17 +817,7 @@ class Museum {
         if (this.player.type === 'sound') color = '#4fc3f7';  // Light Blue
         if (this.player.type === 'poison') color = '#76ff03'; // Toxic Green
 
-        ctx.fillStyle = color;
-        ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
-        ctx.lineWidth = 3; ctx.strokeStyle = '#111'; ctx.stroke();
-
-        // Visor
-        ctx.fillStyle = '#000'; ctx.fillRect(0, -4, 16, 8);
-
-        // Hands/Shoulders
-        ctx.fillStyle = shadeColor(color, -40);
-        ctx.beginPath(); ctx.arc(0, -15, 8, 0, Math.PI * 2); ctx.arc(0, 15, 8, 0, Math.PI * 2); ctx.fill();
-
+        drawHeroSprite(ctx, color, 15);
         ctx.restore();
     }
 
@@ -1122,18 +1112,7 @@ class MuseumEntity {
         ctx.rotate(this.angle);
 
         if (this.isHero) {
-            // Draw Hero Style (Matching Player.js)
-            ctx.fillStyle = this.color;
-            ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill(); // Radius 15 for museum heroes
-            ctx.lineWidth = 3; ctx.strokeStyle = '#111'; ctx.stroke();
-
-            // Visor
-            ctx.fillStyle = '#000'; ctx.fillRect(0, -4, 16, 8);
-
-            // Hands/Shoulders
-            ctx.fillStyle = shadeColor(this.color, -40);
-            ctx.beginPath(); ctx.arc(0, -15, 8, 0, Math.PI * 2); ctx.arc(0, 15, 8, 0, Math.PI * 2); ctx.fill();
-
+            drawHeroSprite(ctx, this.color, 15);
         } else {
             // Draw Enemy Style (Matching Enemy.js)
             ctx.globalAlpha = this.alpha;

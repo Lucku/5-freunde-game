@@ -1010,12 +1010,7 @@ class Player {
             ctx.stroke();
         }
 
-        ctx.fillStyle = this.isGolden ? '#f1c40f' : this.stats.color;
-        ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
-        ctx.lineWidth = 3; ctx.strokeStyle = '#111'; ctx.stroke();
-        ctx.fillStyle = '#000'; ctx.fillRect(0, -4, 16, 8);
-        ctx.fillStyle = this.isGolden ? '#f39c12' : shadeColor(this.stats.color, -40);
-        ctx.beginPath(); ctx.arc(0, -15, 8, 0, Math.PI * 2); ctx.arc(0, 15, 8, 0, Math.PI * 2); ctx.fill();
+        drawHeroSprite(ctx, this.isGolden ? '#f1c40f' : this.stats.color, this.radius);
         ctx.restore();
 
         if (this.dashCooldown > 0) {

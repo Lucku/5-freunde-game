@@ -617,118 +617,169 @@ class EarthHero {
         ctx.save();
         ctx.translate(player.x, player.y);
 
-        // --- Aim Indicator ---
-        let aimAngle = player.aimAngle;
-        if (aimAngle === undefined) aimAngle = player.lastMoveAngle || 0;
+        const r   = player.radius;
+        const t   = Date.now() / 1000;
+        const rot = (player.x + player.y) * 0.05;
+        const maxMom = player.maxMomentum || 100;
+        const momPct = Math.max(0, Math.min(1, player.momentum / maxMom));
+        const isObsidian = player.transformActive;
+        const baseColor  = isObsidian ? '#1c1010' : player.stats.color;
+        const darkColor  = isObsidian ? '#080404' : shadeColor(player.stats.color, -50);
+        const lightColor = isObsidian ? '#3a2828' : shadeColor(player.stats.color, +42);
+        const accentClr  = isObsidian ? '#f1c40f' : player.stats.color;
 
+        // ── Aim indicator ─────────────────────────────────────────────────
+        const aimAngle = player.aimAngle !== undefined ? player.aimAngle : (player.lastMoveAngle || 0);
         ctx.save();
         ctx.rotate(aimAngle);
-
-        // Draw Directional Arrow
-        ctx.beginPath();
-        // Line out
-        ctx.moveTo(player.radius + 5, 0);
-        ctx.lineTo(player.radius + 35, 0);
-        // Arrowhead
-        ctx.lineTo(player.radius + 25, -6);
-        ctx.moveTo(player.radius + 35, 0);
-        ctx.lineTo(player.radius + 25, 6);
-
+        ctx.globalAlpha = 0.28 + momPct * 0.55;
         ctx.lineCap = 'round';
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = 'rgba(141, 110, 99, 0.6)'; // Semi-transparent brown
+        ctx.lineWidth = 2.5; ctx.strokeStyle = accentClr;
+        ctx.beginPath(); ctx.moveTo(r + 7, 0); ctx.lineTo(r + 28, 0); ctx.stroke();
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(r + 28, 0); ctx.lineTo(r + 20, -5);
+        ctx.moveTo(r + 28, 0); ctx.lineTo(r + 20,  5);
         ctx.stroke();
-
+        ctx.globalAlpha = 1;
         ctx.restore();
 
-        // Rotate based on movement to simulate rolling
-        // We can use a global frame counter or player.x/y for rotation
-        const rotation = (player.x + player.y) * 0.05;
-        ctx.rotate(rotation);
-
-        // Draw Boulder Body
-        ctx.beginPath();
-        ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
-        ctx.fillStyle = player.transformActive ? '#212121' : player.stats.color; // Obsidian if transformed
-        ctx.fill();
-
-        // Ultimate Aura
-        if (player.transformActive) {
-            ctx.strokeStyle = '#f1c40f';
-            ctx.lineWidth = 4;
-            ctx.stroke();
+        // ── Momentum aura ring ────────────────────────────────────────────
+        if (player.momentum > 20) {
+            ctx.globalAlpha = Math.min(0.72, (player.momentum - 20) / 80 * 0.72);
+            ctx.beginPath(); ctx.arc(0, 0, r + 13, 0, Math.PI * 2);
+            ctx.strokeStyle = accentClr; ctx.lineWidth = 3.5; ctx.stroke();
+            ctx.globalAlpha = 1;
         }
 
-        // Draw "Cracks" or texture to show rotation
-        ctx.strokeStyle = '#5d4037'; // Darker brown
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(-10, -10); ctx.lineTo(10, 10);
-        ctx.moveTo(10, -10); ctx.lineTo(-10, 10);
-        ctx.stroke();
-
-        // Draw Momentum Aura
-        if (player.momentum > 50) {
-            ctx.beginPath();
-            ctx.arc(0, 0, player.radius + 5, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(141, 110, 99, ${(player.momentum - 50) / 50})`;
-            ctx.lineWidth = 2;
-            ctx.stroke();
+        // ── Ultimate transform aura ───────────────────────────────────────
+        if (isObsidian) {
+            const hc = '#f1c40f';
+            const ag = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r + 40);
+            ag.addColorStop(0,   hc + 'BB'); ag.addColorStop(0.5, hc + '44'); ag.addColorStop(1, hc + '00');
+            ctx.beginPath(); ctx.arc(0, 0, r + 40, 0, Math.PI * 2); ctx.fillStyle = ag; ctx.fill();
+            ctx.save();
+            ctx.shadowColor = hc; ctx.shadowBlur = 14;
+            ctx.lineWidth = 2.5; ctx.strokeStyle = hc + 'CC';
+            const a1 = t * 2.2;
+            ctx.beginPath(); ctx.arc(0, 0, r + 24, a1, a1 + Math.PI * 1.3); ctx.stroke();
+            const a2 = -t * 1.6 + 1;
+            ctx.beginPath(); ctx.arc(0, 0, r + 24, a2, a2 + Math.PI * 0.85); ctx.stroke();
+            ctx.restore();
         }
 
-        // --- DRAW TECTONIC SHIELD ---
+        // ── Rolling boulder ───────────────────────────────────────────────
+        ctx.save();
+        ctx.rotate(rot);
+
+        // Ground shadow
+        ctx.beginPath();
+        ctx.ellipse(r * 0.08, r * 0.06, r * 1.08, r * 0.72, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fill();
+
+        // Boulder sphere (radial gradient for 3-D dome look)
+        const bg = ctx.createRadialGradient(-r * 0.32, -r * 0.38, r * 0.04, 0, 0, r);
+        bg.addColorStop(0,    lightColor);
+        bg.addColorStop(0.45, baseColor);
+        bg.addColorStop(1,    darkColor);
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fillStyle = bg; ctx.fill();
+        ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.stroke();
+
+        // Rim band (helmet-like recessed ring)
+        ctx.beginPath(); ctx.arc(0, 0, r - 3, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 1.8; ctx.stroke();
+
+        // Clipped interior: rock facets + surface pits
+        ctx.save();
+        ctx.beginPath(); ctx.arc(0, 0, r - 1, 0, Math.PI * 2); ctx.clip();
+
+        // Crack pattern (rotates with ball to simulate rolling)
+        const crackClr = isObsidian ? 'rgba(241,196,15,0.28)' : 'rgba(0,0,0,0.28)';
+        const hlClr    = isObsidian ? 'rgba(255,220,50,0.10)'  : 'rgba(255,255,255,0.09)';
+        const segs = [[[-7,-12],[4,2],[13,13]], [[13,-7],[1,-1],[-9,11]], [[-12,4],[-1,-2],[9,-13]]];
+        ctx.lineCap = 'round';
+        segs.forEach(pts => {
+            ctx.strokeStyle = crackClr; ctx.lineWidth = 1.3;
+            ctx.beginPath(); ctx.moveTo(...pts[0]); pts.slice(1).forEach(p => ctx.lineTo(...p)); ctx.stroke();
+            ctx.strokeStyle = hlClr; ctx.lineWidth = 0.9;
+            ctx.beginPath(); ctx.moveTo(pts[0][0]+0.7, pts[0][1]+0.7); pts.slice(1).forEach(p => ctx.lineTo(p[0]+0.7,p[1]+0.7)); ctx.stroke();
+        });
+
+        // Surface pits for roughness
+        [[-5,-8,2.5],[8,-5,1.8],[-9,6,2.2],[6,9,2.0],[0,-13,1.5]].forEach(([px,py,pr2]) => {
+            ctx.fillStyle = 'rgba(0,0,0,0.22)';
+            ctx.beginPath(); ctx.arc(px, py, pr2, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.07)';
+            ctx.beginPath(); ctx.arc(px+0.6, py+0.6, pr2*0.5, 0, Math.PI*2); ctx.fill();
+        });
+        ctx.restore();
+
+        ctx.restore(); // end rot
+
+        // ── Tectonic shield (orbiting rock chunks, independent of ball roll) ─
         if (player.rockShield && player.rockShield.active) {
             const shieldPct = Math.max(0, player.rockShield.hp / player.rockShield.maxHp);
-            const shieldRadius = player.radius + 8; // Tighter fit
-
-            // Rotating Shield Ring
+            const shieldR   = r + 10;
             ctx.save();
-            ctx.rotate(Date.now() * 0.001); // Slower, subtler rotation
-
-            ctx.beginPath();
-            // Single thin subtle ring instead of segmented blocks
-            ctx.arc(0, 0, shieldRadius, 0, Math.PI * 2);
-
-            ctx.strokeStyle = `rgba(100, 80, 70, ${0.3 + shieldPct * 0.3})`; // Lower opacity
-            ctx.lineWidth = 3; // Thinner line
-            ctx.stroke();
-
-            // Very subtle inner glow
-            if (shieldPct > 0.5) {
+            ctx.rotate(t * 0.85);
+            for (let i = 0; i < 4; i++) {
+                const ang = (i / 4) * Math.PI * 2;
+                ctx.save();
+                ctx.rotate(ang);
+                ctx.translate(shieldR, 0);
+                const cg = ctx.createRadialGradient(-2, -2, 1, 0, 0, 6);
+                cg.addColorStop(0, `rgba(180,140,110,${0.5 + shieldPct * 0.4})`);
+                cg.addColorStop(1, `rgba(90,65,50,${0.4 + shieldPct * 0.3})`);
+                ctx.fillStyle = cg;
                 ctx.beginPath();
-                ctx.arc(0, 0, shieldRadius - 2, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(141, 110, 99, 0.05)`;
+                ctx.moveTo(-4,-4); ctx.lineTo(5,-3); ctx.lineTo(5,4); ctx.lineTo(-3,5); ctx.closePath();
                 ctx.fill();
+                ctx.strokeStyle = `rgba(220,180,140,${0.3 + shieldPct * 0.3})`;
+                ctx.lineWidth = 0.8; ctx.stroke();
+                ctx.restore();
             }
-
+            // Faint orbit ring
+            ctx.strokeStyle = `rgba(141,110,99,${0.20 + shieldPct * 0.25})`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.arc(0, 0, shieldR + 3, 0, Math.PI * 2); ctx.stroke();
             ctx.restore();
-            // Removed spikes for subtlety
         }
 
-        ctx.restore();
+        ctx.restore(); // end translate
 
-        // Draw Momentum Bar below player
-        const barWidth = 40;
-        const barHeight = 5;
-        const yOffset = 30;
+        // ── Momentum bar (world space) ────────────────────────────────────
+        const barW = 42, barH = 5, yOff = 30;
+        const bx = player.x - barW / 2, by = player.y + yOff;
+        const fillW = momPct * barW;
+        const isMax = momPct >= 0.95;
 
-        ctx.fillStyle = '#333';
-        ctx.fillRect(player.x - barWidth / 2, player.y + yOffset, barWidth, barHeight);
+        // Dark track
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(bx, by, barW, barH);
 
-        // Momentum Bar Color
-        if (player.momentum >= player.maxMomentum * 0.95) {
-            ctx.fillStyle = '#e74c3c'; // Red/Hot when max
-            // Glow effect
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#e74c3c';
-        } else {
-            ctx.fillStyle = '#f1c40f'; // Gold/Earth color
-            ctx.shadowBlur = 0;
-        }
+        // Fill with glow when maxed
+        if (isMax) { ctx.shadowBlur = 10; ctx.shadowColor = '#e74c3c'; ctx.fillStyle = '#e74c3c'; }
+        else        { ctx.fillStyle = '#f1c40f'; }
+        ctx.fillRect(bx, by, fillW, barH);
+        ctx.shadowBlur = 0;
 
-        const fillWidth = (player.momentum / player.maxMomentum) * barWidth;
-        ctx.fillRect(player.x - barWidth / 2, player.y + yOffset, fillWidth, barHeight);
-        ctx.shadowBlur = 0; // Reset shadow
+        // Glass highlight strip
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.fillRect(bx, by, fillW, barH * 0.4);
+
+        // Border
+        ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+        ctx.lineWidth = 0.8;
+        ctx.strokeRect(bx, by, barW, barH);
+
+        // Label
+        ctx.fillStyle = 'rgba(255,255,255,0.32)';
+        ctx.font = 'bold 6px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('MOMENTUM', player.x, by - 2);
 
         return true; // Block default draw
     }
