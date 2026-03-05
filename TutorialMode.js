@@ -36,11 +36,11 @@ const TutorialMode = {
 
     // One objective per wave (index matches stage).
     WAVE_OBJECTIVES: [
-        { type: 'KILL',    target: 5,  text: 'Defeat {n} enemies',            hint: 'Shoot with LEFT CLICK or RT.' },
-        { type: 'MELEE',   target: 3,  text: 'Hit enemies with melee {n}×',   hint: 'RIGHT CLICK or LT to melee attack.' },
-        { type: 'ABILITY', target: 2,  text: 'Use your special ability {n}×',  hint: 'Press E or Y to activate your special.' },
-        { type: 'DASH',    target: 3,  text: 'Dash {n} times',                hint: 'Press SHIFT or A to dash.' },
-        { type: 'GOLD',    target: 20, text: 'Collect {n} coins',             hint: 'Pick up gold dropped by enemies.' },
+        { type: 'KILL', target: 5, text: 'Defeat {n} enemies', hint: 'Shoot with LEFT CLICK or RT.' },
+        { type: 'MELEE', target: 3, text: 'Hit enemies with melee {n}×', hint: 'RIGHT CLICK or LT to melee attack.' },
+        { type: 'ABILITY', target: 2, text: 'Use your special ability {n}×', hint: 'Press E or Y to activate your special.' },
+        { type: 'DASH', target: 3, text: 'Dash {n} times', hint: 'Press SHIFT or A to dash.' },
+        { type: 'GOLD', target: 20, text: 'Collect {n} coins', hint: 'Pick up gold dropped by enemies.' },
     ],
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ const TutorialMode = {
         // fromTutorial:true prevents chapter save in openStory().
         if (typeof openStory === 'function') {
             openStory({
-                id: 'tutorial_stage_' + this.stage,
+                id: 'tutorial_' + (this.stage + 1),
                 wave: 0,
                 hero: stageData.hero.toUpperCase(),
                 type: 'NARRATIVE',
