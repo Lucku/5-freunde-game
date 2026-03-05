@@ -1152,12 +1152,23 @@ function renderStatsTable(container) {
     container.innerHTML = html;
 }
 
-function showNotification(text) {
+function showNotification(text, type = 'info') {
+    const icons = { info: '◈', positive: '✦', negative: '✖', warning: '⚠' };
+    const area = document.getElementById('notification-area');
     const div = document.createElement('div');
-    div.className = 'notif';
-    div.innerText = text;
-    document.getElementById('notification-area').appendChild(div);
-    setTimeout(() => div.remove(), 2000);
+    div.className = 'notif' + (type !== 'info' ? ` notif-${type}` : '');
+
+    const icon = document.createElement('span');
+    icon.className = 'notif-icon';
+    icon.textContent = icons[type] || icons.info;
+
+    const label = document.createElement('span');
+    label.textContent = text;
+
+    div.appendChild(icon);
+    div.appendChild(label);
+    area.appendChild(div);
+    setTimeout(() => div.remove(), 2400);
 }
 
 // --- Daily Challenge Logic ---

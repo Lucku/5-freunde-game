@@ -1404,33 +1404,78 @@ button.btn-gold:hover {
     border-top-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Notification */
+/* ── Notification System ─────────────────────────────────────────────── */
 #notification-area {
     position: absolute;
-    top: 100px;
-    width: 100%;
-    text-align: center;
+    top: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
     pointer-events: none;
+    z-index: 500;
 }
 
 .notif {
-    font-size: 30px;
-    color: #f1c40f;
-    font-weight: bold;
-    text-shadow: 0 0 10px black;
-    animation: fadeUp 2s forwards;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 16px 7px 11px;
+    background: rgba(6, 4, 14, 0.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(241, 196, 15, 0.18);
+    border-left: 3px solid #f1c40f;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55), 0 0 14px rgba(241, 196, 15, 0.08);
+    color: rgba(255, 255, 255, 0.90);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    animation: notifLife 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-@keyframes fadeUp {
-    0% {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.notif-icon {
+    font-size: 11px;
+    color: #f1c40f;
+    line-height: 1;
+    flex-shrink: 0;
+    opacity: 0.85;
+}
 
-    100% {
-        opacity: 0;
-        transform: translateY(-50px);
-    }
+/* Type: positive (green) */
+.notif.notif-positive {
+    border-left-color: #2ecc71;
+    border-color: rgba(46, 204, 113, 0.18);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55), 0 0 14px rgba(46, 204, 113, 0.10);
+}
+.notif.notif-positive .notif-icon { color: #2ecc71; }
+
+/* Type: negative (red) */
+.notif.notif-negative {
+    border-left-color: #e74c3c;
+    border-color: rgba(231, 76, 60, 0.18);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55), 0 0 14px rgba(231, 76, 60, 0.12);
+}
+.notif.notif-negative .notif-icon { color: #e74c3c; }
+
+/* Type: warning (orange) */
+.notif.notif-warning {
+    border-left-color: #f39c12;
+    border-color: rgba(243, 156, 18, 0.18);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55), 0 0 14px rgba(243, 156, 18, 0.10);
+}
+.notif.notif-warning .notif-icon { color: #f39c12; }
+
+@keyframes notifLife {
+    0%   { opacity: 0; transform: translateY(10px) scale(0.94); }
+    14%  { opacity: 1; transform: translateY(0)     scale(1);    }
+    74%  { opacity: 1; transform: translateY(0)     scale(1);    }
+    100% { opacity: 0; transform: translateY(-18px) scale(0.96); }
 }
 
 /* Achievement Unlock Toast */

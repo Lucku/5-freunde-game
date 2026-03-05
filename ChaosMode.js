@@ -30,7 +30,7 @@ if (window.dlcManager) {
 function spawnChaosCompanion(type) {
     if (typeof Companion !== 'undefined' && typeof companions !== 'undefined') {
         companions.push(new Companion(type, player));
-        showNotification(`${type.toUpperCase()} COMPANIION JOINED!`);
+        showNotification(`${type.toUpperCase()} COMPANION JOINED!`, 'positive');
     } else {
         console.warn("Companion system not ready");
     }
@@ -238,12 +238,12 @@ function confirmChaosGamble(idx) {
                     if (newVal === 0 && oldVal > 0) {
                         // LOST FOREVER
                         lostHeroes.push(t);
-                        showNotification(`${t.toUpperCase()} HAS ABANDONED YOU!`);
+                        showNotification(`${t.toUpperCase()} HAS ABANDONED YOU!`, 'negative');
                         player.maxHp = Math.floor(player.maxHp * 0.7); // Massive Debuff
                         player.hp = Math.min(player.hp, player.maxHp);
                     } else if (newVal < 20 && oldVal >= 20) {
                         // Warning Debuff
-                        showNotification(`${t.toUpperCase()} IS LOSING FAITH... (-10% DMG)`);
+                        showNotification(`${t.toUpperCase()} IS LOSING FAITH... (-10% DMG)`, 'warning');
                         player.damageMultiplier = (player.damageMultiplier || 1) * 0.9;
                     }
                 }

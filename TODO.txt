@@ -1,7 +1,7 @@
 # General
 
 - Tutorial mode narrator audios
-- Update base game sections in the Manual screen
+- Add enemy impact sounde effects
 
 - overhaul design of in-game standard notifications
 - overhaul general player design
