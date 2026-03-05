@@ -628,6 +628,253 @@ class MetalBiome {
 }
 
 // ─────────────────────────────────────────────
+//  BLACK BIOME — Shadow Realm
+// ─────────────────────────────────────────────
+class BlackBiome {
+    constructor() {
+        this.wisps = [];      // Drifting shadow smoke puffs (drawn over entities)
+        this._t = 0;
+    }
+
+    generate() {
+        this.wisps = [];
+        this._t = 0;
+    }
+
+    drawBackground(ctx, arena) {
+        const cam = arena.camera;
+        const t   = this._t;
+
+        ctx.save();
+
+        // ── LAYER 1: OPPRESSIVE DARK BASE ────────────────────────────────────
+        ctx.fillStyle = 'rgba(2, 0, 8, 0.62)';
+        ctx.fillRect(cam.x, cam.y, cam.width, cam.height);
+
+        // ── LAYER 2: SLOW DRIFTING MIST BANDS ────────────────────────────────
+        // Seven dark indigo/violet fog bands that drift horizontally.
+        for (let i = 0; i < 7; i++) {
+            const speed  = 0.12 + i * 0.04;
+            const offset = Math.sin(t * speed + i * 1.7) * cam.width * 0.18;
+            const bandY  = cam.y + ((i + 0.5) / 7) * cam.height;
+            const bandH  = 40 + i * 8;
+            const alpha  = 0.04 + Math.sin(t * 0.3 + i * 2.3) * 0.02;
+
+            const grd = ctx.createLinearGradient(cam.x, bandY - bandH, cam.x, bandY + bandH);
+            grd.addColorStop(0,   'rgba(30, 0, 55, 0)');
+            grd.addColorStop(0.5, `rgba(30, 0, 55, ${alpha})`);
+            grd.addColorStop(1,   'rgba(30, 0, 55, 0)');
+            ctx.fillStyle = grd;
+            ctx.fillRect(cam.x + offset, bandY - bandH, cam.width, bandH * 2);
+        }
+
+        // ── LAYER 3: PROCEDURAL VOID RIFTS & SHADOW POOLS ────────────────────
+        const cellSize = 260;
+        const sx = Math.floor(cam.x / cellSize) * cellSize;
+        const sy = Math.floor(cam.y / cellSize) * cellSize;
+        const ex = sx + cam.width  + cellSize;
+        const ey = sy + cam.height + cellSize;
+
+        for (let cx2 = sx; cx2 <= ex; cx2 += cellSize) {
+            for (let cy2 = sy; cy2 <= ey; cy2 += cellSize) {
+                const h  = Math.sin(cx2 * 0.0113 + cy2 * 0.0089) * 0.5 + 0.5;
+                const h2 = Math.cos(cx2 * 0.0079 - cy2 * 0.0127) * 0.5 + 0.5;
+                const h3 = Math.sin(cx2 * 0.0193 + cy2 * 0.0151) * 0.5 + 0.5;
+
+                // VOID RIFT — a dark radial void that slowly breathes
+                if (h > 0.52) {
+                    const rx    = cx2 + h  * cellSize * 0.65;
+                    const ry    = cy2 + h2 * cellSize * 0.70;
+                    const pulse = 0.80 + 0.20 * Math.sin(t * 0.9 + h * 6.2);
+                    const r     = (18 + h * 32) * pulse;
+
+                    const voidGrd = ctx.createRadialGradient(rx, ry, 0, rx, ry, r);
+                    voidGrd.addColorStop(0,    `rgba(0, 0, 0, ${0.45 * pulse})`);
+                    voidGrd.addColorStop(0.55,  `rgba(15, 0, 35, ${0.22 * pulse})`);
+                    voidGrd.addColorStop(0.80,  `rgba(40, 0, 80, ${0.10 * pulse})`);
+                    voidGrd.addColorStop(1,    'rgba(0, 0, 0, 0)');
+                    ctx.fillStyle = voidGrd;
+                    ctx.beginPath();
+                    ctx.arc(rx, ry, r, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Pulsing purple ring edge on the void
+                    const ringAlpha = 0.06 + Math.sin(t * 1.1 + h2 * 4) * 0.04;
+                    ctx.strokeStyle = `rgba(100, 0, 180, ${ringAlpha})`;
+                    ctx.lineWidth   = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(rx, ry, r * 0.88, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // SHADOW TENDRIL — sinuous animated curve from rift to nothing
+                if (h2 > 0.65 && h3 > 0.45) {
+                    const tx0  = cx2 + h2 * cellSize * 0.3;
+                    const ty0  = cy2 + h  * cellSize * 0.35;
+                    const curl = Math.sin(t * 0.7 + h * 5.1) * 28;
+                    const len  = 55 + h * 60;
+
+                    ctx.strokeStyle = `rgba(60, 0, 100, ${0.10 + h2 * 0.06})`;
+                    ctx.lineWidth   = 1.5 + h * 1;
+                    ctx.lineCap     = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(tx0, ty0);
+                    ctx.bezierCurveTo(
+                        tx0 + curl,       ty0 - len * 0.4,
+                        tx0 - curl * 0.5, ty0 - len * 0.75,
+                        tx0 + len * 0.3,  ty0 - len
+                    );
+                    ctx.stroke();
+
+                    // A delicate branch off the tendril
+                    ctx.strokeStyle = `rgba(80, 0, 140, ${0.07 + h * 0.04})`;
+                    ctx.lineWidth   = 0.8;
+                    ctx.beginPath();
+                    ctx.moveTo(tx0 + curl * 0.3, ty0 - len * 0.5);
+                    ctx.lineTo(tx0 + curl * 0.3 + len * 0.25 * h2, ty0 - len * 0.5 - len * 0.3 * h);
+                    ctx.stroke();
+                }
+
+                // FAINT RUNE MARKS at grid intersection — thin glowing ancient glyphs
+                if (h > 0.82 && h2 > 0.78) {
+                    const ux    = cx2;
+                    const uy    = cy2;
+                    const glow  = 0.06 + Math.sin(t * 0.6 + h * 3.3) * 0.03;
+                    const size  = 10 + h * 8;
+
+                    ctx.strokeStyle = `rgba(160, 60, 255, ${glow})`;
+                    ctx.lineWidth   = 1;
+
+                    // Cross with inward-pointing arrow tips — a rune shape
+                    ctx.beginPath();
+                    ctx.moveTo(ux - size, uy);       ctx.lineTo(ux + size, uy);        // horizontal
+                    ctx.moveTo(ux,        uy - size); ctx.lineTo(ux,        uy + size); // vertical
+                    ctx.moveTo(ux - size * 0.55, uy - size * 0.55);
+                    ctx.lineTo(ux + size * 0.55, uy + size * 0.55);                   // diagonal
+                    ctx.stroke();
+
+                    // Small central dot glow
+                    const runeGrd = ctx.createRadialGradient(ux, uy, 0, ux, uy, size * 0.6);
+                    runeGrd.addColorStop(0, `rgba(130, 0, 255, ${glow * 0.9})`);
+                    runeGrd.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    ctx.fillStyle = runeGrd;
+                    ctx.beginPath();
+                    ctx.arc(ux, uy, size * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // ── LAYER 4: SLOW TWIN SHADOW SPIRALS ────────────────────────────────
+        // Two enormous slowly-rotating spirals anchored to viewport corners.
+        // Near-invisible but give the space a sense of slow, inexorable rotation.
+        const spirals = [
+            { tx: 0.15, ty: 0.20, scale: 200, dir:  1, speed: 0.06 },
+            { tx: 0.85, ty: 0.80, scale: 160, dir: -1, speed: 0.05 },
+        ];
+        spirals.forEach(s => {
+            const spx   = cam.x + cam.width  * s.tx;
+            const spy   = cam.y + cam.height * s.ty;
+            const rot   = t * s.speed * s.dir;
+            const alpha = 0.025;
+
+            ctx.strokeStyle = `rgba(80, 0, 160, ${alpha})`;
+            ctx.lineWidth   = 1;
+            ctx.beginPath();
+            const steps = 180;
+            for (let i = 0; i <= steps; i++) {
+                const angle = (i / steps) * Math.PI * 6 + rot;
+                const r     = (i / steps) * s.scale;
+                const px    = spx + Math.cos(angle) * r;
+                const py    = spy + Math.sin(angle) * r;
+                if (i === 0) ctx.moveTo(px, py);
+                else         ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        });
+
+        // ── LAYER 5: EDGE VOID VIGNETTE ──────────────────────────────────────
+        const vigGrad = ctx.createRadialGradient(
+            cam.x + cam.width / 2, cam.y + cam.height / 2, cam.height * 0.25,
+            cam.x + cam.width / 2, cam.y + cam.height / 2, cam.height * 0.80
+        );
+        vigGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        vigGrad.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
+        ctx.fillStyle = vigGrad;
+        ctx.fillRect(cam.x, cam.y, cam.width, cam.height);
+
+        ctx.restore();
+    }
+
+    update(arena, player) {
+        this._t += 0.016;
+
+        // Spawn shadow wisps — slow dark smoke puffs
+        if (this.wisps.length < 120 && Math.random() < 0.07) {
+            const cam  = arena.camera;
+            const life = 140 + Math.random() * 160;
+            const isBig = Math.random() < 0.25;
+            this.wisps.push({
+                x:       cam.x + Math.random() * cam.width,
+                y:       cam.y + cam.height * 0.3 + Math.random() * cam.height * 0.7,
+                vx:      (Math.random() - 0.5) * 0.3,
+                vy:      -(0.15 + Math.random() * 0.35),
+                r:       isBig ? 12 + Math.random() * 18 : 4 + Math.random() * 8,
+                life,
+                maxLife: life,
+                wobble:  Math.random() * Math.PI * 2,
+                isBig,
+                // Dark purple or near-black
+                purple: Math.random() < 0.45,
+            });
+        }
+
+        for (let i = this.wisps.length - 1; i >= 0; i--) {
+            const w = this.wisps[i];
+            w.wobble += 0.025;
+            w.x      += w.vx + Math.sin(w.wobble) * 0.25;
+            w.y      += w.vy;
+            if (w.isBig) w.r += 0.06; // expand as it rises
+            if (--w.life <= 0) this.wisps.splice(i, 1);
+        }
+    }
+
+    // Called after all entities — screen-space shadow overlay
+    draw(ctx, arena) {
+        const cam = arena.camera;
+        const t   = this._t;
+
+        ctx.save();
+
+        // Shadow wisps drawn on top of entities
+        this.wisps.forEach(w => {
+            const progress = 1 - w.life / w.maxLife;
+            const alpha    = Math.sin(progress * Math.PI) * (w.isBig ? 0.14 : 0.22);
+            if (alpha < 0.01) return;
+
+            ctx.globalAlpha = alpha;
+            const color = w.purple ? '60, 0, 120' : '10, 0, 25';
+            ctx.shadowBlur  = w.isBig ? 14 : 6;
+            ctx.shadowColor = w.purple ? 'rgba(80, 0, 160, 0.5)' : 'rgba(0,0,0,0.8)';
+            ctx.fillStyle   = `rgba(${color}, 0.85)`;
+            ctx.beginPath();
+            ctx.arc(w.x, w.y, w.r, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.shadowBlur  = 0;
+        ctx.globalAlpha = 1;
+
+        // Slow-breathing dark purple screen wash — the realm pressing in
+        const breathe = 0.5 + Math.sin(t * 0.4) * 0.5; // 0→1 slow oscillation
+        const washAlpha = 0.018 + breathe * 0.022;
+        ctx.fillStyle = `rgba(20, 0, 45, ${washAlpha})`;
+        ctx.fillRect(cam.x, cam.y, cam.width, cam.height);
+
+        ctx.restore();
+    }
+}
+
+// ─────────────────────────────────────────────
 //  Register
 // ─────────────────────────────────────────────
 window.BIOME_LOGIC['fire']  = new FireBiome();
@@ -635,3 +882,4 @@ window.BIOME_LOGIC['water'] = new WaterBiome();
 window.BIOME_LOGIC['ice']   = new IceBiome();
 window.BIOME_LOGIC['plant'] = new PlantBiome();
 window.BIOME_LOGIC['metal'] = new MetalBiome();
+window.BIOME_LOGIC['black'] = new BlackBiome();

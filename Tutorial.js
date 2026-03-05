@@ -9,15 +9,22 @@ const Manual = {
             title: "Basics & Controls",
             html: `
                 <h2>Welcome to 5 Freunde</h2>
-                <p>Your goal is to survive endless waves of enemies. Defeat enemies to gain XP and Gold.</p>
-                
+                <p>5 Freunde is a top-down arena survival game. You fight endless waves of enemies, earn XP and Gold, and grow stronger between waves through upgrades. Each run ends when your HP reaches zero — then your permanent progress (Void Shop, Collector Cards, Achievements) carries forward into the next.</p>
+
+                <h3>Core Loop</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">Every Wave</div>
+                    <p>Enemies spawn continuously until you kill enough to trigger the Boss. Defeat the Boss to end the wave. Every 4th wave a Shop opens — spend your run Gold on upgrades before continuing. Then the next wave begins in a new biome.</p>
+                </div>
+
                 <h3>Keyboard & Mouse Controls</h3>
                 <div class="control-grid">
-                    <div class="control-item"><b>WASD / Arrows</b><span>Move</span></div>
-                    <div class="control-item"><b>Mouse Cursor</b><span>Aim</span></div>
-                    <div class="control-item"><b>Left Click</b><span>Shoot (Auto-fire available)</span></div>
+                    <div class="control-item"><b>WASD / Arrow Keys</b><span>Move</span></div>
+                    <div class="control-item"><b>Mouse Cursor</b><span>Aim (ranged attacks track your cursor)</span></div>
+                    <div class="control-item"><b>Left Click / Hold</b><span>Shoot — auto-fires on cooldown while held</span></div>
                     <div class="control-item"><b>Right Click</b><span>Melee Attack</span></div>
-                    <div class="control-item"><b>Space</b><span>Dash</span></div>
+                    <div class="control-item"><b>Shift</b><span>Dash (3-second cooldown)</span></div>
+                    <div class="control-item"><b>E</b><span>Special Ability</span></div>
                     <div class="control-item"><b>Esc / P</b><span>Pause</span></div>
                 </div>
 
@@ -25,109 +32,553 @@ const Manual = {
                 <div class="control-grid">
                     <div class="control-item"><b>Left Stick</b><span>Move</span></div>
                     <div class="control-item"><b>Right Stick</b><span>Aim</span></div>
-                    <div class="control-item"><b>RT / R1</b><span>Shoot</span></div>
-                    <div class="control-item"><b>LT / Face Buttons</b><span>Melee</span></div>
-                    <div class="control-item"><b>A / LB / LT</b><span>Dash</span></div>
-                    <div class="control-item"><b>Start</b><span>Pause</span></div>
+                    <div class="control-item"><b>RT / R2</b><span>Shoot</span></div>
+                    <div class="control-item"><b>LT / LB</b><span>Melee Attack</span></div>
+                    <div class="control-item"><b>A / Cross</b><span>Dash</span></div>
+                    <div class="control-item"><b>Y / Triangle</b><span>Special Ability</span></div>
+                    <div class="control-item"><b>Start / Options</b><span>Pause</span></div>
                 </div>
+
+                <h3>Dash</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">Invincibility Dash</div>
+                    <p>Dash in the direction you are moving. During the dash you are <b>completely invincible</b> for a short window — use it to dodge boss attacks, projectiles, or explosions. Cooldown: <b>3 seconds</b>. The dash does not deal damage; it is a defensive repositioning tool only. Some Chaos modifiers disable dashing entirely.</p>
+                </div>
+
+                <h3>Ranged Attacks</h3>
+                <p>Your ranged attack fires automatically on its cooldown timer as long as you hold the shoot button. Projectiles always travel toward your cursor. Cooldown speed varies by hero — Fire attacks slowly but hits hard; Water fires rapidly at lower damage. The "Haste" shop upgrade reduces ranged cooldown by 10% per purchase.</p>
+
+                <h3>Melee Attacks</h3>
+                <p>Melee deals significantly more damage than ranged but requires you to be in close range. Each hero has a distinct melee shape — a radial explosion (Fire), a knockback shockwave (Water), a piercing sweep (Ice), or a massive ground slam (Metal). Melee damage and area size both scale with skill tree upgrades and shop pickups.</p>
+
+                <h3>Combo Multiplier</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">Kill Streak → Gold Bonus</div>
+                    <p>Each enemy you kill increments your combo counter. If you go <b>4 seconds</b> without a kill, the combo resets to zero. Higher combos multiply your Gold income:</p>
+                    <ul>
+                        <li><b>25+ combo:</b> ×1.5 Gold per enemy</li>
+                        <li><b>50+ combo:</b> ×2.0 Gold per enemy</li>
+                    </ul>
+                    <p>Chaining kills rapidly is the fastest way to farm Gold within a run.</p>
+                </div>
+
+                <h3>Critical Hits</h3>
+                <p>All damage types (ranged, melee, special) can critically hit. Base crit chance is <b>5%</b> with a <b>1.5× damage multiplier</b>. Both values scale with the "Lethality" shop upgrade (+5% crit chance, +20% crit multiplier per purchase) and certain skill tree and Chaos reward nodes.</p>
+
+                <h3>Damage Reduction</h3>
+                <p>Incoming damage is reduced by your defense stat. Each point of defense lowers damage taken by 1%. The cap is <b>75% reduction</b> — no matter how tanky you build, at least 25% of incoming damage always goes through. Formula: <i>actual damage = incoming × (1 − reduction)</i>.</p>
             `
         },
         heroes: {
             title: "Elemental Heroes",
             html: `
                 <h2>Choose Your Hero</h2>
-                <p>Each element has a unique playstyle and stats.</p>
-                <ul>
-                    <li><b style="color:#e74c3c">Fire (Red)</b>: Balanced fighter. Good speed and damage.</li>
-                    <li><b style="color:#3498db">Water (Blue)</b>: Crowd control specialist. High knockback.</li>
-                    <li><b style="color:#ecf0f1">Ice (White)</b>: Heavy hitter. Freezes enemies but attacks slowly.</li>
-                    <li><b style="color:#2ecc71">Plant (Green)</b>: Tank. High health and regeneration.</li>
-                    <li><b style="color:#95a5a6">Metal (Grey)</b>: Juggernaut. High defense/damage, very slow.</li>
-                    <li><b style="color:#2c3e50">Shadow (Black)</b>: Secret hero. Overpowered but fragile early on.</li>
-                </ul>
+                <p>Six elemental heroes are available from the start, each with distinct stats, a unique melee attack, a special ability, and an Ultimate transformation unlocked at level 10. Your hero determines your playstyle for the entire run.</p>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#e74c3c;">🔥 Fire — Red</div>
+                    <p><b>Playstyle:</b> Balanced all-rounder. Solid speed, damage, and area attacks make Fire forgiving and effective at any wave.</p>
+                    <ul>
+                        <li><b>HP:</b> 60 &nbsp;|&nbsp; <b>Speed:</b> 4.0 &nbsp;|&nbsp; <b>Ranged Damage:</b> 25 &nbsp;|&nbsp; <b>Melee Damage:</b> 100</li>
+                        <li><b>Melee — Flame Burst:</b> An AoE explosion centered on you (~80px radius). Deals heavy damage to anything nearby.</li>
+                        <li><b>Special — INFERNO:</b> Fires 12 explosions in a ring (150px radius) around you, each dealing 50 damage. Cooldown: 15s. Excellent for clearing clustered groups.</li>
+                        <li><b>Ultimate — LAVA Form:</b> At level 10, entering LAVA mode boosts all damage and surrounds you with a smoldering aura. Lasts until you take a hit.</li>
+                        <li><b>Skill Tree Focus:</b> Explosion Chance (30%), Damage (25%), Cooldown reduction (15%)</li>
+                    </ul>
+                    <p><i>Tip: The "Ram Damage" and "Explosion Chance" upgrades stack — late game you detonate on almost every shot.</i></p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#3498db;">💧 Water — Blue</div>
+                    <p><b>Playstyle:</b> Crowd control specialist. The fastest base hero. Keeps enemies at bay with high knockback; trades burst damage for sustained harassment.</p>
+                    <ul>
+                        <li><b>HP:</b> 60 &nbsp;|&nbsp; <b>Speed:</b> 4.5 (fastest base) &nbsp;|&nbsp; <b>Ranged Damage:</b> 12 &nbsp;|&nbsp; <b>Melee Damage:</b> 80</li>
+                        <li><b>Melee — Surge:</b> A knockback shockwave that blasts all nearby enemies away. Lower damage but massive repositioning potential.</li>
+                        <li><b>Special — TIDAL WAVE:</b> Detonates a push-explosion, launching all enemies outward with 200px of force and dealing 20 damage each. Cooldown: 10s. Great for escaping surrounded situations.</li>
+                        <li><b>Ultimate — OCEAN Form:</b> At level 10, movement and knockback are dramatically amplified for the duration.</li>
+                        <li><b>Skill Tree Focus:</b> Knockback (30%), Cooldown reduction (30%), Speed (20%)</li>
+                    </ul>
+                    <p><i>Tip: Speed + Knockback upgrades make you nearly untouchable — keep enemies perpetually staggered while peppering them with rapid ranged fire.</i></p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#ecf0f1;">❄️ Ice — White</div>
+                    <p><b>Playstyle:</b> Control and burst. Slower attack speed, but piercing projectiles and Freeze let you line up devastating combos against immobilised enemies.</p>
+                    <ul>
+                        <li><b>HP:</b> 50 (lowest base) &nbsp;|&nbsp; <b>Speed:</b> 4.0 &nbsp;|&nbsp; <b>Ranged Damage:</b> 15 &nbsp;|&nbsp; <b>Melee Damage:</b> 90</li>
+                        <li><b>Melee — Ice Spike:</b> A piercing melee strike that passes through multiple enemies in a line. Upgrade Pierce in the skill tree to hit entire rows.</li>
+                        <li><b>Special — DEEP FREEZE:</b> Instantly freezes all enemies on screen for 3–4.5 seconds (scales with upgrades). Cooldown: 20s. While enemies are frozen, your melee deals massive bonus damage.</li>
+                        <li><b>Ultimate — BLACK ICE Form:</b> At level 10, all attacks apply a slow effect and the Freeze duration is doubled for the transformation window.</li>
+                        <li><b>Skill Tree Focus:</b> Pierce (30%), Damage (20%), Health (15%), Cooldown reduction (15%)</li>
+                    </ul>
+                    <p><i>Tip: Use DEEP FREEZE then immediately melee into the frozen crowd — Ice's melee pierces through frozen rows for enormous burst damage.</i></p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#2ecc71;">🌿 Plant — Green</div>
+                    <p><b>Playstyle:</b> Sustain tank. Highest melee damage and health. Excels at holding ground and recovering from bad situations via healing.</p>
+                    <ul>
+                        <li><b>HP:</b> 70 (highest base) &nbsp;|&nbsp; <b>Speed:</b> 3.5 (slower) &nbsp;|&nbsp; <b>Ranged Damage:</b> 10 &nbsp;|&nbsp; <b>Melee Damage:</b> 120 (2nd highest)</li>
+                        <li><b>Melee — Root Slam:</b> A heavy downward slam that hits in a wide arc. Slow but devastating up close. Can split into multiple projectiles at higher skill tree investment.</li>
+                        <li><b>Special — OVERGROWTH:</b> Heals you for 30% of your max HP and spawns supportive turrets around you that assist in clearing enemies. Cooldown: 30s (longest of all heroes). Save it for emergencies.</li>
+                        <li><b>Ultimate — CREEPER Form:</b> At level 10, melee reach and the healing radius of OVERGROWTH are both significantly extended.</li>
+                        <li><b>Skill Tree Focus:</b> Health (30%), Split projectiles (25%), Ultimate Damage (20%), Cooldown reduction (15%)</li>
+                    </ul>
+                    <p><i>Tip: Plant's 30s special cooldown is steep — invest in Cooldown reduction early so OVERGROWTH is available more than once per boss fight.</i></p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#95a5a6;">⚙️ Metal — Grey</div>
+                    <p><b>Playstyle:</b> Juggernaut. The slowest, toughest, hardest-hitting hero in the base roster. A high-risk, high-reward brawler built entirely around getting close.</p>
+                    <ul>
+                        <li><b>HP:</b> 100 (highest of all heroes) &nbsp;|&nbsp; <b>Speed:</b> 3.0 (slowest) &nbsp;|&nbsp; <b>Ranged Damage:</b> 40 &nbsp;|&nbsp; <b>Melee Damage:</b> 150 (highest base)</li>
+                        <li><b>Ranged Attack Cooldown:</b> 40 frames — attacks very infrequently at range, rewarding melee play.</li>
+                        <li><b>Melee — Ground Slam:</b> Massive AoE slam (80px base radius, expandable via "Melee Size" skill tree nodes). Devastates anything nearby.</li>
+                        <li><b>Special — IRON WILL:</b> Activates a defensive barrier that boosts your armor and damage reduction for its duration. Cooldown: 20s. Use it during boss phases or when you can't avoid hits.</li>
+                        <li><b>Ultimate — IRON Form:</b> At level 10, damage reduction and melee hit area both increase dramatically. You become a near-indestructible wrecking ball.</li>
+                        <li><b>Skill Tree Focus:</b> Armor (30%), Health (25%), Melee Area (25%), Damage (10%)</li>
+                    </ul>
+                    <p><i>Tip: Metal is the only hero where going directly into the boss and meleeing is consistently correct. Your HP pool and armor absorb hits that would one-shot other heroes.</i></p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#888;">☯️ Shadow — Black</div>
+                    <p><b>Playstyle:</b> Unlockable secret hero. Dominant across all stat categories — but earning this hero requires progression or completing Daily Challenge runs.</p>
+                    <ul>
+                        <li><b>HP:</b> 150 &nbsp;|&nbsp; <b>Speed:</b> 5.0 &nbsp;|&nbsp; <b>Ranged Damage:</b> 50 &nbsp;|&nbsp; <b>Melee Damage:</b> 200</li>
+                        <li><b>Attack Rate:</b> Fastest of all heroes (ranged cooldown 10 frames, melee cooldown 80 frames)</li>
+                        <li><b>Special — VOID ERUPTION:</b> Creates void explosions in a wide area dealing massive damage. Cooldown: 15s.</li>
+                        <li><b>Ultimate — THE SHADOW:</b> At level 10, void attacks are further amplified and the ultimate aura extends further.</li>
+                        <li><b>Skill Tree Focus:</b> 100% Damage nodes — straightforward max-damage build.</li>
+                    </ul>
+                    <p><i>Shadow's stats are intentionally excessive — it is a reward hero for players who have cleared the base game's progression milestones.</i></p>
+                </div>
+
+                <h3>Stat Summary</h3>
+                <div class="control-grid">
+                    <div class="control-item"><b style="color:#e74c3c">Fire</b><span>60 HP · 4.0 spd · 25 dmg</span></div>
+                    <div class="control-item"><b style="color:#3498db">Water</b><span>60 HP · 4.5 spd · 12 dmg</span></div>
+                    <div class="control-item"><b style="color:#ecf0f1">Ice</b><span>50 HP · 4.0 spd · 15 dmg</span></div>
+                    <div class="control-item"><b style="color:#2ecc71">Plant</b><span>70 HP · 3.5 spd · 10 dmg</span></div>
+                    <div class="control-item"><b style="color:#95a5a6">Metal</b><span>100 HP · 3.0 spd · 40 dmg</span></div>
+                    <div class="control-item"><b style="color:#888">Shadow</b><span>150 HP · 5.0 spd · 50 dmg</span></div>
+                </div>
             `
         },
         modes: {
             title: "Game Modes",
             html: `
                 <h2>Ways to Play</h2>
-                <h3>Standard Mode</h3>
-                <p>The classic survival experience. Waves get harder over time. Bosses spawn every few minutes.</p>
-                
-                <h3>Story Mode</h3>
-                <p>Experience the narrative of the 5 Freunde. Includes special events, dialogue, and unique boss encounters.</p>
 
-                <h3>Daily Challenge</h3>
-                <p>A unique run generated every day. Everyone plays with the same random seed and mutators. 
-                <br><b>Reward:</b> 1 Chaos Shard per win.</p>
-                
-                <h3>Weekly Challenge</h3>
-                <p>A harder, longer challenge that resets weekly. 
-                <br><b>Reward:</b> 3 Chaos Shards per win.</p>
+                <div class="tut-card">
+                    <div class="tut-card-title">Standard Mode</div>
+                    <p>The core survival experience. Waves of enemies scale in difficulty indefinitely. Every 4th wave, a Shop opens — spend run Gold on upgrades before continuing. There is no finish line: survive as long as possible and climb the score.</p>
+                    <ul>
+                        <li><b>30 enemies</b> must be killed per wave to trigger the Boss.</li>
+                        <li>The biome changes randomly each wave.</li>
+                        <li>Enemy HP and speed increase with each wave (see Enemy Types tab for scaling formulas).</li>
+                        <li>Boss type is randomised from the pool of 6 boss variants.</li>
+                        <li>Story events can be toggled on or off from the pause menu — when on, special encounters and dialogue activate at key waves.</li>
+                    </ul>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Story Mode</div>
+                    <p>The full narrative campaign of the 5 Freunde. Story Mode adds structured events, unique boss encounters, and companion mechanics on top of Standard survival gameplay.</p>
+                    <ul>
+                        <li><b>Companion System:</b> Allied heroes can join and fight alongside you. Pairings: Fire/Ice, Plant/Metal, Water/Plant.</li>
+                        <li><b>Wave 50 — Makuta (First Form):</b> 2× HP, 1.5× damage, 1.2× speed. Radius 80px.</li>
+                        <li><b>Wave 100 — Makuta (True Form):</b> 5× HP, 2.5× damage, 1.5× speed. The ultimate challenge of a Story run.</li>
+                        <li><b>Objectives:</b> Some waves include special objectives — defend a sapling, maintain a kill combo, stay inside a moving eye-of-the-storm zone, and more.</li>
+                        <li>Story events and chapter progress are saved automatically. Completing Story Mode at your current Prestige rank unlocks the next Prestige tier.</li>
+                    </ul>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Daily Challenge</div>
+                    <p>A seeded run that resets every day at midnight UTC. Every player in the world plays the exact same conditions: same enemy spawn order, same mutators, same biomes.</p>
+                    <ul>
+                        <li><b>Mutators:</b> 2–3 random mutators are applied automatically (see below).</li>
+                        <li><b>Fixed hero:</b> Hero selection is locked at run start — choose carefully.</li>
+                        <li><b>Reward:</b> 1 Chaos Shard on completion.</li>
+                        <li>Results contribute to lifetime Daily Challenge achievement tracking.</li>
+                    </ul>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Weekly Challenge</div>
+                    <p>Like Daily, but harder and longer. Seed resets every Monday. Features 3–5 mutators and steeper enemy scaling.</p>
+                    <ul>
+                        <li><b>Reward:</b> 5 Chaos Shards on completion — the best source of shards in the game.</li>
+                        <li>Weekly wins are tracked separately for achievement purposes.</li>
+                    </ul>
+                </div>
+
+                <h3>Mutators</h3>
+                <p>Mutators are applied automatically in Daily and Weekly Challenges. They alter the rules of a run and cannot be removed mid-run.</p>
+                <div class="control-grid">
+                    <div class="control-item"><b>Tiny Arena</b><span>Arena 50% smaller — enemies close in fast</span></div>
+                    <div class="control-item"><b>Explosive</b><span>All enemies explode on death</span></div>
+                    <div class="control-item"><b>Slug</b><span>Your speed −50%, damage +200%</span></div>
+                    <div class="control-item"><b>Fog of War</b><span>Enemies invisible until close range</span></div>
+                    <div class="control-item"><b>Giants</b><span>2× enemy HP and size, 50% spawn rate</span></div>
+                    <div class="control-item"><b>Swarm</b><span>50% enemy HP and size, 2× spawn rate</span></div>
+                    <div class="control-item"><b>Fragile</b><span>Your HP capped at 1, but damage ×5</span></div>
+                    <div class="control-item"><b>No Regen</b><span>Health pickups do not spawn</span></div>
+                    <div class="control-item"><b>Windy</b><span>Strong winds push you around constantly</span></div>
+                    <div class="control-item"><b>One Type</b><span>Only a single random enemy type spawns</span></div>
+                    <div class="control-item"><b>Melee Only</b><span>Ranged attacks disabled</span></div>
+                    <div class="control-item"><b>No Dash</b><span>Dashing completely disabled</span></div>
+                    <div class="control-item"><b>Double Boss</b><span>Two bosses spawn simultaneously</span></div>
+                    <div class="control-item"><b>Fast Enemies</b><span>All enemies move 50% faster</span></div>
+                    <div class="control-item"><b>Shadow Form</b><span>Forces Hero of Darkness regardless of selection</span></div>
+                    <div class="control-item"><b>Low Visibility</b><span>Your visible light radius is reduced</span></div>
+                </div>
             `
         },
         prestige: {
             title: "Prestige & Hard Mode",
             html: `
                 <h2>Pushing the Limits</h2>
-                <h3>Prestige</h3>
-                <p>Once you reach a high level with a hero, you can <b>Prestige</b> them.</p>
-                <ul>
-                    <li><b>Resets:</b> Hero Level and Skill Tree progress to 0.</li>
-                    <li><b>Gains:</b> Increases base stats (Health, Damage, Gold Gain) permanently.</li>
-                    <li><b>Difficulty:</b> Enemies become tougher for that hero.</li>
-                </ul>
-                <p>Use Prestige to break through stat ceilings and farm Gold more efficiently.</p>
 
-                <h3>Hard Mode</h3>
-                <p>Unlocked after completing specific milestones. Increases enemy speed, health, and damage, but grants significantly more XP and Gold.</p>
+                <h3>Prestige</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">How to Prestige</div>
+                    <p>Each hero can be Prestiged independently. To unlock Prestige 1 for a hero, you must first <b>complete a Story Mode run</b> (reach Wave 50) at Prestige 0. Each further Prestige rank requires beating Story Mode at the current rank before advancing. The Prestige button appears in the Skill Tree screen once all conditions are met.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">What Resets on Prestige</div>
+                    <ul>
+                        <li><b>Skill Tree:</b> All unlocked nodes reset to 0. You re-earn them through levelling up again.</li>
+                        <li><b>Prestige counter</b> increments by 1 for that hero.</li>
+                        <li>The current run ends immediately.</li>
+                    </ul>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">What Persists Across Prestige</div>
+                    <ul>
+                        <li>Total Gold collected (Void Shop eligibility)</li>
+                        <li>Lifetime stats (kills, bosses defeated, damage dealt)</li>
+                        <li>All Achievements unlocked</li>
+                        <li>Altar of Mastery rune progress</li>
+                        <li>All Void Shop purchases</li>
+                        <li>Collector Cards</li>
+                    </ul>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Difficulty Scaling per Prestige</div>
+                    <p>Prestige makes every run harder for that hero. Enemy and boss HP scale by the following formula:</p>
+                    <p style="text-align:center;font-size:13px;margin:8px 0;"><b>HP multiplier = 1 + (Prestige Rank × 0.5)</b></p>
+                    <ul>
+                        <li>Prestige 1: enemies have 1.5× HP</li>
+                        <li>Prestige 2: enemies have 2.0× HP</li>
+                        <li>Prestige 3: enemies have 2.5× HP</li>
+                    </ul>
+                    <p>Boss HP and spawn scaling follow the same formula. There is no Gold or XP bonus for higher Prestige — the reward is the Altar of Mastery progression it unlocks.</p>
+                </div>
+
+                <h3>Altar of Mastery</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">Unlock Condition</div>
+                    <p>The Altar of Mastery unlocks permanently once any hero reaches <b>Prestige 1</b>. It is a separate progression layer that lets you apply powerful passive rune buffs to specific hero abilities. Rune tiers unlock with further Prestige rank — higher tiers grant stronger effects like cooldown reduction, radius boosts, and special mechanics (projectile reflection, shatter damage, viral spread). Rune selection requires no Gold; it is purely Prestige-gated.</p>
+                </div>
             `
         },
         progression: {
             title: "Progression",
             html: `
                 <h2>Power Up</h2>
-                <h3>Skill Tree</h3>
-                <p>Earn Skill Points by leveling up in-game. Spend them on the Skill Tree for permanent stat boosts.</p>
-                
-                <h3>Void Shop</h3>
-                <p>Spend your total accumulated Gold to buy infinite scaling upgrades (Health, Damage, Greed, Speed).</p>
-                
-                <h3>Altar of Mastery</h3>
-                <p>Sacrifice resources to gain powerful passive bonuses. Unlocked later in the game.</p>
+                <p>5 Freunde has four distinct progression layers: in-run upgrades (Level-Up Shop), permanent hero progression (Skill Tree), permanent meta upgrades (Void Shop), and advanced ability modifiers (Altar of Mastery).</p>
+
+                <h3>XP & Levelling</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">XP Sources & Level Scaling</div>
+                    <ul>
+                        <li>Normal enemies: <b>10 XP</b> each</li>
+                        <li>Elite enemies: <b>50 XP</b> each</li>
+                        <li>XP required to level up starts at 100 and multiplies by <b>1.2× per level</b> (100 → 120 → 144 → …)</li>
+                        <li>Each level-up shows 2 upgrade choices. Every 10th level offers an Ultimate Form transformation instead.</li>
+                    </ul>
+                </div>
+
+                <h3>Level-Up Shop (In-Run Upgrades)</h3>
+                <p>On every level-up, pick one of two randomly offered upgrades. These apply immediately and last for the current run only.</p>
+                <div class="control-grid">
+                    <div class="control-item"><b>Vitality</b><span>+25 Max HP, restore 20% HP now</span></div>
+                    <div class="control-item"><b>Blast Radius</b><span>+25% Melee AoE size</span></div>
+                    <div class="control-item"><b>Multishot</b><span>+1 additional projectile</span></div>
+                    <div class="control-item"><b>Swiftness</b><span>+10% Movement Speed</span></div>
+                    <div class="control-item"><b>Haste</b><span>−10% Ranged Attack cooldown</span></div>
+                    <div class="control-item"><b>Iron Skin</b><span>−5% Incoming Damage</span></div>
+                    <div class="control-item"><b>Power</b><span>+10% All Damage</span></div>
+                    <div class="control-item"><b>Lethality</b><span>+5% Crit Chance, +20% Crit Damage</span></div>
+                    <div class="control-item"><b>Fortune</b><span>Increases rare drop chances</span></div>
+                </div>
+                <p>At every 10th level, you are offered <b>Ultimate Form</b> as one of your choices — entering it transforms your hero and grants a powerful temporary state that lasts until you take a hit.</p>
+
+                <h3>Between-Wave Shop (Every 4th Wave)</h3>
+                <p>After completing every 4th wave, the Shop opens. Spend the Gold you earned that run on the same upgrade pool listed above. Upgrades stack — buying Haste twice reduces cooldown by 20%.</p>
+
+                <h3>Skill Tree (Permanent, Per Hero)</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">100 Nodes — Permanent Hero Growth</div>
+                    <p>Each hero has its own 100-node skill tree. Nodes are earned by spending Skill Points, which are granted by levelling up. The tree resets on Prestige, allowing you to re-invest points into the same or a different build. Every 10th node is a <b>Major Node</b> with 5× the normal effect.</p>
+                    <p>Node types available (hero-specific weightings determine how often each appears):</p>
+                    <div class="control-grid">
+                        <div class="control-item"><b>Damage</b><span>+2% all damage</span></div>
+                        <div class="control-item"><b>Health</b><span>+2% max HP</span></div>
+                        <div class="control-item"><b>Speed</b><span>+1% movement speed</span></div>
+                        <div class="control-item"><b>Cooldown</b><span>−1% attack cooldown</span></div>
+                        <div class="control-item"><b>Armor</b><span>+1% damage reduction</span></div>
+                        <div class="control-item"><b>Pierce</b><span>+1 piercing target (Ice)</span></div>
+                        <div class="control-item"><b>Split</b><span>+1 projectile, −20% damage (Plant)</span></div>
+                        <div class="control-item"><b>Explode Chance</b><span>+5% shot explosion chance (Fire)</span></div>
+                        <div class="control-item"><b>Knockback</b><span>+5% push force (Water)</span></div>
+                        <div class="control-item"><b>Melee Size</b><span>+5% melee AoE radius (Metal)</span></div>
+                        <div class="control-item"><b>Ult Damage</b><span>+5% Ultimate Form damage</span></div>
+                        <div class="control-item"><b>Ult Speed</b><span>+5% speed during Ultimate Form</span></div>
+                    </div>
+                </div>
+
+                <h3>Void Shop (Permanent Meta Upgrades)</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">Spend Lifetime Gold — Applies to All Heroes</div>
+                    <p>The Void Shop uses your <b>total Gold ever accumulated</b> across all runs. Purchases apply to every hero permanently. Each upgrade has an exponentially increasing cost — buy early and often. Prices never reset.</p>
+                    <div class="control-grid">
+                        <div class="control-item"><b>Void Heart</b><span>+5 starting HP · starts 1,000g · ×1.2/purchase</span></div>
+                        <div class="control-item"><b>Void Coin</b><span>+5% Gold gain · starts 2,000g · ×1.3/purchase</span></div>
+                        <div class="control-item"><b>Void Strength</b><span>+1% all damage · starts 5,000g · ×1.4/purchase</span></div>
+                        <div class="control-item"><b>Void Step</b><span>+1% speed · starts 3,000g · ×1.3/purchase</span></div>
+                        <div class="control-item"><b>Void Shell</b><span>+1% damage reduction · starts 4,000g · ×1.5/purchase</span></div>
+                        <div class="control-item"><b>Void Mind</b><span>+2% XP gain · starts 2,500g · ×1.3/purchase</span></div>
+                    </div>
+                    <p><i>Tip: Void Coin is the highest-priority early purchase — more Gold income compounds into faster Void Shop progress on every future run.</i></p>
+                </div>
+
+                <h3>Altar of Mastery (Ability Runes)</h3>
+                <p>Unlocked at Prestige 1. Lets you apply powerful rune modifiers to your hero's specific abilities — cooldown reductions, radius increases, new secondary effects (e.g., reflected projectiles, freeze on melee, viral spread on special). Rune tiers I, II, and III unlock at higher Prestige ranks. See the Prestige & Hard Mode tab for unlock details.</p>
             `
         },
         museum: {
             title: "Museum & Collection",
             html: `
                 <h2>The Museum</h2>
-                <p>A physical space where you can walk around and view your unlocked Heroes and defeated Enemies.</p>
-                <p>Visit the <b>Gallery</b> to see the monsters you've conquered.</p>
+                <p>The Museum is a physical space you can freely explore between runs. It spans a 2400×2200 world with seven themed rooms — one per element — plus a central Gallery and a Creature Wing. Your selected hero navigates the museum directly using the same movement controls as in-game.</p>
 
-                <h2>Monster Collection Cards</h2>
-                <p>Enemies have a small chance to drop <b>Collector Cards</b> when defeated. Collecting these cards unlocks permanent bonuses against that specific enemy type.</p>
-                
-                <h3>Card Tiers</h3>
-                <ul>
-                    <li><b style="color:#cd7f32">Bronze</b>: +10% Damage dealt to this enemy type.</li>
-                    <li><b style="color:#c0c0c0">Silver</b>: -10% Damage taken from this enemy type.</li>
-                    <li><b style="color:#ffd700">Gold</b>: +20% XP gained from this enemy type.</li>
-                    <li><b style="color:#e5e4e2">Platinum</b>: A unique special bonus (e.g., "Ghosts are always visible" or "Immune to Toxic Trails").</li>
-                </ul>
-                <p>Collect all 4 cards for an enemy to fully master them!</p>
+                <h3>Museum Rooms</h3>
+                <div class="control-grid">
+                    <div class="control-item"><b>🔥 Fire Room</b><span>Blazing braziers, fire trophies</span></div>
+                    <div class="control-item"><b>💧 Water Room</b><span>Fountains, tidal decorations</span></div>
+                    <div class="control-item"><b>❄️ Ice Room</b><span>Mirrors, frozen exhibits</span></div>
+                    <div class="control-item"><b>🌿 Plant Room</b><span>Vines, nature dioramas</span></div>
+                    <div class="control-item"><b>⚙️ Metal Room</b><span>Workbenches, industrial displays</span></div>
+                    <div class="control-item"><b>🏛️ Gallery</b><span>Central hub — all defeated enemy types</span></div>
+                    <div class="control-item"><b>🔒 Creature Wing</b><span>Rare and elite enemy exhibits</span></div>
+                </div>
+                <p>NPCs in each room offer hero-specific flavour dialogue. New exhibits appear as you unlock heroes and collect Collector Cards.</p>
+
+                <h2>Collector Cards</h2>
+                <p>Every enemy type has four collectible cards — Bronze, Silver, Gold, and Platinum. Cards drop randomly when you defeat that enemy. Collecting a card grants a <b>permanent, stackable bonus</b> against that enemy type across all future runs.</p>
+
+                <h3>Card Tiers & Drop Rates</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#cd7f32;">Bronze Card — 0.5% drop rate</div>
+                    <p><b>+10% Damage dealt</b> to this specific enemy type. The most common card and the starting bonus for mastery.</p>
+                </div>
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#c0c0c0;">Silver Card — 0.25% drop rate</div>
+                    <p><b>−10% Damage taken</b> from this specific enemy type. Particularly valuable for Shooters, Snipers, and Bombers that threaten you from range.</p>
+                </div>
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#ffd700;">Gold Card — 0.10% drop rate</div>
+                    <p><b>+20% XP gained</b> from this specific enemy type. Stack multiple Gold Cards to dramatically accelerate levelling in waves where that type is common.</p>
+                </div>
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#e5e4e2;">Platinum Card — 0.05% drop rate</div>
+                    <p>A <b>unique special effect</b> per enemy type. Examples:</p>
+                    <ul>
+                        <li>Ghost card: Ghosts are always visible (removes the stealth mechanic)</li>
+                        <li>Toxic card: Immune to poison trails left by Toxic enemies</li>
+                        <li>Bomber card: Explosion radius reduced by 20%</li>
+                        <li>Summoner card: Summoned minion HP reduced by 50%</li>
+                    </ul>
+                    <p>Platinum Cards are rare enough that collecting one is a meaningful milestone. Multiple copies of a card stack their bonuses.</p>
+                </div>
+
+                <h3>Enemy Types with Cards</h3>
+                <p>Cards exist for every enemy type including all elites: Basic, Shooter, Brute, Speedster, Swarm, Summoner, Ghost, Sniper, Bomber, Toxic, Shielder — plus the elite variants Commander, Mender, Volatile, and Juggernaut. See the Enemy Types tab for full details on each.</p>
+                <p><i>Tip: Farm cards deliberately by choosing waves where a specific enemy type dominates. The Void Shop's "Fortune" upgrades can slightly increase card drop rates.</i></p>
             `
         },
         chaos: {
             title: "Chaos System",
             html: `
                 <h2>Risk vs Reward</h2>
-                <p>The Chaos Shop allows you to modify the game rules for massive Gold bonuses.</p>
+                <p>The Chaos System lets you voluntarily handicap your runs in exchange for permanent Gold bonuses. The harder you make the game for yourself, the more Gold every enemy drops. Chaos is entirely opt-in — you choose which effects to enable before starting a run.</p>
+
+                <h3>Chaos Shards</h3>
+                <p>Chaos Shards are the currency used to <b>permanently unlock</b> individual Chaos Effects. Once unlocked, an effect can be toggled on or off for free before any run. Sources:</p>
                 <ul>
-                    <li><b>Chaos Shards:</b> Earned from Daily/Weekly challenges.</li>
-                    <li><b>Chaos Effects:</b> Modifiers like "Inverted Controls" or "Giant Enemies".</li>
-                    <li><b>Gold Multiplier:</b> Each active effect increases your Gold Gain percentage.</li>
+                    <li>Daily Challenge completion: <b>1 Shard</b></li>
+                    <li>Weekly Challenge completion: <b>5 Shards</b></li>
                 </ul>
-                <p style="color:#e74c3c">Warning: Effects stack! Activating too many can make the game impossible.</p>
+
+                <h3>Chaos Effects</h3>
+                <p>Each effect has an unlock cost (in Shards) and a Gold bonus it adds to your multiplier while active. Effects stack — running four active effects combines all four bonuses and all four handicaps simultaneously.</p>
+                <div class="control-grid">
+                    <div class="control-item"><b>Inverted Controls</b><span>Cost 5 · +50% Gold · Movement reversed</span></div>
+                    <div class="control-item"><b>Slippery</b><span>Cost 3 · +20% Gold · Zero friction movement</span></div>
+                    <div class="control-item"><b>Giant Enemies</b><span>Cost 5 · +30% Gold · Enemies 2× size and HP</span></div>
+                    <div class="control-item"><b>Tiny Player</b><span>Cost 4 · +25% Gold · You take 200% damage</span></div>
+                    <div class="control-item"><b>Explosive Steps</b><span>Cost 8 · +40% Gold · Your movement spawns explosions</span></div>
+                    <div class="control-item"><b>Drunk Camera</b><span>Cost 2 · +15% Gold · Camera constantly rotates</span></div>
+                    <div class="control-item"><b>Speed Demon</b><span>Cost 6 · +30% Gold · Game runs at 1.5× speed</span></div>
+                    <div class="control-item"><b>Ghost Town</b><span>Cost 3 · +20% Gold · Enemies partially transparent</span></div>
+                    <div class="control-item"><b>Melee Only</b><span>Cost 5 · +40% Gold · Ranged attacks disabled</span></div>
+                </div>
+                <p style="color:#e74c3c"><b>Warning:</b> Effects stack — running Inverted Controls + Speed Demon + Tiny Player simultaneously is lethal unless you are extremely experienced. Start with one low-cost effect and build up.</p>
+
+                <h3>Chaos Objectives</h3>
+                <p>In certain Chaos modes, waves include a timed <b>Chaos Objective</b> — a challenge that, if completed, grants an immediate reward bonus for that wave.</p>
+                <div class="control-grid">
+                    <div class="control-item"><b>Survive</b><span>Take zero hits for one full wave</span></div>
+                    <div class="control-item"><b>Kill Fast</b><span>Kill 20 enemies within 10 seconds</span></div>
+                    <div class="control-item"><b>Pacifist</b><span>Do not attack for 10 consecutive seconds</span></div>
+                    <div class="control-item"><b>No Heal</b><span>Do not pick up any health drops for one wave</span></div>
+                    <div class="control-item"><b>Don't Move</b><span>Stand still for 10 cumulative seconds</span></div>
+                    <div class="control-item"><b>Collect Gold</b><span>Pick up 50 Gold within 30 seconds</span></div>
+                    <div class="control-item"><b>Dash Maniac</b><span>Dash 10 times within 20 seconds</span></div>
+                    <div class="control-item"><b>No Dash</b><span>Do not dash for the entire wave</span></div>
+                    <div class="control-item"><b>Melee Kills</b><span>Land 10 melee kills within 30 seconds</span></div>
+                    <div class="control-item"><b>Ranged Kills</b><span>Land 15 ranged kills within 30 seconds</span></div>
+                    <div class="control-item"><b>No Special</b><span>Do not use your special ability for the wave</span></div>
+                </div>
+
+                <h3>Objective Rewards</h3>
+                <p>Completing a Chaos Objective grants one of the following bonuses for the remainder of the run:</p>
+                <div class="control-grid">
+                    <div class="control-item"><b>+10% Damage</b><span></span></div>
+                    <div class="control-item"><b>+25 HP</b><span></span></div>
+                    <div class="control-item"><b>+10% Speed</b><span></span></div>
+                    <div class="control-item"><b>+5% Defense</b><span></span></div>
+                    <div class="control-item"><b>+20% Gold</b><span></span></div>
+                    <div class="control-item"><b>+10% Luck</b><span></span></div>
+                    <div class="control-item"><b>+15% XP</b><span></span></div>
+                    <div class="control-item"><b>−5% Cooldown</b><span></span></div>
+                    <div class="control-item"><b>+15% AoE Area</b><span></span></div>
+                    <div class="control-item"><b>+5% Crit Chance</b><span></span></div>
+                </div>
+            `
+        },
+        enemies: {
+            title: "Enemy Types",
+            html: `
+                <h2>Know Your Enemies</h2>
+                <p>Enemies spawn in waves of 30. Type variety expands as waves progress — early waves are mostly Basic enemies; later waves mix in every type including dangerous elites. All enemies scale in HP and speed per wave.</p>
+
+                <h3>Scaling Formula</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">Enemy Stat Scaling</div>
+                    <p><b>HP</b> = (25–50 base) × (1 + wave × 0.35) × (1 + prestige × 0.5)</p>
+                    <p><b>Speed</b> = (1–2.5 base) × (1 + wave × 0.025)</p>
+                    <p><b>Boss HP</b> = 1,500 × wave × type modifier × prestige modifier</p>
+                    <p>At wave 10, a Basic enemy has roughly 3× its starting HP. At wave 30 it has over 10×. Plan your damage upgrades accordingly.</p>
+                </div>
+
+                <h3>Base Enemy Types</h3>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Basic</div>
+                    <p>The standard melee enemy. Moves directly toward you and deals contact damage. Spawns from wave 1. The most common enemy throughout the game — never underestimate them in large groups.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Shooter</div>
+                    <p>Keeps distance and fires projectiles at you on a cooldown. Prioritise these over Basic enemies — their ranged fire can chip through your HP while you are occupied with melee threats.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Brute</div>
+                    <p>High HP, high contact damage, lower speed. Tanky frontliners that absorb a lot of punishment before going down. Excellent targets for melee combos once they are slowed or frozen.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Speedster — unlocks wave 3</div>
+                    <p>Low HP but very fast movement. Rushes you from range and closes the gap before you can react. Use AoE attacks or knockback to keep them controlled. Water hero's knockback trivialises this type.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Swarm — unlocks wave 1</div>
+                    <p>Small, low-HP enemies that arrive in large numbers. Individually harmless; collectively dangerous due to contact damage stacking. Explosion-chance upgrades and wide melee attacks excel here.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Summoner</div>
+                    <p>Periodically spawns minion enemies. Left alive, a Summoner can flood the arena within seconds. Always kill Summoners before clearing normal enemies — their minions do not count toward the wave kill threshold.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Ghost — unlocks wave 6</div>
+                    <p>Partially invisible — you can only see a faint outline unless you have the Ghost Platinum Collector Card, which makes them always visible. Moves through normal pathing restrictions. Stay near the centre to give yourself room to react.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Sniper — unlocks wave 10</div>
+                    <p>Long-range, high-damage projectile attacks with a brief wind-up telegraph. Deals the highest single-hit ranged damage of all base enemies. Keep moving between shots — standing still makes you an easy target.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Bomber — unlocks wave 8</div>
+                    <p>Explodes on death, dealing AoE damage to anything nearby — including other enemies. Do not melee a Bomber at close range unless you have high HP or the Bomber Platinum Card (reduces explosion radius by 20%). Use ranged attacks to detonate them safely.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Toxic — unlocks wave 4</div>
+                    <p>Leaves poison trails and gas clouds on the ground as it moves. Walking through these zones deals ongoing damage. The Toxic Platinum Collector Card grants immunity to these trails.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Shielder — unlocks wave 12</div>
+                    <p>Projects a protective aura around nearby allies, reducing the damage they take. Always kill the Shielder first when one is present — your damage to shielded enemies is dramatically reduced until the Shielder goes down.</p>
+                </div>
+
+                <h3>Elite Enemies — unlocks wave 50+</h3>
+                <p>After wave 50, any non-boss enemy has a <b>5% chance</b> to spawn as an Elite variant with 3× HP, 1.2× size, and a powerful aura ability. Elites drop <b>50 XP</b> instead of the standard 10.</p>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#e74c3c;">Commander (Speed Aura)</div>
+                    <p>Grants nearby enemies increased movement speed. Prioritise over regular enemies — letting a Commander live accelerates every enemy in its radius.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#2ecc71;">Mender (Heal Aura)</div>
+                    <p>Continuously regenerates HP for all nearby enemies. Can undo your damage output if left alive. The Mender Collector Card reduces its healing effectiveness by 50%.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#f39c12;">Volatile (Exploder)</div>
+                    <p>Moves 1.3× faster than the base enemy and explodes on death for massive AoE damage — more than a standard Bomber. Treat it as a high-priority ranged target. The Volatile Collector Card reduces explosion radius by 20%.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#95a5a6;">Juggernaut (Tank)</div>
+                    <p>2× HP on top of the Elite 3× multiplier (total 6× base HP), 0.7× speed. An extremely durable slow bruiser. The Juggernaut Collector Card reduces its total HP by 10%.</p>
+                </div>
+
+                <h3>Bosses</h3>
+                <p>A Boss spawns at the end of each wave once enough enemies have been killed. Boss type is selected randomly from the pool below. Boss HP scales with wave number and your Prestige rank.</p>
+                <div class="control-grid">
+                    <div class="control-item"><b>Tank</b><span>1.5× HP · 0.5× speed · Phase 2: speed doubles</span></div>
+                    <div class="control-item"><b>Speedster</b><span>0.7× HP · 1.5× speed · Hardest to hit</span></div>
+                    <div class="control-item"><b>Nova</b><span>0.8× HP · Very slow · Creates radial explosions</span></div>
+                    <div class="control-item"><b>Summoner</b><span>Normal HP · Phase 2: becomes immune; kill 5 minions first</span></div>
+                    <div class="control-item"><b>Rhino</b><span>1.2× HP · Charges in straight lines</span></div>
+                    <div class="control-item"><b>Hydra</b><span>Normal HP · Multi-hit attack patterns</span></div>
+                </div>
+                <p><b>Makuta</b> is the Story Mode boss encountered at Wave 50 and Wave 100. At Wave 50: 2× HP, 1.5× damage, 1.2× speed. At Wave 100: 5× HP, 2.5× damage, 1.5× speed — the hardest encounter in the base game.</p>
             `
         },
         rock: {
