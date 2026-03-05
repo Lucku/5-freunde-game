@@ -6,6 +6,75 @@ class WindBiome {
         this.frame = 0;
     }
 
+    drawBackground(ctx, arena) {
+        const w = arena.width;
+        const h = arena.height;
+
+        // Sky gradient — original sky blue at top, deepens into dark twilight blue at bottom
+        const sky = ctx.createLinearGradient(0, 0, 0, h);
+        sky.addColorStop(0,    '#87CEEB');  // original bright sky blue
+        sky.addColorStop(0.45, '#5aa0c8');  // mid transition
+        sky.addColorStop(0.78, '#2d6490');  // deep dusk blue
+        sky.addColorStop(1,    '#1a3d5e');  // dark horizon
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, w, h);
+
+        // Ruins — dark navy silhouettes, clearly visible against the lighter sky above
+        ctx.save();
+        ctx.fillStyle = '#0d1e30';
+
+        // Left ruin cluster — pillars + arch
+        ctx.globalAlpha = 0.60;
+        this._ruin_pillar(ctx, w * 0.04, h * 0.78, 36, 210);
+        this._ruin_pillar(ctx, w * 0.10, h * 0.84, 26, 150);
+        this._ruin_arch(ctx,   w * 0.16, h * 0.82, 68, 130);
+
+        // Right ruin cluster
+        this._ruin_pillar(ctx, w * 0.84, h * 0.76, 40, 230);
+        this._ruin_pillar(ctx, w * 0.89, h * 0.82, 28, 160);
+        this._ruin_arch(ctx,   w * 0.74, h * 0.80, 62, 125);
+
+        // Centre gate — slightly more transparent, deep background
+        ctx.globalAlpha = 0.35;
+        this._ruin_arch(ctx,   w * 0.46, h * 0.70, 105, 190);
+        this._ruin_pillar(ctx, w * 0.41, h * 0.70, 22, 190);
+        this._ruin_pillar(ctx, w * 0.56, h * 0.70, 22, 190);
+
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        // Bottom haze — dark mist pooling below the ruins
+        const haze = ctx.createLinearGradient(0, h * 0.70, 0, h);
+        haze.addColorStop(0, 'rgba(15,30,50,0)');
+        haze.addColorStop(1, 'rgba(15,30,50,0.50)');
+        ctx.fillStyle = haze;
+        ctx.fillRect(0, h * 0.70, w, h * 0.30);
+    }
+
+    _ruin_pillar(ctx, x, baseY, colW, colH) {
+        // Main column shaft
+        ctx.fillRect(x, baseY - colH, colW, colH);
+        // Capital block on top
+        ctx.fillRect(x - colW * 0.3, baseY - colH, colW * 1.6, colH * 0.09);
+        // Broken notch — cut out using sky-matching fill (no clearRect)
+        const notchColor = ctx.fillStyle;
+        ctx.fillStyle = '#2d6490';  // matches mid-sky colour
+        ctx.fillRect(x + colW * 0.55, baseY - colH, colW * 0.35, colH * 0.20);
+        ctx.fillStyle = notchColor;
+    }
+
+    _ruin_arch(ctx, cx, baseY, hw, archH) {
+        const colW = 18;
+        // Left pillar
+        ctx.fillRect(cx - hw - colW, baseY - archH, colW, archH);
+        // Right pillar
+        ctx.fillRect(cx + hw,        baseY - archH, colW, archH);
+        // Arch (top semicircle)
+        ctx.beginPath();
+        ctx.arc(cx, baseY - archH + hw * 0.65, hw + colW * 0.5, Math.PI, 0);
+        ctx.fill();
+    }
+
     generate(arena) {
         console.log("Generating Sky Palace Biome...");
         const w = arena.width;

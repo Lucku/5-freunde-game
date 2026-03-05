@@ -1116,13 +1116,21 @@ class MuseumEntity {
         } else {
             // Draw Enemy Style (Matching Enemy.js)
             ctx.globalAlpha = this.alpha;
-            ctx.fillStyle = this.color; ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+            const _mLight = shadeColor(this.color, +55);
+            const _mDark  = shadeColor(this.color, -60);
+            const _mrg = ctx.createRadialGradient(
+                -this.radius * 0.28, -this.radius * 0.28, this.radius * 0.04,
+                 0, 0, this.radius
+            );
+            _mrg.addColorStop(0,    _mLight);
+            _mrg.addColorStop(0.50, this.color);
+            _mrg.addColorStop(1,    _mDark);
+            ctx.fillStyle = _mrg;
+            ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
             ctx.beginPath();
-
-            if (this.sides === 0) { // Circle
+            if (this.sides === 0) {
                 ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
             } else {
-                // Draw Polygon
                 ctx.moveTo(this.radius, 0);
                 for (let i = 1; i <= this.sides; i++) {
                     ctx.lineTo(this.radius * Math.cos(i * 2 * Math.PI / this.sides), this.radius * Math.sin(i * 2 * Math.PI / this.sides));
@@ -1130,14 +1138,14 @@ class MuseumEntity {
             }
             ctx.closePath(); ctx.fill(); ctx.stroke();
 
-            // Eyes
-            ctx.fillStyle = 'white';
-            ctx.beginPath(); ctx.arc(this.radius * 0.3, -this.radius * 0.3, this.radius * 0.25, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(this.radius * 0.3, this.radius * 0.3, this.radius * 0.25, 0, Math.PI * 2); ctx.fill();
-            // Pupils
-            ctx.fillStyle = 'red';
-            ctx.beginPath(); ctx.arc(this.radius * 0.4, -this.radius * 0.3, this.radius * 0.1, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(this.radius * 0.4, this.radius * 0.3, this.radius * 0.1, 0, Math.PI * 2); ctx.fill();
+            // Evil glowing eye slits
+            const _mr = this.radius;
+            ctx.save();
+            ctx.shadowColor = '#ff2200'; ctx.shadowBlur = 7;
+            ctx.strokeStyle = '#ff4400'; ctx.lineWidth = Math.max(1.5, _mr * 0.09); ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(_mr * 0.20, -_mr * 0.12); ctx.lineTo(_mr * 0.48, -_mr * 0.30); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(_mr * 0.20,  _mr * 0.12); ctx.lineTo(_mr * 0.48,  _mr * 0.30); ctx.stroke();
+            ctx.restore();
 
             // Visual Markers
             if (this.type === 'SNIPER') {

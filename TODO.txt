@@ -2,8 +2,9 @@
 
 - Tutorial mode narrator audios
 - Add enemy impact sounde effects
-
-- overhaul general player design
+- Don't let the enemies out of the jail
+- game developer note
+- intro with game developer logo
 
 # Champions of Chaos
 

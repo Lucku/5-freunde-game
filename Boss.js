@@ -434,7 +434,19 @@ class Boss {
         }
 
         ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(frame * 0.02);
-        ctx.fillStyle = this.color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+        // 3D boss body — radial gradient lit from top-left
+        const _bLight = shadeColor(this.color, +50);
+        const _bDark  = shadeColor(this.color, -65);
+        const _brg = ctx.createRadialGradient(
+            -this.radius * 0.28, -this.radius * 0.28, this.radius * 0.05,
+             0, 0, this.radius
+        );
+        _brg.addColorStop(0,    _bLight);
+        _brg.addColorStop(0.45, this.color);
+        _brg.addColorStop(1,    _bDark);
+        ctx.fillStyle = _brg;
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = 4;
         ctx.beginPath();
         let sides = 6;
         if (this.type === 'SPEEDSTER') sides = 3;
@@ -448,11 +460,31 @@ class Boss {
         }
         ctx.closePath(); ctx.fill(); ctx.stroke();
 
-        // Boss Eyes
-        ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(-20, -10, 10, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(20, -10, 10, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(-20, -10, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(20, -10, 4, 0, Math.PI * 2); ctx.fill();
+        // Menacing glowing eye slits — angled inward, fierce V-shape
+        const _br = this.radius;
+        const _bSlitW = Math.max(3, _br * 0.075);
+        ctx.save();
+        ctx.lineCap = 'round';
+
+        // Dark outline pass — drawn first, slightly thicker, no glow
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = _bSlitW + 3;
+        ctx.beginPath(); ctx.moveTo(-_br * 0.20, -_br * 0.28); ctx.lineTo(-_br * 0.47, -_br * 0.10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( _br * 0.20, -_br * 0.28); ctx.lineTo( _br * 0.47, -_br * 0.10); ctx.stroke();
+
+        // Glowing red fill pass on top
+        ctx.shadowColor = '#ff1100';
+        ctx.shadowBlur = 18;
+        ctx.strokeStyle = '#ff3300';
+        ctx.lineWidth = _bSlitW;
+        ctx.beginPath(); ctx.moveTo(-_br * 0.20, -_br * 0.28); ctx.lineTo(-_br * 0.47, -_br * 0.10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( _br * 0.20, -_br * 0.28); ctx.lineTo( _br * 0.47, -_br * 0.10); ctx.stroke();
+
+        // Fierce central glow between the eyes
+        ctx.beginPath(); ctx.arc(0, -_br * 0.16, _br * 0.055, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,40,0,0.80)'; ctx.shadowBlur = 28; ctx.fill();
+        ctx.restore();
 
         if (this.type === 'RHINO' && this.state === 1) {
             // Charge effect
