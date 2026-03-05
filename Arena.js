@@ -492,13 +492,133 @@ class BiomeZone {
 class Obstacle {
     constructor(x, y, w, h) {
         this.x = x; this.y = y; this.w = w; this.h = h;
+        this._buildDecor();
     }
+
+    // Seeded pseudo-random — consistent per obstacle position
+    _rng(n) { const s = Math.sin(n) * 43758.5453; return s - Math.floor(s); }
+
+    _buildDecor() {
+        const seed = this.x * 0.0071 + this.y * 0.0137;
+        const r = (i) => this._rng(seed + i * 0.391);
+
+        // Stone block subdivision lines
+        const bSize = 58;
+        this._blockLines = [];
+        if (this.w > 90) {
+            for (let bx = bSize; bx < this.w - 10; bx += bSize + (r(bx) * 18 | 0) - 9)
+                this._blockLines.push([bx, 5, bx, this.h - 5, false]);
+        }
+        if (this.h > 90) {
+            for (let by = bSize; by < this.h - 10; by += bSize + (r(by) * 18 | 0) - 9)
+                this._blockLines.push([5, by, this.w - 5, by, true]);
+        }
+
+        // Cracks — 2-4 per obstacle, clipped to interior
+        this._cracks = [];
+        const num = 2 + (r(seed) * 2 | 0);
+        for (let i = 0; i < num; i++) {
+            const s = seed + i * 1.37;
+            const ox = 10 + r(s)       * (this.w - 20);
+            const oy = 10 + r(s + 0.1) * (this.h - 20);
+            const ang = r(s + 0.2) * Math.PI;
+            const len = 18 + r(s + 0.3) * Math.min(this.w, this.h) * 0.38;
+            const bAng = ang + 0.6 + r(s + 0.4) * 0.8;
+            const bLen = len * (0.25 + r(s + 0.5) * 0.35);
+            this._cracks.push({
+                ox, oy,
+                ex: ox + Math.cos(ang) * len,  ey: oy + Math.sin(ang) * len,
+                bx: ox + Math.cos(bAng) * bLen, by: oy + Math.sin(bAng) * bLen,
+            });
+        }
+
+        // Scattered surface pits for roughness
+        this._pits = [];
+        const numPits = 3 + (r(seed + 5) * 5 | 0);
+        for (let i = 0; i < numPits; i++) {
+            const s = seed + 10 + i * 0.77;
+            this._pits.push({ px: r(s) * this.w, py: r(s + 0.1) * this.h, pr: 1.5 + r(s + 0.2) * 2.5 });
+        }
+    }
+
     draw(ctx) {
-        ctx.fillStyle = '#444';
-        ctx.fillRect(this.x, this.y, this.w, this.h);
-        ctx.strokeStyle = '#666';
+        const { x, y, w, h } = this;
+        const bev = 6;
+
+        // --- Base: diagonal stone gradient (top-left bright → bottom-right dark) ---
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#6e6e6e');
+        grd.addColorStop(0.38,'#585858');
+        grd.addColorStop(1,   '#393939');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        // --- Interior details clipped to obstacle bounds ---
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Block subdivision lines
+        ctx.lineWidth = 1.5;
+        this._blockLines.forEach(([x1, y1, x2, y2]) => {
+            ctx.strokeStyle = 'rgba(0,0,0,0.38)';
+            ctx.beginPath(); ctx.moveTo(x + x1, y + y1); ctx.lineTo(x + x2, y + y2); ctx.stroke();
+            ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(x + x1 + 1, y + y1 + 1); ctx.lineTo(x + x2 + 1, y + y2 + 1); ctx.stroke();
+            ctx.lineWidth = 1.5;
+        });
+
+        // Cracks
+        ctx.lineCap = 'round';
+        this._cracks.forEach(c => {
+            ctx.strokeStyle = 'rgba(0,0,0,0.52)';
+            ctx.lineWidth = 1.1;
+            ctx.beginPath(); ctx.moveTo(x + c.ox, y + c.oy); ctx.lineTo(x + c.ex, y + c.ey); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x + c.ox, y + c.oy); ctx.lineTo(x + c.bx, y + c.by); ctx.stroke();
+            // Bright sliver next to crack (rock split highlight)
+            ctx.strokeStyle = 'rgba(255,255,255,0.11)';
+            ctx.lineWidth = 0.8;
+            ctx.beginPath(); ctx.moveTo(x + c.ox + 0.8, y + c.oy + 0.8); ctx.lineTo(x + c.ex + 0.8, y + c.ey + 0.8); ctx.stroke();
+        });
+
+        // Surface pits
+        this._pits.forEach(p => {
+            ctx.fillStyle = 'rgba(0,0,0,0.22)';
+            ctx.beginPath(); ctx.arc(x + p.px, y + p.py, p.pr, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            ctx.beginPath(); ctx.arc(x + p.px + 0.7, y + p.py + 0.7, p.pr * 0.55, 0, Math.PI * 2); ctx.fill();
+        });
+
+        ctx.restore();
+
+        // --- Bevel: raised 3-D edge (top+left lit, bottom+right shadowed) ---
+        // Top face
+        ctx.fillStyle = 'rgba(255,255,255,0.20)';
+        ctx.beginPath();
+        ctx.moveTo(x, y); ctx.lineTo(x + w, y);
+        ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev);
+        ctx.closePath(); ctx.fill();
+        // Left face
+        ctx.beginPath();
+        ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev);
+        ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h);
+        ctx.closePath(); ctx.fill();
+        // Bottom shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.40)';
+        ctx.beginPath();
+        ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev);
+        ctx.closePath(); ctx.fill();
+        // Right shadow
+        ctx.beginPath();
+        ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev);
+        ctx.closePath(); ctx.fill();
+
+        // Outer border
+        ctx.strokeStyle = '#1e1e1e';
         ctx.lineWidth = 2;
-        ctx.strokeRect(this.x, this.y, this.w, this.h);
+        ctx.strokeRect(x, y, w, h);
     }
 }
 
