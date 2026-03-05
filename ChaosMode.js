@@ -130,86 +130,82 @@ function openChaosGamble() {
 function updateChaosGambleUI() {
     const container = document.getElementById('chaos-options-container');
 
-    // Initial Render Check
+    // Initial render — build card shells
     if (container.children.length !== chaosShuffleOptions.length) {
         container.innerHTML = '';
         chaosShuffleOptions.forEach((opt, idx) => {
-            let div = document.createElement('div');
-            div.id = `chaos-opt-${idx}`;
-            div.style.padding = '30px';
-            div.style.borderRadius = '15px';
-            div.style.cursor = 'pointer';
-            div.style.width = '240px';
-            div.style.textAlign = 'center';
-            div.style.transition = 'all 0.2s';
-
-            // Events
-            div.onclick = () => confirmChaosGamble(idx);
-            div.onmouseenter = () => {
+            const card = document.createElement('div');
+            card.id = `chaos-opt-${idx}`;
+            card.className = 'chaos-opt-card';
+            card.onclick = () => confirmChaosGamble(idx);
+            card.onmouseenter = () => {
                 if (chaosSelectionIndex !== idx) {
                     chaosSelectionIndex = idx;
                     updateChaosGambleUI();
                 }
             };
-
-            container.appendChild(div);
+            container.appendChild(card);
         });
     }
 
-    // Update Visuals (Diff)
+    // Update each card
     chaosShuffleOptions.forEach((opt, idx) => {
-        let div = document.getElementById(`chaos-opt-${idx}`);
-        if (!div) return;
+        const card = document.getElementById(`chaos-opt-${idx}`);
+        if (!card) return;
 
-        let isActive = (idx === chaosSelectionIndex);
+        const isActive = (idx === chaosSelectionIndex);
+        // Convert hex color to rgba for glow
+        const glowColor = opt.color + '40';
 
-        let desc = '';
-        let heroIcon = '';
+        card.className = 'chaos-opt-card' + (isActive ? ' active' : '');
+        card.style.setProperty('--card-color', opt.color);
+        card.style.setProperty('--card-glow', glowColor);
+
+        // Build inner HTML per type
+        let iconHTML = '';
+        let descHTML = '';
+        let bondHTML = '';
 
         if (opt.type === 'HERO') {
-            desc = 'Abandon your current form and adapt to chaos.';
-            // Add Helmet/Icon
-            if (BASE_HERO_STATS[opt.val]) {
-                let aff = heroAffection[opt.val] || 50;
-                heroIcon = `
-                    <div class="hero-icon" style="background: ${opt.color}; width: 80px; height: 80px; margin: 0 auto 15px auto; border-radius: 50%; position: relative; display: flex; justify-content: center; align-items: center; border: 3px solid rgba(255,255,255,0.5);">
-                        <div style="width: 60%; height: 30%; background: rgba(0,0,0,0.5); border-radius: 0 0 50% 50%; margin-top: -10%;"></div>
-                    </div>
-                 `;
-                heroIcon += `
-                 <div style="margin-bottom:10px;">
-                    <span style="color:#ff69b4; font-size:12px;">❤ ${aff}%</span>
-                    <div style="width:100px; height:6px; background:#444; margin:2px auto; border-radius:3px;">
-                        <div style="width:${aff}%; height:100%; background:#ff69b4; border-radius:3px;"></div>
-                    </div>
-                 </div>
-                 `;
-            }
-        }
-        if (opt.type === 'STAY') {
-            desc = 'Resist the chaos, but pay the price in Gold and Glory.';
-            let aff = heroAffection[player.type] || 50;
-            desc += `<br><span style="color:#ff69b4; font-size:12px;">Current Bond: ${aff}%</span>`;
-        }
-        if (opt.type === 'NEMESIS') desc = `Instant Boss Fight!<br><span style="color:#f1c40f">${opt.note}</span>`;
-
-        if (isActive) {
-            div.style.background = '#333';
-            div.style.border = `4px solid #fff`;
-            div.style.transform = 'scale(1.1)';
-            div.style.boxShadow = `0 0 25px ${opt.color}80`;
-        } else {
-            div.style.background = '#222';
-            div.style.border = `4px solid ${opt.color}`;
-            div.style.transform = 'scale(1)';
-            div.style.boxShadow = `0 0 15px ${opt.color}40`;
+            const aff = heroAffection[opt.val] || 50;
+            iconHTML = `
+                <div class="chaos-opt-hero-icon" style="background:${opt.color};">
+                    <div class="chaos-opt-hero-visor"></div>
+                </div>`;
+            descHTML = 'Abandon your current form and adapt to chaos.';
+            bondHTML = `
+                <div class="chaos-opt-bond">❤ Bond ${aff}%
+                    <div class="chaos-bond-bar"><div class="chaos-bond-fill" style="width:${aff}%;"></div></div>
+                </div>`;
+        } else if (opt.type === 'STAY') {
+            const aff = heroAffection[player.type] || 50;
+            iconHTML = `
+                <div class="chaos-opt-hero-icon" style="background:${opt.color};">
+                    <div class="chaos-opt-hero-visor"></div>
+                </div>`;
+            descHTML = 'Resist the chaos — but pay a price.';
+            bondHTML = `
+                <div class="chaos-opt-bond">❤ Bond ${aff}%
+                    <div class="chaos-bond-bar"><div class="chaos-bond-fill" style="width:${aff}%;"></div></div>
+                </div>`;
+        } else if (opt.type === 'NEMESIS') {
+            iconHTML = `
+                <div class="chaos-opt-hero-icon" style="background:${opt.color}; font-size:28px; color:#fff;">⚔</div>`;
+            descHTML = `Instant Boss Fight`;
+            bondHTML = `<div class="chaos-opt-bond" style="color:#f1c40f;">Reward: ${opt.note}</div>`;
         }
 
-        div.innerHTML = `
-            ${heroIcon}
-            <div style="font-size:20px; font-weight:bold; margin-bottom:15px; color:${opt.color};">${opt.label}</div>
-            <div style="font-size:14px; color:#aaa; line-height:1.4;">${desc}</div>
-            ${isActive ? '<div style="margin-top:10px; font-size:12px; color:#fff;">(Press A to Select)</div>' : ''}
+        const penaltyLine = opt.type === 'STAY'
+            ? `<div style="margin-top:8px; font-size:10px; letter-spacing:0.5px; color:#e74c3c; text-transform:uppercase;">${opt.val.name}</div>`
+            : '';
+
+        card.innerHTML = `
+            ${iconHTML}
+            <div class="chaos-opt-label">${opt.label}</div>
+            <div class="chaos-opt-desc">${descHTML}</div>
+            ${penaltyLine}
+            ${bondHTML}
+            ${isActive ? '<div class="chaos-opt-hint">◈ Press A to confirm</div>' : ''}
         `;
     });
 }

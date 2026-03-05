@@ -3,9 +3,7 @@
 - Tutorial mode narrator audios
 - Add enemy impact sounde effects
 
-- overhaul design of in-game standard notifications
 - overhaul general player design
-- have a general design for when player enters Ultimate form
 
 # Champions of Chaos
 

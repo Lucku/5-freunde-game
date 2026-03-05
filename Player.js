@@ -950,17 +950,34 @@ class Player {
             ctx.fill();
         }
 
-        // Transformation Visuals
+        // Transformation Aura (all heroes — uses hero accent colour automatically)
         if (this.transformActive) {
-            ctx.beginPath(); ctx.arc(0, 0, this.radius + 15, 0, Math.PI * 2);
-            ctx.lineWidth = 4;
-            let strokeSet = false;
+            const t  = Date.now() / 1000;
+            const hc = this.stats.color;
 
-            if (this.currentForm === 'BLACK ICE') { ctx.strokeStyle = '#000'; strokeSet = true; }
-            if (this.currentForm === 'LAVA') { ctx.strokeStyle = '#e74c3c'; strokeSet = true; }
-            if (this.currentForm === 'ZEPHYR') { ctx.strokeStyle = '#40e0d0'; strokeSet = true; } // Turquoise for Air
+            ctx.save();
 
-            if (strokeSet) ctx.stroke();
+            // Layer 1 — soft radial halo
+            const grad = ctx.createRadialGradient(0, 0, this.radius * 0.4, 0, 0, this.radius + 40);
+            grad.addColorStop(0,   hc + 'BB');
+            grad.addColorStop(0.5, hc + '44');
+            grad.addColorStop(1,   hc + '00');
+            ctx.beginPath(); ctx.arc(0, 0, this.radius + 40, 0, Math.PI * 2);
+            ctx.fillStyle = grad; ctx.fill();
+
+            // Layer 2 — tight glowing ring
+            ctx.shadowColor = hc; ctx.shadowBlur = 22;
+            ctx.beginPath(); ctx.arc(0, 0, this.radius + 14, 0, Math.PI * 2);
+            ctx.strokeStyle = hc; ctx.lineWidth = 3; ctx.stroke();
+
+            // Layer 3 — two counter-rotating arcs
+            ctx.shadowBlur = 10; ctx.lineWidth = 2.5; ctx.strokeStyle = hc + 'CC';
+            const a1 = t * 2.4;
+            ctx.beginPath(); ctx.arc(0, 0, this.radius + 24, a1, a1 + Math.PI * 1.3); ctx.stroke();
+            const a2 = -t * 1.7 + 1;
+            ctx.beginPath(); ctx.arc(0, 0, this.radius + 24, a2, a2 + Math.PI * 0.85); ctx.stroke();
+
+            ctx.restore();
         }
 
         if (this.buffs.speed > 0) {

@@ -2537,6 +2537,105 @@ input:checked+.slider:before {
     margin-top: 5px;
 }
 
+/* ─── Chaos Gamble Cards ─────────────────────────────────────────── */
+.chaos-opt-card {
+    background: rgba(6, 4, 14, 0.82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-top: 2px solid var(--card-color, rgba(255, 255, 255, 0.2));
+    padding: 28px 22px 22px;
+    width: 210px;
+    cursor: pointer;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.22s ease,
+                border-color 0.22s ease,
+                background 0.22s ease;
+    animation: chaosCardIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.chaos-opt-card:nth-child(1) { animation-delay: 0ms; }
+.chaos-opt-card:nth-child(2) { animation-delay: 70ms; }
+.chaos-opt-card:nth-child(3) { animation-delay: 140ms; }
+
+.chaos-opt-card.active {
+    background: rgba(10, 6, 24, 0.92);
+    border-color: var(--card-color, #fff);
+    border-top-width: 3px;
+    transform: translateY(-8px) scale(1.04);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7),
+                0 0 24px var(--card-glow, rgba(255, 255, 255, 0.08));
+}
+
+.chaos-opt-hero-icon {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    margin: 0 auto 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 0 18px var(--card-glow, rgba(255, 255, 255, 0.06));
+    position: relative;
+    overflow: hidden;
+}
+.chaos-opt-hero-visor {
+    width: 60%;
+    height: 28%;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 0 0 50% 50%;
+    margin-top: -8%;
+}
+
+.chaos-opt-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--card-color, #fff);
+    margin-bottom: 8px;
+}
+.chaos-opt-desc {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.55;
+}
+.chaos-opt-bond {
+    margin-top: 10px;
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    color: #ff69b4;
+}
+.chaos-bond-bar {
+    width: 72px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    margin: 5px auto 0;
+    overflow: hidden;
+}
+.chaos-bond-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: #ff69b4;
+}
+.chaos-opt-hint {
+    margin-top: 12px;
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.28);
+}
+
+@keyframes chaosCardIn {
+    from { opacity: 0; transform: translateY(18px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
 /* Back / close button (subdued, used everywhere) */
 .screen-back-btn {
     background: transparent;
