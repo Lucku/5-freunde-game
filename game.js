@@ -58,6 +58,7 @@ let currentBiomeType = 'fire'; // Default, updated in startGame
 let isVersusMode = false;
 let isChaosShuffleMode = false;
 let isTutorialMode = false;
+let isTestingMode = false;
 window.saveData = {
     fire: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
@@ -483,6 +484,11 @@ function startTutorialGame() {
     saveData.story.enabled = false;
     selectedHeroType = 'fire';
     startGame('TUTORIAL');
+}
+
+function startTestingGrounds() {
+    isTestingMode = true;
+    startGame('TESTING');
 }
 
 function acceptTutorialPrompt() {
@@ -1099,6 +1105,22 @@ inputManager.onKeyDown = e => {
             if (overlay) overlay.style.display = 'flex';
             setUIState('TUTORIAL_PROMPT');
             showNotification('DEBUG: FIRST LAUNCH SIMULATED');
+        }
+
+        // DEBUG: Open Testing Grounds with 'D' in Menu
+        if (e.code === 'KeyD' && uiState === 'MENU') {
+            startTestingGrounds();
+        }
+
+        // Testing Grounds controls
+        if (isTestingMode && gameRunning && !isLevelingUp) {
+            if (e.code === 'Tab') {
+                e.preventDefault();
+                if (window.TestingGrounds) TestingGrounds.toggleSpawnMenu();
+            }
+            if (e.code === 'KeyC' && !gamePaused) {
+                if (window.TestingGrounds) TestingGrounds.clearAll();
+            }
         }
     }
 };
@@ -1970,6 +1992,8 @@ function shuffleHero(targetHeroType = null) {
 }
 
 function advanceWave() {
+    if (isTestingMode) return; // Testing Grounds: no wave progression
+
     // No-hit wave tracking for wind_no_hit achievement
     // Uses currentRunStats._noHitBaseline (resets per run) instead of a function property (persists across runs)
     if (player?.type === 'air' && typeof saveData !== 'undefined' && wave > 0) {
@@ -2444,6 +2468,18 @@ function startGame(mode = 'NORMAL') {
         TutorialMode.init();
         return;
     }
+    if (mode === 'TESTING') {
+        isDailyMode = false;
+        isWeeklyMode = false;
+        activeMutators = [];
+        currentBiomeType = selectedHeroType === 'black' ? 'chaos' : selectedHeroType;
+        arena.generate(currentBiomeType);
+        player.x = arena.width / 2;
+        player.y = arena.height / 2;
+        setUIState('GAME');
+        if (window.TestingGrounds) TestingGrounds.init();
+        return;
+    }
     // Daily/Weekly mode is set in startDailyChallenge/startWeeklyChallenge
 
     // Apply Mutators (Initial)
@@ -2476,6 +2512,7 @@ function startGame(mode = 'NORMAL') {
 function gameOver(isVictory = false) {
     gameRunning = false;
     isTutorialMode = false;
+    isTestingMode = false;
 
     // Clear Saved Run on Death
     clearSavedRun();
@@ -3085,7 +3122,7 @@ function masterLoop(timestamp) {
 
             // --- Spawning Logic ---
             // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
-            if (!bossActive && bossDeathTimer === 0 && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave && (!isTutorialMode || TutorialMode.bossForced)) {
+            if (!bossActive && bossDeathTimer === 0 && !isTestingMode && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave && (!isTutorialMode || TutorialMode.bossForced)) {
                 if (currentObjective && currentObjective.state === 'ACTIVE') {
                     // Do nothing, wait for objective completion logic
                 } else {
@@ -3117,9 +3154,9 @@ function masterLoop(timestamp) {
                 }
             }
 
-            if (!isVersusMode) {
+            if (!isVersusMode && !isTestingMode) {
                 if (!bossActive && bossDeathTimer === 0) {
-                    let spawnRate = Math.max(2, 40 - (wave * 2.5)); // Increased scaling
+                    let spawnRate = Math.max(8, 40 - (wave * 1.2)); // Slower ramp, higher floor
                     let forcedType = null;
 
                     // Story Override
@@ -3132,7 +3169,9 @@ function masterLoop(timestamp) {
                         }
                     }
 
-                    if (frame % Math.floor(spawnRate) === 0) {
+                    const nonBossCount = enemies.filter(e => !(e instanceof Boss)).length;
+                    const enemyCap = Math.min(25, 6 + wave);
+                    if (frame % Math.floor(spawnRate) === 0 && nonBossCount < enemyCap) {
                         let loops = 1;
                         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
 
@@ -4072,6 +4111,9 @@ function masterLoop(timestamp) {
 
             // Tutorial HUD
             if (isTutorialMode && window.TutorialMode) TutorialMode.drawHUD(ctx);
+
+            // Testing Grounds HUD
+            if (isTestingMode && window.TestingGrounds) TestingGrounds.drawHUD(ctx);
 
             // Chaos: Darkness (Fog of War) OR Mutator: Low Visibility
             const isLowVis = (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'LOW_VISIBILITY'));

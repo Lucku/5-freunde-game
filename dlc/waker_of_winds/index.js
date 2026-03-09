@@ -70,12 +70,13 @@ const WAKER_OF_WINDS = {
         if (window.WindEnemies) {
             window.ENEMY_LOGIC['HARPY'] = {
                 init: window.WindEnemies.initHarpy,
-                update: window.WindEnemies.updateHarpy
-                // draw: default
+                update: window.WindEnemies.updateHarpy,
+                draw: window.WindEnemies.drawHarpy
             };
             window.ENEMY_LOGIC['AERO_DRONE'] = {
                 init: window.WindEnemies.initAeroDrone,
-                update: window.WindEnemies.updateAeroDrone
+                update: window.WindEnemies.updateAeroDrone,
+                draw: window.WindEnemies.drawAeroDrone
             };
             window.ENEMY_LOGIC['CLOUD_MANTA'] = {
                 init: window.WindEnemies.initCloudManta,

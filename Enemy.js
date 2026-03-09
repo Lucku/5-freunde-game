@@ -14,7 +14,7 @@ class Enemy {
         }
 
         const prestige = saveData[player.type].prestige;
-        const difficultyMult = (1 + (wave * 0.2)) * (1 + (prestige * 0.5));
+        const difficultyMult = (1 + (wave * 0.28)) * (1 + (prestige * 0.5));
 
         // Enemy Types: BASIC, SHOOTER, BRUTE, SPEEDSTER, SWARM, SUMMONER
         // NEW: GHOST, SNIPER, BOMBER, TOXIC, SHIELDER
@@ -46,8 +46,8 @@ class Enemy {
 
         this.radius = 15 + Math.random() * 10;
         // Adjusted Scaling: More HP, Less Speed
-        this.hp = (25 + Math.random() * 25) * (1 + (wave * 0.35)) * (1 + (prestige * 0.5));
-        this.speed = (1 + Math.random() * 1.5) * (1 + (wave * 0.025)); // Reduced from 0.1 to 0.025
+        this.hp = (25 + Math.random() * 25) * (1 + (wave * 0.50)) * (1 + (prestige * 0.5));
+        this.speed = (1 + Math.random() * 1.5) * (1 + (wave * 0.04));
 
         // Mutator: Fast Enemies
         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'FAST_ENEMIES')) {

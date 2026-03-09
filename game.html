@@ -666,6 +666,7 @@
 
     <script src="game.js"></script>
     <script src="TutorialMode.js"></script>
+    <script src="TestingGrounds.js"></script>
 
     <!-- Tutorial Welcome Overlay (first launch) -->
     <div id="tutorial-welcome-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10000; justify-content:center; align-items:center;">
@@ -678,6 +679,33 @@
             </div>
         </div>
     </div>
+
+    <!-- Testing Grounds: Spawn Menu (debug only, non-Electron) -->
+    <div id="testing-spawn-menu" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.88); z-index:9000; justify-content:center; align-items:flex-start; padding-top:40px; box-sizing:border-box;">
+        <div style="background:#12121e; border:2px solid #f1c40f; border-radius:14px; padding:28px; max-width:720px; width:92%; max-height:82vh; overflow-y:auto; color:#fff; font-family:monospace;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <div>
+                    <span style="color:#f1c40f; font-size:20px; font-weight:bold;">Testing Grounds</span>
+                    <span style="color:#888; font-size:13px; margin-left:12px;">Select an enemy to spawn it near the player</span>
+                </div>
+                <button onclick="TestingGrounds.toggleSpawnMenu()" style="background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:6px 14px; cursor:pointer; font-size:14px;">✕ Close</button>
+            </div>
+            <div id="testing-enemy-list" style="display:flex; flex-direction:column; gap:16px;"></div>
+            <div style="margin-top:20px; border-top:1px solid #333; padding-top:16px;">
+                <button onclick="TestingGrounds.clearAll(); TestingGrounds.toggleSpawnMenu();" style="background:#c0392b; color:#fff; border:none; border-radius:6px; padding:8px 20px; cursor:pointer; font-size:14px; font-weight:bold;">Clear All Enemies</button>
+            </div>
+        </div>
+    </div>
+    <style>
+        .tg-group-title { color:#f1c40f; font-size:13px; font-weight:bold; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+        .tg-btn-grid { display:flex; flex-wrap:wrap; gap:8px; }
+        .tg-btn { background:#1e1e30; color:#ccc; border:1px solid #444; border-radius:6px; padding:7px 14px; cursor:pointer; font-size:13px; font-family:monospace; transition:background 0.15s; }
+        .tg-btn:hover { background:#2a2a44; color:#fff; border-color:#888; }
+        .tg-btn-elite { background:#1e1e30; border-width:1px; }
+        .tg-btn-elite:hover { background:#2a2a44; }
+        .tg-btn-dlc { color:#a78bfa; border-color:#6b46c1; }
+        .tg-btn-dlc:hover { background:#2d1b69; }
+    </style>
 
     <div id="ach-notif" aria-live="polite">
         <div class="ach-notif-label">Achievement Unlocked</div>
