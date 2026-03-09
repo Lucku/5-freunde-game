@@ -243,7 +243,9 @@ class Museum {
                 seenTypes.add(type);
                 const jx = jailRoom ? jailRoom.x + 80 + Math.random() * (jailRoom.w - 160) : 700 + Math.random() * 900;
                 const jy = jailRoom ? jailRoom.y + 60 + Math.random() * (jailRoom.h - 120) : 1860 + Math.random() * 200;
-                this.entities.push(new MuseumEntity(jx, jy, type, false));
+                const jailEntity = new MuseumEntity(jx, jy, type, false);
+                if (jailRoom) jailEntity.jailBounds = { x: jailRoom.x, y: jailRoom.y, w: jailRoom.w, h: jailRoom.h };
+                this.entities.push(jailEntity);
             }
         });
 
@@ -1066,6 +1068,15 @@ class MuseumEntity {
         let hitWall = false;
         // Boundary
         if (nextX < 0 || nextX > 2400 || nextY < 0 || nextY > 2200) hitWall = true;
+
+        // Jail boundary — jail entities cannot leave their cell
+        if (!hitWall && this.jailBounds) {
+            const b = this.jailBounds;
+            const r = this.radius || 15;
+            if (nextX < b.x + r || nextX > b.x + b.w - r || nextY < b.y + r || nextY > b.y + b.h - r) {
+                hitWall = true;
+            }
+        }
 
         // Walls
         if (!hitWall) {

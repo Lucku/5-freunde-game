@@ -327,12 +327,14 @@ class Enemy {
         // --- ELITE LOGIC ---
         if (this.isElite) {
             if (this.eliteType.id === 'AURA_SPEED') {
-                // Buff nearby enemies
-                enemies.forEach(e => {
-                    if (e !== this && Math.hypot(e.x - this.x, e.y - this.y) < 200) {
-                        e.speedBuff = 1.5; // 50% speed boost
-                    }
-                });
+                // Buff nearby enemies — throttled to every 10 frames
+                if (frame % 10 === 0) {
+                    enemies.forEach(e => {
+                        if (e !== this && Math.hypot(e.x - this.x, e.y - this.y) < 200) {
+                            e.speedBuff = 1.5; // 50% speed boost
+                        }
+                    });
+                }
             } else if (this.eliteType.id === 'AURA_HEAL') {
                 // Heal nearby enemies
                 if (frame % 60 === 0) {
@@ -401,17 +403,16 @@ class Enemy {
 
         ctx.globalAlpha = this.alpha;
 
-        // 3D body — radial gradient lit from top-left
-        const _eLight = shadeColor(this.color, +55);
-        const _eDark  = shadeColor(this.color, -60);
-        const _erg = ctx.createRadialGradient(
-            -this.radius * 0.28, -this.radius * 0.28, this.radius * 0.04,
-             0, 0, this.radius
-        );
-        _erg.addColorStop(0,    _eLight);
-        _erg.addColorStop(0.50, this.color);
-        _erg.addColorStop(1,    _eDark);
-        ctx.fillStyle = _erg;
+        // 3D body — radial gradient lit from top-left (cached per enemy instance)
+        if (!this._bodyGradient) {
+            const r = this.radius;
+            const g = ctx.createRadialGradient(-r * 0.28, -r * 0.28, r * 0.04, 0, 0, r);
+            g.addColorStop(0,    shadeColor(this.color, +55));
+            g.addColorStop(0.50, this.color);
+            g.addColorStop(1,    shadeColor(this.color, -60));
+            this._bodyGradient = g;
+        }
+        ctx.fillStyle = this._bodyGradient;
         ctx.strokeStyle = '#111';
         ctx.lineWidth = 2;
 
@@ -430,7 +431,7 @@ class Enemy {
         const _er = this.radius;
         ctx.save();
         ctx.shadowColor = '#ff2200';
-        ctx.shadowBlur = 7;
+        ctx.shadowBlur = 4;
         ctx.strokeStyle = '#ff4400';
         ctx.lineWidth = Math.max(1.5, _er * 0.09);
         ctx.lineCap = 'round';

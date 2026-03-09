@@ -193,5 +193,5 @@ window.WIND_STORY_CHAPTERS = [
     { id: "wind_47", wave: 47, hero: "AIR", type: "NARRATIVE", title: "I Am The Storm", text: "Accept your power. Unleash the storm twice.", data: { biome: 'HERO', trial: { type: 'ULTIMATE', params: { count: 2 } } } },
     { id: "wind_48", wave: 48, hero: "AIR", type: "NARRATIVE", title: "Final Form", text: "You are the Zephyr. Consistent flow required.", data: { biome: 'HERO', trial: { type: 'FLOW', params: { threshold: 50 } } } },
     { id: "wind_49", wave: 49, hero: "AIR", type: "NARRATIVE", title: "Succession", text: "The King smiles. He is ready to rest.", data: { biome: 'HERO', trial: { type: 'SPEED', params: { time: 30 } } } },
-    { id: "wind_50", wave: 50, hero: "AIR", type: "BOSS_FIGHT", title: "The Winds of Change", text: "Face the Storm King. Become the new Wind Waker.", data: { biome: 'HERO', bossId: 'TEMP_EST' } }
+    { id: "wind_50", wave: 50, hero: "AIR", type: "BOSS_FIGHT", title: "The Winds of Change", text: "Face the Storm King. Become the new Wind Waker.", data: { biome: 'HERO', bossId: 'TEMPEST' } }
 ];

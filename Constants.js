@@ -134,8 +134,7 @@ weeklyTiers.forEach(t => addAch(`WEEKLY_CHALLENGE_${t[0]}`, t[1], `Complete ${t[
 
 const WEATHER_TYPES = [
     { id: 'BLIZZARD', name: 'BLIZZARD', color: 'rgba(200, 230, 255, 0.3)', duration: 600 },
-    { id: 'HEATWAVE', name: 'HEATWAVE', color: 'rgba(255, 100, 50, 0.2)', duration: 600 },
-    { id: 'MAGNETIC', name: 'MAGNETIC STORM', color: 'rgba(142, 68, 173, 0.2)', duration: 400 }
+    { id: 'HEATWAVE', name: 'HEATWAVE', color: 'rgba(255, 100, 50, 0.2)', duration: 600 }
 ];
 
 const ELITE_TYPES = [

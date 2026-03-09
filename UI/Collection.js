@@ -129,6 +129,18 @@ function parseBonusDesc(bonus) {
 }
 
 const collectionUI = new CollectionUI();
-window.getCollectionBonuses = (t) => collectionUI.getCollectionBonuses(t);
+
+// Per-frame memoization: collection data never changes mid-frame, so cache results
+// by [frame, targetType] to avoid re-scanning saveData.collection on every collision.
+let _gcbFrame = -1;
+const _gcbCache = {};
+window.getCollectionBonuses = (t) => {
+    if (typeof frame !== 'undefined' && frame !== _gcbFrame) {
+        _gcbFrame = frame;
+        for (const k in _gcbCache) delete _gcbCache[k];
+    }
+    if (_gcbCache[t] === undefined) _gcbCache[t] = collectionUI.getCollectionBonuses(t);
+    return _gcbCache[t];
+};
 window.openCollection = () => collectionUI.openCollection();
 window.closeCollection = () => collectionUI.closeCollection();

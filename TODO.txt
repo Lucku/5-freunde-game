@@ -1,14 +1,15 @@
 # General
 
-- Tutorial mode narrator audios
+- Add audio for when wave is cleared
 - Add enemy impact sounde effects
 - Don't let the enemies out of the jail
 - game developer note
 - intro with game developer logo
+- make all DLC special bosses 3D
 
-# Champions of Chaos
+# Waker of Winds
 
-- give special bosses unique designs and mechanics
+- overhaul boss enemies (specially Temp_est)
 
 # Symphony of Sickness
 

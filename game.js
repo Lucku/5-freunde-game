@@ -614,12 +614,12 @@ function initMenu() {
 
 // --- DLC Menu Logic ---
 const DLC_META = {
-    rise_of_the_rock:      { rgb: '180,120,60'  },
-    tournament_of_thunder: { rgb: '241,196,15'  },
-    champions_of_chaos:    { rgb: '155,89,182'  },
-    waker_of_winds:        { rgb: '64,224,208'  },
-    faith_of_fortune:      { rgb: '240,180,100' },
-    symphony_of_sickness:  { rgb: '100,180,255' },
+    rise_of_the_rock: { rgb: '180,120,60' },
+    tournament_of_thunder: { rgb: '241,196,15' },
+    champions_of_chaos: { rgb: '155,89,182' },
+    waker_of_winds: { rgb: '64,224,208' },
+    faith_of_fortune: { rgb: '240,180,100' },
+    symphony_of_sickness: { rgb: '100,180,255' },
 };
 
 function openDLCMenu() {
@@ -1338,7 +1338,9 @@ window.Particle = Particle;
 window.CardDrop = CardDrop;
 window.createExplosion = createExplosion; // Ensure function is visible
 
+const MAX_PARTICLES = 300;
 function createExplosion(x, y, color, count = 10) {
+    if (particles.length >= MAX_PARTICLES) return;
     for (let i = 0; i < 8; i++) { particles.push(new Particle(x, y, color)); }
 }
 
@@ -1352,7 +1354,7 @@ function spawnLevelUpAura(x, y, color) {
             const p = new Particle(x + ox, y + oy, color);
             p.velocity.x = (Math.random() - 0.5) * 1.8;
             p.velocity.y = -(Math.random() * 3.2 + 1.2); // drift upward
-            p.life      = Math.random() * 0.008 + 0.005;  // slow fade (~120-200 frames)
+            p.life = Math.random() * 0.008 + 0.005;  // slow fade (~120-200 frames)
             particles.push(p);
         }, i * 28);
     }
@@ -1431,7 +1433,7 @@ function updateUI() {
 
     const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
     const displayHp = Math.max(0, Math.ceil(player.hp));
-    const hpFill   = document.getElementById('health-fill');
+    const hpFill = document.getElementById('health-fill');
     hpFill.style.width = hpPercent + '%';
     document.getElementById('health-text').innerText = displayHp + " / " + player.maxHp;
     if (_hudPrevHp !== null && player.hp < _hudPrevHp) {
@@ -1444,7 +1446,7 @@ function updateUI() {
     _hudPrevHp = player.hp;
 
     const xpPercent = Math.min(100, (player.xp / player.maxXp) * 100);
-    const xpFill    = document.getElementById('xp-fill');
+    const xpFill = document.getElementById('xp-fill');
     xpFill.style.width = xpPercent + '%';
     document.getElementById('xp-text').innerText = "Level " + player.level;
     if (_hudPrevXp !== null && xpPercent > _hudPrevXp) {
@@ -1456,8 +1458,8 @@ function updateUI() {
     }
     _hudPrevXp = xpPercent;
 
-    const meleePercent  = Math.max(0, 100 - (player.meleeCooldown / player.meleeMaxCooldown * 100));
-    const meleeFill     = document.getElementById('melee-fill');
+    const meleePercent = Math.max(0, 100 - (player.meleeCooldown / player.meleeMaxCooldown * 100));
+    const meleeFill = document.getElementById('melee-fill');
     meleeFill.style.width = meleePercent + '%';
     document.getElementById('melee-text').innerText = player.meleeCooldown <= 0 ? "MELEE READY" : "RECHARGING";
     const meleeReady = player.meleeCooldown <= 0;
@@ -1598,18 +1600,18 @@ function triggerStory(completedWave) {
 let currentStoryAudio = null;
 
 const _STORY_THEMES = {
-    all:       { rgb: '212,175,55',  icon: '✦'  },
-    fire:      { rgb: '231,76,60',   icon: '🔥' },
-    water:     { rgb: '52,152,219',  icon: '💧' },
-    ice:       { rgb: '170,200,218', icon: '❄️' },
-    plant:     { rgb: '46,204,113',  icon: '🌿' },
-    metal:     { rgb: '149,165,166', icon: '⚙️' },
-    earth:     { rgb: '141,110,99',  icon: '🪨' },
-    lightning: { rgb: '241,196,15',  icon: '⚡' },
-    gravity:   { rgb: '155,89,182',  icon: '🌀' },
-    void:      { rgb: '0,188,212',   icon: '☯️' },
-    spirit:    { rgb: '240,208,128', icon: '✨' },
-    chance:    { rgb: '224,64,251',  icon: '🎲' },
+    all: { rgb: '212,175,55', icon: '✦' },
+    fire: { rgb: '231,76,60', icon: '🔥' },
+    water: { rgb: '52,152,219', icon: '💧' },
+    ice: { rgb: '170,200,218', icon: '❄️' },
+    plant: { rgb: '46,204,113', icon: '🌿' },
+    metal: { rgb: '149,165,166', icon: '⚙️' },
+    earth: { rgb: '141,110,99', icon: '🪨' },
+    lightning: { rgb: '241,196,15', icon: '⚡' },
+    gravity: { rgb: '155,89,182', icon: '🌀' },
+    void: { rgb: '0,188,212', icon: '☯️' },
+    spirit: { rgb: '240,208,128', icon: '✨' },
+    chance: { rgb: '224,64,251', icon: '🎲' },
 };
 
 function _getStoryArcLabel(wave, hero) {
@@ -1622,15 +1624,15 @@ function _getStoryArcLabel(wave, hero) {
     }
 
     // Base game (fire, water, ice, plant, metal, ALL)
-    if (w <= 10)  return '✦  ARC I  ·  THE AWAKENING  ✦';
-    if (w <= 20)  return '✦  ARC II  ·  ELEMENTAL MASTERY  ✦';
-    if (w <= 30)  return '✦  ARC III  ·  THE SHADOW DEEPENS  ✦';
-    if (w <= 40)  return '✦  ARC IV  ·  THE CORRUPTION  ✦';
-    if (w <= 50)  return '✦  ARC V  ·  THE INNER CONFLICT  ✦';
-    if (w <= 60)  return '✦  ARC VI  ·  THE UNITY  ✦';
-    if (w <= 70)  return '✦  ARC VII  ·  THE MASK\'S POWER  ✦';
-    if (w <= 80)  return '✦  ARC VIII  ·  THE VOID APPROACHES  ✦';
-    if (w <= 90)  return '✦  ARC IX  ·  THE MASK REVEALED  ✦';
+    if (w <= 10) return '✦  ARC I  ·  THE AWAKENING  ✦';
+    if (w <= 20) return '✦  ARC II  ·  ELEMENTAL MASTERY  ✦';
+    if (w <= 30) return '✦  ARC III  ·  THE SHADOW DEEPENS  ✦';
+    if (w <= 40) return '✦  ARC IV  ·  THE CORRUPTION  ✦';
+    if (w <= 50) return '✦  ARC V  ·  THE INNER CONFLICT  ✦';
+    if (w <= 60) return '✦  ARC VI  ·  THE UNITY  ✦';
+    if (w <= 70) return '✦  ARC VII  ·  THE MASK\'S POWER  ✦';
+    if (w <= 80) return '✦  ARC VIII  ·  THE VOID APPROACHES  ✦';
+    if (w <= 90) return '✦  ARC IX  ·  THE MASK REVEALED  ✦';
     return '✦  ARC X  ·  THE FINAL STAND  ✦';
 }
 
@@ -1644,8 +1646,29 @@ function openStory(story) {
     screen.style.setProperty('--story-rgb', theme.rgb);
     screen.style.display = 'flex';
 
+    // Title background image — per-DLC or base game
+    const _storyTitleImages = {
+        fire:      'images/title.png',
+        water:     'images/title.png',
+        ice:       'images/title.png',
+        plant:     'images/title.png',
+        metal:     'images/title.png',
+        all:       'images/title.png',
+        air:       'dlc/waker_of_winds/images/title.png',
+        earth:     'dlc/rise_of_the_rock/images/title.png',
+        lightning: 'dlc/tournament_of_thunder/images/title.png',
+        gravity:   'dlc/champions_of_chaos/images/title.png',
+        void:      'dlc/champions_of_chaos/images/title.png',
+        spirit:    'dlc/faith_of_fortune/images/title.png',
+        chance:    'dlc/faith_of_fortune/images/title.png',
+        sound:     'dlc/symphony_of_sickness/images/title.png',
+        poison:    'dlc/symphony_of_sickness/images/title.png',
+    };
+    const bgImgEl = document.getElementById('story-bg-img');
+    if (bgImgEl) bgImgEl.src = _storyTitleImages[heroKey] || 'images/title.png';
+
     document.getElementById('story-hero-icon').textContent = theme.icon;
-    document.getElementById('story-arc-label').textContent = _getStoryArcLabel(story.wave || 1, story.hero);
+    document.getElementById('story-arc-label').textContent = story.fromTutorial ? '✦  TUTORIAL  ✦' : _getStoryArcLabel(story.wave || 1, story.hero);
     document.getElementById('story-title').innerText = story.title;
     document.getElementById('story-text').innerText = story.text;
 
@@ -2190,7 +2213,7 @@ function _processAchNotifQueue() {
     const HOLD = 3000;
 
     el.querySelector('.ach-notif-title').textContent = ach.title;
-    el.querySelector('.ach-notif-desc').textContent  = ach.desc;
+    el.querySelector('.ach-notif-desc').textContent = ach.desc;
     el.querySelector('.ach-notif-reward').textContent = ach.bonus.text;
     el.style.setProperty('--ach-duration', (HOLD / 1000) + 's');
 
@@ -3046,19 +3069,6 @@ function masterLoop(timestamp) {
                     if (currentWeather.id === 'HEATWAVE') {
                         // Mirage Effect handled in Camera Update
                     }
-                    if (currentWeather.id === 'MAGNETIC') {
-                        enemies.forEach(e1 => {
-                            enemies.forEach(e2 => {
-                                if (e1 !== e2) {
-                                    const d = Math.hypot(e1.x - e2.x, e1.y - e2.y);
-                                    if (d < 200) {
-                                        const a = Math.atan2(e2.y - e1.y, e2.x - e1.x);
-                                        e1.x += Math.cos(a) * 0.5; e1.y += Math.sin(a) * 0.5;
-                                    }
-                                }
-                            });
-                        });
-                    }
                 }
             } else {
                 weatherTimer--;
@@ -3406,15 +3416,8 @@ function masterLoop(timestamp) {
                     else if (pup.type === 'MAXHP') { player.maxHp += 20; player.hp += 20; createExplosion(player.x, player.y, '#e74c3c'); }
                     else if (pup.type === 'SPEED') { player.buffs.speed = 600; createExplosion(player.x, player.y, '#f1c40f'); }
                     else if (pup.type === 'MULTI') {
-                        if (player.heroType === 'EARTH') {
-                            // Earth Hero: Instant Max Momentum
-                            player.momentum = player.maxMomentum;
-                            showNotification("MAX MOMENTUM!");
-                            createExplosion(player.x, player.y, '#8d6e63');
-                        } else {
-                            player.buffs.multi = 600;
-                            createExplosion(player.x, player.y, '#3498db');
-                        }
+                        player.buffs.multi = 600;
+                        createExplosion(player.x, player.y, '#3498db');
                     }
                     else if (pup.type === 'AUTOAIM') {
                         if (player.heroType === 'EARTH') {
@@ -3573,7 +3576,8 @@ function masterLoop(timestamp) {
                 if (part.alpha <= 0) particles.splice(index, 1);
             });
 
-            // Update and Draw Floating Texts
+            // Update and Draw Floating Texts (cap at 80 — drop oldest when full)
+            if (floatingTexts.length > 80) floatingTexts.splice(0, floatingTexts.length - 80);
             floatingTexts.forEach((ft, index) => {
                 ft.update(); ft.draw();
                 if (ft.life <= 0) floatingTexts.splice(index, 1);

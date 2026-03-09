@@ -15,9 +15,10 @@ class EarthHero {
         // Shield Props
         player.rockShield = { active: false, hp: 0, maxHp: 0, timer: 0 };
 
-        // Override stats for "Rolling Boulder" feel
-        player.stats.speed = 2; // Slow base speed
-        player.stats.maxSpeed = 12; // High max speed with momentum
+        // Override stats
+        player.stats.speed = 4.5;   // Normal walk speed
+        player.stats.maxSpeed = 12; // Max speed at full momentum while rolling
+        player._rollMinSpeed = 2;   // Min speed when entering roll with 0 momentum
         player.baseDefense = player.stats.defense; // Store for Steel Ball
 
         // Attach Hooks
@@ -28,6 +29,7 @@ class EarthHero {
         player.shoot = () => EarthHero.shoot(player); // Rock Throw
         player.customOnDamage = (dmg) => EarthHero.onDamage(player, dmg); // Shield Logic
         player.getAIInput = (p, c, t) => EarthHero.getAIInput(p, c, t); // Custom AI
+        player.dash = () => EarthHero.toggleRoll(player); // Dash = toggle rolling
 
         // Altar Checks
         const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
@@ -43,6 +45,25 @@ class EarthHero {
             const iconEl = document.getElementById('special-icon');
             if (iconEl) iconEl.innerText = "🛡️";
         }
+    }
+
+    static toggleRoll(player) {
+        // Dash button toggles rolling state on/off.
+        // During Ultimate the roll is forced — can't exit it manually.
+        if (player.transformActive) return;
+
+        if (player.isRolling) {
+            player.isRolling = false;
+            player.momentum = 0;
+            if (typeof audioManager !== 'undefined') audioManager.stopLoop('attack_earth_roll');
+            if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#8d6e63');
+        } else {
+            player.isRolling = true;
+            // Momentum starts at 0 and builds as the player moves
+            if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#8d6e63');
+        }
+        // Brief cooldown so the toggle doesn't fire repeatedly from held input
+        player.dashCooldown = 25;
     }
 
     // --- DLC OFFLOADING METHODS ---
@@ -260,6 +281,7 @@ class EarthHero {
     }
 
     static shoot(player) {
+        if (player.isRolling) return; // No shooting while rolling
         if (player.rangeCooldown > 0) return;
 
         if (typeof audioManager !== 'undefined') {
@@ -280,30 +302,31 @@ class EarthHero {
         // Cooldown: 45 frames (0.75s) - Moderate fire rate
         const cooldown = 45 * player.cooldownMultiplier;
 
-        const vel = { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
+        // Build shot angles (multi-shot support)
+        const shots = [angle];
+        if (player.buffs && player.buffs.multi > 0) {
+            shots.push(angle - 0.25, angle + 0.25);
+        }
 
         if (typeof Projectile !== 'undefined') {
-            const proj = new Projectile(
-                player.x, player.y,
-                vel,
-                dmg,
-                '#8d6e63', // Rock Brown
-                12, // Size
-                'earth',
-                25, // Knockback (Increased for effect)
-                false // isEnemy
-            );
-            proj.owner = player;
-
-            // Optional: Allow rock to pierce 1 enemy
-            proj.pierce = 1;
-
-            // Low Range: ~250px (25 frames * 10 speed)
-            proj.life = 25;
-
-            if (typeof projectiles !== 'undefined') projectiles.push(proj);
-            else if (window.projectiles) window.projectiles.push(proj);
-
+            shots.forEach(a => {
+                const vel = { x: Math.cos(a) * speed, y: Math.sin(a) * speed };
+                const proj = new Projectile(
+                    player.x, player.y,
+                    vel,
+                    dmg,
+                    '#8d6e63', // Rock Brown
+                    12, // Size
+                    'earth',
+                    25, // Knockback
+                    false // isEnemy
+                );
+                proj.owner = player;
+                proj.pierce = 1;
+                proj.life = 25;
+                if (typeof projectiles !== 'undefined') projectiles.push(proj);
+                else if (window.projectiles) window.projectiles.push(proj);
+            });
             if (typeof currentRunStats !== 'undefined') currentRunStats.missilesFired++;
         }
 
@@ -385,50 +408,66 @@ class EarthHero {
 
         const isMoving = (dx !== 0 || dy !== 0);
 
-        if (isMoving) {
-            const moveAngle = Math.atan2(dy, dx);
-            let angleDiff = moveAngle - player.lastMoveAngle;
-            // Normalize angle
-            while (angleDiff <= -Math.PI) angleDiff += Math.PI * 2;
-            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        if (player.isRolling) {
+            // ── ROLLING STATE: momentum-based movement ────────────────────
+            if (isMoving) {
+                const moveAngle = Math.atan2(dy, dx);
+                let angleDiff = moveAngle - player.lastMoveAngle;
+                while (angleDiff <= -Math.PI) angleDiff += Math.PI * 2;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
-            // Momentum Logic: Only gain if moving straight AND in cardinal direction (not diagonal)
-            // Check if angle is close to 0, PI/2, PI, -PI/2
-            const isCardinal = (Math.abs(Math.sin(moveAngle)) < 0.25 || Math.abs(Math.cos(moveAngle)) < 0.25);
+                const isCardinal = (Math.abs(Math.sin(moveAngle)) < 0.25 || Math.abs(Math.cos(moveAngle)) < 0.25);
 
-            if (Math.abs(angleDiff) > 2.0) {
-                // Sharp Turn (e.g. 180 degree reversal): Lose ALL Momentum
-                player.momentum = 0;
-            } else if (Math.abs(angleDiff) > 1.0) {
-                // 90 Degree Turn (approx 1.57 rad): Lose significant momentum
-                player.momentum *= 0.5;
-            } else if (Math.abs(angleDiff) < 0.3 && isCardinal) {
-                // Straight line & Cardinal: Gain Momentum
-                player.momentum = Math.min(player.maxMomentum, player.momentum + player.momentumGain);
+                if (Math.abs(angleDiff) > 2.0) {
+                    player.momentum = 0;
+                } else if (Math.abs(angleDiff) > 1.0) {
+                    player.momentum *= 0.5;
+                } else if (Math.abs(angleDiff) < 0.3 && isCardinal) {
+                    player.momentum = Math.min(player.maxMomentum, player.momentum + player.momentumGain);
+                } else {
+                    player.momentum *= 0.98;
+                }
+
+                player.lastMoveAngle = moveAngle;
+
+                // Magma Roll (c11)
+                if (has('c11') && frame % 15 === 0) {
+                    if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#e74c3c');
+                    if (typeof enemies !== 'undefined') {
+                        enemies.forEach(e => {
+                            if (Math.hypot(e.x - player.x, e.y - player.y) < 60) {
+                                e.hp -= 10 * player.damageMultiplier;
+                            }
+                        });
+                    }
+                }
             } else {
-                // Turning or Diagonal: Lose Momentum significantly
-                player.momentum *= 0.98;
+                // Decay momentum while not pressing movement keys
+                player.momentum = Math.max(0, player.momentum - player.momentumDecay);
             }
 
-            player.lastMoveAngle = moveAngle;
+            // Calculate speed from momentum
+            const speedRatio = player.momentum / player.maxMomentum;
+            const rollMinSpeed = player._rollMinSpeed || 2;
+            let currentSpeed = rollMinSpeed + (player.stats.maxSpeed - rollMinSpeed) * speedRatio;
+            if (player.buffs.speed > 0) currentSpeed *= 1.5;
+            currentSpeed *= player.speedMultiplier;
 
-            player.isRolling = true;
-
-            // Magma Roll (c11)
-            if (has('c11') && frame % 15 === 0) {
-                if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#e74c3c');
-                if (typeof enemies !== 'undefined') {
-                    enemies.forEach(e => {
-                        if (Math.hypot(e.x - player.x, e.y - player.y) < 60) {
-                            e.hp -= 10 * player.damageMultiplier;
-                        }
-                    });
-                }
+            if (player.momentum > 0) {
+                player.x += Math.cos(player.lastMoveAngle) * currentSpeed;
+                player.y += Math.sin(player.lastMoveAngle) * currentSpeed;
             }
         } else {
-            // Decay Momentum
-            player.momentum = Math.max(0, player.momentum - player.momentumDecay);
-            if (player.momentum < 5) player.isRolling = false;
+            // ── NORMAL STATE: direct movement like other heroes ───────────
+            if (isMoving) {
+                player.lastMoveAngle = Math.atan2(dy, dx);
+                let currentSpeed = player.stats.speed;
+                if (player.buffs.speed > 0) currentSpeed *= 1.5;
+                currentSpeed *= player.speedMultiplier;
+                player.x += dx * currentSpeed;
+                player.y += dy * currentSpeed;
+            }
+            player.momentum = 0;
         }
 
         // Steel Ball (c15)
@@ -438,26 +477,11 @@ class EarthHero {
 
         // Manage Rolling Sound
         if (typeof audioManager !== 'undefined') {
-            if (player.isRolling && player.momentum > 10) { // Only play if actually rolling with some speed
+            if (player.isRolling && player.momentum > 10) {
                 audioManager.startLoop('attack_earth_roll');
             } else {
                 audioManager.stopLoop('attack_earth_roll');
             }
-        }
-
-        // Calculate Speed based on Momentum
-        // Base speed + (Max Speed - Base Speed) * (Momentum / Max)
-        const speedRatio = player.momentum / player.maxMomentum;
-        let currentSpeed = player.stats.speed + (player.stats.maxSpeed - player.stats.speed) * speedRatio;
-
-        // Apply Speed Buffs
-        if (player.buffs.speed > 0) currentSpeed *= 1.5;
-        currentSpeed *= player.speedMultiplier;
-
-        // Apply Movement
-        if (player.momentum > 0) {
-            player.x += Math.cos(player.lastMoveAngle) * currentSpeed;
-            player.y += Math.sin(player.lastMoveAngle) * currentSpeed;
         }
 
         // Cooldown Management (Since we override update, we must handle this)
@@ -628,96 +652,102 @@ class EarthHero {
         const lightColor = isObsidian ? '#3a2828' : shadeColor(player.stats.color, +42);
         const accentClr  = isObsidian ? '#f1c40f' : player.stats.color;
 
-        // ── Aim indicator ─────────────────────────────────────────────────
-        const aimAngle = player.aimAngle !== undefined ? player.aimAngle : (player.lastMoveAngle || 0);
-        ctx.save();
-        ctx.rotate(aimAngle);
-        ctx.globalAlpha = 0.28 + momPct * 0.55;
-        ctx.lineCap = 'round';
-        ctx.lineWidth = 2.5; ctx.strokeStyle = accentClr;
-        ctx.beginPath(); ctx.moveTo(r + 7, 0); ctx.lineTo(r + 28, 0); ctx.stroke();
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(r + 28, 0); ctx.lineTo(r + 20, -5);
-        ctx.moveTo(r + 28, 0); ctx.lineTo(r + 20,  5);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-        ctx.restore();
+        if (player.isRolling) {
+            // ── ROLLING: momentum aura + ultimate aura + boulder ─────────
 
-        // ── Momentum aura ring ────────────────────────────────────────────
-        if (player.momentum > 20) {
-            ctx.globalAlpha = Math.min(0.72, (player.momentum - 20) / 80 * 0.72);
-            ctx.beginPath(); ctx.arc(0, 0, r + 13, 0, Math.PI * 2);
-            ctx.strokeStyle = accentClr; ctx.lineWidth = 3.5; ctx.stroke();
-            ctx.globalAlpha = 1;
-        }
+            // Momentum aura ring
+            if (player.momentum > 20) {
+                ctx.globalAlpha = Math.min(0.72, (player.momentum - 20) / 80 * 0.72);
+                ctx.beginPath(); ctx.arc(0, 0, r + 13, 0, Math.PI * 2);
+                ctx.strokeStyle = accentClr; ctx.lineWidth = 3.5; ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
 
-        // ── Ultimate transform aura ───────────────────────────────────────
-        if (isObsidian) {
-            const hc = '#f1c40f';
-            const ag = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r + 40);
-            ag.addColorStop(0,   hc + 'BB'); ag.addColorStop(0.5, hc + '44'); ag.addColorStop(1, hc + '00');
-            ctx.beginPath(); ctx.arc(0, 0, r + 40, 0, Math.PI * 2); ctx.fillStyle = ag; ctx.fill();
+            // Ultimate transform aura
+            if (isObsidian) {
+                const hc = '#f1c40f';
+                const ag = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r + 40);
+                ag.addColorStop(0,   hc + 'BB'); ag.addColorStop(0.5, hc + '44'); ag.addColorStop(1, hc + '00');
+                ctx.beginPath(); ctx.arc(0, 0, r + 40, 0, Math.PI * 2); ctx.fillStyle = ag; ctx.fill();
+                ctx.save();
+                ctx.shadowColor = hc; ctx.shadowBlur = 14;
+                ctx.lineWidth = 2.5; ctx.strokeStyle = hc + 'CC';
+                const a1 = t * 2.2;
+                ctx.beginPath(); ctx.arc(0, 0, r + 24, a1, a1 + Math.PI * 1.3); ctx.stroke();
+                const a2 = -t * 1.6 + 1;
+                ctx.beginPath(); ctx.arc(0, 0, r + 24, a2, a2 + Math.PI * 0.85); ctx.stroke();
+                ctx.restore();
+            }
+
+            // Boulder body
             ctx.save();
-            ctx.shadowColor = hc; ctx.shadowBlur = 14;
-            ctx.lineWidth = 2.5; ctx.strokeStyle = hc + 'CC';
-            const a1 = t * 2.2;
-            ctx.beginPath(); ctx.arc(0, 0, r + 24, a1, a1 + Math.PI * 1.3); ctx.stroke();
-            const a2 = -t * 1.6 + 1;
-            ctx.beginPath(); ctx.arc(0, 0, r + 24, a2, a2 + Math.PI * 0.85); ctx.stroke();
+            ctx.rotate(rot);
+
+            ctx.beginPath();
+            ctx.ellipse(r * 0.08, r * 0.06, r * 1.08, r * 0.72, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fill();
+
+            const bg = ctx.createRadialGradient(-r * 0.32, -r * 0.38, r * 0.04, 0, 0, r);
+            bg.addColorStop(0,    lightColor);
+            bg.addColorStop(0.45, baseColor);
+            bg.addColorStop(1,    darkColor);
+            ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.fillStyle = bg; ctx.fill();
+            ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.stroke();
+
+            ctx.beginPath(); ctx.arc(0, 0, r - 3, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 1.8; ctx.stroke();
+
+            ctx.save();
+            ctx.beginPath(); ctx.arc(0, 0, r - 1, 0, Math.PI * 2); ctx.clip();
+
+            const crackClr = isObsidian ? 'rgba(241,196,15,0.28)' : 'rgba(0,0,0,0.28)';
+            const hlClr    = isObsidian ? 'rgba(255,220,50,0.10)'  : 'rgba(255,255,255,0.09)';
+            const segs = [[[-7,-12],[4,2],[13,13]], [[13,-7],[1,-1],[-9,11]], [[-12,4],[-1,-2],[9,-13]]];
+            ctx.lineCap = 'round';
+            segs.forEach(pts => {
+                ctx.strokeStyle = crackClr; ctx.lineWidth = 1.3;
+                ctx.beginPath(); ctx.moveTo(...pts[0]); pts.slice(1).forEach(p => ctx.lineTo(...p)); ctx.stroke();
+                ctx.strokeStyle = hlClr; ctx.lineWidth = 0.9;
+                ctx.beginPath(); ctx.moveTo(pts[0][0]+0.7, pts[0][1]+0.7); pts.slice(1).forEach(p => ctx.lineTo(p[0]+0.7,p[1]+0.7)); ctx.stroke();
+            });
+
+            [[-5,-8,2.5],[8,-5,1.8],[-9,6,2.2],[6,9,2.0],[0,-13,1.5]].forEach(([px,py,pr2]) => {
+                ctx.fillStyle = 'rgba(0,0,0,0.22)';
+                ctx.beginPath(); ctx.arc(px, py, pr2, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,0.07)';
+                ctx.beginPath(); ctx.arc(px+0.6, py+0.6, pr2*0.5, 0, Math.PI*2); ctx.fill();
+            });
+            ctx.restore();
+            ctx.restore(); // end rot
+
+        } else {
+            // ── NORMAL STATE: standard hero sprite ───────────────────────
+
+            // Subtle earth glow ring to hint rolling capability
+            ctx.globalAlpha = 0.20 + Math.sin(t * 1.8) * 0.07;
+            ctx.beginPath(); ctx.arc(0, 0, r + 7, 0, Math.PI * 2);
+            ctx.strokeStyle = baseColor; ctx.lineWidth = 2.5; ctx.stroke();
+            ctx.globalAlpha = 1;
+
+            // Standard armored hero sprite (rotated to face aim direction)
+            if (typeof drawHeroSprite === 'function') {
+                ctx.save();
+                ctx.rotate(player.aimAngle);
+                drawHeroSprite(ctx, isObsidian ? '#1c1010' : player.stats.color, r);
+                ctx.restore();
+            }
+
+            // Dashed ring indicator: "ROLL available"
+            ctx.save();
+            ctx.setLineDash([4, 5]);
+            ctx.beginPath(); ctx.arc(0, 0, r + 5, 0, Math.PI * 2);
+            ctx.strokeStyle = accentClr + '66'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.setLineDash([]);
             ctx.restore();
         }
 
-        // ── Rolling boulder ───────────────────────────────────────────────
-        ctx.save();
-        ctx.rotate(rot);
-
-        // Ground shadow
-        ctx.beginPath();
-        ctx.ellipse(r * 0.08, r * 0.06, r * 1.08, r * 0.72, 0, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fill();
-
-        // Boulder sphere (radial gradient for 3-D dome look)
-        const bg = ctx.createRadialGradient(-r * 0.32, -r * 0.38, r * 0.04, 0, 0, r);
-        bg.addColorStop(0,    lightColor);
-        bg.addColorStop(0.45, baseColor);
-        bg.addColorStop(1,    darkColor);
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
-        ctx.fillStyle = bg; ctx.fill();
-        ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.stroke();
-
-        // Rim band (helmet-like recessed ring)
-        ctx.beginPath(); ctx.arc(0, 0, r - 3, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 1.8; ctx.stroke();
-
-        // Clipped interior: rock facets + surface pits
-        ctx.save();
-        ctx.beginPath(); ctx.arc(0, 0, r - 1, 0, Math.PI * 2); ctx.clip();
-
-        // Crack pattern (rotates with ball to simulate rolling)
-        const crackClr = isObsidian ? 'rgba(241,196,15,0.28)' : 'rgba(0,0,0,0.28)';
-        const hlClr    = isObsidian ? 'rgba(255,220,50,0.10)'  : 'rgba(255,255,255,0.09)';
-        const segs = [[[-7,-12],[4,2],[13,13]], [[13,-7],[1,-1],[-9,11]], [[-12,4],[-1,-2],[9,-13]]];
-        ctx.lineCap = 'round';
-        segs.forEach(pts => {
-            ctx.strokeStyle = crackClr; ctx.lineWidth = 1.3;
-            ctx.beginPath(); ctx.moveTo(...pts[0]); pts.slice(1).forEach(p => ctx.lineTo(...p)); ctx.stroke();
-            ctx.strokeStyle = hlClr; ctx.lineWidth = 0.9;
-            ctx.beginPath(); ctx.moveTo(pts[0][0]+0.7, pts[0][1]+0.7); pts.slice(1).forEach(p => ctx.lineTo(p[0]+0.7,p[1]+0.7)); ctx.stroke();
-        });
-
-        // Surface pits for roughness
-        [[-5,-8,2.5],[8,-5,1.8],[-9,6,2.2],[6,9,2.0],[0,-13,1.5]].forEach(([px,py,pr2]) => {
-            ctx.fillStyle = 'rgba(0,0,0,0.22)';
-            ctx.beginPath(); ctx.arc(px, py, pr2, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = 'rgba(255,255,255,0.07)';
-            ctx.beginPath(); ctx.arc(px+0.6, py+0.6, pr2*0.5, 0, Math.PI*2); ctx.fill();
-        });
-        ctx.restore();
-
-        ctx.restore(); // end rot
-
-        // ── Tectonic shield (orbiting rock chunks, independent of ball roll) ─
+        // ── Tectonic shield (orbiting rock chunks — always visible) ──────
         if (player.rockShield && player.rockShield.active) {
             const shieldPct = Math.max(0, player.rockShield.hp / player.rockShield.maxHp);
             const shieldR   = r + 10;
@@ -748,38 +778,35 @@ class EarthHero {
 
         ctx.restore(); // end translate
 
-        // ── Momentum bar (world space) ────────────────────────────────────
-        const barW = 42, barH = 5, yOff = 30;
-        const bx = player.x - barW / 2, by = player.y + yOff;
-        const fillW = momPct * barW;
-        const isMax = momPct >= 0.95;
+        // ── Momentum bar (world space) — only while rolling ──────────────
+        if (player.isRolling) {
+            const barW = 42, barH = 5, yOff = 30;
+            const bx = player.x - barW / 2, by = player.y + yOff;
+            const fillW = momPct * barW;
+            const isMax = momPct >= 0.95;
 
-        // Dark track
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
-        ctx.fillStyle = '#1a1a1a';
-        ctx.fillRect(bx, by, barW, barH);
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(bx, by, barW, barH);
 
-        // Fill with glow when maxed
-        if (isMax) { ctx.shadowBlur = 10; ctx.shadowColor = '#e74c3c'; ctx.fillStyle = '#e74c3c'; }
-        else        { ctx.fillStyle = '#f1c40f'; }
-        ctx.fillRect(bx, by, fillW, barH);
-        ctx.shadowBlur = 0;
+            if (isMax) { ctx.shadowBlur = 10; ctx.shadowColor = '#e74c3c'; ctx.fillStyle = '#e74c3c'; }
+            else        { ctx.fillStyle = '#f1c40f'; }
+            ctx.fillRect(bx, by, fillW, barH);
+            ctx.shadowBlur = 0;
 
-        // Glass highlight strip
-        ctx.fillStyle = 'rgba(255,255,255,0.10)';
-        ctx.fillRect(bx, by, fillW, barH * 0.4);
+            ctx.fillStyle = 'rgba(255,255,255,0.10)';
+            ctx.fillRect(bx, by, fillW, barH * 0.4);
 
-        // Border
-        ctx.strokeStyle = 'rgba(255,255,255,0.14)';
-        ctx.lineWidth = 0.8;
-        ctx.strokeRect(bx, by, barW, barH);
+            ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+            ctx.lineWidth = 0.8;
+            ctx.strokeRect(bx, by, barW, barH);
 
-        // Label
-        ctx.fillStyle = 'rgba(255,255,255,0.32)';
-        ctx.font = 'bold 6px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('MOMENTUM', player.x, by - 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.32)';
+            ctx.font = 'bold 6px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('MOMENTUM', player.x, by - 2);
+        }
 
         return true; // Block default draw
     }
@@ -850,7 +877,10 @@ class EarthHero {
         // Aim is just direction
         const aimAngle = Math.atan2(dy, dx);
 
-        return { x: moveX, y: moveY, aimAngle, shoot, melee, dash: false, special, pause: false };
+        // AI always wants to be in rolling mode for ramming; trigger the toggle if not rolling
+        const dash = !player.isRolling && (player.dashCooldown <= 0);
+
+        return { x: moveX, y: moveY, aimAngle, shoot, melee, dash, special, pause: false };
     }
 }
 

@@ -77,6 +77,7 @@ const Manual = {
 
                 <div class="tut-card">
                     <div class="tut-card-title" style="color:#e74c3c;">🔥 Fire — Red</div>
+                    <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★☆☆☆ &nbsp;<span style="color:#2ecc71;"><b>2/5 — Easy</b></span></p>
                     <p><b>Playstyle:</b> Balanced all-rounder. Solid speed, damage, and area attacks make Fire forgiving and effective at any wave.</p>
                     <ul>
                         <li><b>HP:</b> 60 &nbsp;|&nbsp; <b>Speed:</b> 4.0 &nbsp;|&nbsp; <b>Ranged Damage:</b> 25 &nbsp;|&nbsp; <b>Melee Damage:</b> 100</li>
@@ -90,6 +91,7 @@ const Manual = {
 
                 <div class="tut-card">
                     <div class="tut-card-title" style="color:#3498db;">💧 Water — Blue</div>
+                    <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★☆☆☆ &nbsp;<span style="color:#2ecc71;"><b>2/5 — Easy</b></span></p>
                     <p><b>Playstyle:</b> Crowd control specialist. The fastest base hero. Keeps enemies at bay with high knockback; trades burst damage for sustained harassment.</p>
                     <ul>
                         <li><b>HP:</b> 60 &nbsp;|&nbsp; <b>Speed:</b> 4.5 (fastest base) &nbsp;|&nbsp; <b>Ranged Damage:</b> 12 &nbsp;|&nbsp; <b>Melee Damage:</b> 80</li>
@@ -103,6 +105,7 @@ const Manual = {
 
                 <div class="tut-card">
                     <div class="tut-card-title" style="color:#ecf0f1;">❄️ Ice — White</div>
+                    <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★☆☆ &nbsp;<span style="color:#f1c40f;"><b>3/5 — Medium</b></span></p>
                     <p><b>Playstyle:</b> Control and burst. Slower attack speed, but piercing projectiles and Freeze let you line up devastating combos against immobilised enemies.</p>
                     <ul>
                         <li><b>HP:</b> 50 (lowest base) &nbsp;|&nbsp; <b>Speed:</b> 4.0 &nbsp;|&nbsp; <b>Ranged Damage:</b> 15 &nbsp;|&nbsp; <b>Melee Damage:</b> 90</li>
@@ -116,6 +119,7 @@ const Manual = {
 
                 <div class="tut-card">
                     <div class="tut-card-title" style="color:#2ecc71;">🌿 Plant — Green</div>
+                    <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★☆☆ &nbsp;<span style="color:#f1c40f;"><b>3/5 — Medium</b></span></p>
                     <p><b>Playstyle:</b> Sustain tank. Highest melee damage and health. Excels at holding ground and recovering from bad situations via healing.</p>
                     <ul>
                         <li><b>HP:</b> 70 (highest base) &nbsp;|&nbsp; <b>Speed:</b> 3.5 (slower) &nbsp;|&nbsp; <b>Ranged Damage:</b> 10 &nbsp;|&nbsp; <b>Melee Damage:</b> 120 (2nd highest)</li>
@@ -129,6 +133,7 @@ const Manual = {
 
                 <div class="tut-card">
                     <div class="tut-card-title" style="color:#95a5a6;">⚙️ Metal — Grey</div>
+                    <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★☆☆ &nbsp;<span style="color:#f1c40f;"><b>3/5 — Medium</b></span></p>
                     <p><b>Playstyle:</b> Juggernaut. The slowest, toughest, hardest-hitting hero in the base roster. A high-risk, high-reward brawler built entirely around getting close.</p>
                     <ul>
                         <li><b>HP:</b> 100 (highest of all heroes) &nbsp;|&nbsp; <b>Speed:</b> 3.0 (slowest) &nbsp;|&nbsp; <b>Ranged Damage:</b> 40 &nbsp;|&nbsp; <b>Melee Damage:</b> 150 (highest base)</li>
@@ -585,14 +590,15 @@ const Manual = {
             title: "Rise of the Rock",
             html: `
                 <h2>DLC: Rise of the Rock</h2>
-                <p>Harness the raw force of the earth itself. The Earth Hero is a slow, unstoppable juggernaut — the longer you move in a straight line, the more dangerous you become.</p>
+                <p>Harness the raw force of the earth itself. The Earth Hero is a versatile fighter who can unleash his true power by transforming into a rolling boulder — a slow, unstoppable juggernaut that grows more dangerous the longer it stays on course.</p>
 
                 <h3>New Hero: Earth — Brown 🪨</h3>
-                <p>A momentum-based brawler who rewards deliberate, committed movement. Erratic play loses all power; controlled ramming crushes everything in your path.</p>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★★★ &nbsp;<span style="color:#e74c3c;"><b>5/5 — Very Hard</b></span></p>
+                <p>A two-mode brawler: walk and shoot like any other hero, or press <b>Dash</b> to enter Rolling Mode and become a momentum-fueled wrecking ball. Press Dash again to exit. Mastery means knowing when to roll and when to hold back.</p>
 
                 <div class="tut-card">
-                    <div class="tut-card-title" style="color:#a1887f;">Momentum</div>
-                    <p>Your primary resource (0–100). It builds every frame you move in a straight line and decays when you stand still. Sharp turns are heavily punished: a full 180° reversal resets it entirely; a 90° turn cuts it in half. Momentum directly scales your <b>Tremor melee radius</b> (up to +50% larger) and your <b>Ram Damage</b> (up to 150%+ of base). Play like a runaway boulder — commit to your direction.</p>
+                    <div class="tut-card-title" style="color:#a1887f;">Rolling Mode (Dash to Toggle)</div>
+                    <p>Press <b>Dash</b> to enter or exit Rolling Mode at any time. While rolling, movement becomes momentum-based: Momentum builds each frame you travel in a straight cardinal direction and decays when you stand still. Sharp turns are heavily punished — a full 180° reversal resets it entirely; a 90° turn cuts it in half. High Momentum directly scales your <b>Tremor radius</b> and <b>Ram Damage</b>. In normal mode you move freely at full speed but deal no ram damage.</p>
                 </div>
 
                 <div class="tut-card">
@@ -628,6 +634,7 @@ const Manual = {
                 <p>Lightning rewards relentless movement and punishes standing still. Keep moving, build your charge, and release storms that shred entire groups at once.</p>
 
                 <h3>New Hero: Lightning — Yellow ⚡</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★☆☆☆ &nbsp;<span style="color:#2ecc71;"><b>2/5 — Easy</b></span></p>
                 <p>A high-risk, high-reward hero who builds power passively just by moving. Normal attacks chain between enemies; a fully charged shot turns the whole field into a conductor.</p>
 
                 <div class="tut-card">
@@ -671,6 +678,7 @@ const Manual = {
                 <p>Two heroes who break the rules of the game itself. Gravity bends physics to create inescapable voids; Void exploits corrupted reality to assassinate targets and glitch through defenses.</p>
 
                 <h3>New Hero: Gravity — Purple 🌑</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★☆☆ &nbsp;<span style="color:#f1c40f;"><b>3/5 — Medium</b></span></p>
                 <p>A slow-building powerhouse. Patience and kill-farming fuel an increasingly devastating singularity. Weak at the start of a wave; lethal by the middle of it.</p>
 
                 <div class="tut-card">
@@ -696,6 +704,7 @@ const Manual = {
                 </ul>
 
                 <h3 style="margin-top:28px;">New Hero: Void — Dark Gray 👾</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★★☆ &nbsp;<span style="color:#e67e22;"><b>4/5 — Hard</b></span></p>
                 <p>An assassin built around melee execution and glitch mechanics. Pathetically slow ranged attack; devastatingly fast and brutal at close range.</p>
 
                 <div class="tut-card">
@@ -781,6 +790,7 @@ const Manual = {
                 <p>Two heroes at opposite ends of the spectrum: one demands discipline and stillness; the other embraces pure, wild randomness. Master either extreme for devastating results.</p>
 
                 <h3>New Hero: Spirit — Amber/Gold 🧘</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★★☆ &nbsp;<span style="color:#e67e22;"><b>4/5 — Hard</b></span></p>
                 <p>A meditating monk with a deceptively weak baseline. Spirit's power is entirely resource-gated — patient, still players are rewarded with near-invincibility; aggressive, frantic play is punished hard.</p>
 
                 <div class="tut-card">
@@ -809,6 +819,7 @@ const Manual = {
                 <p><i>Tip: Find a corner, fill Peace to 100, then activate TRANSCEND and sweep the center of the map with your aura. Rinse and repeat each wave.</i></p>
 
                 <h3 style="margin-top:28px;">New Hero: Chance — Magenta 🎲</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★★☆ &nbsp;<span style="color:#e67e22;"><b>4/5 — Hard</b></span></p>
                 <p>A gambler whose every aspect is driven by Luck. Every attack roll is randomized, every special activation is a gamble — but the higher your Luck stat, the more the odds tilt in your favor.</p>
 
                 <div class="tut-card">
@@ -861,6 +872,7 @@ const Manual = {
                 <p>Two new heroes defined by timing, alchemy, and relentless attrition. Master the rhythm or brew the perfect poison — both demand patience and punish aggression.</p>
 
                 <h3>New Hero: Sound — Light Blue 🎵</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★★★ &nbsp;<span style="color:#e74c3c;"><b>5/5 — Very Hard</b></span></p>
                 <p>A rhythm fighter who rewards well-timed attacks with escalating power. Weak without setup; unstoppable when in Sync.</p>
 
                 <div class="tut-card">
@@ -886,6 +898,7 @@ const Manual = {
                 <p><i>Tip: Upgrade the Metronome in the level-up shop to make on-beat attacks fire automatically.</i></p>
 
                 <h3 style="margin-top:30px;">New Hero: Poison — Toxic Green ⚗️</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★★★ &nbsp;<span style="color:#e74c3c;"><b>5/5 — Very Hard</b></span></p>
                 <p>An alchemist who trades raw damage for DoT build-up and flask chemistry. Direct damage is low — your power lies in layering effects and mixing the right brew.</p>
 
                 <div class="tut-card">

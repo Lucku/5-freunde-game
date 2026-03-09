@@ -298,6 +298,8 @@ class AudioManager {
             path = `dlc/champions_of_chaos/audio/memories/${hero}_${id}.mp3`;
         } else if (hero === 'air') {
             path = `dlc/waker_of_winds/audio/memories/${hero}_${id}.mp3`;
+        } else if (hero === 'sound' || hero === 'poison') {
+            path = `dlc/symphony_of_sickness/audio/memories/${hero}_${id}.mp3`;
         } else {
             // Standard Heroes (and potentially others if added strictly to base)
             path = `audio/memories/${hero}_${id}.mp3`;
@@ -449,7 +451,7 @@ class AudioManager {
                 enemies.some(e => e instanceof Boss && (e.type === 'VOID_WALKER_BOSS' || e.type === 'GLITCH_BOSS'));
             const isAirBossActive = typeof bossActive !== 'undefined' && bossActive &&
                 typeof enemies !== 'undefined' &&
-                enemies.some(e => e instanceof Boss && ['CLOUD_GOLEM', 'STORM_CROW', 'TORNADO_MACHINA', 'TEMP_EST'].includes(e.type));
+                enemies.some(e => e instanceof Boss && ['CLOUD_GOLEM', 'STORM_CROW', 'TORNADO_MACHINA', 'TEMPEST'].includes(e.type));
 
             if (isMakutaActive) {
                 this.stopAllExcept('makuta');
