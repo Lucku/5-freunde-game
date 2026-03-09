@@ -14,7 +14,7 @@ class Enemy {
         }
 
         const prestige = saveData[player.type].prestige;
-        const difficultyMult = (1 + (wave * 0.28)) * (1 + (prestige * 0.5));
+        const difficultyMult = (1 + (wave * 0.15)) * (1 + (prestige * 0.5));
 
         // Enemy Types: BASIC, SHOOTER, BRUTE, SPEEDSTER, SWARM, SUMMONER
         // NEW: GHOST, SNIPER, BOMBER, TOXIC, SHIELDER
@@ -46,8 +46,8 @@ class Enemy {
 
         this.radius = 15 + Math.random() * 10;
         // Adjusted Scaling: More HP, Less Speed
-        this.hp = (25 + Math.random() * 25) * (1 + (wave * 0.50)) * (1 + (prestige * 0.5));
-        this.speed = (1 + Math.random() * 1.5) * (1 + (wave * 0.04));
+        this.hp = (25 + Math.random() * 25) * (1 + (wave * 0.38)) * (1 + (prestige * 0.5));
+        this.speed = (1 + Math.random() * 1.5) * (1 + (wave * 0.018));
 
         // Mutator: Fast Enemies
         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'FAST_ENEMIES')) {
@@ -62,7 +62,7 @@ class Enemy {
         this.isSummonedMinion = false;
         this.parentBoss = null;
 
-        if (wave > 50 && Math.random() < 0.05) { // 5% chance after wave 50
+        if (wave > 15 && Math.random() < 0.03) { // 3% chance after wave 15
             this.isElite = true;
             this.eliteType = ELITE_TYPES[Math.floor(Math.random() * ELITE_TYPES.length)];
             this.hp *= 3;

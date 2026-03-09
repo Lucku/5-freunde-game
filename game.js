@@ -3156,7 +3156,7 @@ function masterLoop(timestamp) {
 
             if (!isVersusMode && !isTestingMode) {
                 if (!bossActive && bossDeathTimer === 0) {
-                    let spawnRate = Math.max(8, 40 - (wave * 1.2)); // Slower ramp, higher floor
+                    let spawnRate = Math.max(10, 45 - (wave * 1.3));
                     let forcedType = null;
 
                     // Story Override
@@ -3170,7 +3170,7 @@ function masterLoop(timestamp) {
                     }
 
                     const nonBossCount = enemies.filter(e => !(e instanceof Boss)).length;
-                    const enemyCap = Math.min(25, 6 + wave);
+                    const enemyCap = Math.min(22, 5 + wave);
                     if (frame % Math.floor(spawnRate) === 0 && nonBossCount < enemyCap) {
                         let loops = 1;
                         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
