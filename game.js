@@ -1382,7 +1382,7 @@ inputManager.onKeyDown = e => {
         }
 
         // DEBUG: Open Testing Grounds with 'D' in Menu
-        if (e.code === 'KeyD' && uiState === 'MENU') {
+        if (e.code === 'KeyD' && uiState === 'MENU' && !gameRunning) {
             startTestingGrounds();
         }
 
