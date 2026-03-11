@@ -23,6 +23,26 @@ class Arena {
         }
     }
 
+    updateCameraForTwo(p1, p2, canvasWidth, canvasHeight) {
+        const mx = (p1.x + p2.x) / 2;
+        const my = (p1.y + p2.y) / 2;
+        // Compute the minimum zoom needed to keep both players visible with padding
+        const dx = Math.abs(p2.x - p1.x);
+        const dy = Math.abs(p2.y - p1.y);
+        const pad = 300; // world-space margin on each side
+        const zoomX = canvasWidth  / (dx + pad * 2);
+        const zoomY = canvasHeight / (dy + pad * 2);
+        const zoom = Math.max(0.4, Math.min(1.0, Math.min(zoomX, zoomY)));
+        const vw = canvasWidth  / zoom;
+        const vh = canvasHeight / zoom;
+        this.camera.x = Math.max(0, Math.min(mx - vw / 2, Math.max(0, this.width  - vw)));
+        this.camera.y = Math.max(0, Math.min(my - vh / 2, Math.max(0, this.height - vh)));
+        // Store world-space dimensions so tile culling covers the full visible area
+        this.camera.width  = vw;
+        this.camera.height = vh;
+        return zoom;
+    }
+
     generate(biomeType, layoutOverride = null, trapOverride = null) {
         this.biomeType = biomeType; // Store for update/draw hooks
         this.obstacles = [];

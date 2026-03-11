@@ -158,6 +158,7 @@ class Player {
 
         this.level++;
         this.maxXp = Math.floor(this.maxXp * 1.2);
+        const wasAlreadyLeveling = isLevelingUp;
         isLevelingUp = true;
 
         if (window.spawnLevelUpAura) {
@@ -199,6 +200,17 @@ class Player {
             options = pool.slice(0, 2);
         }
 
+        // Co-op: if this is P2 and P1 is ALREADY showing a level-up screen, queue P2's
+        if (typeof isCoopMode !== 'undefined' && isCoopMode && this === window.player2 && wasAlreadyLeveling) {
+            isLevelingUp = false; // Undo — P2 will show after P1 closes
+            if (typeof p2LevelUpPending !== 'undefined') {
+                p2LevelUpPending = true;
+                p2LevelUpOptions = options;
+            }
+            return;
+        }
+
+        window.levelingUpPlayer = this; // Track which player is choosing
         if (window.levelUpUI) {
             window.levelUpUI.showLevelUp(this, options);
         } else {
@@ -757,6 +769,8 @@ class Player {
             if (input.special) this.useSpecial();
 
             if (input.pause && this.pauseDebounce <= 0) {
+                // Track which gamepad triggered the pause so the pause menu routes to them
+                window.pausedByGamepadIndex = this.controller ? (this.controller.gamepadIndex ?? 0) : 0;
                 if (typeof togglePause === 'function') togglePause();
                 this.pauseDebounce = 30;
             }

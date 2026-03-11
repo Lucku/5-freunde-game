@@ -40,7 +40,17 @@ class MainMenuUI {
             const el = document.createElement('div');
             el.className = 'hero-card';
             el.style.flexShrink = '0'; // Prevent squishing
-            if (h === (window.selectedHeroType || 'fire')) el.style.borderColor = 'white';
+
+            const isP1 = h === (window.selectedHeroType || 'fire');
+            const heroes = Object.keys(BASE_HERO_STATS).filter(hh => hh !== 'black');
+            const isP2Confirmed = window.isCoopMode && h === window.coopP2HeroType && window.coopP2Confirmed;
+            const isP2Cursor   = window.isCoopMode && !isP2Confirmed &&
+                                  heroes[typeof window.coopP2CursorIndex === 'number' ? window.coopP2CursorIndex : -1] === h;
+
+            if (isP1 && isP2Confirmed) el.style.borderColor = '#a78bfa'; // Both confirmed — purple blend
+            else if (isP1)            el.style.borderColor = 'white';
+            else if (isP2Confirmed)   { el.style.borderColor = '#3b82f6'; el.style.borderWidth = '3px'; }
+            else if (isP2Cursor)      { el.style.borderColor = '#93c5fd'; el.style.borderStyle = 'dashed'; }
 
             let prestigeText = "";
             if (data.prestige > 0) {
@@ -56,15 +66,21 @@ class MainMenuUI {
                 iconContent = `<div style="font-size: 30px; line-height: 50px;">${BASE_HERO_STATS[h].icon}</div>`;
             }
 
+            const p1Badge = (isP1 && window.isCoopMode) ? '<span class="hero-p1-badge">P1</span>' : '';
+            const p2Badge = isP2Confirmed ? '<span class="hero-p2-badge">P2 ✓</span>'
+                          : isP2Cursor    ? '<span class="hero-p2-badge" style="opacity:0.5">P2</span>' : '';
+
             el.innerHTML = `
                 <div class="hero-icon" style="background: ${BASE_HERO_STATS[h].color}; position: relative; display: flex; justify-content: center; align-items: center;">
                     ${iconContent}
+                    ${p1Badge}${p2Badge}
                 </div>
                 <div class="hero-name" style="color: ${BASE_HERO_STATS[h].color}; text-shadow: 0 0 30px rgba(255, 255, 255, 0.7);">${h.toUpperCase()}</div>
                 <div class="hero-stats">High Score: ${data.highScore}</div>
                 ${prestigeText}
             `;
             el.onclick = () => {
+                if (isP2Confirmed) return; // P1 can't steal P2's confirmed hero
                 window.selectedHeroType = h;
                 this.renderHeroSelect();
             };

@@ -59,6 +59,18 @@ let isVersusMode = false;
 let isChaosShuffleMode = false;
 let isTutorialMode = false;
 let isTestingMode = false;
+let isCoopMode = false;
+let coopP2HeroType = null;
+let coopP1GamepadIndex = -1;
+let coopP2GamepadIndex = -1;
+let coopP2MenuIndex = 0;
+let coopP2Debounce = 0;
+let player2 = null;
+let coopZoom = 1.0;
+let p1RevivalMarker = null; // { x, y, progress, maxProgress }
+let p2RevivalMarker = null;
+let p2LevelUpPending = false;
+let p2LevelUpOptions = [];
 window.saveData = {
     fire: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
@@ -233,7 +245,18 @@ function updateUIHighlight() {
 
 function handleGamepadMenu() {
     const gamepads = navigator.getGamepads();
-    const gp = gamepads[0]; // Assume Player 1
+
+    // Determine which gamepad drives menu input
+    let gpIndex = 0;
+    if (isCoopMode) {
+        if (uiState === 'PAUSE' && window.pausedByGamepadIndex !== undefined && window.pausedByGamepadIndex !== -1) {
+            gpIndex = window.pausedByGamepadIndex; // Pause menu → whoever paused
+        } else {
+            gpIndex = coopP1GamepadIndex !== -1 ? coopP1GamepadIndex : 0;
+        }
+    }
+
+    const gp = gamepads[gpIndex];
     if (!gp) return;
 
     if (uiDebounce > 0) {
@@ -460,6 +483,253 @@ function handleGamepadMenu() {
 
     lastGamepadState = { a, b, y };
 }
+
+function toggleCoopMode() {
+    isCoopMode = !isCoopMode;
+    window.isCoopMode = isCoopMode;
+
+    const btn = document.getElementById('coop-mode-btn');
+    if (btn) btn.classList.toggle('active', isCoopMode);
+
+    if (isCoopMode) {
+        const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
+        const p1Idx = heroes.indexOf(window.selectedHeroType || 'fire');
+        coopP2MenuIndex = p1Idx === 0 ? 1 : 0;
+        coopP2HeroType = heroes[coopP2MenuIndex];
+        window.coopP2HeroType = coopP2HeroType;
+        window.coopP2CursorIndex = coopP2MenuIndex;
+        window.coopP2Confirmed = false;
+        coopP1GamepadIndex = -1;
+        coopP2GamepadIndex = -1;
+
+        // Assign first two connected gamepads: P1 → first, P2 → second
+        const gamepads = navigator.getGamepads();
+        for (let i = 0; i < gamepads.length; i++) {
+            if (gamepads[i]) {
+                if (coopP1GamepadIndex === -1)      coopP1GamepadIndex = i;
+                else if (coopP2GamepadIndex === -1) { coopP2GamepadIndex = i; break; }
+            }
+        }
+    } else {
+        coopP2HeroType = null;
+        window.coopP2HeroType = null;
+        coopP1GamepadIndex = -1;
+        coopP2GamepadIndex = -1;
+        window.coopP2Confirmed = false;
+        window.coopP2CursorIndex = -1;
+    }
+
+    // Grey out non-Standard mode buttons while co-op is active
+    const restrictedBtns = ['btn-story-mode', 'btn-chaos-mode', 'btn-versus-mode', 'btn-tutorial-mode', 'daily-challenge-btn', 'weekly-challenge-btn'];
+    restrictedBtns.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('coop-disabled', isCoopMode);
+    });
+
+    updateCoopUI();
+    renderHeroSelect();
+}
+
+function getCoopTarget(ex, ey) {
+    if (!isCoopMode || !player2 || player2.isDead) return player;
+    if (player.isDead) return player2;
+    const d1 = Math.hypot(player.x - ex, player.y - ey);
+    const d2 = Math.hypot(player2.x - ex, player2.y - ey);
+    return d1 <= d2 ? player : player2;
+}
+
+function drawCoopDistanceWarning(ctx, farPlayer, dist) {
+    const alpha = Math.min(1.0, (dist - 650) / 100) * (0.5 + 0.5 * Math.sin(frame * 0.15));
+    ctx.save();
+    ctx.strokeStyle = `rgba(255, 80, 80, ${alpha})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(farPlayer.x, farPlayer.y, farPlayer.radius + 18, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+}
+
+function processRevivalMarker(ctx, marker, reviver, onComplete) {
+    const pulse = 0.6 + 0.4 * Math.sin(frame * 0.1);
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(marker.x, marker.y, 30, 0, Math.PI * 2);
+    ctx.stroke();
+    if (marker.progress > 0) {
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(marker.x, marker.y, 30, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * marker.progress / marker.maxProgress));
+        ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#f1c40f';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('REVIVE', marker.x, marker.y - 38);
+    ctx.restore();
+
+    if (reviver) {
+        const d = Math.hypot(reviver.x - marker.x, reviver.y - marker.y);
+        if (d < 40) {
+            marker.progress++;
+            if (marker.progress >= marker.maxProgress) onComplete(marker);
+        } else {
+            marker.progress = Math.max(0, marker.progress - 2);
+        }
+    }
+}
+
+function updateDrawRevivalMarkers(ctx) {
+    if (p1RevivalMarker) {
+        const alive = player2 && !player2.isDead ? player2 : null;
+        processRevivalMarker(ctx, p1RevivalMarker, alive, marker => {
+            player.isDead = false;
+            player.hp = Math.floor(player.maxHp * 0.35);
+            player.isInvincible = false;
+            player.x = marker.x; player.y = marker.y;
+            p1RevivalMarker = null;
+            showNotification('P1 revived!');
+        });
+    }
+    if (p2RevivalMarker) {
+        const alive = !player.isDead ? player : null;
+        processRevivalMarker(ctx, p2RevivalMarker, alive, marker => {
+            player2.isDead = false;
+            player2.hp = Math.floor(player2.maxHp * 0.35);
+            player2.isInvincible = false;
+            player2.x = marker.x; player2.y = marker.y;
+            p2RevivalMarker = null;
+            showNotification('P2 revived!');
+        });
+    }
+}
+
+function updateCoopUI() {
+    const bar = document.getElementById('coop-status-bar');
+    if (!bar) return;
+
+    if (!isCoopMode) {
+        bar.style.display = 'none';
+        const standardBtn = document.querySelector('.menu-primary-btn');
+        if (standardBtn) standardBtn.classList.remove('coop-disabled');
+        const continueBtn = document.getElementById('continue-btn');
+        if (continueBtn) continueBtn.classList.remove('coop-disabled');
+        return;
+    }
+    bar.style.display = 'flex';
+
+    const noP1 = coopP1GamepadIndex === -1;
+    const noP2 = coopP2GamepadIndex === -1;
+    const ready = !noP1 && !noP2;
+
+    if (ready) {
+        const p1Hero = (window.selectedHeroType || 'fire').toUpperCase();
+        const p2Hero = coopP2HeroType ? coopP2HeroType.toUpperCase() : '?';
+        bar.innerHTML = `<span class="coop-p1-label">P1: ${p1Hero}</span><span class="coop-divider">+</span><span class="coop-p2-label">P2: ${p2Hero}</span>`;
+    } else {
+        const p1Chip = noP1
+            ? '<span class="coop-waiting">P1 🎮 waiting&hellip;</span>'
+            : '<span class="coop-p1-label">P1 🎮 ✓</span>';
+        const p2Chip = noP2
+            ? '<span class="coop-waiting">P2 🎮 waiting&hellip;</span>'
+            : '<span class="coop-p2-label">P2 🎮 ✓</span>';
+        bar.innerHTML = `${p1Chip}<span class="coop-divider">|</span>${p2Chip}`;
+    }
+
+    // Disable Standard Run until BOTH gamepads are connected
+    const standardBtn = document.querySelector('.menu-primary-btn');
+    if (standardBtn) standardBtn.classList.toggle('coop-disabled', !ready);
+
+    // Always disable Continue Run in co-op (saved runs are solo)
+    const continueBtn = document.getElementById('continue-btn');
+    if (continueBtn) continueBtn.classList.add('coop-disabled');
+}
+
+function handleCoopP2Gamepad() {
+    if (!isCoopMode || uiState !== 'MENU') return;
+    if (coopP2GamepadIndex === -1) return;
+
+    const gamepads = navigator.getGamepads();
+    const gp = gamepads[coopP2GamepadIndex];
+    if (!gp) return;
+
+    const T = 0.5;
+    const left  = gp.axes[0] < -T || gp.buttons[14].pressed;
+    const right = gp.axes[0] >  T || gp.buttons[15].pressed;
+    const up    = gp.axes[1] < -T || gp.buttons[12].pressed;
+    const down  = gp.axes[1] >  T || gp.buttons[13].pressed;
+    const aDown = gp.buttons[0].pressed;
+    const aPressed = aDown && !window._coopP2APrev;
+    window._coopP2APrev = aDown;
+
+    // A button: lock in the current cursor hero
+    if (aPressed) {
+        const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
+        coopP2HeroType = heroes[coopP2MenuIndex];
+        window.coopP2HeroType = coopP2HeroType;
+        window.coopP2CursorIndex = coopP2MenuIndex;
+        window.coopP2Confirmed = true;
+        updateCoopUI();
+        renderHeroSelect();
+        return;
+    }
+
+    if (coopP2Debounce > 0) { coopP2Debounce--; return; }
+    if (!left && !right && !up && !down) return;
+
+    const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
+    const cols = 7;
+
+    const p1Hero = window.selectedHeroType || 'fire';
+    const prevIndex = coopP2MenuIndex;
+
+    if (left)       coopP2MenuIndex = (coopP2MenuIndex - 1 + heroes.length) % heroes.length;
+    else if (right) coopP2MenuIndex = (coopP2MenuIndex + 1) % heroes.length;
+    else if (up)    coopP2MenuIndex = Math.max(0, coopP2MenuIndex - cols);
+    else if (down)  coopP2MenuIndex = Math.min(heroes.length - 1, coopP2MenuIndex + cols);
+
+    // Skip P1's hero
+    if (heroes[coopP2MenuIndex] === p1Hero) {
+        if (left)       coopP2MenuIndex = (coopP2MenuIndex - 1 + heroes.length) % heroes.length;
+        else if (right) coopP2MenuIndex = (coopP2MenuIndex + 1) % heroes.length;
+        else            coopP2MenuIndex = prevIndex;
+    }
+
+    // Cursor moved — mark as unconfirmed until A is pressed
+    window.coopP2Confirmed = false;
+    window.coopP2CursorIndex = coopP2MenuIndex;
+    coopP2Debounce = 12;
+
+    updateCoopUI();
+    renderHeroSelect();
+}
+
+window.addEventListener('gamepadconnected', e => {
+    if (isCoopMode) {
+        if (coopP1GamepadIndex === -1) {
+            coopP1GamepadIndex = e.gamepad.index;
+        } else if (coopP2GamepadIndex === -1 && e.gamepad.index !== coopP1GamepadIndex) {
+            coopP2GamepadIndex = e.gamepad.index;
+        }
+        updateCoopUI();
+        renderHeroSelect();
+    }
+});
+
+window.addEventListener('gamepaddisconnected', e => {
+    if (e.gamepad.index === coopP1GamepadIndex) {
+        coopP1GamepadIndex = -1;
+        if (isCoopMode) updateCoopUI();
+    } else if (e.gamepad.index === coopP2GamepadIndex) {
+        coopP2GamepadIndex = -1;
+        if (isCoopMode) updateCoopUI();
+    }
+});
 
 // --- Update Existing Functions to use setUIState ---
 
@@ -842,6 +1112,8 @@ function continueRun() {
 let pendingGameMode = null;
 
 function checkNewGame(mode) {
+    if (isCoopMode && mode !== 'STANDARD') return; // only Standard Run supported in co-op
+    if (isCoopMode && coopP2GamepadIndex === -1) return; // P2 controller not yet connected
     if (saveData.savedRun) {
         pendingGameMode = mode;
         document.getElementById('confirm-dialog').style.display = 'flex';
@@ -1549,44 +1821,78 @@ function updateUI() {
             }
         });
     }
+
+    // Co-op: P2 HUD
+    if (isCoopMode && player2) {
+        const p2hud = document.getElementById('p2-hud');
+        if (p2hud) {
+            p2hud.style.display = player2.isDead ? 'none' : 'flex';
+            if (!player2.isDead) {
+                const p2hp = document.getElementById('p2-health-fill');
+                if (p2hp) p2hp.style.width = Math.max(0, player2.hp / player2.maxHp * 100) + '%';
+                const p2ht = document.getElementById('p2-health-text');
+                if (p2ht) p2ht.innerText = Math.ceil(player2.hp) + '/' + player2.maxHp;
+                const p2xp = document.getElementById('p2-xp-fill');
+                if (p2xp) p2xp.style.width = Math.min(100, player2.xp / player2.maxXp * 100) + '%';
+                const p2xt = document.getElementById('p2-xp-text');
+                if (p2xt) p2xt.innerText = 'Level ' + player2.level;
+                const p2ml = document.getElementById('p2-melee-fill');
+                if (p2ml) p2ml.style.width = Math.max(0, 100 - (player2.meleeCooldown / player2.meleeMaxCooldown * 100)) + '%';
+                const p2sp = document.getElementById('p2-special-cooldown-overlay');
+                if (p2sp) p2sp.style.height = (player2.specialCooldown > 0 ? player2.specialCooldown / player2.specialMaxCooldown * 100 : 0) + '%';
+            }
+        }
+    }
 }
 
 function chooseUpgrade(type) {
+    // Apply upgrade to whoever triggered the level-up (P1 or P2 in co-op)
+    const target = (window.levelingUpPlayer) ? window.levelingUpPlayer : player;
+
     if (type === 'health') {
-        player.maxHp += 25;
-        player.hp = Math.min(player.maxHp, player.hp + (player.maxHp * 0.2));
-        player.runBuffs.maxHp += 25;
+        target.maxHp += 25;
+        target.hp = Math.min(target.maxHp, target.hp + (target.maxHp * 0.2));
+        target.runBuffs.maxHp += 25;
     }
     else if (type === 'radius') {
-        player.meleeRadius *= 1.25;
+        target.meleeRadius *= 1.25;
     }
     else if (type === 'projectile') {
-        if (player.heroType === 'EARTH') {
-            // Earth Hero: Increase Ram Damage
-            player.stats.ramDmgMult = (player.stats.ramDmgMult || 1) + 0.2; // +20% Ram Damage
+        if (target.type === 'earth') {
+            target.stats.ramDmgMult = (target.stats.ramDmgMult || 1) + 0.2;
             showNotification("RAM DAMAGE INCREASED!");
         } else {
-            player.extraProjectiles += 1;
-            player.runBuffs.projectiles += 1;
-            // Balance: -20% Damage (Additive divisor) per split, similar to Skill Tree
-            player.stats.rangeDmg /= 1.2;
+            target.extraProjectiles += 1;
+            target.runBuffs.projectiles += 1;
+            target.stats.rangeDmg /= 1.2;
         }
     }
-    else if (type === 'speed') { player.speedMultiplier += 0.1; player.runBuffs.speed += 0.1; }
-    else if (type === 'cooldown') { player.cooldownMultiplier *= 0.9; player.runBuffs.cooldown += 0.1; }
-    else if (type === 'defense') { player.damageReduction = Math.min(0.5, player.damageReduction + 0.05); player.runBuffs.defense += 0.05; }
-    else if (type === 'damage') { player.damageMultiplier += 0.1; player.runBuffs.damage += 0.1; }
-    else if (type === 'luck') { player.maskChance += 0.005; player.runBuffs.luck += 0.005; }
-    else if (type === 'crit') { player.critChance += 0.05; player.critMultiplier += 0.2; } // New Upgrade logic if added to pool
+    else if (type === 'speed') { target.speedMultiplier += 0.1; target.runBuffs.speed += 0.1; }
+    else if (type === 'cooldown') { target.cooldownMultiplier *= 0.9; target.runBuffs.cooldown += 0.1; }
+    else if (type === 'defense') { target.damageReduction = Math.min(0.5, target.damageReduction + 0.05); target.runBuffs.defense += 0.05; }
+    else if (type === 'damage') { target.damageMultiplier += 0.1; target.runBuffs.damage += 0.1; }
+    else if (type === 'luck') { target.maskChance += 0.005; target.runBuffs.luck += 0.005; }
+    else if (type === 'crit') { target.critChance += 0.05; target.critMultiplier += 0.2; }
     else if (type === 'transform') {
-        player.transformActive = true;
-        player.currentForm = player.getFormName();
-        showNotification(`${player.currentForm} ACTIVATED!`);
-        createExplosion(player.x, player.y, '#fff');
+        target.transformActive = true;
+        target.currentForm = target.getFormName();
+        showNotification(`${target.currentForm} ACTIVATED!`);
+        createExplosion(target.x, target.y, '#fff');
     }
 
+    window.levelingUpPlayer = null;
     isLevelingUp = false;
     document.getElementById('levelup-screen').style.display = 'none';
+
+    // Co-op: dequeue P2 level-up if pending
+    if (isCoopMode && p2LevelUpPending && window.player2 && window.levelUpUI) {
+        p2LevelUpPending = false;
+        isLevelingUp = true;
+        window.levelingUpPlayer = window.player2;
+        window.levelUpUI.showLevelUp(window.player2, p2LevelUpOptions);
+        return;
+    }
+
     setUIState('GAME');
 }
 
@@ -2009,6 +2315,25 @@ function advanceWave() {
     masksDroppedInWave = 0; // Reset mask cap
     enemies = [];
     bossActive = false;
+
+    // Co-op: revive dead player at wave start (they died before the final enemy)
+    if (isCoopMode) {
+        if (player.isDead) {
+            player.isDead = false;
+            player.hp = Math.floor(player.maxHp * 0.5);
+            player.isInvincible = false;
+            p1RevivalMarker = null;
+            showNotification('P1 revived!');
+        }
+        if (player2 && player2.isDead) {
+            player2.isDead = false;
+            player2.hp = Math.floor(player2.maxHp * 0.5);
+            player2.isInvincible = false;
+            p2RevivalMarker = null;
+            showNotification('P2 revived!');
+        }
+    }
+
     if (isTutorialMode && window.TutorialMode) TutorialMode.startObjective();
 
     // CHAOS GAMBLE
@@ -2398,6 +2723,32 @@ function startGame(mode = 'NORMAL') {
         waveTimer = 999999;
     }
 
+    if (isCoopMode && window.CoopGamepadController) {
+        // P1 uses dedicated gamepad — no keyboard/mouse fallback during co-op
+        player.controller = new CoopGamepadController(coopP1GamepadIndex);
+
+        // Save P1's special icon before P2's constructor overwrites #special-icon
+        const _p1IconEl  = document.getElementById('special-icon');
+        const _p1IconTxt = _p1IconEl ? _p1IconEl.innerText : '★';
+
+        player2 = new Player(coopP2HeroType || 'water');
+        player2.controller = new CoopGamepadController(coopP2GamepadIndex);
+
+        // P2's constructor wrote its icon to #special-icon — move it to #p2-special-icon, restore P1's
+        const _p2IconEl = document.getElementById('p2-special-icon');
+        if (_p2IconEl && _p1IconEl) {
+            _p2IconEl.innerText = _p1IconEl.innerText; // This is now P2's hero icon
+            _p1IconEl.innerText = _p1IconTxt;          // Restore P1's icon
+        }
+
+        player2.x = arena.width / 2 + 100;
+        player2.y = arena.height / 2;
+        player2.isDead = false;
+        window.player2 = player2;
+        p1RevivalMarker = null;
+        p2RevivalMarker = null;
+    }
+
     score = 0;
     wave = 0; // Start at 0, advanceWave will increment to 1
     enemiesKilledInWave = 0;
@@ -2513,6 +2864,18 @@ function gameOver(isVictory = false) {
     gameRunning = false;
     isTutorialMode = false;
     isTestingMode = false;
+    isCoopMode = false;
+    window.isCoopMode = false;
+    coopP2HeroType = null;
+    window.coopP2HeroType = null;
+    coopP1GamepadIndex = -1;
+    coopP2GamepadIndex = -1;
+    player2 = null;
+    window.player2 = null;
+    p1RevivalMarker = null;
+    p2RevivalMarker = null;
+    coopZoom = 1.0;
+    p2LevelUpPending = false;
 
     // Clear Saved Run on Death
     clearSavedRun();
@@ -2723,6 +3086,7 @@ function masterLoop(timestamp) {
 
         // Always handle UI input
         handleGamepadMenu();
+        handleCoopP2Gamepad();
 
         // --- MUSEUM STATE ---
         if (uiState === 'MUSEUM' && window.museum) {
@@ -2745,7 +3109,14 @@ function masterLoop(timestamp) {
             if (isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
 
             // Update Camera
-            arena.updateCamera(player, canvas.width, canvas.height);
+            if (isCoopMode && player2) {
+                const ref1 = !player.isDead ? player : player2;
+                const ref2 = player2 && !player2.isDead ? player2 : player;
+                coopZoom = arena.updateCameraForTwo(ref1, ref2, canvas.width, canvas.height);
+            } else {
+                arena.updateCamera(player, canvas.width, canvas.height);
+                coopZoom = 1.0;
+            }
 
             // Heatwave Mirage Effect (Camera Wobble)
             if (currentWeather && currentWeather.id === 'HEATWAVE') {
@@ -3016,6 +3387,7 @@ function masterLoop(timestamp) {
                 ctx.translate(-cx, -cy);
             }
 
+            if (isCoopMode && coopZoom !== 1.0) ctx.scale(coopZoom, coopZoom);
             ctx.translate(-arena.camera.x, -arena.camera.y);
 
             // Draw World
@@ -3170,7 +3542,7 @@ function masterLoop(timestamp) {
                     }
 
                     const nonBossCount = enemies.filter(e => !(e instanceof Boss)).length;
-                    const enemyCap = Math.min(22, 5 + wave);
+                    const enemyCap = Math.min(22, 5 + wave) + (isCoopMode ? 4 : 0);
                     if (frame % Math.floor(spawnRate) === 0 && nonBossCount < enemyCap) {
                         let loops = 1;
                         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
@@ -3201,6 +3573,16 @@ function masterLoop(timestamp) {
                     }
                     if (!suppress && frame % 150 === 0) enemies.push(new Enemy(true));
                 }
+            }
+
+            // Co-op: scale new non-boss enemy HP up
+            if (isCoopMode) {
+                enemies.forEach(e => {
+                    if (!(e instanceof Boss) && !e._coopScaled) {
+                        e._coopScaled = true;
+                        e.hp *= 1.4; e.maxHp = e.hp;
+                    }
+                });
             }
 
             // Tutorial: scale new non-boss enemy HP to 40% and cap count at 8
@@ -3295,6 +3677,28 @@ function masterLoop(timestamp) {
                 player.update();
             }
             player.draw();
+
+            // Co-op: update + draw P2
+            if (isCoopMode && player2) {
+                if (!player2.isDead) {
+                    player2.update();
+                    // Distance enforcement — rubber band above 1800px
+                    const _sep = Math.hypot(player2.x - player.x, player2.y - player.y);
+                    if (_sep > 1800) {
+                        const _force = (_sep - 1800) * 0.06;
+                        const _ang = Math.atan2(player.y - player2.y, player.x - player2.x);
+                        player2.x += Math.cos(_ang) * _force;
+                        player2.y += Math.sin(_ang) * _force;
+                        // Also push P1 toward P2 when very far apart
+                        const _ang2 = Math.atan2(player2.y - player.y, player2.x - player.x);
+                        player.x += Math.cos(_ang2) * _force * 0.3;
+                        player.y += Math.sin(_ang2) * _force * 0.3;
+                    }
+                    if (_sep > 1400) drawCoopDistanceWarning(ctx, player2, _sep);
+                }
+                player2.draw();
+                updateDrawRevivalMarkers(ctx);
+            }
 
             // Update Companions
             companions.forEach(c => {
@@ -3471,6 +3875,17 @@ function masterLoop(timestamp) {
                         }
                     }
                     powerUps.splice(index, 1);
+                } else if (isCoopMode && player2 && !player2.isDead) {
+                    // Co-op: P2 collects power-ups
+                    const distP2 = Math.hypot(player2.x - pup.x, player2.y - pup.y);
+                    if (distP2 < player2.radius + pup.radius) {
+                        if (pup.type === 'HEAL') { player2.hp = Math.min(player2.hp + 30, player2.maxHp); createExplosion(player2.x, player2.y, '#2ecc71'); }
+                        else if (pup.type === 'MAXHP') { player2.maxHp += 20; player2.hp += 20; }
+                        else if (pup.type === 'SPEED') { player2.buffs.speed = 600; }
+                        else if (pup.type === 'MULTI') { player2.buffs.multi = 600; }
+                        else if (pup.type === 'AUTOAIM') { player2.buffs.autoaim = 600; }
+                        powerUps.splice(index, 1);
+                    } else if (pup.timer <= 0) powerUps.splice(index, 1);
                 } else if (pup.timer <= 0) powerUps.splice(index, 1);
             });
 
@@ -3749,6 +4164,28 @@ function masterLoop(timestamp) {
                     if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20; }
                 }
 
+                // Co-op: P2 enemy body contact damage
+                if (isCoopMode && player2 && !player2.isDead && !player2.isInvincible) {
+                    const distP2 = Math.hypot(player2.x - enemy.x, player2.y - enemy.y);
+                    if (distP2 - enemy.radius - player2.radius < 0 && !player2.isDashing) {
+                        let p2Dmg = 1 * (1 - player2.damageReduction);
+                        if (enemy.subType === 'SPEEDSTER') { p2Dmg = 20 * (1 - player2.damageReduction); enemy.hp = 0; }
+                        player2.hp -= p2Dmg;
+                        floatingTexts.push(new FloatingText(player2.x, player2.y - 20, Math.ceil(p2Dmg), '#e74c3c', 20));
+                        if (player2.transformActive) { player2.transformActive = false; player2.currentForm = 'NONE'; }
+                        const a2 = Math.atan2(enemy.y - player2.y, enemy.x - player2.x);
+                        if (!(enemy instanceof Boss)) { enemy.x += Math.cos(a2) * 20; enemy.y += Math.sin(a2) * 20; }
+                        // P2 death in co-op
+                        if (player2.hp <= 0 && !player2.isDead) {
+                            player2.isDead = true; player2.hp = 0; player2.isInvincible = true;
+                            player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
+                            p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
+                            createExplosion(player2.x, player2.y, '#3b82f6');
+                            showNotification('P2 down! Stand on marker to revive.');
+                        }
+                    }
+                }
+
                 projectiles.forEach((proj, pIndex) => {
                     // Update: Additional Players Collision Logic (inserted here for performance to check against Enemy loop logic context?)
                     // Actually, PVP Logic shouldn't be inside the Enemy loop. It should be outside.
@@ -3798,6 +4235,23 @@ function masterLoop(timestamp) {
                                 player.transformActive = false;
                                 player.currentForm = 'NONE';
                                 showNotification("FORM BROKEN!");
+                            }
+                        } else if (isCoopMode && player2 && !player2.isDead && !player2.isInvincible) {
+                            // Co-op: check P2 projectile hit
+                            const pDistP2 = Math.hypot(proj.x - player2.x, proj.y - player2.y);
+                            if (pDistP2 < player2.radius + proj.radius) {
+                                const p2ProjDmg = proj.damage * (1 - player2.damageReduction);
+                                player2.hp -= p2ProjDmg;
+                                floatingTexts.push(new FloatingText(player2.x, player2.y - 20, Math.ceil(p2ProjDmg), '#e74c3c', 20));
+                                createExplosion(player2.x, player2.y, proj.color);
+                                projectiles.splice(pIndex, 1);
+                                if (player2.hp <= 0 && !player2.isDead) {
+                                    player2.isDead = true; player2.hp = 0; player2.isInvincible = true;
+                                    player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
+                                    p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
+                                    createExplosion(player2.x, player2.y, '#3b82f6');
+                                    showNotification('P2 down! Stand on marker to revive.');
+                                }
                             }
                         }
                     } else {
@@ -3980,7 +4434,9 @@ function masterLoop(timestamp) {
 
                         currentRunStats.bossesKilled++; // Track Boss Kill
                         saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
-                        score += 1000; player.gainXp(500); createExplosion(enemy.x, enemy.y, '#c0392b');
+                        score += 1000; player.gainXp(500);
+                        if (isCoopMode && player2 && !player2.isDead) player2.gainXp(500);
+                        createExplosion(enemy.x, enemy.y, '#c0392b');
                         checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
 
                         // CHAOS EVENT HOOK
@@ -4035,12 +4491,15 @@ function masterLoop(timestamp) {
                         saveData.stats[killKey]++;
 
                         const _xpMod = bossActive ? 0.15 : 1;
-                        score += 10; player.gainXp(Math.round(20 * _xpMod)); createExplosion(enemy.x, enemy.y, '#aaa');
+                        score += 10; player.gainXp(Math.round(20 * _xpMod));
+                        if (isCoopMode && player2 && !player2.isDead) player2.gainXp(Math.round(20 * _xpMod));
+                        createExplosion(enemy.x, enemy.y, '#aaa');
 
                         // Elite Logic on Death
                         if (enemy.isElite) {
                             score += 500;
                             player.gainXp(Math.round(200 * _xpMod));
+                            if (isCoopMode && player2 && !player2.isDead) player2.gainXp(Math.round(200 * _xpMod));
                             createExplosion(enemy.x, enemy.y, enemy.eliteType.color);
 
                             // Elite Card Drop
@@ -4149,7 +4608,17 @@ function masterLoop(timestamp) {
 
             // Player Death Logic
             if (player.hp <= 0) {
-                if (!isPlayerDying) {
+                if (isCoopMode && player2 && !player2.isDead && !player.isDead) {
+                    // Co-op: P1 dies but P2 is alive — drop revival marker
+                    player.isDead = true;
+                    player.hp = 0;
+                    player.isInvincible = true;
+                    player.isDashing = false;
+                    player.moveInput = { x: 0, y: 0 };
+                    p1RevivalMarker = { x: player.x, y: player.y, progress: 0, maxProgress: 240 };
+                    createExplosion(player.x, player.y, '#ffffff');
+                    showNotification('P1 down! Stand on marker to revive.');
+                } else if (!isPlayerDying) {
                     isPlayerDying = true;
                     playerDeathTimer = 180; // 3 seconds animation
                     createExplosion(player.x, player.y, '#c0392b');

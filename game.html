@@ -111,6 +111,43 @@
                 <div id="stats-row"></div>
             </div>
         </div>
+
+        <!-- Co-op: P2 HUD (bottom-right, mirrored) -->
+        <div id="p2-hud" style="display:none;">
+            <div id="p2-bars-container">
+                <div class="bar-row">
+                    <div class="bar-header">
+                        <span class="bar-lbl p2-lbl">P2 ❤ HP</span>
+                        <span id="p2-health-text" class="bar-val"></span>
+                    </div>
+                    <div class="bar-wrap">
+                        <div id="p2-health-fill"></div>
+                    </div>
+                </div>
+                <div class="bar-row">
+                    <div class="bar-header">
+                        <span class="bar-lbl p2-lbl">✦ XP</span>
+                        <span id="p2-xp-text" class="bar-val">Level 1</span>
+                    </div>
+                    <div class="bar-wrap">
+                        <div id="p2-xp-fill"></div>
+                    </div>
+                </div>
+                <div class="bar-row">
+                    <div class="bar-header">
+                        <span class="bar-lbl p2-lbl">⚔ MELEE</span>
+                    </div>
+                    <div class="bar-wrap">
+                        <div id="p2-melee-fill"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="p2-special-container">
+                <div id="p2-special-icon">★</div>
+                <div id="p2-special-cooldown-overlay"></div>
+                <div class="special-key">B</div>
+            </div>
+        </div>
     </div>
 
     <!-- Pause Screen -->
@@ -384,6 +421,8 @@
                 </div>
             </div>
 
+            <div id="coop-status-bar" class="coop-status-bar" style="display:none;"></div>
+
             <div class="menu-main">
                 <!-- Play Panel -->
                 <div class="menu-play-panel">
@@ -397,12 +436,13 @@
                     <button class="btn menu-primary-btn" onclick="checkNewGame('STANDARD')">▶ Standard Run</button>
 
                     <div class="menu-modes-grid">
-                        <button class="btn btn-story menu-mode-btn" onclick="checkNewGame('STORY')">Story Mode</button>
-                        <button class="btn menu-mode-btn menu-mode-chaos" onclick="checkNewGame('SHUFFLE')">Chaos
+                        <button id="btn-story-mode" class="btn btn-story menu-mode-btn" onclick="checkNewGame('STORY')">Story Mode</button>
+                        <button id="btn-chaos-mode" class="btn menu-mode-btn menu-mode-chaos" onclick="checkNewGame('SHUFFLE')">Chaos
                             Shuffle</button>
-                        <button class="btn menu-mode-btn menu-mode-versus" onclick="openVersusMenu()">Versus
+                        <button id="btn-versus-mode" class="btn menu-mode-btn menu-mode-versus" onclick="openVersusMenu()">Versus
                             Mode</button>
-                        <button class="btn menu-mode-btn menu-mode-tutorial" onclick="checkNewGame('TUTORIAL')">▶ Tutorial</button>
+                        <button id="btn-tutorial-mode" class="btn menu-mode-btn menu-mode-tutorial" onclick="checkNewGame('TUTORIAL')">▶ Tutorial</button>
+                        <button class="btn menu-mode-btn menu-mode-coop" id="coop-mode-btn" onclick="toggleCoopMode()">🤝 Co-op</button>
                     </div>
 
                     <div class="menu-challenges">
@@ -664,6 +704,7 @@
     <script src="Entities/Particle.js"></script>
     <script src="Entities/FloatingText.js"></script>
 
+    <script src="CoopGamepadController.js"></script>
     <script src="game.js"></script>
     <script src="TutorialMode.js"></script>
     <script src="TestingGrounds.js"></script>

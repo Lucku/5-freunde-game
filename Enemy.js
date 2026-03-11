@@ -174,8 +174,9 @@ class Enemy {
         }
 
         // --- TARGETING LOGIC ---
-        let targetX = player.x;
-        let targetY = player.y;
+        const _ct = (typeof getCoopTarget === 'function') ? getCoopTarget(this.x, this.y) : player;
+        let targetX = _ct.x;
+        let targetY = _ct.y;
 
         // Hook for Decoys (e.g., Void Hero Projectiles)
         if (typeof window.getDecoyTarget === 'function') {

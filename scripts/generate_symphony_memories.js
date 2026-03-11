@@ -8,8 +8,8 @@ const API_KEY = process.env.ELEVENLABS_API_KEY;
 const MODEL_ID = 'eleven_multilingual_v2';
 
 // Voice IDs for the Symphony of Sickness DLC heroes
-const SOUND_VOICE_ID = 'REPLACE_WITH_SOUND_VOICE_ID';
-const POISON_VOICE_ID = 'REPLACE_WITH_POISON_VOICE_ID';
+const SOUND_VOICE_ID = '6OzrBCQf8cjERkYgzSg8';
+const POISON_VOICE_ID = 'Qe9WSybioZxssVEwlBSo';
 
 const OUTPUT_DIR = path.join(__dirname, '../dlc/symphony_of_sickness/audio/memories');
 

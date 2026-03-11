@@ -252,6 +252,89 @@ canvas {
     width: 250px;
 }
 
+/* ── Co-op P2 HUD ── */
+#p2-hud {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: flex-end;
+    gap: 12px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+#p2-bars-container {
+    width: 220px;
+}
+
+#p2-special-container {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    background: rgba(59, 130, 246, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+#p2-special-cooldown-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
+    background: rgba(0, 0, 0, 0.62);
+    transition: height 0.1s linear;
+    pointer-events: none;
+}
+
+.p2-lbl {
+    color: rgba(147, 197, 253, 0.6) !important;
+}
+
+#p2-health-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #1e40af, #3b82f6);
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.55);
+    transition: width 0.2s;
+    border-radius: 3px;
+}
+
+#p2-xp-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #0f766e, #14b8a6);
+    box-shadow: 0 0 8px rgba(20, 184, 166, 0.5);
+    transition: width 0.2s;
+    border-radius: 3px;
+}
+
+#p2-melee-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #e65100, #ff9800);
+    box-shadow: 0 0 8px rgba(255, 152, 0, 0.5);
+    transition: width 0.1s;
+    border-radius: 3px;
+}
+
+/* ── Co-op mode restriction ── */
+.coop-disabled {
+    opacity: 0.3 !important;
+    pointer-events: none !important;
+    cursor: not-allowed !important;
+}
+
 .bar-row {
     margin-bottom: 8px;
 }
@@ -2174,6 +2257,93 @@ input:checked+.slider:before {
 .menu-mode-versus:hover {
     background: rgba(52, 152, 219, 0.1) !important;
     border-color: rgba(52, 152, 219, 0.5) !important;
+}
+
+/* ── Co-op button ── */
+.menu-mode-coop {
+    border-color: rgba(167, 139, 250, 0.3) !important;
+    color: rgba(196, 181, 253, 0.9) !important;
+}
+
+.menu-mode-coop:hover {
+    background: rgba(167, 139, 250, 0.1) !important;
+    border-color: rgba(167, 139, 250, 0.5) !important;
+}
+
+.menu-mode-coop.active {
+    background: rgba(167, 139, 250, 0.18) !important;
+    border-color: rgba(167, 139, 250, 0.7) !important;
+    color: #c4b5fd !important;
+}
+
+/* ── Co-op status bar ── */
+.coop-status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 8px 20px;
+    margin: 0 auto 10px;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.25);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    max-width: 400px;
+}
+
+.coop-waiting {
+    color: rgba(196, 181, 253, 0.7);
+    font-style: italic;
+}
+
+.coop-p1-label {
+    color: #ffffff;
+    padding: 2px 10px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.coop-divider {
+    color: rgba(167, 139, 250, 0.6);
+    font-size: 16px;
+}
+
+.coop-p2-label {
+    color: #93c5fd;
+    padding: 2px 10px;
+    background: rgba(59, 130, 246, 0.12);
+    border-radius: 6px;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* ── Hero card P1/P2 badges ── */
+.hero-p1-badge,
+.hero-p2-badge {
+    position: absolute;
+    top: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 1px 5px;
+    border-radius: 4px;
+    line-height: 16px;
+}
+
+.hero-p1-badge {
+    left: 4px;
+    background: rgba(255,255,255,0.15);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.35);
+}
+
+.hero-p2-badge {
+    right: 4px;
+    background: rgba(59,130,246,0.2);
+    color: #93c5fd;
+    border: 1px solid rgba(59,130,246,0.4);
 }
 
 /* ── Challenge buttons ── */

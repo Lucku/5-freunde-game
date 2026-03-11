@@ -218,7 +218,8 @@ class Boss {
             }
         }
 
-        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+        const _bossTarget = (typeof getCoopTarget === 'function') ? getCoopTarget(this.x, this.y) : player;
+        const angle = Math.atan2(_bossTarget.y - this.y, _bossTarget.x - this.x);
         let nextX = this.x;
         let nextY = this.y;
 
