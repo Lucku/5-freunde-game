@@ -8,6 +8,18 @@ class LevelUpUI {
         const container = document.getElementById('upgrade-options');
         if (!container) return;
 
+        // Show which player is choosing in co-op
+        const subtitle = document.querySelector('#levelup-screen .screen-subtitle');
+        if (subtitle) {
+            if (window.isCoopMode && player === window.player2) {
+                subtitle.textContent = 'Player 2 — Choose an Upgrade';
+                subtitle.style.color = '#60a5fa';
+            } else {
+                subtitle.textContent = 'Choose an Upgrade';
+                subtitle.style.color = '';
+            }
+        }
+
         container.innerHTML = '';
 
         options.forEach(opt => {
@@ -45,7 +57,8 @@ class LevelUpUI {
                 // Handled successfully by hero
                 window.isLevelingUp = false;
                 document.getElementById('levelup-screen').style.display = 'none';
-                if (window.setUIState) window.setUIState('GAME');
+                if (typeof window._afterUpgradeChosen === 'function') window._afterUpgradeChosen();
+                else if (window.setUIState) window.setUIState('GAME');
                 return;
             }
         }
@@ -82,7 +95,8 @@ class LevelUpUI {
 
         window.isLevelingUp = false;
         document.getElementById('levelup-screen').style.display = 'none';
-        if (window.setUIState) window.setUIState('GAME');
+        if (typeof window._afterUpgradeChosen === 'function') window._afterUpgradeChosen();
+        else if (window.setUIState) window.setUIState('GAME');
     }
 }
 

@@ -15,12 +15,18 @@ const AIR_MEMORY_VOICE_ID = '86ZLAUcyPNBrbdJKn3u6';
 const TEMPLE_VOICE_ID = 'wyWA56cQNU2KqUW4eCsI'; // Spirit/Chance Narrator
 const SPIRIT_MEMORY_VOICE_ID = 'JumjzZVR2Q07VpW0bxMh';
 const CHANCE_MEMORY_VOICE_ID = '3SF4rB1fGBMXU9xRM7pz';
+const SYMPHONY_VOICE_ID = TEMPLE_VOICE_ID; // Poison/Sound Narrator (same voice)
 
 // Paths for Faith of Fortune DLC
 const STORY_FILE = path.join(__dirname, '../dlc/faith_of_fortune/Story.js');
 const INDEX_FILE = path.join(__dirname, '../dlc/faith_of_fortune/index.js');
 const OUTPUT_DIR = path.join(__dirname, '../dlc/faith_of_fortune/audio/story');
 const MEMORY_OUTPUT_DIR = path.join(__dirname, '../dlc/faith_of_fortune/audio/memories');
+
+// Paths for Symphony of Sickness DLC
+const SYMPHONY_POISON_STORY_FILE = path.join(__dirname, '../dlc/symphony_of_sickness/PoisonStory.js');
+const SYMPHONY_SOUND_STORY_FILE = path.join(__dirname, '../dlc/symphony_of_sickness/SoundStory.js');
+const SYMPHONY_OUTPUT_DIR = path.join(__dirname, '../dlc/symphony_of_sickness/audio/story');
 
 // --- Load Story Data ---
 if (!fs.existsSync(STORY_FILE)) {
@@ -83,6 +89,42 @@ if (fs.existsSync(INDEX_FILE)) {
     extractMemories('chance');
 }
 
+// --- Load Symphony of Sickness Story Data ---
+const loadSymphonyStory = (filePath, globalVar, heroName) => {
+    if (!fs.existsSync(filePath)) {
+        console.warn(`Could not find Symphony story file: ${filePath}`);
+        return;
+    }
+    const content = fs.readFileSync(filePath, 'utf8');
+    const match = content.match(new RegExp(`window\\.${globalVar}\\s*=\\s*(\\[[\\s\\S]*?\\]);`));
+    if (match) {
+        try {
+            const events = eval(match[1]);
+            let count = 0;
+            events.forEach(e => {
+                if (e.text) {
+                    storyItems.push({
+                        id: e.id,
+                        text: e.text,
+                        hero: heroName,
+                        isMemory: false,
+                        outputDir: SYMPHONY_OUTPUT_DIR
+                    });
+                    count++;
+                }
+            });
+            console.log(`Loaded ${count} ${heroName} story events.`);
+        } catch (err) {
+            console.error(`Error parsing ${globalVar}:`, err);
+        }
+    } else {
+        console.error(`Could not find ${globalVar} in ${filePath}`);
+    }
+};
+
+loadSymphonyStory(SYMPHONY_POISON_STORY_FILE, 'POISON_STORY_CHAPTERS', 'POISON');
+loadSymphonyStory(SYMPHONY_SOUND_STORY_FILE, 'SOUND_STORY_CHAPTERS', 'SOUND');
+
 if (storyItems.length === 0) {
     console.error("No story items found to generate.");
     process.exit(1);
@@ -104,6 +146,9 @@ async function generateAudio() {
     if (!fs.existsSync(MEMORY_OUTPUT_DIR)) {
         fs.mkdirSync(MEMORY_OUTPUT_DIR, { recursive: true });
     }
+    if (!fs.existsSync(SYMPHONY_OUTPUT_DIR)) {
+        fs.mkdirSync(SYMPHONY_OUTPUT_DIR, { recursive: true });
+    }
 
     console.log(`Found ${storyItems.length} Fortune story events.`);
 
@@ -113,7 +158,7 @@ async function generateAudio() {
         const hero = item.hero;
 
         // Determine Output Path
-        const targetDir = item.isMemory ? MEMORY_OUTPUT_DIR : OUTPUT_DIR;
+        const targetDir = item.isMemory ? MEMORY_OUTPUT_DIR : (item.outputDir || OUTPUT_DIR);
         const filePath = path.join(targetDir, `${id}.mp3`);
 
         if (fs.existsSync(filePath)) {
@@ -133,6 +178,8 @@ async function generateAudio() {
             } else {
                 currentVoiceId = TEMPLE_VOICE_ID;
             }
+        } else if (hero === 'POISON' || hero === 'SOUND') {
+            currentVoiceId = SYMPHONY_VOICE_ID;
         } else if (hero === 'void') {
             currentVoiceId = VOID_VOICE_ID;
         } else if (hero === 'gravity') {

@@ -32,7 +32,8 @@ class Arena {
         const pad = 300; // world-space margin on each side
         const zoomX = canvasWidth  / (dx + pad * 2);
         const zoomY = canvasHeight / (dy + pad * 2);
-        const zoom = Math.max(0.4, Math.min(1.0, Math.min(zoomX, zoomY)));
+        const minZoom = Math.max(canvasWidth / this.width, canvasHeight / this.height);
+        const zoom = Math.max(minZoom, Math.max(0.4, Math.min(1.0, Math.min(zoomX, zoomY))));
         const vw = canvasWidth  / zoom;
         const vh = canvasHeight / zoom;
         this.camera.x = Math.max(0, Math.min(mx - vw / 2, Math.max(0, this.width  - vw)));

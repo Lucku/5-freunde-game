@@ -251,6 +251,8 @@ function handleGamepadMenu() {
     if (isCoopMode) {
         if (uiState === 'PAUSE' && window.pausedByGamepadIndex !== undefined && window.pausedByGamepadIndex !== -1) {
             gpIndex = window.pausedByGamepadIndex; // Pause menu → whoever paused
+        } else if (uiState === 'LEVELUP' && window.levelingUpPlayer && window.levelingUpPlayer.controller && window.levelingUpPlayer.controller.gamepadIndex !== undefined) {
+            gpIndex = window.levelingUpPlayer.controller.gamepadIndex; // Level-up → whoever leveled up
         } else {
             gpIndex = coopP1GamepadIndex !== -1 ? coopP1GamepadIndex : 0;
         }
@@ -1895,6 +1897,19 @@ function chooseUpgrade(type) {
 
     setUIState('GAME');
 }
+
+// Called by LevelUpUI after any upgrade is chosen — handles P2 dequeue
+window._afterUpgradeChosen = function() {
+    window.levelingUpPlayer = null;
+    if (isCoopMode && p2LevelUpPending && window.player2 && window.levelUpUI) {
+        p2LevelUpPending = false;
+        isLevelingUp = true;
+        window.levelingUpPlayer = window.player2;
+        window.levelUpUI.showLevelUp(window.player2, p2LevelUpOptions);
+    } else {
+        setUIState('GAME');
+    }
+};
 
 // --- Shop Logic moved to UI/Shop.js ---
 
@@ -4324,7 +4339,10 @@ function masterLoop(timestamp) {
                             }
 
                             enemy.hp -= finalDamage;
-                            if (enemy.hp <= 0 && enemy.hp + finalDamage > 0) enemy.lastHitBy = 'PROJECTILE';
+                            if (enemy.hp <= 0 && enemy.hp + finalDamage > 0) {
+                                enemy.lastHitBy = 'PROJECTILE';
+                                enemy.killer = proj.owner || player;
+                            }
 
                             // Enemy takes damage number
                             floatingTexts.push(new FloatingText(
@@ -4342,7 +4360,10 @@ function masterLoop(timestamp) {
                                 enemies.forEach(nearby => {
                                     if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
                                         nearby.hp -= proj.damage;
-                                        if (nearby.hp <= 0 && nearby.hp + proj.damage > 0) nearby.lastHitBy = 'PROJECTILE'; // Mark kill source
+                                        if (nearby.hp <= 0 && nearby.hp + proj.damage > 0) {
+                                            nearby.lastHitBy = 'PROJECTILE';
+                                            nearby.killer = proj.owner || player;
+                                        }
 
                                         // Explosion damage number
                                         floatingTexts.push(new FloatingText(nearby.x, nearby.y - 20, Math.floor(proj.damage), '#e67e22', 16));
@@ -4373,7 +4394,10 @@ function masterLoop(timestamp) {
                         while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
                         if (Math.abs(diff) < Math.PI / 3) {
                             enemy.hp -= att.damage;
-                            if (enemy.hp <= 0 && enemy.hp + att.damage > 0) enemy.lastHitBy = 'MELEE';
+                            if (enemy.hp <= 0 && enemy.hp + att.damage > 0) {
+                                enemy.lastHitBy = 'MELEE';
+                                enemy.killer = att.owner || player;
+                            }
                             if (isTutorialMode && window.TutorialMode) TutorialMode.onMelee();
 
                             // Melee damage number
@@ -4491,15 +4515,14 @@ function masterLoop(timestamp) {
                         saveData.stats[killKey]++;
 
                         const _xpMod = bossActive ? 0.15 : 1;
-                        score += 10; player.gainXp(Math.round(20 * _xpMod));
-                        if (isCoopMode && player2 && !player2.isDead) player2.gainXp(Math.round(20 * _xpMod));
+                        const _killer = (isCoopMode && enemy.killer) ? enemy.killer : player;
+                        score += 10; _killer.gainXp(Math.round(20 * _xpMod));
                         createExplosion(enemy.x, enemy.y, '#aaa');
 
                         // Elite Logic on Death
                         if (enemy.isElite) {
                             score += 500;
-                            player.gainXp(Math.round(200 * _xpMod));
-                            if (isCoopMode && player2 && !player2.isDead) player2.gainXp(Math.round(200 * _xpMod));
+                            _killer.gainXp(Math.round(200 * _xpMod));
                             createExplosion(enemy.x, enemy.y, enemy.eliteType.color);
 
                             // Elite Card Drop

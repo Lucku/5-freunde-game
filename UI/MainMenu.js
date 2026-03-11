@@ -50,7 +50,7 @@ class MainMenuUI {
             if (isP1 && isP2Confirmed) el.style.borderColor = '#a78bfa'; // Both confirmed — purple blend
             else if (isP1)            el.style.borderColor = 'white';
             else if (isP2Confirmed)   { el.style.borderColor = '#3b82f6'; el.style.borderWidth = '3px'; }
-            else if (isP2Cursor)      { el.style.borderColor = '#93c5fd'; el.style.borderStyle = 'dashed'; }
+            else if (isP2Cursor)      { el.style.borderColor = '#3b82f6'; el.style.borderWidth = '3px'; }
 
             let prestigeText = "";
             if (data.prestige > 0) {

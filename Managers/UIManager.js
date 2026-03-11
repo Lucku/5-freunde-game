@@ -45,7 +45,7 @@ class UIManager {
             '.switch, .altar-node, .altar-pill, .altar-rune, .altar-conv-item,' +
             '.achievement-row, .stat-row, .summary-card, .dlc-card'
         ));
-        return elements.filter(el => el.offsetParent !== null);
+        return elements.filter(el => el.offsetParent !== null && !el.classList.contains('coop-disabled'));
     }
 
     updateUIHighlight() {
