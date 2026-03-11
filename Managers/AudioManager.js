@@ -104,6 +104,12 @@ class AudioManager {
             attack_spirit: new Audio('dlc/faith_of_fortune/audio/sounds/attack_spirit.wav'),
             special_spirit: new Audio('dlc/faith_of_fortune/audio/sounds/special_spirit.wav'),
             special_spirit_charging: new Audio('dlc/faith_of_fortune/audio/sounds/special_spirit_charging.wav'),
+
+            // DLC Symphony of Sickness
+            battle_poison: new Audio('dlc/symphony_of_sickness/audio/music/battle_poison.wav'),
+            battle_sound: new Audio('dlc/symphony_of_sickness/audio/music/battle_sound.wav'),
+            boss_poison: new Audio('dlc/symphony_of_sickness/audio/music/boss_poison.wav'),
+            boss_sound: new Audio('dlc/symphony_of_sickness/audio/music/boss_sound.wav'),
         };
 
         // Configuration
@@ -199,6 +205,15 @@ class AudioManager {
             this.tracks.special_spirit_charging.loop = true;
             this.tracks.special_spirit_charging.volume = 0.4;
         }
+
+        this.tracks.battle_poison.loop = true;
+        this.tracks.battle_poison.volume = 0.4;
+        this.tracks.battle_sound.loop = true;
+        this.tracks.battle_sound.volume = 0.4;
+        this.tracks.boss_poison.loop = true;
+        this.tracks.boss_poison.volume = 0.6;
+        this.tracks.boss_sound.loop = true;
+        this.tracks.boss_sound.volume = 0.6;
         if (this.tracks.attack_chance) this.tracks.attack_chance.volume = 0.3;
         if (this.tracks.attack_spirit) this.tracks.attack_spirit.volume = 0.3;
         if (this.tracks.special_spirit) this.tracks.special_spirit.volume = 0.5;
@@ -474,6 +489,12 @@ class AudioManager {
             } else if (isAirBossActive) {
                 this.stopAllExcept('boss_air');
                 this.play('boss_air');
+            } else if (isPoisonBossActive) {
+                this.stopAllExcept('boss_poison');
+                this.play('boss_poison');
+            } else if (isSoundBossActive) {
+                this.stopAllExcept('boss_sound');
+                this.play('boss_sound');
             } else {
                 // If the Earth hero is active in the run, prefer DLC rock battle variants (randomized)
                 // Story Mode only (Not Daily/Weekly)
@@ -482,6 +503,8 @@ class AudioManager {
                 const isGravityActive = typeof player !== 'undefined' && player && player.type === 'gravity';
                 const isAirActive = typeof player !== 'undefined' && player && player.type === 'air';
                 const isVoidActive = typeof player !== 'undefined' && player && player.type === 'void';
+                const isPoisonActive = typeof player !== 'undefined' && player && player.type === 'poison';
+                const isSoundActive = typeof player !== 'undefined' && player && player.type === 'sound';
                 const isStoryMode = typeof isDailyMode !== 'undefined' && !isDailyMode &&
                     typeof isWeeklyMode !== 'undefined' && !isWeeklyMode &&
                     typeof saveData !== 'undefined' && saveData.story && saveData.story.enabled;
@@ -533,6 +556,12 @@ class AudioManager {
                         this.stopAllExcept(pick);
                         this.play(pick);
                     }
+                } else if (isPoisonActive && isStoryMode && this.tracks['battle_poison']) {
+                    this.stopAllExcept('battle_poison');
+                    this.play('battle_poison');
+                } else if (isSoundActive && isStoryMode && this.tracks['battle_sound']) {
+                    this.stopAllExcept('battle_sound');
+                    this.play('battle_sound');
                 } else {
                     this.stopAllExcept('battle');
                     this.play('battle');
