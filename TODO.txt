@@ -10,6 +10,7 @@
 - Proper effects for base game hero specials
 - app possibility to test all bosses to testing grounds
 - Save & Quit option after clearing each wave
+- screen indicator for when only one enemy is left
 
 # Waker of Winds
 

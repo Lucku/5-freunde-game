@@ -345,6 +345,15 @@ class PoisonHero {
         const cx = player.x;
         const cy = player.y;
 
+        // Play combo-tier sound
+        if (typeof audioManager !== 'undefined') {
+            const _sfxTier = (combo === 'NONE') ? 'special_poison_1'
+                : (combo === 'RED' || combo === 'BLUE' || combo === 'GREEN') ? 'special_poison_2'
+                : (combo === 'RED_RED' || combo === 'BLUE_BLUE' || combo === 'GREEN_GREEN') ? 'special_poison_3'
+                : 'special_poison_4';
+            audioManager.play(_sfxTier);
+        }
+
         // Logic for Combinations
         switch (combo) {
             case 'NONE':      PoisonHero.createMiasmaField(player, cx, cy);       break;
@@ -1076,7 +1085,7 @@ class PoisonHero {
             }
         }
 
-        if (typeof audioManager !== 'undefined') audioManager.play('attack_plant'); // Squishy sound
+        if (typeof audioManager !== 'undefined') audioManager.play('attack_poison');
 
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
     }

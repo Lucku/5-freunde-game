@@ -3398,6 +3398,7 @@ function masterLoop(timestamp) {
                     }
 
                     if (isTutorialMode) { TutorialMode.onBossDefeated(); return; }
+                    if (typeof audioManager !== 'undefined') audioManager.play('wave_completed');
                     triggerStory(wave);
                 }
                 return; // Always prevent normal render during cinematic
@@ -3808,6 +3809,7 @@ function masterLoop(timestamp) {
                     if (isTutorialMode && window.TutorialMode) TutorialMode.onGold();
                     currentRunStats.moneyGained += amount; // Track Gold
                     saveData.global.totalGold += drop.value; // Track for achievement
+                    if (typeof audioManager !== 'undefined') audioManager.play('pickup_gold');
                     goldDrops.splice(index, 1);
                 }
             });

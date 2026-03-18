@@ -111,6 +111,15 @@ class AudioManager {
             battle_sound_sync: new Audio('dlc/symphony_of_sickness/audio/music/battle_sound_sync.wav'),
             boss_poison: new Audio('dlc/symphony_of_sickness/audio/music/boss_poison.wav'),
             boss_sound: new Audio('dlc/symphony_of_sickness/audio/music/boss_sound.wav'),
+            attack_poison: new Audio('dlc/symphony_of_sickness/audio/sounds/attack_poison.wav'),
+            special_poison_1: new Audio('dlc/symphony_of_sickness/audio/sounds/special_poison_1.wav'),
+            special_poison_2: new Audio('dlc/symphony_of_sickness/audio/sounds/special_poison_2.wav'),
+            special_poison_3: new Audio('dlc/symphony_of_sickness/audio/sounds/special_poison_3.wav'),
+            special_poison_4: new Audio('dlc/symphony_of_sickness/audio/sounds/special_poison_4.wav'),
+
+            // Base game SFX
+            pickup_gold: new Audio('audio/sounds/pickup_gold.wav'),
+            wave_completed: new Audio('audio/sounds/wave_completed.wav'),
         };
 
         // Configuration
@@ -217,6 +226,13 @@ class AudioManager {
         this.tracks.boss_poison.volume = 0.6;
         this.tracks.boss_sound.loop = true;
         this.tracks.boss_sound.volume = 0.6;
+        if (this.tracks.attack_poison) this.tracks.attack_poison.volume = 0.5;
+        if (this.tracks.special_poison_1) this.tracks.special_poison_1.volume = 0.6;
+        if (this.tracks.special_poison_2) this.tracks.special_poison_2.volume = 0.6;
+        if (this.tracks.special_poison_3) this.tracks.special_poison_3.volume = 0.6;
+        if (this.tracks.special_poison_4) this.tracks.special_poison_4.volume = 0.6;
+        if (this.tracks.pickup_gold) this.tracks.pickup_gold.volume = 0.4;
+        if (this.tracks.wave_completed) this.tracks.wave_completed.volume = 0.6;
         if (this.tracks.attack_chance) this.tracks.attack_chance.volume = 0.3;
         if (this.tracks.attack_spirit) this.tracks.attack_spirit.volume = 0.3;
         if (this.tracks.special_spirit) this.tracks.special_spirit.volume = 0.5;
@@ -568,6 +584,10 @@ class AudioManager {
                 } else if (isPoisonActive && isStoryMode && this.tracks['battle_poison']) {
                     this.stopAllExcept('battle_poison');
                     this.play('battle_poison');
+                } else if ((typeof player !== 'undefined' && player && player.type === 'sound') && isStoryMode && this.tracks['battle_sound'] &&
+                    !((typeof currentBiomeType !== 'undefined' && currentBiomeType === 'sound') || (typeof window.currentBiome !== 'undefined' && window.currentBiome === 'sound'))) {
+                    this.stopAllExcept('battle_sound');
+                    this.play('battle_sound');
                 } else if (((typeof currentBiomeType !== 'undefined' && currentBiomeType === 'sound') || (typeof window.currentBiome !== 'undefined' && window.currentBiome === 'sound')) && this.tracks['battle_sound_sync']) {
                     this.stopAllExcept('battle_sound_sync');
                     this.play('battle_sound_sync');
