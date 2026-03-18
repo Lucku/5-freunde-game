@@ -428,6 +428,7 @@ class Arena {
 
         // Obstacles
         for (let obs of this.obstacles) {
+            if (obs.solid === false) continue; // Non-solid pickups (e.g. PoisonFlask) don't block movement
             let closestX = Math.max(obs.x, Math.min(x, obs.x + obs.w));
             let closestY = Math.max(obs.y, Math.min(y, obs.y + obs.h));
             let dx = x - closestX;

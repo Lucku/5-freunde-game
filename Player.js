@@ -211,6 +211,7 @@ class Player {
         }
 
         window.levelingUpPlayer = this; // Track which player is choosing
+        if (typeof window._syncSoundBiomeMusic === 'function') window._syncSoundBiomeMusic();
         if (window.levelUpUI) {
             window.levelUpUI.showLevelUp(this, options);
         } else {

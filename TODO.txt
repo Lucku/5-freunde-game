@@ -6,6 +6,10 @@
 - game developer note
 - intro with game developer logo
 - make all DLC special bosses 3D
+- add coin pickup sound
+- Proper effects for base game hero specials
+- app possibility to test all bosses to testing grounds
+- Save & Quit option after clearing each wave
 
 # Waker of Winds
 

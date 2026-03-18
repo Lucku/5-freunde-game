@@ -508,7 +508,7 @@ function toggleCoopMode() {
         const gamepads = navigator.getGamepads();
         for (let i = 0; i < gamepads.length; i++) {
             if (gamepads[i]) {
-                if (coopP1GamepadIndex === -1)      coopP1GamepadIndex = i;
+                if (coopP1GamepadIndex === -1) coopP1GamepadIndex = i;
                 else if (coopP2GamepadIndex === -1) { coopP2GamepadIndex = i; break; }
             }
         }
@@ -661,10 +661,10 @@ function handleCoopP2Gamepad() {
     if (!gp) return;
 
     const T = 0.5;
-    const left  = gp.axes[0] < -T || gp.buttons[14].pressed;
-    const right = gp.axes[0] >  T || gp.buttons[15].pressed;
-    const up    = gp.axes[1] < -T || gp.buttons[12].pressed;
-    const down  = gp.axes[1] >  T || gp.buttons[13].pressed;
+    const left = gp.axes[0] < -T || gp.buttons[14].pressed;
+    const right = gp.axes[0] > T || gp.buttons[15].pressed;
+    const up = gp.axes[1] < -T || gp.buttons[12].pressed;
+    const down = gp.axes[1] > T || gp.buttons[13].pressed;
     const aDown = gp.buttons[0].pressed;
     const aPressed = aDown && !window._coopP2APrev;
     window._coopP2APrev = aDown;
@@ -690,16 +690,16 @@ function handleCoopP2Gamepad() {
     const p1Hero = window.selectedHeroType || 'fire';
     const prevIndex = coopP2MenuIndex;
 
-    if (left)       coopP2MenuIndex = (coopP2MenuIndex - 1 + heroes.length) % heroes.length;
+    if (left) coopP2MenuIndex = (coopP2MenuIndex - 1 + heroes.length) % heroes.length;
     else if (right) coopP2MenuIndex = (coopP2MenuIndex + 1) % heroes.length;
-    else if (up)    coopP2MenuIndex = Math.max(0, coopP2MenuIndex - cols);
-    else if (down)  coopP2MenuIndex = Math.min(heroes.length - 1, coopP2MenuIndex + cols);
+    else if (up) coopP2MenuIndex = Math.max(0, coopP2MenuIndex - cols);
+    else if (down) coopP2MenuIndex = Math.min(heroes.length - 1, coopP2MenuIndex + cols);
 
     // Skip P1's hero
     if (heroes[coopP2MenuIndex] === p1Hero) {
-        if (left)       coopP2MenuIndex = (coopP2MenuIndex - 1 + heroes.length) % heroes.length;
+        if (left) coopP2MenuIndex = (coopP2MenuIndex - 1 + heroes.length) % heroes.length;
         else if (right) coopP2MenuIndex = (coopP2MenuIndex + 1) % heroes.length;
-        else            coopP2MenuIndex = prevIndex;
+        else coopP2MenuIndex = prevIndex;
     }
 
     // Cursor moved — mark as unconfirmed until A is pressed
@@ -1381,9 +1381,12 @@ inputManager.onKeyDown = e => {
             showNotification('DEBUG: FIRST LAUNCH SIMULATED');
         }
 
-        // DEBUG: Open Testing Grounds with 'D' in Menu
+        // DEBUG: Open Testing Grounds with 'D' in Menu (only when menu overlay is actually visible)
         if (e.code === 'KeyD' && uiState === 'MENU' && !gameRunning) {
-            startTestingGrounds();
+            const menuOverlay = document.getElementById('menu-overlay');
+            if (menuOverlay && menuOverlay.style.display !== 'none') {
+                startTestingGrounds();
+            }
         }
 
         // Testing Grounds controls
@@ -1403,6 +1406,20 @@ function togglePause() {
     gamePaused = !gamePaused;
     document.getElementById('pause-screen').style.display = gamePaused ? 'flex' : 'none';
     setUIState(gamePaused ? 'PAUSE' : 'GAME');
+    _syncSoundBiomeMusic();
+}
+
+// Pause or resume battle_sound_sync to keep beat visualizations in sync with the music
+// Called whenever gamePaused or isLevelingUp changes.
+function _syncSoundBiomeMusic() {
+    if (typeof audioManager === 'undefined' || !audioManager.tracks) return;
+    const track = audioManager.tracks['battle_sound_sync'];
+    if (!track) return;
+    if (gamePaused || isLevelingUp) {
+        if (!track.paused) track.pause();
+    } else {
+        if (track.paused && track.currentTime > 0) track.play().catch(() => { });
+    }
 }
 
 function renderStatsTable(container) {
@@ -1895,11 +1912,12 @@ function chooseUpgrade(type) {
         return;
     }
 
+    _syncSoundBiomeMusic();
     setUIState('GAME');
 }
 
 // Called by LevelUpUI after any upgrade is chosen — handles P2 dequeue
-window._afterUpgradeChosen = function() {
+window._afterUpgradeChosen = function () {
     window.levelingUpPlayer = null;
     if (isCoopMode && p2LevelUpPending && window.player2 && window.levelUpUI) {
         p2LevelUpPending = false;
@@ -1991,21 +2009,21 @@ function openStory(story) {
 
     // Title background image — per-DLC or base game
     const _storyTitleImages = {
-        fire:      'images/title.png',
-        water:     'images/title.png',
-        ice:       'images/title.png',
-        plant:     'images/title.png',
-        metal:     'images/title.png',
-        all:       'images/title.png',
-        air:       'dlc/waker_of_winds/images/title.png',
-        earth:     'dlc/rise_of_the_rock/images/title.png',
+        fire: 'images/title.png',
+        water: 'images/title.png',
+        ice: 'images/title.png',
+        plant: 'images/title.png',
+        metal: 'images/title.png',
+        all: 'images/title.png',
+        air: 'dlc/waker_of_winds/images/title.png',
+        earth: 'dlc/rise_of_the_rock/images/title.png',
         lightning: 'dlc/tournament_of_thunder/images/title.png',
-        gravity:   'dlc/champions_of_chaos/images/title.png',
-        void:      'dlc/champions_of_chaos/images/title.png',
-        spirit:    'dlc/faith_of_fortune/images/title.png',
-        chance:    'dlc/faith_of_fortune/images/title.png',
-        sound:     'dlc/symphony_of_sickness/images/title.png',
-        poison:    'dlc/symphony_of_sickness/images/title.png',
+        gravity: 'dlc/champions_of_chaos/images/title.png',
+        void: 'dlc/champions_of_chaos/images/title.png',
+        spirit: 'dlc/faith_of_fortune/images/title.png',
+        chance: 'dlc/faith_of_fortune/images/title.png',
+        sound: 'dlc/symphony_of_sickness/images/title.png',
+        poison: 'dlc/symphony_of_sickness/images/title.png',
     };
     const bgImgEl = document.getElementById('story-bg-img');
     if (bgImgEl) bgImgEl.src = _storyTitleImages[heroKey] || 'images/title.png';
@@ -2743,7 +2761,7 @@ function startGame(mode = 'NORMAL') {
         player.controller = new CoopGamepadController(coopP1GamepadIndex);
 
         // Save P1's special icon before P2's constructor overwrites #special-icon
-        const _p1IconEl  = document.getElementById('special-icon');
+        const _p1IconEl = document.getElementById('special-icon');
         const _p1IconTxt = _p1IconEl ? _p1IconEl.innerText : '★';
 
         player2 = new Player(coopP2HeroType || 'water');
@@ -2769,6 +2787,7 @@ function startGame(mode = 'NORMAL') {
     enemiesKilledInWave = 0;
     masksDroppedInWave = 0; // Cap mask drops
     bossActive = false;
+    bossDeathTimer = 0;
     enemies = [];
     projectiles = [];
     particles = [];
@@ -3479,6 +3498,7 @@ function masterLoop(timestamp) {
 
             frame++;
             window.frame = frame; // Expose for DLCs
+            window.enemies = enemies; // Keep DLC reference in sync (enemies = [] creates a new array)
 
             // Weather Logic
             if (currentWeather) {
@@ -3556,7 +3576,7 @@ function masterLoop(timestamp) {
                         }
                     }
 
-                    const nonBossCount = enemies.filter(e => !(e instanceof Boss)).length;
+                    const nonBossCount = enemies.filter(e => !(e instanceof Boss) && e.hp > 0).length;
                     const enemyCap = Math.min(22, 5 + wave) + (isCoopMode ? 4 : 0);
                     if (frame % Math.floor(spawnRate) === 0 && nonBossCount < enemyCap) {
                         let loops = 1;
@@ -4075,6 +4095,9 @@ function masterLoop(timestamp) {
             }
 
             enemies.forEach((enemy, eIndex) => {
+                // Skip already-dead enemies left in array by forEach+splice skip on a previous frame
+                if (enemy.dead) { enemies.splice(eIndex, 1); return; }
+
                 // Biome Effects on Enemy
                 let enemySpeedMod = 1;
                 arena.biomeZones.forEach(zone => {
@@ -4419,6 +4442,7 @@ function masterLoop(timestamp) {
                 });
 
                 if (enemy.hp <= 0) {
+                    enemy.dead = true; // Prevent double-processing if forEach+splice skips this enemy
                     if (isChaosShuffleMode) checkChaosEvent('KILL', { isMelee: (enemy.lastHitBy === 'MELEE') });
                     if (isTutorialMode && window.TutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
                     // Boss Minion Logic

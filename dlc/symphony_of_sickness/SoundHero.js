@@ -393,7 +393,149 @@ class SoundHero {
         if (ctx) {
             SoundHero.drawTotems(ctx, player);
             SoundHero.drawUI(player, ctx);
+            SoundHero.drawBeatIndicator(player, ctx);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SCREEN-SPACE BEAT INDICATOR — always visible, works with sound off
+    // ─────────────────────────────────────────────────────────────────────────
+
+    static drawBeatIndicator(player, ctx) {
+        if (!window.SYMPHONY_STATE) return;
+        if (!SoundHero.isInSoundBiome()) return;
+
+        const ss = window.SYMPHONY_STATE;
+        const phase    = ss.beatPhase    !== undefined ? ss.beatPhase    : 0; // 0→1 between beats
+        const onBeat   = !!ss.onBeat;
+        const inBiome  = SoundHero.isInSoundBiome();
+        const streak   = player.beatStreak || 0;
+        const syncActive = !!player.syncStateActive;
+
+        // Screen-space anchor — bottom-center, above the special bar area
+        const sw = window.innerWidth  || 800;
+        const sh = window.innerHeight || 600;
+        const cx = sw / 2;
+        const cy = sh - 72;    // 72px from bottom
+        const R  = 28;         // outer radius
+        const r  = 20;         // inner radius (ring width = 8px)
+
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // escape camera transform
+
+        // ── Background ring (dark) ──
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(5, 10, 20, 0.72)';
+        ctx.fill();
+
+        // ── Progress arc (phase 0 = full bright, phase 1 = about to beat) ──
+        // Arc sweeps clockwise from top. Angle 0 = 12 o'clock.
+        const startAngle = -Math.PI / 2;
+        const endAngle   = startAngle + Math.PI * 2 * (1 - phase); // shrinks toward beat
+
+        // Color: cyan normally, warm yellow as beat approaches, white flash on beat
+        let arcColor;
+        if (onBeat) {
+            arcColor = '#ffffff';
+        } else if (phase > 0.75) {
+            const t = (phase - 0.75) / 0.25; // 0→1 in the final quarter
+            const r2 = Math.round(79  + t * (255 - 79));
+            const g2 = Math.round(195 + t * (230 - 195));
+            const b2 = Math.round(247 + t * (50  - 247));
+            arcColor = `rgb(${r2},${g2},${b2})`;
+        } else {
+            arcColor = syncActive ? '#00e5ff' : '#4fc3f7';
+        }
+
+        // Glow when on beat or near beat
+        if (onBeat || phase > 0.8) {
+            ctx.shadowBlur  = onBeat ? 18 : 8;
+            ctx.shadowColor = arcColor;
+        }
+
+        ctx.strokeStyle = arcColor;
+        ctx.lineWidth   = R - r;
+        ctx.lineCap     = 'round';
+        ctx.beginPath();
+        if (endAngle > startAngle) {
+            ctx.arc(cx, cy, (R + r) / 2, startAngle, endAngle);
+            ctx.stroke();
+        }
+
+        ctx.shadowBlur = 0;
+
+        // ── Beat flash overlay ──
+        if (onBeat) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, R, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.18)';
+            ctx.fill();
+        }
+
+        // ── Tick marks at 4 quarter-beats ──
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.lineWidth = 1;
+        ctx.lineCap = 'butt';
+        for (let i = 0; i < 4; i++) {
+            const a = startAngle + (i / 4) * Math.PI * 2;
+            const x1 = cx + Math.cos(a) * r;
+            const y1 = cy + Math.sin(a) * r;
+            const x2 = cx + Math.cos(a) * R;
+            const y2 = cy + Math.sin(a) * R;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+
+        // ── Center content ──
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+
+        if (onBeat) {
+            // "♩" flash on beat
+            ctx.fillStyle = '#ffffff';
+            ctx.font      = 'bold 14px sans-serif';
+            ctx.fillText('♩', cx, cy);
+        } else if (syncActive) {
+            // Sync state: show remaining time in seconds
+            const secsLeft = Math.ceil((player.syncStateDuration || 0) / 60);
+            ctx.fillStyle = '#00e5ff';
+            ctx.font      = 'bold 11px monospace';
+            ctx.fillText(secsLeft + 's', cx, cy);
+        } else if (streak > 0) {
+            // Beat streak count
+            ctx.fillStyle = '#4fc3f7';
+            ctx.font      = 'bold 11px monospace';
+            ctx.fillText('×' + streak, cx, cy);
+        } else {
+            // Musical note when idle
+            ctx.fillStyle = 'rgba(79,195,247,0.55)';
+            ctx.font      = '12px sans-serif';
+            ctx.fillText('♩', cx, cy);
+        }
+
+        // ── Label ──
+        ctx.fillStyle = 'rgba(150,210,255,0.55)';
+        ctx.font      = '8px monospace';
+        ctx.fillText('BEAT', cx, cy + R + 8);
+
+        // ── Sync meter arc (outer ring, only in Sound biome) ──
+        if (inBiome) {
+            const pct = (player.syncMeter || 0) / (player.maxSyncMeter || 100);
+            const mR  = R + 6;
+            ctx.strokeStyle = syncActive ? 'rgba(0,229,255,0.9)' : 'rgba(79,195,247,0.6)';
+            ctx.lineWidth   = 2.5;
+            ctx.lineCap     = 'round';
+            if (syncActive) { ctx.shadowBlur = 8; ctx.shadowColor = '#00e5ff'; }
+            ctx.beginPath();
+            ctx.arc(cx, cy, mR, startAngle, startAngle + Math.PI * 2 * pct);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+
+        ctx.restore();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -440,8 +582,8 @@ class SoundHero {
             }
         }
 
-        // ── Beat pulse ring (visible regardless of biome, for timing feedback) ──
-        if (player.visualPulse > 0) {
+        // ── Beat pulse ring (Sound biome only) ──
+        if (inSoundBiome && player.visualPulse > 0) {
             ctx.beginPath();
             ctx.strokeStyle = `rgba(79, 195, 247, ${player.visualPulse / 10})`;
             ctx.lineWidth = 2;
@@ -646,6 +788,7 @@ class SoundHero {
             life: 120,       // 2 seconds to expand
             type: 'CRESCENDO_RING',
             hitEnemies: [],
+            onHit() { return 'STOP'; }, // Bypass standard circle collision — ring handles its own hit detection in update()
             update() {
                 // Expand from 30 → 950 over 120 frames
                 this.radius += (950 - 30) / 120;
@@ -728,11 +871,6 @@ class SoundHero {
 
     static useSpecial(player) {
         SoundHero.spawnResonanceRing(player);
-
-        // Bonus: immediately fill the sync meter if in Sound biome
-        if (SoundHero.isInSoundBiome()) {
-            player.syncMeter = player.maxSyncMeter;
-        }
 
         if (typeof showNotification === 'function') showNotification("CRESCENDO!", "#00e5ff");
 

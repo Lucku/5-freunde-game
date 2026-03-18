@@ -908,23 +908,24 @@ const Manual = {
 
                 <div class="tut-card">
                     <div class="tut-card-title" style="color:#76ff03;">Poison Flasks</div>
-                    <p>Flasks spawn in the Poison Biome — collect up to 2 at a time. You hold a maximum of 2 flasks simultaneously. Flasks reset each wave, so plan your combination before using your special.</p>
+                    <p>Flasks spawn in the Poison Biome — collect up to 2 at a time. Each combination produces a completely unique effect. Experiment to discover powerful synergies!</p>
                     <div class="tut-flask-grid">
-                        <div class="tut-flask"><b style="color:#e74c3c;">🔴 RED</b>Vampiric Mist (Life Steal)</div>
-                        <div class="tut-flask"><b style="color:#3498db;">🔵 BLUE</b>Liquid Nitrogen (Freeze)</div>
-                        <div class="tut-flask"><b style="color:#2ecc71;">🟢 GREEN</b>Corrosive Sludge (Defense Down)</div>
-                        <div class="tut-flask"><b style="color:#e74c3c;">🔴🔴</b>Blood Nova (Chain Reaction)</div>
-                        <div class="tut-flask"><b style="color:#3498db;">🔵🔵</b>Absolute Zero (Time Stop)</div>
-                        <div class="tut-flask"><b style="color:#2ecc71;">🟢🟢</b>Toxic Tsunami (Wave)</div>
-                        <div class="tut-flask"><b style="color:#9b59b6;">🔵🔴</b>Hallucinogen (Confusion)</div>
-                        <div class="tut-flask"><b style="color:#f39c12;">🟢🔴</b>Unstable Compound (Nuke)</div>
-                        <div class="tut-flask"><b style="color:#1abc9c;">🔵🟢</b>Viral Outbreak (Epidemic)</div>
+                        <div class="tut-flask"><b style="color:#76ff03;">∅ NONE</b>Miasma Unleashed — rotating decay aura follows you, slowing &amp; poisoning all nearby enemies for 8s</div>
+                        <div class="tut-flask"><b style="color:#e74c3c;">🔴 RED</b>Sanguine Leech — blood vortex pulls enemies toward you and drains their life, healing you in return</div>
+                        <div class="tut-flask"><b style="color:#3498db;">🔵 BLUE</b>Cryogenic Burst — expanding ice shockwave freezes everything it touches, leaving a lingering frost zone</div>
+                        <div class="tut-flask"><b style="color:#2ecc71;">🟢 GREEN</b>Acid Rain — corrosive droplets rain down across a wide area, creating pools that shred enemy defense</div>
+                        <div class="tut-flask"><b style="color:#c0392b;">🔴🔴</b>Hemorrhage Chain — blood nova hits nearby enemies with bleed, then chain-detonates all bleeders for massive AoE</div>
+                        <div class="tut-flask"><b style="color:#00bfff;">🔵🔵</b>Absolute Zero — three staggered ice waves expand outward; already-frozen enemies are shattered for triple damage</div>
+                        <div class="tut-flask"><b style="color:#00e676;">🟢🟢</b>Toxic Tsunami — a rolling wave of poison surges in your aim direction, knocking back and drenching enemies in toxin</div>
+                        <div class="tut-flask"><b style="color:#9b59b6;">🔵🔴</b>Hallucinogen — psychedelic cloud causes enemies to attack each other and stumble in confusion for 6 seconds</div>
+                        <div class="tut-flask"><b style="color:#f39c12;">🟢🔴</b>Unstable Compound — a chemical vortex pulls enemies in, then detonates in a massive explosion amplified by their poison stacks</div>
+                        <div class="tut-flask"><b style="color:#1abc9c;">🔵🟢</b>Viral Mutation — infects nearby enemies, turning them into carriers that spread the mutation to anything they touch</div>
                     </div>
                 </div>
 
                 <div class="tut-card">
                     <div class="tut-card-title" style="color:#76ff03;">Special: ALCHEMICAL MIX</div>
-                    <p>Consumes your current flasks and triggers the matching effect above. With no flasks held, activates <b>Miasma Unleashed</b> — a Decay Field centered on you that continuously damages and poisons all enemies within range for several seconds. Cooldown: 10 seconds.</p>
+                    <p>Triggers the effect matching your held flasks. Flasks are <b>not consumed</b> — you keep them between uses. Cooldown: 10 seconds. <i>Tip: Combos scale with your Poison Stacks, so build up DoT before detonating.</i></p>
                 </div>
 
                 <h3>Skill Tree Highlights</h3>

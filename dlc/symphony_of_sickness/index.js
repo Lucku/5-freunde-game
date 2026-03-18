@@ -362,22 +362,50 @@ const SymphonyDLC = {
 
     updateBeat: function () {
         if (!window.SYMPHONY_STATE || !window.player) return;
+        // Freeze beat phase while game is interrupted — keeps visualizations in sync on resume
+        if (window.gamePaused || window.isLevelingUp) return;
 
         // Logic runs if player is Sound Hero OR current biome is Sound Plains
         const isSoundRelevant = (window.player.type === 'sound' || (window.currentBiome && window.currentBiome.includes('sound')));
 
         if (isSoundRelevant) {
-            const now = Date.now();
-            const beatInterval = 60000 / (window.SYMPHONY_STATE.bpm || 120);
+            const bpm = window.SYMPHONY_STATE.bpm || 120;
+            const beatIntervalMs  = 60000 / bpm;   // e.g. 500ms at 120 BPM
+            const beatIntervalSec = 60    / bpm;   // e.g. 0.5s  at 120 BPM
 
-            if (now - window.SYMPHONY_STATE.lastBeatTime >= beatInterval) {
-                window.SYMPHONY_STATE.lastBeatTime = now;
-                window.SYMPHONY_STATE.onBeat = true;
+            // ── Primary path: derive beat phase from audio currentTime ──────────
+            // This gives perfect phase-lock with the music file regardless of
+            // any wall-clock drift that accumulates over a long session.
+            const track = typeof audioManager !== 'undefined' && audioManager.tracks &&
+                (audioManager.tracks['battle_sound_sync'] || audioManager.tracks['battle_sound']);
+            const audioPlaying = track && !track.paused && track.currentTime > 0;
 
-                // Reset flag shortly after (150ms window)
-                setTimeout(() => {
-                    if (window.SYMPHONY_STATE) window.SYMPHONY_STATE.onBeat = false;
-                }, 150);
+            if (audioPlaying) {
+                const phase = (track.currentTime % beatIntervalSec) / beatIntervalSec; // 0 → 1
+                const prevPhase = window.SYMPHONY_STATE._prevBeatPhase || 0;
+
+                // Beat fires on the leading edge (phase wraps through 0)
+                if (prevPhase > 0.75 && phase < 0.25) {
+                    window.SYMPHONY_STATE.onBeat = true;
+                    window.SYMPHONY_STATE.lastBeatTime = Date.now();
+                    setTimeout(() => { if (window.SYMPHONY_STATE) window.SYMPHONY_STATE.onBeat = false; }, 150);
+                }
+
+                window.SYMPHONY_STATE._prevBeatPhase = phase;
+                window.SYMPHONY_STATE.beatPhase = phase; // 0 = just fired, 1 = about to fire
+
+            } else {
+                // ── Fallback: wall-clock timer when music is muted / not loaded ──
+                const now = Date.now();
+                if (now - window.SYMPHONY_STATE.lastBeatTime >= beatIntervalMs) {
+                    window.SYMPHONY_STATE.lastBeatTime = now;
+                    window.SYMPHONY_STATE.onBeat = true;
+                    window.SYMPHONY_STATE.beatPhase = 0;
+                    setTimeout(() => { if (window.SYMPHONY_STATE) window.SYMPHONY_STATE.onBeat = false; }, 150);
+                } else {
+                    window.SYMPHONY_STATE.beatPhase =
+                        (now - window.SYMPHONY_STATE.lastBeatTime) / beatIntervalMs;
+                }
             }
         }
     }

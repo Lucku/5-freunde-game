@@ -7,6 +7,13 @@ class SoundBiome {
         this._prevOnBeat = false;
     }
 
+    generate(arena) {
+        // Sound biome has no fixed obstacle layout — the resonance field is purely dynamic.
+        // Add a few open storm zones for visual atmosphere.
+        const cx = arena.width / 2;
+        const cy = arena.height / 2;
+    }
+
     update(arena, player, enemies) {
         const onBeat = !!(window.SYMPHONY_STATE && window.SYMPHONY_STATE.onBeat);
         const cam = arena.camera;
@@ -21,7 +28,7 @@ class SoundBiome {
                 const life = 55 + Math.floor(Math.random() * 30);
                 const isMagenta = Math.random() < 0.35;
                 this.beatRings.push({
-                    x: cam.x + cam.width  * (0.1 + Math.random() * 0.8),
+                    x: cam.x + cam.width * (0.1 + Math.random() * 0.8),
                     y: cam.y + cam.height * (0.1 + Math.random() * 0.8),
                     r: 5 + Math.random() * 20,
                     maxR: 180 + Math.random() * 260,
@@ -47,15 +54,15 @@ class SoundBiome {
     }
 
     drawBackground(ctx, arena) {
-        const cam   = arena.camera;
-        const time  = Date.now() / 1000;
-        const beat  = this.beatPhase;           // 0→1, smooth decay after beat
+        const cam = arena.camera;
+        const time = Date.now() / 1000;
+        const beat = this.beatPhase;           // 0→1, smooth decay after beat
         const pulse = 0.25 + beat * 0.75;       // amplitude scalar for all effects
 
         const cellSize = 280;
         const sx = Math.floor(cam.x / cellSize) * cellSize;
         const sy = Math.floor(cam.y / cellSize) * cellSize;
-        const ex = sx + cam.width  + cellSize;
+        const ex = sx + cam.width + cellSize;
         const ey = sy + cam.height + cellSize;
 
         ctx.save();
@@ -81,12 +88,12 @@ class SoundBiome {
         // Five horizontal waves, each with different frequency and phase.
         // All amplitudes scale with beat — mesmerising in sync.
         for (let w = 0; w < 5; w++) {
-            const baseY   = cam.y + ((w + 0.5) / 5) * cam.height;
-            const amp     = (6 + w * 5) * pulse;
-            const freq    = 0.014 + w * 0.004;
-            const speed   = 1.1 + w * 0.35;
-            const hue     = 185 + w * 16; // Cyan → electric blue range
-            const alpha   = 0.1 + beat * 0.1;
+            const baseY = cam.y + ((w + 0.5) / 5) * cam.height;
+            const amp = (6 + w * 5) * pulse;
+            const freq = 0.014 + w * 0.004;
+            const speed = 1.1 + w * 0.35;
+            const hue = 185 + w * 16; // Cyan → electric blue range
+            const alpha = 0.1 + beat * 0.1;
 
             ctx.beginPath();
             ctx.moveTo(cam.x, baseY);
@@ -105,22 +112,22 @@ class SoundBiome {
         // ── LAYER 4: PROCEDURAL SPEAKER NODES & EQUALISER BARS ──────────────
         for (let x = sx; x <= ex; x += cellSize) {
             for (let y = sy; y <= ey; y += cellSize) {
-                const hash  = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-                const val   = hash - Math.floor(hash);
-                const hash2 = Math.sin(x * 93.989  + y * 17.233) * 7843.5;
-                const val2  = hash2 - Math.floor(hash2);
+                const hash = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+                const val = hash - Math.floor(hash);
+                const hash2 = Math.sin(x * 93.989 + y * 17.233) * 7843.5;
+                const val2 = hash2 - Math.floor(hash2);
 
-                const nodeX = x + (val  * 1337) % cellSize;
-                const nodeY = y + (val  * 7331) % cellSize;
+                const nodeX = x + (val * 1337) % cellSize;
+                const nodeY = y + (val * 7331) % cellSize;
 
                 // SPEAKER NODE — glows and emits steady concentric rings
                 if (val > 0.62) {
-                    const dotR  = 2.5 + beat * 4;
-                    const glow  = 8 + beat * 18;
+                    const dotR = 2.5 + beat * 4;
+                    const glow = 8 + beat * 18;
 
-                    ctx.shadowBlur  = glow;
+                    ctx.shadowBlur = glow;
                     ctx.shadowColor = '#00e5ff';
-                    ctx.fillStyle   = `rgba(0, 229, 255, ${0.3 + beat * 0.45})`;
+                    ctx.fillStyle = `rgba(0, 229, 255, ${0.3 + beat * 0.45})`;
                     ctx.beginPath();
                     ctx.arc(nodeX, nodeY, dotR, 0, Math.PI * 2);
                     ctx.fill();
@@ -128,12 +135,12 @@ class SoundBiome {
 
                     // Three time-offset concentric rings per node (continuous, not beat-gated)
                     for (let ring = 0; ring < 3; ring++) {
-                        const phase     = ((time * 1.4 + val * 3 + ring / 3) % 1);
-                        const ringR     = phase * (55 + val * 90);
+                        const phase = ((time * 1.4 + val * 3 + ring / 3) % 1);
+                        const ringR = phase * (55 + val * 90);
                         const ringAlpha = (1 - phase) * 0.18 * pulse;
                         if (ringAlpha < 0.01) continue;
                         ctx.strokeStyle = `rgba(0, 229, 255, ${ringAlpha})`;
-                        ctx.lineWidth   = (1 - phase) * 2;
+                        ctx.lineWidth = (1 - phase) * 2;
                         ctx.beginPath();
                         ctx.arc(nodeX, nodeY, ringR, 0, Math.PI * 2);
                         ctx.stroke();
@@ -142,17 +149,17 @@ class SoundBiome {
 
                 // EQUALISER BARS — each cluster syncs its heights to the beat
                 if (val2 < 0.38) {
-                    const barX   = x + (val2 * 9999) % cellSize;
-                    const barY   = y + (val2 * 8888) % cellSize;
+                    const barX = x + (val2 * 9999) % cellSize;
+                    const barY = y + (val2 * 8888) % cellSize;
                     const numBars = 6;
-                    const barW   = 3;
+                    const barW = 3;
                     const spacing = 6;
 
                     for (let b = 0; b < numBars; b++) {
                         const bHash = Math.sin(barX * (b + 1) * 4.3 + barY * 0.7) * 10000;
-                        const bVal  = bHash - Math.floor(bHash);
+                        const bVal = bHash - Math.floor(bHash);
                         const beatBump = beat > 0.4 ? 1 + (beat - 0.4) * 2.5 : 1;
-                        const barH  = (8 + Math.abs(Math.sin(time * (1.8 + bVal * 4) + bVal * 9)) * 32) * beatBump;
+                        const barH = (8 + Math.abs(Math.sin(time * (1.8 + bVal * 4) + bVal * 9)) * 32) * beatBump;
 
                         ctx.fillStyle = `rgba(0, 180, 255, ${0.18 + beat * 0.22})`;
                         ctx.fillRect(
@@ -169,10 +176,10 @@ class SoundBiome {
                     ctx.strokeStyle = `rgba(224, 64, 251, ${0.12 + beat * 0.2})`;
                     ctx.lineWidth = 1;
                     ctx.beginPath();
-                    ctx.moveTo(x,         y - dSize);
-                    ctx.lineTo(x + dSize, y        );
-                    ctx.lineTo(x,         y + dSize);
-                    ctx.lineTo(x - dSize, y        );
+                    ctx.moveTo(x, y - dSize);
+                    ctx.lineTo(x + dSize, y);
+                    ctx.lineTo(x, y + dSize);
+                    ctx.lineTo(x - dSize, y);
                     ctx.closePath();
                     ctx.stroke();
                 }
@@ -182,45 +189,45 @@ class SoundBiome {
         // ── LAYER 5: EXPANDING BEAT RINGS ────────────────────────────────────
         this.beatRings.forEach(ring => {
             const progress = 1 - ring.life / ring.maxLife; // 0→1 as ring expands
-            const alpha    = (1 - progress) * 0.55;
+            const alpha = (1 - progress) * 0.55;
             if (alpha < 0.01) return;
 
-            ctx.shadowBlur  = 12 + (1 - progress) * 10;
+            ctx.shadowBlur = 12 + (1 - progress) * 10;
             ctx.shadowColor = ring.color;
             ctx.strokeStyle = ring.color;
             ctx.globalAlpha = alpha;
-            ctx.lineWidth   = ring.width * (1 - progress * 0.6);
+            ctx.lineWidth = ring.width * (1 - progress * 0.6);
             ctx.beginPath();
             ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI * 2);
             ctx.stroke();
             ctx.globalAlpha = 1;
-            ctx.shadowBlur  = 0;
+            ctx.shadowBlur = 0;
         });
 
         // ── LAYER 6: SLOW ROTATING HYPNOTIC SPIRALS ─────────────────────────
         // Two subtle spirals anchored to viewport, continuously rotating.
         // Their opacity surges on beat — like the sound is winding up.
         const spirals = [
-            { tx: 0.22, ty: 0.38, scale: 140, dir:  1 },
+            { tx: 0.22, ty: 0.38, scale: 140, dir: 1 },
             { tx: 0.78, ty: 0.62, scale: 110, dir: -1 },
         ];
         spirals.forEach(s => {
-            const cx      = cam.x + cam.width  * s.tx;
-            const cy      = cam.y + cam.height * s.ty;
-            const rot     = time * 0.18 * s.dir;
-            const sAlpha  = 0.035 + beat * 0.055;
+            const cx = cam.x + cam.width * s.tx;
+            const cy = cam.y + cam.height * s.ty;
+            const rot = time * 0.18 * s.dir;
+            const sAlpha = 0.035 + beat * 0.055;
 
             ctx.strokeStyle = `rgba(160, 0, 255, ${sAlpha})`;
-            ctx.lineWidth   = 1;
+            ctx.lineWidth = 1;
             ctx.beginPath();
             const steps = 200;
             for (let i = 0; i <= steps; i++) {
                 const angle = (i / steps) * Math.PI * 7 + rot;
-                const r     = (i / steps) * s.scale;
-                const px    = cx + Math.cos(angle) * r;
-                const py    = cy + Math.sin(angle) * r;
+                const r = (i / steps) * s.scale;
+                const px = cx + Math.cos(angle) * r;
+                const py = cy + Math.sin(angle) * r;
                 if (i === 0) ctx.moveTo(px, py);
-                else         ctx.lineTo(px, py);
+                else ctx.lineTo(px, py);
             }
             ctx.stroke();
         });

@@ -108,6 +108,7 @@ class AudioManager {
             // DLC Symphony of Sickness
             battle_poison: new Audio('dlc/symphony_of_sickness/audio/music/battle_poison.wav'),
             battle_sound: new Audio('dlc/symphony_of_sickness/audio/music/battle_sound.wav'),
+            battle_sound_sync: new Audio('dlc/symphony_of_sickness/audio/music/battle_sound_sync.wav'),
             boss_poison: new Audio('dlc/symphony_of_sickness/audio/music/boss_poison.wav'),
             boss_sound: new Audio('dlc/symphony_of_sickness/audio/music/boss_sound.wav'),
         };
@@ -210,6 +211,8 @@ class AudioManager {
         this.tracks.battle_poison.volume = 0.4;
         this.tracks.battle_sound.loop = true;
         this.tracks.battle_sound.volume = 0.4;
+        this.tracks.battle_sound_sync.loop = true;
+        this.tracks.battle_sound_sync.volume = 0.42;
         this.tracks.boss_poison.loop = true;
         this.tracks.boss_poison.volume = 0.6;
         this.tracks.boss_sound.loop = true;
@@ -426,6 +429,8 @@ class AudioManager {
     update() {
         // Ensure global variables are available
         if (typeof uiState === 'undefined') return;
+        // Don't switch music while the game is interrupted — lets manual pause/resume hold
+        if (uiState === 'PAUSE' || uiState === 'LEVELUP') return;
 
         const menuStates = ['MENU', 'OPTIONS', 'PERMSHOP', 'ACHIEVEMENTS', 'COLLECTION', 'HIGHSCORE', 'STORY', 'ALTAR', 'CHAOSSHOP', 'TUTORIAL', 'STATS', 'COMPLETION', 'SKILLTREE'];
 
@@ -468,6 +473,11 @@ class AudioManager {
                 typeof enemies !== 'undefined' &&
                 enemies.some(e => e instanceof Boss && ['CLOUD_GOLEM', 'STORM_CROW', 'TORNADO_MACHINA', 'TEMPEST'].includes(e.type));
 
+            const isPoisonBossActive = typeof bossActive !== 'undefined' && bossActive &&
+                typeof player !== 'undefined' && player && player.type === 'poison';
+            const isSoundBossActive = typeof bossActive !== 'undefined' && bossActive &&
+                typeof player !== 'undefined' && player && player.type === 'sound';
+
             if (isMakutaActive) {
                 this.stopAllExcept('makuta');
                 this.play('makuta');
@@ -504,7 +514,6 @@ class AudioManager {
                 const isAirActive = typeof player !== 'undefined' && player && player.type === 'air';
                 const isVoidActive = typeof player !== 'undefined' && player && player.type === 'void';
                 const isPoisonActive = typeof player !== 'undefined' && player && player.type === 'poison';
-                const isSoundActive = typeof player !== 'undefined' && player && player.type === 'sound';
                 const isStoryMode = typeof isDailyMode !== 'undefined' && !isDailyMode &&
                     typeof isWeeklyMode !== 'undefined' && !isWeeklyMode &&
                     typeof saveData !== 'undefined' && saveData.story && saveData.story.enabled;
@@ -559,9 +568,9 @@ class AudioManager {
                 } else if (isPoisonActive && isStoryMode && this.tracks['battle_poison']) {
                     this.stopAllExcept('battle_poison');
                     this.play('battle_poison');
-                } else if (isSoundActive && isStoryMode && this.tracks['battle_sound']) {
-                    this.stopAllExcept('battle_sound');
-                    this.play('battle_sound');
+                } else if (((typeof currentBiomeType !== 'undefined' && currentBiomeType === 'sound') || (typeof window.currentBiome !== 'undefined' && window.currentBiome === 'sound')) && this.tracks['battle_sound_sync']) {
+                    this.stopAllExcept('battle_sound_sync');
+                    this.play('battle_sound_sync');
                 } else {
                     this.stopAllExcept('battle');
                     this.play('battle');

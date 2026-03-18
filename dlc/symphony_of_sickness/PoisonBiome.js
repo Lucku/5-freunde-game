@@ -6,6 +6,11 @@ class PoisonBiome {
         this.bubbles = [];   // Surface bubbles
     }
 
+    generate(arena) {
+        const cx = arena.width / 2;
+        const cy = arena.height / 2;
+    }
+
     update(arena, player, enemies) {
         const cam = arena.camera;
         const frame = window.frame || 0;
@@ -116,13 +121,13 @@ class PoisonBiome {
         // ── LAYER 2: DRIFTING TOXIC MIST BANDS ──────────────────────────────
         for (let row = 0; row < 6; row++) {
             const bandY = cam.y + (row / 6) * cam.height;
-            const drift  = Math.sin(time * 0.28 + row * 1.9) * 40;
-            const alpha  = 0.03 + Math.sin(time * 0.4 + row * 0.8) * 0.015;
+            const drift = Math.sin(time * 0.28 + row * 1.9) * 40;
+            const alpha = 0.03 + Math.sin(time * 0.4 + row * 0.8) * 0.015;
             const grad = ctx.createLinearGradient(cam.x + drift, bandY, cam.x + cam.width + drift, bandY + cam.height / 5);
-            grad.addColorStop(0,   'rgba(30, 80, 0, 0)');
+            grad.addColorStop(0, 'rgba(30, 80, 0, 0)');
             grad.addColorStop(0.4, `rgba(45, 110, 0, ${alpha})`);
             grad.addColorStop(0.6, `rgba(65, 130, 0, ${alpha})`);
-            grad.addColorStop(1,   'rgba(30, 80, 0, 0)');
+            grad.addColorStop(1, 'rgba(30, 80, 0, 0)');
             ctx.fillStyle = grad;
             ctx.fillRect(cam.x + drift - 60, bandY, cam.width + 120, cam.height / 5);
         }
@@ -130,17 +135,17 @@ class PoisonBiome {
         // ── LAYER 3: PROCEDURAL TOXIC POOLS, DEAD FLORA, CRACKS ─────────────
         for (let x = sx; x <= ex; x += cellSize) {
             for (let y = sy; y <= ey; y += cellSize) {
-                const hash  = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-                const val   = hash - Math.floor(hash);
+                const hash = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+                const val = hash - Math.floor(hash);
                 const hash2 = Math.sin(x * 93.989 + y * 17.233) * 7843.5;
-                const val2  = hash2 - Math.floor(hash2);
+                const val2 = hash2 - Math.floor(hash2);
 
-                const px = x + (val  * 1337) % cellSize;
-                const py = y + (val  * 7331) % cellSize;
+                const px = x + (val * 1337) % cellSize;
+                const py = y + (val * 7331) % cellSize;
 
                 // TOXIC POOLS
                 if (val > 0.32) {
-                    const swell  = Math.sin(time * 1.4 + val * 8) * 5;
+                    const swell = Math.sin(time * 1.4 + val * 8) * 5;
                     const radius = 22 + val * 38 + swell;
 
                     // Dark outer sludge
@@ -151,9 +156,9 @@ class PoisonBiome {
 
                     // Inner toxic gradient
                     const poolGrad = ctx.createRadialGradient(px, py, 0, px, py, radius);
-                    poolGrad.addColorStop(0,   'rgba(70, 160, 0, 0.28)');
+                    poolGrad.addColorStop(0, 'rgba(70, 160, 0, 0.28)');
                     poolGrad.addColorStop(0.55, 'rgba(35, 90, 0, 0.18)');
-                    poolGrad.addColorStop(1,    'rgba(8, 25, 0, 0.04)');
+                    poolGrad.addColorStop(1, 'rgba(8, 25, 0, 0.04)');
                     ctx.fillStyle = poolGrad;
                     ctx.beginPath();
                     ctx.arc(px, py, radius, 0, Math.PI * 2);
@@ -220,14 +225,14 @@ class PoisonBiome {
                 // TOXIC FISSURES / CRACKS
                 if (val > 0.72 && val2 > 0.65) {
                     const fx = x + (val2 * 5432) % cellSize;
-                    const fy = y + (val  * 3210) % cellSize;
+                    const fy = y + (val * 3210) % cellSize;
                     ctx.strokeStyle = `rgba(80, 170, 0, 0.1)`;
                     ctx.lineWidth = 1;
                     ctx.lineCap = 'round';
                     ctx.beginPath();
                     ctx.moveTo(fx, fy);
-                    ctx.lineTo(fx + (val  - 0.5) * 36, fy + (val2 - 0.5) * 26);
-                    ctx.lineTo(fx + (val2 - 0.3) * 28, fy + (val  - 0.4) * 44);
+                    ctx.lineTo(fx + (val - 0.5) * 36, fy + (val2 - 0.5) * 26);
+                    ctx.lineTo(fx + (val2 - 0.3) * 28, fy + (val - 0.4) * 44);
                     ctx.stroke();
                 }
             }
@@ -238,21 +243,21 @@ class PoisonBiome {
             const r = 1 - g.life / g.maxLife; // 0→1 as cloud rises and fades
             // Fade in during first 15%, full opacity until 75%, fade out last 25%
             let a;
-            if (r < 0.15)      a = (r / 0.15) * 0.22;
+            if (r < 0.15) a = (r / 0.15) * 0.22;
             else if (r > 0.75) a = (1 - (r - 0.75) / 0.25) * 0.22;
-            else               a = 0.22;
+            else a = 0.22;
 
             const grad = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, g.r);
             if (g.tint === 0) {
                 // Sickly yellow-green
-                grad.addColorStop(0,   `rgba(100, 175, 0, ${a})`);
+                grad.addColorStop(0, `rgba(100, 175, 0, ${a})`);
                 grad.addColorStop(0.55, `rgba(55, 110, 0, ${a * 0.6})`);
-                grad.addColorStop(1,    'rgba(20, 50, 0, 0)');
+                grad.addColorStop(1, 'rgba(20, 50, 0, 0)');
             } else {
                 // Dark murky green
-                grad.addColorStop(0,   `rgba(30, 70, 0, ${a * 0.9})`);
+                grad.addColorStop(0, `rgba(30, 70, 0, ${a * 0.9})`);
                 grad.addColorStop(0.55, `rgba(15, 45, 0, ${a * 0.5})`);
-                grad.addColorStop(1,    'rgba(5, 18, 0, 0)');
+                grad.addColorStop(1, 'rgba(5, 18, 0, 0)');
             }
             ctx.fillStyle = grad;
             ctx.beginPath();
@@ -276,7 +281,7 @@ class PoisonBiome {
         });
 
         // ── LAYER 6: EDGE VIGNETTE (darkness creeping in) ───────────────────
-        const vigCX = cam.x + cam.width  / 2;
+        const vigCX = cam.x + cam.width / 2;
         const vigCY = cam.y + cam.height / 2;
         const vigGrad = ctx.createRadialGradient(vigCX, vigCY, cam.height * 0.22, vigCX, vigCY, cam.height * 0.78);
         vigGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
@@ -316,6 +321,7 @@ class PoisonFlask {
         this.w = 30;
         this.h = 30;
         this.radius = 15;
+        this.solid = false; // Walkthrough pickup — does not block player movement
 
         const types = ['RED', 'BLUE', 'GREEN'];
         this.type = types[Math.floor(Math.random() * types.length)];
@@ -335,8 +341,8 @@ class PoisonFlask {
         ctx.save();
 
         let color = '#fff';
-        if (this.type === 'RED')   color = '#e74c3c';
-        if (this.type === 'BLUE')  color = '#3498db';
+        if (this.type === 'RED') color = '#e74c3c';
+        if (this.type === 'BLUE') color = '#3498db';
         if (this.type === 'GREEN') color = '#76ff03';
 
         ctx.fillStyle = color;
