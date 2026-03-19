@@ -1,25 +1,18 @@
 # General
 
-- Add audio for when wave is cleared
 - Add enemy impact sounde effects
-- Don't let the enemies out of the jail
 - game developer note
 - intro with game developer logo
 - make all DLC special bosses 3D
-- add coin pickup sound
-- Proper effects for base game hero specials
-- app possibility to test all bosses to testing grounds
-- Save & Quit option after clearing each wave
+- 'Save & Quit' option after clearing each wave
 - screen indicator for when only one enemy is left
-
-# Waker of Winds
-
-- overhaul boss enemies (specially Temp_est)
+- integrate all play modes into coop
 
 # Symphony of Sickness
 
-- Add memory shard contents
-- Different levels = different beats with different BPM (e.g., 60, 100, 120)
+- fix sound hero enemy spawn bug
+- add Sound hero attack and special sound effects
+- remove weird boss enemies
 
 # Future
 

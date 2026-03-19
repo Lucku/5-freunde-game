@@ -14,6 +14,29 @@ const canvas = document.getElementById('gameCanvas');
 window.canvas = canvas; // Expose for DLCs
 const ctx = canvas.getContext('2d');
 window.ctx = ctx; // Expose for DLCs
+
+// Canvas click handler for boss-defeated choice screen buttons
+canvas.addEventListener('click', function (e) {
+    if (!_bossChoiceScreen || _bossChoiceFrame < 20) return;
+    const r = canvas.getBoundingClientRect();
+    const mx = (e.clientX - r.left) * (canvas.width / r.width);
+    const my = (e.clientY - r.top) * (canvas.height / r.height);
+    const cont = window._bossContinueBtn;
+    const quit = window._bossQuitBtn;
+    if (cont && mx >= cont.x && mx <= cont.x + cont.w && my >= cont.y && my <= cont.y + cont.h) {
+        _doBossContinue();
+    } else if (quit && mx >= quit.x && mx <= quit.x + quit.w && my >= quit.y && my <= quit.y + quit.h) {
+        saveAndQuit();
+    }
+});
+
+function _doBossContinue() {
+    _bossChoiceScreen = false;
+    _bossChoiceFrame = 0;
+    window._bossContinueBtn = null;
+    window._bossQuitBtn = null;
+    triggerStory(wave);
+}
 const buffContainer = document.getElementById('buff-container');
 
 // Initialize DLC Manager
@@ -1097,10 +1120,13 @@ function continueRun() {
 
     // Reset Boss Timer
     bossDeathTimer = 0;
+    _bossChoiceScreen = false;
+    _bossChoiceFrame = 0;
     bossActive = false;
     enemiesKilledInWave = 0; // Reset kill count for the wave we are about to start
-    // Start the wave
-    advanceWave();
+    // Show story narration for the current wave before starting it (player hasn't seen it yet)
+    // wave is currently state.wave - 1; triggerStory(wave) checks for story at wave+1 = state.wave
+    triggerStory(wave);
 
     // Clear the save slot immediately upon loading (Rogue-lite style)
     // Or keep it until next wave start? 
@@ -1145,10 +1171,20 @@ function closeConfirmDialog() {
 
 function quitGame() {
     clearSavedRun();
-    // Use initMenu to return to menu without full reload if preferred, 
+    // Use initMenu to return to menu without full reload if preferred,
     // but reload ensures clean state.
     location.reload();
 }
+
+function saveAndQuit() {
+    // Save the run pointing at the next wave (wave+1), so continueRun() resumes there.
+    // continueRun() does: wave = savedRun.wave - 1, then advanceWave() → wave becomes savedRun.wave.
+    wave++;
+    saveRunState();
+    wave--;
+    location.reload();
+}
+window.saveAndQuit = saveAndQuit;
 
 function exitToDesktop() {
     if (isElectron) {
@@ -1212,6 +1248,9 @@ let frame = 0;
 var enemiesKilledInWave = 0; // Exposed for DLC
 var bossActive = false;      // Exposed for DLC
 let bossDeathTimer = 0; // Timer for slow-mo effect
+let _bossChoiceScreen = false;  // Choice screen active after cinematic ends
+let _bossChoiceFrame = 0;       // Frame counter for live animations on choice screen
+let _bossChoiceGpConsumed = false; // Gamepad debounce
 var isPlayerDying = false; // Player death animation flag - Exposed for Player.js
 let playerDeathTimer = 0; // Timer for player death animation
 
@@ -1398,6 +1437,16 @@ inputManager.onKeyDown = e => {
             if (e.code === 'KeyC' && !gamePaused) {
                 if (window.TestingGrounds) TestingGrounds.clearAll();
             }
+        }
+
+        // DEBUG: [N] Instantly complete current wave (triggers boss-defeated cinematic)
+        if (e.code === 'KeyN' && gameRunning && !isLevelingUp && !gamePaused && bossDeathTimer === 0 && !_bossChoiceScreen) {
+            enemies = [];
+            projectiles = [];
+            bossActive = false;
+            bossDeathTimer = 180;
+            if (typeof audioManager !== 'undefined') audioManager.play('wave_completed');
+            showNotification('DEBUG: Wave skipped');
         }
     }
 };
@@ -2788,6 +2837,8 @@ function startGame(mode = 'NORMAL') {
     masksDroppedInWave = 0; // Cap mask drops
     bossActive = false;
     bossDeathTimer = 0;
+    _bossChoiceScreen = false;
+    _bossChoiceFrame = 0;
     enemies = [];
     projectiles = [];
     particles = [];
@@ -2857,6 +2908,7 @@ function startGame(mode = 'NORMAL') {
         isDailyMode = false;
         isWeeklyMode = false;
         activeMutators = [];
+        wave = 1;
         currentBiomeType = selectedHeroType === 'black' ? 'chaos' : selectedHeroType;
         arena.generate(currentBiomeType);
         player.x = arena.width / 2;
@@ -3262,7 +3314,7 @@ function masterLoop(timestamp) {
             if (bossDeathTimer > 0) {
                 bossDeathTimer--;
 
-                const _progress = 1 - bossDeathTimer / 180; // 0 at sequence start → 1 at end
+                const _progress = 1 - bossDeathTimer / 180;
 
                 // --- Cinematic frame drawn every frame (no strobe) ---
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -3344,64 +3396,185 @@ function masterLoop(timestamp) {
                 }
 
                 if (bossDeathTimer === 0) {
-                    // Sequence Finished - Proceed to Next Wave/Shop
+                    if (isTestingMode) {
+                        // In testing mode: cinematic plays but wave does not advance
+                        showNotification('Boss defeated — [TAB] to spawn another');
+                    } else {
+                        // Sequence Finished - Proceed to Next Wave/Shop
 
-                    // Daily Challenge Win Condition
-                    if (isDailyMode && wave === 10) {
-                        showNotification("DAILY CHALLENGE COMPLETE!");
-                        saveData.daily.lastCompleted = getDailySeed();
-                        saveData.global.totalVoidGoldSpent += 0; // Just to ensure field exists
-                        // Reward
-                        player.gold += 5000; // Bonus Gold
-                        saveData.global.totalGold += 5000;
+                        // Daily Challenge Win Condition
+                        if (isDailyMode && wave === 10) {
+                            showNotification("DAILY CHALLENGE COMPLETE!");
+                            saveData.daily.lastCompleted = getDailySeed();
+                            saveData.global.totalVoidGoldSpent += 0; // Just to ensure field exists
+                            // Reward
+                            player.gold += 5000; // Bonus Gold
+                            saveData.global.totalGold += 5000;
 
-                        // Chaos Reward
-                        if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
-                        saveData.chaos.shards += 1;
-                        showNotification("EARNED 1 CHAOS SHARD!");
+                            // Chaos Reward
+                            if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
+                            saveData.chaos.shards += 1;
+                            showNotification("EARNED 1 CHAOS SHARD!");
 
-                        // Track Wins
-                        saveData.global.daily_wins = (saveData.global.daily_wins || 0) + 1;
+                            // Track Wins
+                            saveData.global.daily_wins = (saveData.global.daily_wins || 0) + 1;
 
-                        // Achievement
-                        unlockAchievement('DAILY_CHALLENGE');
-                        checkAchievements(); // Check tiered achievements
+                            // Achievement
+                            unlockAchievement('DAILY_CHALLENGE');
+                            checkAchievements(); // Check tiered achievements
 
-                        saveGame();
-                        setTimeout(() => gameOver(true), 3000);
-                        return;
+                            saveGame();
+                            setTimeout(() => gameOver(true), 3000);
+                            return;
+                        }
+
+                        // Weekly Challenge Win Condition
+                        if (isWeeklyMode && wave === 20) {
+                            showNotification("WEEKLY CHALLENGE COMPLETE!");
+                            saveData.weekly.lastCompleted = getWeeklySeed();
+                            // Reward (Bigger than Daily)
+                            player.gold += 15000; // Bonus Gold
+                            saveData.global.totalGold += 15000;
+
+                            // Chaos Reward
+                            if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
+                            saveData.chaos.shards += 3;
+                            showNotification("EARNED 3 CHAOS SHARDS!");
+
+                            // Track Wins
+                            saveData.global.weekly_wins = (saveData.global.weekly_wins || 0) + 1;
+
+                            // Achievement
+                            unlockAchievement('WEEKLY_CHALLENGE');
+                            checkAchievements(); // Check tiered achievements
+
+                            saveGame();
+                            setTimeout(() => gameOver(true), 3000);
+                            return;
+                        }
+
+                        if (isTutorialMode) { TutorialMode.onBossDefeated(); return; }
+                        // Open choice screen — player picks Continue or Save & Quit
+                        _bossChoiceScreen = true;
+                        _bossChoiceFrame = 0;
+                        _bossChoiceGpConsumed = false;
                     }
-
-                    // Weekly Challenge Win Condition
-                    if (isWeeklyMode && wave === 20) {
-                        showNotification("WEEKLY CHALLENGE COMPLETE!");
-                        saveData.weekly.lastCompleted = getWeeklySeed();
-                        // Reward (Bigger than Daily)
-                        player.gold += 15000; // Bonus Gold
-                        saveData.global.totalGold += 15000;
-
-                        // Chaos Reward
-                        if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
-                        saveData.chaos.shards += 3;
-                        showNotification("EARNED 3 CHAOS SHARDS!");
-
-                        // Track Wins
-                        saveData.global.weekly_wins = (saveData.global.weekly_wins || 0) + 1;
-
-                        // Achievement
-                        unlockAchievement('WEEKLY_CHALLENGE');
-                        checkAchievements(); // Check tiered achievements
-
-                        saveGame();
-                        setTimeout(() => gameOver(true), 3000);
-                        return;
-                    }
-
-                    if (isTutorialMode) { TutorialMode.onBossDefeated(); return; }
-                    if (typeof audioManager !== 'undefined') audioManager.play('wave_completed');
-                    triggerStory(wave);
                 }
                 return; // Always prevent normal render during cinematic
+            }
+
+            // Boss-Defeated Choice Screen (runs after cinematic, before next wave)
+            if (_bossChoiceScreen) {
+                _bossChoiceFrame++;
+                const _fi = Math.min(1, _bossChoiceFrame / 25); // fade-in over ~0.4 s
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Arena background
+                ctx.save();
+                ctx.translate(-arena.camera.x, -arena.camera.y);
+                if (arena) arena.draw(ctx, getHeroTheme(currentBiomeType));
+                ctx.restore();
+
+                // Dark overlay
+                ctx.fillStyle = 'rgba(0,0,0,0.82)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Live particle shower — driven by _bossChoiceFrame so it keeps moving
+                ctx.save();
+                for (let _i = 0; _i < 28; _i++) {
+                    const _px = ((_i * 1.618 * 97) % 1) * canvas.width;
+                    const _py = (((_i * 2.236 * 83 + 40) % 1) * canvas.height + _bossChoiceFrame * (1.0 + (_i % 5) * 0.5) * 2.2) % canvas.height;
+                    ctx.globalAlpha = (0.35 + 0.65 * Math.abs(Math.sin(_bossChoiceFrame * 0.05 + _i * 0.9))) * 0.5;
+                    ctx.fillStyle = _i % 3 === 0 ? '#ffffff' : '#f1c40f';
+                    ctx.beginPath();
+                    ctx.arc(_px, _py, 1.5 + (_i % 4) * 1.2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+
+                // "BOSS DEFEATED" heading
+                ctx.save();
+                ctx.globalAlpha = _fi;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = '#f1c40f';
+                ctx.shadowBlur = 70;
+                ctx.fillStyle = 'rgba(241,196,15,0.22)';
+                ctx.font = 'bold 64px Arial';
+                ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
+                ctx.shadowBlur = 16;
+                ctx.shadowColor = 'rgba(241,196,15,0.85)';
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
+                ctx.restore();
+
+                // "WAVE X CLEARED" subtitle
+                ctx.save();
+                ctx.globalAlpha = _fi * 0.82;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = '#f1c40f';
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = '#f1c40f';
+                ctx.font = '13px Arial';
+                ctx.fillText(`\u2014 WAVE ${wave} CLEARED \u2014`, canvas.width / 2, canvas.height / 2 + 48);
+                ctx.restore();
+
+                // Buttons
+                const _btY = canvas.height / 2 + 100;
+                const _btW = 180, _btH = 40, _btGap = 20;
+                const _bcx = canvas.width / 2;
+                const _contX = _bcx - _btW - _btGap / 2;
+                const _quitX = _bcx + _btGap / 2;
+
+                ctx.save();
+                // Continue (gold)
+                ctx.globalAlpha = _fi * 0.92;
+                ctx.strokeStyle = 'rgba(241,196,15,0.85)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.roundRect(_contX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
+                ctx.fillStyle = 'rgba(241,196,15,0.12)'; ctx.fill();
+                ctx.fillStyle = '#f1c40f';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.font = 'bold 11px Arial';
+                ctx.fillText('CONTINUE  \u2192', _contX + _btW / 2, _btY);
+                window._bossContinueBtn = { x: _contX, y: _btY - _btH / 2, w: _btW, h: _btH };
+
+                // Save & Quit (subtle)
+                ctx.globalAlpha = _fi * 0.72;
+                ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.roundRect(_quitX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
+                ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fill();
+                ctx.globalAlpha = _fi * 0.65;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('SAVE  &  QUIT', _quitX + _btW / 2, _btY);
+                window._bossQuitBtn = { x: _quitX, y: _btY - _btH / 2, w: _btW, h: _btH };
+
+                // Controller hint
+                ctx.globalAlpha = _fi * 0.35;
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '10px Arial';
+                ctx.fillText('[A] Continue    [B] Save & Quit', _bcx, _btY + _btH / 2 + 18);
+                ctx.restore();
+
+                // Gamepad input (debounced, ignores first 20 frames to avoid accidental confirm)
+                if (_bossChoiceFrame > 20) {
+                    const _gpads = navigator.getGamepads ? navigator.getGamepads() : [];
+                    let _anyPressed = false;
+                    for (const _gp of _gpads) {
+                        if (!_gp) continue;
+                        if (_gp.buttons[0]?.pressed || _gp.buttons[1]?.pressed) _anyPressed = true;
+                        if (!_bossChoiceGpConsumed) {
+                            if (_gp.buttons[0]?.pressed) { _bossChoiceGpConsumed = true; _doBossContinue(); break; }
+                            if (_gp.buttons[1]?.pressed) { _bossChoiceGpConsumed = true; saveAndQuit(); break; }
+                        }
+                    }
+                    if (!_anyPressed) _bossChoiceGpConsumed = false;
+                }
+
+                return; // Prevent normal game render
             }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -4515,6 +4688,8 @@ function masterLoop(timestamp) {
 
                             // Start Boss Death Sequence
                             bossDeathTimer = 180; // 3 seconds at 60 FPS
+                            if (typeof audioManager !== 'undefined') audioManager.play('wave_completed');
+
 
                             // Clear all other enemies instantly for dramatic effect
                             enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));

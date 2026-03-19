@@ -400,12 +400,33 @@ class Player {
             // Convergence: Plasma (c16)
             const isPlasma = has('c16');
 
+            // Central burst + outward ember ring
+            createExplosion(this.x, this.y, '#ff6600');
+            for (let i = 0; i < 24; i++) {
+                const a = (Math.PI * 2 / 24) * i;
+                const spd = 3.5 + Math.random() * 3;
+                const p = new Particle(this.x, this.y, i % 3 === 0 ? '#ffd700' : '#ff4500');
+                p.velocity.x = Math.cos(a) * spd; p.velocity.y = Math.sin(a) * spd;
+                p.life = 0.018; particles.push(p);
+            }
+            // Inner ring at half radius fills the gap
+            for (let i = 0; i < 16; i++) {
+                const a = (Math.PI * 2 / 16) * i + Math.PI / 16;
+                const p = new Particle(this.x + Math.cos(a) * radius * 0.5, this.y + Math.sin(a) * radius * 0.5, '#e67e22');
+                p.life = 0.022; particles.push(p);
+            }
+
             for (let i = 0; i < 12; i++) {
                 const angle = (Math.PI * 2 / 12) * i;
                 const ex = this.x + Math.cos(angle) * radius;
                 const ey = this.y + Math.sin(angle) * radius;
                 setTimeout(() => {
                     createExplosion(ex, ey, '#e74c3c');
+                    // Ember scatter at each explosion
+                    for (let j = 0; j < 6; j++) {
+                        const ep = new Particle(ex, ey, j % 2 === 0 ? '#ff4500' : '#ffd700');
+                        ep.life = 0.03; particles.push(ep);
+                    }
                     // Lingering Flame (f3)
                     if (has('f3')) {
                         setTimeout(() => createExplosion(ex, ey, '#e67e22'), 500);
@@ -435,8 +456,29 @@ class Player {
             }
         } else if (this.type === 'water') {
             if (typeof audioManager !== 'undefined') audioManager.play('special_water');
-            // Pushback
+            // Tidal burst: central explosion + 3 expanding ripple rings
             createExplosion(this.x, this.y, '#3498db');
+            createExplosion(this.x, this.y, '#74b9ff');
+            // Radial spray from center
+            for (let i = 0; i < 32; i++) {
+                const a = (Math.PI * 2 / 32) * i;
+                const spd = 4 + Math.random() * 5;
+                const p = new Particle(this.x, this.y, i % 4 === 0 ? '#ffffff' : '#3498db');
+                p.velocity.x = Math.cos(a) * spd; p.velocity.y = Math.sin(a) * spd;
+                p.life = 0.02; particles.push(p);
+            }
+            // Three staggered ripple rings at increasing radii
+            [80, 160, 240].forEach((r, wave) => {
+                setTimeout(() => {
+                    for (let i = 0; i < 20; i++) {
+                        const a = (Math.PI * 2 / 20) * i;
+                        const p = new Particle(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, wave === 0 ? '#74b9ff' : '#3498db');
+                        p.velocity.x = Math.cos(a) * 1.5; p.velocity.y = Math.sin(a) * 1.5;
+                        p.life = 0.025; particles.push(p);
+                    }
+                    createExplosion(this.x + Math.cos(wave * 1.1) * r * 0.4, this.y + Math.sin(wave * 1.1) * r * 0.4, '#3498db');
+                }, wave * 80);
+            });
             let pushForce = 200;
             if (has('w2')) pushForce *= 1.3; // +30% Pushback
 
@@ -491,6 +533,35 @@ class Player {
             });
         } else if (this.type === 'ice') {
             if (typeof audioManager !== 'undefined') audioManager.play('special_ice');
+            // Frost shockwave: central burst + two expanding rings + 8 crystal spikes
+            createExplosion(this.x, this.y, '#aaddff');
+            createExplosion(this.x, this.y, '#ffffff');
+            // Dense inner ring — the "freeze pulse" emanating outward
+            for (let i = 0; i < 36; i++) {
+                const a = (Math.PI * 2 / 36) * i;
+                const spd = 3 + Math.random() * 3;
+                const p = new Particle(this.x, this.y, i % 3 === 0 ? '#ffffff' : '#aaddff');
+                p.velocity.x = Math.cos(a) * spd; p.velocity.y = Math.sin(a) * spd;
+                p.life = 0.016; particles.push(p);
+            }
+            // 8 crystal shards shooting out in cardinal + diagonal directions
+            for (let i = 0; i < 8; i++) {
+                const a = (Math.PI * 2 / 8) * i;
+                for (let r = 30; r <= 150; r += 30) {
+                    const p = new Particle(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, r < 90 ? '#ffffff' : '#aaddff');
+                    p.velocity.x = Math.cos(a) * 1; p.velocity.y = Math.sin(a) * 1;
+                    p.life = 0.02; particles.push(p);
+                }
+            }
+            // Outer frost ring delayed — frost spreading across the arena
+            setTimeout(() => {
+                for (let i = 0; i < 28; i++) {
+                    const a = (Math.PI * 2 / 28) * i;
+                    const p = new Particle(this.x + Math.cos(a) * 200, this.y + Math.sin(a) * 200, '#aaddff');
+                    p.velocity.x = Math.cos(a) * 1.2; p.velocity.y = Math.sin(a) * 1.2;
+                    p.life = 0.022; particles.push(p);
+                }
+            }, 150);
             // Freeze
             let duration = 180;
             if (has('i2')) duration *= 1.5; // +50% Duration
@@ -528,6 +599,25 @@ class Player {
 
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + healAmount);
             floatingTexts.push(new FloatingText(this.x, this.y - 40, "HEAL", "#2ecc71", 20));
+            // Healing bloom: central green burst + rising life particles + outward spore ring
+            createExplosion(this.x, this.y, '#2ecc71');
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    const ox = (Math.random() - 0.5) * 40;
+                    const p = new Particle(this.x + ox, this.y, i % 3 === 0 ? '#f9ca24' : '#2ecc71');
+                    p.velocity.x = (Math.random() - 0.5) * 1.5;
+                    p.velocity.y = -(2.5 + Math.random() * 2.5);
+                    p.life = 0.014; particles.push(p);
+                }, i * 20);
+            }
+            // Radial spore burst at ground level
+            for (let i = 0; i < 24; i++) {
+                const a = (Math.PI * 2 / 24) * i;
+                const spd = 2.5 + Math.random() * 3;
+                const p = new Particle(this.x, this.y, i % 5 === 0 ? '#f9ca24' : '#27ae60');
+                p.velocity.x = Math.cos(a) * spd; p.velocity.y = Math.sin(a) * spd;
+                p.life = 0.02; particles.push(p);
+            }
 
             // Convergence: Bio-Electricity (c20)
             if (has('c20')) {
@@ -589,6 +679,27 @@ class Player {
 
             this.invincibleTimer = duration;
             floatingTexts.push(new FloatingText(this.x, this.y - 40, "INVINCIBLE", "#95a5a6", 20));
+            // Armor activation: silver flash + steel spark ring + delayed shockwave
+            createExplosion(this.x, this.y, '#ecf0f1');
+            createExplosion(this.x, this.y, '#95a5a6');
+            // Steel sparks radiating in 16 directions
+            for (let i = 0; i < 16; i++) {
+                const a = (Math.PI * 2 / 16) * i;
+                const spd = 5 + Math.random() * 4;
+                const p = new Particle(this.x, this.y, i % 2 === 0 ? '#ecf0f1' : '#bdc3c7');
+                p.velocity.x = Math.cos(a) * spd; p.velocity.y = Math.sin(a) * spd;
+                p.life = 0.025; particles.push(p);
+            }
+            // Outer shockwave ring — delayed, feels like armour locking on
+            setTimeout(() => {
+                createExplosion(this.x, this.y, '#95a5a6');
+                for (let i = 0; i < 24; i++) {
+                    const a = (Math.PI * 2 / 24) * i;
+                    const p = new Particle(this.x + Math.cos(a) * 120, this.y + Math.sin(a) * 120, i % 3 === 0 ? '#ecf0f1' : '#7f8c8d');
+                    p.velocity.x = Math.cos(a) * 2; p.velocity.y = Math.sin(a) * 2;
+                    p.life = 0.022; particles.push(p);
+                }
+            }, 120);
 
             // Magnetic Field (m3)
             if (has('m3')) {
@@ -641,15 +752,29 @@ class Player {
                 floatingTexts.push(new FloatingText(this.x, this.y - 40, "+50 HP", "#2ecc71", 20));
             }
 
-            createExplosion(this.x, this.y, '#9b59b6'); // Bright Purple
+            createExplosion(this.x, this.y, '#9b59b6');
+            createExplosion(this.x, this.y, '#2c3e50');
 
-            // Ring Effect (Visual Pulse)
-            for (let i = 0; i < 36; i++) {
-                const angle = (Math.PI * 2 / 36) * i;
-                const px = this.x + Math.cos(angle) * (radius / 2);
-                const py = this.y + Math.sin(angle) * (radius / 2);
-                particles.push(new Particle(px, py, '#8e44ad'));
+            // Void implosion: particles rush inward first, then the shockwave erupts
+            for (let i = 0; i < 28; i++) {
+                const a = (Math.PI * 2 / 28) * i;
+                const startR = radius * 0.8;
+                const p = new Particle(this.x + Math.cos(a) * startR, this.y + Math.sin(a) * startR, '#8e44ad');
+                p.velocity.x = -Math.cos(a) * 4; p.velocity.y = -Math.sin(a) * 4; // pull inward
+                p.life = 0.04; particles.push(p);
             }
+            // Eruption rings at 3 radii, staggered
+            [60, 130, 200].forEach((r, idx) => {
+                setTimeout(() => {
+                    for (let i = 0; i < 24; i++) {
+                        const a = (Math.PI * 2 / 24) * i;
+                        const p = new Particle(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, idx === 0 ? '#d7bde2' : idx === 1 ? '#8e44ad' : '#6c3483');
+                        p.velocity.x = Math.cos(a) * 2; p.velocity.y = Math.sin(a) * 2;
+                        p.life = 0.022; particles.push(p);
+                    }
+                    if (idx < 2) createExplosion(this.x, this.y, '#9b59b6');
+                }, idx * 80);
+            });
 
             // Convergence: Void Storm (c22)
             const isVoidStorm = has('c22');

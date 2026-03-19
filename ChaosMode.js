@@ -44,17 +44,16 @@ function getAvailableChaosBosses() {
     let bosses = [
         { id: 'MAKUTA', name: 'Makuta', reward: 'True Golden Mask' },
         { id: 'GREEN_GOBLIN', name: 'Green Goblin', reward: '3x Chaos Reward' },
-        { id: 'DARK_GOLEM', name: 'Dark Golem', reward: '3x Chaos Reward' }
     ];
 
     // Check DLC
     if (window.dlcManager) {
         let dlcs = window.dlcManager.getDLCList();
+        if (dlcs.some(d => d.id === 'rise_of_the_rock' && d.active)) {
+            bosses.push({ id: 'DARK_GOLEM', name: 'Dark Golem', reward: '3x Chaos Reward' });
+        }
         if (dlcs.some(d => d.id === 'tournament_of_thunder' && d.active)) {
             bosses.push({ id: 'ZEUS', name: 'Zeus', reward: '3x Chaos Reward' });
-        }
-        if (dlcs.some(d => d.id === 'rise_of_the_rock' && d.active)) {
-            bosses.push({ id: 'ROCK_BOSS', name: 'Titan of Rock', reward: '3x Chaos Reward' });
         }
     }
     return bosses;

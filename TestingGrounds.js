@@ -50,6 +50,71 @@ const TestingGrounds = {
             html += '</div></div>';
         }
 
+        // Base bosses
+        const baseBosses = [
+            { id: 'TANK',         name: 'Tank',         color: '#95a5a6' },
+            { id: 'SPEEDSTER',    name: 'Speedster',    color: '#e67e22' },
+            { id: 'SUMMONER',     name: 'Summoner',     color: '#9b59b6' },
+            { id: 'NOVA',         name: 'Nova',         color: '#8e44ad' },
+            { id: 'RHINO',        name: 'Rhino',        color: '#7f8c8d' },
+            { id: 'HYDRA',        name: 'Hydra',        color: '#27ae60' },
+            { id: 'MAKUTA',       name: 'Makuta',       color: '#ecf0f1' },
+            { id: 'GREEN_GOBLIN', name: 'Green Goblin', color: '#2ecc71' },
+        ];
+        html += '<div class="tg-group">';
+        html += '<div class="tg-group-title">Bosses</div>';
+        html += '<div class="tg-btn-grid">';
+        baseBosses.forEach(b => {
+            html += `<button class="tg-btn tg-btn-boss" style="border-color:${b.color}; color:${b.color};" onclick="TestingGrounds.spawnBoss('${b.id}')">${b.name}</button>`;
+        });
+        html += '</div></div>';
+
+        // DLC bosses
+        const dlcBosses = [];
+        if (typeof EarthHero !== 'undefined') {
+            dlcBosses.push(
+                { id: 'DARK_GOLEM', name: 'Dark Golem', color: '#546e7a' },
+            );
+        }
+        if (typeof WindBosses !== 'undefined') {
+            dlcBosses.push(
+                { id: 'ZEUS',            name: 'Zeus',            color: '#f1c40f' },
+                { id: 'CLOUD_GOLEM',     name: 'Cloud Golem',     color: '#87ceeb' },
+                { id: 'STORM_CROW',      name: 'Storm Crow',      color: '#4fc3f7' },
+                { id: 'TORNADO_MACHINA', name: 'Tornado Machina', color: '#00bcd4' },
+                { id: 'AIR_CLONE',       name: 'Air Clone',       color: '#90caf9' },
+                { id: 'TEMPEST',         name: 'Tempest',         color: '#1565c0' },
+            );
+        }
+        if (typeof SoundHero !== 'undefined') {
+            dlcBosses.push(
+                { id: 'SHADOW_CLONE', name: 'Shadow Clone', color: '#ecf0f1' },
+                { id: 'SOUND_MASTER', name: 'Sound Master', color: '#7e57c2' },
+                { id: 'POISON_KING',  name: 'Poison King',  color: '#76ff03' },
+            );
+        }
+        if (typeof GravityHero !== 'undefined') {
+            dlcBosses.push(
+                { id: 'VOID_WALKER_BOSS', name: 'Void Walker',  color: '#6c3483' },
+                { id: 'GLITCH_BOSS',      name: 'Glitch Boss',  color: '#9b59b6' },
+                { id: 'ENTROPY_LORD',     name: 'Entropy Lord', color: '#4a235a' },
+            );
+        }
+        if (typeof ChanceHero !== 'undefined') {
+            dlcBosses.push(
+                { id: 'MIMIC_KING', name: 'Mimic King', color: '#f39c12' },
+            );
+        }
+        if (dlcBosses.length > 0) {
+            html += '<div class="tg-group">';
+            html += '<div class="tg-group-title">DLC Bosses</div>';
+            html += '<div class="tg-btn-grid">';
+            dlcBosses.forEach(b => {
+                html += `<button class="tg-btn tg-btn-boss" style="border-color:${b.color}; color:${b.color};" onclick="TestingGrounds.spawnBoss('${b.id}')">${b.name}</button>`;
+            });
+            html += '</div></div>';
+        }
+
         container.innerHTML = html;
     },
 
@@ -103,6 +168,14 @@ const TestingGrounds = {
         showNotification(`Spawned Elite: ${eliteType.name}`);
     },
 
+    spawnBoss(typeId) {
+        bossActive = true;
+        bossDeathTimer = 0;
+        const b = new Boss(typeId);
+        enemies.unshift(b);
+        showNotification(`Spawned Boss: ${typeId}`);
+    },
+
     clearAll() {
         enemies = [];
         projectiles = [];
@@ -113,11 +186,11 @@ const TestingGrounds = {
     drawHUD(ctx) {
         ctx.save();
         ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-        roundRect(ctx, 10, 10, 260, 36, 6);
+        roundRect(ctx, 10, 10, 360, 36, 6);
         ctx.fill();
         ctx.fillStyle = '#f1c40f';
         ctx.font = 'bold 13px monospace';
-        ctx.fillText('[TAB] Spawn Menu    [C] Clear All', 20, 33);
+        ctx.fillText('[TAB] Spawn Menu    [C] Clear    [N] Skip Wave', 20, 33);
         ctx.restore();
     }
 };
