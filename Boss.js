@@ -90,13 +90,20 @@ class Boss {
             this.stormTimer = 0;
         } else if (typeof WindBosses !== 'undefined' && WindBosses.isWindBoss(this.type)) {
             WindBosses.init(this);
+        } else if (window._DLC_BOSS_REGISTRY && window._DLC_BOSS_REGISTRY[this.type]) {
+            window._DLC_BOSS_REGISTRY[this.type].init(this);
         }
     }
 
     update() {
         if (typeof WindBosses !== 'undefined' && WindBosses.isWindBoss(this.type)) {
             WindBosses.update(this, player, arena);
-            // Clamp position
+            this.x = Math.max(this.radius, Math.min(arena.width - this.radius, this.x));
+            this.y = Math.max(this.radius, Math.min(arena.height - this.radius, this.y));
+            return;
+        }
+        if (window._DLC_BOSS_REGISTRY && window._DLC_BOSS_REGISTRY[this.type]) {
+            window._DLC_BOSS_REGISTRY[this.type].update(this, player, arena);
             this.x = Math.max(this.radius, Math.min(arena.width - this.radius, this.x));
             this.y = Math.max(this.radius, Math.min(arena.height - this.radius, this.y));
             return;
@@ -431,6 +438,10 @@ class Boss {
     draw() {
         if (typeof WindBosses !== 'undefined' && WindBosses.isWindBoss(this.type)) {
             WindBosses.draw(ctx, this);
+            return;
+        }
+        if (window._DLC_BOSS_REGISTRY && window._DLC_BOSS_REGISTRY[this.type]) {
+            window._DLC_BOSS_REGISTRY[this.type].draw(ctx, this);
             return;
         }
 

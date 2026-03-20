@@ -88,9 +88,7 @@ const TestingGrounds = {
         }
         if (typeof SoundHero !== 'undefined') {
             dlcBosses.push(
-                { id: 'SHADOW_CLONE', name: 'Shadow Clone', color: '#ecf0f1' },
-                { id: 'SOUND_MASTER', name: 'Sound Master', color: '#7e57c2' },
-                { id: 'POISON_KING',  name: 'Poison King',  color: '#76ff03' },
+                { id: 'SHADOW_CLONE', name: 'Shadow Clone', color: '#6c3483' },
             );
         }
         if (typeof GravityHero !== 'undefined') {

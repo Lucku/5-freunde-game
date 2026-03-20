@@ -120,6 +120,85 @@ class AudioManager {
             // Base game SFX
             pickup_gold: new Audio('audio/sounds/pickup_gold.wav'),
             wave_completed: new Audio('audio/sounds/wave_completed.wav'),
+
+            // DLC Boss SFX — Shadow Clone (Symphony of Sickness)
+            shadow_step_vanish:       new Audio('audio/sounds/boss_shadow_step_vanish.mp3'),
+            shadow_step_reappear:     new Audio('audio/sounds/boss_shadow_step_reappear.mp3'),
+            shadow_trail_tick:        new Audio('audio/sounds/boss_shadow_trail_tick.mp3'),
+            shadow_fan_shot:          new Audio('audio/sounds/boss_shadow_fan_shot.mp3'),
+            shadow_phase_transition:  new Audio('audio/sounds/boss_shadow_phase_transition.mp3'),
+            dark_pulse_ring:          new Audio('audio/sounds/boss_dark_pulse_ring.mp3'),
+
+            // DLC Boss SFX — Mimic King (Faith of Fortune)
+            wheel_tick:               new Audio('audio/sounds/boss_wheel_tick.mp3'),
+            wheel_spin_start:         new Audio('audio/sounds/boss_wheel_spin_start.mp3'),
+            wheel_land:               new Audio('audio/sounds/boss_wheel_land.mp3'),
+            gambit_jackpot:           new Audio('audio/sounds/boss_gambit_jackpot.mp3'),
+            gambit_nothing:           new Audio('audio/sounds/boss_gambit_nothing.mp3'),
+            mimic_nova_burst:         new Audio('audio/sounds/boss_mimic_nova.mp3'),
+            mimic_spiral_arms:        new Audio('audio/sounds/boss_mimic_spiral.mp3'),
+            mimic_copy_hit:           new Audio('audio/sounds/boss_mimic_copy.mp3'),
+            mimic_phase2_transition:  new Audio('audio/sounds/boss_mimic_phase2.mp3'),
+            mimic_phase3_transition:  new Audio('audio/sounds/boss_mimic_phase3.mp3'),
+
+            // DLC Boss SFX — Cloud Golem (Waker of Winds)
+            gust_push:                new Audio('audio/sounds/boss_gust_push.mp3'),
+            hailstorm_burst:          new Audio('audio/sounds/boss_hailstorm_burst.mp3'),
+            cloud_golem_stomp:        new Audio('audio/sounds/boss_cloud_golem_stomp.mp3'),
+
+            // DLC Boss SFX — Storm Crow (Waker of Winds)
+            crow_dive_screech:        new Audio('audio/sounds/boss_crow_dive_screech.mp3'),
+            screech_land:             new Audio('audio/sounds/boss_crow_screech_land.mp3'),
+
+            // DLC Boss SFX — Tornado Machina (Waker of Winds)
+            tornado_projectile_spawn: new Audio('audio/sounds/boss_tornado_spawn.mp3'),
+            spin_dash:                new Audio('audio/sounds/boss_tornado_spin_dash.mp3'),
+
+            // DLC Boss SFX — Tempest (Waker of Winds)
+            vortex_pull:              new Audio('audio/sounds/boss_vortex_pull.mp3'),
+            eye_of_storm_ring:        new Audio('audio/sounds/boss_eye_storm_ring.mp3'),
+            tempest_phase2_transition:new Audio('audio/sounds/boss_tempest_phase2.mp3'),
+
+            // DLC Boss SFX — Zeus (Tournament of Thunder)
+            thunder_spear_telegraph:  new Audio('audio/sounds/boss_thunder_spear_telegraph.mp3'),
+            thunder_spear_launch:     new Audio('audio/sounds/boss_thunder_spear_launch.mp3'),
+            zeus_storm_ring:          new Audio('audio/sounds/boss_zeus_storm_ring.mp3'),
+            zeus_static_field:        new Audio('audio/sounds/boss_zeus_static_field.mp3'),
+            wrath_of_olympus:         new Audio('audio/sounds/boss_wrath_olympus.mp3'),
+            zeus_phase2_transition:   new Audio('audio/sounds/boss_zeus_phase2.mp3'),
+            zeus_phase3_transition:   new Audio('audio/sounds/boss_zeus_phase3.mp3'),
+            zeus_teleport_flash:      new Audio('audio/sounds/boss_zeus_teleport.mp3'),
+
+            // DLC Boss SFX — Dark Golem (Rise of the Rock)
+            dark_golem_boulder:       new Audio('audio/sounds/boss_dark_golem_boulder.mp3'),
+            dark_golem_slam:          new Audio('audio/sounds/boss_dark_golem_slam.mp3'),
+            dark_golem_lava:          new Audio('audio/sounds/boss_dark_golem_lava.mp3'),
+            dark_golem_crack:         new Audio('audio/sounds/boss_dark_golem_crack.mp3'),
+            dark_golem_charge:        new Audio('audio/sounds/boss_dark_golem_charge.mp3'),
+            dark_golem_berserk:       new Audio('audio/sounds/boss_dark_golem_berserk.mp3'),
+
+            // DLC Boss SFX — Void Walker Boss (Champions of Chaos)
+            void_bolt:                new Audio('audio/sounds/boss_void_bolt.mp3'),
+            void_pulse_ring:          new Audio('audio/sounds/boss_void_pulse_ring.mp3'),
+            dimensional_rift:         new Audio('audio/sounds/boss_dimensional_rift.mp3'),
+            void_phase_in:            new Audio('audio/sounds/boss_void_phase_in.mp3'),
+            void_phase_out:           new Audio('audio/sounds/boss_void_phase_out.mp3'),
+            void_gravity_pull:        new Audio('audio/sounds/boss_void_gravity_pull.mp3'),
+            void_storm:               new Audio('audio/sounds/boss_void_storm.mp3'),
+
+            // DLC Boss SFX — Glitch Boss (Champions of Chaos)
+            glitch_teleport:          new Audio('audio/sounds/boss_glitch_teleport.mp3'),
+            glitch_corruption_beam:   new Audio('audio/sounds/boss_glitch_beam.mp3'),
+            glitch_fragmentation:     new Audio('audio/sounds/boss_glitch_fragment.mp3'),
+            glitch_system_crash:      new Audio('audio/sounds/boss_glitch_crash.mp3'),
+
+            // DLC Boss SFX — Entropy Lord (Champions of Chaos)
+            entropy_surge:            new Audio('audio/sounds/boss_entropy_surge.mp3'),
+            chaos_storm:              new Audio('audio/sounds/boss_chaos_storm.mp3'),
+            entropy_phase2_transition:new Audio('audio/sounds/boss_entropy_phase2.mp3'),
+            entropy_phase3_transition:new Audio('audio/sounds/boss_entropy_phase3.mp3'),
+            shield_orb_hit:           new Audio('audio/sounds/boss_shield_orb_hit.mp3'),
+            entropy_teleport:         new Audio('audio/sounds/boss_entropy_teleport.mp3'),
         };
 
         // Configuration
@@ -254,6 +333,42 @@ class AudioManager {
         ['attack_fire', 'attack_water', 'attack_ice', 'attack_plant', 'attack_metal', 'attack_black', 'attack_earth', 'attack_lightning', 'attack_lightning_charged', 'melee_all', 'melee_earth'].forEach(key => {
             if (this.tracks[key]) this.tracks[key].volume = 0.25; // Low volume to not dominate music
         });
+
+        // DLC Boss SFX volumes
+        // Short attack sounds — quieter so they don't override music
+        [
+            'shadow_step_vanish', 'shadow_step_reappear', 'shadow_trail_tick', 'shadow_fan_shot',
+            'wheel_tick', 'wheel_land', 'gambit_nothing',
+            'gust_push', 'crow_dive_screech', 'screech_land', 'tornado_projectile_spawn',
+            'thunder_spear_launch', 'zeus_static_field', 'zeus_teleport_flash',
+            'dark_golem_boulder', 'dark_golem_charge',
+            'void_bolt', 'void_phase_in', 'void_phase_out',
+            'glitch_teleport', 'glitch_corruption_beam',
+            'shield_orb_hit', 'entropy_teleport',
+        ].forEach(k => { if (this.tracks[k]) this.tracks[k].volume = 0.4; });
+
+        // Bigger impact / explosion sounds
+        [
+            'dark_pulse_ring', 'mimic_nova_burst', 'mimic_spiral_arms', 'mimic_copy_hit',
+            'gambit_jackpot', 'wheel_spin_start',
+            'hailstorm_burst', 'cloud_golem_stomp',
+            'spin_dash', 'vortex_pull', 'eye_of_storm_ring',
+            'thunder_spear_telegraph', 'zeus_storm_ring', 'wrath_of_olympus',
+            'dark_golem_slam', 'dark_golem_lava',
+            'void_pulse_ring', 'dimensional_rift', 'void_gravity_pull', 'void_storm',
+            'glitch_fragmentation', 'glitch_system_crash',
+            'entropy_surge', 'chaos_storm',
+        ].forEach(k => { if (this.tracks[k]) this.tracks[k].volume = 0.55; });
+
+        // Phase transition / dramatic sounds — full presence
+        [
+            'shadow_phase_transition',
+            'mimic_phase2_transition', 'mimic_phase3_transition',
+            'tempest_phase2_transition',
+            'zeus_phase2_transition', 'zeus_phase3_transition',
+            'dark_golem_crack', 'dark_golem_berserk',
+            'entropy_phase2_transition', 'entropy_phase3_transition',
+        ].forEach(k => { if (this.tracks[k]) this.tracks[k].volume = 0.7; });
 
         this.musicEnabled = true;
         this.sfxEnabled = true;

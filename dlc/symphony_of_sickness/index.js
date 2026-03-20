@@ -461,12 +461,8 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
     }
 })();
 
-// --- Shadow Boss Implementation (Injected) ---
-// Since we can't easily modify game.js spawning logic, we monkey-patch the Boss class
-// to support our custom boss types.
-
+// --- Shadow Clone Boss Implementation ---
 (function () {
-    // Wait for Boss class to be defined
     const integrityCheck = setInterval(() => {
         if (typeof window.Boss !== 'undefined') {
             clearInterval(integrityCheck);
@@ -479,70 +475,216 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
 
         window.Boss = class extends OriginalBoss {
             constructor(type) {
-                // Intercept custom types
-                if (type === 'SHADOW_CLONE' || type === 'SOUND_MASTER' || type === 'POISON_KING') {
-                    super(type); // Call base constructor with type
-                    // Override properties for custom boss
-                    this.initCustomBoss(type);
-                } else {
-                    super(type);
-                }
+                super(type);
+                if (type === 'SHADOW_CLONE') this._initShadowClone();
             }
 
-            initCustomBoss(type) {
-                if (type === 'SHADOW_CLONE') {
-                    this.name = "Shadow Self";
-                    this.color = "#000000"; // Pitch black
-                    // Mimic player stats?
-                    if (window.player) {
-                        this.maxHp = window.player.maxHp * 50; // Tanky
-                        this.hp = this.maxHp;
-                        this.damage = window.player.damageMultiplier * 20;
-                        this.speed = window.player.speedMultiplier * 1.2;
+            _initShadowClone() {
+                this.name   = 'Shadow Self';
+                this.color  = '#1a0030';
+                this.radius = 65;
+                // Scale on top of base stats (base = 1500 * wave * difficultyMult)
+                this.maxHp *= 2.2;
+                this.hp     = this.maxHp;
+                this.damage *= 1.4;
+                this.phase  = 1;
+                // Ability timers (independent of base attackCooldown)
+                this._stepTimer  = 240; // 4s — shadow step (teleport + fan burst)
+                this._stepCD     = 240;
+                this._pulseTimer = 300; // 5s — dark pulse (radial ring)
+                this._atkTimer   = 80;  // regular aimed shot
+                this._trailTimer = 0;
+            }
+
+            update(p) {
+                if (this.type === 'SHADOW_CLONE') { this._shadowUpdate(p); return; }
+                super.update(p);
+            }
+
+            _shadowUpdate(p) {
+                const tgt = (typeof getCoopTarget === 'function') ? getCoopTarget(this.x, this.y) : p;
+
+                // --- Phase transitions ---
+                if (this.phase === 1 && this.hp <= this.maxHp * 0.6) {
+                    this.phase = 2;
+                    this.speed    *= 1.3;
+                    this._stepCD   = 150; // 2.5 s
+                    createExplosion(this.x, this.y, '#6c3483');
+                    createExplosion(this.x, this.y, '#000000');
+                    if (typeof floatingTexts !== 'undefined')
+                        floatingTexts.push(new FloatingText(this.x, this.y - 90, 'THE REFLECTION STIRS', '#9b59b6', 90));
+                    if (typeof showNotification === 'function') showNotification('THE REFLECTION STIRS!');
+                }
+                if (this.phase === 2 && this.hp <= this.maxHp * 0.3) {
+                    this.phase = 3;
+                    this.speed    *= 1.25;
+                    this._stepCD   = 90;  // 1.5 s
+                    createExplosion(this.x, this.y, '#000000');
+                    createExplosion(this.x, this.y, '#6c3483');
+                    if (typeof showNotification === 'function') showNotification('YOU CANNOT ESCAPE YOURSELF!');
+                }
+
+                // --- Shadow Step: teleport behind target + fan burst ---
+                if (--this._stepTimer <= 0) {
+                    // Vanish
+                    createExplosion(this.x, this.y, '#000000');
+                    this._spawnTrailParticles(14);
+                    // Reappear behind target
+                    const _behind = Math.atan2(tgt.y - this.y, tgt.x - this.x) + Math.PI + (Math.random() - 0.5) * 0.9;
+                    const _dist   = 110 + Math.random() * 70;
+                    this.x = Math.max(this.radius, Math.min(arena.width  - this.radius, tgt.x + Math.cos(_behind) * _dist));
+                    this.y = Math.max(this.radius, Math.min(arena.height - this.radius, tgt.y + Math.sin(_behind) * _dist));
+                    createExplosion(this.x, this.y, '#6c3483');
+                    // Fan burst toward target
+                    const shots  = this.phase === 3 ? 7 : 5;
+                    const fanAng = Math.atan2(tgt.y - this.y, tgt.x - this.x);
+                    for (let i = 0; i < shots; i++) {
+                        const sp = ((i - Math.floor(shots / 2)) / Math.max(1, Math.floor(shots / 2))) * 0.55;
+                        projectiles.push(new Projectile(this.x, this.y,
+                            { x: Math.cos(fanAng + sp) * 9, y: Math.sin(fanAng + sp) * 9 },
+                            this.damage * 0.65, '#6c3483', 7, 'enemy', 0, true));
                     }
-                    this.phase = 1;
+                    this._stepTimer = this._stepCD;
                 }
-            }
 
-            // Hook update to add custom logic if needed
-            update(player) {
-                if (this.type === 'SHADOW_CLONE') {
-                    // Custom AI: Mimic player movement somewhat?
-                    // For now, standard boss AI (chase) with teleports
-                    if (Math.random() < 0.02) {
-                        // Blink behind player
-                        const angle = Math.random() * Math.PI * 2;
-                        this.x = player.x + Math.cos(angle) * 150;
-                        this.y = player.y + Math.sin(angle) * 150;
-                        // Effect
-                        if (typeof createExplosion === 'function') createExplosion(this.x, this.y, "#000", 30);
+                // --- Dark Pulse: radial orb ring ---
+                if (--this._pulseTimer <= 0) {
+                    const orbs = this.phase === 3 ? 16 : this.phase === 2 ? 12 : 8;
+                    for (let i = 0; i < orbs; i++) {
+                        const a = (Math.PI * 2 / orbs) * i;
+                        projectiles.push(new Projectile(this.x, this.y,
+                            { x: Math.cos(a) * 5, y: Math.sin(a) * 5 },
+                            this.damage * 0.8, '#4a235a', 9, 'enemy', 0, true));
+                    }
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
+                    this._pulseTimer = this.phase === 3 ? 180 : this.phase === 2 ? 240 : 300;
+                }
+
+                // --- Regular aimed attack ---
+                if (--this._atkTimer <= 0) {
+                    const a = Math.atan2(tgt.y - this.y, tgt.x - this.x);
+                    if (this.phase >= 2) {
+                        // 3-way spread in later phases
+                        for (let i = -1; i <= 1; i++) {
+                            projectiles.push(new Projectile(this.x, this.y,
+                                { x: Math.cos(a + i * 0.28) * 10, y: Math.sin(a + i * 0.28) * 10 },
+                                this.damage * 0.55, '#1a0030', 6, 'enemy', 0, true));
+                        }
+                    } else {
+                        projectiles.push(new Projectile(this.x, this.y,
+                            { x: Math.cos(a) * 10, y: Math.sin(a) * 10 },
+                            this.damage * 0.8, '#1a0030', 8, 'enemy', 0, true));
+                    }
+                    this._atkTimer = this.phase === 3 ? 45 : this.phase === 2 ? 60 : 80;
+                }
+
+                // --- Shadow trail particles (phase 2+) ---
+                if (this.phase >= 2) {
+                    if (--this._trailTimer <= 0) {
+                        this._spawnTrailParticles(3);
+                        this._trailTimer = 3;
                     }
                 }
 
-                // Call original update
-                if (super.update) super.update(player);
-                // If the original class doesn't have update on prototype (defined in class body?)
-                // Since this extends OriginalBoss, we rely on its update unless we fully replaced it.
-                // Assuming standard ES6 class structure, super.update works.
+                // --- Movement: approach with sinusoidal drift in phase 2+ ---
+                const toAng = Math.atan2(tgt.y - this.y, tgt.x - this.x);
+                const drift = this.phase >= 2 ? Math.sin(frame * 0.05) * 0.45 : 0;
+                const mx = this.x + Math.cos(toAng + drift) * this.speed;
+                const my = this.y + Math.sin(toAng + drift) * this.speed;
+                if (!arena.checkCollision(mx, my, this.radius))          { this.x = mx; this.y = my; }
+                else if (!arena.checkCollision(mx, this.y, this.radius)) { this.x = mx; }
+                else if (!arena.checkCollision(this.x, my, this.radius)) { this.y = my; }
+                this.x = Math.max(this.radius, Math.min(arena.width  - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(arena.height - this.radius, this.y));
             }
 
-            draw(ctx) {
-                if (this.type === 'SHADOW_CLONE') {
-                    // Draw shadow aura
-                    ctx.save();
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = "#000";
-                    super.draw(ctx);
-                    ctx.restore();
-                } else {
-                    super.draw(ctx);
+            _spawnTrailParticles(count) {
+                if (typeof Particle === 'undefined' || typeof particles === 'undefined') return;
+                for (let i = 0; i < count; i++) {
+                    const tp = new Particle(
+                        this.x + (Math.random() - 0.5) * this.radius,
+                        this.y + (Math.random() - 0.5) * this.radius,
+                        i % 2 === 0 ? '#1a0030' : '#4a235a'
+                    );
+                    tp.velocity.x = (Math.random() - 0.5) * 2.5;
+                    tp.velocity.y = (Math.random() - 0.5) * 2.5;
+                    tp.life = 0.013;
+                    particles.push(tp);
                 }
+            }
+
+            draw() {
+                if (this.type !== 'SHADOW_CLONE') { super.draw(); return; }
+
+                const pulse = 0.5 + 0.5 * Math.sin(frame * 0.08);
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Outer glow halo — expands and contracts with phase intensity
+                const haloR     = this.radius * (1.5 + pulse * 0.35);
+                const haloAlpha = (this.phase === 3 ? 0.55 : this.phase === 2 ? 0.38 : 0.22) * pulse;
+                ctx.beginPath();
+                ctx.arc(0, 0, haloR, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(106,52,131,${haloAlpha})`;
+                ctx.fill();
+
+                // Body — deep void radial gradient
+                const rg = ctx.createRadialGradient(-this.radius * 0.25, -this.radius * 0.25, this.radius * 0.05, 0, 0, this.radius);
+                rg.addColorStop(0,    '#4a235a');
+                rg.addColorStop(0.45, '#1a0030');
+                rg.addColorStop(1,    '#000000');
+                ctx.shadowColor = '#6c3483';
+                ctx.shadowBlur  = 18 + 12 * pulse;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = rg;
+                ctx.fill();
+
+                // Rotating arc rings (phase 2+) — inner orbital detail
+                if (this.phase >= 2) {
+                    ctx.shadowBlur = 0;
+                    for (let r = 0; r < 2; r++) {
+                        const rot = frame * (0.016 + r * 0.012) * (r % 2 === 0 ? 1 : -1);
+                        ctx.save();
+                        ctx.rotate(rot);
+                        ctx.strokeStyle = `rgba(106,52,131,${0.4 + 0.25 * pulse})`;
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius * (0.52 + r * 0.22), 0.2, Math.PI * 1.6);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+
+                // Glowing violet eyes
+                ctx.shadowColor = '#bf5fff';
+                ctx.shadowBlur  = 5 + 4 * pulse;
+                ctx.fillStyle   = '#bf5fff';
+                const ex = this.radius * 0.27, ey = this.radius * 0.18;
+                ctx.beginPath(); ctx.arc(-ex, -ey, 5.5, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc( ex, -ey, 5.5, 0, Math.PI * 2); ctx.fill();
+
+                // Phase 3: fracture lines radiating from centre
+                if (this.phase === 3) {
+                    ctx.shadowColor = '#bf5fff';
+                    ctx.shadowBlur  = 6;
+                    ctx.strokeStyle = `rgba(191,95,255,${0.35 + 0.2 * pulse})`;
+                    ctx.lineWidth   = 1;
+                    for (let i = 0; i < 6; i++) {
+                        const ca = (Math.PI * 2 / 6) * i + frame * 0.012;
+                        ctx.beginPath();
+                        ctx.moveTo(Math.cos(ca) * this.radius * 0.28, Math.sin(ca) * this.radius * 0.28);
+                        ctx.lineTo(Math.cos(ca) * this.radius * 0.88, Math.sin(ca) * this.radius * 0.88);
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.restore();
             }
         };
 
-        // Copy prototype methods just in case (if OriginalBoss used direct prototype assignment)
-        // Usually 'extends' handles this.
-        console.log("Symphony DLC: Boss Class Patched for Shadow Clone support.");
+        console.log("Symphony DLC: Shadow Clone boss patched.");
     }
 })();
 

@@ -365,3 +365,449 @@ const FAITH_OF_FORTUNE = {
 // Register
 if (!window.DLC_REGISTRY) window.DLC_REGISTRY = {};
 window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
+
+// ---------------------------------------------------------------------------
+// Mimic King Boss  —  registered directly; no monkey-patching needed because
+// Boss.js checks window._DLC_BOSS_REGISTRY at construction, update, and draw.
+// ---------------------------------------------------------------------------
+(function () {
+
+    // Wheel segment definitions
+    const _W_COLORS = ['#e74c3c', '#00bcd4', '#f39c12', '#9b59b6', '#ff00ff', '#2ecc71'];
+    const _W_NAMES  = ['AIMED BURST', 'NOVA', 'SCATTER', 'SPIRAL', 'COPY ATTACK', 'GAMBIT'];
+    const _HERO_COLORS = {
+        fire:'#e74c3c', water:'#3498db', ice:'#74b9ff', plant:'#2ecc71',
+        metal:'#95a5a6', black:'#2c3e50', sound:'#7e57c2', poison:'#76ff03',
+        chance:'#ff00ff', spirit:'#F0D080'
+    };
+
+    window._DLC_BOSS_REGISTRY = window._DLC_BOSS_REGISTRY || {};
+    window._DLC_BOSS_REGISTRY['MIMIC_KING'] = {
+
+        init(boss) {
+            boss.name   = 'Mimic King';
+            boss.color  = '#f1c40f';
+            boss.radius = 62;
+            boss.maxHp *= 1.8;
+            boss.hp     = boss.maxHp;
+            boss.damage *= 1.2;
+            boss.phase  = 1;
+
+            // Wheel of Fate
+            boss._wheelTimer     = 300;  // first wheel at 5 s
+            boss._wheelCD        = 300;
+            boss._wheelTelegraph = 0;    // frames remaining in telegraph
+            boss._wheelResult    = -1;   // pre-rolled segment (0-5)
+            boss._wheelSpinAngle = 0;    // current displayed angle of wheel
+            boss._wheelSpinStart = 0;    // angle at telegraph start
+            boss._wheelFinalAngle= 0;    // angle at telegraph end (result under pointer)
+
+            // Regular attack
+            boss._atkTimer = 90;
+
+            // Orbit (phases 1-2)
+            boss._orbitAngle = 0;
+
+            // Decoys (phase 2+)
+            boss._decoys = [];
+        },
+
+        update(boss, player, arena) {
+            const tgt = (typeof getCoopTarget === 'function') ? getCoopTarget(boss.x, boss.y) : player;
+
+            // ── Phase transitions ──────────────────────────────────────
+            if (boss.phase === 1 && boss.hp <= boss.maxHp * 0.6) {
+                boss.phase = 2;
+                boss._wheelCD = 210; // 3.5 s
+                boss._decoys  = [];
+                this._spawnDecoy(boss, tgt);
+                createExplosion(boss.x, boss.y, '#f1c40f');
+                createExplosion(boss.x, boss.y, '#ff00ff');
+                if (typeof floatingTexts !== 'undefined')
+                    floatingTexts.push(new FloatingText(boss.x, boss.y - 90, 'THE MIRROR AWAKENS', '#f1c40f', 90));
+                if (typeof showNotification === 'function') showNotification('THE MIRROR AWAKENS!');
+            }
+            if (boss.phase === 2 && boss.hp <= boss.maxHp * 0.3) {
+                boss.phase = 3;
+                boss.speed   *= 1.35;
+                boss._wheelCD = 150; // 2.5 s
+                this._spawnDecoy(boss, tgt); // second decoy
+                createExplosion(boss.x, boss.y, '#f1c40f');
+                createExplosion(boss.x, boss.y, '#c0392b');
+                if (typeof showNotification === 'function') showNotification('THE MASK SHATTERS!');
+            }
+
+            // ── Wheel telegraph ────────────────────────────────────────
+            if (boss._wheelTelegraph > 0) {
+                // Ease-out cubic: wheel decelerates into result position
+                const t    = 1 - boss._wheelTelegraph / 90;
+                const ease = 1 - Math.pow(1 - t, 3);
+                boss._wheelSpinAngle = boss._wheelSpinStart +
+                    (boss._wheelFinalAngle - boss._wheelSpinStart) * ease;
+                boss._wheelTelegraph--;
+                if (boss._wheelTelegraph === 0) this._fireWheelResult(boss, tgt);
+                // Decoys keep moving/firing; boss pauses movement and own attacks
+                this._updateDecoys(boss, tgt, arena);
+                boss.x = Math.max(boss.radius, Math.min(arena.width  - boss.radius, boss.x));
+                boss.y = Math.max(boss.radius, Math.min(arena.height - boss.radius, boss.y));
+                return;
+            }
+
+            // ── Wheel trigger ──────────────────────────────────────────
+            if (--boss._wheelTimer <= 0) {
+                boss._wheelResult = Math.floor(Math.random() * 6);
+                // Final angle: pointer is at -π/2 (top); centre of result segment lands there
+                const finalA = -Math.PI / 2
+                    - boss._wheelResult * (Math.PI * 2 / 6)
+                    - Math.PI / 6;
+                boss._wheelFinalAngle = finalA;
+                boss._wheelSpinStart  = finalA - Math.PI * 2 * (4 + Math.floor(Math.random() * 3));
+                boss._wheelSpinAngle  = boss._wheelSpinStart;
+                boss._wheelTelegraph  = 90; // 1.5 s
+                boss._wheelTimer      = boss._wheelCD;
+                if (typeof showNotification === 'function')
+                    showNotification(`WHEEL OF FATE: ${_W_NAMES[boss._wheelResult]}`, _W_COLORS[boss._wheelResult]);
+            }
+
+            // ── Regular attack ─────────────────────────────────────────
+            if (--boss._atkTimer <= 0) {
+                this._regularAttack(boss, tgt);
+                boss._atkTimer = boss.phase === 3 ? 50 : boss.phase === 2 ? 70 : 90;
+            }
+
+            // ── Decoys ─────────────────────────────────────────────────
+            this._updateDecoys(boss, tgt, arena);
+
+            // ── Movement ───────────────────────────────────────────────
+            if (boss.phase === 3) {
+                // Direct chase
+                const a  = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
+                const mx = boss.x + Math.cos(a) * boss.speed;
+                const my = boss.y + Math.sin(a) * boss.speed;
+                if (!arena.checkCollision(mx, my, boss.radius))          { boss.x = mx; boss.y = my; }
+                else if (!arena.checkCollision(mx, boss.y, boss.radius)) { boss.x = mx; }
+                else if (!arena.checkCollision(boss.x, my, boss.radius)) { boss.y = my; }
+            } else {
+                // Circular orbit around target
+                boss._orbitAngle += 0.018;
+                const orbitR = boss.phase === 2 ? 190 : 310;
+                const tx = tgt.x + Math.cos(boss._orbitAngle) * orbitR;
+                const ty = tgt.y + Math.sin(boss._orbitAngle) * orbitR;
+                const a  = Math.atan2(ty - boss.y, tx - boss.x);
+                const mx = boss.x + Math.cos(a) * boss.speed * 1.6;
+                const my = boss.y + Math.sin(a) * boss.speed * 1.6;
+                if (!arena.checkCollision(mx, my, boss.radius))          { boss.x = mx; boss.y = my; }
+                else if (!arena.checkCollision(mx, boss.y, boss.radius)) { boss.x = mx; }
+                else if (!arena.checkCollision(boss.x, my, boss.radius)) { boss.y = my; }
+            }
+            boss.x = Math.max(boss.radius, Math.min(arena.width  - boss.radius, boss.x));
+            boss.y = Math.max(boss.radius, Math.min(arena.height - boss.radius, boss.y));
+        },
+
+        _regularAttack(boss, tgt) {
+            const a = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
+            const spreads = boss.phase === 3 ? [-0.28, 0, 0.28] : boss.phase === 2 ? [-0.2, 0.2] : [0];
+            spreads.forEach(s => projectiles.push(new Projectile(
+                boss.x, boss.y, { x: Math.cos(a + s) * 9, y: Math.sin(a + s) * 9 },
+                boss.damage * 0.7, '#f1c40f', 8, 'enemy', 0, true
+            )));
+        },
+
+        _fireWheelResult(boss, tgt) {
+            const a   = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
+            const col = _W_COLORS[boss._wheelResult];
+            const dmg = boss.damage;
+            const bx  = boss.x, by = boss.y;
+
+            switch (boss._wheelResult) {
+                case 0: // AIMED BURST — 5 fast consecutive bolts
+                    for (let i = 0; i < 5; i++) {
+                        const sp = (Math.random() - 0.5) * 0.14;
+                        setTimeout(() => {
+                            if (typeof projectiles !== 'undefined')
+                                projectiles.push(new Projectile(bx, by,
+                                    { x: Math.cos(a + sp) * 13, y: Math.sin(a + sp) * 13 },
+                                    dmg * 0.9, col, 7, 'enemy', 0, true));
+                        }, i * 120);
+                    }
+                    break;
+
+                case 1: // NOVA — 10 outward orbs
+                    for (let i = 0; i < 10; i++) {
+                        const oa = (Math.PI * 2 / 10) * i;
+                        projectiles.push(new Projectile(bx, by,
+                            { x: Math.cos(oa) * 5.5, y: Math.sin(oa) * 5.5 },
+                            dmg * 0.85, col, 10, 'enemy', 0, true));
+                    }
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
+                    break;
+
+                case 2: // SCATTER — 18 slow random orbs (zone denial)
+                    for (let i = 0; i < 18; i++) {
+                        const ra  = Math.random() * Math.PI * 2;
+                        const spd = 2 + Math.random() * 2.5;
+                        projectiles.push(new Projectile(bx, by,
+                            { x: Math.cos(ra) * spd, y: Math.sin(ra) * spd },
+                            dmg * 0.6, col, 7, 'enemy', 0, true));
+                    }
+                    break;
+
+                case 3: // SPIRAL — 3 arms × 2 staggered shots each
+                    for (let arm = 0; arm < 3; arm++) {
+                        [0, 22].forEach(delay => setTimeout(() => {
+                            if (typeof projectiles === 'undefined') return;
+                            const sa = (Math.PI * 2 / 3) * arm + frame * 0.05;
+                            projectiles.push(new Projectile(bx, by,
+                                { x: Math.cos(sa) * 6, y: Math.sin(sa) * 6 },
+                                dmg * 0.75, col, 8, 'enemy', 0, true));
+                        }, arm * 90 + delay * 10));
+                    }
+                    break;
+
+                case 4: { // COPY ATTACK — mirrors player's hero color and spread
+                    const copyCol = (window.player && _HERO_COLORS[window.player.type])
+                        ? _HERO_COLORS[window.player.type] : '#ffffff';
+                    for (let i = -1; i <= 1; i++) {
+                        projectiles.push(new Projectile(bx, by,
+                            { x: Math.cos(a + i * 0.22) * 11, y: Math.sin(a + i * 0.22) * 11 },
+                            dmg * 1.1, copyCol, 9, 'enemy', 0, true));
+                    }
+                    if (typeof floatingTexts !== 'undefined')
+                        floatingTexts.push(new FloatingText(bx, by - 80, 'COPIED!', copyCol, 45));
+                    break;
+                }
+
+                case 5: // GAMBIT — 40% MEGA NOVA, 60% taunt (pure chance)
+                    if (Math.random() < 0.4) {
+                        for (let i = 0; i < 20; i++) {
+                            const ga = (Math.PI * 2 / 20) * i;
+                            projectiles.push(new Projectile(bx, by,
+                                { x: Math.cos(ga) * 6.5, y: Math.sin(ga) * 6.5 },
+                                dmg, col, 10, 'enemy', 0, true));
+                        }
+                        if (typeof showNotification === 'function') showNotification('JACKPOT!', col);
+                    } else {
+                        if (typeof floatingTexts !== 'undefined')
+                            floatingTexts.push(new FloatingText(bx, by - 80, 'HA! NOTHING!', col, 60));
+                    }
+                    break;
+            }
+        },
+
+        _spawnDecoy(boss, tgt) {
+            const a = Math.random() * Math.PI * 2;
+            boss._decoys.push({
+                x: tgt.x + Math.cos(a) * 200,
+                y: tgt.y + Math.sin(a) * 200,
+                fireTimer: 60 + Math.floor(Math.random() * 40),
+            });
+        },
+
+        _updateDecoys(boss, tgt, arena) {
+            boss._decoys.forEach(d => {
+                const da = Math.atan2(tgt.y - d.y, tgt.x - d.x);
+                d.x += Math.cos(da) * boss.speed * 0.65;
+                d.y += Math.sin(da) * boss.speed * 0.65;
+                d.x  = Math.max(boss.radius, Math.min(arena.width  - boss.radius, d.x));
+                d.y  = Math.max(boss.radius, Math.min(arena.height - boss.radius, d.y));
+                if (--d.fireTimer <= 0) {
+                    const fa = Math.atan2(tgt.y - d.y, tgt.x - d.x);
+                    projectiles.push(new Projectile(d.x, d.y,
+                        { x: Math.cos(fa) * 7, y: Math.sin(fa) * 7 },
+                        boss.damage * 0.45, '#c8a000', 7, 'enemy', 0, true));
+                    d.fireTimer = 80;
+                }
+            });
+        },
+
+        draw(ctx, boss) {
+            const pulse = 0.5 + 0.5 * Math.sin(frame * 0.07);
+
+            // ── Decoys (rendered first, behind real boss) ──────────────
+            boss._decoys.forEach(d => {
+                ctx.save();
+                ctx.globalAlpha = 0.3;
+                ctx.translate(d.x, d.y);
+                const drg = ctx.createRadialGradient(
+                    -boss.radius * 0.25, -boss.radius * 0.25, 4, 0, 0, boss.radius);
+                drg.addColorStop(0, '#ead070');
+                drg.addColorStop(1, '#b89000');
+                ctx.beginPath(); ctx.arc(0, 0, boss.radius, 0, Math.PI * 2);
+                ctx.fillStyle = drg;
+                ctx.shadowColor = '#c8a000'; ctx.shadowBlur = 8;
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // ── Real boss body ─────────────────────────────────────────
+            ctx.save();
+            ctx.translate(boss.x, boss.y);
+
+            // Rainbow shimmer halo — the "mimic" quality, constantly shifting colour
+            const haloHue = (frame * 1.8) % 360;
+            ctx.beginPath(); ctx.arc(0, 0, boss.radius * 1.55, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${haloHue},100%,60%,${0.18 + 0.12 * pulse})`;
+            ctx.fill();
+
+            // Gold body — warm radial gradient
+            const rg = ctx.createRadialGradient(
+                -boss.radius * 0.28, -boss.radius * 0.28, 4, 0, 0, boss.radius);
+            rg.addColorStop(0,    '#ffe87a');
+            rg.addColorStop(0.45, '#f1c40f');
+            rg.addColorStop(1,    '#c0900a');
+            ctx.shadowColor = '#f39c12';
+            ctx.shadowBlur  = 14 + 10 * pulse;
+            ctx.beginPath(); ctx.arc(0, 0, boss.radius, 0, Math.PI * 2);
+            ctx.fillStyle = rg; ctx.fill();
+
+            // Rotating hexagonal outline — the mask frame
+            ctx.save();
+            ctx.rotate(frame * 0.012);
+            ctx.strokeStyle = `rgba(255,232,100,${0.55 + 0.25 * pulse})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const ha = (Math.PI / 3) * i;
+                i === 0
+                    ? ctx.moveTo(Math.cos(ha) * boss.radius * 0.96, Math.sin(ha) * boss.radius * 0.96)
+                    : ctx.lineTo(Math.cos(ha) * boss.radius * 0.96, Math.sin(ha) * boss.radius * 0.96);
+            }
+            ctx.closePath(); ctx.stroke();
+            ctx.restore();
+
+            // ── Mask face (changes per phase) ──────────────────────────
+            ctx.shadowBlur = 0;
+            const ex = boss.radius * 0.28, ey = boss.radius * 0.18;
+
+            if (boss.phase === 1) {
+                // Calm: open oval eyes + flat neutral mouth
+                ctx.fillStyle = '#6b4c00';
+                ctx.beginPath(); ctx.ellipse(-ex, -ey, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse( ex, -ey, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#6b4c00'; ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(-boss.radius * 0.22, boss.radius * 0.28);
+                ctx.lineTo( boss.radius * 0.22, boss.radius * 0.28);
+                ctx.stroke();
+            } else if (boss.phase === 2) {
+                // Grinning: angled slit eyes + wide smile
+                ctx.fillStyle = '#3d2800';
+                [-1, 1].forEach(side => {
+                    ctx.save();
+                    ctx.translate(side * ex, -ey);
+                    ctx.rotate(side * 0.35);
+                    ctx.beginPath(); ctx.ellipse(0, 0, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                });
+                ctx.strokeStyle = '#3d2800'; ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, boss.radius * 0.18, boss.radius * 0.3, 0.1, Math.PI - 0.1);
+                ctx.stroke();
+            } else {
+                // Phase 3: cracked mask — void eyes, fracture lines
+                ctx.strokeStyle = 'rgba(15,8,0,0.9)'; ctx.lineWidth = 2.2;
+                [
+                    [[-0.10, -0.50], [ 0.05,  0.10]],
+                    [[ 0.20, -0.30], [ 0.36,  0.46]],
+                    [[-0.30,  0.10], [-0.10,  0.52]],
+                ].forEach(([[x1, y1], [x2, y2]]) => {
+                    ctx.beginPath();
+                    ctx.moveTo(x1 * boss.radius, y1 * boss.radius);
+                    ctx.lineTo(x2 * boss.radius, y2 * boss.radius);
+                    ctx.stroke();
+                });
+                // Glowing red void eyes
+                ctx.shadowColor = '#ff2200'; ctx.shadowBlur = 10;
+                ctx.fillStyle   = '#cc0000';
+                ctx.beginPath(); ctx.arc(-ex, -ey, 5 + 3 * pulse, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc( ex, -ey, 5 + 3 * pulse, 0, Math.PI * 2); ctx.fill();
+            }
+
+            // ── Crown (marks the real boss) ────────────────────────────
+            ctx.shadowColor = '#f39c12'; ctx.shadowBlur = 8;
+            ctx.fillStyle   = '#f1c40f';
+            const cr = boss.radius;
+            ctx.beginPath();
+            ctx.moveTo(-cr * 0.35, -cr * 1.08);
+            ctx.lineTo(-cr * 0.35, -cr * 1.32);
+            ctx.lineTo(-cr * 0.18, -cr * 1.18);
+            ctx.lineTo(  0,        -cr * 1.40);
+            ctx.lineTo( cr * 0.18, -cr * 1.18);
+            ctx.lineTo( cr * 0.35, -cr * 1.32);
+            ctx.lineTo( cr * 0.35, -cr * 1.08);
+            ctx.closePath(); ctx.fill();
+
+            ctx.restore(); // back to world space
+
+            // ── Wheel of Fate telegraph ────────────────────────────────
+            if (boss._wheelTelegraph > 0) this._drawWheel(ctx, boss);
+        },
+
+        _drawWheel(ctx, boss) {
+            const R     = boss.radius + 26;   // inner radius of ring
+            const R2    = boss.radius + 62;   // outer radius of ring
+            const prog  = 1 - boss._wheelTelegraph / 90; // 0 → 1
+            const alpha = Math.min(1, prog * 4);
+            const SEG   = 6;
+
+            ctx.save();
+            ctx.translate(boss.x, boss.y);
+
+            // Six coloured wedge segments
+            for (let i = 0; i < SEG; i++) {
+                const startA = boss._wheelSpinAngle + (Math.PI * 2 / SEG) * i;
+                const endA   = startA + (Math.PI * 2 / SEG);
+                const isResult = (i === boss._wheelResult);
+
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(startA) * R, Math.sin(startA) * R);
+                ctx.arc(0, 0, R2, startA, endA);
+                ctx.arc(0, 0, R,  endA, startA, true);
+                ctx.closePath();
+                ctx.globalAlpha = alpha * (isResult ? 0.9 : 0.38);
+                ctx.fillStyle   = _W_COLORS[i];
+                ctx.fill();
+
+                // Result segment gets a bright stroke border
+                if (isResult) {
+                    ctx.globalAlpha   = alpha;
+                    ctx.strokeStyle   = '#ffffff';
+                    ctx.lineWidth     = 2;
+                    ctx.stroke();
+                }
+
+                // Labels appear when wheel is nearly stopped (prog > 0.72)
+                if (prog > 0.72) {
+                    const midA = startA + Math.PI / SEG;
+                    const midR = (R + R2) / 2;
+                    ctx.globalAlpha  = alpha * Math.min(1, (prog - 0.72) / 0.2);
+                    ctx.fillStyle    = '#ffffff';
+                    ctx.textAlign    = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.font         = `bold 8px Arial`;
+                    ctx.save();
+                    ctx.translate(Math.cos(midA) * midR, Math.sin(midA) * midR);
+                    ctx.rotate(midA + Math.PI / 2);
+                    ctx.fillText(_W_NAMES[i], 0, 0);
+                    ctx.restore();
+                }
+            }
+
+            // Fixed pointer arrow at top (−π/2), pointing inward
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle   = '#ffffff';
+            ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 6;
+            const pY = -(R2 + 10);
+            ctx.beginPath();
+            ctx.moveTo(0, pY - 10);
+            ctx.lineTo(-7, pY + 4);
+            ctx.lineTo( 7, pY + 4);
+            ctx.closePath(); ctx.fill();
+
+            ctx.globalAlpha = 1;
+            ctx.restore();
+        },
+    };
+
+    console.log("Faith of Fortune DLC: Mimic King registered in _DLC_BOSS_REGISTRY.");
+})();

@@ -566,3 +566,290 @@ const RISE_OF_THE_ROCK = {
 // Register globally
 if (!window.DLC_REGISTRY) window.DLC_REGISTRY = {};
 window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
+
+// ---------------------------------------------------------------------------
+// Dark Golem Boss  —  Rise of the Rock DLC, Wave 50 final boss.
+// Massive obsidian construct of dark magic. Three phases: sealed stone >
+// cracked lava > berserk. Attacks: boulder volley, ground slam ring,
+// obsidian spike burst, lava eruption (P2+), golem charge (P3).
+// ---------------------------------------------------------------------------
+(function () {
+    window._DLC_BOSS_REGISTRY = window._DLC_BOSS_REGISTRY || {};
+    window._DLC_BOSS_REGISTRY['DARK_GOLEM'] = {
+
+        init(boss) {
+            boss.name            = 'Dark Golem';
+            boss.color           = '#263238';
+            boss.radius          = 88;
+            boss.maxHp          *= 2.5;
+            boss.hp              = boss.maxHp;
+            boss.damage         *= 1.5;
+            boss.speed          *= 0.45;
+            boss.knockbackResist = 0.95;
+            boss.phase           = 1;
+
+            boss._slamTimer    = 90;
+            boss._boulderTimer = 200;
+            boss._spikeTimer   = 300;
+            boss._lavaTimer    = 240;
+            boss._chargeTimer  = 300;
+            boss._charging     = false;
+            boss._chargeVelX   = 0;
+            boss._chargeVelY   = 0;
+            boss._chargeDur    = 0;
+        },
+
+        update(boss, player, arena) {
+            const tgt  = (typeof getCoopTarget === 'function') ? getCoopTarget(boss.x, boss.y) : player;
+            const dist = Math.hypot(tgt.x - boss.x, tgt.y - boss.y);
+
+            // Phase transitions
+            if (boss.phase === 1 && boss.hp <= boss.maxHp * 0.6) {
+                boss.phase = 2;
+                createExplosion(boss.x, boss.y, '#ff6600');
+                createExplosion(boss.x, boss.y, '#263238');
+                if (typeof floatingTexts !== 'undefined')
+                    floatingTexts.push(new FloatingText(boss.x, boss.y - 100, 'THE OBSIDIAN CRACKS!', '#ff6600', 90));
+                if (typeof showNotification === 'function') showNotification('THE OBSIDIAN CRACKS!');
+            }
+            if (boss.phase === 2 && boss.hp <= boss.maxHp * 0.3) {
+                boss.phase = 3;
+                boss.speed *= 2.5;
+                boss._boulderTimer = 60;
+                createExplosion(boss.x, boss.y, '#ff3300');
+                createExplosion(boss.x, boss.y, '#ff9900');
+                if (typeof showNotification === 'function') showNotification('GOLEM BERSERKS!');
+                // Spawn 2 obsidian mini-golems
+                if (typeof enemies !== 'undefined') {
+                    for (let i = 0; i < 2; i++) {
+                        const a    = (Math.PI / 2) + i * Math.PI;
+                        const mini = new Enemy(false, 'BASIC');
+                        mini.x = boss.x + Math.cos(a) * 130; mini.y = boss.y + Math.sin(a) * 130;
+                        mini.radius = 30; mini.hp = boss.maxHp * 0.08; mini.maxHp = mini.hp;
+                        mini.speed  = 2.5; mini.color = '#546e7a'; mini.damage = boss.damage * 0.3;
+                        enemies.push(mini);
+                    }
+                }
+            }
+
+            // Charge (phase 3)
+            if (boss._charging) {
+                boss.x += boss._chargeVelX;
+                boss.y += boss._chargeVelY;
+                boss._chargeDur--;
+                if (boss._chargeDur <= 0) boss._charging = false;
+                if (Math.hypot(tgt.x - boss.x, tgt.y - boss.y) < boss.radius + 30) {
+                    if (tgt.invulnTimer <= 0 && typeof tgt.takeDamage === 'function') tgt.takeDamage(boss.damage * 1.5);
+                    const pa = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
+                    tgt.vx = (tgt.vx || 0) + Math.cos(pa) * 40;
+                    tgt.vy = (tgt.vy || 0) + Math.sin(pa) * 40;
+                }
+                boss.x = Math.max(boss.radius, Math.min(arena.width  - boss.radius, boss.x));
+                boss.y = Math.max(boss.radius, Math.min(arena.height - boss.radius, boss.y));
+                return;
+            }
+
+            // Slow march toward target
+            const ang = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
+            const mx  = boss.x + Math.cos(ang) * boss.speed;
+            const my  = boss.y + Math.sin(ang) * boss.speed;
+            if (!arena.checkCollision(mx, my, boss.radius))          { boss.x = mx; boss.y = my; }
+            else if (!arena.checkCollision(mx, boss.y, boss.radius)) { boss.x = mx; }
+            else if (!arena.checkCollision(boss.x, my, boss.radius)) { boss.y = my; }
+
+            // Ground slam (close range, orb ring)
+            if (--boss._slamTimer <= 0) {
+                boss._slamTimer = boss.phase === 3 ? 75 : 120;
+                if (dist < 290) this._groundSlam(boss, tgt);
+            }
+
+            // Boulder volley
+            if (--boss._boulderTimer <= 0) {
+                boss._boulderTimer = boss.phase === 3 ? 110 : boss.phase === 2 ? 160 : 200;
+                this._boulderVolley(boss, tgt);
+            }
+
+            // Obsidian spike ring
+            if (--boss._spikeTimer <= 0) {
+                boss._spikeTimer = boss.phase === 3 ? 180 : 300;
+                this._obsidianSpikes(boss);
+            }
+
+            // Lava eruption (phase 2+)
+            if (boss.phase >= 2 && --boss._lavaTimer <= 0) {
+                boss._lavaTimer = boss.phase === 3 ? 150 : 240;
+                this._lavaErupt(boss, tgt);
+            }
+
+            // Charge attack (phase 3, every 5s)
+            if (boss.phase === 3 && --boss._chargeTimer <= 0) {
+                boss._chargeTimer  = 300;
+                boss._charging     = true;
+                boss._chargeDur    = 32;
+                const ca = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
+                boss._chargeVelX   = Math.cos(ca) * boss.speed * 6;
+                boss._chargeVelY   = Math.sin(ca) * boss.speed * 6;
+                createExplosion(boss.x, boss.y, '#546e7a');
+                if (typeof showNotification === 'function') showNotification('GOLEM CHARGES!');
+            }
+
+            boss.x = Math.max(boss.radius, Math.min(arena.width  - boss.radius, boss.x));
+            boss.y = Math.max(boss.radius, Math.min(arena.height - boss.radius, boss.y));
+        },
+
+        _groundSlam(boss, tgt) {
+            const count = boss.phase === 3 ? 18 : 10;
+            const col   = boss.phase >= 2 ? '#ff6600' : '#546e7a';
+            for (let i = 0; i < count; i++) {
+                const a = (Math.PI * 2 / count) * i;
+                projectiles.push(new Projectile(boss.x, boss.y,
+                    { x: Math.cos(a) * (boss.phase === 3 ? 7 : 5), y: Math.sin(a) * (boss.phase === 3 ? 7 : 5) },
+                    boss.damage * 0.55, col, 12, 'enemy', 0, true));
+            }
+            const pa = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
+            tgt.vx = (tgt.vx || 0) + Math.cos(pa) * 35;
+            tgt.vy = (tgt.vy || 0) + Math.sin(pa) * 35;
+            createExplosion(boss.x, boss.y, col);
+            if (typeof audioManager !== 'undefined') audioManager.play('boss_rhino_charge');
+        },
+
+        _boulderVolley(boss, tgt) {
+            const count = boss.phase === 3 ? 5 : 3;
+            const bx = boss.x, by = boss.y;
+            for (let i = 0; i < count; i++) {
+                const spread = (i - Math.floor(count / 2)) * 0.28;
+                const a      = Math.atan2(tgt.y - boss.y, tgt.x - boss.x) + spread;
+                setTimeout(() => {
+                    if (typeof projectiles === 'undefined') return;
+                    projectiles.push(new Projectile(bx, by,
+                        { x: Math.cos(a) * 5, y: Math.sin(a) * 5 },
+                        boss.damage * 0.85, '#546e7a', 20, 'enemy', 0, true));
+                }, i * 150);
+            }
+            if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
+        },
+
+        _obsidianSpikes(boss) {
+            const count = boss.phase === 3 ? 20 : 12;
+            for (let i = 0; i < count; i++) {
+                const a = (Math.PI * 2 / count) * i;
+                projectiles.push(new Projectile(boss.x, boss.y,
+                    { x: Math.cos(a) * 8.5, y: Math.sin(a) * 8.5 },
+                    boss.damage * 0.65, '#37474f', 9, 'enemy', 0, true));
+            }
+        },
+
+        _lavaErupt(boss, tgt) {
+            const count = boss.phase === 3 ? 9 : 6;
+            const bx = boss.x, by = boss.y;
+            for (let i = 0; i < count; i++) {
+                const ra = Math.random() * Math.PI * 2;
+                const rd = 80 + Math.random() * 220;
+                const lx = tgt.x + Math.cos(ra) * rd;
+                const ly = tgt.y + Math.sin(ra) * rd;
+                setTimeout(() => {
+                    if (typeof projectiles === 'undefined') return;
+                    const a = Math.atan2(ly - by, lx - bx);
+                    projectiles.push(new Projectile(bx, by,
+                        { x: Math.cos(a) * 3.5, y: Math.sin(a) * 3.5 },
+                        boss.damage * 0.6, '#ff6600', 15, 'enemy', 0, true));
+                }, i * 100);
+            }
+            createExplosion(boss.x, boss.y, '#ff6600');
+        },
+
+        draw(ctx, boss) {
+            const t     = Date.now() / 1000;
+            const pulse = 0.5 + 0.5 * Math.sin(frame * 0.06);
+            const r     = boss.radius;
+
+            ctx.save();
+            ctx.translate(boss.x, boss.y);
+
+            // Lava glow aura (phase 2+)
+            if (boss.phase >= 2) {
+                const aura = boss.phase === 3 ? 0.32 + 0.14 * pulse : 0.15 + 0.07 * pulse;
+                ctx.beginPath(); ctx.arc(0, 0, r * 1.28, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, ${boss.phase === 3 ? 40 : 90}, 0, ${aura})`;
+                ctx.fill();
+            }
+
+            // Main obsidian body
+            const glowCol = boss.phase === 3 ? '#6b0a00' : boss.phase === 2 ? '#3a1200' : '#1a2027';
+            const rg = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.05, 0, 0, r);
+            rg.addColorStop(0,    '#546e7a');
+            rg.addColorStop(0.35, '#37474f');
+            rg.addColorStop(0.72, '#263238');
+            rg.addColorStop(1,    glowCol);
+            ctx.shadowColor = boss.phase === 3 ? '#ff3300' : boss.phase === 2 ? '#ff6600' : '#263238';
+            ctx.shadowBlur  = boss.phase >= 2 ? 18 + 10 * pulse : 5;
+            ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.fillStyle = rg; ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Hexagonal armor outline (slowly rotating)
+            ctx.save();
+            ctx.rotate(Math.PI / 6 + t * 0.04);
+            ctx.strokeStyle = 'rgba(84, 110, 122, 0.55)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const ha = (Math.PI / 3) * i;
+                i === 0
+                    ? ctx.moveTo(Math.cos(ha) * r * 0.93, Math.sin(ha) * r * 0.93)
+                    : ctx.lineTo(Math.cos(ha) * r * 0.93, Math.sin(ha) * r * 0.93);
+            }
+            ctx.closePath(); ctx.stroke();
+            ctx.restore();
+
+            // Lava crack lines (phase 2+)
+            if (boss.phase >= 2) {
+                ctx.strokeStyle = `rgba(255, ${boss.phase === 3 ? 60 : 130}, 0, ${boss.phase === 3 ? 0.92 : 0.65})`;
+                ctx.lineWidth   = boss.phase === 3 ? 3 : 2;
+                ctx.shadowColor = '#ff6600'; ctx.shadowBlur = 8;
+                [
+                    [[-0.15, -0.62], [ 0.08,  0.06], [ 0.28,  0.52]],
+                    [[ 0.35, -0.44], [ 0.52,  0.18]],
+                    [[-0.45,  0.08], [-0.18,  0.58]],
+                ].forEach(pts => {
+                    ctx.beginPath(); ctx.moveTo(pts[0][0] * r, pts[0][1] * r);
+                    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] * r, pts[i][1] * r);
+                    ctx.stroke();
+                });
+                ctx.shadowBlur = 0;
+            }
+
+            // Glowing eyes
+            const eyeC = boss.phase === 3 ? '#ff2200' : boss.phase === 2 ? '#ff8800' : '#aed6f1';
+            ctx.shadowColor = eyeC; ctx.shadowBlur = 14;
+            ctx.fillStyle   = eyeC;
+            const ex = r * 0.3, ey = r * 0.15;
+            ctx.save(); ctx.translate(-ex, -ey); ctx.rotate(0.3);
+            ctx.beginPath(); ctx.ellipse(0, 0, r * 0.12, r * 0.055, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+            ctx.save(); ctx.translate(ex, -ey); ctx.rotate(-0.3);
+            ctx.beginPath(); ctx.ellipse(0, 0, r * 0.12, r * 0.055, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+            ctx.shadowBlur = 0;
+
+            // Phase 3: rage sparks at perimeter
+            if (boss.phase === 3 && frame % 3 === 0) {
+                ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 2;
+                ctx.shadowColor = '#ff6600'; ctx.shadowBlur = 6;
+                for (let i = 0; i < 4; i++) {
+                    const sa  = Math.random() * Math.PI * 2;
+                    const len = 10 + Math.random() * 18;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(sa) * r, Math.sin(sa) * r);
+                    ctx.lineTo(Math.cos(sa) * (r + len), Math.sin(sa) * (r + len));
+                    ctx.stroke();
+                }
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.restore();
+        },
+    };
+
+    console.log("Rise of the Rock DLC: Dark Golem registered in _DLC_BOSS_REGISTRY.");
+})();
