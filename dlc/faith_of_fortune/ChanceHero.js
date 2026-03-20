@@ -703,6 +703,7 @@ class ChanceHero {
 
 if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
 window.HERO_LOGIC['chance'] = ChanceHero;
+window.ChanceHero = ChanceHero;
 
 ChanceHero.upgradePool = [
     { id: 'chance_luck', title: 'Lucky Charm', desc: '+10 Luck. Improves all rolls.', icon: '🍀' },

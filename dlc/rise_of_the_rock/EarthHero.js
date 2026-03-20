@@ -802,10 +802,6 @@ class EarthHero {
             ctx.lineWidth = 0.8;
             ctx.strokeRect(bx, by, barW, barH);
 
-            ctx.fillStyle = 'rgba(255,255,255,0.32)';
-            ctx.font = 'bold 6px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText('MOMENTUM', player.x, by - 2);
         }
 
         return true; // Block default draw

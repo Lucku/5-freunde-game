@@ -214,6 +214,7 @@ class AudioManager {
 
             // Base game UI SFX
             achievement_unlocked: new Audio('audio/sounds/achievement_unlocked.wav'),
+            enemy_damage:         new Audio('audio/sounds/enemy_damage.wav'),
         };
 
         // Configuration
@@ -327,6 +328,8 @@ class AudioManager {
         if (this.tracks.special_poison_4) this.tracks.special_poison_4.volume = 0.6;
         if (this.tracks.pickup_gold) this.tracks.pickup_gold.volume = 0.4;
         if (this.tracks.wave_completed) this.tracks.wave_completed.volume = 0.6;
+        if (this.tracks.achievement_unlocked) this.tracks.achievement_unlocked.volume = 0.7;
+        if (this.tracks.enemy_damage) this.tracks.enemy_damage.volume = 0.25;
         if (this.tracks.attack_chance) this.tracks.attack_chance.volume = 0.3;
         if (this.tracks.attack_spirit) this.tracks.attack_spirit.volume = 0.3;
         if (this.tracks.special_spirit) this.tracks.special_spirit.volume = 0.5;

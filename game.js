@@ -83,6 +83,7 @@ let isChaosShuffleMode = false;
 let isTutorialMode = false;
 let isTestingMode = false;
 let isCoopMode = false;
+let isAICompanionMode = false; // Story companion: full Player driven by AIController
 let coopP2HeroType = null;
 let coopP1GamepadIndex = -1;
 let coopP2GamepadIndex = -1;
@@ -556,7 +557,7 @@ function toggleCoopMode() {
 }
 
 function getCoopTarget(ex, ey) {
-    if (!isCoopMode || !player2 || player2.isDead) return player;
+    if (!(isCoopMode || isAICompanionMode) || !player2 || player2.isDead) return player;
     if (player.isDead) return player2;
     const d1 = Math.hypot(player.x - ex, player.y - ey);
     const d2 = Math.hypot(player2.x - ex, player2.y - ey);
@@ -1890,8 +1891,8 @@ function updateUI() {
         });
     }
 
-    // Co-op: P2 HUD
-    if (isCoopMode && player2) {
+    // Co-op / AI companion: P2 HUD
+    if ((isCoopMode || isAICompanionMode) && player2) {
         const p2hud = document.getElementById('p2-hud');
         if (p2hud) {
             p2hud.style.display = player2.isDead ? 'none' : 'flex';
@@ -1952,8 +1953,8 @@ function chooseUpgrade(type) {
     isLevelingUp = false;
     document.getElementById('levelup-screen').style.display = 'none';
 
-    // Co-op: dequeue P2 level-up if pending
-    if (isCoopMode && p2LevelUpPending && window.player2 && window.levelUpUI) {
+    // Co-op / AI companion: dequeue P2 level-up if pending
+    if ((isCoopMode || isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
         p2LevelUpPending = false;
         isLevelingUp = true;
         window.levelingUpPlayer = window.player2;
@@ -1968,7 +1969,7 @@ function chooseUpgrade(type) {
 // Called by LevelUpUI after any upgrade is chosen — handles P2 dequeue
 window._afterUpgradeChosen = function () {
     window.levelingUpPlayer = null;
-    if (isCoopMode && p2LevelUpPending && window.player2 && window.levelUpUI) {
+    if ((isCoopMode || isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
         p2LevelUpPending = false;
         isLevelingUp = true;
         window.levelingUpPlayer = window.player2;
@@ -2398,8 +2399,8 @@ function advanceWave() {
     enemies = [];
     bossActive = false;
 
-    // Co-op: revive dead player at wave start (they died before the final enemy)
-    if (isCoopMode) {
+    // Co-op / AI companion: revive dead player at wave start (they died before the final enemy)
+    if (isCoopMode || isAICompanionMode) {
         if (player.isDead) {
             player.isDead = false;
             player.hp = Math.floor(player.maxHp * 0.5);
@@ -2576,30 +2577,67 @@ function resumeWaveGeneration() {
 
     // Story Mode Companion Spawning
     if (currentStoryEvent && currentStoryEvent.type === 'COMPANION_JOIN') {
-        let availableTypes = ['fire', 'water', 'ice', 'plant', 'metal'];
-        // Remove player type
-        if (player) {
-            availableTypes = availableTypes.filter(t => t !== player.type);
-        }
-        // Remove existing companions
-        companions.forEach(c => {
-            availableTypes = availableTypes.filter(t => t !== c.type);
-        });
+        const _evData = currentStoryEvent.data;
 
-        if (availableTypes.length > 0) {
-            let pickedType = availableTypes[0]; // Default
+        if (_evData && _evData.companionType && typeof CompanionAIController !== 'undefined') {
+            // DLC story: spawn a full AI-controlled hero as player2
+            let compType = _evData.companionType;
 
-            // Synergy Preference - Only for the first companion
-            if (companions.length === 0) {
-                if (player.type === 'ice' && availableTypes.includes('fire')) pickedType = 'fire';
-                else if (player.type === 'fire' && availableTypes.includes('ice')) pickedType = 'ice';
-                else if (player.type === 'metal' && availableTypes.includes('plant')) pickedType = 'plant';
-                else if (player.type === 'plant' && availableTypes.includes('metal')) pickedType = 'metal';
-                else if (player.type === 'water' && availableTypes.includes('plant')) pickedType = 'plant'; // Fallback synergy
+            // "AUTO" = base game story, pick a synergy hero
+            if (compType === 'AUTO') {
+                const synergy = {
+                    ice: 'fire', fire: 'ice',
+                    metal: 'plant', plant: 'metal', water: 'plant'
+                };
+                const allTypes = ['fire', 'water', 'ice', 'plant', 'metal'];
+                compType = synergy[player.type]
+                    || allTypes.find(t => t !== player.type)
+                    || 'fire';
             }
 
-            companions.push(new Companion(pickedType, player));
-            showNotification(`${pickedType.toUpperCase()} FRIEND JOINED!`);
+            // Save P1's special icon before Player constructor overwrites #special-icon
+            const _p1IconEl  = document.getElementById('special-icon');
+            const _p1IconTxt = _p1IconEl ? _p1IconEl.innerText : '★';
+
+            player2 = new Player(compType);
+            player2.controller = new CompanionAIController();
+
+            // Restore P1 icon, write P2 icon to the P2 slot
+            const _p2IconEl = document.getElementById('p2-special-icon');
+            if (_p2IconEl && _p1IconEl) {
+                _p2IconEl.innerText = _p1IconEl.innerText; // P2's hero icon
+                _p1IconEl.innerText = _p1IconTxt;          // restore P1
+            }
+
+            player2.x = player.x + 120;
+            player2.y = player.y;
+            player2.isDead = false;
+            window.player2 = player2;
+            p1RevivalMarker = null;
+            p2RevivalMarker = null;
+
+            isAICompanionMode = true;
+            window.isAICompanionMode = true;
+
+            showNotification(`${compType.toUpperCase()} ALLY JOINED!`);
+        } else {
+            // Base game story: use classic orbiting Companion
+            let availableTypes = ['fire', 'water', 'ice', 'plant', 'metal'];
+            if (player) availableTypes = availableTypes.filter(t => t !== player.type);
+            companions.forEach(c => { availableTypes = availableTypes.filter(t => t !== c.type); });
+
+            if (availableTypes.length > 0) {
+                let pickedType = availableTypes[0];
+                if (companions.length === 0) {
+                    if (player.type === 'ice'   && availableTypes.includes('fire'))  pickedType = 'fire';
+                    else if (player.type === 'fire'  && availableTypes.includes('ice'))   pickedType = 'ice';
+                    else if (player.type === 'metal' && availableTypes.includes('plant')) pickedType = 'plant';
+                    else if (player.type === 'plant' && availableTypes.includes('metal')) pickedType = 'metal';
+                    else if (player.type === 'water' && availableTypes.includes('plant')) pickedType = 'plant';
+                }
+                companions.push(new Companion(pickedType, player));
+                showNotification(`${pickedType.toUpperCase()} FRIEND JOINED!`);
+            }
         }
     }
 
@@ -2953,6 +2991,8 @@ function gameOver(isVictory = false) {
     isTestingMode = false;
     isCoopMode = false;
     window.isCoopMode = false;
+    isAICompanionMode = false;
+    window.isAICompanionMode = false;
     coopP2HeroType = null;
     window.coopP2HeroType = null;
     coopP1GamepadIndex = -1;
@@ -3752,7 +3792,7 @@ function masterLoop(timestamp) {
                     }
 
                     const nonBossCount = enemies.filter(e => !(e instanceof Boss) && e.hp > 0).length;
-                    const enemyCap = Math.min(22, 5 + wave) + (isCoopMode ? 4 : 0);
+                    const enemyCap = Math.min(22, 5 + wave) + ((isCoopMode || isAICompanionMode) ? 4 : 0);
                     if (frame % Math.floor(spawnRate) === 0 && nonBossCount < enemyCap) {
                         let loops = 1;
                         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
@@ -3785,8 +3825,8 @@ function masterLoop(timestamp) {
                 }
             }
 
-            // Co-op: scale new non-boss enemy HP up
-            if (isCoopMode) {
+            // Co-op / AI companion: scale new non-boss enemy HP up
+            if (isCoopMode || isAICompanionMode) {
                 enemies.forEach(e => {
                     if (!(e instanceof Boss) && !e._coopScaled) {
                         e._coopScaled = true;
@@ -3888,8 +3928,8 @@ function masterLoop(timestamp) {
             }
             player.draw();
 
-            // Co-op: update + draw P2
-            if (isCoopMode && player2) {
+            // Co-op / AI companion: update + draw P2
+            if ((isCoopMode || isAICompanionMode) && player2) {
                 if (!player2.isDead) {
                     player2.update();
                     // Distance enforcement — rubber band above 1800px
@@ -4086,7 +4126,7 @@ function masterLoop(timestamp) {
                         }
                     }
                     powerUps.splice(index, 1);
-                } else if (isCoopMode && player2 && !player2.isDead) {
+                } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
                     // Co-op: P2 collects power-ups
                     const distP2 = Math.hypot(player2.x - pup.x, player2.y - pup.y);
                     if (distP2 < player2.radius + pup.radius) {
@@ -4379,7 +4419,7 @@ function masterLoop(timestamp) {
                 }
 
                 // Co-op: P2 enemy body contact damage
-                if (isCoopMode && player2 && !player2.isDead && !player2.isInvincible) {
+                if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
                     const distP2 = Math.hypot(player2.x - enemy.x, player2.y - enemy.y);
                     if (distP2 - enemy.radius - player2.radius < 0 && !player2.isDashing) {
                         let p2Dmg = 1 * (1 - player2.damageReduction);
@@ -4395,7 +4435,7 @@ function masterLoop(timestamp) {
                             player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
                             p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
                             createExplosion(player2.x, player2.y, '#3b82f6');
-                            showNotification('P2 down! Stand on marker to revive.');
+                            showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
                         }
                     }
                 }
@@ -4450,7 +4490,7 @@ function masterLoop(timestamp) {
                                 player.currentForm = 'NONE';
                                 showNotification("FORM BROKEN!");
                             }
-                        } else if (isCoopMode && player2 && !player2.isDead && !player2.isInvincible) {
+                        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
                             // Co-op: check P2 projectile hit
                             const pDistP2 = Math.hypot(proj.x - player2.x, proj.y - player2.y);
                             if (pDistP2 < player2.radius + proj.radius) {
@@ -4464,7 +4504,7 @@ function masterLoop(timestamp) {
                                     player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
                                     p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
                                     createExplosion(player2.x, player2.y, '#3b82f6');
-                                    showNotification('P2 down! Stand on marker to revive.');
+                                    showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
                                 }
                             }
                         }
@@ -4538,6 +4578,7 @@ function masterLoop(timestamp) {
                             }
 
                             enemy.hp -= finalDamage;
+                            audioManager.play('enemy_damage');
                             if (enemy.hp <= 0 && enemy.hp + finalDamage > 0) {
                                 enemy.lastHitBy = 'PROJECTILE';
                                 enemy.killer = proj.owner || player;
@@ -4659,7 +4700,7 @@ function masterLoop(timestamp) {
                         currentRunStats.bossesKilled++; // Track Boss Kill
                         saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
                         score += 1000; player.gainXp(500);
-                        if (isCoopMode && player2 && !player2.isDead) player2.gainXp(500);
+                        if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) player2.gainXp(500);
                         createExplosion(enemy.x, enemy.y, '#c0392b');
                         checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
 
@@ -4833,8 +4874,8 @@ function masterLoop(timestamp) {
 
             // Player Death Logic
             if (player.hp <= 0) {
-                if (isCoopMode && player2 && !player2.isDead && !player.isDead) {
-                    // Co-op: P1 dies but P2 is alive — drop revival marker
+                if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player.isDead) {
+                    // Co-op / AI companion: P1 dies but P2 is alive — drop revival marker
                     player.isDead = true;
                     player.hp = 0;
                     player.isInvincible = true;
@@ -4842,7 +4883,7 @@ function masterLoop(timestamp) {
                     player.moveInput = { x: 0, y: 0 };
                     p1RevivalMarker = { x: player.x, y: player.y, progress: 0, maxProgress: 240 };
                     createExplosion(player.x, player.y, '#ffffff');
-                    showNotification('P1 down! Stand on marker to revive.');
+                    showNotification(isAICompanionMode ? 'You\'re down! Ally is coming to revive you.' : 'P1 down! Stand on marker to revive.');
                 } else if (!isPlayerDying) {
                     isPlayerDying = true;
                     playerDeathTimer = 180; // 3 seconds animation

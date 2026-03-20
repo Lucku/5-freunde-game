@@ -184,3 +184,129 @@ class AIController extends PlayerController {
         return { x: dx, y: dy, aimAngle, shoot, melee, dash, special, pause: false, usingGamepad: false };
     }
 }
+
+/**
+ * CompanionAIController — drives a story companion hero.
+ * Targets enemies (not the player), supports the player like a co-op partner.
+ */
+class CompanionAIController extends PlayerController {
+    constructor() {
+        super();
+        this.type = 'COMPANION_AI';
+        this._shootTimer  = 0;
+        this._meleeTimer  = 0;
+        this._specialTimer = 180;
+        this._dashTimer   = 0;
+        this._stuckTimer  = 0;
+        this._lastX = null;
+        this._lastY = null;
+    }
+
+    getInput(player) {
+        // Find nearest alive enemy
+        let nearest = null;
+        let minDist  = Infinity;
+        if (typeof enemies !== 'undefined') {
+            enemies.forEach(e => {
+                if (e.hp <= 0) return;
+                const d = Math.hypot(e.x - player.x, e.y - player.y);
+                if (d < minDist) { minDist = d; nearest = e; }
+            });
+        }
+
+        const p1 = (typeof window !== 'undefined' && window.player && window.player !== player)
+            ? window.player : null;
+
+        // ── Revival priority: walk to P1's marker if P1 is down ─────────────
+        const reviveMarker = (typeof p1RevivalMarker !== 'undefined') ? p1RevivalMarker : null;
+        if (reviveMarker && p1 && p1.isDead) {
+            const dx = reviveMarker.x - player.x;
+            const dy = reviveMarker.y - player.y;
+            const d  = Math.hypot(dx, dy);
+            // Move toward marker; stand still once inside activation radius
+            const mx = d > 35 ? dx / d : 0;
+            const my = d > 35 ? dy / d : 0;
+            const aimAngle = d > 5
+                ? Math.atan2(dy, dx)
+                : player.aimAngle;
+            return { x: mx, y: my, aimAngle, usingGamepad: true,
+                shoot: false, melee: false, dash: false, special: false, pause: false };
+        }
+
+        // Movement
+        const ENGAGE_RANGE = 220;
+        const FLEE_RANGE   = 90;
+        const LOW_HP_RATIO = 0.28;
+        const P1_LEASH     = 800;
+
+        let mx = 0, my = 0;
+        const lowHp = player.hp < player.maxHp * LOW_HP_RATIO;
+
+        if (nearest) {
+            const dx  = nearest.x - player.x;
+            const dy  = nearest.y - player.y;
+            const len = Math.max(minDist, 1);
+
+            if (lowHp || minDist < FLEE_RANGE) {
+                mx = -(dx / len);
+                my = -(dy / len);
+            } else if (minDist > ENGAGE_RANGE) {
+                mx = dx / len;
+                my = dy / len;
+            }
+        } else if (p1) {
+            // No enemies — drift back toward P1
+            const dx = p1.x - player.x;
+            const dy = p1.y - player.y;
+            const d  = Math.hypot(dx, dy);
+            if (d > P1_LEASH) { mx = dx / d; my = dy / d; }
+        }
+
+        // Stuck detection
+        this._stuckTimer--;
+        if (this._lastX !== null) {
+            const moved = Math.hypot(player.x - this._lastX, player.y - this._lastY);
+            if (moved < 1.5 && (mx !== 0 || my !== 0) && this._stuckTimer <= 0) {
+                const a = Math.random() * Math.PI * 2;
+                mx = Math.cos(a);
+                my = Math.sin(a);
+                this._stuckTimer = 40;
+            }
+        }
+        if (this._stuckTimer <= -90) {
+            this._lastX = player.x;
+            this._lastY = player.y;
+            this._stuckTimer = 0;
+        }
+
+        // Aim
+        const aimAngle = nearest
+            ? Math.atan2(nearest.y - player.y, nearest.x - player.x)
+            : player.aimAngle;
+
+        // Shoot
+        this._shootTimer--;
+        const shoot = nearest !== null && minDist < 520 && this._shootTimer <= 0;
+        if (shoot) this._shootTimer = 6;
+
+        // Melee
+        this._meleeTimer--;
+        const melee = nearest !== null && minDist < 95 && this._meleeTimer <= 0;
+        if (melee) this._meleeTimer = 55;
+
+        // Dash away when low HP and cornered
+        this._dashTimer--;
+        let dash = false;
+        if (this._dashTimer <= 0 && lowHp && nearest && minDist < 120) {
+            dash = true;
+            this._dashTimer = 120;
+        }
+
+        // Special
+        this._specialTimer--;
+        const special = nearest !== null && this._specialTimer <= 0 && !lowHp;
+        if (special) this._specialTimer = 420;
+
+        return { x: mx, y: my, aimAngle, usingGamepad: true, shoot, melee, dash, special, pause: false };
+    }
+}
