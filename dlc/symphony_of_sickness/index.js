@@ -514,6 +514,7 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
                     if (typeof floatingTexts !== 'undefined')
                         floatingTexts.push(new FloatingText(this.x, this.y - 90, 'THE REFLECTION STIRS', '#9b59b6', 90));
                     if (typeof showNotification === 'function') showNotification('THE REFLECTION STIRS!');
+                    if (typeof audioManager !== 'undefined') audioManager.play('shadow_phase_transition');
                 }
                 if (this.phase === 2 && this.hp <= this.maxHp * 0.3) {
                     this.phase = 3;
@@ -522,11 +523,13 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
                     createExplosion(this.x, this.y, '#000000');
                     createExplosion(this.x, this.y, '#6c3483');
                     if (typeof showNotification === 'function') showNotification('YOU CANNOT ESCAPE YOURSELF!');
+                    if (typeof audioManager !== 'undefined') audioManager.play('shadow_phase_transition');
                 }
 
                 // --- Shadow Step: teleport behind target + fan burst ---
                 if (--this._stepTimer <= 0) {
                     // Vanish
+                    if (typeof audioManager !== 'undefined') audioManager.play('shadow_step_vanish');
                     createExplosion(this.x, this.y, '#000000');
                     this._spawnTrailParticles(14);
                     // Reappear behind target
@@ -534,6 +537,7 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
                     const _dist   = 110 + Math.random() * 70;
                     this.x = Math.max(this.radius, Math.min(arena.width  - this.radius, tgt.x + Math.cos(_behind) * _dist));
                     this.y = Math.max(this.radius, Math.min(arena.height - this.radius, tgt.y + Math.sin(_behind) * _dist));
+                    if (typeof audioManager !== 'undefined') audioManager.play('shadow_step_reappear');
                     createExplosion(this.x, this.y, '#6c3483');
                     // Fan burst toward target
                     const shots  = this.phase === 3 ? 7 : 5;
@@ -544,6 +548,7 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
                             { x: Math.cos(fanAng + sp) * 9, y: Math.sin(fanAng + sp) * 9 },
                             this.damage * 0.65, '#6c3483', 7, 'enemy', 0, true));
                     }
+                    if (typeof audioManager !== 'undefined') audioManager.play('shadow_fan_shot');
                     this._stepTimer = this._stepCD;
                 }
 
@@ -556,7 +561,7 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
                             { x: Math.cos(a) * 5, y: Math.sin(a) * 5 },
                             this.damage * 0.8, '#4a235a', 9, 'enemy', 0, true));
                     }
-                    if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
+                    if (typeof audioManager !== 'undefined') audioManager.play('dark_pulse_ring');
                     this._pulseTimer = this.phase === 3 ? 180 : this.phase === 2 ? 240 : 300;
                 }
 

@@ -2614,6 +2614,7 @@ function unlockAchievement(id) {
         const ach = ACHIEVEMENTS.find(a => a.id === id);
         if (ach) {
             saveData.global.unlockedAchievements.push(id);
+            if (typeof audioManager !== 'undefined') audioManager.play('achievement_unlocked');
             showAchievementNotif(ach);
             saveGame();
         }

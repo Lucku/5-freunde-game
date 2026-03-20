@@ -650,11 +650,11 @@ class SoundHero {
                 player.beatStreak++;
             }
             if (typeof showNotification === 'function' && Math.random() < 0.2) showNotification("PERFECT!", color);
-            if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_perfect');
+            if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_crit');
         } else {
             dmg *= 0.5;
             if (inSoundBiome) player.beatStreak = 0;
-            if (typeof audioManager !== 'undefined') audioManager.play('shoot_weak');
+            if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_' + (Math.floor(Math.random() * 4) + 1));
         }
 
         // Build shot angle list, respecting multi-projectile
@@ -708,6 +708,7 @@ class SoundHero {
     // ─────────────────────────────────────────────────────────────────────────
 
     static fireSyncWave(player, dx, dy) {
+        if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_sync_' + (Math.floor(Math.random() * 4) + 1));
         const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier * 1.8;
         const baseAngle = Math.atan2(dy, dx);
 
@@ -871,7 +872,7 @@ class SoundHero {
 
     static useSpecial(player) {
         SoundHero.spawnResonanceRing(player);
-
+        if (typeof audioManager !== 'undefined') audioManager.play('special_sound');
         if (typeof showNotification === 'function') showNotification("CRESCENDO!", "#00e5ff");
 
         return true;

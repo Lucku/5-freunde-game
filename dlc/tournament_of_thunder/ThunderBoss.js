@@ -38,12 +38,14 @@ class ThunderBoss {
             this.phase = 2;
             createExplosion(this.x, this.y, '#ffeb3b', 20); // Visual flair
             showNotification("ZEUS: THE SKY BELONGS TO ME!");
+            if (typeof audioManager !== 'undefined') audioManager.play('zeus_phase2_transition');
         }
         if (this.phase === 2 && this.hp < this.maxHp * 0.3) {
             this.phase = 3;
             this.speed = 8;
             createExplosion(this.x, this.y, '#ffffff', 30);
             showNotification("ZEUS: I AM THE GOD OF THUNDER!");
+            if (typeof audioManager !== 'undefined') audioManager.play('zeus_phase3_transition');
         }
 
         // Behavior
@@ -100,9 +102,11 @@ class ThunderBoss {
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
 
         // Telegraph
+        if (typeof audioManager !== 'undefined') audioManager.play('thunder_spear_telegraph');
         createExplosion(this.x, this.y, '#ffeb3b');
 
         setTimeout(() => {
+            if (typeof audioManager !== 'undefined') audioManager.play('thunder_spear_launch');
             projectiles.push(new Projectile(
                 this.x, this.y,
                 { x: Math.cos(angle) * 20, y: Math.sin(angle) * 20 }, // Very Fast
@@ -118,6 +122,7 @@ class ThunderBoss {
 
     stormRing() {
         // Expanding ring of orbs
+        if (typeof audioManager !== 'undefined') audioManager.play('zeus_storm_ring');
         const count = this.phase === 3 ? 24 : 16;
         for (let i = 0; i < count; i++) {
             const angle = (Math.PI * 2 / count) * i;
@@ -132,6 +137,7 @@ class ThunderBoss {
     dashAttack() {
         // Replaced by Kiting/Movement logic, but kept as a defensive burst if stuck?
         // Let's replace with Teleport
+        if (typeof audioManager !== 'undefined') audioManager.play('zeus_teleport_flash');
         createExplosion(this.x, this.y, '#fff');
         const angle = Math.random() * Math.PI * 2;
         this.x += Math.cos(angle) * 300;
@@ -141,6 +147,7 @@ class ThunderBoss {
 
     staticField() {
         // Place a mine/trap near player
+        if (typeof audioManager !== 'undefined') audioManager.play('zeus_static_field');
         projectiles.push(new Projectile(
             player.x + (Math.random() * 200 - 100),
             player.y + (Math.random() * 200 - 100),
@@ -156,6 +163,7 @@ class ThunderBoss {
 
     wrathOfOlympus() {
         showNotification("WRATH OF OLYMPUS!");
+        if (typeof audioManager !== 'undefined') audioManager.play('wrath_of_olympus');
         this.state = 'CASTING';
 
         // Massive Bullet Hell

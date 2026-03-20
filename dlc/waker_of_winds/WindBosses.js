@@ -61,6 +61,7 @@ class WindBosses {
 
             // Gust push (every ~3.3s via frame)
             if (frame % 200 === 0) {
+                if (typeof audioManager !== 'undefined') audioManager.play('gust_push');
                 if (typeof createExplosion === 'function') createExplosion(boss.x, boss.y, '#fff');
                 player.vx += Math.cos(angle) * 22;
                 player.vy += Math.sin(angle) * 22;
@@ -79,6 +80,7 @@ class WindBosses {
                         projectiles.push(p);
                     }
                 }
+                if (typeof audioManager !== 'undefined') audioManager.play('hailstorm_burst');
                 if (typeof showNotification === 'function') showNotification("HAILSTORM!");
             }
 
@@ -86,6 +88,7 @@ class WindBosses {
             boss._stompTimer--;
             if (boss._stompTimer <= 0 && dist < 220) {
                 boss._stompTimer = 150;
+                if (typeof audioManager !== 'undefined') audioManager.play('cloud_golem_stomp');
                 const pushAng = Math.atan2(player.y - boss.y, player.x - boss.x);
                 player.vx += Math.cos(pushAng) * 30;
                 player.vy += Math.sin(pushAng) * 30;
@@ -113,7 +116,7 @@ class WindBosses {
                     boss.state   = 'DIVE';
                     boss.targetX = player.x;
                     boss.targetY = player.y;
-                    if (typeof audioManager !== 'undefined') audioManager.play('boss_rhino_charge');
+                    if (typeof audioManager !== 'undefined') audioManager.play('crow_dive_screech');
                     if (typeof createExplosion === 'function') createExplosion(boss.x, boss.y, '#2c3e50');
                 }
             } else if (boss.state === 'DIVE') {
@@ -133,6 +136,7 @@ class WindBosses {
                         const pushAng = Math.atan2(player.y - boss.y, player.x - boss.x);
                         player.vx += Math.cos(pushAng) * 25;
                         player.vy += Math.sin(pushAng) * 25;
+                        if (typeof audioManager !== 'undefined') audioManager.play('screech_land');
                         if (typeof createExplosion === 'function') createExplosion(boss.x, boss.y, '#f1c40f');
                         if (typeof showNotification === 'function') showNotification("SCREECH!");
                     }
@@ -155,6 +159,7 @@ class WindBosses {
             boss.tornadoTimer++;
             if (boss.tornadoTimer > 180) {
                 boss.tornadoTimer = 0;
+                if (typeof audioManager !== 'undefined') audioManager.play('tornado_projectile_spawn');
                 if (typeof projectiles !== 'undefined' && typeof Projectile !== 'undefined') {
                     const count = boss.hp < boss.maxHp * 0.5 ? 5 : 3;
                     for (let i = 0; i < count; i++) {
@@ -179,6 +184,7 @@ class WindBosses {
                 boss._dashDuration = 40;
                 boss._dashVelX     = Math.cos(angle) * boss.speed * 5;
                 boss._dashVelY     = Math.sin(angle) * boss.speed * 5;
+                if (typeof audioManager !== 'undefined') audioManager.play('spin_dash');
                 if (typeof showNotification === 'function') showNotification("SPIN DASH!");
                 if (typeof createExplosion === 'function') createExplosion(boss.x, boss.y, '#1abc9c');
             }
@@ -203,6 +209,7 @@ class WindBosses {
             if (boss._vortexTimer <= 0) {
                 boss._vortexTimer = 280;
                 if (dist < 450 && dist > boss.radius + 20) {
+                    if (typeof audioManager !== 'undefined') audioManager.play('vortex_pull');
                     const pullAng = Math.atan2(boss.y - player.y, boss.x - player.x);
                     player.x += Math.cos(pullAng) * 60;
                     player.y += Math.sin(pullAng) * 60;
@@ -224,6 +231,7 @@ class WindBosses {
                         projectiles.push(p);
                     }
                 }
+                if (typeof audioManager !== 'undefined') audioManager.play('eye_of_storm_ring');
                 if (typeof showNotification === 'function') showNotification("EYE OF THE STORM!");
             }
 
@@ -232,6 +240,7 @@ class WindBosses {
                 boss.phase = 2;
                 boss.speed *= 1.5;
                 boss._stormRingTimer = 120; // Immediately trigger storm ring
+                if (typeof audioManager !== 'undefined') audioManager.play('tempest_phase2_transition');
                 if (typeof showNotification === 'function') showNotification("THE EYE OF THE STORM OPENS!");
                 for (let i = 0; i < 4; i++) enemies.push(new Enemy(true));
                 if (typeof createExplosion === 'function') {

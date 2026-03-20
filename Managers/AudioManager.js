@@ -105,6 +105,18 @@ class AudioManager {
             special_spirit: new Audio('dlc/faith_of_fortune/audio/sounds/special_spirit.wav'),
             special_spirit_charging: new Audio('dlc/faith_of_fortune/audio/sounds/special_spirit_charging.wav'),
 
+            // DLC Symphony of Sickness — Sound Hero SFX
+            attack_sound_1:       new Audio('dlc/symphony_of_sickness/audio/sounds/attack_sound_1.wav'),
+            attack_sound_2:       new Audio('dlc/symphony_of_sickness/audio/sounds/attack_sound_2.wav'),
+            attack_sound_3:       new Audio('dlc/symphony_of_sickness/audio/sounds/attack_sound_3.wav'),
+            attack_sound_4:       new Audio('dlc/symphony_of_sickness/audio/sounds/attack_sound_4.wav'),
+            attack_sound_crit:    new Audio('dlc/symphony_of_sickness/audio/sounds/attack_sound_crit.wav'),
+            attack_sound_sync_1:  new Audio('dlc/symphony_of_sickness/audio/sounds/attack_sound_sync_1.wav'),
+            attack_sound_sync_2:  new Audio('dlc/symphony_of_sickness/audio/sounds/attack_sound_sync_2.wav'),
+            attack_sound_sync_3:  new Audio('dlc/symphony_of_sickness/audio/sounds/attack_sound_sync_3.wav'),
+            attack_sound_sync_4:  new Audio('dlc/symphony_of_sickness/audio/sounds/attack_sound_sync_4.wav'),
+            special_sound:        new Audio('dlc/symphony_of_sickness/audio/sounds/special_sound.wav'),
+
             // DLC Symphony of Sickness
             battle_poison: new Audio('dlc/symphony_of_sickness/audio/music/battle_poison.wav'),
             battle_sound: new Audio('dlc/symphony_of_sickness/audio/music/battle_sound.wav'),
@@ -122,83 +134,86 @@ class AudioManager {
             wave_completed: new Audio('audio/sounds/wave_completed.wav'),
 
             // DLC Boss SFX — Shadow Clone (Symphony of Sickness)
-            shadow_step_vanish:       new Audio('audio/sounds/boss_shadow_step_vanish.mp3'),
-            shadow_step_reappear:     new Audio('audio/sounds/boss_shadow_step_reappear.mp3'),
-            shadow_trail_tick:        new Audio('audio/sounds/boss_shadow_trail_tick.mp3'),
-            shadow_fan_shot:          new Audio('audio/sounds/boss_shadow_fan_shot.mp3'),
-            shadow_phase_transition:  new Audio('audio/sounds/boss_shadow_phase_transition.mp3'),
-            dark_pulse_ring:          new Audio('audio/sounds/boss_dark_pulse_ring.mp3'),
+            shadow_step_vanish:       new Audio('dlc/symphony_of_sickness/audio/sounds/boss_shadow_step_vanish.wav'),
+            shadow_step_reappear:     new Audio('dlc/symphony_of_sickness/audio/sounds/boss_shadow_step_reappear.wav'),
+            shadow_trail_tick:        new Audio('dlc/symphony_of_sickness/audio/sounds/boss_shadow_trail_tick.wav'),
+            shadow_fan_shot:          new Audio('dlc/symphony_of_sickness/audio/sounds/boss_shadow_fan_shot.wav'),
+            shadow_phase_transition:  new Audio('dlc/symphony_of_sickness/audio/sounds/boss_shadow_phase_transition.wav'),
+            dark_pulse_ring:          new Audio('dlc/symphony_of_sickness/audio/sounds/boss_dark_pulse_ring.wav'),
 
             // DLC Boss SFX — Mimic King (Faith of Fortune)
-            wheel_tick:               new Audio('audio/sounds/boss_wheel_tick.mp3'),
-            wheel_spin_start:         new Audio('audio/sounds/boss_wheel_spin_start.mp3'),
-            wheel_land:               new Audio('audio/sounds/boss_wheel_land.mp3'),
-            gambit_jackpot:           new Audio('audio/sounds/boss_gambit_jackpot.mp3'),
-            gambit_nothing:           new Audio('audio/sounds/boss_gambit_nothing.mp3'),
-            mimic_nova_burst:         new Audio('audio/sounds/boss_mimic_nova.mp3'),
-            mimic_spiral_arms:        new Audio('audio/sounds/boss_mimic_spiral.mp3'),
-            mimic_copy_hit:           new Audio('audio/sounds/boss_mimic_copy.mp3'),
-            mimic_phase2_transition:  new Audio('audio/sounds/boss_mimic_phase2.mp3'),
-            mimic_phase3_transition:  new Audio('audio/sounds/boss_mimic_phase3.mp3'),
+            wheel_tick:               new Audio('dlc/faith_of_fortune/audio/sounds/boss_wheel_tick.wav'),
+            wheel_spin_start:         new Audio('dlc/faith_of_fortune/audio/sounds/boss_wheel_spin_start.wav'),
+            wheel_land:               new Audio('dlc/faith_of_fortune/audio/sounds/boss_wheel_land.wav'),
+            gambit_jackpot:           new Audio('dlc/faith_of_fortune/audio/sounds/boss_gambit_jackpot.wav'),
+            gambit_nothing:           new Audio('dlc/faith_of_fortune/audio/sounds/boss_gambit_nothing.wav'),
+            mimic_nova_burst:         new Audio('dlc/faith_of_fortune/audio/sounds/boss_mimic_nova.wav'),
+            mimic_spiral_arms:        new Audio('dlc/faith_of_fortune/audio/sounds/boss_mimic_spiral.wav'),
+            mimic_copy_hit:           new Audio('dlc/faith_of_fortune/audio/sounds/boss_mimic_copy.wav'),
+            mimic_phase2_transition:  new Audio('dlc/faith_of_fortune/audio/sounds/boss_mimic_phase2.wav'),
+            mimic_phase3_transition:  new Audio('dlc/faith_of_fortune/audio/sounds/boss_mimic_phase3.wav'),
 
             // DLC Boss SFX — Cloud Golem (Waker of Winds)
-            gust_push:                new Audio('audio/sounds/boss_gust_push.mp3'),
-            hailstorm_burst:          new Audio('audio/sounds/boss_hailstorm_burst.mp3'),
-            cloud_golem_stomp:        new Audio('audio/sounds/boss_cloud_golem_stomp.mp3'),
+            gust_push:                new Audio('dlc/waker_of_winds/audio/sounds/boss_gust_push.wav'),
+            hailstorm_burst:          new Audio('dlc/waker_of_winds/audio/sounds/boss_hailstorm_burst.wav'),
+            cloud_golem_stomp:        new Audio('dlc/waker_of_winds/audio/sounds/boss_cloud_golem_stomp.wav'),
 
             // DLC Boss SFX — Storm Crow (Waker of Winds)
-            crow_dive_screech:        new Audio('audio/sounds/boss_crow_dive_screech.mp3'),
-            screech_land:             new Audio('audio/sounds/boss_crow_screech_land.mp3'),
+            crow_dive_screech:        new Audio('dlc/waker_of_winds/audio/sounds/boss_crow_dive_screech.wav'),
+            screech_land:             new Audio('dlc/waker_of_winds/audio/sounds/boss_crow_screech_land.wav'),
 
             // DLC Boss SFX — Tornado Machina (Waker of Winds)
-            tornado_projectile_spawn: new Audio('audio/sounds/boss_tornado_spawn.mp3'),
-            spin_dash:                new Audio('audio/sounds/boss_tornado_spin_dash.mp3'),
+            tornado_projectile_spawn: new Audio('dlc/waker_of_winds/audio/sounds/boss_tornado_spawn.wav'),
+            spin_dash:                new Audio('dlc/waker_of_winds/audio/sounds/boss_tornado_spin_dash.wav'),
 
             // DLC Boss SFX — Tempest (Waker of Winds)
-            vortex_pull:              new Audio('audio/sounds/boss_vortex_pull.mp3'),
-            eye_of_storm_ring:        new Audio('audio/sounds/boss_eye_storm_ring.mp3'),
-            tempest_phase2_transition:new Audio('audio/sounds/boss_tempest_phase2.mp3'),
+            vortex_pull:              new Audio('dlc/waker_of_winds/audio/sounds/boss_vortex_pull.wav'),
+            eye_of_storm_ring:        new Audio('dlc/waker_of_winds/audio/sounds/boss_eye_storm_ring.wav'),
+            tempest_phase2_transition:new Audio('dlc/waker_of_winds/audio/sounds/boss_tempest_phase2.wav'),
 
             // DLC Boss SFX — Zeus (Tournament of Thunder)
-            thunder_spear_telegraph:  new Audio('audio/sounds/boss_thunder_spear_telegraph.mp3'),
-            thunder_spear_launch:     new Audio('audio/sounds/boss_thunder_spear_launch.mp3'),
-            zeus_storm_ring:          new Audio('audio/sounds/boss_zeus_storm_ring.mp3'),
-            zeus_static_field:        new Audio('audio/sounds/boss_zeus_static_field.mp3'),
-            wrath_of_olympus:         new Audio('audio/sounds/boss_wrath_olympus.mp3'),
-            zeus_phase2_transition:   new Audio('audio/sounds/boss_zeus_phase2.mp3'),
-            zeus_phase3_transition:   new Audio('audio/sounds/boss_zeus_phase3.mp3'),
-            zeus_teleport_flash:      new Audio('audio/sounds/boss_zeus_teleport.mp3'),
+            thunder_spear_telegraph:  new Audio('dlc/tournament_of_thunder/audio/sounds/boss_thunder_spear_telegraph.wav'),
+            thunder_spear_launch:     new Audio('dlc/tournament_of_thunder/audio/sounds/boss_thunder_spear_launch.wav'),
+            zeus_storm_ring:          new Audio('dlc/tournament_of_thunder/audio/sounds/boss_zeus_storm_ring.wav'),
+            zeus_static_field:        new Audio('dlc/tournament_of_thunder/audio/sounds/boss_zeus_static_field.wav'),
+            wrath_of_olympus:         new Audio('dlc/tournament_of_thunder/audio/sounds/boss_wrath_olympus.wav'),
+            zeus_phase2_transition:   new Audio('dlc/tournament_of_thunder/audio/sounds/boss_zeus_phase2.wav'),
+            zeus_phase3_transition:   new Audio('dlc/tournament_of_thunder/audio/sounds/boss_zeus_phase3.wav'),
+            zeus_teleport_flash:      new Audio('dlc/tournament_of_thunder/audio/sounds/boss_zeus_teleport.wav'),
 
             // DLC Boss SFX — Dark Golem (Rise of the Rock)
-            dark_golem_boulder:       new Audio('audio/sounds/boss_dark_golem_boulder.mp3'),
-            dark_golem_slam:          new Audio('audio/sounds/boss_dark_golem_slam.mp3'),
-            dark_golem_lava:          new Audio('audio/sounds/boss_dark_golem_lava.mp3'),
-            dark_golem_crack:         new Audio('audio/sounds/boss_dark_golem_crack.mp3'),
-            dark_golem_charge:        new Audio('audio/sounds/boss_dark_golem_charge.mp3'),
-            dark_golem_berserk:       new Audio('audio/sounds/boss_dark_golem_berserk.mp3'),
+            dark_golem_boulder:       new Audio('dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_boulder.wav'),
+            dark_golem_slam:          new Audio('dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_slam.wav'),
+            dark_golem_lava:          new Audio('dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_lava.wav'),
+            dark_golem_crack:         new Audio('dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_crack.wav'),
+            dark_golem_charge:        new Audio('dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_charge.wav'),
+            dark_golem_berserk:       new Audio('dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_berserk.wav'),
 
             // DLC Boss SFX — Void Walker Boss (Champions of Chaos)
-            void_bolt:                new Audio('audio/sounds/boss_void_bolt.mp3'),
-            void_pulse_ring:          new Audio('audio/sounds/boss_void_pulse_ring.mp3'),
-            dimensional_rift:         new Audio('audio/sounds/boss_dimensional_rift.mp3'),
-            void_phase_in:            new Audio('audio/sounds/boss_void_phase_in.mp3'),
-            void_phase_out:           new Audio('audio/sounds/boss_void_phase_out.mp3'),
-            void_gravity_pull:        new Audio('audio/sounds/boss_void_gravity_pull.mp3'),
-            void_storm:               new Audio('audio/sounds/boss_void_storm.mp3'),
+            void_bolt:                new Audio('dlc/champions_of_chaos/audio/sounds/boss_void_bolt.wav'),
+            void_pulse_ring:          new Audio('dlc/champions_of_chaos/audio/sounds/boss_void_pulse_ring.wav'),
+            dimensional_rift:         new Audio('dlc/champions_of_chaos/audio/sounds/boss_dimensional_rift.wav'),
+            void_phase_in:            new Audio('dlc/champions_of_chaos/audio/sounds/boss_void_phase_in.wav'),
+            void_phase_out:           new Audio('dlc/champions_of_chaos/audio/sounds/boss_void_phase_out.wav'),
+            void_gravity_pull:        new Audio('dlc/champions_of_chaos/audio/sounds/boss_void_gravity_pull.wav'),
+            void_storm:               new Audio('dlc/champions_of_chaos/audio/sounds/boss_void_storm.wav'),
 
             // DLC Boss SFX — Glitch Boss (Champions of Chaos)
-            glitch_teleport:          new Audio('audio/sounds/boss_glitch_teleport.mp3'),
-            glitch_corruption_beam:   new Audio('audio/sounds/boss_glitch_beam.mp3'),
-            glitch_fragmentation:     new Audio('audio/sounds/boss_glitch_fragment.mp3'),
-            glitch_system_crash:      new Audio('audio/sounds/boss_glitch_crash.mp3'),
+            glitch_teleport:          new Audio('dlc/champions_of_chaos/audio/sounds/boss_glitch_teleport.wav'),
+            glitch_corruption_beam:   new Audio('dlc/champions_of_chaos/audio/sounds/boss_glitch_beam.wav'),
+            glitch_fragmentation:     new Audio('dlc/champions_of_chaos/audio/sounds/boss_glitch_fragment.wav'),
+            glitch_system_crash:      new Audio('dlc/champions_of_chaos/audio/sounds/boss_glitch_crash.wav'),
 
             // DLC Boss SFX — Entropy Lord (Champions of Chaos)
-            entropy_surge:            new Audio('audio/sounds/boss_entropy_surge.mp3'),
-            chaos_storm:              new Audio('audio/sounds/boss_chaos_storm.mp3'),
-            entropy_phase2_transition:new Audio('audio/sounds/boss_entropy_phase2.mp3'),
-            entropy_phase3_transition:new Audio('audio/sounds/boss_entropy_phase3.mp3'),
-            shield_orb_hit:           new Audio('audio/sounds/boss_shield_orb_hit.mp3'),
-            entropy_teleport:         new Audio('audio/sounds/boss_entropy_teleport.mp3'),
+            entropy_surge:            new Audio('dlc/champions_of_chaos/audio/sounds/boss_entropy_surge.wav'),
+            chaos_storm:              new Audio('dlc/champions_of_chaos/audio/sounds/boss_chaos_storm.wav'),
+            entropy_phase2_transition:new Audio('dlc/champions_of_chaos/audio/sounds/boss_entropy_phase2.wav'),
+            entropy_phase3_transition:new Audio('dlc/champions_of_chaos/audio/sounds/boss_entropy_phase3.wav'),
+            shield_orb_hit:           new Audio('dlc/champions_of_chaos/audio/sounds/boss_shield_orb_hit.wav'),
+            entropy_teleport:         new Audio('dlc/champions_of_chaos/audio/sounds/boss_entropy_teleport.wav'),
+
+            // Base game UI SFX
+            achievement_unlocked: new Audio('audio/sounds/achievement_unlocked.wav'),
         };
 
         // Configuration

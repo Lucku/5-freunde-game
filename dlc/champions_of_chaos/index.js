@@ -281,6 +281,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                 boss._phaseDur    = boss.phase === 3 ? 90 : 120;
                 boss.alpha        = 0.15;
                 boss._phaseTimer  = boss.phase === 3 ? 200 : 380;
+                if (typeof audioManager !== 'undefined') audioManager.play('void_phase_out');
                 createExplosion(boss.x, boss.y, '#4a235a');
             }
             if (boss._phaseActive) {
@@ -288,6 +289,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                 if (boss._phaseDur <= 0) {
                     boss._phaseActive = false;
                     boss.alpha        = 1.0;
+                    if (typeof audioManager !== 'undefined') audioManager.play('void_phase_in');
                     createExplosion(boss.x, boss.y, '#c39bd3');
                 }
             }
@@ -342,6 +344,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
         },
 
         _voidBolt(boss, tgt) {
+            if (typeof audioManager !== 'undefined') audioManager.play('void_bolt');
             const a     = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
             const count = boss.phase === 3 ? 3 : boss.phase === 2 ? 2 : 1;
             for (let i = 0; i < count; i++) {
@@ -361,10 +364,11 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                     boss.damage * 0.8, '#6c3483', 10, 'enemy', 0, true));
             }
             createExplosion(boss.x, boss.y, '#4a235a');
-            if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
+            if (typeof audioManager !== 'undefined') audioManager.play('void_pulse_ring');
         },
 
         _dimensionalRift(boss, tgt, arena) {
+            if (typeof audioManager !== 'undefined') audioManager.play('dimensional_rift');
             createExplosion(boss.x, boss.y, '#000000');
             const a = Math.random() * Math.PI * 2;
             const d = 200 + Math.random() * 150;
@@ -388,6 +392,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                 const pa = Math.atan2(boss.y - tgt.y, boss.x - tgt.x);
                 tgt.x += Math.cos(pa) * 70;
                 tgt.y += Math.sin(pa) * 70;
+                if (typeof audioManager !== 'undefined') audioManager.play('void_gravity_pull');
                 createExplosion(boss.x, boss.y, '#1a0030');
                 if (typeof showNotification === 'function') showNotification('VOID PULL!');
             }
@@ -400,6 +405,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                     { x: Math.cos(a) * 6.5, y: Math.sin(a) * 6.5 },
                     boss.damage * 0.9, '#6c3483', 10, 'enemy', 0, true));
             }
+            if (typeof audioManager !== 'undefined') audioManager.play('void_storm');
             createExplosion(boss.x, boss.y, '#4a235a');
             createExplosion(boss.x, boss.y, '#000000');
             if (typeof showNotification === 'function') showNotification('VOID STORM!');
@@ -514,6 +520,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                 boss.phase = 2;
                 boss.speed *= 1.3;
                 boss._teleTimer = 60;
+                if (typeof audioManager !== 'undefined') audioManager.play('glitch_fragmentation');
                 createExplosion(boss.x, boss.y, '#ff00ff');
                 createExplosion(boss.x, boss.y, '#00ffff');
                 if (typeof showNotification === 'function') showNotification('FRAGMENTATION ERROR!');
@@ -523,6 +530,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                 boss._crashMode = true;
                 boss.speed *= 1.4;
                 boss._teleTimer = 45;
+                if (typeof audioManager !== 'undefined') audioManager.play('glitch_system_crash');
                 createExplosion(boss.x, boss.y, '#ffffff');
                 if (typeof showNotification === 'function') showNotification('SYSTEM CRASH!');
             }
@@ -562,6 +570,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
         },
 
         _teleportBurst(boss, tgt, arena) {
+            if (typeof audioManager !== 'undefined') audioManager.play('glitch_teleport');
             createExplosion(boss.x, boss.y, '#ff00ff');
             boss.x = tgt.x + (Math.random() - 0.5) * 400;
             boss.y = tgt.y + (Math.random() - 0.5) * 400;
@@ -580,6 +589,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
         },
 
         _corruptionBeam(boss, tgt) {
+            if (typeof audioManager !== 'undefined') audioManager.play('glitch_corruption_beam');
             const a    = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
             const bx   = boss.x, by = boss.y;
             const shots = boss.phase === 3 ? 7 : 5;
@@ -606,6 +616,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                     life: boss.phase === 3 ? 300 : 240,
                 });
             }
+            if (typeof audioManager !== 'undefined') audioManager.play('glitch_fragmentation');
             createExplosion(boss.x, boss.y, '#ff00ff');
             if (typeof showNotification === 'function') showNotification('FRAGMENTED!');
         },
@@ -737,6 +748,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                 boss.phase = 2;
                 boss._spreadTimer = 70;
                 boss._summonTimer = 300;
+                if (typeof audioManager !== 'undefined') audioManager.play('entropy_phase2_transition');
                 createExplosion(boss.x, boss.y, '#e74c3c');
                 createExplosion(boss.x, boss.y, '#9b59b6');
                 this._entropySurge(boss); // immediate nova at transition
@@ -747,6 +759,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                 boss.speed      *= 1.35;
                 boss._summonTimer = 180;
                 boss._spreadTimer = 50;
+                if (typeof audioManager !== 'undefined') audioManager.play('entropy_phase3_transition');
                 this._entropySurge(boss);
                 createExplosion(boss.x, boss.y, '#ff0000');
                 createExplosion(boss.x, boss.y, '#8e44ad');
@@ -773,6 +786,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                             if (typeof p.takeDamage === 'function') p.takeDamage(boss.damage * 0.15);
                             const pa = Math.atan2(p.y - sy, p.x - sx);
                             p.x += Math.cos(pa) * 18; p.y += Math.sin(pa) * 18;
+                            if (typeof audioManager !== 'undefined') audioManager.play('shield_orb_hit');
                             createExplosion(sx, sy, '#8e44ad');
                         }
                     });
@@ -782,6 +796,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
             // Teleport away when player is too close
             if (--boss._teleTimer <= 0 || (dist < 120 && boss._teleTimer < 280)) {
                 boss._teleTimer = boss.phase === 3 ? 200 : 300 + Math.random() * 80;
+                if (typeof audioManager !== 'undefined') audioManager.play('entropy_teleport');
                 createExplosion(boss.x, boss.y, '#6c3483');
                 const ta = Math.random() * Math.PI * 2;
                 const td = 280 + Math.random() * 180;
@@ -872,11 +887,12 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                     boss.damage * 0.8, cols[i % cols.length], 10, 'enemy', 0, true));
             }
             createExplosion(boss.x, boss.y, '#e74c3c');
-            if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
+            if (typeof audioManager !== 'undefined') audioManager.play('entropy_surge');
             if (typeof showNotification === 'function') showNotification('ENTROPY SURGE!');
         },
 
         _chaosStorm(boss) {
+            if (typeof audioManager !== 'undefined') audioManager.play('chaos_storm');
             // Three rotating volleys fired 200ms apart
             for (let v = 0; v < 3; v++) {
                 setTimeout(() => {

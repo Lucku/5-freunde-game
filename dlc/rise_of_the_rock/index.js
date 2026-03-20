@@ -606,6 +606,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
             // Phase transitions
             if (boss.phase === 1 && boss.hp <= boss.maxHp * 0.6) {
                 boss.phase = 2;
+                if (typeof audioManager !== 'undefined') audioManager.play('dark_golem_crack');
                 createExplosion(boss.x, boss.y, '#ff6600');
                 createExplosion(boss.x, boss.y, '#263238');
                 if (typeof floatingTexts !== 'undefined')
@@ -616,6 +617,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
                 boss.phase = 3;
                 boss.speed *= 2.5;
                 boss._boulderTimer = 60;
+                if (typeof audioManager !== 'undefined') audioManager.play('dark_golem_berserk');
                 createExplosion(boss.x, boss.y, '#ff3300');
                 createExplosion(boss.x, boss.y, '#ff9900');
                 if (typeof showNotification === 'function') showNotification('GOLEM BERSERKS!');
@@ -689,6 +691,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
                 const ca = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
                 boss._chargeVelX   = Math.cos(ca) * boss.speed * 6;
                 boss._chargeVelY   = Math.sin(ca) * boss.speed * 6;
+                if (typeof audioManager !== 'undefined') audioManager.play('dark_golem_charge');
                 createExplosion(boss.x, boss.y, '#546e7a');
                 if (typeof showNotification === 'function') showNotification('GOLEM CHARGES!');
             }
@@ -710,7 +713,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
             tgt.vx = (tgt.vx || 0) + Math.cos(pa) * 35;
             tgt.vy = (tgt.vy || 0) + Math.sin(pa) * 35;
             createExplosion(boss.x, boss.y, col);
-            if (typeof audioManager !== 'undefined') audioManager.play('boss_rhino_charge');
+            if (typeof audioManager !== 'undefined') audioManager.play('dark_golem_slam');
         },
 
         _boulderVolley(boss, tgt) {
@@ -726,7 +729,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
                         boss.damage * 0.85, '#546e7a', 20, 'enemy', 0, true));
                 }, i * 150);
             }
-            if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
+            if (typeof audioManager !== 'undefined') audioManager.play('dark_golem_boulder');
         },
 
         _obsidianSpikes(boss) {
@@ -740,6 +743,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
         },
 
         _lavaErupt(boss, tgt) {
+            if (typeof audioManager !== 'undefined') audioManager.play('dark_golem_lava');
             const count = boss.phase === 3 ? 9 : 6;
             const bx = boss.x, by = boss.y;
             for (let i = 0; i < count; i++) {

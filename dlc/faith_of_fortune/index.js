@@ -421,6 +421,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                 boss._wheelCD = 210; // 3.5 s
                 boss._decoys  = [];
                 this._spawnDecoy(boss, tgt);
+                if (typeof audioManager !== 'undefined') audioManager.play('mimic_phase2_transition');
                 createExplosion(boss.x, boss.y, '#f1c40f');
                 createExplosion(boss.x, boss.y, '#ff00ff');
                 if (typeof floatingTexts !== 'undefined')
@@ -432,6 +433,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                 boss.speed   *= 1.35;
                 boss._wheelCD = 150; // 2.5 s
                 this._spawnDecoy(boss, tgt); // second decoy
+                if (typeof audioManager !== 'undefined') audioManager.play('mimic_phase3_transition');
                 createExplosion(boss.x, boss.y, '#f1c40f');
                 createExplosion(boss.x, boss.y, '#c0392b');
                 if (typeof showNotification === 'function') showNotification('THE MASK SHATTERS!');
@@ -445,7 +447,14 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                 boss._wheelSpinAngle = boss._wheelSpinStart +
                     (boss._wheelFinalAngle - boss._wheelSpinStart) * ease;
                 boss._wheelTelegraph--;
-                if (boss._wheelTelegraph === 0) this._fireWheelResult(boss, tgt);
+                // Tick sound — faster at start, slows as wheel decelerates
+                if (boss._wheelTelegraph > 0 && boss._wheelTelegraph % Math.max(3, Math.floor(12 * t)) === 0) {
+                    if (typeof audioManager !== 'undefined') audioManager.play('wheel_tick');
+                }
+                if (boss._wheelTelegraph === 0) {
+                    if (typeof audioManager !== 'undefined') audioManager.play('wheel_land');
+                    this._fireWheelResult(boss, tgt);
+                }
                 // Decoys keep moving/firing; boss pauses movement and own attacks
                 this._updateDecoys(boss, tgt, arena);
                 boss.x = Math.max(boss.radius, Math.min(arena.width  - boss.radius, boss.x));
@@ -465,6 +474,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                 boss._wheelSpinAngle  = boss._wheelSpinStart;
                 boss._wheelTelegraph  = 90; // 1.5 s
                 boss._wheelTimer      = boss._wheelCD;
+                if (typeof audioManager !== 'undefined') audioManager.play('wheel_spin_start');
                 if (typeof showNotification === 'function')
                     showNotification(`WHEEL OF FATE: ${_W_NAMES[boss._wheelResult]}`, _W_COLORS[boss._wheelResult]);
             }
@@ -539,7 +549,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                             { x: Math.cos(oa) * 5.5, y: Math.sin(oa) * 5.5 },
                             dmg * 0.85, col, 10, 'enemy', 0, true));
                     }
-                    if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
+                    if (typeof audioManager !== 'undefined') audioManager.play('mimic_nova_burst');
                     break;
 
                 case 2: // SCATTER — 18 slow random orbs (zone denial)
@@ -553,6 +563,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                     break;
 
                 case 3: // SPIRAL — 3 arms × 2 staggered shots each
+                    if (typeof audioManager !== 'undefined') audioManager.play('mimic_spiral_arms');
                     for (let arm = 0; arm < 3; arm++) {
                         [0, 22].forEach(delay => setTimeout(() => {
                             if (typeof projectiles === 'undefined') return;
@@ -572,6 +583,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                             { x: Math.cos(a + i * 0.22) * 11, y: Math.sin(a + i * 0.22) * 11 },
                             dmg * 1.1, copyCol, 9, 'enemy', 0, true));
                     }
+                    if (typeof audioManager !== 'undefined') audioManager.play('mimic_copy_hit');
                     if (typeof floatingTexts !== 'undefined')
                         floatingTexts.push(new FloatingText(bx, by - 80, 'COPIED!', copyCol, 45));
                     break;
@@ -585,8 +597,10 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                                 { x: Math.cos(ga) * 6.5, y: Math.sin(ga) * 6.5 },
                                 dmg, col, 10, 'enemy', 0, true));
                         }
+                        if (typeof audioManager !== 'undefined') audioManager.play('gambit_jackpot');
                         if (typeof showNotification === 'function') showNotification('JACKPOT!', col);
                     } else {
+                        if (typeof audioManager !== 'undefined') audioManager.play('gambit_nothing');
                         if (typeof floatingTexts !== 'undefined')
                             floatingTexts.push(new FloatingText(bx, by - 80, 'HA! NOTHING!', col, 60));
                     }
