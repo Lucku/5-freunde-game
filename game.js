@@ -89,6 +89,7 @@ let coopP1GamepadIndex = -1;
 let coopP2GamepadIndex = -1;
 let coopP2MenuIndex = 0;
 let coopP2Debounce = 0;
+let coopP2HeroLocked = false; // True when resuming a co-op save — P2 hero cannot be changed
 let player2 = null;
 let coopZoom = 1.0;
 let p1RevivalMarker = null; // { x, y, progress, maxProgress }
@@ -541,12 +542,13 @@ function toggleCoopMode() {
         window.coopP2HeroType = null;
         coopP1GamepadIndex = -1;
         coopP2GamepadIndex = -1;
+        coopP2HeroLocked = false;
         window.coopP2Confirmed = false;
         window.coopP2CursorIndex = -1;
     }
 
-    // Grey out non-Standard mode buttons while co-op is active
-    const restrictedBtns = ['btn-story-mode', 'btn-chaos-mode', 'btn-versus-mode', 'btn-tutorial-mode', 'daily-challenge-btn', 'weekly-challenge-btn'];
+    // Grey out unsupported modes in co-op (Story is allowed)
+    const restrictedBtns = ['btn-chaos-mode', 'btn-versus-mode', 'btn-tutorial-mode', 'daily-challenge-btn', 'weekly-challenge-btn'];
     restrictedBtns.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('coop-disabled', isCoopMode);
@@ -671,14 +673,29 @@ function updateCoopUI() {
     const standardBtn = document.querySelector('.menu-primary-btn');
     if (standardBtn) standardBtn.classList.toggle('coop-disabled', !ready);
 
-    // Always disable Continue Run in co-op (saved runs are solo)
+    // Continue Run: disable if saved run is solo (can't join a solo run in co-op mid-way)
     const continueBtn = document.getElementById('continue-btn');
-    if (continueBtn) continueBtn.classList.add('coop-disabled');
+    if (continueBtn) {
+        const hasSoloSave = saveData.savedRun && !saveData.savedRun.coopP2Type;
+        continueBtn.classList.toggle('coop-disabled', hasSoloSave);
+    }
+
+    // If a co-op save exists, lock P2's hero to the saved type
+    if (saveData.savedRun && saveData.savedRun.coopP2Type) {
+        coopP2HeroLocked = true;
+        coopP2HeroType = saveData.savedRun.coopP2Type;
+        window.coopP2HeroType = coopP2HeroType;
+        window.coopP2Confirmed = true;
+        const _heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
+        coopP2MenuIndex = Math.max(0, _heroes.indexOf(coopP2HeroType));
+        window.coopP2CursorIndex = coopP2MenuIndex;
+    }
 }
 
 function handleCoopP2Gamepad() {
     if (!isCoopMode || uiState !== 'MENU') return;
     if (coopP2GamepadIndex === -1) return;
+    if (coopP2HeroLocked) return; // Hero is fixed from saved co-op run
 
     const gamepads = navigator.getGamepads();
     const gp = gamepads[coopP2GamepadIndex];
@@ -1022,7 +1039,19 @@ function saveRunState() {
             critChance: player.critChance,
             critMultiplier: player.critMultiplier
         },
-        companions: companions.map(c => ({ type: c.type })), // Only need types to recreate
+        companions: companions.map(c => ({ type: c.type })),
+        coopP2Type: isCoopMode && player2 ? player2.type : null,
+        player2: isCoopMode && player2 ? {
+            type: player2.type,
+            hp: player2.hp, maxHp: player2.maxHp,
+            level: player2.level, xp: player2.xp, maxXp: player2.maxXp,
+            gold: player2.gold, buffs: player2.buffs, runBuffs: player2.runBuffs,
+            damageMultiplier: player2.damageMultiplier, speedMultiplier: player2.speedMultiplier,
+            cooldownMultiplier: player2.cooldownMultiplier, damageReduction: player2.damageReduction,
+            extraProjectiles: player2.extraProjectiles, meleeRadius: player2.meleeRadius,
+            maskChance: player2.maskChance, goldMultiplier: player2.goldMultiplier,
+            critChance: player2.critChance, critMultiplier: player2.critMultiplier
+        } : null,
         currentRunStats: currentRunStats,
         // We don't save enemies, projectiles, etc. as we restart at wave start
     };
@@ -1061,6 +1090,13 @@ function continueRun() {
 
     // Restore Game Mode
     saveData.story.enabled = (state.mode === 'STORY');
+
+    // If this was a co-op save and co-op is currently active, lock P2's hero to the saved type
+    if (state.coopP2Type && isCoopMode) {
+        coopP2HeroType = state.coopP2Type;
+        window.coopP2HeroType = coopP2HeroType;
+        coopP2HeroLocked = true;
+    }
 
     // Initialize Game Base
     startGame(state.mode); // This resets everything, so we overwrite after
@@ -1116,6 +1152,19 @@ function continueRun() {
         companions.push(new Companion(cData.type, player));
     });
 
+    // Restore P2 state when continuing a co-op story run
+    if (state.player2 && isCoopMode && player2 && player2.type === state.coopP2Type) {
+        const p2s = state.player2;
+        player2.hp = p2s.hp; player2.maxHp = p2s.maxHp;
+        player2.level = p2s.level; player2.xp = p2s.xp; player2.maxXp = p2s.maxXp;
+        player2.gold = p2s.gold; player2.buffs = p2s.buffs; player2.runBuffs = p2s.runBuffs;
+        player2.damageMultiplier = p2s.damageMultiplier; player2.speedMultiplier = p2s.speedMultiplier;
+        player2.cooldownMultiplier = p2s.cooldownMultiplier; player2.damageReduction = p2s.damageReduction;
+        player2.extraProjectiles = p2s.extraProjectiles; player2.meleeRadius = p2s.meleeRadius;
+        player2.maskChance = p2s.maskChance; player2.goldMultiplier = p2s.goldMultiplier;
+        player2.critChance = p2s.critChance; player2.critMultiplier = p2s.critMultiplier;
+    }
+
     // Restore Run Stats
     currentRunStats = state.currentRunStats;
 
@@ -1141,7 +1190,7 @@ function continueRun() {
 let pendingGameMode = null;
 
 function checkNewGame(mode) {
-    if (isCoopMode && mode !== 'STANDARD') return; // only Standard Run supported in co-op
+    if (isCoopMode && mode !== 'STANDARD' && mode !== 'STORY') return; // co-op supports Standard + Story
     if (isCoopMode && coopP2GamepadIndex === -1) return; // P2 controller not yet connected
     if (saveData.savedRun) {
         pendingGameMode = mode;
@@ -2576,7 +2625,7 @@ function resumeWaveGeneration() {
     }
 
     // Story Mode Companion Spawning
-    if (currentStoryEvent && currentStoryEvent.type === 'COMPANION_JOIN') {
+    if (currentStoryEvent && currentStoryEvent.type === 'COMPANION_JOIN' && !isCoopMode) {
         const _evData = currentStoryEvent.data;
 
         if (_evData && _evData.companionType && typeof CompanionAIController !== 'undefined') {
@@ -2585,14 +2634,9 @@ function resumeWaveGeneration() {
 
             // "AUTO" = base game story, pick a synergy hero
             if (compType === 'AUTO') {
-                const synergy = {
-                    ice: 'fire', fire: 'ice',
-                    metal: 'plant', plant: 'metal', water: 'plant'
-                };
+                const synergy = { ice: 'fire', fire: 'ice', metal: 'plant', plant: 'metal', water: 'plant' };
                 const allTypes = ['fire', 'water', 'ice', 'plant', 'metal'];
-                compType = synergy[player.type]
-                    || allTypes.find(t => t !== player.type)
-                    || 'fire';
+                compType = synergy[player.type] || allTypes.find(t => t !== player.type) || 'fire';
             }
 
             // Save P1's special icon before Player constructor overwrites #special-icon
@@ -2605,8 +2649,8 @@ function resumeWaveGeneration() {
             // Restore P1 icon, write P2 icon to the P2 slot
             const _p2IconEl = document.getElementById('p2-special-icon');
             if (_p2IconEl && _p1IconEl) {
-                _p2IconEl.innerText = _p1IconEl.innerText; // P2's hero icon
-                _p1IconEl.innerText = _p1IconTxt;          // restore P1
+                _p2IconEl.innerText = _p1IconEl.innerText;
+                _p1IconEl.innerText = _p1IconTxt;
             }
 
             player2.x = player.x + 120;
@@ -2615,13 +2659,12 @@ function resumeWaveGeneration() {
             window.player2 = player2;
             p1RevivalMarker = null;
             p2RevivalMarker = null;
-
             isAICompanionMode = true;
             window.isAICompanionMode = true;
 
             showNotification(`${compType.toUpperCase()} ALLY JOINED!`);
         } else {
-            // Base game story: use classic orbiting Companion
+            // Base game story fallback: classic orbiting Companion
             let availableTypes = ['fire', 'water', 'ice', 'plant', 'metal'];
             if (player) availableTypes = availableTypes.filter(t => t !== player.type);
             companions.forEach(c => { availableTypes = availableTypes.filter(t => t !== c.type); });
@@ -2995,6 +3038,7 @@ function gameOver(isVictory = false) {
     window.isAICompanionMode = false;
     coopP2HeroType = null;
     window.coopP2HeroType = null;
+    coopP2HeroLocked = false;
     coopP1GamepadIndex = -1;
     coopP2GamepadIndex = -1;
     player2 = null;
