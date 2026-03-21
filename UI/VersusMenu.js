@@ -8,6 +8,8 @@ const BIOME_META = {
     rock:   { name: 'Canyon',  rgb: '180,120,60'  },
     cloud:  { name: 'Sky',     rgb: '64,224,208'  },
     chaos:  { name: 'Void',    rgb: '155,89,182'  },
+    sound:  { name: 'Harmonic', rgb: '129,212,250' },
+    poison: { name: 'Bog',      rgb: '139,195,74'  },
 };
 
 class VersusMenuUI {
@@ -105,6 +107,7 @@ class VersusMenuUI {
             { id: 'random' }, { id: 'fire' },  { id: 'water' },
             { id: 'ice' },    { id: 'plant' }, { id: 'metal' },
             { id: 'rock' },   { id: 'cloud' }, { id: 'chaos' },
+            { id: 'sound' },  { id: 'poison' },
         ];
         this.biomeIds = biomes;
 

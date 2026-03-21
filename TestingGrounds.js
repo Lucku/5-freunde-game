@@ -76,7 +76,7 @@ const TestingGrounds = {
                 { id: 'DARK_GOLEM', name: 'Dark Golem', color: '#546e7a' },
             );
         }
-        if (typeof WindBosses !== 'undefined') {
+        if (window.DLC_REGISTRY && window.DLC_REGISTRY['waker_of_winds']) {
             dlcBosses.push(
                 { id: 'ZEUS',            name: 'Zeus',            color: '#f1c40f' },
                 { id: 'CLOUD_GOLEM',     name: 'Cloud Golem',     color: '#87ceeb' },
@@ -91,7 +91,7 @@ const TestingGrounds = {
                 { id: 'SHADOW_CLONE', name: 'Shadow Clone', color: '#6c3483' },
             );
         }
-        if (typeof GravityHero !== 'undefined') {
+        if (window.DLC_REGISTRY && window.DLC_REGISTRY['champions_of_chaos']) {
             dlcBosses.push(
                 { id: 'VOID_WALKER_BOSS', name: 'Void Walker',  color: '#6c3483' },
                 { id: 'GLITCH_BOSS',      name: 'Glitch Boss',  color: '#9b59b6' },
@@ -113,7 +113,45 @@ const TestingGrounds = {
             html += '</div></div>';
         }
 
+        // Biome switcher — all biomes supported by getHeroTheme()
+        const biomeMeta = {
+            // Base
+            fire:      { name: 'Volcano',  color: '#e74c3c' },
+            water:     { name: 'Ocean',    color: '#3498db' },
+            ice:       { name: 'Tundra',   color: '#aed6f1' },
+            plant:     { name: 'Forest',   color: '#2ecc71' },
+            metal:     { name: 'Factory',  color: '#95a5a6' },
+            // DLC
+            earth:     { name: 'Canyon',   color: '#b4783c' },
+            air:       { name: 'Sky',      color: '#40e0d0' },
+            gravity:   { name: 'Gravity',  color: '#9b59b6' },
+            void:      { name: 'Void',     color: '#1abc9c' },
+            spirit:    { name: 'Temple',   color: '#f1c40f' },
+            chance:    { name: 'Casino',   color: '#e91e63' },
+            sound:     { name: 'Harmonic', color: '#81d4fa' },
+            poison:    { name: 'Bog',      color: '#8bc34a' },
+            lightning: { name: 'Storm',    color: '#f39c12' },
+            black:     { name: 'Abyss',    color: '#7f8c8d' },
+        };
+        html += '<div class="tg-group">';
+        html += '<div class="tg-group-title">Biome</div>';
+        html += '<div class="tg-btn-grid">';
+        Object.entries(biomeMeta).forEach(([id, meta]) => {
+            const active = (typeof currentBiomeType !== 'undefined' && currentBiomeType === id);
+            const activeStyle = active ? `background:${meta.color}22; outline:2px solid ${meta.color};` : '';
+            html += `<button class="tg-btn" style="border-color:${meta.color}; color:${meta.color}; ${activeStyle}" onclick="TestingGrounds.setBiome('${id}')">${meta.name}</button>`;
+        });
+        html += '</div></div>';
+
         container.innerHTML = html;
+    },
+
+    setBiome(id) {
+        currentBiomeType = id;
+        window.currentBiomeType = id;
+        // Rebuild menu to reflect active biome highlight
+        this.buildSpawnMenu();
+        showNotification(`Biome: ${id.toUpperCase()}`);
     },
 
     toggleSpawnMenu() {

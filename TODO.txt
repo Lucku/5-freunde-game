@@ -5,10 +5,6 @@
 - screen indicator for when only one enemy is left
 - integrate all play modes into coop
 
-# Symphony of Sickness
-
-- fix sound hero enemy spawn bug
-
 # Future
 
 - "Time" hero DLC

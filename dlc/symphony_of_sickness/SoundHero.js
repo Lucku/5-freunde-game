@@ -676,6 +676,7 @@ class SoundHero {
                     radius: 8 * scale,
                     color: color,
                     damage: dmg,
+                    knockback: player.stats.knockback || 0,
                     life: 60,
                     type: 'NOTE',
                     update: function () {
@@ -729,6 +730,7 @@ class SoundHero {
                     radius: 8,
                     color: '#00e5ff',
                     damage: dmg,
+                    knockback: player.stats.knockback || 0,
                     life: 48,
                     type: 'WAVE',
                     update: function () {
