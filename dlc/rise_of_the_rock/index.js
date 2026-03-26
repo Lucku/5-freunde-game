@@ -26,6 +26,42 @@ const RISE_OF_THE_ROCK = {
         this.injectMemories();
         this.injectCards();
 
+        // Register audio
+        if (typeof audioManager !== 'undefined') {
+            audioManager.registerSounds({
+                'battle_rock_1':     { path: 'dlc/rise_of_the_rock/audio/music/battle_1.wav',    loop: true,  volume: 0.4 },
+                'battle_rock_2':     { path: 'dlc/rise_of_the_rock/audio/music/battle_2.wav',    loop: true,  volume: 0.4 },
+                'golem':             { path: 'dlc/rise_of_the_rock/audio/music/boss_dark_golem.wav', loop: true, volume: 0.6 },
+                'attack_earth':      { path: 'dlc/rise_of_the_rock/audio/sounds/attack_earth.wav',      volume: 0.25 },
+                'attack_earth_roll': { path: 'dlc/rise_of_the_rock/audio/sounds/attack_earth_roll.wav', loop: true, volume: 0.3 },
+                'melee_earth':       { path: 'dlc/rise_of_the_rock/audio/sounds/melee_earth.wav',       volume: 0.25 },
+                'dark_golem_boulder':{ path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_boulder.wav', volume: 0.4 },
+                'dark_golem_slam':   { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_slam.wav',    volume: 0.55 },
+                'dark_golem_lava':   { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_lava.wav',    volume: 0.55 },
+                'dark_golem_crack':  { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_crack.wav',   volume: 0.7 },
+                'dark_golem_charge': { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_charge.wav',  volume: 0.4 },
+                'dark_golem_berserk':{ path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_berserk.wav', volume: 0.7 },
+            });
+            audioManager.registerMusicHook({
+                priority: 100,
+                check: () => typeof bossActive !== 'undefined' && bossActive &&
+                             typeof enemies !== 'undefined' && enemies.some(e => e instanceof Boss && e.type === 'DARK_GOLEM'),
+                play: () => 'golem',
+            });
+            audioManager.registerMusicHook({
+                priority: 50,
+                check: () => typeof player !== 'undefined' && player && player.type === 'earth' && audioManager.isStoryMode(),
+                play: (am) => {
+                    const t1 = am.tracks['battle_rock_1'];
+                    const t2 = am.tracks['battle_rock_2'];
+                    if (t1 && !t1.paused) return 'battle_rock_1';
+                    if (t2 && !t2.paused) return 'battle_rock_2';
+                    return Math.random() < 0.5 ? 'battle_rock_1' : 'battle_rock_2';
+                },
+            });
+            audioManager.registerVoicePath('earth', (id) => `dlc/rise_of_the_rock/audio/memories/earth_${id}.mp3`);
+        }
+
         console.log("[DLC] Loaded: Rise of the Rock (Success)");
     },
 

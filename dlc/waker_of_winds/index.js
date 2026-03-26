@@ -29,6 +29,51 @@ const WAKER_OF_WINDS = {
         this.injectMemories();
         this.injectCards();
 
+        // Register audio
+        if (typeof audioManager !== 'undefined') {
+            audioManager.registerSounds({
+                'battle_air_1':            { path: 'dlc/waker_of_winds/audio/music/battle_1.mp3', loop: true, volume: 0.4 },
+                'battle_air_2':            { path: 'dlc/waker_of_winds/audio/music/battle_2.mp3', loop: true, volume: 0.4 },
+                'boss_air':                { path: 'dlc/waker_of_winds/audio/music/boss.mp3',      loop: true, volume: 0.6 },
+                'attack_air_1':            { path: 'dlc/waker_of_winds/audio/sounds/attack_air_1.wav', volume: 0.3 },
+                'attack_air_2':            { path: 'dlc/waker_of_winds/audio/sounds/attack_air_2.wav', volume: 0.3 },
+                'attack_air_3':            { path: 'dlc/waker_of_winds/audio/sounds/attack_air_3.wav', volume: 0.3 },
+                'attack_air_4':            { path: 'dlc/waker_of_winds/audio/sounds/attack_air_4.wav', volume: 0.3 },
+                'special_air_1':           { path: 'dlc/waker_of_winds/audio/sounds/special_air_1.wav', volume: 0.5 },
+                'special_air_2':           { path: 'dlc/waker_of_winds/audio/sounds/special_air_2.wav', volume: 0.5 },
+                'special_air_3':           { path: 'dlc/waker_of_winds/audio/sounds/special_air_3.wav', volume: 0.5 },
+                'special_air_4':           { path: 'dlc/waker_of_winds/audio/sounds/special_air_4.wav', volume: 0.5 },
+                'gust_push':               { path: 'dlc/waker_of_winds/audio/sounds/boss_gust_push.wav',          volume: 0.4 },
+                'hailstorm_burst':         { path: 'dlc/waker_of_winds/audio/sounds/boss_hailstorm_burst.wav',    volume: 0.55 },
+                'cloud_golem_stomp':       { path: 'dlc/waker_of_winds/audio/sounds/boss_cloud_golem_stomp.wav',  volume: 0.55 },
+                'crow_dive_screech':       { path: 'dlc/waker_of_winds/audio/sounds/boss_crow_dive_screech.wav',  volume: 0.4 },
+                'screech_land':            { path: 'dlc/waker_of_winds/audio/sounds/boss_crow_screech_land.wav',  volume: 0.4 },
+                'tornado_projectile_spawn':{ path: 'dlc/waker_of_winds/audio/sounds/boss_tornado_spawn.wav',      volume: 0.4 },
+                'spin_dash':               { path: 'dlc/waker_of_winds/audio/sounds/boss_tornado_spin_dash.wav',  volume: 0.55 },
+                'vortex_pull':             { path: 'dlc/waker_of_winds/audio/sounds/boss_vortex_pull.wav',        volume: 0.55 },
+                'eye_of_storm_ring':       { path: 'dlc/waker_of_winds/audio/sounds/boss_eye_storm_ring.wav',     volume: 0.55 },
+                'tempest_phase2_transition': { path: 'dlc/waker_of_winds/audio/sounds/boss_tempest_phase2.wav',   volume: 0.7 },
+            });
+            audioManager.registerMusicHook({
+                priority: 100,
+                check: () => typeof bossActive !== 'undefined' && bossActive && typeof enemies !== 'undefined' &&
+                             enemies.some(e => e instanceof Boss && ['CLOUD_GOLEM','STORM_CROW','TORNADO_MACHINA','TEMPEST'].includes(e.type)),
+                play: () => 'boss_air',
+            });
+            audioManager.registerMusicHook({
+                priority: 50,
+                check: () => typeof player !== 'undefined' && player && player.type === 'air' && audioManager.isStoryMode(),
+                play: (am) => {
+                    const t1 = am.tracks['battle_air_1'];
+                    const t2 = am.tracks['battle_air_2'];
+                    if (t1 && !t1.paused) return 'battle_air_1';
+                    if (t2 && !t2.paused) return 'battle_air_2';
+                    return Math.random() < 0.5 ? 'battle_air_1' : 'battle_air_2';
+                },
+            });
+            audioManager.registerVoicePath('air', (id) => `dlc/waker_of_winds/audio/memories/air_${id}.mp3`);
+        }
+
         console.log("[DLC] Loaded: Waker of Winds (Success)");
     },
 

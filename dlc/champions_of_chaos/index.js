@@ -29,6 +29,63 @@ const CHAMPIONS_OF_CHAOS = {
         this.injectMemories();
         this.injectCards();
 
+        // Register audio
+        if (typeof audioManager !== 'undefined') {
+            audioManager.registerSounds({
+                'battle_chaos_1':      { path: 'dlc/champions_of_chaos/audio/music/battle_1.wav',            loop: true, volume: 0.4 },
+                'battle_chaos_2':      { path: 'dlc/champions_of_chaos/audio/music/battle_2.wav',            loop: true, volume: 0.4 },
+                'boss_chaos_all':      { path: 'dlc/champions_of_chaos/audio/music/boss_all.wav',            loop: true, volume: 0.6 },
+                'boss_entropy':        { path: 'dlc/champions_of_chaos/audio/music/boss_entropy_mage.wav',   loop: true, volume: 0.6 },
+                'attack_gravity':      { path: 'dlc/champions_of_chaos/audio/sounds/attack_gravity.wav',     volume: 0.4 },
+                'special_gravity':     { path: 'dlc/champions_of_chaos/audio/sounds/special_gravity.wav',    loop: true, volume: 0.6 },
+                'attack_void':         { path: 'dlc/champions_of_chaos/audio/sounds/attack_void.wav',        volume: 0.4 },
+                'melee_void':          { path: 'dlc/champions_of_chaos/audio/sounds/melee_void.wav',         volume: 0.5 },
+                'special_void':        { path: 'dlc/champions_of_chaos/audio/sounds/special_void.wav',       volume: 0.6 },
+                'dash_void':           { path: 'dlc/champions_of_chaos/audio/sounds/dash_void.wav',          volume: 0.6 },
+                'void_bolt':           { path: 'dlc/champions_of_chaos/audio/sounds/boss_void_bolt.wav',         volume: 0.4 },
+                'void_pulse_ring':     { path: 'dlc/champions_of_chaos/audio/sounds/boss_void_pulse_ring.wav',   volume: 0.55 },
+                'dimensional_rift':    { path: 'dlc/champions_of_chaos/audio/sounds/boss_dimensional_rift.wav',  volume: 0.55 },
+                'void_phase_in':       { path: 'dlc/champions_of_chaos/audio/sounds/boss_void_phase_in.wav',     volume: 0.4 },
+                'void_phase_out':      { path: 'dlc/champions_of_chaos/audio/sounds/boss_void_phase_out.wav',    volume: 0.4 },
+                'void_gravity_pull':   { path: 'dlc/champions_of_chaos/audio/sounds/boss_void_gravity_pull.wav', volume: 0.55 },
+                'void_storm':          { path: 'dlc/champions_of_chaos/audio/sounds/boss_void_storm.wav',        volume: 0.55 },
+                'glitch_teleport':     { path: 'dlc/champions_of_chaos/audio/sounds/boss_glitch_teleport.wav',   volume: 0.4 },
+                'glitch_corruption_beam':  { path: 'dlc/champions_of_chaos/audio/sounds/boss_glitch_beam.wav',     volume: 0.4 },
+                'glitch_fragmentation':    { path: 'dlc/champions_of_chaos/audio/sounds/boss_glitch_fragment.wav', volume: 0.55 },
+                'glitch_system_crash':     { path: 'dlc/champions_of_chaos/audio/sounds/boss_glitch_crash.wav',    volume: 0.55 },
+                'entropy_surge':           { path: 'dlc/champions_of_chaos/audio/sounds/boss_entropy_surge.wav',   volume: 0.55 },
+                'chaos_storm':             { path: 'dlc/champions_of_chaos/audio/sounds/boss_chaos_storm.wav',     volume: 0.55 },
+                'entropy_phase2_transition': { path: 'dlc/champions_of_chaos/audio/sounds/boss_entropy_phase2.wav', volume: 0.7 },
+                'entropy_phase3_transition': { path: 'dlc/champions_of_chaos/audio/sounds/boss_entropy_phase3.wav', volume: 0.7 },
+                'shield_orb_hit':          { path: 'dlc/champions_of_chaos/audio/sounds/boss_shield_orb_hit.wav',  volume: 0.4 },
+                'entropy_teleport':        { path: 'dlc/champions_of_chaos/audio/sounds/boss_entropy_teleport.wav',volume: 0.4 },
+            });
+            audioManager.registerMusicHook({
+                priority: 100,
+                check: () => typeof bossActive !== 'undefined' && bossActive && typeof enemies !== 'undefined' &&
+                             enemies.some(e => e instanceof Boss && e.type === 'ENTROPY_LORD'),
+                play: () => 'boss_entropy',
+            });
+            audioManager.registerMusicHook({
+                priority: 100,
+                check: () => typeof bossActive !== 'undefined' && bossActive && typeof enemies !== 'undefined' &&
+                             enemies.some(e => e instanceof Boss && (e.type === 'VOID_WALKER_BOSS' || e.type === 'GLITCH_BOSS')),
+                play: () => 'boss_chaos_all',
+            });
+            audioManager.registerMusicHook({
+                priority: 50,
+                check: () => typeof player !== 'undefined' && player && player.type === 'gravity' && audioManager.isStoryMode(),
+                play: () => 'battle_chaos_1',
+            });
+            audioManager.registerMusicHook({
+                priority: 50,
+                check: () => typeof player !== 'undefined' && player && player.type === 'void' && audioManager.isStoryMode(),
+                play: () => 'battle_chaos_2',
+            });
+            audioManager.registerVoicePath('gravity', (id) => `dlc/champions_of_chaos/audio/memories/gravity_${id}.mp3`);
+            audioManager.registerVoicePath('void',    (id) => `dlc/champions_of_chaos/audio/memories/void_${id}.mp3`);
+        }
+
         console.log("[DLC] Loaded: Champions of Chaos (Success)");
     },
 

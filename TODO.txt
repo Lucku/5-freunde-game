@@ -4,6 +4,7 @@
 - intro with game developer logo
 - screen indicator for when only one enemy is left
 - integrate all play modes into coop
+- make Green Goblin fight cooler
 
 # Future
 

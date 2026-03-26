@@ -27,6 +27,44 @@ const TOURNAMENT_OF_THUNDER = {
         this.injectMemories();
         this.injectCards();
 
+        // Register audio
+        if (typeof audioManager !== 'undefined') {
+            audioManager.registerSounds({
+                'battle_thunder_1':          { path: 'dlc/tournament_of_thunder/audio/music/battle_1.wav',  loop: true, volume: 0.4 },
+                'battle_thunder_2':          { path: 'dlc/tournament_of_thunder/audio/music/battle_2.wav',  loop: true, volume: 0.4 },
+                'zeus':                      { path: 'dlc/tournament_of_thunder/audio/music/boss_zeus.wav', loop: true, volume: 0.6 },
+                'attack_lightning':          { path: 'dlc/tournament_of_thunder/audio/sounds/attack_lightning.wav',         volume: 0.25 },
+                'attack_lightning_charged':  { path: 'dlc/tournament_of_thunder/audio/sounds/attack_lightning_charged.wav', volume: 0.25 },
+                'special_lightning':         { path: 'dlc/tournament_of_thunder/audio/sounds/special_lightning.wav',        volume: 0.25 },
+                'thunder_spear_telegraph':   { path: 'dlc/tournament_of_thunder/audio/sounds/boss_thunder_spear_telegraph.wav', volume: 0.55 },
+                'thunder_spear_launch':      { path: 'dlc/tournament_of_thunder/audio/sounds/boss_thunder_spear_launch.wav',    volume: 0.4 },
+                'zeus_storm_ring':           { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_storm_ring.wav',         volume: 0.55 },
+                'zeus_static_field':         { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_static_field.wav',       volume: 0.4 },
+                'wrath_of_olympus':          { path: 'dlc/tournament_of_thunder/audio/sounds/boss_wrath_olympus.wav',           volume: 0.55 },
+                'zeus_phase2_transition':    { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_phase2.wav',             volume: 0.7 },
+                'zeus_phase3_transition':    { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_phase3.wav',             volume: 0.7 },
+                'zeus_teleport_flash':       { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_teleport.wav',           volume: 0.4 },
+            });
+            audioManager.registerMusicHook({
+                priority: 100,
+                check: () => typeof bossActive !== 'undefined' && bossActive &&
+                             typeof enemies !== 'undefined' && enemies.some(e => e instanceof Boss && e.type === 'ZEUS'),
+                play: () => 'zeus',
+            });
+            audioManager.registerMusicHook({
+                priority: 50,
+                check: () => typeof player !== 'undefined' && player && player.type === 'lightning' && audioManager.isStoryMode(),
+                play: (am) => {
+                    const t1 = am.tracks['battle_thunder_1'];
+                    const t2 = am.tracks['battle_thunder_2'];
+                    if (t1 && !t1.paused) return 'battle_thunder_1';
+                    if (t2 && !t2.paused) return 'battle_thunder_2';
+                    return Math.random() < 0.5 ? 'battle_thunder_1' : 'battle_thunder_2';
+                },
+            });
+            audioManager.registerVoicePath('lightning', (id) => `dlc/tournament_of_thunder/audio/memories/lightning_${id}.mp3`);
+        }
+
         console.log("[DLC] Loaded: Tournament of Thunder (Success)");
     },
 

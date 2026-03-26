@@ -31,6 +31,38 @@ const FAITH_OF_FORTUNE = {
         this.injectMemories();
         this.injectCards();
 
+        // Register audio
+        if (typeof audioManager !== 'undefined') {
+            audioManager.registerSounds({
+                'attack_chance':           { path: 'dlc/faith_of_fortune/audio/sounds/attack_chance.wav',            volume: 0.3 },
+                'special_chance':          { path: 'dlc/faith_of_fortune/audio/sounds/special_chance.wav',           loop: true, volume: 0.5 },
+                'special_chance_jackpot':  { path: 'dlc/faith_of_fortune/audio/sounds/special_chance_jackpot.wav',   volume: 0.6 },
+                'special_chance_win':      { path: 'dlc/faith_of_fortune/audio/sounds/special_chance_win.wav',       volume: 0.6 },
+                'special_chance_neutral':  { path: 'dlc/faith_of_fortune/audio/sounds/special_chance_neutral.wav',   volume: 0.6 },
+                'special_chance_lose':     { path: 'dlc/faith_of_fortune/audio/sounds/special_chance_lose.wav',      volume: 0.6 },
+                'big_gamble':              { path: 'dlc/faith_of_fortune/audio/sounds/big_gamble.wav',               loop: true, volume: 0.5 },
+                'big_gamble_jackpot':      { path: 'dlc/faith_of_fortune/audio/sounds/big_gamble_jackpot.wav',       volume: 0.6 },
+                'big_gamble_win':          { path: 'dlc/faith_of_fortune/audio/sounds/big_gamble_win.wav',           volume: 0.6 },
+                'big_gamble_neutral':      { path: 'dlc/faith_of_fortune/audio/sounds/big_gamble_neutral.wav',       volume: 0.6 },
+                'big_gamble_lose':         { path: 'dlc/faith_of_fortune/audio/sounds/big_gamble_lose.wav',          volume: 0.6 },
+                'attack_spirit':           { path: 'dlc/faith_of_fortune/audio/sounds/attack_spirit.wav',            volume: 0.3 },
+                'special_spirit':          { path: 'dlc/faith_of_fortune/audio/sounds/special_spirit.wav',           volume: 0.5 },
+                'special_spirit_charging': { path: 'dlc/faith_of_fortune/audio/sounds/special_spirit_charging.wav',  loop: true, volume: 0.4 },
+                'wheel_tick':              { path: 'dlc/faith_of_fortune/audio/sounds/boss_wheel_tick.wav',           volume: 0.4 },
+                'wheel_spin_start':        { path: 'dlc/faith_of_fortune/audio/sounds/boss_wheel_spin_start.wav',    volume: 0.55 },
+                'wheel_land':              { path: 'dlc/faith_of_fortune/audio/sounds/boss_wheel_land.wav',          volume: 0.4 },
+                'gambit_jackpot':          { path: 'dlc/faith_of_fortune/audio/sounds/boss_gambit_jackpot.wav',      volume: 0.55 },
+                'gambit_nothing':          { path: 'dlc/faith_of_fortune/audio/sounds/boss_gambit_nothing.wav',      volume: 0.4 },
+                'mimic_nova_burst':        { path: 'dlc/faith_of_fortune/audio/sounds/boss_mimic_nova.wav',          volume: 0.55 },
+                'mimic_spiral_arms':       { path: 'dlc/faith_of_fortune/audio/sounds/boss_mimic_spiral.wav',        volume: 0.55 },
+                'mimic_copy_hit':          { path: 'dlc/faith_of_fortune/audio/sounds/boss_mimic_copy.wav',          volume: 0.4 },
+                'mimic_phase2_transition': { path: 'dlc/faith_of_fortune/audio/sounds/boss_mimic_phase2.wav',        volume: 0.7 },
+                'mimic_phase3_transition': { path: 'dlc/faith_of_fortune/audio/sounds/boss_mimic_phase3.wav',        volume: 0.7 },
+            });
+            audioManager.registerVoicePath('chance', (id) => `dlc/faith_of_fortune/audio/memories/chance_${id}.mp3`);
+            audioManager.registerVoicePath('spirit', (id) => `dlc/faith_of_fortune/audio/memories/spirit_${id}.mp3`);
+        }
+
         console.log("[DLC] Loaded: Faith of Fortune (Success)");
     },
 

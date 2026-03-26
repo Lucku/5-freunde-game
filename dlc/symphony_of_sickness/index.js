@@ -183,6 +183,71 @@ const SymphonyDLC = {
         // 6. Inject Memory Stories
         this.injectMemories();
 
+        // Register audio
+        if (typeof audioManager !== 'undefined') {
+            audioManager.registerSounds({
+                'battle_poison':       { path: 'dlc/symphony_of_sickness/audio/music/battle_poison.wav',      loop: true, volume: 0.4 },
+                'battle_sound':        { path: 'dlc/symphony_of_sickness/audio/music/battle_sound.wav',       loop: true, volume: 0.4 },
+                'battle_sound_sync':   { path: 'dlc/symphony_of_sickness/audio/music/battle_sound_sync.wav',  loop: true, volume: 0.42 },
+                'boss_poison':         { path: 'dlc/symphony_of_sickness/audio/music/boss_poison.wav',        loop: true, volume: 0.6 },
+                'boss_sound':          { path: 'dlc/symphony_of_sickness/audio/music/boss_sound.wav',         loop: true, volume: 0.6 },
+                'attack_sound_1':      { path: 'dlc/symphony_of_sickness/audio/sounds/attack_sound_1.wav',    volume: 0.25 },
+                'attack_sound_2':      { path: 'dlc/symphony_of_sickness/audio/sounds/attack_sound_2.wav',    volume: 0.25 },
+                'attack_sound_3':      { path: 'dlc/symphony_of_sickness/audio/sounds/attack_sound_3.wav',    volume: 0.25 },
+                'attack_sound_4':      { path: 'dlc/symphony_of_sickness/audio/sounds/attack_sound_4.wav',    volume: 0.25 },
+                'attack_sound_crit':   { path: 'dlc/symphony_of_sickness/audio/sounds/attack_sound_crit.wav', volume: 0.25 },
+                'attack_sound_sync_1': { path: 'dlc/symphony_of_sickness/audio/sounds/attack_sound_sync_1.wav', volume: 0.25 },
+                'attack_sound_sync_2': { path: 'dlc/symphony_of_sickness/audio/sounds/attack_sound_sync_2.wav', volume: 0.25 },
+                'attack_sound_sync_3': { path: 'dlc/symphony_of_sickness/audio/sounds/attack_sound_sync_3.wav', volume: 0.25 },
+                'attack_sound_sync_4': { path: 'dlc/symphony_of_sickness/audio/sounds/attack_sound_sync_4.wav', volume: 0.25 },
+                'special_sound':       { path: 'dlc/symphony_of_sickness/audio/sounds/special_sound.wav',     volume: 0.5 },
+                'attack_poison':       { path: 'dlc/symphony_of_sickness/audio/sounds/attack_poison.wav',     volume: 0.5 },
+                'special_poison_1':    { path: 'dlc/symphony_of_sickness/audio/sounds/special_poison_1.wav',  volume: 0.6 },
+                'special_poison_2':    { path: 'dlc/symphony_of_sickness/audio/sounds/special_poison_2.wav',  volume: 0.6 },
+                'special_poison_3':    { path: 'dlc/symphony_of_sickness/audio/sounds/special_poison_3.wav',  volume: 0.6 },
+                'special_poison_4':    { path: 'dlc/symphony_of_sickness/audio/sounds/special_poison_4.wav',  volume: 0.6 },
+                'shadow_step_vanish':       { path: 'dlc/symphony_of_sickness/audio/sounds/boss_shadow_step_vanish.wav',    volume: 0.4 },
+                'shadow_step_reappear':     { path: 'dlc/symphony_of_sickness/audio/sounds/boss_shadow_step_reappear.wav',  volume: 0.4 },
+                'shadow_trail_tick':        { path: 'dlc/symphony_of_sickness/audio/sounds/boss_shadow_trail_tick.wav',     volume: 0.4 },
+                'shadow_fan_shot':          { path: 'dlc/symphony_of_sickness/audio/sounds/boss_shadow_fan_shot.wav',       volume: 0.4 },
+                'shadow_phase_transition':  { path: 'dlc/symphony_of_sickness/audio/sounds/boss_shadow_phase_transition.wav', volume: 0.7 },
+                'dark_pulse_ring':          { path: 'dlc/symphony_of_sickness/audio/sounds/boss_dark_pulse_ring.wav',       volume: 0.55 },
+            });
+            audioManager.registerMusicHook({
+                priority: 100,
+                check: () => typeof bossActive !== 'undefined' && bossActive &&
+                             typeof player !== 'undefined' && player && player.type === 'poison',
+                play: () => 'boss_poison',
+            });
+            audioManager.registerMusicHook({
+                priority: 100,
+                check: () => typeof bossActive !== 'undefined' && bossActive &&
+                             typeof player !== 'undefined' && player && player.type === 'sound',
+                play: () => 'boss_sound',
+            });
+            // Sound biome sync music takes priority over plain sound-hero music
+            audioManager.registerMusicHook({
+                priority: 55,
+                check: () => (typeof currentBiomeType !== 'undefined' && currentBiomeType === 'sound') ||
+                             (typeof window.currentBiome !== 'undefined' && window.currentBiome === 'sound'),
+                play: () => 'battle_sound_sync',
+            });
+            audioManager.registerMusicHook({
+                priority: 50,
+                check: () => typeof player !== 'undefined' && player && player.type === 'sound' &&
+                             audioManager.isStoryMode() &&
+                             !(typeof currentBiomeType !== 'undefined' && currentBiomeType === 'sound'),
+                play: () => 'battle_sound',
+            });
+            audioManager.registerMusicHook({
+                priority: 50,
+                check: () => typeof player !== 'undefined' && player && player.type === 'poison' && audioManager.isStoryMode(),
+                play: () => 'battle_poison',
+            });
+            audioManager.registerVoicePath('sound',  (id) => `dlc/symphony_of_sickness/audio/memories/sound_${id}.mp3`);
+            audioManager.registerVoicePath('poison', (id) => `dlc/symphony_of_sickness/audio/memories/poison_${id}.mp3`);
+        }
+
         console.log("Symphony of Sickness DLC Initialized");
     },
 
