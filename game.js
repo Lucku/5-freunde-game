@@ -827,6 +827,10 @@ function startStoryGame() {
 }
 
 function initMenu() {
+    // Remove the intro backdrop now that the menu is ready to show.
+    const _backdrop = document.getElementById('intro-backdrop');
+    if (_backdrop) _backdrop.style.display = 'none';
+
     if (typeof audioManager !== 'undefined') audioManager.play('menu');
     document.getElementById('menu-overlay').style.display = 'flex';
     document.getElementById('start-screen').style.display = 'flex';
@@ -1221,9 +1225,8 @@ function closeConfirmDialog() {
 
 function quitGame() {
     clearSavedRun();
-    // Use initMenu to return to menu without full reload if preferred,
-    // but reload ensures clean state.
-    location.reload();
+    _resetGameState();
+    initMenu();
 }
 
 function saveAndQuit() {
@@ -1232,7 +1235,45 @@ function saveAndQuit() {
     wave++;
     saveRunState();
     wave--;
-    location.reload();
+    _resetGameState();
+    initMenu();
+}
+
+function _resetGameState() {
+    gameRunning = false;
+    isTutorialMode = false;
+    isTestingMode = false;
+    isCoopMode = false;
+    window.isCoopMode = false;
+    isAICompanionMode = false;
+    window.isAICompanionMode = false;
+    coopP2HeroType = null;
+    window.coopP2HeroType = null;
+    coopP2HeroLocked = false;
+    coopP1GamepadIndex = -1;
+    coopP2GamepadIndex = -1;
+    player2 = null;
+    window.player2 = null;
+    p1RevivalMarker = null;
+    p2RevivalMarker = null;
+    coopZoom = 1.0;
+    p2LevelUpPending = false;
+    isPlayerDying = false;
+    playerDeathTimer = 0;
+    enemies = [];
+    projectiles = [];
+    powerUps = [];
+    floatingTexts = [];
+    particles = [];
+    bossActive = false;
+    wave = 1;
+    score = 0;
+    isLevelingUp = false;
+    gamePaused = false;
+    document.getElementById('pause-screen').style.display = 'none';
+    document.getElementById('levelup-screen').style.display = 'none';
+    document.getElementById('shop-screen').style.display = 'none';
+    document.getElementById('game-over-screen').style.display = 'none';
 }
 window.saveAndQuit = saveAndQuit;
 
@@ -4981,27 +5022,38 @@ function masterLoop(timestamp) {
 // Ensure you call loadGame() at startup!
 loadGame();
 
-// Initialize DLCs then Menu
-if (window.dlcManager) {
-    window.dlcManager.init().then(() => {
-        // Hide Loading Screen
+// Start DLC loading immediately in the background, regardless of intro setting.
+const _dlcReady = window.dlcManager ? window.dlcManager.init() : Promise.resolve();
+
+// Called once both the intro (if any) is done AND DLCs are loaded.
+function _launchMenu() {
+    _dlcReady.then(() => {
+        // If the loading screen is still visible (intro was off, or DLCs took longer
+        // than the intro), fade it out gracefully before showing the menu.
         const loader = document.getElementById('loading-screen');
-        if (loader) {
+        if (loader && loader.style.display !== 'none' && loader.style.opacity !== '0') {
             loader.style.transition = 'opacity 0.5s';
             loader.style.opacity = '0';
-            setTimeout(() => loader.remove(), 500);
+            setTimeout(() => { loader.remove(); initMenu(); }, 500);
+        } else {
+            if (loader) loader.remove();
+            initMenu();
         }
-
-        initMenu();
-        masterLoop();
     });
-} else {
-    // Hide Loading Screen
+}
+
+masterLoop();
+
+if (gameConfig.showIntroScreens) {
+    // Hide the loading screen immediately — the intro-backdrop (already visible in HTML)
+    // covers the canvas while the intro plays and DLCs load in background.
     const loader = document.getElementById('loading-screen');
     if (loader) loader.style.display = 'none';
 
-    initMenu();
-    masterLoop();
+    introManager.play(_launchMenu);
+} else {
+    // No intro: keep loading screen visible while DLCs load, then show menu.
+    _launchMenu();
 }
 
 // OPTIONAL: Auto-save every 30 seconds

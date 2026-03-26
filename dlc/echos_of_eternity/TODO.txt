@@ -1,0 +1,253 @@
+# Echos of Eternity DLC
+
+This DLC introduces a new fundamental dimension: Time, alongside a hidden, mysterious counterpart: Love, expanding the game into philosophical, narrative, and mechanical depth never seen before.
+
+## Vision
+
+This DLC represents the narrative and mechanical culmination of the entire game. It should also be like a "best of" of the base game and all DLCs.
+
+It must feel:
+- Larger in scale than all previous DLCs
+- More complex, but still understandable
+- Deeply connected to everything that came before
+
+“Echoes of Eternity” is not just another DLC.
+It is the moment where all timelines converge,
+where every decision matters,
+and where the unseen force of connection proves stronger than fate itself.
+
+It is also a deeply personal DLC for the developer and as the last DLC, it should really round up the whole game.
+
+## Heroes
+
+### New Hero: Time (Sand-Colored Hero)
+
+Time is a control-oriented, reality-bending hero who manipulates the flow of time, rewinds events, accelerates outcomes, and creates temporal echoes of actions.
+He represents inevitability, causality, and the burden of knowing what will happen.
+Unlike other heroes, Time does not simply fight enemies —
+he reshapes the battlefield itself across multiple timelines simultaneously.
+
+Core Gameplay Identity:
+Battlefield manipulation across past, present, and future
+Creates temporal clones (“echoes”) of previous actions
+Can rewind damage, reposition enemies, or undo mistakes
+Strong strategic depth, but high complexity
+
+Unique Special Ability: Timeline Fracture
+The battlefield splits into parallel timelines
+Actions in one timeline affect others
+Players must manage multiple realities at once
+
+Unique Level up mechanic: Fast-forward or reverse
+
+There are only two level-up options (except at waves that are multiples of 10 with the Ultimate option):
+
+- Fast forward: Buffs all attributes of the hero, making him stronger in any sense
+- Reverse: Weekens current and resolves timeline fracture to handle all the mess
+
+Idea: The player must balance between being able to handle the overwhelming timeline chaos and getting stronger. A skilled player can just keep on getting stronger and stronger, while players that can't handle the chaos will remain weak.
+
+Ultimate Form:
+“Eternal Paradox”
+Time freezes, then collapses multiple timelines into one
+All accumulated actions resolve simultaneously
+
+### Hidden Hero: Love (Pink Hero)
+
+Love is a hidden, unlockable hero that represents connection, empathy, and emotional resonance.
+She is not initially playable and only becomes available through specific narrative conditions tied to Time and the main story.
+Love is neither purely offensive nor defensive —
+she binds entities together, manipulates emotional states, and alters relationships between enemies, allies, and even reality itself.
+
+Core Gameplay Identity:
+Links enemies and allies through emotional bonds
+Converts damage, healing, and effects between linked entities
+Can pacify enemies, but also amplify conflict if misused
+
+Idea:
+
+- Easy hero
+- Crazy power fantasy
+- Can seduce enemies to no attack any more
+- Can spawn a companion
+- Strong “heart” attacks that blast through enemies
+
+Unique Mechanic: Emotional Resonance
+Enemies and allies become linked
+Effects propagate across connections:
+- Damage spreads
+- Healing shares
+- Status effects transfer
+- Ultimate Form:
+- “Heart of Unity”
+All entities on the battlefield become interconnected
+Massive chain reactions of effects (both positive and negative)
+
+## Story Concept:
+
+Themes:
+	•	Fate
+	•	Eternity
+	•	Bonds
+	•	Destiny
+	•	Choice
+
+Time begins to fracture reality as all previous events start to bleed into each other.
+The hero Time witnesses:
+- Alternate outcomes where heroes failed
+- Worlds consumed by Makuta
+- Victories that never happened
+
+Meanwhile, a hidden force — Love — subtly influences outcomes, preventing total collapse.
+The five original heroes continue their fight, unaware that:
+- Time is holding reality together
+- Love is guiding key moments behind the scenes
+
+Key Narrative Events:
+- Encounters with alternate versions of heroes
+- Reappearances of major villains across timelines
+- Reality-breaking battles where outcomes shift mid-fight
+- Discovery of Love as the true stabilizing force
+
+## Story mechanics
+
+Time Story:
+
+- New meta mechanism let’s you chose one of alternative paths after every wave in the "Maze of Time"
+    - Goal: Finish up all alternative paths (that are built up like a maze/tree structure) across various playthroughs to get to the real endings
+    - One playthrough will only lead you through one strang, but some events require certain, sometimes alternative events to be completed across multiple playthroughs
+    - That way a web is created
+    - Only when all events are cleared, you can select the map node that leads to the fight of the final showdown and superboss
+    - That means it's possible to finish the story on a path that doesn't lead to the final boss, every run can be completely different depending on the strang that you decide to pass through
+- One of the later alternative paths lead to discovering the Love hero
+- The paths go through the whole story of the game and discovers different paths and shows what happens before and after the story
+- Special paths include for example:
+    - One that leads to the true golden mask
+    - One where he has Black as companion
+    - One where he has to fight Poison and Sound
+    - One where he fights Makuta and Green Goblin
+- Paths should be like the ultimate playground with crazy outcomes and variations (e.g. only one enemy type but super strong, or play around with biomes, weather, challenges to complete...all currently known story modifiers and more are possible)
+- Paths that were already taken are marked as such in the map
+- The map is a new mechanic. It opens after a wave is completed and there the player choses where to go next.
+- Certain paths lead to formidable foes, special bosses that are on the hunting list
+    - those are special, new boss implementations
+- The hunting list can be seen after every wave completion, together with the map, and does not reset after every game run
+- Finishing foes on the hunting list brings player buffs. Finishing all of them brings a special super buff for runs in that campaign.
+- Paths in the map are revealed when choosing them, but marked with “?” if not discovered yet
+- All path nodes have an icon depicting the kind of event and visually indicate if they have been completed yet
+- The map state always carries over to future campaign runs
+- Every node on the map represents a story chapter that is also narrated, so in this case we need to change the way the story chapters work (there is no fixed order now!)
+- In total I was thinking about ~70-100 unique nodes in the overall map
+
+Love Story:
+
+- She shares the story with the Time hero
+- Allows for some alternative paths in the Maze of Time that only she can take
+
+# Background lore (memory shards)
+
+Time hero:
+
+- he had the realization that he is internally broken
+- he had everything in life yet wasn't happy and needed more
+- he realized that he was a liar and now has to live with the mistakes he made
+
+Love hero:
+
+- Love story is a very personal story
+- It tells the story about a woman whose heart got broken when her husband was cheating on her
+- her husband on various occasions was leaving the house and stayed for longer periods in different places
+- Plot twist at the end: Her husband is the Time hero
+- Plot twist is only unlocked after having collected all of the memory shards, in a secret 51st shard
+
+## DLC Content Overview
+
+As with all heroes, Time and Love feature:
+
+- Unique, deeply thematic skill trees
+- A shared but perspective-shifting storyline
+- This DLC introduces cross-timeline interactions between:
+    - All previous DLC heroes
+    - Major villains (Makuta, Zeus, Tempest, Entropy Lord, etc.)
+    - The mysterious Black hero
+
+## Unique Biomes
+### Time Biome – The Shattered Continuum
+Floating fragments of different timelines
+Environments constantly shifting between states
+Special mechanics:
+Time loops
+Repeating enemy patterns
+Delayed or reversed effects
+
+### Love Biome – The Heart Nexus (Hidden)
+Ethereal, glowing environments
+Calm but emotionally intense atmosphere
+Special mechanics:
+Linked enemies and allies
+Emotional field effects
+Non-lethal encounter solutions
+
+## Skill Trees
+### Time Skill Tree (Example Branches)
+Path of Reversal: Rewind abilities, undo damage
+Path of Acceleration: Faster attacks, compressed timelines
+Path of Paradox: High-risk timeline manipulation
+
+### Love Skill Tree (Example Branches)
+Path of Connection: Stronger links between entities
+Path of Compassion: Healing and protection effects
+Path of Passion: Amplified effects with higher risk
+Altar of Mastery & Mutations
+
+This DLC introduces:
+Unique Altar of Mastery skills for Time and Love
+Convergence skills with ALL existing elements
+Examples:
+Time + Lightning: Delayed chain lightning strikes across timelines
+Time + Gravity: Time dilation fields
+Love + Fire: Shared burning effects across linked enemies
+Love + Void: Emotional instability causing unpredictable effects
+Love + Plant: Growth-based healing networks
+
+## Boss Content
+Final Superboss: The Eternal Collapse
+A reality-breaking entity formed from:
+- Fragmented timelines
+- Failed outcomes
+- Echoes of Makuta’s influence
+
+Other superbosses are included as "Formidable Foes". These are super-strong variations of single, existing enemies (differently sized) or new implementations as well.
+
+## Reference DLCs (Consistency Requirement):
+The DLC must be as clearly separated and structured as:
+- Rise of the Rock
+- Tournament of Thunder
+- Champions of Chaos
+- Waker of Winds
+- Faith of Fortune
+- Symphony of Sickness
+
+## Full integrations
+- Completion menu
+- Hero unlock tracking
+- Achievements
+- Collector's cards for new enemies
+
+DLC must be:
+- Clearly separated from base game
+- Toggleable (opt-in / opt-out)
+- Modular and scalable
+
+## Technical & Project Organization Goals
+
+Please help organize the steps required to realize this DLC, including:
+- Timeline system architecture
+- Multi-state battlefield logic
+- Emotional linking system
+- Story chapter branching logic
+- Boss encounter scripting
+- Cross-DLC character integration
+- UI/UX for timeline visualization
+- Modular DLC separation
+- Positioning Within the Game

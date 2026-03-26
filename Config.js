@@ -32,7 +32,10 @@ const defaultConfig = {
 
     // Gameplay
     autoAim: false, // Accessibility?
-    showFPS: false
+    showFPS: false,
+
+    // Intro
+    showIntroScreens: true
 };
 
 var gameConfig = JSON.parse(JSON.stringify(defaultConfig));

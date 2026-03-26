@@ -63,13 +63,31 @@ class Boss {
             }
             this.hp = this.maxHp;
         } else if (this.type === 'GREEN_GOBLIN') {
-            this.color = '#2ecc71';
-            this.speed *= 1.3;
-            this.maxHp *= 0.8;
+            this.color = '#1d8a2e';
+            this.radius = 52;
+            this.speed *= 1.35;
+            this.maxHp *= 0.9;
             this.hp = this.maxHp;
-            this.magnetStrength = 0.8; // Reduced from 2.0 to 0.8
-            this.magnetTimer = 0; // Active time
-            this.magnetCooldown = 180; // Wait time
+            // --- Trick Bombs ---
+            this.pendingBombs = [];          // { x, y, timer, maxTimer, radius }
+            this.bombCooldown = 85;
+            // --- Magnet ---
+            this.magnetTimer = 0;
+            this.magnetCooldown = 200;
+            this.magnetStrength = 1.1;
+            // --- Glider Dive (unlocks in phase 2) ---
+            this.goblinState = 'HOVER';      // HOVER | DIVE_WINDUP | DIVE | RECOVER
+            this.diveCooldown = 320;
+            this.diveWindupTimer = 0;
+            this.diveTarget = null;
+            this.diveVelocity = null;
+            this.diveTimer = 0;
+            this.recoverTimer = 0;
+            // --- Cackle / Minion summon (phase 2+) ---
+            this.cackleCooldown = 1400;
+            // --- Animation ---
+            this.wiggle = 0;
+            this.eyeGlow = 0;
         } else if (this.type === 'DARK_GOLEM') {
             this.color = '#212121'; // Dark Obsidian
             this.radius = 90; // Massive
@@ -132,8 +150,8 @@ class Boss {
             }
         }
 
-        // Phase Transition Logic
-        if (this.phase === 1 && this.hp <= this.maxHp * 0.5) {
+        // Phase Transition Logic (GREEN_GOBLIN handles its own phases below)
+        if (this.phase === 1 && this.hp <= this.maxHp * 0.5 && this.type !== 'GREEN_GOBLIN') {
             this.phase = 2;
             floatingTexts.push(new FloatingText(this.x, this.y - 60, "PHASE 2!", "#e74c3c", 30));
             createExplosion(this.x, this.y, this.color);
@@ -192,38 +210,100 @@ class Boss {
             }
         }
 
-        // Green Goblin Magnet (Pulsing)
+        // ── GREEN GOBLIN — full mechanics ────────────────────────────────────
         if (this.type === 'GREEN_GOBLIN') {
+            // Animation ticks
+            this.wiggle  = (this.wiggle  + 0.09) % (Math.PI * 2);
+            this.eyeGlow = (this.eyeGlow + 0.06) % (Math.PI * 2);
+
+            // Phase transitions
+            if (this.phase === 1 && this.hp <= this.maxHp * 0.6) {
+                this.phase = 2;
+                this.speed *= 1.3;
+                this.bombCooldown = Math.min(this.bombCooldown, 60);
+                createExplosion(this.x, this.y, '#e67e22');
+                floatingTexts.push(new FloatingText(this.x, this.y - 80, "GOING MAD!", "#e67e22", 28));
+                if (typeof showNotification === 'function') showNotification("GOING MAD!", "#e67e22");
+            }
+            if (this.phase === 2 && this.hp <= this.maxHp * 0.3) {
+                this.phase = 3;
+                this.speed *= 1.2;
+                this.magnetStrength = 2.2;
+                this.bombCooldown = Math.min(this.bombCooldown, 42);
+                createExplosion(this.x, this.y, '#e74c3c');
+                floatingTexts.push(new FloatingText(this.x, this.y - 80, "MANIC MODE!", "#e74c3c", 32));
+                if (typeof showNotification === 'function') showNotification("MANIC MODE!", "#e74c3c");
+            }
+
+            // Pending bomb timers & explosions
+            for (let _bi = this.pendingBombs.length - 1; _bi >= 0; _bi--) {
+                const _b = this.pendingBombs[_bi];
+                _b.timer--;
+                if (_b.timer <= 0) {
+                    createExplosion(_b.x, _b.y, '#e67e22');
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_stomp');
+                    const _targets = [player];
+                    if (typeof player2 !== 'undefined' && player2) _targets.push(player2);
+                    for (const _t of _targets) {
+                        const _bd = Math.hypot(_t.x - _b.x, _t.y - _b.y);
+                        if (_bd < _b.radius + _t.radius) {
+                            if (!_t.isInvincible && (_t.invincibleTimer || 0) <= 0) {
+                                const _dmg = this.damage * 1.6 * (1 - (_t.damageReduction || 0));
+                                _t.hp -= _dmg;
+                                floatingTexts.push(new FloatingText(_t.x, _t.y - 20, Math.ceil(_dmg), "#e74c3c", 20));
+                                if (typeof audioManager !== 'undefined') audioManager.play('damage');
+                            }
+                        }
+                    }
+                    this.pendingBombs.splice(_bi, 1);
+                }
+            }
+
+            // Magnet pull
             if (this.magnetCooldown > 0) {
                 this.magnetCooldown--;
-                if (this.magnetCooldown <= 0) {
-                    this.magnetTimer = 120; // Active for 2 seconds
-                    if (typeof showNotification === 'function') showNotification("MAGNET ACTIVATE!", "#2ecc71");
-                }
             } else if (this.magnetTimer > 0) {
                 this.magnetTimer--;
-                if (this.magnetTimer <= 0) this.magnetCooldown = 300; // Cooldown 5 seconds
-
-                const dist = Math.hypot(player.x - this.x, player.y - this.y);
-                if (dist < 500) {
-                    const pullAngle = Math.atan2(this.y - player.y, this.x - player.x);
-                    player.x += Math.cos(pullAngle) * this.magnetStrength;
-                    player.y += Math.sin(pullAngle) * this.magnetStrength;
-
-                    // Visual effect
-                    if (frame % 5 === 0) {
-                        ctx.save();
-                        ctx.strokeStyle = '#2ecc71';
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        ctx.moveTo(player.x, player.y);
-                        ctx.lineTo(this.x, this.y);
-                        ctx.stroke();
-                        ctx.restore();
+                if (this.magnetTimer <= 0) {
+                    this.magnetCooldown = this.phase >= 3 ? 180 : 260;
+                }
+                const _targets = [player];
+                if (typeof player2 !== 'undefined' && player2) _targets.push(player2);
+                for (const _t of _targets) {
+                    const _md = Math.hypot(_t.x - this.x, _t.y - this.y);
+                    if (_md < 620) {
+                        const _pa = Math.atan2(this.y - _t.y, this.x - _t.x);
+                        _t.x += Math.cos(_pa) * this.magnetStrength;
+                        _t.y += Math.sin(_pa) * this.magnetStrength;
                     }
+                }
+            } else {
+                this.magnetTimer = this.phase >= 3 ? 110 : 85;
+                if (typeof showNotification === 'function') showNotification("TRICK OR TREAT!", "#2ecc71");
+            }
+
+            // Cackle / minion summon (phase 2+)
+            if (this.phase >= 2) {
+                this.cackleCooldown--;
+                if (this.cackleCooldown <= 0) {
+                    const _mc = this.phase >= 3 ? 4 : 3;
+                    for (let _mi = 0; _mi < _mc; _mi++) {
+                        const _ma = (Math.PI * 2 / _mc) * _mi;
+                        const _m = new Enemy(true);
+                        _m.x = this.x + Math.cos(_ma) * 110;
+                        _m.y = this.y + Math.sin(_ma) * 110;
+                        _m.color = '#27ae60';
+                        _m.hp   *= 0.45;
+                        _m.radius *= 0.65;
+                        enemies.push(_m);
+                        createExplosion(_m.x, _m.y, '#27ae60');
+                    }
+                    if (typeof showNotification === 'function') showNotification("HA HA HA!", "#2ecc71");
+                    this.cackleCooldown = this.phase >= 3 ? 700 : 1100;
                 }
             }
         }
+        // ── end GREEN GOBLIN mechanics ────────────────────────────────────────
 
         const _bossTarget = (typeof getCoopTarget === 'function') ? getCoopTarget(this.x, this.y) : player;
         const angle = Math.atan2(_bossTarget.y - this.y, _bossTarget.x - this.x);
@@ -282,32 +362,67 @@ class Boss {
 
             this.attackCooldown--;
         } else if (this.type === 'GREEN_GOBLIN') {
-            // Hover/Kite Behavior
-            const dist = Math.hypot(player.x - this.x, player.y - this.y);
-            const idealDist = 350;
-
-            if (dist < 200) {
-                // Too close! Retreat
-                nextX -= Math.cos(angle) * (this.speed * 1.2);
-                nextY -= Math.sin(angle) * (this.speed * 1.2);
-            } else if (dist > 500) {
-                // Too far! Chase
-                nextX += Math.cos(angle) * this.speed;
-                nextY += Math.sin(angle) * this.speed;
+            // ── Glider Dive state machine ──────────────────────────────────
+            if (this.goblinState === 'DIVE_WINDUP') {
+                // Track player during windup, lock direction when it expires
+                this.diveWindupTimer--;
+                this.diveTarget = { x: _bossTarget.x, y: _bossTarget.y };
+                if (this.diveWindupTimer <= 0) {
+                    const _da = Math.atan2(this.diveTarget.y - this.y, this.diveTarget.x - this.x);
+                    const _ds = this.speed * 7;
+                    this.diveVelocity = { x: Math.cos(_da) * _ds, y: Math.sin(_da) * _ds };
+                    this.goblinState = 'DIVE';
+                    this.diveTimer = 24;
+                }
+                // Barely moves — slight hover bob
+            } else if (this.goblinState === 'DIVE') {
+                nextX += this.diveVelocity.x;
+                nextY += this.diveVelocity.y;
+                this.diveTimer--;
+                if (this.diveTimer <= 0) {
+                    this.goblinState = 'RECOVER';
+                    this.recoverTimer = 38;
+                    // Phase 3: drop a bomb at landing spot
+                    if (this.phase >= 3) {
+                        this.pendingBombs.push({ x: this.x, y: this.y, timer: 55, maxTimer: 55, radius: 85 });
+                    }
+                }
+            } else if (this.goblinState === 'RECOVER') {
+                // Slide away
+                nextX -= Math.cos(angle) * (this.speed * 1.8);
+                nextY -= Math.sin(angle) * (this.speed * 1.8);
+                this.recoverTimer--;
+                if (this.recoverTimer <= 0) {
+                    this.goblinState = 'HOVER';
+                    this.diveCooldown = this.phase >= 3 ? 155 : 270;
+                }
             } else {
-                // Sweet spot! Strafe around player
-                // Move perpendicular to angle
-                const strafeAngle = angle + Math.PI / 2;
-                nextX += Math.cos(strafeAngle) * (this.speed * 0.8);
-                nextY += Math.sin(strafeAngle) * (this.speed * 0.8);
-
-                // Slight drift towards ideal distance
-                if (dist > idealDist) {
-                    nextX += Math.cos(angle) * 0.5;
-                    nextY += Math.sin(angle) * 0.5;
+                // HOVER: kite + oscillating strafe + dive cooldown
+                if (this.phase >= 2) {
+                    this.diveCooldown--;
+                    if (this.diveCooldown <= 0) {
+                        this.goblinState = 'DIVE_WINDUP';
+                        this.diveWindupTimer = 48;
+                        this.diveTarget = null;
+                    }
+                }
+                const _gd = Math.hypot(_bossTarget.x - this.x, _bossTarget.y - this.y);
+                const _idealDist = this.phase >= 2 ? 290 : 340;
+                if (_gd < 175) {
+                    nextX -= Math.cos(angle) * (this.speed * 1.6);
+                    nextY -= Math.sin(angle) * (this.speed * 1.6);
+                } else if (_gd > 520) {
+                    nextX += Math.cos(angle) * this.speed;
+                    nextY += Math.sin(angle) * this.speed;
                 } else {
-                    nextX -= Math.cos(angle) * 0.5;
-                    nextY -= Math.sin(angle) * 0.5;
+                    // Oscillating strafe direction keeps movement unpredictable
+                    const _sd = Math.sin(frame * 0.016) > 0 ? 1 : -1;
+                    const _sa = angle + _sd * Math.PI / 2;
+                    nextX += Math.cos(_sa) * (this.speed * 0.9);
+                    nextY += Math.sin(_sa) * (this.speed * 0.9);
+                    const _drift = _gd > _idealDist ? 0.45 : -0.45;
+                    nextX += Math.cos(angle) * _drift;
+                    nextY += Math.sin(angle) * _drift;
                 }
             }
         } else {
@@ -421,15 +536,27 @@ class Boss {
                     }
                     this.attackCooldown = 60;
                 } else if (this.type === 'GREEN_GOBLIN') {
-                    // Explosive Pumpkin Bombs
-                    for (let i = 0; i < 3; i++) {
-                        const spread = (Math.random() - 0.5) * 0.5;
-                        const a = Math.atan2(player.y - this.y, player.x - this.x) + spread;
-                        const vel = { x: Math.cos(a) * 9, y: Math.sin(a) * 9 };
-                        // Orange projectiles that look like bombs
-                        projectiles.push(new Projectile(this.x, this.y, vel, this.damage * 1.2, '#e67e22', 12, 'enemy', 0, true));
+                    // Trick Bombs — schedule as pending AoE explosions
+                    const _ct2 = (typeof getCoopTarget === 'function') ? getCoopTarget(this.x, this.y) : player;
+                    const bombCount = this.phase >= 3 ? 3 : this.phase >= 2 ? 2 : 1;
+                    for (let i = 0; i < bombCount; i++) {
+                        // Aim at player + some predictive lead
+                        const lead = i * 28;
+                        const lx = _ct2.x + (_ct2.vx || 0) * lead;
+                        const ly = _ct2.y + (_ct2.vy || 0) * lead;
+                        // Add jitter on extra bombs
+                        const jx = i > 0 ? (Math.random() - 0.5) * 140 : 0;
+                        const jy = i > 0 ? (Math.random() - 0.5) * 140 : 0;
+                        const delay = i * 18;
+                        this.pendingBombs.push({
+                            x: lx + jx, y: ly + jy,
+                            timer: delay, fuseTimer: delay,
+                            maxTimer: 52 + delay, radius: 70,
+                            damage: this.damage * (this.phase >= 3 ? 1.5 : 1.2)
+                        });
                     }
-                    this.attackCooldown = 90;
+                    this.bombCooldown = this.phase >= 3 ? 55 : this.phase >= 2 ? 70 : 85;
+                    this.attackCooldown = this.bombCooldown;
                 }
             } else { this.attackCooldown--; }
         }
@@ -444,6 +571,297 @@ class Boss {
             window._DLC_BOSS_REGISTRY[this.type].draw(ctx, this);
             return;
         }
+
+        // ── Green Goblin custom draw ───────────────────────────────────────────
+        if (this.type === 'GREEN_GOBLIN') {
+            const g = this;
+            const gx = g.x, gy = g.y;
+            const r = g.radius; // 52
+
+            // -- Pending bomb indicators (world space, drawn under goblin) --
+            for (const b of g.pendingBombs) {
+                const warmup = Math.max(0, 1 - b.timer / b.maxTimer);
+                const pulse = 0.5 + 0.5 * Math.sin(frame * 0.25 + b.x);
+                ctx.save();
+                ctx.globalAlpha = 0.18 + 0.25 * warmup;
+                ctx.strokeStyle = '#e67e22';
+                ctx.lineWidth = 2 + warmup * 3;
+                ctx.setLineDash([6, 6]);
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.radius * (0.4 + 0.6 * warmup), 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                // Pulsing inner core
+                ctx.globalAlpha = (0.3 + 0.4 * pulse) * warmup;
+                ctx.fillStyle = '#f39c12';
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 8 + warmup * 12, 0, Math.PI * 2);
+                ctx.fill();
+                // Fuse line to goblin
+                ctx.globalAlpha = 0.25 * warmup;
+                ctx.strokeStyle = '#f1c40f';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 8]);
+                ctx.beginPath();
+                ctx.moveTo(gx, gy);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
+
+            // -- Magnet pull lines (phase 2+) --
+            if (g.phase >= 2 && g.magnetTimer > 0) {
+                const prog = g.magnetTimer / 60;
+                ctx.save();
+                ctx.globalAlpha = 0.35 * prog;
+                ctx.strokeStyle = '#9b59b6';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 9]);
+                ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(player.x, player.y); ctx.stroke();
+                if (window.player2 && !player2.isDead) {
+                    ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(player2.x, player2.y); ctx.stroke();
+                }
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
+
+            ctx.save();
+            ctx.translate(gx, gy);
+
+            // Phase glow ring
+            if (g.phase >= 2) {
+                const glowCol = g.phase >= 3 ? '#e74c3c' : '#f39c12';
+                ctx.save();
+                ctx.shadowColor = glowCol;
+                ctx.shadowBlur = 28 + 12 * Math.sin(frame * 0.08);
+                ctx.strokeStyle = glowCol;
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 0.55;
+                ctx.beginPath();
+                ctx.arc(0, 0, r + 10, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // -- Glider wings (behind body) --
+            const wingFlap = Math.sin(frame * 0.12) * 0.22;
+            ctx.save();
+            ctx.rotate(wingFlap);
+            // Left wing
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.3, -r * 0.1);
+            ctx.quadraticCurveTo(-r * 1.5, -r * 0.8, -r * 1.8, r * 0.3);
+            ctx.quadraticCurveTo(-r * 1.1, r * 0.6, -r * 0.3, r * 0.2);
+            ctx.closePath();
+            const _wgL = ctx.createLinearGradient(-r * 1.8, 0, -r * 0.3, 0);
+            _wgL.addColorStop(0, 'rgba(20,90,20,0.55)');
+            _wgL.addColorStop(1, 'rgba(40,160,40,0.75)');
+            ctx.fillStyle = _wgL;
+            ctx.strokeStyle = 'rgba(0,80,0,0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.fill(); ctx.stroke();
+            // Right wing (mirrored)
+            ctx.scale(-1, 1);
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.3, -r * 0.1);
+            ctx.quadraticCurveTo(-r * 1.5, -r * 0.8, -r * 1.8, r * 0.3);
+            ctx.quadraticCurveTo(-r * 1.1, r * 0.6, -r * 0.3, r * 0.2);
+            ctx.closePath();
+            ctx.fillStyle = _wgL;
+            ctx.fill(); ctx.stroke();
+            ctx.restore();
+
+            // -- Dive telegraph arrow --
+            if (g.goblinState === 'DIVE_WINDUP' && g.diveTarget) {
+                const prog = Math.min(1, g.diveWindupTimer / 45);
+                const ang = Math.atan2(g.diveTarget.y - gy, g.diveTarget.x - gx);
+                ctx.save();
+                ctx.rotate(ang);
+                ctx.globalAlpha = 0.5 + 0.5 * Math.sin(frame * 0.3);
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 3 + prog * 3;
+                const arrowLen = r * 1.4 + prog * r;
+                ctx.beginPath();
+                ctx.moveTo(r + 6, 0);
+                ctx.lineTo(r + 6 + arrowLen, 0);
+                ctx.stroke();
+                // Arrowhead
+                ctx.beginPath();
+                ctx.moveTo(r + 6 + arrowLen, 0);
+                ctx.lineTo(r + 6 + arrowLen - 14, -9);
+                ctx.lineTo(r + 6 + arrowLen - 14,  9);
+                ctx.closePath();
+                ctx.fillStyle = '#e74c3c';
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // -- Dive speed lines --
+            if (g.goblinState === 'DIVE' && g.diveVelocity) {
+                ctx.save();
+                const dang = Math.atan2(g.diveVelocity.y, g.diveVelocity.x);
+                ctx.rotate(dang + Math.PI);
+                ctx.globalAlpha = 0.5;
+                ctx.strokeStyle = '#7ddd7d';
+                ctx.lineWidth = 2;
+                for (let i = -3; i <= 3; i++) {
+                    const yoff = i * 10;
+                    const len = 28 + Math.random() * 28;
+                    ctx.beginPath();
+                    ctx.moveTo(r + 4, yoff);
+                    ctx.lineTo(r + 4 + len, yoff);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            // -- Body (dark green sphere with highlight) --
+            const bodyGrad = ctx.createRadialGradient(-r * 0.25, -r * 0.25, r * 0.08, 0, 0, r);
+            bodyGrad.addColorStop(0,    '#5ddb6e');
+            bodyGrad.addColorStop(0.42, '#1d8a2e');
+            bodyGrad.addColorStop(1,    '#0a3d14');
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.fillStyle = bodyGrad;
+            ctx.shadowColor = '#000';
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#0a3d14';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // -- Hat (pointy witch hat silhouette) --
+            ctx.save();
+            ctx.fillStyle = '#1a1a00';
+            ctx.strokeStyle = '#3a3a00';
+            ctx.lineWidth = 2;
+            // Brim
+            ctx.beginPath();
+            ctx.ellipse(0, -r * 0.72, r * 0.68, r * 0.17, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+            // Cone
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.40, -r * 0.72);
+            ctx.lineTo(0,          -r * 2.1);
+            ctx.lineTo( r * 0.40, -r * 0.72);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            // Hat buckle
+            ctx.fillStyle = '#c8a800';
+            ctx.fillRect(-r * 0.13, -r * 0.92, r * 0.26, r * 0.18);
+            ctx.restore();
+
+            // -- Glowing eyes --
+            const eyeGlow = g.eyeGlow || 0;
+            const eyePulse = 0.8 + 0.2 * Math.sin(frame * 0.18);
+            ctx.save();
+            ctx.shadowColor = '#ffe000';
+            ctx.shadowBlur = 14 + eyeGlow * 20;
+            ctx.fillStyle = `rgba(255, 220, 0, ${0.85 * eyePulse})`;
+            // Left eye — almond shape
+            ctx.beginPath();
+            ctx.ellipse(-r * 0.28, -r * 0.12, r * 0.14, r * 0.09, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            // Right eye
+            ctx.beginPath();
+            ctx.ellipse( r * 0.28, -r * 0.12, r * 0.14, r * 0.09,  0.3, 0, Math.PI * 2);
+            ctx.fill();
+            // Dark pupils
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#1a0a00';
+            ctx.beginPath(); ctx.arc(-r * 0.28, -r * 0.12, r * 0.055, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc( r * 0.28, -r * 0.12, r * 0.055, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+
+            // -- Wicked grin --
+            ctx.save();
+            ctx.strokeStyle = '#0a1a00';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(0, r * 0.18, r * 0.38, 0.2, Math.PI - 0.2);
+            ctx.stroke();
+            // Teeth
+            ctx.fillStyle = '#e8e0c0';
+            const toothCount = 5;
+            for (let i = 0; i < toothCount; i++) {
+                const ta = 0.25 + (i / (toothCount - 1)) * (Math.PI - 0.5);
+                const tx = Math.cos(ta) * r * 0.38;
+                const ty = r * 0.18 + Math.sin(ta) * r * 0.38;
+                ctx.beginPath();
+                ctx.moveTo(tx - 4, ty);
+                ctx.lineTo(tx, ty + (i % 2 === 0 ? 9 : 6));
+                ctx.lineTo(tx + 4, ty);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // -- Claw hands --
+            ctx.save();
+            ctx.strokeStyle = '#2a6e1e';
+            ctx.fillStyle = '#1d8a2e';
+            ctx.lineWidth = 2;
+            const wiggle = Math.sin(frame * 0.14) * 0.18;
+            // Left claw
+            ctx.save();
+            ctx.translate(-r * 0.85, r * 0.28);
+            ctx.rotate(-0.4 + wiggle);
+            ctx.beginPath(); ctx.arc(0, 0, r * 0.22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.strokeStyle = '#0a3d14'; ctx.lineWidth = 2;
+            for (let i = -1; i <= 1; i++) {
+                const ca = -Math.PI * 0.5 + i * 0.5;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(ca) * r * 0.22, Math.sin(ca) * r * 0.22);
+                ctx.lineTo(Math.cos(ca) * r * 0.38, Math.sin(ca) * r * 0.38 - 4);
+                ctx.stroke();
+            }
+            ctx.restore();
+            // Right claw
+            ctx.save();
+            ctx.translate(r * 0.85, r * 0.28);
+            ctx.rotate(0.4 - wiggle);
+            ctx.fillStyle = '#1d8a2e'; ctx.strokeStyle = '#2a6e1e'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(0, 0, r * 0.22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.strokeStyle = '#0a3d14'; ctx.lineWidth = 2;
+            for (let i = -1; i <= 1; i++) {
+                const ca = -Math.PI * 0.5 + i * 0.5;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(ca) * r * 0.22, Math.sin(ca) * r * 0.22);
+                ctx.lineTo(Math.cos(ca) * r * 0.38, Math.sin(ca) * r * 0.38 - 4);
+                ctx.stroke();
+            }
+            ctx.restore();
+            ctx.restore();
+
+            // -- Immunity shield --
+            if (g.immune) {
+                ctx.save();
+                ctx.shadowColor = '#3498db'; ctx.shadowBlur = 18;
+                ctx.strokeStyle = '#3498db'; ctx.lineWidth = 4;
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath(); ctx.arc(0, 0, r + 12, 0, Math.PI * 2); ctx.stroke();
+                ctx.restore();
+            }
+
+            ctx.restore();
+
+            // -- HP bar (reuse standard logic position) --
+            const bw = 80, bh = 8;
+            const bx = gx - bw / 2, by = gy - r - 22;
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+            const pct = Math.max(0, g.hp / g.maxHp);
+            const barCol = pct > 0.5 ? '#2ecc71' : pct > 0.25 ? '#f39c12' : '#e74c3c';
+            ctx.fillStyle = barCol;
+            ctx.fillRect(bx, by, bw * pct, bh);
+            ctx.restore();
+            return;
+        }
+        // ── End Green Goblin ───────────────────────────────────────────────────
 
         ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(frame * 0.02);
         // 3D boss body — radial gradient lit from top-left

@@ -1,15 +1,7 @@
 # General
 
-- game developer note
-- intro with game developer logo
-- screen indicator for when only one enemy is left
 - integrate all play modes into coop
-- make Green Goblin fight cooler
 
-# Future
+# Echos of Eternity
 
-- "Time" hero DLC
-    - has ability to slow and speed-up time
-- "Love" hero DLC
-    - can spawn companion (Ultimate)
-    - can seduce enemies (seduction aura?)
+- implement the DLC
