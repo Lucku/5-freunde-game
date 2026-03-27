@@ -9,8 +9,13 @@ class MainMenuUI {
         container.innerHTML = '';
 
         // Dynamically get heroes from BASE_HERO_STATS
-        // Filter out 'black' if it's meant to be hidden or handled separately
-        const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
+        // Filter out 'black' (handled separately) and 'love' until unlocked via Maze of Time
+        const loveUnlocked = window.saveData && window.saveData['love'] && window.saveData['love'].unlocked;
+        const heroes = Object.keys(BASE_HERO_STATS).filter(h => {
+            if (h === 'black') return false;
+            if (h === 'love' && !loveUnlocked) return false;
+            return true;
+        });
 
         // Always show all heroes in Grid View
         container.style.display = 'grid';

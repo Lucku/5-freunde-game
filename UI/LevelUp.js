@@ -22,6 +22,11 @@ class LevelUpUI {
 
         container.innerHTML = '';
 
+        // Allow hero to completely replace the option list (e.g. Time hero's Fast Forward / Reverse)
+        if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && typeof window.HERO_LOGIC[player.type].getCustomLevelUpOptions === 'function') {
+            options = window.HERO_LOGIC[player.type].getCustomLevelUpOptions(player, options);
+        }
+
         options.forEach(opt => {
             let displayOpt = { ...opt };
 

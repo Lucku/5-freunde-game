@@ -519,7 +519,7 @@ function toggleCoopMode() {
     if (btn) btn.classList.toggle('active', isCoopMode);
 
     if (isCoopMode) {
-        const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
+        const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black' && (h !== 'love' || (saveData && saveData['love'] && saveData['love'].unlocked)));
         const p1Idx = heroes.indexOf(window.selectedHeroType || 'fire');
         coopP2MenuIndex = p1Idx === 0 ? 1 : 0;
         coopP2HeroType = heroes[coopP2MenuIndex];
@@ -686,7 +686,7 @@ function updateCoopUI() {
         coopP2HeroType = saveData.savedRun.coopP2Type;
         window.coopP2HeroType = coopP2HeroType;
         window.coopP2Confirmed = true;
-        const _heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
+        const _heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black' && (h !== 'love' || (saveData && saveData['love'] && saveData['love'].unlocked)));
         coopP2MenuIndex = Math.max(0, _heroes.indexOf(coopP2HeroType));
         window.coopP2CursorIndex = coopP2MenuIndex;
     }
@@ -712,7 +712,7 @@ function handleCoopP2Gamepad() {
 
     // A button: lock in the current cursor hero
     if (aPressed) {
-        const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
+        const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black' && (h !== 'love' || (saveData && saveData['love'] && saveData['love'].unlocked)));
         coopP2HeroType = heroes[coopP2MenuIndex];
         window.coopP2HeroType = coopP2HeroType;
         window.coopP2CursorIndex = coopP2MenuIndex;
@@ -725,7 +725,7 @@ function handleCoopP2Gamepad() {
     if (coopP2Debounce > 0) { coopP2Debounce--; return; }
     if (!left && !right && !up && !down) return;
 
-    const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
+    const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black' && (h !== 'love' || (saveData && saveData['love'] && saveData['love'].unlocked)));
     const cols = 7;
 
     const p1Hero = window.selectedHeroType || 'fire';
@@ -2084,6 +2084,25 @@ function triggerStory(completedWave) {
         return;
     }
 
+    // Maze of Time: intercept for Time/Love hero in story mode
+    if (player && (player.type === 'time' || player.type === 'love') &&
+        window.MazeUI && window.MazeOfTime) {
+        // wave === 0 means this is the intro trigger (new run start) — don't complete a node,
+        // just clear the active node from any previous run
+        if (completedWave === 0) {
+            window.mazeCurrentNode   = null;
+            window.mazeCurrentNodeId = null;
+            MazeOfTime.clearEnemyPool();
+            MazeOfTime.initForRun();
+        } else if (window.mazeCurrentNodeId) {
+            // Mark the just-completed wave's node as done
+            MazeOfTime.completeNode(window.mazeCurrentNodeId);
+        }
+        // Open the maze map — player picks their next node
+        window.mazeUI.open(player.type);
+        return;
+    }
+
     // Pass player type (uppercase) to get specific story events
     const heroType = player ? player.type.toUpperCase() : 'ALL';
     const nextWave = completedWave + 1;
@@ -2488,6 +2507,9 @@ function advanceWave() {
     masksDroppedInWave = 0; // Reset mask cap
     enemies = [];
     bossActive = false;
+
+    // Maze of Time: reset per-wave enemy pool
+    if (window.MazeOfTime) window.MazeOfTime.clearEnemyPool();
 
     // Co-op / AI companion: revive dead player at wave start (they died before the final enemy)
     if (isCoopMode || isAICompanionMode) {
@@ -3876,6 +3898,11 @@ function masterLoop(timestamp) {
                         }
                     }
 
+                    // Maze of Time: use node's deterministic enemy pool
+                    if (window.mazeCurrentNode && window.mazeCurrentNode.enemyOverride) {
+                        forcedType = window.MazeOfTime.pickNextEnemyType() || forcedType;
+                    }
+
                     const nonBossCount = enemies.filter(e => !(e instanceof Boss) && e.hp > 0).length;
                     const enemyCap = Math.min(22, 5 + wave) + ((isCoopMode || isAICompanionMode) ? 4 : 0);
                     if (frame % Math.floor(spawnRate) === 0 && nonBossCount < enemyCap) {
@@ -3916,6 +3943,18 @@ function masterLoop(timestamp) {
                     if (!(e instanceof Boss) && !e._coopScaled) {
                         e._coopScaled = true;
                         e.hp *= 1.4; e.maxHp = e.hp;
+                    }
+                });
+            }
+
+            // Maze of Time: scale enemy HP by node waveStrength
+            if (window.mazeCurrentNode && window.mazeCurrentNode.waveStrength !== 1.0) {
+                const s = window.mazeCurrentNode.waveStrength;
+                enemies.forEach(e => {
+                    if (!(e instanceof Boss) && !e._mazeScaled) {
+                        e._mazeScaled = true;
+                        e.hp = Math.round(e.hp * s);
+                        e.maxHp = e.hp;
                     }
                 });
             }
@@ -4090,6 +4129,21 @@ function masterLoop(timestamp) {
                     }
 
                     saveGame();
+
+                    // Secret Love shard #51 — auto-reveal once all 50 regular Love shards are collected
+                    if (shardType === 'love' && typeof window.ECHOS_LOVE_SECRET !== 'undefined') {
+                        const collected = saveData.memories['love'] || [];
+                        const allFiftyCollected = collected.length >= 50 &&
+                            Array.from({ length: 50 }, (_, i) => i).every(i => collected.includes(i));
+                        if (allFiftyCollected && !saveData.memories['love_secret_51']) {
+                            saveData.memories['love_secret_51'] = true;
+                            setTimeout(() => {
+                                showNotification(`✦ REVELATION: "${window.ECHOS_LOVE_SECRET}"`);
+                                if (typeof audioManager !== 'undefined') audioManager.playVoice('love', 50);
+                            }, 3000);
+                            saveGame();
+                        }
+                    }
                 }
             });
 

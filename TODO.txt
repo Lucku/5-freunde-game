@@ -1,6 +1,8 @@
 # General
 
 - integrate all play modes into coop
+- overhaul weather effects
+- fix difficulty (currently too easy because of lower enemy count and collision damage)
 
 # Echos of Eternity
 

@@ -31,6 +31,11 @@ class DLCManager {
                 title: "Symphony of Sickness",
                 desc: "Rhythm vs Decay! Introduces 'Sound' and 'Poison' Heroes. Master the beat or spread the plague.",
                 icon: "🎵"
+            },
+            'echos_of_eternity': {
+                title: "Echos of Eternity",
+                desc: "Where all timelines converge. Introduces the Time Hero, the hidden Love Hero, and the Maze of Time.",
+                icon: "⌛"
             }
         };
     }
@@ -55,7 +60,7 @@ class DLCManager {
         console.log("Initializing DLC Manager...");
 
         // Load enabled DLCs from storage (default to enabled for now)
-        let enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "waker_of_winds", "faith_of_fortune", "symphony_of_sickness"]');
+        let enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "waker_of_winds", "faith_of_fortune", "symphony_of_sickness", "echos_of_eternity"]');
 
         // Migration check again to be safe
         if (enabledDLCs.includes('the_wind_waker')) {

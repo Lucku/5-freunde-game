@@ -138,6 +138,24 @@ class CompletionMenu {
                 continue;
             }
 
+            if (hero === 'time' || hero === 'love') { // Echos of Eternity DLC
+                const stories = MEMORY_STORIES[hero];
+                const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
+                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                if (!Array.isArray(unlocked)) {
+                    for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
+                }
+                stories.forEach((story, i) => {
+                    addToDLC('Echos of Eternity', 'Memories', unlockedIndices.includes(i), `${hero.charAt(0).toUpperCase() + hero.slice(1)} Shard #${i + 1}`);
+                });
+                // Secret shard #51 — only for Love, unlocked by collecting all 50
+                if (hero === 'love') {
+                    const secretUnlocked = !!(saveData.memories && saveData.memories['love_secret_51']);
+                    addToDLC('Echos of Eternity', 'Memories', secretUnlocked, 'Love Shard #51 (Secret Revelation)');
+                }
+                continue;
+            }
+
             const stories = MEMORY_STORIES[hero];
             const heroName = hero.charAt(0).toUpperCase() + hero.slice(1);
 
@@ -189,6 +207,10 @@ class CompletionMenu {
             }
             if (ach.id.startsWith('fortune_') || ach.id.includes('spirit') || ach.id.includes('chance')) {
                 addToDLC('Faith of Fortune', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
+                return;
+            }
+            if (ach.id.startsWith('echo_time_') || ach.id.startsWith('echo_love_')) {
+                addToDLC('Echos of Eternity', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
                 return;
             }
             if (ach.id.startsWith('thunder_')) {
@@ -279,6 +301,11 @@ class CompletionMenu {
                 addToDLC('Faith of Fortune', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
                 return;
             }
+            if (evt.id && (evt.id.startsWith('echo_time_') || evt.id.startsWith('echo_love_'))) {
+                const isUnlocked = saveData.story.unlockedChapters.includes(evt.id);
+                addToDLC('Echos of Eternity', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
+                return;
+            }
 
             let cat = 'Act 5 (81-100)';
             if (evt.wave <= 20) cat = 'Act 1 (1-20)';
@@ -335,6 +362,10 @@ class CompletionMenu {
                 addToDLC('Faith of Fortune', 'Cards', saveData.collection.includes(id), card.name);
                 return;
             }
+            if (id.startsWith('TIME_WRAITH') || id.startsWith('TEMPORAL_RIFT')) {
+                addToDLC('Echos of Eternity', 'Cards', saveData.collection.includes(id), card.name);
+                return;
+            }
 
             // Map type to nice name if needed, or just use type
             const typeName = type.charAt(0) + type.slice(1).toLowerCase();
@@ -387,6 +418,17 @@ class CompletionMenu {
                 const prestige = saveData[hero] ? (saveData[hero].prestige || 0) : 0;
                 nodes.forEach(node => {
                     addToDLC('Champions of Chaos', 'Altar', prestige >= node.req, `${node.name} (Req: Lv ${node.req})`);
+                });
+            }
+        });
+
+        // Echos of Eternity Altar (DLC)
+        ['time', 'love'].forEach(hero => {
+            if (ALTAR_TREE && ALTAR_TREE[hero]) {
+                const nodes = ALTAR_TREE[hero];
+                const prestige = saveData[hero] ? (saveData[hero].prestige || 0) : 0;
+                nodes.forEach(node => {
+                    addToDLC('Echos of Eternity', 'Altar', prestige >= node.req, `${node.desc} (Req: Prestige ${node.req})`);
                 });
             }
         });
@@ -446,6 +488,37 @@ class CompletionMenu {
         progress.chaos.total = chaosSub.total;
         progress.chaos.current = chaosSub.current;
         progress.chaos.percent = chaosSub.percent;
+
+        // 7. Echos of Eternity — Maze of Time Nodes, Hunting List, Love Hero Unlock
+        const isEoEActive = window.DLC_REGISTRY && window.DLC_REGISTRY['echos_of_eternity'];
+        if (isEoEActive && typeof MazeOfTime !== 'undefined' && window.MAZE_NODES) {
+            const mazeState = MazeOfTime.getState();
+            let mazeNodeCount = 0, finaleCount = 0, huntCount = 0;
+
+            window.MAZE_NODES.forEach(node => {
+                if (node.type === 'FORMIDABLE_FOE') {
+                    const huntEntry = window.HUNTING_LIST
+                        ? window.HUNTING_LIST.find(h => h.nodeId === node.id)
+                        : null;
+                    const huntId = huntEntry ? huntEntry.id : node.huntingId;
+                    const defeated = huntId ? mazeState.huntingDefeated.includes(huntId) : mazeState.completed.includes(node.id);
+                    addToDLC('Echos of Eternity', 'Hunting List', defeated, node.title);
+                    huntCount++;
+                } else if (node.strand === 'OMEGA') {
+                    const done = mazeState.completed.includes(node.id);
+                    addToDLC('Echos of Eternity', 'Maze Finale', done, node.title);
+                    finaleCount++;
+                } else if (node.type !== 'START') {
+                    const done = mazeState.completed.includes(node.id);
+                    addToDLC('Echos of Eternity', 'Maze Nodes', done, node.title);
+                    mazeNodeCount++;
+                }
+            });
+
+            // Love hero unlock
+            const loveUnlocked = !!(saveData['love'] && saveData['love'].unlocked);
+            addToDLC('Echos of Eternity', 'Hero Unlock', loveUnlocked, 'Love Hero (complete Strand E in the Maze of Time)');
+        }
 
         // Calculate DLC Percentages
         for (const key in progress.dlc.subs) {
