@@ -1489,8 +1489,14 @@ inputManager.onKeyDown = e => {
         if (e.code === 'KeyB' && uiState === 'MENU') {
             selectedHeroType = 'black';
             showNotification("DEBUG: BLACK HERO SELECTED");
-            // We don't call renderHeroSelect() because Black isn't in the list, 
+            // We don't call renderHeroSelect() because Black isn't in the list,
             // so we just rely on the notification.
+        }
+
+        // DEBUG: Select Love Hero in Menu with 'L' (bypasses unlock gate)
+        if (e.code === 'KeyL' && uiState === 'MENU') {
+            selectedHeroType = 'love';
+            showNotification("DEBUG: LOVE HERO SELECTED");
         }
 
         // DEBUG: Add Skill Point with 'P' in Menu

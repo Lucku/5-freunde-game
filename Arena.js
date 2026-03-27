@@ -498,6 +498,9 @@ class BiomeZone {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Deep Void
             ctx.strokeStyle = '#8e44ad'; // Purple Outline
             ctx.globalAlpha = 0.8;
+        } else if (this.type === 'TIME_RIFT' || this.type === 'HEART_NEXUS') {
+            // Visual rendering handled by TimeBiome.draw() / LoveBiome.draw() — skip default box
+            ctx.restore(); return;
         } else if (this.type === 'GLITCH') {
             ctx.fillStyle = Math.random() < 0.1 ? '#fff' : 'rgba(0, 188, 212, 0.2)'; // Glitchy Clear/White
             ctx.strokeStyle = '#00bcd4';

@@ -62,6 +62,15 @@ class LoveHero {
         if (has('l1')) player.stats.charmDuration = (player.stats.charmDuration || 0) + 45;
         if (has('l2')) player._loveCompSpawn = 60;   // companion spawns much faster
         if (has('l3')) player.stats.resonancePulseExtra = true; // resonance pulses also heal
+
+        // Convergence mutations
+        player._mutCl1 = has('cl1');  // Heartbreak: charmed enemies ignite on charm expiry
+        player._mutCl2 = has('cl2');  // Frozen Heart: arrows freeze instead of charm
+        player._mutCl3 = has('cl3');  // Charged Connection: resonance links fire chain lightning
+        player._mutCl4 = has('cl4');  // Void Bond: resonance pulls linked enemies together
+        player._mutCl5 = has('cl5');  // Growing Bond: companion drops healing flowers
+        player._mutCl6 = has('cl6');  // Gravity of Love: embrace pulls 2x far + brief root
+        player._mutCl7 = has('cl7');  // Timeless Love: charms last 30% longer (time affinity)
     }
 
     // ─── Update ──────────────────────────────────────────────────────────────
@@ -81,6 +90,12 @@ class LoveHero {
         if (typeof enemies !== 'undefined') {
             enemies.forEach(e => {
                 if (e._loveCharmed > 0) {
+                    // cl1 Heartbreak: burst fire damage when charm expires
+                    if (player._mutCl1 && e._loveCharmed === 1) {
+                        const burnDmg = player.stats.rangeDmg * player.damageMultiplier * 1.5;
+                        e.hp -= burnDmg;
+                        if (typeof createExplosion === 'function') createExplosion(e.x, e.y, '#ff4500', 10);
+                    }
                     e._loveCharmed--;
                     // Emit hearts while charmed
                     if (e._loveCharmed % 18 === 0 && typeof particles !== 'undefined' && typeof Particle !== 'undefined') {
@@ -110,6 +125,20 @@ class LoveHero {
                     continue;
                 }
 
+                // cl4 Void Bond: pull linked enemies toward each other every frame
+                if (player._mutCl4) {
+                    const vdx = link.b.x - link.a.x;
+                    const vdy = link.b.y - link.a.y;
+                    const vdist = Math.hypot(vdx, vdy);
+                    if (vdist > 40) {
+                        const pull = 0.7;
+                        link.a.x += (vdx / vdist) * pull;
+                        link.a.y += (vdy / vdist) * pull;
+                        link.b.x -= (vdx / vdist) * pull;
+                        link.b.y -= (vdy / vdist) * pull;
+                    }
+                }
+
                 // Pulse damage through the link every 45 frames
                 if (link.pulseTimer <= 0) {
                     link.pulseTimer = 45;
@@ -123,6 +152,17 @@ class LoveHero {
                     // Heal player if altar l3
                     if (player.stats.resonancePulseExtra) {
                         player.hp = Math.min(player.maxHp, player.hp + 2);
+                    }
+
+                    // cl3 Charged Connection: chain lightning between linked enemies on each pulse
+                    if (player._mutCl3) {
+                        const lightningDmg = pulseDmg * 0.6;
+                        link.a.hp -= lightningDmg;
+                        link.b.hp -= lightningDmg;
+                        if (typeof createExplosion === 'function') {
+                            createExplosion(link.a.x, link.a.y, '#ffe066', 6);
+                            createExplosion(link.b.x, link.b.y, '#ffe066', 6);
+                        }
                     }
 
                     // Visual spark between linked enemies
@@ -219,12 +259,25 @@ class LoveHero {
             }
             comp.fireCooldown = 65;
         }
+
+        // cl5 Growing Bond: companion periodically heals player and leaves a healing burst
+        comp._flowerTimer = (comp._flowerTimer || 0) - 1;
+        if (player._mutCl5 && comp._flowerTimer <= 0) {
+            comp._flowerTimer = 240;  // every 4 s
+            player.hp = Math.min(player.maxHp, player.hp + 8);
+            if (typeof createExplosion === 'function') createExplosion(comp.x, comp.y, '#90ee90', 12);
+            if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
+                floatingTexts.push(new FloatingText(comp.x, comp.y - 24, '+8', '#90ee90', 1.4));
+            }
+        }
     }
 
     // ─── Charm helper ────────────────────────────────────────────────────────
     static _charmEnemy(player, e) {
         if (!e || e.isBoss) return;  // bosses are immune to charm
-        const dur = 90 + (player.stats.charmDuration || 0);
+        let dur = 90 + (player.stats.charmDuration || 0);
+        // cl7 Timeless Love: charms last 30% longer
+        if (player._mutCl7) dur = Math.round(dur * 1.3);
         // Re-use frozenTimer — this suppresses all enemy movement/attacks automatically
         if ((e.frozenTimer || 0) < dur) e.frozenTimer = dur;
         e._loveCharmed = dur;
@@ -256,11 +309,16 @@ class LoveHero {
         }
 
         // Mark for charm-on-hit (handled in LoveHero.update via frozenTimer check)
+        // cl2 Frozen Heart: freeze instead of charm
         proj.onHit = (enemy) => {
-            LoveHero._charmEnemy(player, enemy);
-            // Gain affection per hit
+            if (player._mutCl2) {
+                const freezeDur = 75 + (player.stats.charmDuration || 0);
+                enemy.frozenTimer = Math.max(enemy.frozenTimer || 0, freezeDur);
+            } else {
+                LoveHero._charmEnemy(player, enemy);
+            }
             player.affection = Math.min(100, player.affection + 5);
-            return undefined; // let normal damage processing continue
+            return undefined;
         };
 
         projectiles.push(proj);
@@ -283,10 +341,16 @@ class LoveHero {
             enemies.forEach(e => {
                 if (Math.hypot(e.x - player.x, e.y - player.y) > radius + e.radius) return;
 
-                // Pull toward player
+                // Pull toward player (cl6 Gravity of Love: 2x pull distance)
+                const pullDist = player._mutCl6 ? 90 : 45;
                 const ang = Math.atan2(player.y - e.y, player.x - e.x);
-                e.x += Math.cos(ang) * 45;
-                e.y += Math.sin(ang) * 45;
+                e.x += Math.cos(ang) * pullDist;
+                e.y += Math.sin(ang) * pullDist;
+
+                // cl6: brief root after landing (suppresses movement for 30 frames)
+                if (player._mutCl6) {
+                    e.frozenTimer = Math.max(e.frozenTimer || 0, 30);
+                }
 
                 // Double damage on already-charmed enemies
                 const finalDmg = e._loveCharmed > 0 ? baseDmg * 2.0 : baseDmg;

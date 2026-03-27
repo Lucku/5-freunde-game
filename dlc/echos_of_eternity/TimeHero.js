@@ -67,6 +67,17 @@ class TimeHero {
         if (has('t1')) player.stats.chronoGainMult = (player.stats.chronoGainMult || 1) + 0.20;
         if (has('t2')) player.echoTimer = 0;   // first echo spawns immediately
         if (has('t3')) player._shadowExplode = true;  // shadows AoE on death
+
+        // Convergence mutations
+        player._mutCt1 = has('ct1');  // Delayed Lightning: bolts trigger chain lightning after 2s
+        player._mutCt2 = has('ct2');  // Time Dilation: Chrono Strike creates gravity well
+        player._mutCt3 = has('ct3');  // Burning Moment: slowed enemies take fire DOT
+        player._mutCt4 = has('ct4');  // Frozen Timeline: Chrono Strike freezes instead of slowing
+        player._mutCt5 = has('ct5');  // Void Echo: echo bolts deal bonus void damage
+        player._mutCt6 = has('ct6');  // Stone Moment: Chrono Strike also briefly freezes (roots)
+        player._mutCt7 = has('ct7');  // Temporal Gust: echo bolts slower but double range
+        if (player._mutCt1) player._delayedLightnings = [];
+        if (player._mutCt2) player._gravWells = [];
     }
 
     // ─── Update ──────────────────────────────────────────────────────────────
@@ -95,17 +106,31 @@ class TimeHero {
                 }
                 if (nearest && typeof Projectile !== 'undefined') {
                     const a = Math.atan2(nearest.y - e.y, nearest.x - e.x);
-                    projectiles.push(new Projectile(
+                    // ct7 Temporal Gust: echo moves at half speed (double range)
+                    const projSpd  = player._mutCt7 ? eSpd * 0.5  : eSpd;
+                    // ct5 Void Echo: bonus damage + purple void color
+                    const projDmg  = player._mutCt5 ? echoFireDmg * 1.4 : echoFireDmg;
+                    const projColor = player._mutCt5 ? '#9b59b6' : '#c8aa6e';
+                    const echoProj = new Projectile(
                         e.x, e.y,
-                        { x: Math.cos(a) * eSpd, y: Math.sin(a) * eSpd },
-                        echoFireDmg, '#c8aa6e', 5, 'player', 0, false
-                    ));
+                        { x: Math.cos(a) * projSpd, y: Math.sin(a) * projSpd },
+                        projDmg, projColor, 5, 'player', 0, false
+                    );
+                    // ct1 Delayed Lightning: schedule chain lightning at hit position
+                    if (player._mutCt1) {
+                        echoProj.onHit = (enemy) => {
+                            player._delayedLightnings = player._delayedLightnings || [];
+                            player._delayedLightnings.push({ x: enemy.x, y: enemy.y, timer: 120 });
+                        };
+                    }
+                    projectiles.push(echoProj);
                     if (typeof saveData !== 'undefined') {
                         saveData.global = saveData.global || {};
                         saveData.global.echo_shots = (saveData.global.echo_shots || 0) + 1;
                     }
                 }
-                e.fireCd = 75;
+                // ct7 Temporal Gust: echo fires less often (trades rate for range)
+                e.fireCd = player._mutCt7 ? 150 : 75;
             }
             return e.life > 0;
         });
@@ -191,6 +216,58 @@ class TimeHero {
                     }
                 }
             });
+        }
+
+        // 7a. Convergence mutation ticks
+        // ct1 Delayed Lightning: fire chain lightning after 2s delay
+        if (player._mutCt1 && player._delayedLightnings && player._delayedLightnings.length > 0) {
+            for (let i = player._delayedLightnings.length - 1; i >= 0; i--) {
+                const dl = player._delayedLightnings[i];
+                dl.timer--;
+                if (dl.timer <= 0) {
+                    const lightDmg = player.stats.rangeDmg * player.damageMultiplier * 0.65;
+                    if (typeof enemies !== 'undefined') {
+                        enemies.forEach(e => {
+                            if (Math.hypot(e.x - dl.x, e.y - dl.y) < 130) e.hp -= lightDmg;
+                        });
+                    }
+                    if (typeof createExplosion === 'function') createExplosion(dl.x, dl.y, '#ffe066', 18);
+                    player._delayedLightnings.splice(i, 1);
+                }
+            }
+        }
+        // ct2 Time Dilation: tick gravity wells, pull enemies in
+        if (player._mutCt2 && player._gravWells && player._gravWells.length > 0) {
+            for (let i = player._gravWells.length - 1; i >= 0; i--) {
+                const gw = player._gravWells[i];
+                gw.timer--;
+                if (typeof enemies !== 'undefined') {
+                    enemies.forEach(e => {
+                        const d = Math.hypot(e.x - gw.x, e.y - gw.y);
+                        if (d < 180 && d > 1) {
+                            const pull = 1.4;
+                            e.x += ((gw.x - e.x) / d) * pull;
+                            e.y += ((gw.y - e.y) / d) * pull;
+                        }
+                    });
+                }
+                if (gw.timer <= 0) player._gravWells.splice(i, 1);
+            }
+        }
+        // ct3 Burning Moment: slowed enemies take fire DOT every 45 frames
+        if (player._mutCt3 && typeof enemies !== 'undefined') {
+            const burnTick = Math.floor(Date.now() / 750) % 1 === 0; // ~every 45 frames at 60fps
+            if ((player._ct3Tick = ((player._ct3Tick || 0) + 1)) % 45 === 0) {
+                const burnDmg = player.stats.rangeDmg * player.damageMultiplier * 0.2;
+                enemies.forEach(e => {
+                    if (e._timeSlowed) {
+                        e.hp -= burnDmg;
+                        if (typeof particles !== 'undefined' && typeof Particle !== 'undefined' && Math.random() < 0.5) {
+                            particles.push(new Particle(e.x, e.y - e.radius, '#ff4500', { x: (Math.random()-0.5)*1.5, y: -2 }));
+                        }
+                    }
+                });
+            }
         }
 
         // 7. Eternal Paradox timer
@@ -327,16 +404,30 @@ class TimeHero {
                     if (typeof e.takeDamage === 'function') e.takeDamage(dmg);
                     else e.hp -= dmg;
                     hitCount++;
-                    if (!e._timeSlowed) {
-                        e._baseSpeedSlow = e.speed;
-                        e.speed *= 0.25;
-                        e._timeSlowed = true;
+                    // ct4 Frozen Timeline: fully freeze instead of slow
+                    if (player._mutCt4) {
+                        e.frozenTimer = Math.max(e.frozenTimer || 0, slowDur);
+                    } else {
+                        if (!e._timeSlowed) {
+                            e._baseSpeedSlow = e.speed;
+                            e.speed *= 0.25;
+                            e._timeSlowed = true;
+                        }
+                        e._timeSlowTimer = slowDur;
                     }
-                    e._timeSlowTimer = slowDur;
+                    // ct6 Stone Moment: brief freeze (root — no knockback) on top of slow
+                    if (player._mutCt6) {
+                        e.frozenTimer = Math.max(e.frozenTimer || 0, 45);
+                    }
                     // Count toward objective
                     if (typeof window._timeObjectiveHit !== 'undefined') window._timeObjectiveHit++;
                 }
             });
+        }
+        // ct2 Time Dilation: spawn gravity well at player position on Chrono Strike
+        if (player._mutCt2) {
+            player._gravWells = player._gravWells || [];
+            player._gravWells.push({ x: player.x, y: player.y, timer: 180 });
         }
 
         // Also damage fracture shadows in melee range (handled in update, but hit visually here)
@@ -745,38 +836,11 @@ class TimeHero {
             ctx.restore();
         }
 
-        // ── Body gradient ──
-        const paradoxColor = player.paradoxActive ? '#fff5cc' : '#ede0b0';
-        const bodyG = ctx.createRadialGradient(-r * 0.28, -r * 0.28, r * 0.06, 0, 0, r);
-        bodyG.addColorStop(0,    paradoxColor);
-        bodyG.addColorStop(0.42, player.paradoxActive ? '#ffd700' : '#c8aa6e');
-        bodyG.addColorStop(1,    player.paradoxActive ? '#a07800' : '#6b5320');
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
-        ctx.fillStyle = bodyG;
-        ctx.shadowColor = '#000'; ctx.shadowBlur = 8;
-        ctx.fill();
+        // ── Body — helmet look ──
+        const bodyColor = player.paradoxActive ? '#ffd700' : player.color;
+        if (player.paradoxActive) { ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 14; }
+        drawHeroSprite(ctx, bodyColor, r);
         ctx.shadowBlur = 0;
-        ctx.strokeStyle = player.paradoxActive ? '#ffd700' : '#5a4010';
-        ctx.lineWidth = player.paradoxActive ? 3 : 2.5;
-        ctx.stroke();
-
-        // ── Hourglass symbol ──
-        ctx.save();
-        ctx.strokeStyle = player.paradoxActive ? 'rgba(180,120,0,0.8)' : 'rgba(80,50,5,0.65)';
-        ctx.lineWidth = 2; ctx.lineCap = 'round';
-        const hw = r * 0.3, hh = r * 0.38;
-        ctx.beginPath(); ctx.moveTo(-hw, -hh); ctx.lineTo(hw, -hh); ctx.lineTo(0, 0); ctx.closePath(); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-hw, hh);  ctx.lineTo(hw, hh);  ctx.lineTo(0, 0); ctx.closePath(); ctx.stroke();
-        if (ce > 3) {
-            ctx.fillStyle = player.paradoxActive ? 'rgba(255,200,0,0.7)' : 'rgba(200,150,30,0.55)';
-            const sandH = hh * (ce / 100);
-            ctx.beginPath();
-            ctx.moveTo(-(hw * ce / 100), -hh + 2);
-            ctx.lineTo( (hw * ce / 100), -hh + 2);
-            ctx.lineTo(0, -hh + 2 + sandH);
-            ctx.closePath(); ctx.fill();
-        }
-        ctx.restore();
 
         // ── Chrono energy arc ──
         if (ce > 4) {

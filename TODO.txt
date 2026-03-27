@@ -7,3 +7,4 @@
 # Echos of Eternity
 
 - implement the DLC
+- add debug key to unlock Love hero on demand

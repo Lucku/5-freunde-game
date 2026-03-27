@@ -214,8 +214,7 @@
             ctx.closePath();
             ctx.stroke();
 
-            // HP bar
-            _drawBossHpBar(ctx, b);
+            // HP bar shown in top UI — no duplicate bar drawn here
             ctx.restore();
         }
     };

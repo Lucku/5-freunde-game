@@ -936,6 +936,137 @@ const Manual = {
                 </ul>
                 <p><i>Tip: "Venom Potency" level-up upgrades stack multiplicatively — prioritize them for late-wave scaling.</i></p>
             `
+        },
+        echos: {
+            title: "Echos of Eternity",
+            html: `
+                <h2>DLC: Echos of Eternity</h2>
+                <p>The narrative and mechanical culmination of 5 Freunde. Reality is fracturing — timelines bleed into one another, and the echoes of every choice ever made are converging. This DLC introduces the <b>Time Hero</b>, the persistent <b>Maze of Time</b> branching map, a <b>Hunting List</b> of formidable foes, and a new endgame challenge unlike anything before it.</p>
+                <p><i>The DLC also contains a secret. Some paths through the Maze reveal more than others.</i></p>
+
+                <h3>New Hero: Time — Sand Gold ⌛</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★★☆ &nbsp;<span style="color:#e67e22;"><b>4/5 — Hard</b></span></p>
+                <p>Time bends the battlefield to his will. He does not simply fight — he reshapes encounters across multiple realities simultaneously. Mastering Time means riding the edge of chaos: the stronger you become, the more fractured your timeline grows.</p>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#c8aa6e;">Chrono Energy (0–100)</div>
+                    <p>Your primary resource, shown as a golden arc around your character. Builds by shooting (+7 per shot) and using Chrono Strike (+14 per hit). At 70+, your ranged attack fires a bonus shot. Decays slowly when not attacking. Using the Eternal Paradox ultimate drains 30 Chrono Energy.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#e74c3c;">Timeline Burden (0–100)</div>
+                    <p>A risk resource that rises passively during combat and when you use Timeline Fracture (+10 per use). At 20+ it spawns <b>Fracture Shadows</b> — ghostly enemy copies that hunt you. At 60+, a red warning ring pulses around you. If it reaches 100 the Eternal Paradox triggers automatically. Burden resets to 0 on Paradox activation.</p>
+                    <p>Skilled play means staying at high burden for stronger shadows (and the damage boost Paradox brings) without losing control.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#c8aa6e;">Melee — Chrono Strike</div>
+                    <p>A temporal shockwave in a ~120px radius. Deals heavy melee damage and slows all hit enemies to 25% speed for 1.5 seconds. Each hit grants 14 Chrono Energy. Hitting multiple enemies multiplies the energy gain (capped at 3 hits). The slow timer stacks — hitting a slowed enemy resets their slow duration.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#c8aa6e;">Special — Timeline Fracture</div>
+                    <p>Immediately spawns a wave of Fracture Shadows based on your current Fracture tier. Slows all real enemies by 55% for 3 seconds. Grants a 30% damage boost for 4 seconds. Raises Timeline Burden by 10. Cooldown: 25 seconds. Use it offensively when you need burst damage, but watch your Burden — each use pushes you closer to Paradox.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#ffd700;">Temporal Echoes (Passive)</div>
+                    <p>Up to 2 ghostly echoes orbit near you at all times. Each echo periodically fires at the nearest enemy for 35% of your ranged damage. They do not take damage from enemies, but are limited by range (~320px). Echoes spawn automatically on a timer and expire after a set duration. Altar upgrades can increase their count and lifetime.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#ffd700;">Fracture Shadows</div>
+                    <p>When Timeline Burden reaches 20 (Fracture Tier 1), shadows begin spawning near enemies and drifting toward you. They have HP, can be destroyed by your attacks, and deal contact damage. Higher fracture tiers spawn more shadows, more frequently, with more HP. Killing a shadow with Altar node <b>Paradox Engine</b> active triggers an AoE explosion.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#fff5a0;">Ultimate — Eternal Paradox (Level 10)</div>
+                    <p>Triggered automatically when Timeline Burden hits 100, or available as a Level 10 upgrade card. All existing Fracture Shadows simultaneously explode in AoE bursts. Timeline Burden resets to 0. You gain <b>+70% damage</b> and <b>+35% speed</b> for 10 seconds. All enemies are slowed to 40% speed for 5 seconds. The ultimate visual transforms your character gold.</p>
+                    <p><i>Strategy: intentionally race your Burden toward 100 to guarantee a massive Paradox activation at the right moment.</i></p>
+                </div>
+
+                <h3>Level-Up: Fast-Forward or Reverse</h3>
+                <p>Time's level-up always presents exactly two options (plus the Ultimate at multiples of 10):</p>
+                <div class="control-grid">
+                    <div class="control-item"><b>Fast-Forward</b><span>+8% to all stats — stronger but burden escalates faster</span></div>
+                    <div class="control-item"><b>Reverse</b><span>Weaken current tier, release all active Fracture Shadows (resolve the chaos)</span></div>
+                </div>
+                <p>Expert play means taking Fast-Forward repeatedly and managing the growing chaos through positioning and well-timed Paradox activations.</p>
+
+                <h3>Skill Tree Highlights</h3>
+                <ul>
+                    <li><b>Chrono Gain:</b> Increases Chrono Energy earned per attack.</li>
+                    <li><b>Echo Duration:</b> Extends how long Temporal Echoes stay active.</li>
+                    <li><b>Slow Power:</b> Increases the duration of Chrono Strike's slow.</li>
+                    <li><b>Echo Count:</b> Adds additional orbiting echoes (up to 4 total).</li>
+                </ul>
+
+                <h3>Altar of Mastery — Time Nodes</h3>
+                <ul>
+                    <li><b>Temporal Precision (Prestige 1):</b> Chrono Energy gain +20% from all sources.</li>
+                    <li><b>Echo Mastery (Prestige 3):</b> Begin each run with a Temporal Echo already active.</li>
+                    <li><b>Paradox Engine (Prestige 5):</b> Fracture Shadows explode in AoE on death.</li>
+                </ul>
+
+                <h3>Convergence Mutations (Time)</h3>
+                <p>Cross-element altar nodes that require Prestige 5 in both Time and another hero:</p>
+                <div class="control-grid">
+                    <div class="control-item"><b>Delayed Lightning</b><span>Echo hits trigger chain lightning after 2 seconds</span></div>
+                    <div class="control-item"><b>Time Dilation</b><span>Chrono Strike spawns a gravity well that pulls enemies</span></div>
+                    <div class="control-item"><b>Burning Moment</b><span>Slowed enemies take periodic fire damage</span></div>
+                    <div class="control-item"><b>Frozen Timeline</b><span>Chrono Strike fully freezes instead of slowing</span></div>
+                    <div class="control-item"><b>Void Echo</b><span>Echo bolts deal 40% bonus void damage</span></div>
+                    <div class="control-item"><b>Stone Moment</b><span>Chrono Strike also briefly roots enemies in place</span></div>
+                    <div class="control-item"><b>Temporal Gust</b><span>Echo bolts travel slower but at double effective range</span></div>
+                </div>
+
+                <h3>The Maze of Time</h3>
+                <p>After each wave in Story Mode, a <b>branching map</b> opens where you choose your next path. This is the heart of the Echos of Eternity DLC.</p>
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#c8aa6e;">How It Works</div>
+                    <ul>
+                        <li>Each node on the map represents a unique encounter or story chapter.</li>
+                        <li>Undiscovered paths are marked with <b>?</b> until you choose them.</li>
+                        <li>Completed nodes are marked permanently — progress carries across all runs.</li>
+                        <li>Each run only passes through one strand, but you must eventually explore every path to reach the true ending.</li>
+                        <li>Some nodes have prerequisites — earlier paths in other strands must be cleared first.</li>
+                        <li>The map has roughly 75 unique nodes spanning multiple strands (A through Omega).</li>
+                    </ul>
+                </div>
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#c8aa6e;">Node Types</div>
+                    <div class="control-grid">
+                        <div class="control-item"><b>⚔ Combat</b><span>Standard wave with unique modifiers or biome</span></div>
+                        <div class="control-item"><b>📖 Narrative</b><span>Story chapter — no combat, just revelation</span></div>
+                        <div class="control-item"><b>💀 Formidable Foe</b><span>Hunting List boss — see below</span></div>
+                        <div class="control-item"><b>⭐ Elite</b><span>Combat with stronger enemies and elite scaling</span></div>
+                        <div class="control-item"><b>🎁 Reward</b><span>Passive bonus or unlock</span></div>
+                        <div class="control-item"><b>🌀 Omega</b><span>The Maze Finale strand — the true ending</span></div>
+                    </div>
+                </div>
+
+                <h3>The Hunting List</h3>
+                <p>Certain Maze paths lead to <b>Formidable Foes</b> — uniquely powerful bosses found nowhere else in the game. Defeating them is permanent: once slain, they are checked off the Hunting List forever.</p>
+                <ul>
+                    <li>Hunting List progress is visible after each wave ends, alongside the Maze map.</li>
+                    <li>Each defeated Foe grants a permanent run buff.</li>
+                    <li>Clearing the entire list grants a special super-buff active in all future campaign runs.</li>
+                    <li>Formidable Foes are scaled by the node's <b>Wave Strength</b> modifier — Elite nodes make them significantly harder.</li>
+                </ul>
+
+                <h3>New Biome: The Shattered Continuum</h3>
+                <p>Floating fragments of fractured timelines. Sand drifts upward. Clock-face shards pulse in the background. Reality bleeds.</p>
+                <ul>
+                    <li><b>Time Rift Zones:</b> Areas on the floor where time is thinner. Non-Time enemies are slowed to 75% movement speed inside. Time hero is immune to this effect.</li>
+                    <li>The biome is procedurally tiled with cracked timeline lines and drifting sand grain clusters.</li>
+                </ul>
+
+                <h3>Collector Cards</h3>
+                <div class="control-grid">
+                    <div class="control-item"><b>Time Wraith</b><span>Temporal phantom — earns defense and XP bonuses</span></div>
+                    <div class="control-item"><b>Temporal Rift</b><span>Environmental hazard enemy — earns Rift immunity</span></div>
+                </div>
+            `
         }
     },
 
@@ -964,6 +1095,9 @@ const Manual = {
 
             const sickness = list.find(d => d.id === 'symphony_of_sickness');
             if (sickness && sickness.active) document.getElementById('btn-tutorial-sickness').style.display = 'block';
+
+            const echos = list.find(d => d.id === 'echos_of_eternity');
+            if (echos && echos.active) document.getElementById('btn-tutorial-echos').style.display = 'block';
         }
 
         Manual.showTab('basics');
