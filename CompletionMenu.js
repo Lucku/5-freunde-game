@@ -138,6 +138,19 @@ class CompletionMenu {
                 continue;
             }
 
+            if (hero === 'sound' || hero === 'poison') { // Symphony of Sickness DLC
+                const stories = MEMORY_STORIES[hero];
+                const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
+                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                if (!Array.isArray(unlocked)) {
+                    for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
+                }
+                stories.forEach((story, i) => {
+                    addToDLC('Symphony of Sickness', 'Memories', unlockedIndices.includes(i), `${hero.charAt(0).toUpperCase() + hero.slice(1)} Shard #${i + 1}`);
+                });
+                continue;
+            }
+
             if (hero === 'time' || hero === 'love') { // Echos of Eternity DLC
                 const stories = MEMORY_STORIES[hero];
                 const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
@@ -213,8 +226,8 @@ class CompletionMenu {
                 addToDLC('Echos of Eternity', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
                 return;
             }
-            if (ach.id.startsWith('thunder_')) {
-                addToDLC('Tournament of Thunder', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
+            if (ach.id.startsWith('sickness_')) {
+                addToDLC('Symphony of Sickness', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
                 return;
             }
 
@@ -304,6 +317,11 @@ class CompletionMenu {
             if (evt.id && (evt.id.startsWith('echo_time_') || evt.id.startsWith('echo_love_'))) {
                 const isUnlocked = saveData.story.unlockedChapters.includes(evt.id);
                 addToDLC('Echos of Eternity', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
+                return;
+            }
+            if (evt.id && (evt.id.startsWith('sound_') || evt.id.startsWith('poison_'))) {
+                const isUnlocked = saveData.story.unlockedChapters.includes(evt.id);
+                addToDLC('Symphony of Sickness', 'Story Chapters', isUnlocked, `Wave ${evt.wave}: ${evt.title}`);
                 return;
             }
 
