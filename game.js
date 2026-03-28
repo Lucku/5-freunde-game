@@ -1209,11 +1209,12 @@ function checkNewGame(mode) {
 }
 
 function confirmNewGame() {
+    const mode = pendingGameMode; // Save before closeConfirmDialog() nulls pendingGameMode
     clearSavedRun();
     closeConfirmDialog();
-    if (pendingGameMode === 'STORY') startStoryGame();
-    else if (pendingGameMode === 'SHUFFLE') startShuffleGame();
-    else if (pendingGameMode === 'TUTORIAL') startTutorialGame();
+    if (mode === 'STORY') startStoryGame();
+    else if (mode === 'SHUFFLE') startShuffleGame();
+    else if (mode === 'TUTORIAL') startTutorialGame();
     else startStandardGame();
 }
 
@@ -1493,10 +1494,20 @@ inputManager.onKeyDown = e => {
             // so we just rely on the notification.
         }
 
-        // DEBUG: Select Love Hero in Menu with 'L' (bypasses unlock gate)
+        // DEBUG: Toggle Love Hero unlock in save data with 'L' in Menu
         if (e.code === 'KeyL' && uiState === 'MENU') {
-            selectedHeroType = 'love';
-            showNotification("DEBUG: LOVE HERO SELECTED");
+            if (!saveData['love']) saveData['love'] = {};
+            const nowUnlocked = !saveData['love'].unlocked;
+            saveData['love'].unlocked = nowUnlocked;
+            saveGame();
+            if (nowUnlocked) {
+                showNotification("DEBUG: Love Hero UNLOCKED (saved)");
+            } else {
+                if (selectedHeroType === 'love') selectedHeroType = 'fire';
+                showNotification("DEBUG: Love Hero LOCKED (saved)");
+            }
+            // Refresh hero selection UI if available
+            if (typeof window.mainMenu !== 'undefined' && window.mainMenu.render) window.mainMenu.render();
         }
 
         // DEBUG: Add Skill Point with 'P' in Menu
@@ -2104,9 +2115,17 @@ function triggerStory(completedWave) {
             // Mark the just-completed wave's node as done
             MazeOfTime.completeNode(window.mazeCurrentNodeId);
         }
-        // Open the maze map — player picks their next node
-        window.mazeUI.open(player.type);
-        return;
+        // If no next nodes are available (terminal path), skip the map and fall
+        // through to normal wave generation so the game continues without looping.
+        const _mazeState = MazeOfTime.getState();
+        const _mazeNext  = MazeOfTime.getNextNodes(_mazeState, player.type);
+        if (_mazeNext.length === 0 && _mazeState.runCompleted.length > 0) {
+            // Path complete — let the normal story/wave flow handle the rest
+        } else {
+            // Open the maze map — player picks their next node
+            window.mazeUI.open(player.type);
+            return;
+        }
     }
 
     // Pass player type (uppercase) to get specific story events
@@ -2322,9 +2341,11 @@ function closeStory() {
 
     // Proceed to Shop or Next Wave
     // Special case: If wave is 0 (Intro), always advance to Wave 1
+    // Maze node events skip the shop entirely — the maze has its own reward flow
+    const _isMazeEvent = currentStoryEvent && currentStoryEvent.id && currentStoryEvent.id.startsWith('maze_');
     if (wave === 0 || isTutorialMode) {
         advanceWave();
-    } else if (wave % 4 === 0) {
+    } else if (!_isMazeEvent && wave % 4 === 0) {
         openShop();
     } else {
         advanceWave();
@@ -2567,7 +2588,7 @@ function resumeWaveGeneration() {
         const isStoryRun = (saveData.story && saveData.story.enabled !== false) && !isDailyMode && !isWeeklyMode;
 
         if (!isStoryRun && window.BIOME_LOGIC) {
-            const dlcBiomes = ['earth', 'lightning', 'air', 'gravity', 'void', 'spirit', 'chance'];
+            const dlcBiomes = ['earth', 'lightning', 'air', 'gravity', 'void', 'spirit', 'chance', 'time', 'love'];
             dlcBiomes.forEach(b => {
                 if (window.BIOME_LOGIC[b]) types.push(b);
             });
@@ -2927,6 +2948,17 @@ function startGame(mode = 'NORMAL') {
     player.x = arena.width / 2;
     player.y = arena.height / 2;
 
+    // Eternal Hunter bonus — applied if all Formidable Foes on the Hunting List have been defeated
+    try {
+        const hunterData = JSON.parse(localStorage.getItem('maze_hunter_complete') || '{}');
+        if (hunterData.complete) {
+            player.damageMultiplier  = (player.damageMultiplier  || 1) * 1.15;
+            player.speedMultiplier   = (player.speedMultiplier   || 1) * 1.10;
+            player.damageReduction   = Math.min(0.5, (player.damageReduction || 0) + 0.05);
+            if (!player.isCPU) showNotification("🏆 ETERNAL HUNTER: All Foes slain — permanent buff active!");
+        }
+    } catch (e) { /* ignore */ }
+
     // --- VERSUS MODE SETUP ---
     // Clear old AI / Additional Players from previous runs
     if (typeof window.additionalPlayers !== 'undefined') window.additionalPlayers = [];
@@ -3193,7 +3225,8 @@ function gameOver(isVictory = false) {
                 earth: 'rock_story', lightning: 'thunder_story',
                 air: 'wind_story', gravity: 'chaos_gravity_story', void: 'chaos_void_story',
                 spirit: 'faith_spirit_story', chance: 'faith_chance_story',
-                sound: 'sickness_sound_story', poison: 'sickness_poison_story'
+                sound: 'sickness_sound_story', poison: 'sickness_poison_story',
+                time: 'echo_time_story', love: 'echo_love_story'
             };
             const achId = dlcStoryMap[player.type];
             if (achId) unlockAchievement(achId);

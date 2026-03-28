@@ -1,5 +1,5 @@
 // Echos of Eternity — The Maze of Time
-// A persistent branching node map with ~75 deterministic nodes.
+// A persistent branching node map with ~82 deterministic nodes.
 // All node parameters (enemies, biome, difficulty) are fixed across every playthrough.
 // Player state persists across runs in localStorage.
 
@@ -287,7 +287,7 @@ const MAZE_NODES = [
         modifiers: ['BLACK_COMPANION'],
         bossType: null,
         x: 1330, y: 245,
-        children: ['a6_conv', 'a6_truth'],
+        children: ['a6_conv', 'a6_truth', 'echo_plant'],
         requires: ['a4_echo_battle', 'a4_fracture'],
         requiresAny: true,
         heroOnly: null,
@@ -307,7 +307,7 @@ const MAZE_NODES = [
         modifiers: ['DENSE_SPAWN'],
         bossType: null,
         x: 1540, y: 90,
-        children: ['a7_last', 'omega1'],
+        children: ['a7_last'],
         requires: ['a5_paradox', 'a5_black'],
         requiresAny: true,
         heroOnly: null,
@@ -327,7 +327,7 @@ const MAZE_NODES = [
         modifiers: [],
         bossType: null,
         x: 1540, y: 265,
-        children: ['a7_last', 'e1_hint'],
+        children: ['a7_last', 'e1_hint', 'echo_fire'],
         requires: ['a5_black'],
         requiresAny: false,
         heroOnly: null,
@@ -347,7 +347,7 @@ const MAZE_NODES = [
         modifiers: ['BOSS_WAVE'],
         bossType: 'TEMPORAL_RIFT',
         x: 1750, y: 130,
-        children: ['omega1'],
+        children: ['omega1', 'echo_water'],
         requires: ['a6_conv', 'a6_truth'],
         requiresAny: true,
         heroOnly: null,
@@ -409,7 +409,7 @@ const MAZE_NODES = [
         modifiers: [],
         bossType: null,
         x: 490, y: 760,
-        children: ['b2_chaos', 'b2_wind'],
+        children: ['b2_chaos', 'b2_wind', 'echo_ice'],
         requires: ['gate_b'],
         requiresAny: false,
         heroOnly: null,
@@ -503,13 +503,13 @@ const MAZE_NODES = [
         icon: '🎵',
         strand: 'B',
         narrative: "Sound's music stopped. Not silenced — but forgotten. When no one listens, the beat dies. Poison filled the silence left behind.\n\nA world without rhythm falls apart differently than a world without light.",
-        biome: 'poison',
+        biome: 'sound',
         enemyOverride: [{ type: 'BASIC', count: 14 }, { type: 'TANK', count: 6 }, { type: 'BOMBER', count: 6 }],
         waveStrength: 1.3,
-        modifiers: ['POISON_AURA'],
+        modifiers: [],
         bossType: null,
         x: 910, y: 760,
-        children: ['b4_fallen', 'b3_sickness'],
+        children: ['b4_fallen', 'b3_sickness', 'echo_chance'],
         requires: ['b2_wind', 'b2_chaos'],
         requiresAny: true,
         heroOnly: null,
@@ -519,14 +519,14 @@ const MAZE_NODES = [
     {
         id: 'b3_sickness',
         type: 'COMBAT',
-        title: 'Poison and Sound United',
-        icon: '⚗️',
+        title: "Sound's Last Beat",
+        icon: '🥁',
         strand: 'B',
-        narrative: 'In one timeline, Sound turned and joined Poison. Together they became something neither could be alone — a symphony of decay.\n\nThe rhythm is wrong, but it still pulls you in.',
-        biome: 'poison',
-        enemyOverride: [{ type: 'FAST', count: 15 }, { type: 'SHOOTER', count: 10 }, { type: 'BOMBER', count: 8 }],
+        narrative: "The symphony didn't stop — it warped. Sound lost himself somewhere between melody and madness, and what he became is louder than anything he ever composed.\n\nTime fights through a world that throbs to the wrong rhythm. The beat is off. The world is breaking apart to the music.",
+        biome: 'sound',
+        enemyOverride: [{ type: 'FAST', count: 18 }, { type: 'SHOOTER', count: 12 }, { type: 'BOMBER', count: 8 }],
         waveStrength: 1.5,
-        modifiers: ['POISON_AURA', 'DENSE_SPAWN'],
+        modifiers: ['DENSE_SPAWN'],
         bossType: null,
         x: 910, y: 950,
         children: ['d3_poison_sound'],
@@ -711,7 +711,7 @@ const MAZE_NODES = [
         modifiers: [],
         bossType: null,
         x: 1330, y: 500,
-        children: ['omega1', 'e2_memory'],
+        children: ['e2_memory', 'echo_gravity'],
         requires: ['c3_secret', 'c3_mask_truth', 'b4_alternate'],
         requiresAny: true,
         heroOnly: null,
@@ -763,19 +763,19 @@ const MAZE_NODES = [
     {
         id: 'd3_poison_sound',
         type: 'COMBAT',
-        title: 'Poison and Sound — United',
-        icon: '🎵',
+        title: 'Poison Unbound',
+        icon: '☠️',
         strand: 'D',
-        narrative: 'Two corrupted echoes — Poison and Sound — have merged across the timeline fracture. Their combined attack is unlike anything Time has faced.\n\nDecay and rhythm. A symphony of ending.',
+        narrative: "Without Sound to slow it down, Poison has spread beyond every containment. There are no clean pathways left — only degrees of corruption.\n\nTime must cut through Poison's domain to reach what lies beyond. He holds his breath. The air offers no mercy.",
         biome: 'poison',
-        enemyOverride: [{ type: 'FAST', count: 20 }, { type: 'SHOOTER', count: 15 }, { type: 'BOMBER', count: 10 }],
+        enemyOverride: [{ type: 'TANK', count: 14 }, { type: 'FAST', count: 16 }, { type: 'BOMBER', count: 14 }],
         waveStrength: 2.2,
         modifiers: ['DENSE_SPAWN', 'POISON_AURA'],
         bossType: null,
         x: 1540, y: 800,
         children: ['d4_black'],
         requires: ['d2_goblin', 'b3_sickness'],
-        requiresAny: true,
+        requiresAny: false,
         heroOnly: null,
         huntingId: null,
         reward: { type: 'speed', value: 0.15 },
@@ -837,7 +837,7 @@ const MAZE_NODES = [
         x: 1750, y: 920,
         children: ['e3_unlock'],
         requires: ['e1_hint', 'c4_revelation'],
-        requiresAny: true,
+        requiresAny: false,
         heroOnly: null,
         huntingId: null,
         reward: { type: 'memory', value: 'time_memory_15' },
@@ -1047,6 +1047,149 @@ const MAZE_NODES = [
         reward: { type: 'huntingBuff', value: { luck: 0.02, defense: 0.08 } },
     },
 
+    // ─── HERO ECHOES ──────────────────────────────────────────────────────────
+    // Brief glimpses into other heroes' timelines — optional side paths with no bosses.
+    {
+        id: 'echo_fire',
+        type: 'DISCOVERY',
+        title: "Fire's Last Stand",
+        icon: '🔥',
+        strand: 'A',
+        narrative: "Fire went alone into the fracture. No allies, no backup — just burning through every echo of Makuta's forces until there was nothing left. He won. He also destroyed the timeline he was trying to save.\n\nTime stands in the ash and understands: strength without restraint is just a different kind of ending.",
+        biome: 'fire',
+        enemyOverride: [{ type: 'BASIC', count: 8 }, { type: 'FAST', count: 6 }],
+        waveStrength: 0.9,
+        modifiers: [],
+        bossType: null,
+        x: 1540, y: 400,
+        children: ['a7_last', 'e1_hint'],
+        requires: ['a6_truth'],
+        requiresAny: false,
+        heroOnly: null,
+        huntingId: null,
+        reward: { type: 'memory', value: 'time_memory_21' },
+    },
+    {
+        id: 'echo_water',
+        type: 'DISCOVERY',
+        title: 'The Flood That Held',
+        icon: '💧',
+        strand: 'A',
+        narrative: "Water held the last inhabited island together for 73 waves. When the ground finally gave way, he didn't retreat — he became the ground. Time finds this echo frozen: Water, waist-deep in the rising sea, still holding up what's left.\n\nSome heroes don't stop fighting. They just stop winning.",
+        biome: 'water',
+        enemyOverride: [{ type: 'BASIC', count: 8 }, { type: 'TANK', count: 4 }],
+        waveStrength: 0.9,
+        modifiers: [],
+        bossType: null,
+        x: 1750, y: 310,
+        children: ['omega1'],
+        requires: ['a7_last'],
+        requiresAny: false,
+        heroOnly: null,
+        huntingId: null,
+        reward: { type: 'memory', value: 'time_memory_22' },
+    },
+    {
+        id: 'echo_ice',
+        type: 'DISCOVERY',
+        title: 'Stillness',
+        icon: '❄️',
+        strand: 'B',
+        narrative: "The timeline where Ice chose to stop. Not to give up — to simply become still. The world around her froze too, eventually. Not from her power. From the absence of warmth.\n\nTime walks through it in silence. He doesn't wake her. Some choices deserve to be kept.",
+        biome: 'ice',
+        enemyOverride: [{ type: 'BASIC', count: 5 }, { type: 'FAST', count: 5 }],
+        waveStrength: 0.8,
+        modifiers: [],
+        bossType: null,
+        x: 490, y: 865,
+        children: ['b2_chaos', 'b2_wind'],
+        requires: ['b1_thunder'],
+        requiresAny: false,
+        heroOnly: null,
+        huntingId: null,
+        reward: { type: 'memory', value: 'time_memory_23' },
+    },
+    {
+        id: 'echo_plant',
+        type: 'DISCOVERY',
+        title: 'What Grows in the Dark',
+        icon: '🌿',
+        strand: 'A',
+        narrative: "After every other hero failed, Plant kept growing. Not fighting, not defending — just growing into every ruin, every crater, every scar. In this echo, the world is unrecognizable. It is also, somehow, alive.\n\nTime stands at the center of it and understands: endurance is its own kind of victory.",
+        biome: 'plant',
+        enemyOverride: [{ type: 'BASIC', count: 6 }, { type: 'FAST', count: 6 }],
+        waveStrength: 0.8,
+        modifiers: [],
+        bossType: null,
+        x: 1330, y: 370,
+        children: ['a6_conv', 'a6_truth'],
+        requires: ['a5_black'],
+        requiresAny: false,
+        heroOnly: null,
+        huntingId: null,
+        reward: { type: 'memory', value: 'time_memory_24' },
+    },
+    {
+        id: 'echo_metal',
+        type: 'STORY',
+        title: "The Builder's Regret",
+        icon: '⚙️',
+        strand: 'OMEGA',
+        narrative: "Metal built the fortifications that kept humanity safe for a hundred waves. He built them faster than anyone could destroy them. Then Time fractured, and Metal had to watch everything he built collapse in every timeline simultaneously.\n\nHe has spent every moment since building again — in every version of reality, alone. He never asks for help. He never stops.",
+        biome: 'time',
+        enemyOverride: [{ type: 'BASIC', count: 8 }, { type: 'TANK', count: 6 }],
+        waveStrength: 1.0,
+        modifiers: [],
+        bossType: null,
+        x: 1960, y: 180,
+        children: ['omega2_boss'],
+        requires: ['omega1'],
+        requiresAny: false,
+        heroOnly: null,
+        huntingId: null,
+        reward: { type: 'memory', value: 'time_memory_25' },
+    },
+    {
+        id: 'echo_gravity',
+        type: 'DISCOVERY',
+        title: 'The Weight He Carries',
+        icon: '🌑',
+        strand: 'C',
+        narrative: "Gravity understood the fracture before anyone else — he felt it as a pull, a wrongness in the very fabric of things. In the timeline Time is watching, Gravity collapsed inward, turned his power on himself, disappeared.\n\nAll that remains is a singularity at the center of a silent universe. Time keeps it at a distance. He knows what that kind of collapse feels like.",
+        biome: 'void',
+        enemyOverride: [{ type: 'BASIC', count: 6 }, { type: 'TANK', count: 4 }],
+        waveStrength: 0.9,
+        modifiers: [],
+        bossType: null,
+        x: 1540, y: 590,
+        children: ['e2_memory'],
+        requires: ['c4_revelation'],
+        requiresAny: false,
+        heroOnly: null,
+        huntingId: null,
+        reward: { type: 'memory', value: 'time_memory_26' },
+    },
+    {
+        id: 'echo_chance',
+        type: 'DISCOVERY',
+        title: 'The Last Coin',
+        icon: '🪙',
+        strand: 'B',
+        narrative: "Chance flipped a coin at the moment of the fracture. Heads: fight. Tails: walk away. He has been flipping it ever since, across every timeline simultaneously, and it always lands the same way.\n\nTime finally asks which side keeps coming up. Chance just smiles. 'I haven't decided yet.'",
+        biome: 'time',
+        enemyOverride: [{ type: 'BASIC', count: 6 }, { type: 'FAST', count: 5 }, { type: 'BOMBER', count: 3 }],
+        waveStrength: 0.85,
+        modifiers: [],
+        bossType: null,
+        x: 910, y: 855,
+        children: ['b4_fallen', 'b3_sickness'],
+        requires: ['b3_sound'],
+        requiresAny: false,
+        heroOnly: null,
+        huntingId: null,
+        reward: { type: 'memory', value: 'time_memory_27' },
+    },
+
     // ─── FINALE ───────────────────────────────────────────────────────────────
     {
         id: 'omega1',
@@ -1061,9 +1204,9 @@ const MAZE_NODES = [
         modifiers: ['DENSE_SPAWN'],
         bossType: null,
         x: 1960, y: 320,
-        children: ['omega2_boss'],
-        requires: ['a7_last', 'a6_conv', 'd4_black', 'b5_heroes', 'c4_revelation'],
-        requiresAny: true,
+        children: ['omega2_boss', 'echo_metal'],
+        requires: ['a7_last', 'b5_heroes', 'd4_black'],
+        requiresAny: false,
         heroOnly: null,
         huntingId: null,
         reward: null,
@@ -1123,7 +1266,7 @@ const MAZE_NODES = [
         x: 2400, y: 420,
         children: [],
         requires: ['omega2_boss', 'omega_love'],
-        requiresAny: true,
+        requiresAny: false,
         heroOnly: null,
         huntingId: null,
         reward: { type: 'completion', value: 'true_ending' },
@@ -1145,18 +1288,24 @@ const HUNTING_LIST = [
 
 // ─── MAZE OF TIME ─────────────────────────────────────────────────────────────
 class MazeOfTime {
-    static SAVE_KEY = 'maze_of_time_v1';
+    static SAVE_KEY = 'maze_of_time_v2';
 
     // ─── State Persistence ────────────────────────────────────────────────────
     static getState() {
         try {
             const raw = localStorage.getItem(MazeOfTime.SAVE_KEY);
-            if (raw) return JSON.parse(raw);
+            if (raw) {
+                const s = JSON.parse(raw);
+                // Migrate: ensure runCompleted exists
+                if (!s.runCompleted) s.runCompleted = [];
+                return s;
+            }
         } catch (e) { /* ignore */ }
         return {
-            version: 1,
-            completed: [],       // node IDs completed in any run
-            discovered: [],      // node IDs that are visible (parents done)
+            version: 2,
+            completed: [],       // ALL nodes ever completed across all runs (for discovery visibility)
+            runCompleted: [],    // Nodes completed in the CURRENT run (resets on new run start)
+            discovered: [],      // Node IDs that are visible (parents completed in any run)
             huntingDefeated: [], // hunting IDs confirmed defeated
             allHuntingBonus: false,
         };
@@ -1182,27 +1331,56 @@ class MazeOfTime {
     }
 
     // A node is AVAILABLE for selection if:
-    // 1. Discovered (at least one parent completed)
-    // 2. Not yet completed
-    // 3. Hero requirement met (null = any hero, 'love' = love hero only)
+    // 1. Visible (discovered via cross-run history OR available via current-run parents)
+    // 2. Not yet completed IN THIS RUN (runCompleted)
+    // 3. Parents completed in this run (or no parents required)
+    // 4. Hero requirement met
     static isAvailable(nodeId, state, heroType) {
         const node = MazeOfTime.getNodeById(nodeId);
         if (!node) return false;
-        if (state.completed.includes(nodeId)) return false;
-        if (!state.discovered.includes(nodeId) && !state.completed.includes(nodeId)) {
-            // Auto-discover if all requires are met (or requiresAny and one is met)
-            if (!MazeOfTime._parentsMet(node, state)) return false;
-        }
+        // Already done this run → not selectable again
+        if (state.runCompleted.includes(nodeId)) return false;
+        // Must be visible (discovered globally) OR parents met in this run
+        const isVisible = state.discovered.includes(nodeId) || state.completed.includes(nodeId);
+        if (!isVisible && !MazeOfTime._parentsMet(node, state)) return false;
+        // Must have parents met in this run to actually be reachable
+        if (!MazeOfTime._parentsMet(node, state)) return false;
         if (node.heroOnly && node.heroOnly !== heroType) return false;
         return true;
     }
 
+    // Parents met — uses cross-run completed so convergence nodes that need different
+    // strands from different runs unlock correctly. completed is a superset of
+    // runCompleted (completeNode() adds to both), so current-run progress is included.
     static _parentsMet(node, state) {
         if (node.requires.length === 0) return true;
         if (node.requiresAny) {
             return node.requires.some(r => state.completed.includes(r));
         }
         return node.requires.every(r => state.completed.includes(r));
+    }
+
+    // Returns the nodes selectable as the NEXT step — only children of the last
+    // completed node this run. At run start (runCompleted empty) returns [origin].
+    static getNextNodes(state, heroType) {
+        const lastId = state.runCompleted.length > 0
+            ? state.runCompleted[state.runCompleted.length - 1]
+            : null;
+        let candidates;
+        if (!lastId) {
+            // Run start: only the root node (origin)
+            candidates = MAZE_NODES.filter(n => n.requires.length === 0);
+        } else {
+            const lastNode = MazeOfTime.getNodeById(lastId);
+            candidates = (lastNode?.children || [])
+                .map(id => MazeOfTime.getNodeById(id))
+                .filter(Boolean);
+        }
+        return candidates.filter(n => {
+            if (state.runCompleted.includes(n.id)) return false; // already done this run
+            if (n.heroOnly && n.heroOnly !== heroType) return false;
+            return MazeOfTime._parentsMet(n, state);
+        });
     }
 
     // Discover children of a completed node (call after marking complete)
@@ -1224,8 +1402,13 @@ class MazeOfTime {
         const node = MazeOfTime.getNodeById(nodeId);
         if (!node) return state;
 
+        // Track in cross-run history (for discovery visibility)
         if (!state.completed.includes(nodeId)) {
             state.completed.push(nodeId);
+        }
+        // Track in current-run progress (drives availability + parent checks)
+        if (!state.runCompleted.includes(nodeId)) {
+            state.runCompleted.push(nodeId);
         }
 
         // Handle hunting buff
@@ -1384,18 +1567,37 @@ class MazeOfTime {
     }
 
     // ─── Initialization ───────────────────────────────────────────────────────
-    // Called on game start for Time hero: seeds initial discovered nodes
+    // Called on every new run start. Resets per-run progress but keeps cross-run
+    // discovery state so previously seen paths remain visible on the map.
     static initForRun() {
         const state = MazeOfTime.getState();
-        // Always discover origin if nothing completed
-        if (state.completed.length === 0 && !state.discovered.includes('origin')) {
+
+        // Reset current-run progress — player must walk from origin again
+        state.runCompleted = [];
+
+        // Origin is always visible
+        if (!state.discovered.includes('origin') && !state.completed.includes('origin')) {
             state.discovered.push('origin');
         }
-        // Discover children of all completed nodes
+
+        // Re-discover children of all cross-run completed nodes using cross-run
+        // parentsMet logic (not runCompleted) so the map stays fully visible.
         for (const completedId of state.completed) {
             const node = MazeOfTime.getNodeById(completedId);
-            if (node) MazeOfTime._discoverChildren(node, state);
+            if (!node) continue;
+            for (const childId of node.children) {
+                const child = MazeOfTime.getNodeById(childId);
+                if (!child) continue;
+                if (state.discovered.includes(childId) || state.completed.includes(childId)) continue;
+                // Use cross-run completed for discovery parent check
+                const parentsMet = child.requires.length === 0 ||
+                    (child.requiresAny
+                        ? child.requires.some(r => state.completed.includes(r))
+                        : child.requires.every(r => state.completed.includes(r)));
+                if (parentsMet) state.discovered.push(childId);
+            }
         }
+
         MazeOfTime.saveState(state);
         return state;
     }
@@ -1403,6 +1605,7 @@ class MazeOfTime {
     // Reset all progress (debug / new game+)
     static resetAll() {
         localStorage.removeItem(MazeOfTime.SAVE_KEY);
+        localStorage.removeItem('maze_of_time_v1'); // clean up old key too
         window.mazeCurrentNode = null;
         window.mazeCurrentNodeId = null;
     }

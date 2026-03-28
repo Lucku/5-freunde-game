@@ -66,7 +66,12 @@ class VersusMenuUI {
         if (!grid) return;
         grid.innerHTML = '';
 
-        this.heroIds = ['random', ...Object.keys(BASE_HERO_STATS).filter(h => h !== 'black')];
+        const loveUnlocked = typeof saveData !== 'undefined' && saveData['love'] && saveData['love'].unlocked;
+        this.heroIds = ['random', ...Object.keys(BASE_HERO_STATS).filter(h => {
+            if (h === 'black') return false;
+            if (h === 'love' && !loveUnlocked) return false;
+            return true;
+        })];
 
         this.heroIds.forEach((h, index) => {
             const isRandom = (h === 'random');
@@ -168,7 +173,8 @@ class VersusMenuUI {
     start() {
         let op = this.opponent;
         if (op === 'random') {
-            const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black');
+            const loveOk = typeof saveData !== 'undefined' && saveData['love'] && saveData['love'].unlocked;
+            const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black' && (h !== 'love' || loveOk));
             op = heroes[Math.floor(Math.random() * heroes.length)];
         }
 

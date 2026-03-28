@@ -362,7 +362,11 @@ class CompletionMenu {
                 addToDLC('Faith of Fortune', 'Cards', saveData.collection.includes(id), card.name);
                 return;
             }
-            if (id.startsWith('TIME_WRAITH') || id.startsWith('TEMPORAL_RIFT')) {
+            if (id.startsWith('TIME_WRAITH') || id.startsWith('TEMPORAL_RIFT') ||
+                id.startsWith('ETERNAL_COLLAPSE') || id.startsWith('MASK_GUARDIAN') ||
+                id.startsWith('MAKUTA_ECHO') || id.startsWith('CHROME_LEVIATHAN') ||
+                id.startsWith('TEMPORAL_WARDEN') || id.startsWith('BOSS_THUNDER') ||
+                id.startsWith('BOSS_SPIRIT')) {
                 addToDLC('Echos of Eternity', 'Cards', saveData.collection.includes(id), card.name);
                 return;
             }
@@ -464,6 +468,11 @@ class CompletionMenu {
                 } else {
                     const reqStr = reqs.map(h => `${h} ${node.req[h]}`).join(', ');
                     sub.missing.push(`${node.name} (Req: ${reqStr})`);
+                }
+                // EoE mutations (ct* / cl*) also count toward DLC completion
+                if (node.id && (node.id.startsWith('ct') || node.id.startsWith('cl'))) {
+                    const reqStr = reqs.map(h => `${h.charAt(0).toUpperCase() + h.slice(1)} Prestige ${node.req[h]}`).join(' + ');
+                    addToDLC('Echos of Eternity', 'Altar Mutations', isUnlocked, `${node.name || node.id} (${reqStr})`);
                 }
             });
             sub.percent = sub.total > 0 ? (sub.current / sub.total) * 100 : 0;

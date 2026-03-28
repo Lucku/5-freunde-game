@@ -281,47 +281,63 @@ class LoveHero {
         // Re-use frozenTimer — this suppresses all enemy movement/attacks automatically
         if ((e.frozenTimer || 0) < dur) e.frozenTimer = dur;
         e._loveCharmed = dur;
+        // Track for echo_love_charm100 achievement
+        if (typeof saveData !== 'undefined') {
+            saveData.global = saveData.global || {};
+            saveData.global.love_charm_count = (saveData.global.love_charm_count || 0) + 1;
+        }
     }
 
     // ─── Shoot — Heart Arrow ─────────────────────────────────────────────────
     static shoot(player) {
         if (player.rangeCooldown > 0) return;
-        const target = typeof getClosestEnemy === 'function' ? getClosestEnemy(player.x, player.y) : null;
-        if (!target) return;
 
-        const a   = Math.atan2(target.y - player.y, target.x - player.x);
+        const a = player.aimAngle;
         const spd = player.stats.projectileSpeed || 12;
         const dmg = player.stats.rangeDmg * player.damageMultiplier;
         const sz  = player.stats.projectileSize || 10;
+        const highAffection = player.affection >= 80;
 
-        const proj = new Projectile(
-            player.x, player.y,
-            { x: Math.cos(a) * spd, y: Math.sin(a) * spd },
-            dmg, '#ff6b9d', sz, 'player', 0, false
-        );
-        proj._loveHeartArrow = true;
-
-        // At high affection, heart arrows pierce through all enemies
-        if (player.affection >= 80) {
-            proj.pierce = 99;  // effectively infinite pierce
-            proj.color  = '#ff1a6b';
-            proj.size   = sz + 3;
+        // Build aim angles: main + spread shots from extraProjectiles
+        const extra = player.extraProjectiles || 0;
+        const total = 1 + extra;
+        const spread = 0.22; // radians between each extra shot
+        const angles = [];
+        for (let i = 0; i < total; i++) {
+            const offset = (i - (total - 1) / 2) * spread;
+            angles.push(a + offset);
         }
 
-        // Mark for charm-on-hit (handled in LoveHero.update via frozenTimer check)
-        // cl2 Frozen Heart: freeze instead of charm
-        proj.onHit = (enemy) => {
-            if (player._mutCl2) {
-                const freezeDur = 75 + (player.stats.charmDuration || 0);
-                enemy.frozenTimer = Math.max(enemy.frozenTimer || 0, freezeDur);
-            } else {
-                LoveHero._charmEnemy(player, enemy);
-            }
-            player.affection = Math.min(100, player.affection + 5);
-            return undefined;
-        };
+        angles.forEach(angle => {
+            const proj = new Projectile(
+                player.x, player.y,
+                { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd },
+                dmg, '#ff6b9d', sz, 'love', 0, false
+            );
+            proj._loveHeartArrow = true;
 
-        projectiles.push(proj);
+            // At high affection, heart arrows pierce through all enemies
+            if (highAffection) {
+                proj.pierce = 99;  // effectively infinite pierce
+                proj.color  = '#ff1a6b';
+                proj.size   = sz + 3;
+            }
+
+            // Mark for charm-on-hit
+            // cl2 Frozen Heart: freeze instead of charm
+            proj.onHit = (enemy) => {
+                if (player._mutCl2) {
+                    const freezeDur = 75 + (player.stats.charmDuration || 0);
+                    enemy.frozenTimer = Math.max(enemy.frozenTimer || 0, freezeDur);
+                } else {
+                    LoveHero._charmEnemy(player, enemy);
+                }
+                player.affection = Math.min(100, player.affection + 5);
+                return undefined;
+            };
+
+            projectiles.push(proj);
+        });
 
         player.affection = Math.min(100, player.affection + 3);
         player.rangeCooldown = player.stats.rangeCd;
@@ -362,6 +378,9 @@ class LoveHero {
                 hitCount++;
             });
         }
+
+        // Always show the melee AoE ring so the player can see the attack area
+        player._loveMeleeRing = { r: 0, maxR: radius, alpha: 1.0 };
 
         if (hitCount > 0) {
             player.affection = Math.min(100, player.affection + hitCount * 9);
@@ -478,7 +497,9 @@ class LoveHero {
 
     // ─── Draw ────────────────────────────────────────────────────────────────
     static draw(player, ctx) {
-        // Heart of Unity overlay — soft pink screen wash
+        const r = player.radius;
+
+        // Heart of Unity overlay — soft pink screen wash (world-space, no translate needed)
         if (player._heartUnityActive) {
             const progress = player._heartUnityTimer / 600;
             ctx.save();
@@ -489,7 +510,7 @@ class LoveHero {
             ctx.restore();
         }
 
-        // Draw resonance link lines between enemies
+        // Draw resonance link lines between enemies (world-space)
         if (player._resonanceLinks && player._resonanceLinks.length > 0) {
             ctx.save();
             for (const link of player._resonanceLinks) {
@@ -502,7 +523,6 @@ class LoveHero {
                 ctx.setLineDash([6, 5]);
                 ctx.beginPath();
                 ctx.moveTo(link.a.x, link.a.y);
-                // Bezier curve between the two linked enemies
                 const mx = (link.a.x + link.b.x) / 2 + Math.sin(Date.now() * 0.002 + link.life) * 20;
                 const my = (link.a.y + link.b.y) / 2 + Math.cos(Date.now() * 0.002 + link.life) * 20;
                 ctx.quadraticCurveTo(mx, my, link.b.x, link.b.y);
@@ -513,11 +533,10 @@ class LoveHero {
             ctx.restore();
         }
 
-        // Draw Love Companion
+        // Draw Love Companion (world-space)
         if (player._loveCompanion && player._loveCompanion.life > 0) {
             const comp = player._loveCompanion;
             ctx.save();
-            // Glow
             const cg = ctx.createRadialGradient(comp.x, comp.y, 3, comp.x, comp.y, comp.radius * 2);
             cg.addColorStop(0, 'rgba(255,157,191,0.5)');
             cg.addColorStop(1, 'rgba(255,107,157,0)');
@@ -525,7 +544,6 @@ class LoveHero {
             ctx.arc(comp.x, comp.y, comp.radius * 2, 0, Math.PI * 2);
             ctx.fillStyle = cg;
             ctx.fill();
-            // Body
             ctx.beginPath();
             ctx.arc(comp.x, comp.y, comp.radius, 0, Math.PI * 2);
             ctx.fillStyle = '#ff9dbf';
@@ -533,20 +551,70 @@ class LoveHero {
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 1.5;
             ctx.stroke();
-            // Tiny heart symbol
-            ctx.fillStyle = 'rgba(255,255,255,0.8)';
-            ctx.font = '10px serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('♥', comp.x, comp.y + 4);
             ctx.restore();
         }
 
-        // Affection resource bar (above hero, below HP bar)
+        // Melee AoE ring — expands from player.x/y and fades out (world-space)
+        if (player._loveMeleeRing) {
+            const ring = player._loveMeleeRing;
+            ring.r += (ring.maxR - ring.r) * 0.22;  // ease toward max radius
+            ring.alpha -= 0.06;
+            if (ring.alpha <= 0) {
+                player._loveMeleeRing = null;
+            } else {
+                ctx.save();
+                ctx.globalAlpha = ring.alpha * 0.8;
+                ctx.strokeStyle = '#ff1a6b';
+                ctx.lineWidth   = 3.5;
+                ctx.shadowColor = '#ff6b9d';
+                ctx.shadowBlur  = 12;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, ring.r, 0, Math.PI * 2);
+                ctx.stroke();
+                // Inner softer ring
+                ctx.globalAlpha = ring.alpha * 0.3;
+                ctx.lineWidth   = 8;
+                ctx.strokeStyle = '#ff9dbf';
+                ctx.shadowBlur  = 0;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, ring.r, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // ── Hero body (player-local space) ──
+        ctx.save();
+        ctx.translate(player.x, player.y);
+
+        // Affection glow aura when full
+        if (player.affection >= 80) {
+            const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.008);
+            ctx.save();
+            ctx.globalAlpha = 0.25 * pulse;
+            ctx.shadowColor = '#ff1a6b';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.arc(0, 0, r + 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff6b9d';
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Helmet sprite, rotated to aim direction
+        ctx.rotate(player.aimAngle);
+        if (typeof drawHeroSprite === 'function') {
+            drawHeroSprite(ctx, player.stats && player.stats.color || '#ff6b9d', r);
+        }
+
+        ctx.restore();
+
+        // Affection resource bar (world-space, above hero)
         if (!player.isCPU) {
             ctx.save();
-            const barW = player.radius * 2.2;
+            const barW = r * 2.2;
             const bx   = player.x - barW / 2;
-            const by   = player.y - player.radius - 30;
+            const by   = player.y - r - 30;
             ctx.fillStyle = 'rgba(0,0,0,0.45)';
             ctx.fillRect(bx - 1, by - 1, barW + 2, 7);
             const pct = player.affection / 100;
@@ -554,7 +622,6 @@ class LoveHero {
             ctx.fillStyle = barColor;
             ctx.fillRect(bx, by, barW * pct, 5);
             if (pct >= 0.8) {
-                // Pulse glow when full
                 ctx.globalAlpha = 0.5 * (0.5 + 0.5 * Math.sin(Date.now() * 0.008));
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(bx, by, barW * pct, 5);

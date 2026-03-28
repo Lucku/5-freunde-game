@@ -391,7 +391,7 @@
                 ctx.stroke();
             }
 
-            _drawBossHpBar(ctx, b);
+            // HP bar handled by game HUD (boss-hp-container)
             ctx.restore();
         }
     };
@@ -614,7 +614,7 @@
                 ctx.stroke();
             }
 
-            _drawBossHpBar(ctx, b);
+            // HP bar handled by game HUD (boss-hp-container)
             ctx.restore();
         }
     };
@@ -779,7 +779,7 @@
             ctx.arc(b.x, b.y + 8, 18, 0.2, Math.PI - 0.2);
             ctx.stroke();
 
-            _drawBossHpBar(ctx, b);
+            // HP bar handled by game HUD (boss-hp-container)
             ctx.restore();
         }
     };
@@ -952,7 +952,7 @@
                 ctx.stroke();
             }
 
-            _drawBossHpBar(ctx, b);
+            // HP bar handled by game HUD (boss-hp-container)
             ctx.restore();
         }
     };
@@ -1161,7 +1161,7 @@
                 ctx.fill();
             }
 
-            _drawBossHpBar(ctx, b);
+            // HP bar handled by game HUD (boss-hp-container)
             ctx.restore();
         }
     };
@@ -1355,7 +1355,7 @@
             ctx.moveTo(b.x, b.y - 14); ctx.lineTo(b.x, b.y + 14);
             ctx.stroke();
 
-            _drawBossHpBar(ctx, b);
+            // HP bar handled by game HUD (boss-hp-container)
             ctx.restore();
         }
     };
@@ -1529,7 +1529,7 @@
             ctx.lineTo(b.x + 8, b.y + 24);
             ctx.stroke();
 
-            _drawBossHpBar(ctx, b);
+            // HP bar handled by game HUD (boss-hp-container)
             ctx.restore();
         }
     };
@@ -1734,7 +1734,7 @@
             }
             ctx.stroke();
 
-            _drawBossHpBar(ctx, b);
+            // HP bar handled by game HUD (boss-hp-container)
             ctx.restore();
         }
     };

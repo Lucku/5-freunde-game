@@ -359,27 +359,40 @@ class TimeHero {
     // ─── Shoot ───────────────────────────────────────────────────────────────
     static shoot(player) {
         if (player.rangeCooldown > 0) return;
-        const target = typeof getClosestEnemy === 'function' ? getClosestEnemy(player.x, player.y) : null;
-        if (!target) return;
 
-        const a   = Math.atan2(target.y - player.y, target.x - player.x);
+        const a = player.aimAngle;
         const spd = player.stats.projectileSpeed || 11;
         const dmg = player.stats.rangeDmg * player.damageMultiplier;
         const sz  = player.stats.projectileSize || 8;
 
-        projectiles.push(new Projectile(
+        // Chrono Orb — slow-moving, piercing, slows enemies on hit
+        const orb = new Projectile(
             player.x, player.y,
-            { x: Math.cos(a) * spd, y: Math.sin(a) * spd },
-            dmg, '#c8aa6e', sz, 'player', 0, false
-        ));
+            { x: Math.cos(a) * spd * 0.55, y: Math.sin(a) * spd * 0.55 },
+            dmg, '#c8aa6e', sz + 4, 'time', 0, false
+        );
+        orb.pierce = 99; // passes through all enemies
+        orb.onHit = (enemy) => {
+            const slowDur = 75 + Math.floor((player.stats.slowPower || 0) * 40);
+            if (!enemy._timeSlowed) {
+                enemy._baseSpeedSlow = enemy.speed;
+                enemy.speed *= 0.35;
+                enemy._timeSlowed = true;
+            }
+            enemy._timeSlowTimer = slowDur;
+        };
+        projectiles.push(orb);
 
         // Double-shot when chrono energy is high
         if (player.chronoEnergy >= 70) {
-            projectiles.push(new Projectile(
+            const orb2 = new Projectile(
                 player.x, player.y,
-                { x: Math.cos(a + 0.18) * spd, y: Math.sin(a + 0.18) * spd },
-                dmg, '#d4af37', sz - 2, 'player', 0, false
-            ));
+                { x: Math.cos(a + 0.20) * spd * 0.55, y: Math.sin(a + 0.20) * spd * 0.55 },
+                dmg * 0.7, '#d4af37', sz + 1, 'time', 0, false
+            );
+            orb2.pierce = 99;
+            orb2.onHit = orb.onHit;
+            projectiles.push(orb2);
         }
 
         const gainMult = player.stats.chronoGainMult || 1;
@@ -836,11 +849,14 @@ class TimeHero {
             ctx.restore();
         }
 
-        // ── Body — helmet look ──
-        const bodyColor = player.paradoxActive ? '#ffd700' : player.color;
+        // ── Body — helmet look (rotated to face aim direction) ──
+        const bodyColor = player.paradoxActive ? '#ffd700' : (player.stats && player.stats.color) || '#c8aa6e';
+        ctx.save();
+        ctx.rotate(player.aimAngle);
         if (player.paradoxActive) { ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 14; }
         drawHeroSprite(ctx, bodyColor, r);
         ctx.shadowBlur = 0;
+        ctx.restore();
 
         // ── Chrono energy arc ──
         if (ce > 4) {

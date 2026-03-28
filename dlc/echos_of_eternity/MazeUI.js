@@ -34,6 +34,9 @@ class MazeUI {
         this._boundKeyDown   = this._onKeyDown.bind(this);
         this._animFrame      = null;
         this._frame          = 0;
+
+        // Gamepad edge-detection state
+        this._gpPrev = {};
     }
 
     // ─── Public API ───────────────────────────────────────────────────────────
@@ -42,19 +45,43 @@ class MazeUI {
 
         this._afterCb  = afterCb;
         this._heroType = heroType || 'time';
-        this._state    = MazeOfTime.initForRun();
+        // Use getState() — NOT initForRun(). initForRun() resets runCompleted and is
+        // only called by game.js at wave 0 (new run start). Calling it here would wipe
+        // the within-run progress every time the map opens.
+        this._state    = MazeOfTime.getState();
 
-        // Compute which nodes are available for selection
-        this._availableIds = MAZE_NODES
-            .filter(n => MazeOfTime.isAvailable(n.id, this._state, this._heroType))
+        // Only the children of the last completed node are selectable — enforces
+        // single-strand progression within a run.
+        this._availableIds = MazeOfTime.getNextNodes(this._state, this._heroType)
             .map(n => n.id);
+
+        // If this run's path has ended (terminal node completed, no children),
+        // close immediately so the game resumes without maze interference.
+        if (this._availableIds.length === 0 && this._state.runCompleted.length > 0) {
+            if (typeof isStoryOpen !== 'undefined') isStoryOpen = false;
+            return;
+        }
 
         this._selectedNode = null;
         this._hoveredNode  = null;
+        this._gpPrev       = {};
 
         // Reset pan to show start of map (left side)
         this._panX = 0;
         this._panY = 0;
+
+        // Auto-select the first available node so gamepad users start with something highlighted
+        if (this._availableIds.length > 0) {
+            const firstNode = MAZE_NODES.find(n => n.id === this._availableIds[0]);
+            if (firstNode) {
+                this._selectedNode = firstNode;
+                this._panTo(firstNode.x, firstNode.y);
+            }
+        }
+
+        // Pause the game loop while the maze is open so enemies don't spawn
+        // or damage the player in the background during node selection.
+        if (typeof isStoryOpen !== 'undefined') isStoryOpen = true;
 
         // Reveal overlay
         this._overlay.style.display = 'flex';
@@ -75,7 +102,11 @@ class MazeUI {
     }
 
     close() {
+        // Resume game loop — openStory() will re-pause it as needed
+        if (typeof isStoryOpen !== 'undefined') isStoryOpen = false;
         this._stopLoop();
+        // Clear selection so any stray _handleGamepad() calls can't re-confirm
+        this._selectedNode = null;
         if (this._overlay) this._overlay.style.display = 'none';
         this._canvas.removeEventListener('mousemove', this._boundMouseMove);
         this._canvas.removeEventListener('mousedown', this._boundMouseDown);
@@ -148,7 +179,7 @@ class MazeUI {
             <div style="display:flex; flex-direction:column; gap:3px; flex:1;">
                 <div id="maze-node-info" style="font-size:12px; color:rgba(200,170,80,0.7); line-height:1.5;"></div>
                 <div style="font-size:9px; color:rgba(200,170,80,0.25); letter-spacing:0.06em;">
-                    Drag to pan the map &nbsp;·&nbsp; Click a glowing node to select &nbsp;·&nbsp; Press Enter to confirm
+                    Drag to pan &nbsp;·&nbsp; Click a glowing node to select &nbsp;·&nbsp; Enter / A to confirm &nbsp;·&nbsp; D-pad / stick to navigate
                 </div>
             </div>
             <button id="maze-confirm-btn" style="
@@ -172,16 +203,25 @@ class MazeUI {
 
     // ─── Main Render Loop ─────────────────────────────────────────────────────
     _startLoop() {
+        this._loopActive = true;
         const loop = () => {
             this._frame++;
             this._resizeCanvas();
             this._render();
-            this._animFrame = requestAnimationFrame(loop);
+            // Only reschedule if loop is still active. This guards against the case
+            // where close() is called from within _render() (e.g. via _confirmSelection):
+            // _stopLoop() cancels the PREVIOUSLY-scheduled frame ID, but the current
+            // loop() call has already started — without this flag it would still
+            // reschedule a new frame, letting _handleGamepad() fire after close().
+            if (this._loopActive) {
+                this._animFrame = requestAnimationFrame(loop);
+            }
         };
         this._animFrame = requestAnimationFrame(loop);
     }
 
     _stopLoop() {
+        this._loopActive = false;
         if (this._animFrame) { cancelAnimationFrame(this._animFrame); this._animFrame = null; }
     }
 
@@ -196,6 +236,8 @@ class MazeUI {
 
     // ─── Rendering ────────────────────────────────────────────────────────────
     _render() {
+        this._handleGamepad();
+
         const ctx = this._ctx;
         const W = this._canvas.width;
         const H = this._canvas.height;
@@ -246,8 +288,9 @@ class MazeUI {
     }
 
     _isVisible(node) {
-        // Show if completed, discovered, or available
+        // Show if completed (any run), discovered, runCompleted, or available
         return this._state.completed.includes(node.id) ||
+               this._state.runCompleted.includes(node.id) ||
                this._state.discovered.includes(node.id) ||
                this._availableIds.includes(node.id);
     }
@@ -257,8 +300,8 @@ class MazeUI {
         const toVisible   = this._isVisible(to);
         if (!fromVisible) return;
 
-        const toCompleted  = this._state.completed.includes(to.id);
-        const fromComplete = this._state.completed.includes(from.id);
+        const toCompleted  = this._state.runCompleted.includes(to.id);
+        const fromComplete = this._state.runCompleted.includes(from.id);
 
         ctx.save();
         ctx.lineWidth = 2;
@@ -287,21 +330,25 @@ class MazeUI {
         const { id, x, y, icon, title, type } = node;
         const R = this.NODE_R;
 
-        const completed  = this._state.completed.includes(id);
-        const discovered = this._state.discovered.includes(id) || completed;
-        const available  = this._availableIds.includes(id);
-        const selected   = this._selectedNode && this._selectedNode.id === id;
-        const hovered    = this._hoveredNode && this._hoveredNode.id === id;
-        const isFoe      = type === 'FORMIDABLE_FOE';
-        const isFinale   = type === 'FINALE';
-        const isOrigin   = id === 'origin';
+        const runCompleted = this._state.runCompleted.includes(id);  // done this run
+        const everDone     = this._state.completed.includes(id);      // done in any past run
+        const completed    = runCompleted;                             // "completed" now means this run
+        const discovered   = this._state.discovered.includes(id) || everDone || runCompleted;
+        const available    = this._availableIds.includes(id);
+        const selected     = this._selectedNode && this._selectedNode.id === id;
+        const hovered      = this._hoveredNode && this._hoveredNode.id === id;
+        const isFoe        = type === 'FORMIDABLE_FOE';
+        const isFinale     = type === 'FINALE';
+        const isOrigin     = id === 'origin';
 
         // Only draw if visible
-        const visible = completed || discovered || available;
+        const visible = completed || everDone || discovered || available;
         if (!visible) return;
 
+        // Nodes visible from past runs but not reachable yet this run
+        const pastOnly = everDone && !runCompleted && !available;
         // For undiscovered children (shown as faint ?)
-        const hidden = !completed && !available && discovered && !this._state.completed.includes(id);
+        const hidden = !completed && !everDone && !available && discovered;
 
         ctx.save();
 
@@ -324,10 +371,17 @@ class MazeUI {
         ctx.arc(x, y, R, 0, Math.PI * 2);
 
         if (completed) {
+            // Completed this run — gold checkmark style
             ctx.fillStyle = 'rgba(200,150,40,0.35)';
             ctx.fill();
             ctx.strokeStyle = '#c8aa6e';
             ctx.lineWidth = 2.5;
+        } else if (pastOnly) {
+            // Completed in a previous run — visible but greyed/locked
+            ctx.fillStyle = 'rgba(120,100,60,0.15)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(150,130,80,0.35)';
+            ctx.lineWidth = 1.5;
         } else if (selected) {
             ctx.fillStyle = 'rgba(80,150,255,0.3)';
             ctx.fill();
@@ -367,6 +421,13 @@ class MazeUI {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('✓', x, y + 1);
+        } else if (pastOnly) {
+            // Previously visited — show a faded lock icon
+            ctx.fillStyle = 'rgba(150,130,80,0.4)';
+            ctx.font = `${R - 2}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🔒', x, y + 1);
         } else if (hidden) {
             // Unknown node
             ctx.fillStyle = 'rgba(200,170,80,0.25)';
@@ -389,7 +450,7 @@ class MazeUI {
             ctx.font = `bold 9px monospace`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            const alpha = completed ? 0.55 : available ? 0.85 : 0.3;
+            const alpha = completed ? 0.55 : pastOnly ? 0.25 : available ? 0.85 : 0.3;
             ctx.fillStyle = selected ? `rgba(100,180,255,${alpha + 0.1})` :
                             isFoe    ? `rgba(220,100,100,${alpha})` :
                             isFinale ? `rgba(255,215,0,${alpha})` :
@@ -483,10 +544,11 @@ class MazeUI {
         `;
         sb.appendChild(bonusEl);
 
-        // Progress
+        // Progress (show this-run and all-time separately)
         const state = this._state;
         const totalNodes = MAZE_NODES.filter(n => n.strand !== 'HUNT').length;
         const completedNodes = MAZE_NODES.filter(n => n.strand !== 'HUNT' && state.completed.includes(n.id)).length;
+        const runNodes = MAZE_NODES.filter(n => n.strand !== 'HUNT' && state.runCompleted.includes(n.id)).length;
 
         const progressEl = document.createElement('div');
         progressEl.style.cssText = `margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(200,170,80,0.12);`;
@@ -612,6 +674,103 @@ class MazeUI {
         if (e.key === 'Enter' && this._selectedNode) {
             this._confirmSelection();
         }
+    }
+
+    // ─── Gamepad Navigation ───────────────────────────────────────────────────
+    _handleGamepad() {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        let gp = null;
+        for (let i = 0; i < gamepads.length; i++) {
+            if (gamepads[i] && gamepads[i].connected) { gp = gamepads[i]; break; }
+        }
+        if (!gp) return;
+
+        const prev = this._gpPrev;
+
+        // Helper: just-pressed edge detection
+        const pressed = (idx) => gp.buttons[idx] && gp.buttons[idx].pressed && !prev[idx];
+
+        // Directional input: D-pad or left stick
+        const T = 0.45;
+        const stickX = gp.axes[0] || 0;
+        const stickY = gp.axes[1] || 0;
+
+        const dRight = pressed(15) || (stickX >  T && !(prev.stickRight));
+        const dLeft  = pressed(14) || (stickX < -T && !(prev.stickLeft));
+        const dDown  = pressed(13) || (stickY >  T && !(prev.stickDown));
+        const dUp    = pressed(12) || (stickY < -T && !(prev.stickUp));
+
+        if (dRight) this._moveSelection( 1,  0);
+        if (dLeft)  this._moveSelection(-1,  0);
+        if (dDown)  this._moveSelection( 0,  1);
+        if (dUp)    this._moveSelection( 0, -1);
+
+        // A button (0) or Start (9) — confirm
+        if (pressed(0) || pressed(9)) {
+            if (this._selectedNode) this._confirmSelection();
+        }
+
+        // Store previous state for next frame
+        for (let i = 0; i < gp.buttons.length; i++) {
+            prev[i] = gp.buttons[i] && gp.buttons[i].pressed;
+        }
+        prev.stickRight = stickX >  T;
+        prev.stickLeft  = stickX < -T;
+        prev.stickDown  = stickY >  T;
+        prev.stickUp    = stickY < -T;
+    }
+
+    // Move selection to the nearest available node in the given direction (dx, dy = ±1/0)
+    _moveSelection(dx, dy) {
+        const candidates = this._availableIds
+            .map(id => MAZE_NODES.find(n => n.id === id))
+            .filter(Boolean);
+
+        if (candidates.length === 0) return;
+
+        // If nothing is selected, pick the leftmost available node
+        if (!this._selectedNode) {
+            const node = candidates.reduce((a, b) => a.x < b.x ? a : b);
+            this._selectedNode = node;
+            this._panTo(node.x, node.y);
+            this._updateConfirmBtn();
+            return;
+        }
+
+        const cur = this._selectedNode;
+        let best = null;
+        let bestScore = -Infinity;
+
+        for (const node of candidates) {
+            if (node.id === cur.id) continue;
+            const relX = node.x - cur.x;
+            const relY = node.y - cur.y;
+            // Dot product with direction vector — must be positive (in the right direction)
+            const dot = relX * dx + relY * dy;
+            if (dot <= 0) continue;
+            // Prefer nodes that are well-aligned with the direction (low perpendicular offset)
+            const dist = Math.hypot(relX, relY);
+            const alignment = dot / dist; // cosine of angle (1 = perfect alignment)
+            const score = alignment - dist * 0.0005; // slight distance penalty
+            if (score > bestScore) {
+                bestScore = score;
+                best = node;
+            }
+        }
+
+        if (best) {
+            this._selectedNode = best;
+            this._panTo(best.x, best.y);
+            this._updateConfirmBtn();
+        }
+    }
+
+    // Pan the camera to center approximately on a world-space point
+    _panTo(wx, wy) {
+        const W = this._canvas.width  || 800;
+        const H = this._canvas.height || 500;
+        this._panX = Math.max(0, Math.min(this.MAP_W - W, wx - W / 2));
+        this._panY = Math.max(0, Math.min(this.MAP_H - H, wy - H / 2));
     }
 
     // ─── Confirmation ─────────────────────────────────────────────────────────

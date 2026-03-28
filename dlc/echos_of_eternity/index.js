@@ -102,7 +102,6 @@ const ECHOS_OF_ETERNITY = {
             // Love hero — registered but hidden until unlocked via Maze of Time
             BASE_HERO_STATS['love'] = {
                 color: '#ff6b9d',   // Rose pink
-                icon: '💖',
                 hp: 110,
                 speed: 4.8,
                 rangeDmg: 32,
@@ -315,23 +314,23 @@ const ECHOS_OF_ETERNITY = {
 
         // Cross-element convergence mutations
         const timeMutations = [
-            { id: 'ct1',  req: { time: 5, lightning: 5 }, type: 'mutation', desc: 'Delayed Lightning: Temporal bolts trigger a chain lightning strike after 2 seconds' },
-            { id: 'ct2',  req: { time: 5, gravity: 5   }, type: 'mutation', desc: 'Time Dilation: Chrono Strike creates a gravity well that amplifies the slow' },
-            { id: 'ct3',  req: { time: 5, fire: 5      }, type: 'mutation', desc: 'Burning Moment: Slowed enemies ignite, taking fire damage over time' },
-            { id: 'ct4',  req: { time: 5, ice: 5       }, type: 'mutation', desc: 'Frozen Timeline: Chrono Strike fully freezes enemies instead of slowing them' },
-            { id: 'ct5',  req: { time: 5, void: 5      }, type: 'mutation', desc: 'Void Echo: Echoes fire void-infused bolts that reduce enemy damage by 15%' },
-            { id: 'ct6',  req: { time: 5, earth: 5     }, type: 'mutation', desc: 'Stone Moment: Temporal Anchor also roots enemies in place (cannot be knocked back)' },
-            { id: 'ct7',  req: { time: 5, air: 5       }, type: 'mutation', desc: 'Temporal Gust: Echoes move slowly toward enemies, doubling their effective range' },
+            { id: 'ct1',  req: { time: 5, lightning: 5 }, type: 'mutation', name: 'Delayed Lightning',  desc: 'Temporal bolts trigger a chain lightning strike after 2 seconds' },
+            { id: 'ct2',  req: { time: 5, gravity: 5   }, type: 'mutation', name: 'Time Dilation',      desc: 'Chrono Strike creates a gravity well that amplifies the slow' },
+            { id: 'ct3',  req: { time: 5, fire: 5      }, type: 'mutation', name: 'Burning Moment',     desc: 'Slowed enemies ignite, taking fire damage over time' },
+            { id: 'ct4',  req: { time: 5, ice: 5       }, type: 'mutation', name: 'Frozen Timeline',    desc: 'Chrono Strike fully freezes enemies instead of slowing them' },
+            { id: 'ct5',  req: { time: 5, void: 5      }, type: 'mutation', name: 'Void Echo',          desc: 'Echoes fire void-infused bolts that reduce enemy damage by 15%' },
+            { id: 'ct6',  req: { time: 5, earth: 5     }, type: 'mutation', name: 'Stone Moment',       desc: 'Temporal Anchor also roots enemies in place (cannot be knocked back)' },
+            { id: 'ct7',  req: { time: 5, air: 5       }, type: 'mutation', name: 'Temporal Gust',      desc: 'Echoes move slowly toward enemies, doubling their effective range' },
         ];
 
         const loveMutations = [
-            { id: 'cl1', req: { love: 5, fire: 5      }, type: 'mutation', desc: 'Heartbreak: Charmed enemies ignite when their charm expires, dealing burst fire damage' },
-            { id: 'cl2', req: { love: 5, ice: 5       }, type: 'mutation', desc: 'Frozen Heart: Heart Arrows freeze enemies briefly instead of charming them' },
-            { id: 'cl3', req: { love: 5, lightning: 5 }, type: 'mutation', desc: 'Charged Connection: Resonance links also fire chain lightning between linked enemies' },
-            { id: 'cl4', req: { love: 5, void: 5      }, type: 'mutation', desc: 'Void Bond: Emotional Resonance creates an unstable link that pulls linked enemies toward each other' },
-            { id: 'cl5', req: { love: 5, plant: 5     }, type: 'mutation', desc: 'Growing Bond: Love Companion also occasionally drops a healing flower on the ground' },
-            { id: 'cl6', req: { love: 5, gravity: 5   }, type: 'mutation', desc: 'Gravity of Love: Embrace pulls enemies twice as far and roots them briefly after landing' },
-            { id: 'cl7', req: { love: 5, time: 5      }, type: 'mutation', desc: 'Timeless Love: Charmed enemies stay charmed even after Time hero uses Chrono Strike on them' },
+            { id: 'cl1', req: { love: 5, fire: 5      }, type: 'mutation', name: 'Heartbreak',         desc: 'Charmed enemies ignite when their charm expires, dealing burst fire damage' },
+            { id: 'cl2', req: { love: 5, ice: 5       }, type: 'mutation', name: 'Frozen Heart',       desc: 'Heart Arrows freeze enemies briefly instead of charming them' },
+            { id: 'cl3', req: { love: 5, lightning: 5 }, type: 'mutation', name: 'Charged Connection', desc: 'Resonance links also fire chain lightning between linked enemies' },
+            { id: 'cl4', req: { love: 5, void: 5      }, type: 'mutation', name: 'Void Bond',          desc: 'Emotional Resonance creates an unstable link that pulls linked enemies toward each other' },
+            { id: 'cl5', req: { love: 5, plant: 5     }, type: 'mutation', name: 'Growing Bond',       desc: 'Love Companion also occasionally drops a healing flower on the ground' },
+            { id: 'cl6', req: { love: 5, gravity: 5   }, type: 'mutation', name: 'Gravity of Love',    desc: 'Embrace pulls enemies twice as far and roots them briefly after landing' },
+            { id: 'cl7', req: { love: 5, time: 5      }, type: 'mutation', name: 'Timeless Love',      desc: 'Charmed enemies stay charmed even after Time hero uses Chrono Strike on them' },
         ];
 
         if (ALTAR_TREE.convergence) {
@@ -539,10 +538,18 @@ const ECHOS_OF_ETERNITY = {
 
         if (typeof COLLECTOR_CARDS !== 'undefined') {
             Object.assign(COLLECTOR_CARDS, {
-                // Time Wraith — temporal phantom enemy (Phase 2 / future)
-                ...mkSet('TIME_WRAITH',    'Time Wraith',    'Chrono Strike ignores Time Wraith resistance',   { type: 'special', id: 'WRAITH_PIERCE' }),
+                // Time Wraith — temporal phantom enemy
+                ...mkSet('TIME_WRAITH',       'Time Wraith',       'Chrono Strike ignores Time Wraith resistance',          { type: 'special', id: 'WRAITH_PIERCE' }),
                 // Temporal Rift — environmental hazard enemy
-                ...mkSet('TEMPORAL_RIFT', 'Temporal Rift',   'Temporal Rifts do not slow non-Time heroes',     { type: 'special', id: 'RIFT_IMMUNE' }),
+                ...mkSet('TEMPORAL_RIFT',     'Temporal Rift',     'Temporal Rifts do not slow non-Time heroes',            { type: 'special', id: 'RIFT_IMMUNE' }),
+                // DLC Bosses
+                ...mkSet('ETERNAL_COLLAPSE',  'Eternal Collapse',  'Reality fractures deal 20% less damage to you',         { type: 'special', id: 'COLLAPSE_RESIST' }),
+                ...mkSet('MASK_GUARDIAN',     'Mask Guardian',     'Guardian shield phases last 25% shorter for you',       { type: 'special', id: 'GUARDIAN_BREAK' }),
+                ...mkSet('MAKUTA_ECHO',       'Makuta Echo',       'Echo clones deal 30% reduced damage to you',            { type: 'special', id: 'ECHO_WEAKEN' }),
+                ...mkSet('CHROME_LEVIATHAN',  'Chrome Leviathan',  'Leviathan charge deals 25% less damage to you',         { type: 'special', id: 'LEVIATHAN_DODGE' }),
+                ...mkSet('TEMPORAL_WARDEN',   'Temporal Warden',   'Warden time locks last 20% shorter for you',            { type: 'special', id: 'WARDEN_IMMUNITY' }),
+                ...mkSet('BOSS_THUNDER',      'Thunder Titan',     'Titan lightning chains deal 20% less damage to you',    { type: 'special', id: 'TITAN_GROUND' }),
+                ...mkSet('BOSS_SPIRIT',       'Spirit Revenant',   'Revenant soul explosions deal 25% less damage to you',  { type: 'special', id: 'REVENANT_WARD' }),
             });
         }
     },
