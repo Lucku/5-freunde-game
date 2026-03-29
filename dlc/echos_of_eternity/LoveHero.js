@@ -30,6 +30,9 @@ class LoveHero {
         // Heart of Unity (ultimate)
         player._heartUnityActive = false;
         player._heartUnityTimer  = 0;
+        player._heartburstFired  = false;   // guards the 100-affection one-shot trigger
+        player._heartburstStreak = 0;       // consecutive bursts without taking a hit
+        player._prevHp           = -1;      // -1 = uninitialized (skip first frame check)
 
         // Override base stats — easy hero, generous stats
         player.stats.speed         = 4.8;
@@ -175,10 +178,42 @@ class LoveHero {
             }
         }
 
-        // 4. Decay affection slowly
-        player.affection = Math.max(0, player.affection - 0.025);
+        // 4. Hit detection — reset combo if player took damage this frame
+        if (player._prevHp >= 0 && player.hp < player._prevHp) {
+            if (player.affection > 0 || player._heartburstStreak > 0) {
+                player.affection = 0;
+                player._heartburstStreak = 0;
+                player._heartburstFired = false;
+                player._affectionFull = false;
+                if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
+                    floatingTexts.push(new FloatingText(player.x, player.y - 55, 'COMBO BROKEN', '#aaaaaa', 1.6));
+                }
+            }
+        }
+        player._prevHp = player.hp;
 
-        // 5. Heart of Unity timer
+        // 5. Affection milestones — checked BEFORE decay so reaching 100 always triggers
+        // — At 100: auto-trigger Heartburst, reset meter to 0
+        if (player.affection >= 100 && !player._heartburstFired) {
+            player._heartburstFired = true;
+            LoveHero._triggerHeartburst(player);
+        } else if (player.affection < 100) {
+            player._heartburstFired = false;
+        }
+        // — At 80: HEART SURGE notification + pierce unlock
+        if (player.affection >= 80 && !player._affectionFull) {
+            player._affectionFull = true;
+            if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
+                floatingTexts.push(new FloatingText(player.x, player.y - 60, 'HEART SURGE', '#ff6b9d', 2.0));
+            }
+        } else if (player.affection < 80) {
+            player._affectionFull = false;
+        }
+
+        // 6. Decay affection — drains fully in ~12s of no kills
+        player.affection = Math.max(0, player.affection - 0.14);
+
+        // 7. Heart of Unity timer
         if (player._heartUnityActive) {
             player._heartUnityTimer--;
 
@@ -199,15 +234,6 @@ class LoveHero {
             }
         }
 
-        // 6. Affection milestone notification
-        if (player.affection >= 80 && !player._affectionFull) {
-            player._affectionFull = true;
-            if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
-                floatingTexts.push(new FloatingText(player.x, player.y - 60, 'HEART SURGE', '#ff6b9d', 2.0));
-            }
-        } else if (player.affection < 80) {
-            player._affectionFull = false;
-        }
     }
 
     // ─── Companion ──────────────────────────────────────────────────────────
@@ -255,6 +281,13 @@ class LoveHero {
                     dmg, '#ff9dbf', 6, 'player', 0, false
                 );
                 proj._loveHeartBolt = true;
+                // Fill affection meter on companion kills (checked after damage is applied)
+                proj.onHit = (enemy) => {
+                    if (enemy.hp <= 0) {
+                        player.affection = Math.min(100, player.affection + 20);
+                    }
+                    return undefined;
+                };
                 projectiles.push(proj);
             }
             comp.fireCooldown = 65;
@@ -323,7 +356,7 @@ class LoveHero {
                 proj.size   = sz + 3;
             }
 
-            // Mark for charm-on-hit
+            // Mark for charm-on-hit; fill affection meter on kill
             // cl2 Frozen Heart: freeze instead of charm
             proj.onHit = (enemy) => {
                 if (player._mutCl2) {
@@ -332,14 +365,15 @@ class LoveHero {
                 } else {
                     LoveHero._charmEnemy(player, enemy);
                 }
-                player.affection = Math.min(100, player.affection + 5);
+                if (enemy.hp <= 0) {
+                    player.affection = Math.min(100, player.affection + 15);
+                }
                 return undefined;
             };
 
             projectiles.push(proj);
         });
 
-        player.affection = Math.min(100, player.affection + 3);
         player.rangeCooldown = player.stats.rangeCd;
 
         if (typeof audioManager !== 'undefined') audioManager.play('attack_love');
@@ -352,6 +386,7 @@ class LoveHero {
         const radius   = player.meleeRadius || 130;
         const baseDmg  = player.stats.meleeDmg * player.damageMultiplier;
         let hitCount   = 0;
+        let killCount  = 0;
 
         if (typeof enemies !== 'undefined') {
             enemies.forEach(e => {
@@ -376,6 +411,7 @@ class LoveHero {
                 // Charm everything hit (bosses immune)
                 LoveHero._charmEnemy(player, e);
                 hitCount++;
+                if (e.hp <= 0) killCount++;
             });
         }
 
@@ -383,12 +419,14 @@ class LoveHero {
         player._loveMeleeRing = { r: 0, maxR: radius, alpha: 1.0 };
 
         if (hitCount > 0) {
-            player.affection = Math.min(100, player.affection + hitCount * 9);
             if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#ff6b9d', 12);
             if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
                 floatingTexts.push(new FloatingText(player.x, player.y - 50, 'EMBRACE', '#ff9dbf', 2.0));
             }
             if (typeof audioManager !== 'undefined') audioManager.play('melee_love');
+        }
+        if (killCount > 0) {
+            player.affection = Math.min(100, player.affection + killCount * 15);
         }
 
         player.meleeCooldown = player.stats.meleeCd;
@@ -480,6 +518,53 @@ class LoveHero {
             saveData.global = saveData.global || {};
             saveData.global.love_unity_count = (saveData.global.love_unity_count || 0) + 1;
         }
+    }
+
+    // ─── Heartburst (auto-trigger at 100 affection) ──────────────────────────
+    // Fires 12 piercing heart projectiles in all directions, heals the player,
+    // then resets the affection meter to 0 to start the loop again.
+    static _triggerHeartburst(player) {
+        const streak = player._heartburstStreak || 0;
+
+        // Scale with streak: more projectiles, more damage, bigger heal
+        const COUNT = Math.min(24, 12 + streak * 4);
+        const dmgMult = 1.8 + streak * 0.5;
+        const healPct = 0.15 + streak * 0.05;
+        const spd = (player.stats.projectileSpeed || 12) * 1.2;
+        const dmg = player.stats.rangeDmg * (player.damageMultiplier || 1) * dmgMult;
+        const sz  = (player.stats.projectileSize || 10) + 4 + streak;
+
+        for (let i = 0; i < COUNT; i++) {
+            const angle = (Math.PI * 2 * i) / COUNT;
+            const proj  = new Projectile(
+                player.x, player.y,
+                { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd },
+                dmg, '#ff1a6b', sz, 'love', 0, false
+            );
+            proj._loveHeartArrow = true;
+            proj.pierce = 99;
+            proj.onHit = (enemy) => {
+                LoveHero._charmEnemy(player, enemy);
+                return undefined;
+            };
+            if (typeof projectiles !== 'undefined') projectiles.push(proj);
+        }
+
+        // Heal scales with streak
+        player.hp = Math.min(player.maxHp, player.hp + player.maxHp * healPct);
+
+        if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#ff1a6b', 16 + streak * 4);
+        if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
+            const label = streak > 0 ? `💗 HEARTBURST x${streak + 1}` : '💗 HEARTBURST';
+            floatingTexts.push(new FloatingText(player.x, player.y - 70, label, '#ff1a6b', 2.8));
+        }
+        if (typeof audioManager !== 'undefined') audioManager.play('anchor_love');
+
+        // Advance the streak — resets only when the player takes a hit
+        player._heartburstStreak = streak + 1;
+
+        // Drain the meter — player fills it again for the next burst
+        player.affection = 0;
     }
 
     static _endHeartUnity(player) {
@@ -626,6 +711,13 @@ class LoveHero {
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(bx, by, barW * pct, 5);
                 ctx.globalAlpha = 1;
+            }
+            // Streak indicator
+            if ((player._heartburstStreak || 0) > 0) {
+                ctx.font = 'bold 9px monospace';
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#ff1a6b';
+                ctx.fillText('x' + player._heartburstStreak, bx + barW, by - 2);
             }
             ctx.restore();
         }
