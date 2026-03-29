@@ -3,7 +3,7 @@ const BASE_HERO_STATS = {
     fire: { color: '#e74c3c', hp: 60, speed: 4, rangeDmg: 25, meleeDmg: 100, rangeCd: 15, meleeCd: 120, projectileSpeed: 12, projectileSize: 6, knockback: 4 },
     water: { color: '#3498db', hp: 60, speed: 4.5, rangeDmg: 12, meleeDmg: 80, rangeCd: 8, meleeCd: 100, projectileSpeed: 10, projectileSize: 5, knockback: 20 },
     ice: { color: '#ecf0f1', hp: 50, speed: 4, rangeDmg: 15, meleeDmg: 90, rangeCd: 25, meleeCd: 130, projectileSpeed: 15, projectileSize: 4, knockback: 2 },
-    plant: { color: '#2ecc71', hp: 70, speed: 3.5, rangeDmg: 10, meleeDmg: 120, rangeCd: 30, meleeCd: 140, projectileSpeed: 9, projectileSize: 7, knockback: 8 },
+    plant: { color: '#2ecc71', hp: 70, speed: 3.5, rangeDmg: 22, meleeDmg: 120, rangeCd: 30, meleeCd: 140, projectileSpeed: 9, projectileSize: 7, knockback: 8 },
     metal: { color: '#95a5a6', hp: 100, speed: 3, rangeDmg: 40, meleeDmg: 150, rangeCd: 40, meleeCd: 180, projectileSpeed: 18, projectileSize: 8, knockback: 12 },
     black: { color: '#2c3e50', hp: 150, speed: 5, rangeDmg: 50, meleeDmg: 200, rangeCd: 10, meleeCd: 80, projectileSpeed: 20, projectileSize: 10, knockback: 25 } // Hero of Darkness
 };

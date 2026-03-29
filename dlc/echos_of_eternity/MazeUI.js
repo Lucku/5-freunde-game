@@ -65,6 +65,7 @@ class MazeUI {
         this._selectedNode = null;
         this._hoveredNode  = null;
         this._gpPrev       = {};
+        this._openFrame    = 0;  // frames since open — gate confirmation to avoid instant-close when A is held
 
         // Reset pan to show start of map (left side)
         this._panX = 0;
@@ -236,6 +237,7 @@ class MazeUI {
 
     // ─── Rendering ────────────────────────────────────────────────────────────
     _render() {
+        this._openFrame++;
         this._handleGamepad();
 
         const ctx = this._ctx;
@@ -705,8 +707,8 @@ class MazeUI {
         if (dDown)  this._moveSelection( 0,  1);
         if (dUp)    this._moveSelection( 0, -1);
 
-        // A button (0) or Start (9) — confirm
-        if (pressed(0) || pressed(9)) {
+        // A button (0) or Start (9) — confirm (gated: ignore first 25 frames so a held A from gameplay doesn't fire)
+        if (this._openFrame > 25 && (pressed(0) || pressed(9))) {
             if (this._selectedNode) this._confirmSelection();
         }
 

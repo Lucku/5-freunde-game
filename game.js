@@ -33,6 +33,8 @@ canvas.addEventListener('click', function (e) {
 function _doBossContinue() {
     _bossChoiceScreen = false;
     _bossChoiceFrame = 0;
+    _bossChoiceFocus = 0;
+    _bossChoiceGpPrev = {};
     window._bossContinueBtn = null;
     window._bossQuitBtn = null;
     triggerStory(wave);
@@ -1343,6 +1345,8 @@ let bossDeathTimer = 0; // Timer for slow-mo effect
 let _bossChoiceScreen = false;  // Choice screen active after cinematic ends
 let _bossChoiceFrame = 0;       // Frame counter for live animations on choice screen
 let _bossChoiceGpConsumed = false; // Gamepad debounce
+let _bossChoiceFocus = 0;       // 0 = Continue focused, 1 = Save & Quit focused
+let _bossChoiceGpPrev = {};     // Edge-detection state for D-pad navigation
 var isPlayerDying = false; // Player death animation flag - Exposed for Player.js
 let playerDeathTimer = 0; // Timer for player death animation
 
@@ -1876,6 +1880,9 @@ function updateUI() {
     // Update Special Ability UI
     const specialPercent = Math.max(0, (player.specialCooldown / player.specialMaxCooldown) * 100);
     document.getElementById('special-cooldown-overlay').style.height = specialPercent + '%';
+    // Show Y for gamepad, E for keyboard
+    const _specialKeyEl = document.getElementById('special-key');
+    if (_specialKeyEl) _specialKeyEl.innerText = player.usingGamepad ? 'Y' : 'E';
     if (player.specialCooldown <= 0) {
         document.getElementById('special-icon').style.opacity = 1;
         document.getElementById('special-container').style.borderColor = '#f1c40f';
@@ -2919,6 +2926,10 @@ function startGame(mode = 'NORMAL') {
     isVersusMode = (mode === 'VERSUS');
     isTutorialMode = (mode === 'TUTORIAL');
 
+    // Always reset the chaos HUD so "CHALLENGE FAILED" text from a previous run never bleeds in
+    const _chaosHud = document.getElementById('chaos-challenge-hud');
+    if (_chaosHud) { _chaosHud.style.display = 'none'; _chaosHud.innerHTML = ''; }
+
     // Handle Versus Biome Selection
     if (isVersusMode && window.selectedBiome) {
         if (window.selectedBiome === 'random') {
@@ -3645,6 +3656,8 @@ function masterLoop(timestamp) {
                         _bossChoiceScreen = true;
                         _bossChoiceFrame = 0;
                         _bossChoiceGpConsumed = false;
+                        _bossChoiceFocus = 0;
+                        _bossChoiceGpPrev = {};
                     }
                 }
                 return; // Always prevent normal render during cinematic
@@ -3715,51 +3728,73 @@ function masterLoop(timestamp) {
                 const _contX = _bcx - _btW - _btGap / 2;
                 const _quitX = _bcx + _btGap / 2;
 
+                // Detect gamepad to decide hint text and update focus via D-pad/stick
+                let _gpActive = false;
+                if (_bossChoiceFrame > 20) {
+                    const _gpads = navigator.getGamepads ? navigator.getGamepads() : [];
+                    for (const _gp of _gpads) {
+                        if (!_gp) continue;
+                        _gpActive = true;
+                        const _gpPressed = (idx) => _gp.buttons[idx]?.pressed && !_bossChoiceGpPrev[idx];
+                        const _stickX = _gp.axes[0] || 0;
+                        const _dRight = _gpPressed(15) || (_stickX > 0.45 && !_bossChoiceGpPrev.sR);
+                        const _dLeft  = _gpPressed(14) || (_stickX < -0.45 && !_bossChoiceGpPrev.sL);
+                        if (_dRight) _bossChoiceFocus = 1;
+                        if (_dLeft)  _bossChoiceFocus = 0;
+                        // A confirms focused button; B shortcuts to Save & Quit
+                        if (!_bossChoiceGpConsumed) {
+                            if (_gpPressed(0)) { _bossChoiceGpConsumed = true; _bossChoiceFocus === 0 ? _doBossContinue() : saveAndQuit(); break; }
+                            if (_gpPressed(1)) { _bossChoiceGpConsumed = true; saveAndQuit(); break; }
+                        }
+                        const _anyHeld = _gp.buttons[0]?.pressed || _gp.buttons[1]?.pressed;
+                        if (!_anyHeld) _bossChoiceGpConsumed = false;
+                        // Store prev state
+                        for (let _bi = 0; _bi < _gp.buttons.length; _bi++) _bossChoiceGpPrev[_bi] = _gp.buttons[_bi]?.pressed;
+                        _bossChoiceGpPrev.sR = _stickX > 0.45;
+                        _bossChoiceGpPrev.sL = _stickX < -0.45;
+                        break; // only first connected gamepad
+                    }
+                }
+
                 ctx.save();
-                // Continue (gold)
-                ctx.globalAlpha = _fi * 0.92;
-                ctx.strokeStyle = 'rgba(241,196,15,0.85)';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath(); ctx.roundRect(_contX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
-                ctx.fillStyle = 'rgba(241,196,15,0.12)'; ctx.fill();
-                ctx.fillStyle = '#f1c40f';
                 ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.font = 'bold 11px Arial';
+
+                // Continue button
+                const _contFocused = (_bossChoiceFocus === 0);
+                ctx.globalAlpha = _fi * (_contFocused ? 1.0 : 0.72);
+                ctx.strokeStyle = _contFocused ? '#f1c40f' : 'rgba(241,196,15,0.55)';
+                ctx.lineWidth = _contFocused ? 2.5 : 1.5;
+                ctx.beginPath(); ctx.roundRect(_contX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
+                ctx.fillStyle = _contFocused ? 'rgba(241,196,15,0.22)' : 'rgba(241,196,15,0.08)'; ctx.fill();
+                if (_contFocused) { ctx.shadowColor = '#f1c40f'; ctx.shadowBlur = 12; }
+                ctx.fillStyle = '#f1c40f';
                 ctx.fillText('CONTINUE  \u2192', _contX + _btW / 2, _btY);
+                ctx.shadowBlur = 0;
                 window._bossContinueBtn = { x: _contX, y: _btY - _btH / 2, w: _btW, h: _btH };
 
-                // Save & Quit (subtle)
-                ctx.globalAlpha = _fi * 0.72;
-                ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-                ctx.lineWidth = 1;
+                // Save & Quit button
+                const _quitFocused = (_bossChoiceFocus === 1);
+                ctx.globalAlpha = _fi * (_quitFocused ? 0.95 : 0.55);
+                ctx.strokeStyle = _quitFocused ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)';
+                ctx.lineWidth = _quitFocused ? 2.5 : 1;
                 ctx.beginPath(); ctx.roundRect(_quitX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
-                ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fill();
-                ctx.globalAlpha = _fi * 0.65;
+                ctx.fillStyle = _quitFocused ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'; ctx.fill();
+                if (_quitFocused) { ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 10; }
                 ctx.fillStyle = '#ffffff';
                 ctx.fillText('SAVE  &  QUIT', _quitX + _btW / 2, _btY);
+                ctx.shadowBlur = 0;
                 window._bossQuitBtn = { x: _quitX, y: _btY - _btH / 2, w: _btW, h: _btH };
 
-                // Controller hint
+                // Hint line — show gamepad or keyboard hint depending on active input
                 ctx.globalAlpha = _fi * 0.35;
                 ctx.fillStyle = '#ffffff';
                 ctx.font = '10px Arial';
-                ctx.fillText('[A] Continue    [B] Save & Quit', _bcx, _btY + _btH / 2 + 18);
+                const _hint = _gpActive
+                    ? '[A] Confirm    [←/→] Switch    [B] Save & Quit'
+                    : '[Click] Select    [Enter] Confirm';
+                ctx.fillText(_hint, _bcx, _btY + _btH / 2 + 18);
                 ctx.restore();
-
-                // Gamepad input (debounced, ignores first 20 frames to avoid accidental confirm)
-                if (_bossChoiceFrame > 20) {
-                    const _gpads = navigator.getGamepads ? navigator.getGamepads() : [];
-                    let _anyPressed = false;
-                    for (const _gp of _gpads) {
-                        if (!_gp) continue;
-                        if (_gp.buttons[0]?.pressed || _gp.buttons[1]?.pressed) _anyPressed = true;
-                        if (!_bossChoiceGpConsumed) {
-                            if (_gp.buttons[0]?.pressed) { _bossChoiceGpConsumed = true; _doBossContinue(); break; }
-                            if (_gp.buttons[1]?.pressed) { _bossChoiceGpConsumed = true; saveAndQuit(); break; }
-                        }
-                    }
-                    if (!_anyPressed) _bossChoiceGpConsumed = false;
-                }
 
                 return; // Prevent normal game render
             }
