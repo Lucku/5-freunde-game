@@ -47,6 +47,12 @@ class AudioManager {
             special_metal:     new Audio('audio/sounds/special_metal.wav'),
             special_plant:     new Audio('audio/sounds/special_plant.wav'),
             special_water:     new Audio('audio/sounds/special_water.wav'),
+
+            // Weather ambience (looped)
+            weather_blizzard:     new Audio('audio/sounds/weather_blizzard.wav'),
+            weather_heatwave:     new Audio('audio/sounds/weather_heatwave.wav'),
+            weather_thunderstorm: new Audio('audio/sounds/weather_thunderstorm.wav'),
+            weather_thunder_crack: new Audio('audio/sounds/weather_thunder_crack.wav'),
         };
 
         // DLC extension points
@@ -88,6 +94,11 @@ class AudioManager {
         ['attack_fire','attack_water','attack_ice','attack_plant','attack_metal','attack_black','melee_all'].forEach(k => {
             this.tracks[k].volume = 0.25;
         });
+
+        this.tracks.weather_blizzard.loop     = true;  this.tracks.weather_blizzard.volume     = 0.30;
+        this.tracks.weather_heatwave.loop     = true;  this.tracks.weather_heatwave.volume     = 0.25;
+        this.tracks.weather_thunderstorm.loop = true;  this.tracks.weather_thunderstorm.volume = 0.35;
+        this.tracks.weather_thunder_crack.volume = 0.55;
 
         this.musicEnabled = true;
         this.sfxEnabled   = true;

@@ -133,8 +133,9 @@ const weeklyTiers = [
 weeklyTiers.forEach(t => addAch(`WEEKLY_CHALLENGE_${t[0]}`, t[1], `Complete ${t[0]} Weekly Challenges.`, t[0], 'weekly_wins', 'gold', t[2], `+${(t[2] * 100).toFixed(0)}% Gold`));
 
 const WEATHER_TYPES = [
-    { id: 'BLIZZARD', name: 'BLIZZARD', color: 'rgba(200, 230, 255, 0.3)', duration: 600 },
-    { id: 'HEATWAVE', name: 'HEATWAVE', color: 'rgba(255, 100, 50, 0.2)', duration: 600 }
+    { id: 'BLIZZARD',     name: 'BLIZZARD',     color: 'rgba(200, 230, 255, 0.15)', duration: 900 },
+    { id: 'HEATWAVE',     name: 'HEATWAVE',     color: 'rgba(255, 100, 50, 0.12)',  duration: 750 },
+    { id: 'THUNDERSTORM', name: 'THUNDERSTORM', color: 'rgba(40,  40,  70,  0.30)', duration: 780 },
 ];
 
 const ELITE_TYPES = [

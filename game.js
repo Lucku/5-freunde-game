@@ -1354,6 +1354,9 @@ let playerDeathTimer = 0; // Timer for player death animation
 let currentWeather = null;
 let weatherTimer = 3600; // Time until next weather
 let weatherDuration = 0;
+let weatherParticles = [];   // screen-space snow / ember particles
+let _weatherFlash   = 0;     // thunderstorm screen-flash opacity
+let _weatherBolts   = [];    // { x, y, segs, life, maxLife } lightning bolts
 
 // GLOBAL VARIABLES (Window Scope for DLC Access)
 var player;
@@ -3055,6 +3058,12 @@ function startGame(mode = 'NORMAL') {
     isShopping = false;
     currentWeather = null;
     weatherTimer = 3600; // Start with 1 minute clear weather
+    weatherParticles = [];
+    _weatherFlash    = 0;
+    _weatherBolts    = [];
+    if (typeof audioManager !== 'undefined') {
+        ['weather_blizzard', 'weather_heatwave', 'weather_thunderstorm'].forEach(k => audioManager.stopLoop(k));
+    }
 
     // Reset Stats
     currentRunStats = {
@@ -3896,32 +3905,158 @@ function masterLoop(timestamp) {
             window.frame = frame; // Expose for DLCs
             window.enemies = enemies; // Keep DLC reference in sync (enemies = [] creates a new array)
 
-            // Weather Logic
+            // ── Weather Logic ─────────────────────────────────────────────────
             if (currentWeather) {
                 weatherDuration--;
                 if (weatherDuration <= 0) {
+                    // Weather ending
+                    if (typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + currentWeather.id.toLowerCase());
                     currentWeather = null;
+                    weatherParticles = [];
+                    _weatherBolts    = [];
+                    _weatherFlash    = 0;
                     document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
                     document.getElementById('weather-display').style.display = 'none';
-                    weatherTimer = 3600 + Math.random() * 2400; // 1-1.5 minutes break
+                    weatherTimer = 3600 + Math.random() * 2400;
                 } else {
-                    // Weather Effects
-                    if (currentWeather.id === 'HEATWAVE') {
-                        // Mirage Effect handled in Camera Update
+                    const wProg = weatherDuration / currentWeather.duration; // 1→0 as weather fades
+                    const wFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
+
+                    if (currentWeather.id === 'BLIZZARD') {
+                        // ── Snow particles (screen-space, spawned per frame) ──────────
+                        const spawnCount = Math.floor(4 * wFadeIn) + 1;
+                        for (let _s = 0; _s < spawnCount; _s++) {
+                            weatherParticles.push({
+                                x: Math.random() * canvas.width,
+                                y: -8,
+                                vx: (Math.random() - 0.5) * 1.2 - 0.5,
+                                vy: 1.2 + Math.random() * 2.0,
+                                r:  1.0 + Math.random() * 2.2,
+                                alpha: 0.55 + Math.random() * 0.4,
+                                wobble: Math.random() * Math.PI * 2,
+                            });
+                        }
+                        // Projectile drag — wind resistance slows shots mid-air
+                        for (let _pi = 0; _pi < projectiles.length; _pi++) {
+                            projectiles[_pi].velocity.x *= 0.975;
+                            projectiles[_pi].velocity.y *= 0.975;
+                        }
+
+                    } else if (currentWeather.id === 'HEATWAVE') {
+                        // ── Periodic heat damage to player ────────────────────────────
+                        if (frame % 300 === 0 && wFadeIn >= 1 && !player.isInvincible) {
+                            const heatDmg = Math.ceil(player.maxHp * 0.02); // 2% max HP
+                            player.hp -= heatDmg * (1 - player.damageReduction);
+                            floatingTexts.push(new FloatingText(player.x, player.y - 30, `🔥${heatDmg}`, '#e74c3c', 16));
+                        }
+
+                        // ── Rising ember / shimmer particles ─────────────────────────
+                        if (Math.random() < 0.35 * wFadeIn) {
+                            weatherParticles.push({
+                                x: Math.random() * canvas.width,
+                                y: canvas.height + 5,
+                                vx: (Math.random() - 0.5) * 0.8,
+                                vy: -(0.6 + Math.random() * 1.4),
+                                r:  1.2 + Math.random() * 2.5,
+                                alpha: 0.3 + Math.random() * 0.35,
+                                wobble: Math.random() * Math.PI * 2,
+                                ember: true,
+                            });
+                        }
+
+                    } else if (currentWeather.id === 'THUNDERSTORM') {
+                        // ── Rain streak particles ─────────────────────────────────────
+                        const rainCount = Math.floor(6 * wFadeIn) + 1;
+                        for (let _r = 0; _r < rainCount; _r++) {
+                            weatherParticles.push({
+                                x: Math.random() * (canvas.width + 100) - 50,
+                                y: -10,
+                                vx: -1.5,
+                                vy: 14 + Math.random() * 6,
+                                len: 12 + Math.random() * 10,
+                                alpha: 0.25 + Math.random() * 0.25,
+                                wobble: 0,
+                                rain: true,
+                            });
+                        }
+
+                        // ── Lightning bolts + enemy damage ───────────────────────────
+                        _weatherFlash = Math.max(0, _weatherFlash - 0.04);
+
+                        // Chance to strike a bolt each frame
+                        const strikeChance = 0.018 + (1 - wProg) * 0.012; // ramps up over time
+                        if (Math.random() < strikeChance * wFadeIn) {
+                            _weatherFlash = 0.55;
+                            if (typeof audioManager !== 'undefined') audioManager.play('weather_thunder_crack');
+
+                            // Pick a random target point — bias toward enemies
+                            let tx, ty;
+                            if (enemies.length > 0 && Math.random() < 0.65) {
+                                const target = enemies[Math.floor(Math.random() * enemies.length)];
+                                tx = target.x - arena.camera.x;
+                                ty = target.y - arena.camera.y;
+                                // Damage the struck enemy
+                                target.hp -= (player.rangeDmg || 20) * 1.8;
+                                createExplosion(target.x, target.y, '#ffffaa', 6);
+                            } else {
+                                tx = Math.random() * canvas.width;
+                                ty = Math.random() * canvas.height;
+                            }
+
+                            // Build jagged bolt segments from top of screen down to target
+                            const segs = [];
+                            let bx = tx + (Math.random() - 0.5) * 200;
+                            const steps = 8 + Math.floor(Math.random() * 5);
+                            for (let _i = 0; _i <= steps; _i++) {
+                                const progress = _i / steps;
+                                segs.push({
+                                    x: bx + (Math.random() - 0.5) * 60,
+                                    y: progress * ty
+                                });
+                                bx += (tx - bx) * 0.25;
+                            }
+                            segs[segs.length - 1] = { x: tx, y: ty };
+                            _weatherBolts.push({ segs, life: 10, maxLife: 10 });
+                        }
+
+                        // Age bolts
+                        for (let _bi = _weatherBolts.length - 1; _bi >= 0; _bi--) {
+                            if (--_weatherBolts[_bi].life <= 0) _weatherBolts.splice(_bi, 1);
+                        }
+                    }
+
+                    // Tick all weather particles
+                    for (let _pi = weatherParticles.length - 1; _pi >= 0; _pi--) {
+                        const p = weatherParticles[_pi];
+                        p.wobble += 0.05;
+                        p.x += p.vx + Math.sin(p.wobble) * 0.5;
+                        p.y += p.vy;
+                        if (p.y > canvas.height + 10 || p.y < -10) weatherParticles.splice(_pi, 1);
                     }
                 }
             } else {
                 weatherTimer--;
                 if (weatherTimer <= 0) {
-                    currentWeather = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
+                    // Filter weathers incompatible with the current biome
+                    const _compatibleWeathers = WEATHER_TYPES.filter(w => {
+                        if (w.id === 'BLIZZARD'  && currentBiomeType === 'fire')  return false;
+                        if (w.id === 'HEATWAVE'  && currentBiomeType === 'ice')   return false;
+                        return true;
+                    });
+                    const _pool = _compatibleWeathers.length > 0 ? _compatibleWeathers : WEATHER_TYPES;
+                    currentWeather = _pool[Math.floor(Math.random() * _pool.length)];
                     weatherDuration = currentWeather.duration;
                     document.getElementById('weather-overlay').style.backgroundColor = currentWeather.color;
                     const wDisplay = document.getElementById('weather-display');
-                    wDisplay.innerText = `WARNING: ${currentWeather.name}`;
-                    wDisplay.style.color = currentWeather.id === 'HEATWAVE' ? '#e74c3c' : (currentWeather.id === 'BLIZZARD' ? '#3498db' : '#9b59b6');
+                    wDisplay.innerText = `⚠ ${currentWeather.name}`;
+                    wDisplay.style.color = currentWeather.id === 'HEATWAVE' ? '#e74c3c'
+                        : currentWeather.id === 'THUNDERSTORM' ? '#9b59b6'
+                        : '#3498db';
                     wDisplay.style.display = 'block';
+                    if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + currentWeather.id.toLowerCase());
                 }
             }
+            // ── End Weather Logic ─────────────────────────────────────────────
 
             // --- Spawning Logic ---
             // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
@@ -5082,6 +5217,66 @@ function masterLoop(timestamp) {
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.restore();
             }
+
+            // ── Weather Particle Render (screen-space) ─────────────────────────
+            if (weatherParticles.length > 0) {
+                ctx.save();
+                const wid = currentWeather?.id;
+                for (const p of weatherParticles) {
+                    ctx.globalAlpha = p.alpha;
+                    if (p.rain) {
+                        ctx.strokeStyle = '#8ab4d8';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p.x + p.vx / p.vy * p.len, p.y + p.len);
+                        ctx.stroke();
+                    } else if (wid === 'BLIZZARD') {
+                        ctx.fillStyle = '#dff0ff';
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (wid === 'HEATWAVE') {
+                        ctx.fillStyle = p.color || '#ff6b2b';
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                ctx.globalAlpha = 1;
+                ctx.restore();
+            }
+
+            // Thunderstorm flash + bolts (screen-space)
+            if (_weatherFlash > 0) {
+                ctx.save();
+                ctx.globalAlpha = _weatherFlash;
+                ctx.fillStyle = '#c8d8ff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1;
+                ctx.restore();
+            }
+            if (_weatherBolts.length > 0) {
+                ctx.save();
+                for (const bolt of _weatherBolts) {
+                    const progress = bolt.life / bolt.maxLife;
+                    ctx.globalAlpha = progress;
+                    ctx.strokeStyle = '#e8f4ff';
+                    ctx.shadowColor = '#a0c8ff';
+                    ctx.shadowBlur = 12;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    if (bolt.segs && bolt.segs.length > 0) {
+                        ctx.moveTo(bolt.segs[0].x, bolt.segs[0].y);
+                        for (let si = 1; si < bolt.segs.length; si++) ctx.lineTo(bolt.segs[si].x, bolt.segs[si].y);
+                    }
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+            // ──────────────────────────────────────────────────────────────────
 
             updateUI();
 

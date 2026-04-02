@@ -204,7 +204,8 @@ class Enemy {
         const angle = Math.atan2(targetY - this.y, targetX - this.x);
         let moveX = 0, moveY = 0;
         let currentSpeed = this.speed * (this.biomeSpeedMod || 1); // Fix biomeSpeedMod undefined
-        if (currentWeather && currentWeather.id === 'BLIZZARD') currentSpeed *= 0.5;
+        if (currentWeather && currentWeather.id === 'BLIZZARD')  currentSpeed *= 0.5;
+        if (currentWeather && currentWeather.id === 'HEATWAVE')  currentSpeed *= 1.15;
         if (this.slowTimer > 0) {
             currentSpeed *= 0.5;
             this.slowTimer--;

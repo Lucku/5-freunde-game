@@ -623,6 +623,40 @@ const SOUNDS = [
         description: 'Concentrated shadow beam fired at extreme speed toward a target, dark energy lance discharge, piercing void ray with deep resonant hiss',
     },
 
+    // ── WEATHER AMBIENCE ──────────────────────────────────────────────────────
+    {
+        id: 'weather_blizzard',
+        boss: 'weather',
+        filename: 'weather_blizzard.wav',
+        duration: 4.0,
+        promptInfluence: 0.3,
+        description: 'Howling blizzard wind ambience, icy gusts sweeping across an open field, deep rumbling wind with subtle whistling tones, cold and relentless winter storm loop',
+    },
+    {
+        id: 'weather_heatwave',
+        boss: 'weather',
+        filename: 'weather_heatwave.wav',
+        duration: 4.0,
+        promptInfluence: 0.3,
+        description: 'Scorching heatwave ambience, shimmering air distortion sound, faint crackling heat shimmer, oppressive dry summer heat with distant buzzing cicadas loop',
+    },
+    {
+        id: 'weather_thunderstorm',
+        boss: 'weather',
+        filename: 'weather_thunderstorm.wav',
+        duration: 4.0,
+        promptInfluence: 0.3,
+        description: 'Thunderstorm ambience loop, heavy rain pouring down with rumbling distant thunder, dramatic electrical storm atmosphere, intense weather loop',
+    },
+    {
+        id: 'weather_thunder_crack',
+        boss: 'weather',
+        filename: 'weather_thunder_crack.wav',
+        duration: 1.5,
+        promptInfluence: 0.4,
+        description: 'Single sharp lightning bolt strike, immediate thunderclap crack with deep resonant rumble, close-range lightning impact, powerful electrical discharge with short echo',
+    },
+
     // ── TIME WRAITH (Echos of Eternity) ──────────────────────────────────────
     {
         id: 'time_wraith_shadow_pulse',

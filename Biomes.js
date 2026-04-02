@@ -319,7 +319,10 @@ class IceBiome {
     }
 
     update(arena, player) {
-        if (this.snowflakes.length < 200 && Math.random() < 0.12) {
+        const inBlizzard = typeof currentWeather !== 'undefined' && currentWeather?.id === 'BLIZZARD';
+        const snowCap  = inBlizzard ? 500 : 200;
+        const snowRate = inBlizzard ? 0.40 : 0.12;
+        if (this.snowflakes.length < snowCap && Math.random() < snowRate) {
             const cam = arena.camera;
             const life = 200 + Math.random() * 200;
             this.snowflakes.push({
