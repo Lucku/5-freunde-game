@@ -32,13 +32,17 @@
     }
 
     function explosion(x, y, color, count) {
-        if (typeof createExplosion === 'function') createExplosion(x, y, color || '#fff', count || 12);
+        if (typeof createExplosion === 'function') createExplosion(x, y, color || '#4d4343', count || 12);
     }
 
     function floatText(x, y, txt, color) {
         if (typeof floatingTexts !== 'undefined') {
             floatingTexts.push(new FloatingText(x, y - 60, txt, color || '#fff', 2.5));
         }
+    }
+
+    function sfx(id) {
+        if (typeof audioManager !== 'undefined') audioManager.play(id);
     }
 
     function applyHuntElite(boss) {
@@ -107,6 +111,7 @@
                 b.pulseCooldown = 140;
                 explosion(b.x, b.y, '#9ab8d0', 16);
                 floatText(b.x, b.y, 'PHASE SHIFT', '#9ab8d0');
+                sfx('time_wraith_clone_spawn');
                 // Spawn 2 clones
                 for (let i = 0; i < 2; i++) {
                     b.clones.push({ x: b.x + (i === 0 ? -120 : 120), y: b.y, life: 240, maxLife: 240 });
@@ -119,6 +124,7 @@
                 b.attackMaxCooldown = 45;
                 explosion(b.x, b.y, '#ffffff', 20);
                 floatText(b.x, b.y, 'FINAL ECHO', '#ffffff');
+                sfx('time_wraith_final_echo');
             }
 
             // Shadow pulse (AoE burst every pulseCooldown frames)
@@ -127,12 +133,14 @@
                 b.pulseCooldown = b.phase >= 2 ? 140 : 200;
                 burst(b.x, b.y, b.phase === 3 ? 16 : 10, 3.2, b.damage * 0.7, '#c0d8f0', 7);
                 explosion(b.x, b.y, '#9ab8d0', 6);
+                sfx('time_wraith_shadow_pulse');
             }
 
             // Main attack — twin projectiles
             b.attackCooldown--;
             if (b.attackCooldown <= 0) {
                 b.attackCooldown = b.attackMaxCooldown;
+                sfx('time_wraith_twin_shot');
                 const a = Math.atan2(dy, dx);
                 const spread = 0.25;
                 for (let s = -1; s <= 1; s += 2) {
@@ -156,6 +164,7 @@
                 b.x = Math.max(b.radius, Math.min(ar.width  - b.radius, t.x + Math.cos(ba) * 250));
                 b.y = Math.max(b.radius, Math.min(ar.height - b.radius, t.y + Math.sin(ba) * 250));
                 explosion(b.x, b.y, '#9ab8d0', 8);
+                sfx('time_wraith_blink');
             }
 
             // Clones tick
@@ -263,6 +272,7 @@
                 b.rifts.push({ angle: Math.PI * 1.5, dist: 130, fireCooldown: 90, firePhase: 3 });
                 explosion(b.x, b.y, '#7b2d8b', 18);
                 floatText(b.x, b.y, 'RIFT DESTABILIZED', '#cc44ff');
+                sfx('temporal_rift_destabilized');
             }
 
             // Rotate orbiting rifts
@@ -275,6 +285,7 @@
                     const ry = b.y + Math.sin(r.angle) * r.dist;
                     const ra = Math.atan2(t.y - ry, t.x - rx);
                     spawnProj(rx, ry, Math.cos(ra) * 4.0, Math.sin(ra) * 4.0, b.damage * 0.8, '#cc44ff', 8);
+                    sfx('temporal_rift_portal_shot');
                     // Phase 2: also fire perpendicular
                     if (b.phase === 2) {
                         spawnProj(rx, ry, Math.cos(ra + Math.PI / 2) * 3.0, Math.sin(ra + Math.PI / 2) * 3.0, b.damage * 0.5, '#9933cc', 7);
@@ -294,6 +305,7 @@
             if (b.pullCooldown <= 0) {
                 b.pullCooldown = b.phase === 2 ? 200 : 280;
                 floatText(b.x, b.y, 'VOID PULL', '#cc44ff');
+                sfx('temporal_rift_void_pull');
                 // Pull player toward boss
                 const allTargets = [player];
                 if (typeof player2 !== 'undefined' && player2 && !player2.isDead) allTargets.push(player2);
@@ -313,6 +325,7 @@
                 if (!b._shockwaves) b._shockwaves = [];
                 b._shockwaves.push({ x: b.x, y: b.y, r: b.radius, maxR: 350, life: 50 });
                 explosion(b.x, b.y, '#7b2d8b', 10);
+                sfx('temporal_rift_shockwave');
             }
 
             // Shockwave damage check
@@ -445,6 +458,7 @@
                     b.attackMaxCooldown = Math.max(30, b.attackMaxCooldown - 12);
                     explosion(b.x, b.y, '#4444ff', 22);
                     floatText(b.x, b.y, ['TEMPORAL SURGE', 'REALITY FRACTURE', 'COLLAPSE IMMINENT'][i], '#8888ff');
+                    sfx('eternal_collapse_phase_surge');
                     // Add more shards
                     for (let s = 0; s < 4; s++) {
                         b._shards.push({
@@ -483,6 +497,7 @@
                         b._absorbedCount = 0;
                         b._absorbActiveFor = 60;
                         floatText(b.x, b.y, 'ABSORBING...', '#4444ff');
+                        sfx('eternal_collapse_absorb');
                     }
                 } else {
                     b._absorbActiveFor--;
@@ -505,6 +520,7 @@
                             const count = Math.min(b._absorbedCount * 2, 20);
                             burst(b.x, b.y, count, 4.0, b.damage * 0.9, '#4444ff', 9);
                             floatText(b.x, b.y, 'ENERGY RELEASED', '#8888ff');
+                            sfx('eternal_collapse_release');
                         }
                     }
                 }
@@ -516,6 +532,7 @@
             b.attackCooldown--;
             if (b.attackCooldown <= 0) {
                 b.attackCooldown = b.attackMaxCooldown;
+                sfx('eternal_collapse_spiral');
                 const a = Math.atan2(dy, dx);
                 // Spiral shot
                 const count = b.phase >= 3 ? 6 : (b.phase >= 2 ? 4 : 3);
@@ -541,6 +558,7 @@
                     b._collapseTimer = 500;
                     explosion(b.x, b.y, '#0000ff', 30);
                     floatText(b.x, b.y, 'ETERNAL COLLAPSE', '#8888ff');
+                    sfx('eternal_collapse_mega_burst');
                     // Ring of projectiles outward
                     burst(b.x, b.y, 24, 5.0, b.damage * 1.5, '#0000aa', 12);
                     // Then a second ring delayed — mark for next frame
@@ -660,6 +678,7 @@
                 b._boltCooldown   = 80;
                 explosion(b.x, b.y, '#c8aa6e', 20);
                 floatText(b.x, b.y, 'MASK UNLEASHED', '#ffd700');
+                sfx('mask_guardian_unleashed');
             }
 
             // Shield logic — b.immune is checked by game.js Boss immunity path
@@ -670,6 +689,7 @@
                     b._shielded = false;
                     b.immune = false;
                     b._shieldCooldown = b.phase === 2 ? 160 : 240;
+                    sfx('mask_guardian_shield_break');
                 }
             } else {
                 b._shieldCooldown--;
@@ -679,6 +699,7 @@
                     b._shieldTimer = b._shieldDuration;
                     floatText(b.x, b.y, 'SHIELD', '#ffd700');
                     explosion(b.x, b.y, '#c8aa6e', 8);
+                    sfx('mask_guardian_shield_up');
                 }
             }
 
@@ -703,6 +724,7 @@
                     b._chargeVy = Math.sin(ca) * chargeSpeed;
                     b._chargeDist = 350;
                     floatText(b.x, b.y, 'CHARGE!', '#ffd700');
+                    sfx('mask_guardian_dash_charge');
                 }
                 // Normal movement
                 b.x += (dx / dist) * b.speed;
@@ -826,6 +848,7 @@
                 b._voidNovaCooldown = 250;
                 explosion(b.x, b.y, '#6600cc', 20);
                 floatText(b.x, b.y, 'ECHO CONVERGENCE', '#cc00ff');
+                sfx('makuta_echo_convergence');
             }
 
             // Main attack — void spirals
@@ -833,6 +856,7 @@
             b.attackCooldown--;
             if (b.attackCooldown <= 0) {
                 b.attackCooldown = b.attackMaxCooldown;
+                sfx('makuta_void_spiral');
                 const spiralCount = b.phase === 2 ? 4 : 3;
                 for (let i = 0; i < spiralCount; i++) {
                     const sa = b._spiralAngle + (Math.PI * 2 / spiralCount) * i;
@@ -856,6 +880,7 @@
                     fireCooldown: 50 + Math.floor(Math.random() * 30)
                 });
                 floatText(b.x, b.y, 'ECHO', '#6600cc');
+                sfx('makuta_echo_spawn');
             }
 
             // Update echoes
@@ -878,6 +903,7 @@
                 burst(b.x, b.y, 20, 4.5, b.damage * 1.1, '#330066', 10);
                 explosion(b.x, b.y, '#6600cc', 16);
                 floatText(b.x, b.y, 'VOID NOVA', '#cc00ff');
+                sfx('makuta_void_nova');
                 // Also nova from all echoes
                 for (const e of b._echoes) {
                     burst(e.x, e.y, 8, 3.5, b.damage * 0.6, '#330066', 8);
@@ -1000,6 +1026,7 @@
                 b._stompCooldown = 140;
                 explosion(b.x, b.y, '#8090a0', 24);
                 floatText(b.x, b.y, 'CHROME RAGE', '#c0d0e0');
+                sfx('chrome_leviathan_rage');
             }
 
             // Movement — slow lumbering
@@ -1013,6 +1040,7 @@
                 b._laserTimer  = b._laserDuration;
                 b._laserAngle  = Math.atan2(dy, dx) - 0.8;
                 floatText(b.x, b.y, 'LASER SWEEP', '#c0d0e0');
+                sfx('chrome_leviathan_laser');
             }
             if (b._laserActive) {
                 b._laserTimer--;
@@ -1046,6 +1074,7 @@
                     b._stompRings.push({ x: b.x, y: b.y, r: b.radius, maxR: 180 + r * 80, life: 40 + r * 10 });
                 }
                 explosion(b.x, b.y, '#8090a0', 10);
+                sfx('chrome_leviathan_stomp');
             }
 
             // Update stomp rings
@@ -1067,6 +1096,7 @@
             b.attackCooldown--;
             if (b.attackCooldown <= 0) {
                 b.attackCooldown = b.attackMaxCooldown;
+                sfx('chrome_leviathan_spread');
                 const a = Math.atan2(dy, dx);
                 // 3-wide spread
                 for (let s = -1; s <= 1; s++) {
@@ -1207,6 +1237,7 @@
                 b._eraseCooldown = 160;
                 explosion(b.x, b.y, '#e8f0ff', 16);
                 floatText(b.x, b.y, 'WARDEN UNCHAINED', '#ffffff');
+                sfx('temporal_warden_unchained');
             }
 
             // Dash attack
@@ -1219,6 +1250,7 @@
                     b._dashCooldown = b.phase === 2 ? 100 : 150;
                     // Burst at end of dash
                     burst(b.x, b.y, 6, 5.0, b.damage * 0.9, '#e8f0ff', 9);
+                    sfx('temporal_warden_dash_burst');
                 }
             } else {
                 b._dashCooldown--;
@@ -1230,6 +1262,7 @@
                     b._dashVy = Math.sin(da) * dashSpeed;
                     b._dashDuration = b.phase === 2 ? 14 : 10;
                     floatText(b.x, b.y, 'DASH', '#e8f0ff');
+                    sfx('temporal_warden_dash');
                 } else {
                     b.x += (dx / dist) * b.speed;
                     b.y += (dy / dist) * b.speed;
@@ -1267,6 +1300,7 @@
                     }
                 }
                 floatText(b.x, b.y, 'TEMPORAL ERASE', '#e8f0ff');
+                sfx('temporal_warden_erase_grid');
             }
 
             // Process erase grid
@@ -1424,6 +1458,7 @@
                 b._stormCooldown  = 180;
                 explosion(b.x, b.y, '#ffe040', 22);
                 floatText(b.x, b.y, 'TITAN FURY', '#ffe040');
+                sfx('boss_thunder_titan_fury');
             }
 
             b.x += (dx / dist) * b.speed;
@@ -1433,6 +1468,7 @@
             b.attackCooldown--;
             if (b.attackCooldown <= 0) {
                 b.attackCooldown = b.attackMaxCooldown;
+                sfx('boss_thunder_lightning_volley');
                 const a = Math.atan2(dy, dx);
                 const count = b.phase === 2 ? 5 : 3;
                 for (let i = 0; i < count; i++) {
@@ -1445,6 +1481,7 @@
             b._boltCooldown--;
             if (b._boltCooldown <= 0) {
                 b._boltCooldown = b.phase === 2 ? 80 : 120;
+                sfx('boss_thunder_barrage');
                 // Random lightning strikes near player
                 const allP = [player];
                 if (typeof player2 !== 'undefined' && player2 && !player2.isDead) allP.push(player2);
@@ -1471,6 +1508,7 @@
                 burst(b.x, b.y, b.phase === 2 ? 20 : 14, 5.0, b.damage * 0.9, '#ffe040', 10);
                 explosion(b.x, b.y, '#ffe040', 14);
                 floatText(b.x, b.y, 'THUNDERSTORM', '#ffe040');
+                sfx('boss_thunder_storm_ring');
             }
         },
 
@@ -1585,6 +1623,7 @@
                 }
                 explosion(b.x, b.y, '#a060e0', 18);
                 floatText(b.x, b.y, 'CHAOS ASCENDANT', '#d080ff');
+                sfx('boss_spirit_chaos_ascendant');
             }
 
             // Unpredictable movement — random jitter
@@ -1603,6 +1642,7 @@
                 if (Math.random() < 0.008) {
                     const oa = Math.atan2(t.y - oy, t.x - ox);
                     spawnProj(ox, oy, Math.cos(oa) * 4.0, Math.sin(oa) * 4.0, b.damage * 0.55, '#d080ff', 7);
+                    sfx('boss_spirit_orb_fire');
                 }
                 // Orbs can be damaged by player projectiles
                 for (let pi = projectiles.length - 1; pi >= 0; pi--) {
@@ -1636,6 +1676,7 @@
             b._luckCooldown--;
             if (b._luckCooldown <= 0) {
                 b._luckCooldown = b.phase === 2 ? 90 : 140;
+                sfx('boss_spirit_luck_cascade');
                 // Random number of projectiles in random directions
                 const n = 5 + Math.floor(Math.random() * 10);
                 burst(b.x, b.y, n, 3.5 + Math.random() * 2, b.damage * 0.7, '#d080ff', 8);
@@ -1648,6 +1689,7 @@
                 burst(b.x, b.y, 18, 4.5, b.damage * 1.0, '#a060e0', 10);
                 explosion(b.x, b.y, '#d080ff', 14);
                 floatText(b.x, b.y, 'CHAOS NOVA', '#d080ff');
+                sfx('boss_spirit_chaos_nova');
             }
         },
 
@@ -1738,18 +1780,6 @@
             ctx.restore();
         }
     };
-
-    // Add BOSS_TYPES registrations so Boss constructor can accept them
-    if (typeof BOSS_TYPES !== 'undefined') {
-        const dlcTypes = [
-            'TIME_WRAITH', 'TEMPORAL_RIFT', 'ETERNAL_COLLAPSE',
-            'MASK_GUARDIAN', 'MAKUTA_ECHO', 'CHROME_LEVIATHAN', 'TEMPORAL_WARDEN',
-            'BOSS_THUNDER', 'BOSS_SPIRIT'
-        ];
-        for (const t of dlcTypes) {
-            if (!BOSS_TYPES.includes(t)) BOSS_TYPES.push(t);
-        }
-    }
 
     console.log('[EoE] TimeBosses registered:', Object.keys(window._DLC_BOSS_REGISTRY).join(', '));
 })();

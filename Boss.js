@@ -159,10 +159,12 @@ class Boss {
             if (this.type === 'TANK') {
                 this.speed *= 2.0; // Move faster
                 this.damage *= 1.5; // Hit harder
+                if (typeof audioManager !== 'undefined') audioManager.play('boss_tank_phase2');
                 // Visual change handled in draw
             } else if (this.type === 'SUMMONER') {
                 this.immune = true;
                 this.minionsToKill = 5;
+                if (typeof audioManager !== 'undefined') audioManager.play('boss_summoner_phase2');
                 // Spawn 5 specific minions
                 for (let i = 0; i < 5; i++) {
                     const angle = (Math.PI * 2 / 5) * i;
@@ -206,6 +208,7 @@ class Boss {
                     this.immune = false;
                     floatingTexts.push(new FloatingText(this.x, this.y - 60, "SHIELD BROKEN!", "#fff", 30));
                     createExplosion(this.x, this.y, '#fff');
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_summoner_shield_break');
                 }
             }
         }
@@ -349,6 +352,7 @@ class Boss {
             // Teleport Ability (Every 5 seconds)
             if (frame % 300 === 0) {
                 createExplosion(this.x, this.y, '#000');
+                if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_teleport');
                 // Teleport near player
                 const offsetAngle = Math.random() * Math.PI * 2;
                 this.x = player.x + Math.cos(offsetAngle) * 300;
@@ -476,6 +480,7 @@ class Boss {
 
             if (this.attackCooldown <= 0) {
                 if (this.type === 'TANK') {
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_tank_ring');
                     for (let i = 0; i < 12; i++) {
                         const a = (Math.PI * 2 / 12) * i + (frame * 0.1);
                         const vel = { x: Math.cos(a) * 5, y: Math.sin(a) * 5 };
@@ -490,6 +495,7 @@ class Boss {
                     this.attackCooldown = 10;
                 } else if (this.type === 'MAKUTA') {
                     // Shadow Nova
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_nova');
                     for (let i = 0; i < 16; i++) {
                         const a = (Math.PI * 2 / 16) * i;
                         const vel = { x: Math.cos(a) * 7, y: Math.sin(a) * 7 };
@@ -508,12 +514,14 @@ class Boss {
                         }
                     }
                     // Shadow Beam (Aimed at player)
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_beam');
                     const beamAngle = Math.atan2(player.y - this.y, player.x - this.x);
                     const beamVel = { x: Math.cos(beamAngle) * 12, y: Math.sin(beamAngle) * 12 };
                     projectiles.push(new Projectile(this.x, this.y, beamVel, this.damage * 1.5, '#500', 20, 'enemy', 0, true));
 
                     this.attackCooldown = 100; // Slightly slower to account for intensity
                 } else if (this.type === 'SUMMONER') {
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_summoner_spawn');
                     for (let i = 0; i < 3; i++) enemies.push(new Enemy(true));
                     this.attackCooldown = 200;
                 } else if (this.type === 'NOVA') {

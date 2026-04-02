@@ -18,7 +18,15 @@ class AudioManager {
             achievement_unlocked: new Audio('audio/sounds/achievement_unlocked.wav'),
             enemy_damage:      new Audio('audio/sounds/enemy_damage.wav'),
             dash:              new Audio('audio/sounds/dash_all.wav'),
-            boss_shooter:      new Audio('audio/sounds/attack_boss_shooter.wav'),
+            boss_shooter:         new Audio('audio/sounds/attack_boss_shooter.wav'),
+            boss_tank_ring:       new Audio('audio/sounds/boss_tank_ring.wav'),
+            boss_tank_phase2:     new Audio('audio/sounds/boss_tank_phase2.wav'),
+            boss_summoner_spawn:  new Audio('audio/sounds/boss_summoner_spawn.wav'),
+            boss_summoner_phase2: new Audio('audio/sounds/boss_summoner_phase2.wav'),
+            boss_summoner_shield_break: new Audio('audio/sounds/boss_summoner_shield_break.wav'),
+            boss_makuta_teleport:     new Audio('audio/sounds/boss_makuta_teleport.wav'),
+            boss_makuta_shadow_nova:  new Audio('audio/sounds/boss_makuta_shadow_nova.wav'),
+            boss_makuta_shadow_beam:  new Audio('audio/sounds/boss_makuta_shadow_beam.wav'),
             challenge_success: new Audio('audio/sounds/challenge_success.wav'),
             challenge_fail:    new Audio('audio/sounds/challenge_fail.wav'),
             damage:            new Audio('audio/sounds/damage.wav'),
@@ -67,6 +75,14 @@ class AudioManager {
         this.tracks.challenge_fail.volume = 0.6;
         this.tracks.boss_rhino_charge.volume = 0.6;
         this.tracks.boss_stomp.volume = 0.6;
+        this.tracks.boss_tank_ring.volume = 0.5;
+        this.tracks.boss_tank_phase2.volume = 0.6;
+        this.tracks.boss_summoner_spawn.volume = 0.45;
+        this.tracks.boss_summoner_phase2.volume = 0.6;
+        this.tracks.boss_summoner_shield_break.volume = 0.55;
+        this.tracks.boss_makuta_teleport.volume = 0.5;
+        this.tracks.boss_makuta_shadow_nova.volume = 0.6;
+        this.tracks.boss_makuta_shadow_beam.volume = 0.45;
         this.tracks.damage.volume = 0.4;
         this.tracks.death.volume = 0.6;
         ['attack_fire','attack_water','attack_ice','attack_plant','attack_metal','attack_black','melee_all'].forEach(k => {
