@@ -3,9 +3,3 @@
 - integrate all play modes into coop
 - overhaul weather effects
 - fix difficulty (currently too easy because of lower enemy count and collision damage)
-- streamline naming of boss audio files
-- identity missing base game boss sfx
-
-# Echos of Eternity
-
-- integrate DLC sfx correctly from DLC folder

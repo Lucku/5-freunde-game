@@ -531,7 +531,7 @@ const SOUNDS = [
     {
         id: 'boss_shooter',
         boss: 'base_ranged',
-        filename: 'attack_boss_shooter.wav',
+        filename: 'boss_shooter.wav',
         duration: 0.5,
         promptInfluence: 0.5,
         description: 'Boss monster firing a fast energy projectile, sharp ranged shot discharge, compact energy bolt launch sound',
@@ -539,7 +539,7 @@ const SOUNDS = [
     {
         id: 'boss_rhino_charge',
         boss: 'base_ranged',
-        filename: 'attack_boss_rhino.wav',
+        filename: 'boss_rhino_charge.wav',
         duration: 1.0,
         promptInfluence: 0.5,
         description: 'Heavy armored beast beginning a full-speed charge, thundering ground pounds accelerating, powerful beast ramming forward with snorting aggression',
@@ -547,7 +547,7 @@ const SOUNDS = [
     {
         id: 'boss_stomp',
         boss: 'base_ranged',
-        filename: 'attack_boss_rhino_2.wav',
+        filename: 'boss_stomp.wav',
         duration: 0.8,
         promptInfluence: 0.5,
         description: 'Massive stomp impact hitting the ground hard, heavy slam with shockwave, deep earth-shaking thud',
