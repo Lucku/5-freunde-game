@@ -657,6 +657,26 @@ const SOUNDS = [
         description: 'Single sharp lightning bolt strike, immediate thunderclap crack with deep resonant rumble, close-range lightning impact, powerful electrical discharge with short echo',
     },
 
+    // ── WEATHER — DLC (Echos of Eternity) ────────────────────────────────────
+    {
+        id: 'weather_temporal_rift',
+        boss: 'weather',
+        dir: 'dlc/echos_of_eternity/audio/sounds',
+        filename: 'weather_temporal_rift.wav',
+        duration: 4.0,
+        promptInfluence: 0.35,
+        description: 'Temporal rift ambience loop, reality tearing apart with deep resonant hum, time fracturing sounds, eerie clockwork dissonance, ghostly echoes of past and future bleeding together',
+    },
+    {
+        id: 'weather_petal_storm',
+        boss: 'weather',
+        dir: 'dlc/echos_of_eternity/audio/sounds',
+        filename: 'weather_petal_storm.wav',
+        duration: 4.0,
+        promptInfluence: 0.30,
+        description: 'Gentle petal storm ambience loop, soft romantic wind carrying flower petals, delicate chime tones, light and airy love-themed weather atmosphere, dreamy and whimsical',
+    },
+
     // ── TIME WRAITH (Echos of Eternity) ──────────────────────────────────────
     {
         id: 'time_wraith_shadow_pulse',

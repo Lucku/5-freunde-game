@@ -136,6 +136,9 @@ const WEATHER_TYPES = [
     { id: 'BLIZZARD',     name: 'BLIZZARD',     color: 'rgba(200, 230, 255, 0.15)', duration: 900 },
     { id: 'HEATWAVE',     name: 'HEATWAVE',     color: 'rgba(255, 100, 50, 0.12)',  duration: 750 },
     { id: 'THUNDERSTORM', name: 'THUNDERSTORM', color: 'rgba(40,  40,  70,  0.30)', duration: 780 },
+    { id: 'SANDSTORM',    name: 'SANDSTORM',    color: 'rgba(180, 130, 60, 0.25)',  duration: 720 },
+    { id: 'ACIDIC_FOG',   name: 'ACIDIC FOG',   color: 'rgba(60,  140, 60, 0.20)',  duration: 660 },
+    { id: 'GALE',         name: 'GALE',         color: 'rgba(200, 220, 255, 0.10)', duration: 840 },
 ];
 
 const ELITE_TYPES = [

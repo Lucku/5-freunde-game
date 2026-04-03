@@ -1357,6 +1357,13 @@ let weatherDuration = 0;
 let weatherParticles = [];   // screen-space snow / ember particles
 let _weatherFlash   = 0;     // thunderstorm screen-flash opacity
 let _weatherBolts   = [];    // { x, y, segs, life, maxLife } lightning bolts
+let currentWeather2 = null;  // stacked second weather (wave 30+)
+let weatherDuration2 = 0;
+
+// DLC extension point: { weatherId → (ctx, wFadeIn, frame) => void } for screen-space draw effects
+window._weatherDrawHooks = {};
+// DLC extension point: { weatherId → (wFadeIn, frame) => void } for per-frame logic (particles, damage, etc.)
+window._weatherLogicHooks = {};
 
 // GLOBAL VARIABLES (Window Scope for DLC Access)
 var player;
@@ -3061,6 +3068,8 @@ function startGame(mode = 'NORMAL') {
     weatherParticles = [];
     _weatherFlash    = 0;
     _weatherBolts    = [];
+    currentWeather2  = null;
+    weatherDuration2 = 0;
     if (typeof audioManager !== 'undefined') {
         ['weather_blizzard', 'weather_heatwave', 'weather_thunderstorm'].forEach(k => audioManager.stopLoop(k));
     }
@@ -3908,6 +3917,11 @@ function masterLoop(timestamp) {
             // ── Weather Logic ─────────────────────────────────────────────────
             if (currentWeather) {
                 weatherDuration--;
+                // Update duration bar width every 6 frames (no need every frame)
+                if (frame % 6 === 0) {
+                    const _wbf = document.getElementById('weather-bar-fill');
+                    if (_wbf) _wbf.style.width = Math.max(0, (weatherDuration / currentWeather.duration) * 100) + '%';
+                }
                 if (weatherDuration <= 0) {
                     // Weather ending
                     if (typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + currentWeather.id.toLowerCase());
@@ -3917,6 +3931,8 @@ function masterLoop(timestamp) {
                     _weatherFlash    = 0;
                     document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
                     document.getElementById('weather-display').style.display = 'none';
+                    const _wbw = document.getElementById('weather-bar-wrap');
+                    if (_wbw) _wbw.style.display = 'none';
                     weatherTimer = 3600 + Math.random() * 2400;
                 } else {
                     const wProg = weatherDuration / currentWeather.duration; // 1→0 as weather fades
@@ -4023,6 +4039,69 @@ function masterLoop(timestamp) {
                         for (let _bi = _weatherBolts.length - 1; _bi >= 0; _bi--) {
                             if (--_weatherBolts[_bi].life <= 0) _weatherBolts.splice(_bi, 1);
                         }
+
+                    } else if (currentWeather.id === 'SANDSTORM') {
+                        // ── Horizontal sand streak particles ─────────────────────────
+                        const sandCount = Math.floor(8 * wFadeIn) + 2;
+                        for (let _s = 0; _s < sandCount; _s++) {
+                            weatherParticles.push({
+                                x: -20,
+                                y: Math.random() * canvas.height,
+                                vx: 8 + Math.random() * 6,
+                                vy: (Math.random() - 0.5) * 1.5,
+                                len: 18 + Math.random() * 20,
+                                alpha: 0.2 + Math.random() * 0.3,
+                                wobble: 0,
+                                sand: true,
+                                color: `hsl(${30 + Math.random() * 20}, 70%, ${50 + Math.random() * 20}%)`,
+                            });
+                        }
+
+                    } else if (currentWeather.id === 'ACIDIC_FOG') {
+                        // ── Drifting acid mist particles ─────────────────────────────
+                        if (Math.random() < 0.25 * wFadeIn) {
+                            weatherParticles.push({
+                                x: Math.random() * canvas.width,
+                                y: Math.random() * canvas.height,
+                                vx: (Math.random() - 0.5) * 0.4,
+                                vy: (Math.random() - 0.5) * 0.4,
+                                r: 30 + Math.random() * 40,
+                                alpha: 0.04 + Math.random() * 0.06,
+                                wobble: Math.random() * Math.PI * 2,
+                                fog: true,
+                            });
+                        }
+                        // DoT: 1% max HP every 4s
+                        if (frame % 240 === 0 && wFadeIn >= 1 && !player.isInvincible) {
+                            const acidDmg = Math.ceil(player.maxHp * 0.01);
+                            player.hp -= acidDmg * (1 - player.damageReduction);
+                            floatingTexts.push(new FloatingText(player.x, player.y - 30, `☠${acidDmg}`, '#2ecc71', 16));
+                        }
+
+                    } else if (currentWeather.id === 'GALE') {
+                        // ── Wind streak particles ─────────────────────────────────────
+                        if (Math.random() < 0.4 * wFadeIn) {
+                            weatherParticles.push({
+                                x: -10,
+                                y: Math.random() * canvas.height,
+                                vx: 12 + Math.random() * 8,
+                                vy: (Math.random() - 0.5) * 1.0,
+                                len: 30 + Math.random() * 30,
+                                alpha: 0.1 + Math.random() * 0.15,
+                                wobble: 0,
+                                gale: true,
+                            });
+                        }
+                        // Projectile wind deflection — drift all projectiles rightward
+                        for (let _pi = 0; _pi < projectiles.length; _pi++) {
+                            projectiles[_pi].velocity.x += 0.18 * wFadeIn;
+                        }
+                    } else if (window._weatherLogicHooks[currentWeather.id]) {
+                        // DLC custom weather logic hook — only run if registering DLC is active
+                        const _lhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
+                        const _lhDlc  = _lhLock && _lhLock.dlcId;
+                        const _lhOk   = !_lhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_lhDlc));
+                        if (_lhOk) window._weatherLogicHooks[currentWeather.id](wFadeIn, frame);
                     }
 
                     // Tick all weather particles
@@ -4031,29 +4110,106 @@ function masterLoop(timestamp) {
                         p.wobble += 0.05;
                         p.x += p.vx + Math.sin(p.wobble) * 0.5;
                         p.y += p.vy;
-                        if (p.y > canvas.height + 10 || p.y < -10) weatherParticles.splice(_pi, 1);
+                        if (p.y > canvas.height + 10 || p.y < -10 || p.x > canvas.width + 60) weatherParticles.splice(_pi, 1);
                     }
                 }
             } else {
                 weatherTimer--;
                 if (weatherTimer <= 0) {
-                    // Filter weathers incompatible with the current biome
-                    const _compatibleWeathers = WEATHER_TYPES.filter(w => {
-                        if (w.id === 'BLIZZARD'  && currentBiomeType === 'fire')  return false;
-                        if (w.id === 'HEATWAVE'  && currentBiomeType === 'ice')   return false;
-                        return true;
-                    });
-                    const _pool = _compatibleWeathers.length > 0 ? _compatibleWeathers : WEATHER_TYPES;
-                    currentWeather = _pool[Math.floor(Math.random() * _pool.length)];
-                    weatherDuration = currentWeather.duration;
+                    // Helper: returns true if weather w is eligible for the current biome + loaded DLCs
+                    const _weatherAllowed = (w) => {
+                        const lock = window._weatherBiomeLocks && window._weatherBiomeLocks[w.id];
+                        if (!lock) return true; // no restriction
+                        const biomes = lock.biomes || lock; // support both { biomes, dlcId } and legacy array
+                        const dlcId  = lock.dlcId;
+                        const dlcOk  = !dlcId || (window.dlcManager && window.dlcManager.isDLCActive(dlcId));
+                        return dlcOk && biomes.includes(currentBiomeType);
+                    };
+
+                    // Biome-locked weathers: fire→HEATWAVE, cloud→THUNDERSTORM, wind→GALE
+                    // DLC biomes hook in via _weatherBiomeLocks — e.g. 'time' biome → TEMPORAL_RIFT (EoE only)
+                    const _dlcBiomeLock = window._weatherBiomeLocks &&
+                        Object.keys(window._weatherBiomeLocks).find(id => _weatherAllowed({ id }));
+                    const _biomeLockedWeather = _dlcBiomeLock || { fire: 'HEATWAVE', cloud: 'THUNDERSTORM', wind: 'GALE' }[currentBiomeType];
+                    if (_biomeLockedWeather) {
+                        currentWeather = WEATHER_TYPES.find(w => w.id === _biomeLockedWeather) || WEATHER_TYPES[0];
+                    } else {
+                        // Build weighted pool — biome boosts its preferred weather 3×
+                        const _biomeBoost = { ice: 'BLIZZARD', plant: 'ACIDIC_FOG', metal: 'SANDSTORM', water: 'THUNDERSTORM', black: 'ACIDIC_FOG' }[currentBiomeType];
+                        const _weatherPool = [];
+                        for (const w of WEATHER_TYPES) {
+                            if (w.id === 'BLIZZARD' && currentBiomeType === 'fire') continue; // incompatible
+                            if (w.id === 'HEATWAVE' && currentBiomeType === 'ice')  continue;
+                            if (!_weatherAllowed(w)) continue; // DLC/biome-locked
+                            const weight = (w.id === _biomeBoost) ? 3 : 1;
+                            for (let _wi = 0; _wi < weight; _wi++) _weatherPool.push(w);
+                        }
+                        currentWeather = _weatherPool[Math.floor(Math.random() * _weatherPool.length)];
+                    }
+                    // Wave scaling: +1% duration per wave, capped at 2×
+                    const _waveDurationMult = Math.min(2.0, 1 + wave * 0.01);
+                    weatherDuration = Math.floor(currentWeather.duration * _waveDurationMult);
                     document.getElementById('weather-overlay').style.backgroundColor = currentWeather.color;
                     const wDisplay = document.getElementById('weather-display');
                     wDisplay.innerText = `⚠ ${currentWeather.name}`;
-                    wDisplay.style.color = currentWeather.id === 'HEATWAVE' ? '#e74c3c'
-                        : currentWeather.id === 'THUNDERSTORM' ? '#9b59b6'
-                        : '#3498db';
+                    const _wColor = { HEATWAVE: '#e74c3c', THUNDERSTORM: '#9b59b6', SANDSTORM: '#c8922a', ACIDIC_FOG: '#2ecc71', GALE: '#a8d8f0', TEMPORAL_RIFT: '#b8a0ff', PETAL_STORM: '#ff80c0' }[currentWeather.id] || '#3498db';
+                    wDisplay.style.color = _wColor;
                     wDisplay.style.display = 'block';
+                    const wBarWrap = document.getElementById('weather-bar-wrap');
+                    const wBarFill = document.getElementById('weather-bar-fill');
+                    if (wBarWrap && wBarFill) {
+                        wBarWrap.style.display = 'block';
+                        wBarFill.style.background = _wColor;
+                        wBarFill.style.width = '100%';
+                    }
                     if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + currentWeather.id.toLowerCase());
+                }
+            }
+            // ── Weather stacking (wave 30+): run a second concurrent weather ──
+            if (wave >= 30) {
+                if (currentWeather2) {
+                    weatherDuration2--;
+                    if (weatherDuration2 <= 0) {
+                        if (typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + currentWeather2.id.toLowerCase());
+                        currentWeather2 = null;
+                        weatherDuration2 = 0;
+                    }
+                } else if (currentWeather && Math.random() < 0.0003) {
+                    // Small chance each frame to stack a second weather (different from first, biome/DLC eligible)
+                    const _stackPool = WEATHER_TYPES.filter(w => {
+                        if (w.id === currentWeather.id) return false;
+                        const _lk = window._weatherBiomeLocks && window._weatherBiomeLocks[w.id];
+                        if (!_lk) return true;
+                        const _biomes = _lk.biomes || _lk;
+                        const _dlcId  = _lk.dlcId;
+                        return (!_dlcId || (window.dlcManager && window.dlcManager.isDLCActive(_dlcId)))
+                            && _biomes.includes(currentBiomeType);
+                    });
+                    if (_stackPool.length > 0) {
+                        currentWeather2 = _stackPool[Math.floor(Math.random() * _stackPool.length)];
+                        const _waveMult2 = Math.min(2.0, 1 + wave * 0.01);
+                        weatherDuration2 = Math.floor(currentWeather2.duration * _waveMult2 * 0.6); // shorter than primary
+                        if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + currentWeather2.id.toLowerCase());
+                        showNotification(`⚠ ${currentWeather2.name} STACKS WITH ${currentWeather.name}!`);
+                    }
+                }
+                // Run secondary weather's particle/effect logic by temporarily swapping
+                if (currentWeather2) {
+                    const _wProg2 = weatherDuration2 / currentWeather2.duration;
+                    const _wFI2 = Math.min(1, (currentWeather2.duration - weatherDuration2) / 120);
+                    if (currentWeather2.id === 'GALE') {
+                        for (let _pi2 = 0; _pi2 < projectiles.length; _pi2++) projectiles[_pi2].velocity.x += 0.18 * _wFI2;
+                        if (Math.random() < 0.4 * _wFI2) weatherParticles.push({ x: -10, y: Math.random() * canvas.height, vx: 12 + Math.random() * 8, vy: (Math.random() - 0.5), len: 30 + Math.random() * 30, alpha: 0.1 + Math.random() * 0.15, wobble: 0, gale: true });
+                    } else if (currentWeather2.id === 'BLIZZARD') {
+                        if (Math.random() < 0.5 * _wFI2) weatherParticles.push({ x: Math.random() * canvas.width, y: -8, vx: (Math.random() - 0.5) * 1.2 - 0.5, vy: 1.2 + Math.random() * 2.0, r: 1.0 + Math.random() * 2.2, alpha: 0.55 + Math.random() * 0.4, wobble: Math.random() * Math.PI * 2 });
+                    } else if (currentWeather2.id === 'ACIDIC_FOG') {
+                        if (frame % 240 === 0 && _wFI2 >= 1 && !player.isInvincible) {
+                            const _ad2 = Math.ceil(player.maxHp * 0.01);
+                            player.hp -= _ad2 * (1 - player.damageReduction);
+                            floatingTexts.push(new FloatingText(player.x, player.y - 30, `☠${_ad2}`, '#2ecc71', 16));
+                        }
+                    }
+                    void _wProg2; // suppress unused warning
                 }
             }
             // ── End Weather Logic ─────────────────────────────────────────────
@@ -5188,6 +5344,31 @@ function masterLoop(timestamp) {
             // Testing Grounds HUD
             if (isTestingMode && window.TestingGrounds) TestingGrounds.drawHUD(ctx);
 
+            // SANDSTORM vision reduction (radial vignette)
+            if (currentWeather && currentWeather.id === 'SANDSTORM') {
+                const _swFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
+                ctx.save();
+                const _sg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 160, canvas.width / 2, canvas.height / 2, 700);
+                _sg.addColorStop(0, 'transparent');
+                _sg.addColorStop(0.5, `rgba(160, 110, 40, ${0.35 * _swFadeIn})`);
+                _sg.addColorStop(1, `rgba(100, 70, 20, ${0.75 * _swFadeIn})`);
+                ctx.fillStyle = _sg;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            }
+
+            // ACIDIC FOG green tint vignette
+            if (currentWeather && currentWeather.id === 'ACIDIC_FOG') {
+                const _afFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
+                ctx.save();
+                const _ag = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 100, canvas.width / 2, canvas.height / 2, 600);
+                _ag.addColorStop(0, 'transparent');
+                _ag.addColorStop(1, `rgba(40, 120, 40, ${0.45 * _afFadeIn})`);
+                ctx.fillStyle = _ag;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            }
+
             // Chaos: Darkness (Fog of War) OR Mutator: Low Visibility
             const isLowVis = (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'LOW_VISIBILITY'));
             if ((typeof isChaosActive === 'function' && isChaosActive('DARKNESS')) || isLowVis) {
@@ -5231,6 +5412,25 @@ function masterLoop(timestamp) {
                         ctx.moveTo(p.x, p.y);
                         ctx.lineTo(p.x + p.vx / p.vy * p.len, p.y + p.len);
                         ctx.stroke();
+                    } else if (p.sand) {
+                        ctx.strokeStyle = p.color || '#c8924a';
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p.x + p.len, p.y + p.vy * 2);
+                        ctx.stroke();
+                    } else if (p.gale) {
+                        ctx.strokeStyle = '#d0e8ff';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p.x + p.len, p.y + p.vy * 3);
+                        ctx.stroke();
+                    } else if (p.fog) {
+                        ctx.fillStyle = '#55cc55';
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                        ctx.fill();
                     } else if (wid === 'BLIZZARD') {
                         ctx.fillStyle = '#dff0ff';
                         ctx.beginPath();
@@ -5275,6 +5475,16 @@ function masterLoop(timestamp) {
                 ctx.globalAlpha = 1;
                 ctx.shadowBlur = 0;
                 ctx.restore();
+            }
+            // DLC custom weather draw hook (screen-space, after all base weather)
+            if (currentWeather && window._weatherDrawHooks[currentWeather.id]) {
+                const _dhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
+                const _dhDlc  = _dhLock && _dhLock.dlcId;
+                const _dhOk   = !_dhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_dhDlc));
+                if (_dhOk) {
+                    const _wFIForDraw = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
+                    window._weatherDrawHooks[currentWeather.id](ctx, _wFIForDraw, frame);
+                }
             }
             // ──────────────────────────────────────────────────────────────────
 

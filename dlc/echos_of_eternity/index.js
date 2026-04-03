@@ -27,6 +27,7 @@ const ECHOS_OF_ETERNITY = {
 
         this.injectHeroes();
         this.injectBiome();
+        this.injectWeather();
         this.injectMaze();
         this.injectStory();
         this.injectStoryArcLabels();
@@ -104,6 +105,10 @@ const ECHOS_OF_ETERNITY = {
             audioManager.registerVoicePath('time', id => `dlc/echos_of_eternity/audio/memories/time_${id}.mp3`);
             audioManager.registerVoicePath('love', id => `dlc/echos_of_eternity/audio/memories/love_${id}.mp3`);
             audioManager.registerSounds({
+                'weather_temporal_rift': { path: 'dlc/echos_of_eternity/audio/sounds/weather_temporal_rift.wav', loop: true, volume: 0.30 },
+                'weather_petal_storm':   { path: 'dlc/echos_of_eternity/audio/sounds/weather_petal_storm.wav',   loop: true, volume: 0.25 },
+            });
+            audioManager.registerSounds({
                 'battle_love_1': { path: 'dlc/echos_of_eternity/audio/music/battle_love_1.wav', loop: true, volume: 0.38 },
                 'attack_love':   { path: 'dlc/echos_of_eternity/audio/sounds/attack_love.wav',  volume: 0.22 },
                 'melee_love':    { path: 'dlc/echos_of_eternity/audio/sounds/melee_love.wav',   volume: 0.28 },
@@ -165,6 +170,141 @@ const ECHOS_OF_ETERNITY = {
                 saveData['love'] = { level: 0, unlocked: 0, highScore: 0, prestige: 0 };
             }
         }
+    },
+
+    // ─── Weather ─────────────────────────────────────────────────────────────
+    injectWeather: function () {
+        if (typeof WEATHER_TYPES === 'undefined') return;
+        if (WEATHER_TYPES.some(w => w.id === 'TEMPORAL_RIFT')) return; // already injected
+
+        // TEMPORAL RIFT — TimeBiome exclusive; screen desaturates, time echo particles flicker
+        WEATHER_TYPES.push({ id: 'TEMPORAL_RIFT', name: 'TEMPORAL RIFT', color: 'rgba(100, 80, 180, 0.25)', duration: 720 });
+
+        // PETAL STORM — LoveBiome exclusive; aesthetic, slowly fills affection meter
+        WEATHER_TYPES.push({ id: 'PETAL_STORM', name: 'PETAL STORM', color: 'rgba(255, 120, 180, 0.12)', duration: 600 });
+
+        // ── TEMPORAL RIFT: logic hook ─────────────────────────────────────────
+        if (window._weatherLogicHooks) {
+            window._weatherLogicHooks['TEMPORAL_RIFT'] = function (wFadeIn, _frame) {
+                // Spawn faint "time echo" particles — ghostly duplicate shapes drifting upward
+                if (typeof weatherParticles !== 'undefined' && Math.random() < 0.15 * wFadeIn) {
+                    weatherParticles.push({
+                        x: Math.random() * (typeof canvas !== 'undefined' ? canvas.width : 800),
+                        y: Math.random() * (typeof canvas !== 'undefined' ? canvas.height : 600),
+                        vx: (Math.random() - 0.5) * 0.3,
+                        vy: -(0.3 + Math.random() * 0.5),
+                        r: 8 + Math.random() * 16,
+                        alpha: 0.06 + Math.random() * 0.10,
+                        wobble: Math.random() * Math.PI * 2,
+                        echo: true,
+                    });
+                }
+            };
+        }
+
+        // ── TEMPORAL RIFT: draw hook ──────────────────────────────────────────
+        if (window._weatherDrawHooks) {
+            window._weatherDrawHooks['TEMPORAL_RIFT'] = function (ctx, wFadeIn, _frame) {
+                // Desaturation vignette — purple-grey radial gradient
+                ctx.save();
+                const _tg = ctx.createRadialGradient(
+                    canvas.width / 2, canvas.height / 2, 80,
+                    canvas.width / 2, canvas.height / 2, 650
+                );
+                _tg.addColorStop(0, 'transparent');
+                _tg.addColorStop(1, `rgba(60, 40, 100, ${0.50 * wFadeIn})`);
+                ctx.fillStyle = _tg;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Pulsing time-crack vignette
+                const _pulse = 0.5 + 0.5 * Math.sin((_frame || 0) * 0.04);
+                ctx.strokeStyle = `rgba(140, 100, 220, ${0.25 * wFadeIn * _pulse})`;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+                ctx.restore();
+
+                // Draw echo particles
+                if (typeof weatherParticles !== 'undefined') {
+                    ctx.save();
+                    for (const p of weatherParticles) {
+                        if (!p.echo) continue;
+                        ctx.globalAlpha = p.alpha;
+                        ctx.strokeStyle = '#b8a0ff';
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
+                    ctx.restore();
+                }
+            };
+        }
+
+        // ── PETAL STORM: logic hook ───────────────────────────────────────────
+        if (window._weatherLogicHooks) {
+            window._weatherLogicHooks['PETAL_STORM'] = function (wFadeIn, _frame) {
+                // Spawn rose petal particles
+                if (typeof weatherParticles !== 'undefined' && Math.random() < 0.5 * wFadeIn) {
+                    weatherParticles.push({
+                        x: Math.random() * (typeof canvas !== 'undefined' ? canvas.width : 800),
+                        y: -10,
+                        vx: (Math.random() - 0.5) * 1.5,
+                        vy: 0.8 + Math.random() * 1.5,
+                        r: 3 + Math.random() * 4,
+                        alpha: 0.4 + Math.random() * 0.4,
+                        wobble: Math.random() * Math.PI * 2,
+                        petal: true,
+                        hue: 320 + Math.random() * 40,
+                    });
+                }
+                // Slowly fill affection meter for Love hero
+                if (typeof player !== 'undefined' && player && player.type === 'love' &&
+                    typeof player.affection !== 'undefined' && _frame % 60 === 0) {
+                    player.affection = Math.min(100, (player.affection || 0) + 1.5 * wFadeIn);
+                }
+            };
+        }
+
+        // ── PETAL STORM: draw hook ────────────────────────────────────────────
+        if (window._weatherDrawHooks) {
+            window._weatherDrawHooks['PETAL_STORM'] = function (ctx, wFadeIn, _frame) {
+                // Soft pink vignette
+                ctx.save();
+                const _pg = ctx.createRadialGradient(
+                    canvas.width / 2, canvas.height / 2, 100,
+                    canvas.width / 2, canvas.height / 2, 700
+                );
+                _pg.addColorStop(0, 'transparent');
+                _pg.addColorStop(1, `rgba(255, 100, 160, ${0.22 * wFadeIn})`);
+                ctx.fillStyle = _pg;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw petal particles
+                if (typeof weatherParticles !== 'undefined') {
+                    ctx.save();
+                    for (const p of weatherParticles) {
+                        if (!p.petal) continue;
+                        ctx.globalAlpha = p.alpha;
+                        ctx.fillStyle = `hsl(${p.hue || 330}, 90%, 75%)`;
+                        ctx.beginPath();
+                        ctx.ellipse(p.x, p.y, p.r, p.r * 0.6, p.wobble, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.globalAlpha = 1;
+                    ctx.restore();
+                }
+            };
+        }
+
+        // Biome-lock: these weathers only appear in their biomes
+        // They're added via the biome-weighted selection naturally (TimeBiome → TEMPORAL_RIFT, LoveBiome → PETAL_STORM)
+        // But we also need them excluded from non-time/love biomes.
+        // We inject this exclusion by patching the biome-boost map entry in the weather selector — done by
+        // exposing a _weatherBiomeLocks registry that the base game checks.
+        if (!window._weatherBiomeLocks) window._weatherBiomeLocks = {};
+        window._weatherBiomeLocks['TEMPORAL_RIFT'] = { biomes: ['time', 'eternity'], dlcId: 'echos_of_eternity' };
+        window._weatherBiomeLocks['PETAL_STORM']   = { biomes: ['love', 'heart'],    dlcId: 'echos_of_eternity' };
     },
 
     // ─── Biome ───────────────────────────────────────────────────────────────
