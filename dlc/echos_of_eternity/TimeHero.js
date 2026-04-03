@@ -21,40 +21,40 @@ class TimeHero {
     // ─── Init ────────────────────────────────────────────────────────────────
     static init(player) {
         // Core resources
-        player.chronoEnergy   = 0;   // 0-100
+        player.chronoEnergy = 0;   // 0-100
         player.timelineBurden = 0;   // 0-100
 
         // Passive echo system
-        player.echoTimer    = 180;
+        player.echoTimer = 180;
         player.echoMaxTimer = 260;
         player.activeEchoes = [];
 
         // Fracture shadow system  (Phase 2)
-        player.fractureShadows       = [];
-        player._fractureShadowTimer  = 400;  // first shadow arrives after ~6s at level 1
-        player._fractureBoostTimer   = 0;    // remaining frames of fracture damage boost
-        player._fractureBoostActive  = false;
+        player.fractureShadows = [];
+        player._fractureShadowTimer = 400;  // first shadow arrives after ~6s at level 1
+        player._fractureBoostTimer = 0;    // remaining frames of fracture damage boost
+        player._fractureBoostActive = false;
 
         // Eternal Paradox (Ultimate)
-        player.paradoxActive  = false;
-        player.paradoxTimer   = 0;
+        player.paradoxActive = false;
+        player.paradoxTimer = 0;
         player._paradoxBackup = null;  // { damageMultiplier, speedMultiplier }
 
         // Override base stats
-        player.stats.speed   = 4.2;
+        player.stats.speed = 4.2;
         player.stats.rangeCd = 28;
         player.stats.meleeCd = 90;
 
         // Attach hooks
-        player.customUpdate  = (dx, dy) => TimeHero.update(player, dx, dy);
-        player.customDraw    = (ctx)     => TimeHero.draw(player, ctx);
-        player.customSpecial = ()        => TimeHero.useSpecial(player);
-        player.melee         = ()        => TimeHero.melee(player);
-        player.shoot         = ()        => TimeHero.shoot(player);
-        player.getAIInput    = (p, c, t) => TimeHero.getAIInput(p, c, t);
+        player.customUpdate = (dx, dy) => TimeHero.update(player, dx, dy);
+        player.customDraw = (ctx) => TimeHero.draw(player, ctx);
+        player.customSpecial = () => TimeHero.useSpecial(player);
+        player.melee = () => TimeHero.melee(player);
+        player.shoot = () => TimeHero.shoot(player);
+        player.getAIInput = (p, c, t) => TimeHero.getAIInput(p, c, t);
 
         // Special UI
-        player.specialName        = "TIMELINE FRACTURE";
+        player.specialName = "TIMELINE FRACTURE";
         player.specialMaxCooldown = 1500;  // 25 s
         if (!player.isCPU) {
             const iconEl = document.getElementById('special-icon');
@@ -107,9 +107,9 @@ class TimeHero {
                 if (nearest && typeof Projectile !== 'undefined') {
                     const a = Math.atan2(nearest.y - e.y, nearest.x - e.x);
                     // ct7 Temporal Gust: echo moves at half speed (double range)
-                    const projSpd  = player._mutCt7 ? eSpd * 0.5  : eSpd;
+                    const projSpd = player._mutCt7 ? eSpd * 0.5 : eSpd;
                     // ct5 Void Echo: bonus damage + purple void color
-                    const projDmg  = player._mutCt5 ? echoFireDmg * 1.4 : echoFireDmg;
+                    const projDmg = player._mutCt5 ? echoFireDmg * 1.4 : echoFireDmg;
                     const projColor = player._mutCt5 ? '#9b59b6' : '#c8aa6e';
                     const echoProj = new Projectile(
                         e.x, e.y,
@@ -263,7 +263,7 @@ class TimeHero {
                     if (e._timeSlowed) {
                         e.hp -= burnDmg;
                         if (typeof particles !== 'undefined' && typeof Particle !== 'undefined' && Math.random() < 0.5) {
-                            particles.push(new Particle(e.x, e.y - e.radius, '#ff4500', { x: (Math.random()-0.5)*1.5, y: -2 }));
+                            particles.push(new Particle(e.x, e.y - e.radius, '#ff4500', { x: (Math.random() - 0.5) * 1.5, y: -2 }));
                         }
                     }
                 });
@@ -309,18 +309,18 @@ class TimeHero {
 
         // Spawn offset from the source enemy position (not the player)
         const angle = Math.random() * Math.PI * 2;
-        const dist  = 80 + Math.random() * 120;
+        const dist = 80 + Math.random() * 120;
         player.fractureShadows.push({
-            x:      src.x + Math.cos(angle) * dist,
-            y:      src.y + Math.sin(angle) * dist,
-            hp:     55 + fl * 25,
-            maxHp:  55 + fl * 25,
+            x: src.x + Math.cos(angle) * dist,
+            y: src.y + Math.sin(angle) * dist,
+            hp: 55 + fl * 25,
+            maxHp: 55 + fl * 25,
             radius: Math.max(10, (src.radius || 18) * 0.65),
-            speed:  1.3 + fl * 0.25,
+            speed: 1.3 + fl * 0.25,
             damage: 8 + fl * 7,
-            life:   540,
+            life: 540,
             maxLife: 540,
-            hitCd:  0
+            hitCd: 0
         });
     }
 
@@ -336,7 +336,7 @@ class TimeHero {
             // Altar t3: shadows AoE on death
             if (typeof enemies !== 'undefined') {
                 const aoeRange = shadow.radius + 70;
-                const aoeDmg   = (player.stats.rangeDmg || 20) * player.damageMultiplier * 0.35;
+                const aoeDmg = (player.stats.rangeDmg || 20) * player.damageMultiplier * 0.35;
                 enemies.forEach(e => {
                     if (Math.hypot(e.x - shadow.x, e.y - shadow.y) < aoeRange) {
                         if (typeof e.takeDamage === 'function') e.takeDamage(aoeDmg);
@@ -363,7 +363,7 @@ class TimeHero {
         const a = player.aimAngle;
         const spd = player.stats.projectileSpeed || 11;
         const dmg = player.stats.rangeDmg * player.damageMultiplier;
-        const sz  = player.stats.projectileSize || 8;
+        const sz = player.stats.projectileSize || 8;
 
         // Chrono Orb — slow-moving, piercing, slows enemies on hit
         const orb = new Projectile(
@@ -406,10 +406,10 @@ class TimeHero {
     static melee(player) {
         if (player.meleeCooldown > 0) return;
 
-        const radius  = player.meleeRadius || 120;
-        const dmg     = player.stats.meleeDmg * player.damageMultiplier;
+        const radius = player.meleeRadius || 120;
+        const dmg = player.stats.meleeDmg * player.damageMultiplier;
         const slowDur = 90 + Math.floor((player.stats.slowPower || 0) * 60);
-        let hitCount  = 0;
+        let hitCount = 0;
 
         if (typeof enemies !== 'undefined') {
             enemies.forEach(e => {
@@ -520,7 +520,7 @@ class TimeHero {
             }
         }
 
-        if (typeof audioManager !== 'undefined') audioManager.play('anchor_time');
+        if (typeof audioManager !== 'undefined') audioManager.play('special_time');
 
         if (typeof saveData !== 'undefined') {
             saveData.global = saveData.global || {};
@@ -536,7 +536,7 @@ class TimeHero {
         // Back up current multipliers
         player._paradoxBackup = {
             damageMultiplier: player.damageMultiplier,
-            speedMultiplier:  player.speedMultiplier || 1
+            speedMultiplier: player.speedMultiplier || 1
         };
 
         // Explode every fracture shadow simultaneously
@@ -559,17 +559,17 @@ class TimeHero {
                     `${shadowCount} ECHOES COLLAPSE!`, '#ffd700', 90));
         }
 
-        player.fractureShadows  = [];
-        player.timelineBurden   = 0;
+        player.fractureShadows = [];
+        player.timelineBurden = 0;
         player._fractureShadowTimer = 600;
 
         // Boost player
-        player.damageMultiplier  *= 1.7;
-        player.speedMultiplier    = (player.speedMultiplier || 1) * 1.35;
-        player.transformActive    = true;
-        player.paradoxActive      = true;
-        player.paradoxTimer       = 600;  // 10 s
-        player.currentForm        = 'ETERNAL PARADOX';
+        player.damageMultiplier *= 1.7;
+        player.speedMultiplier = (player.speedMultiplier || 1) * 1.35;
+        player.transformActive = true;
+        player.paradoxActive = true;
+        player.paradoxTimer = 600;  // 10 s
+        player.currentForm = 'ETERNAL PARADOX';
 
         // Slow all enemies for 5 s
         if (typeof enemies !== 'undefined') {
@@ -584,30 +584,32 @@ class TimeHero {
         }
 
         if (typeof showNotification === 'function') showNotification("ETERNAL PARADOX!");
-        if (typeof createExplosion  === 'function') {
+        if (typeof createExplosion === 'function') {
             createExplosion(player.x, player.y, '#fff', 80);
             createExplosion(player.x, player.y, '#ffd700', 60);
         }
+        if (typeof audioManager !== 'undefined') audioManager.play('paradox_time');
     }
 
     static _endParadox(player) {
         if (player._paradoxBackup) {
             player.damageMultiplier = player._paradoxBackup.damageMultiplier;
-            player.speedMultiplier  = player._paradoxBackup.speedMultiplier;
-            player._paradoxBackup   = null;
+            player.speedMultiplier = player._paradoxBackup.speedMultiplier;
+            player._paradoxBackup = null;
         }
-        player.paradoxActive   = false;
+        player.paradoxActive = false;
         player.transformActive = false;
-        player.currentForm     = null;
+        player.currentForm = null;
+        if (typeof audioManager !== 'undefined') audioManager.play('paradox_end_time');
         if (!player.isCPU && typeof showNotification === 'function')
             showNotification("PARADOX ENDED");
     }
 
     // ─── Custom level-up options ──────────────────────────────────────────────
     static getCustomLevelUpOptions(player, defaultOptions) {
-        const ult     = defaultOptions.find(o => o.id === 'transform');
-        const burden  = Math.round(player.timelineBurden || 0);
-        const fl      = Math.floor(burden / 20);
+        const ult = defaultOptions.find(o => o.id === 'transform');
+        const burden = Math.round(player.timelineBurden || 0);
+        const fl = Math.floor(burden / 20);
         const shadows = player.fractureShadows ? player.fractureShadows.length : 0;
 
         let ffDesc;
@@ -630,7 +632,7 @@ class TimeHero {
 
         const opts = [
             { id: 'time_fast_forward', icon: '⏩', title: 'Fast Forward', desc: ffDesc },
-            { id: 'time_reverse',      icon: '⏪', title: 'Reverse',      desc: rvDesc }
+            { id: 'time_reverse', icon: '⏪', title: 'Reverse', desc: rvDesc }
         ];
         if (ult) opts.push({ ...ult, icon: '✨', title: 'Eternal Paradox', desc: `All ${shadows} shadow${shadows !== 1 ? 's' : ''} explode. 10s of ultimate power.` });
         return opts;
@@ -639,10 +641,10 @@ class TimeHero {
     // ─── Apply custom upgrades ───────────────────────────────────────────────
     static applyUpgrade(player, type) {
         if (type === 'time_fast_forward') {
-            player.damageMultiplier   += 0.08;
-            player.speedMultiplier     = (player.speedMultiplier  || 1) + 0.08;
-            player.cooldownMultiplier  = (player.cooldownMultiplier || 1) * 0.92;
-            player.maxHp              += 8;
+            player.damageMultiplier += 0.08;
+            player.speedMultiplier = (player.speedMultiplier || 1) + 0.08;
+            player.cooldownMultiplier = (player.cooldownMultiplier || 1) * 0.92;
+            player.maxHp += 8;
             const oldFL = Math.floor((player.timelineBurden || 0) / 20);
             player.timelineBurden = Math.min(100, (player.timelineBurden || 0) + 15);
             const newFL = Math.floor(player.timelineBurden / 20);
@@ -661,10 +663,10 @@ class TimeHero {
 
         if (type === 'time_reverse') {
             const cleared = Math.min(30, player.timelineBurden || 0);
-            const oldFL   = Math.floor((player.timelineBurden || 0) / 20);
+            const oldFL = Math.floor((player.timelineBurden || 0) / 20);
             player.timelineBurden = Math.max(0, (player.timelineBurden || 0) - 30);
-            const newFL   = Math.floor(player.timelineBurden / 20);
-            player.hp     = Math.min(player.maxHp, player.hp + player.maxHp * 0.10);
+            const newFL = Math.floor(player.timelineBurden / 20);
+            player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.10);
 
             // Dissolve shadows above the new tier cap
             if (newFL < oldFL) {
@@ -699,17 +701,17 @@ class TimeHero {
 
     // ─── Draw ─────────────────────────────────────────────────────────────────
     static draw(player, ctx) {
-        const t      = Date.now() / 1000;
-        const r      = player.radius;
-        const ce     = player.chronoEnergy || 0;
+        const t = Date.now() / 1000;
+        const r = player.radius;
+        const ce = player.chronoEnergy || 0;
         const burden = player.timelineBurden || 0;
-        const fl     = Math.floor(burden / 20);
+        const fl = Math.floor(burden / 20);
 
         // ── Draw fracture shadows first (world-space, before player translate) ──
         for (const shadow of player.fractureShadows) {
             const lifePct = shadow.life / shadow.maxLife;
-            const hpPct   = Math.max(0, shadow.hp / shadow.maxHp);
-            const pulse   = 0.8 + 0.2 * Math.sin(t * 3 + shadow.x * 0.05);
+            const hpPct = Math.max(0, shadow.hp / shadow.maxHp);
+            const pulse = 0.8 + 0.2 * Math.sin(t * 3 + shadow.x * 0.05);
 
             ctx.save();
             ctx.translate(shadow.x, shadow.y);
@@ -717,7 +719,7 @@ class TimeHero {
 
             // Ghostly glow
             ctx.shadowColor = '#c8aa6e';
-            ctx.shadowBlur  = 14 * pulse;
+            ctx.shadowBlur = 14 * pulse;
 
             // Body fill
             const sg = ctx.createRadialGradient(0, 0, 0, 0, 0, shadow.radius);
@@ -767,13 +769,13 @@ class TimeHero {
         // ── Eternal Paradox aura ──
         if (player.paradoxActive) {
             const ptimer = player.paradoxTimer || 0;
-            const fade   = Math.min(1, ptimer / 60);
+            const fade = Math.min(1, ptimer / 60);
 
             // Radiant halo
             const halo = ctx.createRadialGradient(0, 0, r * 0.8, 0, 0, r + 64);
-            halo.addColorStop(0,   `rgba(255,215,0,${0.55 * fade})`);
+            halo.addColorStop(0, `rgba(255,215,0,${0.55 * fade})`);
             halo.addColorStop(0.5, `rgba(255,190,0,${0.28 * fade})`);
-            halo.addColorStop(1,   'rgba(255,150,0,0)');
+            halo.addColorStop(1, 'rgba(255,150,0,0)');
             ctx.save();
             ctx.fillStyle = halo;
             ctx.beginPath(); ctx.arc(0, 0, r + 64, 0, Math.PI * 2); ctx.fill();
@@ -873,16 +875,16 @@ class TimeHero {
 
         // ── Orbiting sand sparks (more during paradox) ──
         const sparkCount = player.paradoxActive ? 4 : 2;
-        const orbitR     = r + (player.paradoxActive ? 14 : 11);
+        const orbitR = r + (player.paradoxActive ? 14 : 11);
         for (let i = 0; i < sparkCount; i++) {
             const oa = t * (player.paradoxActive ? 3.2 : 1.8) + i * (Math.PI * 2 / sparkCount);
             ctx.save();
             ctx.globalAlpha = player.paradoxActive ? 0.9 : 0.65;
-            ctx.fillStyle   = player.paradoxActive ? '#fff5a0' : '#d4af37';
+            ctx.fillStyle = player.paradoxActive ? '#fff5a0' : '#d4af37';
             ctx.shadowColor = '#ffd700'; ctx.shadowBlur = player.paradoxActive ? 12 : 6;
             ctx.beginPath();
             ctx.arc(Math.cos(oa) * orbitR, Math.sin(oa) * orbitR,
-                    player.paradoxActive ? 4 : 3, 0, Math.PI * 2);
+                player.paradoxActive ? 4 : 3, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
         }
@@ -897,21 +899,21 @@ class TimeHero {
 
     static getSkillNodeDetails(type, val, desc) {
         if (type === 'CHRONO_CHARGE') { val = 0.15; desc = '+15% Chrono Energy Gain'; }
-        if (type === 'ECHO_DURATION') { val = 0.5;  desc = '+0.5s Echo Duration'; }
-        if (type === 'SLOW_POWER')    { val = 0.3;  desc = '+0.3s Chrono Strike Slow'; }
+        if (type === 'ECHO_DURATION') { val = 0.5; desc = '+0.5s Echo Duration'; }
+        if (type === 'SLOW_POWER') { val = 0.3; desc = '+0.3s Chrono Strike Slow'; }
         return { val, desc };
     }
 
     static applySkillNode(base, node) {
         if (node.type === 'CHRONO_CHARGE') base.chronoGainMult = (base.chronoGainMult || 1) + node.value;
-        if (node.type === 'ECHO_DURATION') base.echoDuration   = (base.echoDuration   || 0) + node.value;
-        if (node.type === 'SLOW_POWER')    base.slowPower       = (base.slowPower       || 0) + node.value;
+        if (node.type === 'ECHO_DURATION') base.echoDuration = (base.echoDuration || 0) + node.value;
+        if (node.type === 'SLOW_POWER') base.slowPower = (base.slowPower || 0) + node.value;
     }
 
     // ─── Objective ───────────────────────────────────────────────────────────
     static startObjective(objective) {
-        objective.type    = 'CHRONO_STRIKE';
-        objective.target  = 30;
+        objective.type = 'CHRONO_STRIKE';
+        objective.target = 30;
         objective.current = 0;
         window._timeObjectiveHit = 0;
         if (typeof showNotification === 'function') showNotification('OBJECTIVE: SLOW ENEMIES!');

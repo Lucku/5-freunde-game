@@ -84,6 +84,12 @@ class MazeUI {
         // or damage the player in the background during node selection.
         if (typeof isStoryOpen !== 'undefined') isStoryOpen = true;
 
+        // Play maze theme music
+        if (typeof audioManager !== 'undefined') {
+            audioManager.stopAllExcept('maze_theme');
+            audioManager.play('maze_theme');
+        }
+
         // Reveal overlay
         this._overlay.style.display = 'flex';
         const waveEl = document.getElementById('maze-wave-info');
@@ -105,6 +111,13 @@ class MazeUI {
     close() {
         // Resume game loop — openStory() will re-pause it as needed
         if (typeof isStoryOpen !== 'undefined') isStoryOpen = false;
+
+        // Stop maze theme — AudioManager.update() will pick up the correct battle music next frame
+        if (typeof audioManager !== 'undefined' && audioManager.tracks['maze_theme']) {
+            audioManager.tracks['maze_theme'].pause();
+            audioManager.tracks['maze_theme'].currentTime = 0;
+        }
+
         this._stopLoop();
         // Clear selection so any stray _handleGamepad() calls can't re-confirm
         this._selectedNode = null;

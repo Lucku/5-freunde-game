@@ -8,7 +8,7 @@
 //                  altar, achievements, memories, collector cards, audio hooks.
 
 const ECHOS_OF_ETERNITY = {
-    id:   'echos_of_eternity',
+    id: 'echos_of_eternity',
     name: "Echos of Eternity",
     heroes: ['time', 'love'],
 
@@ -38,86 +38,102 @@ const ECHOS_OF_ETERNITY = {
 
         if (typeof audioManager !== 'undefined') {
             audioManager.registerSounds({
-                'battle_time_1': { path: 'dlc/echos_of_eternity/audio/music/battle_1.wav',     loop: true,  volume: 0.4 },
-                'battle_time_2': { path: 'dlc/echos_of_eternity/audio/music/battle_2.wav',     loop: true,  volume: 0.4 },
+                // ── Music ─────────────────────────────────────────────────────────
+                'battle_time_1':    { path: 'dlc/echos_of_eternity/audio/music/battle_1.wav',              loop: true, volume: 0.40 },
+                'battle_time_2':    { path: 'dlc/echos_of_eternity/audio/music/battle_2.wav',              loop: true, volume: 0.40 },
+                'battle_love_1':    { path: 'dlc/echos_of_eternity/audio/music/battle_love_1.wav',         loop: true, volume: 0.38 },
+                'boss_dlc_all':     { path: 'dlc/echos_of_eternity/audio/music/boss_all.wav',              loop: true, volume: 0.60 },
                 'eternal_collapse': { path: 'dlc/echos_of_eternity/audio/music/boss_eternal_collapse.wav', loop: true, volume: 0.65 },
-                'attack_time':   { path: 'dlc/echos_of_eternity/audio/sounds/attack_time.wav',  volume: 0.22 },
-                'melee_time':    { path: 'dlc/echos_of_eternity/audio/sounds/melee_time.wav',   volume: 0.28 },
-                'anchor_time':   { path: 'dlc/echos_of_eternity/audio/sounds/anchor_time.wav',  volume: 0.50 },
+                'maze_theme':       { path: 'dlc/echos_of_eternity/audio/music/time_maze.wav',             loop: true, volume: 0.45 },
+                // ── Time Hero SFX ─────────────────────────────────────────────────
+                'attack_time':      { path: 'dlc/echos_of_eternity/audio/sounds/attack_time.wav',      volume: 0.22 },
+                'melee_time':       { path: 'dlc/echos_of_eternity/audio/sounds/melee_time.wav',       volume: 0.28 },
+                'anchor_time':      { path: 'dlc/echos_of_eternity/audio/sounds/anchor_time.wav',      volume: 0.50 },
+                'paradox_time':     { path: 'dlc/echos_of_eternity/audio/sounds/paradox_time.wav',     volume: 0.65 },
+                'paradox_end_time': { path: 'dlc/echos_of_eternity/audio/sounds/paradox_end_time.wav', volume: 0.45 },
                 // ── TimeBoss SFX ──────────────────────────────────────────────────
-                'time_wraith_shadow_pulse':    { path: 'dlc/echos_of_eternity/audio/sounds/boss_time_wraith_shadow_pulse.wav',    volume: 0.45 },
-                'time_wraith_twin_shot':       { path: 'dlc/echos_of_eternity/audio/sounds/boss_time_wraith_twin_shot.wav',       volume: 0.35 },
-                'time_wraith_blink':           { path: 'dlc/echos_of_eternity/audio/sounds/boss_time_wraith_blink.wav',           volume: 0.40 },
-                'time_wraith_clone_spawn':     { path: 'dlc/echos_of_eternity/audio/sounds/boss_time_wraith_clone_spawn.wav',     volume: 0.50 },
-                'time_wraith_final_echo':      { path: 'dlc/echos_of_eternity/audio/sounds/boss_time_wraith_final_echo.wav',      volume: 0.60 },
-                'temporal_rift_portal_shot':   { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_rift_portal_shot.wav',   volume: 0.30 },
-                'temporal_rift_void_pull':     { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_rift_void_pull.wav',     volume: 0.55 },
-                'temporal_rift_shockwave':     { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_rift_shockwave.wav',     volume: 0.55 },
-                'temporal_rift_destabilized':  { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_rift_destabilized.wav',  volume: 0.65 },
-                'eternal_collapse_absorb':     { path: 'dlc/echos_of_eternity/audio/sounds/boss_eternal_collapse_absorb.wav',     volume: 0.45 },
-                'eternal_collapse_release':    { path: 'dlc/echos_of_eternity/audio/sounds/boss_eternal_collapse_release.wav',    volume: 0.55 },
-                'eternal_collapse_spiral':     { path: 'dlc/echos_of_eternity/audio/sounds/boss_eternal_collapse_spiral.wav',     volume: 0.40 },
+                'time_wraith_shadow_pulse': { path: 'dlc/echos_of_eternity/audio/sounds/boss_time_wraith_shadow_pulse.wav', volume: 0.45 },
+                'time_wraith_twin_shot': { path: 'dlc/echos_of_eternity/audio/sounds/boss_time_wraith_twin_shot.wav', volume: 0.35 },
+                'time_wraith_blink': { path: 'dlc/echos_of_eternity/audio/sounds/boss_time_wraith_blink.wav', volume: 0.40 },
+                'time_wraith_clone_spawn': { path: 'dlc/echos_of_eternity/audio/sounds/boss_time_wraith_clone_spawn.wav', volume: 0.50 },
+                'time_wraith_final_echo': { path: 'dlc/echos_of_eternity/audio/sounds/boss_time_wraith_final_echo.wav', volume: 0.60 },
+                'temporal_rift_portal_shot': { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_rift_portal_shot.wav', volume: 0.30 },
+                'temporal_rift_void_pull': { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_rift_void_pull.wav', volume: 0.55 },
+                'temporal_rift_shockwave': { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_rift_shockwave.wav', volume: 0.55 },
+                'temporal_rift_destabilized': { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_rift_destabilized.wav', volume: 0.65 },
+                'eternal_collapse_absorb': { path: 'dlc/echos_of_eternity/audio/sounds/boss_eternal_collapse_absorb.wav', volume: 0.45 },
+                'eternal_collapse_release': { path: 'dlc/echos_of_eternity/audio/sounds/boss_eternal_collapse_release.wav', volume: 0.55 },
+                'eternal_collapse_spiral': { path: 'dlc/echos_of_eternity/audio/sounds/boss_eternal_collapse_spiral.wav', volume: 0.40 },
                 'eternal_collapse_mega_burst': { path: 'dlc/echos_of_eternity/audio/sounds/boss_eternal_collapse_mega_burst.wav', volume: 0.70 },
-                'eternal_collapse_phase_surge':{ path: 'dlc/echos_of_eternity/audio/sounds/boss_eternal_collapse_phase_surge.wav',volume: 0.65 },
-                'mask_guardian_shield_up':     { path: 'dlc/echos_of_eternity/audio/sounds/boss_mask_guardian_shield_up.wav',     volume: 0.50 },
-                'mask_guardian_shield_break':  { path: 'dlc/echos_of_eternity/audio/sounds/boss_mask_guardian_shield_break.wav',  volume: 0.55 },
-                'mask_guardian_dash_charge':   { path: 'dlc/echos_of_eternity/audio/sounds/boss_mask_guardian_dash_charge.wav',   volume: 0.50 },
-                'mask_guardian_unleashed':     { path: 'dlc/echos_of_eternity/audio/sounds/boss_mask_guardian_unleashed.wav',     volume: 0.65 },
-                'makuta_void_spiral':          { path: 'dlc/echos_of_eternity/audio/sounds/boss_makuta_void_spiral.wav',          volume: 0.40 },
-                'makuta_echo_spawn':           { path: 'dlc/echos_of_eternity/audio/sounds/boss_makuta_echo_spawn.wav',           volume: 0.45 },
-                'makuta_void_nova':            { path: 'dlc/echos_of_eternity/audio/sounds/boss_makuta_void_nova.wav',            volume: 0.60 },
-                'makuta_echo_convergence':     { path: 'dlc/echos_of_eternity/audio/sounds/boss_makuta_echo_convergence.wav',     volume: 0.65 },
-                'chrome_leviathan_laser':      { path: 'dlc/echos_of_eternity/audio/sounds/boss_chrome_leviathan_laser.wav',      volume: 0.50 },
-                'chrome_leviathan_stomp':      { path: 'dlc/echos_of_eternity/audio/sounds/boss_chrome_leviathan_stomp.wav',      volume: 0.60 },
-                'chrome_leviathan_spread':     { path: 'dlc/echos_of_eternity/audio/sounds/boss_chrome_leviathan_spread.wav',     volume: 0.35 },
-                'chrome_leviathan_rage':       { path: 'dlc/echos_of_eternity/audio/sounds/boss_chrome_leviathan_rage.wav',       volume: 0.65 },
-                'temporal_warden_dash':        { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_warden_dash.wav',        volume: 0.40 },
-                'temporal_warden_dash_burst':  { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_warden_dash_burst.wav',  volume: 0.45 },
-                'temporal_warden_erase_grid':  { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_warden_erase_grid.wav',  volume: 0.55 },
-                'temporal_warden_unchained':   { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_warden_unchained.wav',   volume: 0.65 },
-                'boss_thunder_lightning_volley':{ path: 'dlc/echos_of_eternity/audio/sounds/boss_thunder_lightning_volley.wav',   volume: 0.45 },
-                'boss_thunder_barrage':        { path: 'dlc/echos_of_eternity/audio/sounds/boss_thunder_barrage.wav',             volume: 0.50 },
-                'boss_thunder_storm_ring':     { path: 'dlc/echos_of_eternity/audio/sounds/boss_thunder_storm_ring.wav',          volume: 0.60 },
-                'boss_thunder_titan_fury':     { path: 'dlc/echos_of_eternity/audio/sounds/boss_thunder_titan_fury.wav',          volume: 0.65 },
-                'boss_spirit_orb_fire':        { path: 'dlc/echos_of_eternity/audio/sounds/boss_spirit_orb_fire.wav',             volume: 0.25 },
-                'boss_spirit_luck_cascade':    { path: 'dlc/echos_of_eternity/audio/sounds/boss_spirit_luck_cascade.wav',         volume: 0.50 },
-                'boss_spirit_chaos_nova':      { path: 'dlc/echos_of_eternity/audio/sounds/boss_spirit_chaos_nova.wav',           volume: 0.55 },
-                'boss_spirit_chaos_ascendant': { path: 'dlc/echos_of_eternity/audio/sounds/boss_spirit_chaos_ascendant.wav',      volume: 0.65 },
+                'eternal_collapse_phase_surge': { path: 'dlc/echos_of_eternity/audio/sounds/boss_eternal_collapse_phase_surge.wav', volume: 0.65 },
+                'mask_guardian_shield_up': { path: 'dlc/echos_of_eternity/audio/sounds/boss_mask_guardian_shield_up.wav', volume: 0.50 },
+                'mask_guardian_shield_break': { path: 'dlc/echos_of_eternity/audio/sounds/boss_mask_guardian_shield_break.wav', volume: 0.55 },
+                'mask_guardian_dash_charge': { path: 'dlc/echos_of_eternity/audio/sounds/boss_mask_guardian_dash_charge.wav', volume: 0.50 },
+                'mask_guardian_unleashed': { path: 'dlc/echos_of_eternity/audio/sounds/boss_mask_guardian_unleashed.wav', volume: 0.65 },
+                'makuta_void_spiral': { path: 'dlc/echos_of_eternity/audio/sounds/boss_makuta_void_spiral.wav', volume: 0.40 },
+                'makuta_echo_spawn': { path: 'dlc/echos_of_eternity/audio/sounds/boss_makuta_echo_spawn.wav', volume: 0.45 },
+                'makuta_void_nova': { path: 'dlc/echos_of_eternity/audio/sounds/boss_makuta_void_nova.wav', volume: 0.60 },
+                'makuta_echo_convergence': { path: 'dlc/echos_of_eternity/audio/sounds/boss_makuta_echo_convergence.wav', volume: 0.65 },
+                'chrome_leviathan_laser': { path: 'dlc/echos_of_eternity/audio/sounds/boss_chrome_leviathan_laser.wav', volume: 0.50 },
+                'chrome_leviathan_stomp': { path: 'dlc/echos_of_eternity/audio/sounds/boss_chrome_leviathan_stomp.wav', volume: 0.60 },
+                'chrome_leviathan_spread': { path: 'dlc/echos_of_eternity/audio/sounds/boss_chrome_leviathan_spread.wav', volume: 0.35 },
+                'chrome_leviathan_rage': { path: 'dlc/echos_of_eternity/audio/sounds/boss_chrome_leviathan_rage.wav', volume: 0.65 },
+                'temporal_warden_dash': { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_warden_dash.wav', volume: 0.40 },
+                'temporal_warden_dash_burst': { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_warden_dash_burst.wav', volume: 0.45 },
+                'temporal_warden_erase_grid': { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_warden_erase_grid.wav', volume: 0.55 },
+                'temporal_warden_unchained': { path: 'dlc/echos_of_eternity/audio/sounds/boss_temporal_warden_unchained.wav', volume: 0.65 },
+                'boss_thunder_lightning_volley': { path: 'dlc/echos_of_eternity/audio/sounds/boss_thunder_lightning_volley.wav', volume: 0.45 },
+                'boss_thunder_barrage': { path: 'dlc/echos_of_eternity/audio/sounds/boss_thunder_barrage.wav', volume: 0.50 },
+                'boss_thunder_storm_ring': { path: 'dlc/echos_of_eternity/audio/sounds/boss_thunder_storm_ring.wav', volume: 0.60 },
+                'boss_thunder_titan_fury': { path: 'dlc/echos_of_eternity/audio/sounds/boss_thunder_titan_fury.wav', volume: 0.65 },
+                'boss_spirit_orb_fire': { path: 'dlc/echos_of_eternity/audio/sounds/boss_spirit_orb_fire.wav', volume: 0.25 },
+                'boss_spirit_luck_cascade': { path: 'dlc/echos_of_eternity/audio/sounds/boss_spirit_luck_cascade.wav', volume: 0.50 },
+                'boss_spirit_chaos_nova': { path: 'dlc/echos_of_eternity/audio/sounds/boss_spirit_chaos_nova.wav', volume: 0.55 },
+                'boss_spirit_chaos_ascendant': { path: 'dlc/echos_of_eternity/audio/sounds/boss_spirit_chaos_ascendant.wav', volume: 0.65 },
             });
+            // ── Music hooks (priority: eternal_collapse=100 > boss_dlc=75 > battle=50) ──
             audioManager.registerMusicHook({
                 priority: 100,
                 check: () => typeof bossActive !== 'undefined' && bossActive &&
+                             typeof player !== 'undefined' && player &&
+                             (player.type === 'time' || player.type === 'love') &&
                              typeof enemies !== 'undefined' &&
                              enemies.some(e => e instanceof Boss && e.type === 'ETERNAL_COLLAPSE'),
                 play: () => 'eternal_collapse',
             });
             audioManager.registerMusicHook({
-                priority: 50,
-                check: () => typeof player !== 'undefined' && player && player.type === 'time' && audioManager.isStoryMode(),
-                play: (am) => {
-                    const t1 = am.tracks['battle_time_1'];
-                    const t2 = am.tracks['battle_time_2'];
-                    if (t1 && !t1.paused) return 'battle_time_1';
-                    if (t2 && !t2.paused) return 'battle_time_2';
-                    return Math.random() < 0.5 ? 'battle_time_1' : 'battle_time_2';
-                },
-            });
-            audioManager.registerVoicePath('time', id => `dlc/echos_of_eternity/audio/memories/time_${id}.mp3`);
-            audioManager.registerVoicePath('love', id => `dlc/echos_of_eternity/audio/memories/love_${id}.mp3`);
-            audioManager.registerSounds({
-                'weather_temporal_rift': { path: 'dlc/echos_of_eternity/audio/sounds/weather_temporal_rift.wav', loop: true, volume: 0.30 },
-                'weather_petal_storm':   { path: 'dlc/echos_of_eternity/audio/sounds/weather_petal_storm.wav',   loop: true, volume: 0.25 },
-            });
-            audioManager.registerSounds({
-                'battle_love_1': { path: 'dlc/echos_of_eternity/audio/music/battle_love_1.wav', loop: true, volume: 0.38 },
-                'attack_love':   { path: 'dlc/echos_of_eternity/audio/sounds/attack_love.wav',  volume: 0.22 },
-                'melee_love':    { path: 'dlc/echos_of_eternity/audio/sounds/melee_love.wav',   volume: 0.28 },
-                'anchor_love':   { path: 'dlc/echos_of_eternity/audio/sounds/anchor_love.wav',  volume: 0.50 },
+                priority: 75,
+                check: () => typeof bossActive !== 'undefined' && bossActive &&
+                             typeof player !== 'undefined' && player &&
+                             (player.type === 'time' || player.type === 'love'),
+                play: () => 'boss_dlc_all',
             });
             audioManager.registerMusicHook({
-                priority: 45,
-                check: () => typeof player !== 'undefined' && player && player.type === 'love' && audioManager.isStoryMode(),
-                play: () => 'battle_love_1',
+                priority: 50,
+                check: () => typeof player !== 'undefined' && player &&
+                             (player.type === 'time' || player.type === 'love') &&
+                             audioManager.isStoryMode(),
+                play: (am) => {
+                    // Keep playing whichever track is already running to avoid mid-song interrupts
+                    const pool = ['battle_time_1', 'battle_time_2', 'battle_love_1'];
+                    const playing = pool.find(k => am.tracks[k] && !am.tracks[k].paused);
+                    if (playing) return playing;
+                    return pool[Math.floor(Math.random() * pool.length)];
+                },
+            });
+
+            audioManager.registerVoicePath('time', id => `dlc/echos_of_eternity/audio/memories/time_${id}.mp3`);
+            audioManager.registerVoicePath('love', id => `dlc/echos_of_eternity/audio/memories/love_${id}.mp3`);
+
+            // ── Love Hero SFX + weather DLC sounds ───────────────────────────────
+            audioManager.registerSounds({
+                'attack_love':      { path: 'dlc/echos_of_eternity/audio/sounds/attack_love.wav',      volume: 0.22 },
+                'melee_love':       { path: 'dlc/echos_of_eternity/audio/sounds/melee_love.wav',       volume: 0.28 },
+                'anchor_love':      { path: 'dlc/echos_of_eternity/audio/sounds/anchor_love.wav',      volume: 0.50 },
+                'unity_love':       { path: 'dlc/echos_of_eternity/audio/sounds/unity_love.wav',       volume: 0.65 },
+                'heartburst_love':  { path: 'dlc/echos_of_eternity/audio/sounds/heartburst_love.wav',  volume: 0.55 },
+                'weather_temporal_rift': { path: 'dlc/echos_of_eternity/audio/sounds/weather_temporal_rift.wav', loop: true, volume: 0.30 },
+                'weather_petal_storm':   { path: 'dlc/echos_of_eternity/audio/sounds/weather_petal_storm.wav',   loop: true, volume: 0.25 },
             });
         }
 
@@ -304,30 +320,30 @@ const ECHOS_OF_ETERNITY = {
         // exposing a _weatherBiomeLocks registry that the base game checks.
         if (!window._weatherBiomeLocks) window._weatherBiomeLocks = {};
         window._weatherBiomeLocks['TEMPORAL_RIFT'] = { biomes: ['time', 'eternity'], dlcId: 'echos_of_eternity' };
-        window._weatherBiomeLocks['PETAL_STORM']   = { biomes: ['love', 'heart'],    dlcId: 'echos_of_eternity' };
+        window._weatherBiomeLocks['PETAL_STORM'] = { biomes: ['love', 'heart'], dlcId: 'echos_of_eternity' };
     },
 
     // ─── Biome ───────────────────────────────────────────────────────────────
     injectBiome: function () {
         if (!window.BIOME_LOGIC) window.BIOME_LOGIC = {};
-        window.BIOME_LOGIC['time']     = window.TimeBiome;
+        window.BIOME_LOGIC['time'] = window.TimeBiome;
         window.BIOME_LOGIC['eternity'] = window.TimeBiome;
-        window.BIOME_LOGIC['love']     = window.LoveBiome;
-        window.BIOME_LOGIC['heart']    = window.LoveBiome;
+        window.BIOME_LOGIC['love'] = window.LoveBiome;
+        window.BIOME_LOGIC['heart'] = window.LoveBiome;
     },
 
     // ─── Story Arc Labels ────────────────────────────────────────────────────
     injectStoryArcLabels: function () {
         window.STORY_ARC_LABELS = window.STORY_ARC_LABELS || {};
         window.STORY_ARC_LABELS['time'] = function (w) {
-            if (w <= 8)  return '✦  PROLOGUE  ·  THE FRACTURE  ✦';
+            if (w <= 8) return '✦  PROLOGUE  ·  THE FRACTURE  ✦';
             if (w <= 20) return '✦  ARC I  ·  SHATTERED TIMELINES  ✦';
             if (w <= 35) return '✦  ARC II  ·  THE MAZE OF TIME  ✦';
             if (w <= 48) return '✦  ARC III  ·  CONVERGENCE  ✦';
             return '✦  THE ETERNAL COLLAPSE  ✦';
         };
         window.STORY_ARC_LABELS['love'] = function (w) {
-            if (w <= 8)  return '✦  PROLOGUE  ·  THE WAITING  ✦';
+            if (w <= 8) return '✦  PROLOGUE  ·  THE WAITING  ✦';
             if (w <= 20) return '✦  ARC I  ·  UNRAVELING  ✦';
             if (w <= 35) return '✦  ARC II  ·  THE HEART NEXUS  ✦';
             if (w <= 48) return '✦  ARC III  ·  TRUTH  ✦';
@@ -480,7 +496,7 @@ const ECHOS_OF_ETERNITY = {
         if (typeof ALTAR_TREE === 'undefined') return;
 
         ALTAR_TREE['time'] = [
-            { id: 't1', req: 1, type: 'stat', stat: 'chronoGain',  val: 0.20, desc: 'Temporal Precision: Chrono energy gain +20%' },
+            { id: 't1', req: 1, type: 'stat', stat: 'chronoGain', val: 0.20, desc: 'Temporal Precision: Chrono energy gain +20%' },
             { id: 't2', req: 3, type: 'unique', desc: 'Echo Mastery: Begin each run with a temporal echo already spawned' },
             { id: 't3', req: 5, type: 'unique', desc: 'Paradox Engine: Fracture shadows explode on death, dealing AoE damage to nearby enemies' }
         ];
@@ -493,23 +509,23 @@ const ECHOS_OF_ETERNITY = {
 
         // Cross-element convergence mutations
         const timeMutations = [
-            { id: 'ct1',  req: { time: 5, lightning: 5 }, type: 'mutation', name: 'Delayed Lightning',  desc: 'Temporal bolts trigger a chain lightning strike after 2 seconds' },
-            { id: 'ct2',  req: { time: 5, gravity: 5   }, type: 'mutation', name: 'Time Dilation',      desc: 'Chrono Strike creates a gravity well that amplifies the slow' },
-            { id: 'ct3',  req: { time: 5, fire: 5      }, type: 'mutation', name: 'Burning Moment',     desc: 'Slowed enemies ignite, taking fire damage over time' },
-            { id: 'ct4',  req: { time: 5, ice: 5       }, type: 'mutation', name: 'Frozen Timeline',    desc: 'Chrono Strike fully freezes enemies instead of slowing them' },
-            { id: 'ct5',  req: { time: 5, void: 5      }, type: 'mutation', name: 'Void Echo',          desc: 'Echoes fire void-infused bolts that reduce enemy damage by 15%' },
-            { id: 'ct6',  req: { time: 5, earth: 5     }, type: 'mutation', name: 'Stone Moment',       desc: 'Temporal Anchor also roots enemies in place (cannot be knocked back)' },
-            { id: 'ct7',  req: { time: 5, air: 5       }, type: 'mutation', name: 'Temporal Gust',      desc: 'Echoes move slowly toward enemies, doubling their effective range' },
+            { id: 'ct1', req: { time: 5, lightning: 5 }, type: 'mutation', name: 'Delayed Lightning', desc: 'Temporal bolts trigger a chain lightning strike after 2 seconds' },
+            { id: 'ct2', req: { time: 5, gravity: 5 }, type: 'mutation', name: 'Time Dilation', desc: 'Chrono Strike creates a gravity well that amplifies the slow' },
+            { id: 'ct3', req: { time: 5, fire: 5 }, type: 'mutation', name: 'Burning Moment', desc: 'Slowed enemies ignite, taking fire damage over time' },
+            { id: 'ct4', req: { time: 5, ice: 5 }, type: 'mutation', name: 'Frozen Timeline', desc: 'Chrono Strike fully freezes enemies instead of slowing them' },
+            { id: 'ct5', req: { time: 5, void: 5 }, type: 'mutation', name: 'Void Echo', desc: 'Echoes fire void-infused bolts that reduce enemy damage by 15%' },
+            { id: 'ct6', req: { time: 5, earth: 5 }, type: 'mutation', name: 'Stone Moment', desc: 'Temporal Anchor also roots enemies in place (cannot be knocked back)' },
+            { id: 'ct7', req: { time: 5, air: 5 }, type: 'mutation', name: 'Temporal Gust', desc: 'Echoes move slowly toward enemies, doubling their effective range' },
         ];
 
         const loveMutations = [
-            { id: 'cl1', req: { love: 5, fire: 5      }, type: 'mutation', name: 'Heartbreak',         desc: 'Charmed enemies ignite when their charm expires, dealing burst fire damage' },
-            { id: 'cl2', req: { love: 5, ice: 5       }, type: 'mutation', name: 'Frozen Heart',       desc: 'Heart Arrows freeze enemies briefly instead of charming them' },
+            { id: 'cl1', req: { love: 5, fire: 5 }, type: 'mutation', name: 'Heartbreak', desc: 'Charmed enemies ignite when their charm expires, dealing burst fire damage' },
+            { id: 'cl2', req: { love: 5, ice: 5 }, type: 'mutation', name: 'Frozen Heart', desc: 'Heart Arrows freeze enemies briefly instead of charming them' },
             { id: 'cl3', req: { love: 5, lightning: 5 }, type: 'mutation', name: 'Charged Connection', desc: 'Resonance links also fire chain lightning between linked enemies' },
-            { id: 'cl4', req: { love: 5, void: 5      }, type: 'mutation', name: 'Void Bond',          desc: 'Emotional Resonance creates an unstable link that pulls linked enemies toward each other' },
-            { id: 'cl5', req: { love: 5, plant: 5     }, type: 'mutation', name: 'Growing Bond',       desc: 'Love Companion also occasionally drops a healing flower on the ground' },
-            { id: 'cl6', req: { love: 5, gravity: 5   }, type: 'mutation', name: 'Gravity of Love',    desc: 'Embrace pulls enemies twice as far and roots them briefly after landing' },
-            { id: 'cl7', req: { love: 5, time: 5      }, type: 'mutation', name: 'Timeless Love',      desc: 'Charmed enemies stay charmed even after Time hero uses Chrono Strike on them' },
+            { id: 'cl4', req: { love: 5, void: 5 }, type: 'mutation', name: 'Void Bond', desc: 'Emotional Resonance creates an unstable link that pulls linked enemies toward each other' },
+            { id: 'cl5', req: { love: 5, plant: 5 }, type: 'mutation', name: 'Growing Bond', desc: 'Love Companion also occasionally drops a healing flower on the ground' },
+            { id: 'cl6', req: { love: 5, gravity: 5 }, type: 'mutation', name: 'Gravity of Love', desc: 'Embrace pulls enemies twice as far and roots them briefly after landing' },
+            { id: 'cl7', req: { love: 5, time: 5 }, type: 'mutation', name: 'Timeless Love', desc: 'Charmed enemies stay charmed even after Time hero uses Chrono Strike on them' },
         ];
 
         if (ALTAR_TREE.convergence) {
@@ -534,19 +550,19 @@ const ECHOS_OF_ETERNITY = {
                 achievements.push({ id, title, desc, req, stat, bonus: { type, val, text } });
         };
 
-        add('echo_time_story',    'Keeper of Time',     'Complete Story Mode with the Time Hero.',                        1,   'story_time',         'health',   0.05, '+5% HP');
-        add('echo_time_prestige', 'Eternal Witness',    'Reach Prestige 5 with the Time Hero.',                          5,   'time_prestige',      'damage',   0.05, '+5% Dmg');
-        add('echo_time_anchors',  'Moment Frozen',      'Use Temporal Anchor 50 times across all runs.',                 50,  'time_anchors',       'cooldown', 0.05, '-5% CD');
-        add('echo_time_echoes',   'Ghost of Myself',    'Have temporal echoes fire 200 shots across all runs.',         200,  'echo_shots',         'damage',   0.05, '+5% Dmg');
-        add('echo_time_burden',   'The Weight of Time', 'Reach a timeline burden of 90 and survive the wave.',           1,   'time_burden_90',     'speed',    0.05, '+5% Speed');
-        add('echo_time_wave30',   'Through the Maze',   'Reach Wave 30 while playing as the Time Hero.',                30,  'time_max_wave',      'health',   0.05, '+5% HP');
+        add('echo_time_story', 'Keeper of Time', 'Complete Story Mode with the Time Hero.', 1, 'story_time', 'health', 0.05, '+5% HP');
+        add('echo_time_prestige', 'Eternal Witness', 'Reach Prestige 5 with the Time Hero.', 5, 'time_prestige', 'damage', 0.05, '+5% Dmg');
+        add('echo_time_anchors', 'Moment Frozen', 'Use Temporal Anchor 50 times across all runs.', 50, 'time_anchors', 'cooldown', 0.05, '-5% CD');
+        add('echo_time_echoes', 'Ghost of Myself', 'Have temporal echoes fire 200 shots across all runs.', 200, 'echo_shots', 'damage', 0.05, '+5% Dmg');
+        add('echo_time_burden', 'The Weight of Time', 'Reach a timeline burden of 90 and survive the wave.', 1, 'time_burden_90', 'speed', 0.05, '+5% Speed');
+        add('echo_time_wave30', 'Through the Maze', 'Reach Wave 30 while playing as the Time Hero.', 30, 'time_max_wave', 'health', 0.05, '+5% HP');
 
         // Love Hero achievements
-        add('echo_love_unlock',   'Bound by Truth',     'Unlock the Love Hero through the Maze of Time.',                1,   'love_unlocked',      'health',   0.05, '+5% HP');
-        add('echo_love_charm100', 'Irresistible',       'Charm 100 enemies across all runs.',                          100,  'love_charm_count',   'damage',   0.05, '+5% Dmg');
-        add('echo_love_unity',    'Heart of Unity',     'Trigger Heart of Unity 5 times across all runs.',               5,   'love_unity_count',   'speed',    0.05, '+5% Speed');
-        add('echo_love_story',    'The Other Side',     'Complete Story Mode with the Love Hero.',                        1,   'story_love',         'health',   0.05, '+5% HP');
-        add('echo_love_wave30',   'Through the Nexus',  'Reach Wave 30 while playing as the Love Hero.',                30,  'love_max_wave',      'cooldown', 0.05, '-5% CD');
+        add('echo_love_unlock', 'Bound by Truth', 'Unlock the Love Hero through the Maze of Time.', 1, 'love_unlocked', 'health', 0.05, '+5% HP');
+        add('echo_love_charm100', 'Irresistible', 'Charm 100 enemies across all runs.', 100, 'love_charm_count', 'damage', 0.05, '+5% Dmg');
+        add('echo_love_unity', 'Heart of Unity', 'Trigger Heart of Unity 5 times across all runs.', 5, 'love_unity_count', 'speed', 0.05, '+5% Speed');
+        add('echo_love_story', 'The Other Side', 'Complete Story Mode with the Love Hero.', 1, 'story_love', 'health', 0.05, '+5% HP');
+        add('echo_love_wave30', 'Through the Nexus', 'Reach Wave 30 while playing as the Love Hero.', 30, 'love_max_wave', 'cooldown', 0.05, '-5% CD');
     },
 
     // ─── Memory Shards ───────────────────────────────────────────────────────
@@ -709,26 +725,26 @@ const ECHOS_OF_ETERNITY = {
 
     injectCards: function () {
         const mkSet = (type, name, specialDesc, specialBonus) => ({
-            [`${type}_1`]: { name: `${name} Bronze`,   desc: 'Unlock Card',              chance: 0.05,   color: '#cd7f32', bonus: { type: 'unlock', target: type } },
-            [`${type}_2`]: { name: `${name} Silver`,   desc: `+10% Def vs ${name}s`,     chance: 0.01,   color: '#c0c0c0', bonus: { type: 'defense_vs', val: 0.1, target: type } },
-            [`${type}_3`]: { name: `${name} Gold`,     desc: `+20% XP from ${name}s`,    chance: 0.001,  color: '#ffd700', bonus: { type: 'xp_vs', val: 0.2, target: type } },
-            [`${type}_4`]: { name: `${name} Platinum`, desc: specialDesc,                chance: 0.0005, color: '#e5e4e2', bonus: specialBonus }
+            [`${type}_1`]: { name: `${name} Bronze`, desc: 'Unlock Card', chance: 0.05, color: '#cd7f32', bonus: { type: 'unlock', target: type } },
+            [`${type}_2`]: { name: `${name} Silver`, desc: `+10% Def vs ${name}s`, chance: 0.01, color: '#c0c0c0', bonus: { type: 'defense_vs', val: 0.1, target: type } },
+            [`${type}_3`]: { name: `${name} Gold`, desc: `+20% XP from ${name}s`, chance: 0.001, color: '#ffd700', bonus: { type: 'xp_vs', val: 0.2, target: type } },
+            [`${type}_4`]: { name: `${name} Platinum`, desc: specialDesc, chance: 0.0005, color: '#e5e4e2', bonus: specialBonus }
         });
 
         if (typeof COLLECTOR_CARDS !== 'undefined') {
             Object.assign(COLLECTOR_CARDS, {
                 // Time Wraith — temporal phantom enemy
-                ...mkSet('TIME_WRAITH',       'Time Wraith',       'Chrono Strike ignores Time Wraith resistance',          { type: 'special', id: 'WRAITH_PIERCE' }),
+                ...mkSet('TIME_WRAITH', 'Time Wraith', 'Chrono Strike ignores Time Wraith resistance', { type: 'special', id: 'WRAITH_PIERCE' }),
                 // Temporal Rift — environmental hazard enemy
-                ...mkSet('TEMPORAL_RIFT',     'Temporal Rift',     'Temporal Rifts do not slow non-Time heroes',            { type: 'special', id: 'RIFT_IMMUNE' }),
+                ...mkSet('TEMPORAL_RIFT', 'Temporal Rift', 'Temporal Rifts do not slow non-Time heroes', { type: 'special', id: 'RIFT_IMMUNE' }),
                 // DLC Bosses
-                ...mkSet('ETERNAL_COLLAPSE',  'Eternal Collapse',  'Reality fractures deal 20% less damage to you',         { type: 'special', id: 'COLLAPSE_RESIST' }),
-                ...mkSet('MASK_GUARDIAN',     'Mask Guardian',     'Guardian shield phases last 25% shorter for you',       { type: 'special', id: 'GUARDIAN_BREAK' }),
-                ...mkSet('MAKUTA_ECHO',       'Makuta Echo',       'Echo clones deal 30% reduced damage to you',            { type: 'special', id: 'ECHO_WEAKEN' }),
-                ...mkSet('CHROME_LEVIATHAN',  'Chrome Leviathan',  'Leviathan charge deals 25% less damage to you',         { type: 'special', id: 'LEVIATHAN_DODGE' }),
-                ...mkSet('TEMPORAL_WARDEN',   'Temporal Warden',   'Warden time locks last 20% shorter for you',            { type: 'special', id: 'WARDEN_IMMUNITY' }),
-                ...mkSet('BOSS_THUNDER',      'Thunder Titan',     'Titan lightning chains deal 20% less damage to you',    { type: 'special', id: 'TITAN_GROUND' }),
-                ...mkSet('BOSS_SPIRIT',       'Spirit Revenant',   'Revenant soul explosions deal 25% less damage to you',  { type: 'special', id: 'REVENANT_WARD' }),
+                ...mkSet('ETERNAL_COLLAPSE', 'Eternal Collapse', 'Reality fractures deal 20% less damage to you', { type: 'special', id: 'COLLAPSE_RESIST' }),
+                ...mkSet('MASK_GUARDIAN', 'Mask Guardian', 'Guardian shield phases last 25% shorter for you', { type: 'special', id: 'GUARDIAN_BREAK' }),
+                ...mkSet('MAKUTA_ECHO', 'Makuta Echo', 'Echo clones deal 30% reduced damage to you', { type: 'special', id: 'ECHO_WEAKEN' }),
+                ...mkSet('CHROME_LEVIATHAN', 'Chrome Leviathan', 'Leviathan charge deals 25% less damage to you', { type: 'special', id: 'LEVIATHAN_DODGE' }),
+                ...mkSet('TEMPORAL_WARDEN', 'Temporal Warden', 'Warden time locks last 20% shorter for you', { type: 'special', id: 'WARDEN_IMMUNITY' }),
+                ...mkSet('BOSS_THUNDER', 'Thunder Titan', 'Titan lightning chains deal 20% less damage to you', { type: 'special', id: 'TITAN_GROUND' }),
+                ...mkSet('BOSS_SPIRIT', 'Spirit Revenant', 'Revenant soul explosions deal 25% less damage to you', { type: 'special', id: 'REVENANT_WARD' }),
             });
         }
     },

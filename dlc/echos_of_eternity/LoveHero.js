@@ -21,38 +21,38 @@ class LoveHero {
         player.affection = 0;   // 0-100
 
         // Companion system
-        player._loveCompanion    = null;
-        player._loveCompSpawn    = 180;  // frames until next companion spawn attempt
+        player._loveCompanion = null;
+        player._loveCompSpawn = 180;  // frames until next companion spawn attempt
 
         // Emotional resonance links: [{a: Enemy, b: Enemy, life, maxLife, pulseTimer}]
-        player._resonanceLinks   = [];
+        player._resonanceLinks = [];
 
         // Heart of Unity (ultimate)
         player._heartUnityActive = false;
-        player._heartUnityTimer  = 0;
-        player._heartburstFired  = false;   // guards the 100-affection one-shot trigger
+        player._heartUnityTimer = 0;
+        player._heartburstFired = false;   // guards the 100-affection one-shot trigger
         player._heartburstStreak = 0;       // consecutive bursts without taking a hit
-        player._prevHp           = -1;      // -1 = uninitialized (skip first frame check)
+        player._prevHp = -1;      // -1 = uninitialized (skip first frame check)
 
         // Override base stats — easy hero, generous stats
-        player.stats.speed         = 4.8;
-        player.stats.rangeDmg      = 32;
-        player.stats.meleeDmg      = 62;
-        player.stats.rangeCd       = 22;
-        player.stats.meleeCd       = 65;
+        player.stats.speed = 4.8;
+        player.stats.rangeDmg = 32;
+        player.stats.meleeDmg = 62;
+        player.stats.rangeCd = 22;
+        player.stats.meleeCd = 65;
         player.stats.projectileSpeed = 12;
-        player.stats.projectileSize  = 10;
+        player.stats.projectileSize = 10;
 
         // Hooks
-        player.customUpdate   = (dx, dy) => LoveHero.update(player, dx, dy);
-        player.customDraw     = (ctx)     => LoveHero.draw(player, ctx);
-        player.customSpecial  = ()        => LoveHero.useSpecial(player);
-        player.melee          = ()        => LoveHero.melee(player);
-        player.shoot          = ()        => LoveHero.shoot(player);
-        player.getAIInput     = (p, c, t) => LoveHero.getAIInput(p, c, t);
+        player.customUpdate = (dx, dy) => LoveHero.update(player, dx, dy);
+        player.customDraw = (ctx) => LoveHero.draw(player, ctx);
+        player.customSpecial = () => LoveHero.useSpecial(player);
+        player.melee = () => LoveHero.melee(player);
+        player.shoot = () => LoveHero.shoot(player);
+        player.getAIInput = (p, c, t) => LoveHero.getAIInput(p, c, t);
 
         // Special UI
-        player.specialName        = "EMOTIONAL RESONANCE";
+        player.specialName = "EMOTIONAL RESONANCE";
         player.specialMaxCooldown = 1200;  // 20 s
         if (!player.isCPU) {
             const iconEl = document.getElementById('special-icon');
@@ -146,7 +146,7 @@ class LoveHero {
                 if (link.pulseTimer <= 0) {
                     link.pulseTimer = 45;
                     const pulseDmg = (player.stats.rangeDmg * player.damageMultiplier * 0.4) *
-                                     (link.a._nexusDamageBoost || 1);
+                        (link.a._nexusDamageBoost || 1);
                     const finalDmgA = link.a._loveCharmed > 0 ? pulseDmg * 1.5 : pulseDmg;
                     const finalDmgB = link.b._loveCharmed > 0 ? pulseDmg * 1.5 : pulseDmg;
                     link.a.hp -= finalDmgA;
@@ -328,7 +328,7 @@ class LoveHero {
         const a = player.aimAngle;
         const spd = player.stats.projectileSpeed || 12;
         const dmg = player.stats.rangeDmg * player.damageMultiplier;
-        const sz  = player.stats.projectileSize || 10;
+        const sz = player.stats.projectileSize || 10;
         const highAffection = player.affection >= 80;
 
         // Build aim angles: main + spread shots from extraProjectiles
@@ -352,8 +352,8 @@ class LoveHero {
             // At high affection, heart arrows pierce through all enemies
             if (highAffection) {
                 proj.pierce = 99;  // effectively infinite pierce
-                proj.color  = '#ff1a6b';
-                proj.size   = sz + 3;
+                proj.color = '#ff1a6b';
+                proj.size = sz + 3;
             }
 
             // Mark for charm-on-hit; fill affection meter on kill
@@ -383,10 +383,10 @@ class LoveHero {
     static melee(player) {
         if (player.meleeCooldown > 0) return;
 
-        const radius   = player.meleeRadius || 130;
-        const baseDmg  = player.stats.meleeDmg * player.damageMultiplier;
-        let hitCount   = 0;
-        let killCount  = 0;
+        const radius = player.meleeRadius || 130;
+        const baseDmg = player.stats.meleeDmg * player.damageMultiplier;
+        let hitCount = 0;
+        let killCount = 0;
 
         if (typeof enemies !== 'undefined') {
             enemies.forEach(e => {
@@ -473,7 +473,7 @@ class LoveHero {
 
         player.affection = Math.min(100, player.affection + 25);
         player.specialCooldown = player.specialMaxCooldown;
-        if (typeof audioManager !== 'undefined') audioManager.play('anchor_love');
+        if (typeof audioManager !== 'undefined') audioManager.play('special_love');
     }
 
     // ─── Heart of Unity (Ultimate) ───────────────────────────────────────────
@@ -482,7 +482,7 @@ class LoveHero {
         if (player._heartUnityActive) return;
 
         player._heartUnityActive = true;
-        player._heartUnityTimer  = 600;  // 10 seconds
+        player._heartUnityTimer = 600;  // 10 seconds
 
         // Charm ALL enemies (bosses get a weaker version — just slow)
         if (typeof enemies !== 'undefined') {
@@ -511,7 +511,7 @@ class LoveHero {
         if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
             floatingTexts.push(new FloatingText(player.x, player.y - 80, '💖 HEART OF UNITY', '#ff1a6b', 3.0));
         }
-        if (typeof audioManager !== 'undefined') audioManager.play('anchor_love');
+        if (typeof audioManager !== 'undefined') audioManager.play('unity_love');
 
         // Track for achievement
         if (typeof saveData !== 'undefined') {
@@ -532,11 +532,11 @@ class LoveHero {
         const healPct = 0.15 + streak * 0.05;
         const spd = (player.stats.projectileSpeed || 12) * 1.2;
         const dmg = player.stats.rangeDmg * (player.damageMultiplier || 1) * dmgMult;
-        const sz  = (player.stats.projectileSize || 10) + 4 + streak;
+        const sz = (player.stats.projectileSize || 10) + 4 + streak;
 
         for (let i = 0; i < COUNT; i++) {
             const angle = (Math.PI * 2 * i) / COUNT;
-            const proj  = new Projectile(
+            const proj = new Projectile(
                 player.x, player.y,
                 { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd },
                 dmg, '#ff1a6b', sz, 'love', 0, false
@@ -558,7 +558,7 @@ class LoveHero {
             const label = streak > 0 ? `💗 HEARTBURST x${streak + 1}` : '💗 HEARTBURST';
             floatingTexts.push(new FloatingText(player.x, player.y - 70, label, '#ff1a6b', 2.8));
         }
-        if (typeof audioManager !== 'undefined') audioManager.play('anchor_love');
+        if (typeof audioManager !== 'undefined') audioManager.play('heartburst_love');
 
         // Advance the streak — resets only when the player takes a hit
         player._heartburstStreak = streak + 1;
@@ -650,17 +650,17 @@ class LoveHero {
                 ctx.save();
                 ctx.globalAlpha = ring.alpha * 0.8;
                 ctx.strokeStyle = '#ff1a6b';
-                ctx.lineWidth   = 3.5;
+                ctx.lineWidth = 3.5;
                 ctx.shadowColor = '#ff6b9d';
-                ctx.shadowBlur  = 12;
+                ctx.shadowBlur = 12;
                 ctx.beginPath();
                 ctx.arc(player.x, player.y, ring.r, 0, Math.PI * 2);
                 ctx.stroke();
                 // Inner softer ring
                 ctx.globalAlpha = ring.alpha * 0.3;
-                ctx.lineWidth   = 8;
+                ctx.lineWidth = 8;
                 ctx.strokeStyle = '#ff9dbf';
-                ctx.shadowBlur  = 0;
+                ctx.shadowBlur = 0;
                 ctx.beginPath();
                 ctx.arc(player.x, player.y, ring.r, 0, Math.PI * 2);
                 ctx.stroke();
@@ -698,8 +698,8 @@ class LoveHero {
         if (!player.isCPU) {
             ctx.save();
             const barW = r * 2.2;
-            const bx   = player.x - barW / 2;
-            const by   = player.y - r - 30;
+            const bx = player.x - barW / 2;
+            const by = player.y - r - 30;
             ctx.fillStyle = 'rgba(0,0,0,0.45)';
             ctx.fillRect(bx - 1, by - 1, barW + 2, 7);
             const pct = player.affection / 100;
