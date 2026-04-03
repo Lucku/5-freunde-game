@@ -1,5 +1,6 @@
 # General
 
-- integrate all play modes into coop
-- overhaul weather effects
+- integrate versus mode into coop
 - fix difficulty (currently too easy because of lower enemy count and collision damage)
+- better system to store save file
+- victory screen with proper music and theme

@@ -1,10 +1,58 @@
+// Room-aware dialogue: MUSEUM_DIALOGUES[heroType][roomName] or [heroType].generic
 const MUSEUM_DIALOGUES = {
-    fire: ["Is it hot in here, or is it just me?", "I remember the burning fields...", "My flames will never be extinguished!", "Do you have a lighter?", "Chaos is just energy in disguise."],
-    water: ["The flow of time is like a river...", "Stay hydrated.", "I miss the ocean waves.", "Calm yourself, friend.", "Water adapts to any vessel."],
-    ice: ["Cool it.", "Preservation is key.", "The cold never bothered me anyway.", "Stay frosty.", "Time freezes for no one."],
-    plant: ["Nature always finds a way.", "Photosynthesis is underrated.", "Let's put down some roots.", "Growth requires patience.", "I speak for the trees."],
-    metal: ["Efficiency is my middle name.", "Steel wins battles.", "I am unbreakable.", "Clink, clank.", "Upgrade complete."],
-    bg: ["Welcome to the Hall of Memories.", "Silence is golden.", "Don't touch the artifacts!", "Admire the history.", "Shh..."]
+    fire: {
+        generic:  ["Is it hot in here, or is it just me?", "Chaos is just energy in disguise.", "My flames will never be extinguished!"],
+        fire:     ["Home sweet furnace.", "I lit that trophy myself, you know.", "The warmth here feeds my soul."],
+        water:    ["Ugh, so damp. I hate this room.", "Don't let these puddles fool you — water's weak.", "I could evaporate all of this."],
+        ice:      ["Brr. My least favorite place.", "Even I feel the cold here.", "One good spark and this all melts."],
+        plant:    ["All this green is making me hungry.", "One wrong move and this place is kindling.", "Nature and fire have always been close."],
+        metal:    ["Metal conducts heat beautifully.", "These artifacts could ignite.", "Admiring the competition?"],
+        gallery:  ["Impressive collection. Half of it is mine.", "You know, I was the first hero.", "The gallery doesn't have enough fire exhibits."],
+        jail:     ["They're not so scary behind bars.", "I could melt these doors open if I wanted.", "Stay back — they bite."],
+    },
+    water: {
+        generic:  ["The flow of time is like a river...", "Stay hydrated.", "Water adapts to any vessel."],
+        fire:     ["The heat in here is unbearable.", "Everything is at risk of burning.", "I feel weakened just being here."],
+        water:    ["The fountain speaks to me.", "I could stay here forever.", "Every droplet has a memory."],
+        ice:      ["Ice is just water with commitment.", "I recognize some of these crystals.", "The cold and I are old friends."],
+        plant:    ["Plants and water — a perfect bond.", "I keep these gardens alive.", "Can you hear the roots growing?"],
+        metal:    ["Water rusts metal over time.", "Even these walls cannot hold a river back.", "Rust never sleeps."],
+        gallery:  ["The gallery holds what rivers carry away.", "So many stories, so little time.", "I've been in every room at least once."],
+        jail:     ["Even creatures deserve water.", "The river flows to every shore.", "They look calmer near water."],
+    },
+    ice: {
+        generic:  ["Cool it.", "The cold never bothered me anyway.", "Time freezes for no one."],
+        fire:     ["I'll need to thaw out after this.", "One room and already sweating.", "I hate fire. Always have."],
+        water:    ["Water is just ice that gave up.", "I remember when this fountain was frozen.", "A slower version of me."],
+        ice:      ["Finally. Room temperature.", "I froze most of these exhibits myself.", "Perfect preservation — just like me."],
+        plant:    ["Plants die in frost. Nature's irony.", "I once encased a whole forest.", "Still... it's kind of beautiful."],
+        metal:    ["Cold metal is the strongest.", "These relics are well-preserved in here.", "Brittleness is a myth in the cold."],
+        gallery:  ["The gallery is at least cool enough.", "History is best kept frozen.", "Every era has its ice age."],
+        jail:     ["A frozen cell is a silent cell.", "They can't escape what they can't melt.", "In ice, even predators are harmless."],
+    },
+    plant: {
+        generic:  ["Nature always finds a way.", "Let's put down some roots.", "I speak for the trees."],
+        fire:     ["Everything here is flammable. Stay calm.", "I feel the smoke from here.", "My kind is not welcome in fire rooms."],
+        water:    ["Water nourishes everything.", "The plants near the fountain look happiest.", "I could grow an entire forest with this water."],
+        ice:      ["Cold slows growth, but never stops it.", "Even under ice, seeds wait.", "There's life in frozen soil."],
+        plant:    ["Home. Finally.", "Every leaf has a story.", "Growth requires patience... and sunlight."],
+        metal:    ["Metal is just minerals the earth gave up.", "Mining wounds the land.", "Even these walls were once part of the earth."],
+        gallery:  ["The gallery could use more plants.", "Living history, not just relics.", "I've been trying to grow something in here."],
+        jail:     ["Even the creatures deserve green.", "Vines could break these bars given time.", "Nature finds a way into every prison."],
+    },
+    metal: {
+        generic:  ["Efficiency is my middle name.", "I am unbreakable.", "Upgrade complete."],
+        fire:     ["Heat treatment — my specialty.", "I was forged in places hotter than this.", "Fire is how I was made."],
+        water:    ["Moisture is the enemy of steel.", "I will not rust.", "These walls are holding up well. Mostly."],
+        ice:      ["Cold makes metal brittle. Not me.", "Subzero temperatures suit my core.", "I am tempest-hardened."],
+        plant:    ["Interesting. Organic and inorganic coexisting.", "Nature inspires some of my best designs.", "Even roots can't crack reinforced alloy."],
+        metal:    ["Now THIS is craftsmanship.", "I helped build half of this.", "Precision. Every joint, every seam."],
+        gallery:  ["The gallery has good structural integrity.", "I inspected these foundations myself.", "Architecture is just applied force."],
+        jail:     ["The bars are rated for 10 tons. Trust me.", "I designed this wing.", "Nobody escapes a metal cage."],
+    },
+    bg: {
+        generic: ["Welcome to the Hall of Memories.", "Silence is golden.", "Don't touch the artifacts!", "Admire the history.", "Shh..."]
+    }
 };
 
 class Museum {
@@ -127,6 +175,7 @@ class Museum {
     generateTrophies() {
         // Trophies logic (Story, HighScore, Ultimate)
         const heroes = ['fire', 'water', 'ice', 'plant', 'metal'];
+        const seenTrophies = saveData.global.seenTrophies || [];
 
         // Find High Score Holder
         let highScoreHero = null;
@@ -149,28 +198,26 @@ class Museum {
             // 1. Story Trophy (Completed Story if maxWinPrestige exists)
             // Ideally check saveData.story.completed logic, but using maxWinPrestige check for now as proxy for winning a run
             if (saveData[h].maxWinPrestige !== undefined && saveData[h].maxWinPrestige >= 0) {
+                const key = `${h}_STORY`;
                 this.artifacts.push({
-                    type: 'TROPHY',
-                    subtype: 'STORY',
-                    x: trophyX,
-                    y: trophyY,
-                    text: 'Story Conqueror',
-                    color: '#e67e22',
-                    hero: h
+                    type: 'TROPHY', subtype: 'STORY',
+                    x: trophyX, y: trophyY,
+                    text: 'Story Conqueror', color: '#e67e22',
+                    hero: h, seenKey: key,
+                    isNew: !seenTrophies.includes(key)
                 });
             }
             trophyX += 100;
 
             // 2. High Score Trophy (Unique to one hero)
             if (h === highScoreHero) {
+                const key = `${h}_HIGHSCORE`;
                 this.artifacts.push({
-                    type: 'TROPHY',
-                    subtype: 'HIGHSCORE',
-                    x: trophyX,
-                    y: trophyY,
-                    text: 'Champion',
-                    color: '#f1c40f',
-                    hero: h
+                    type: 'TROPHY', subtype: 'HIGHSCORE',
+                    x: trophyX, y: trophyY,
+                    text: 'Champion', color: '#f1c40f',
+                    hero: h, seenKey: key,
+                    isNew: !seenTrophies.includes(key)
                 });
             }
             trophyX += 100;
@@ -181,14 +228,13 @@ class Museum {
                 const unlockedItems = saveData.altar.active.filter(id => ALTAR_TREE[h].find(item => item.id === id)).length;
 
                 if (unlockedItems >= totalItems) {
+                    const key = `${h}_ULTIMATE`;
                     this.artifacts.push({
-                        type: 'TROPHY',
-                        subtype: 'ULTIMATE',
-                        x: trophyX,
-                        y: trophyY,
-                        text: 'Master of Elements',
-                        color: '#9b59b6',
-                        hero: h
+                        type: 'TROPHY', subtype: 'ULTIMATE',
+                        x: trophyX, y: trophyY,
+                        text: 'Master of Elements', color: '#9b59b6',
+                        hero: h, seenKey: key,
+                        isNew: !seenTrophies.includes(key)
                     });
                 }
             }
@@ -253,6 +299,7 @@ class Museum {
         if (saveData.memories) {
             const getTotal = h => (typeof MEMORY_STORIES !== 'undefined' && MEMORY_STORIES[h]) ? MEMORY_STORIES[h].length : '?';
             const getCount = h => Array.isArray(saveData.memories[h]) ? saveData.memories[h].length : (saveData.memories[h] || 0);
+            const seenCounts = saveData.global.seenMemoryCounts || {};
 
             // Base heroes — displayed in their own rooms, centered lower
             const baseHeroes = ['fire', 'water', 'ice', 'plant', 'metal'];
@@ -268,7 +315,8 @@ class Museum {
                             text: `${h}: ${count}`,
                             color: heroColors[h] || '#fff',
                             type: 'MEMORY', hero: h,
-                            count, total: getTotal(h)
+                            count, total: getTotal(h),
+                            isNew: count > (seenCounts[h] || 0)
                         });
                     }
                 }
@@ -282,15 +330,15 @@ class Museum {
 
                 // Row positions inside gallery
                 const gallerySlots = [
-                    { hero: 'black',     x: gx + 550, y: gy + 110,  color: '#888888' }, // top centre
-                    { hero: 'air',       x: gx + 350, y: gy + 310,  color: '#40e0d0' }, // left col row1
-                    { hero: 'void',      x: gx + 750, y: gy + 310,  color: '#5a7a90' }, // right col row1
-                    { hero: 'gravity',   x: gx + 250, y: gy + 810,  color: '#8e44ad' }, // left col row3
-                    { hero: 'spirit',    x: gx + 550, y: gy + 810,  color: '#F0D080' }, // centre row3
-                    { hero: 'chance',    x: gx + 850, y: gy + 810,  color: '#e040fb' }, // right col row3
-                    { hero: 'sound',     x: gx + 250, y: gy + 1010, color: '#4fc3f7' }, // left col row4
-                    { hero: 'poison',    x: gx + 550, y: gy + 1010, color: '#76ff03' }, // centre row4
-                    { hero: 'makuta',    x: gx + 850, y: gy + 1010, color: '#8e44ad' }, // right col row4
+                    { hero: 'black',     x: gx + 550, y: gy + 110,  color: '#888888' },
+                    { hero: 'air',       x: gx + 350, y: gy + 310,  color: '#40e0d0' },
+                    { hero: 'void',      x: gx + 750, y: gy + 310,  color: '#5a7a90' },
+                    { hero: 'gravity',   x: gx + 250, y: gy + 810,  color: '#8e44ad' },
+                    { hero: 'spirit',    x: gx + 550, y: gy + 810,  color: '#F0D080' },
+                    { hero: 'chance',    x: gx + 850, y: gy + 810,  color: '#e040fb' },
+                    { hero: 'sound',     x: gx + 250, y: gy + 1010, color: '#4fc3f7' },
+                    { hero: 'poison',    x: gx + 550, y: gy + 1010, color: '#76ff03' },
+                    { hero: 'makuta',    x: gx + 850, y: gy + 1010, color: '#8e44ad' },
                 ];
                 gallerySlots.forEach(slot => {
                     const count = getCount(slot.hero);
@@ -300,7 +348,8 @@ class Museum {
                             text: `${slot.hero}: ${count}`,
                             color: slot.color,
                             type: 'MEMORY', hero: slot.hero,
-                            count, total: getTotal(slot.hero)
+                            count, total: getTotal(slot.hero),
+                            isNew: count > (seenCounts[slot.hero] || 0)
                         });
                     }
                 });
@@ -434,19 +483,38 @@ class Museum {
         if (this.dialogueCooldown <= 0 && !this.activeDialogue) {
             const closestEntity = this.entities.find(e => e.isHero && Math.hypot(this.player.x - e.x, this.player.y - e.y) < 100);
             if (closestEntity) {
-                const lines = MUSEUM_DIALOGUES[closestEntity.type] || MUSEUM_DIALOGUES['bg'];
-                const text = lines[Math.floor(Math.random() * lines.length)];
+                const heroDialogue = MUSEUM_DIALOGUES[closestEntity.type] || MUSEUM_DIALOGUES['bg'];
+                // Pick room-aware lines if available, fall back to generic
+                const currentRoom = this._getRoomForPos(closestEntity.x, closestEntity.y);
+                const roomLines = heroDialogue[currentRoom] || heroDialogue.generic || Object.values(heroDialogue).flat();
+                const text = roomLines[Math.floor(Math.random() * roomLines.length)];
                 this.activeDialogue = {
                     text: text,
                     x: closestEntity.x,
                     y: closestEntity.y - 40,
-                    timer: 240 // 4 seconds duration
+                    timer: 240
                 };
-
-                // Set cooldown (e.g., 10 seconds before next auto-dialogue)
                 this.dialogueCooldown = 600;
             }
         }
+
+        // Mark nearby artifacts as seen
+        this.artifacts.forEach(a => {
+            if (!a.isNew) return;
+            const dist = Math.hypot(this.player.x - a.x, this.player.y - a.y);
+            if (dist < 80) {
+                a.isNew = false;
+                if (a.type === 'TROPHY' && a.seenKey) {
+                    if (!saveData.global.seenTrophies) saveData.global.seenTrophies = [];
+                    if (!saveData.global.seenTrophies.includes(a.seenKey)) {
+                        saveData.global.seenTrophies.push(a.seenKey);
+                    }
+                } else if (a.type === 'MEMORY' && a.hero) {
+                    if (!saveData.global.seenMemoryCounts) saveData.global.seenMemoryCounts = {};
+                    saveData.global.seenMemoryCounts[a.hero] = a.count || 0;
+                }
+            }
+        });
 
         // Check Interaction
         let interact = keys['e'];
@@ -463,6 +531,11 @@ class Museum {
                 return; // Stop processing other interactions
             }
         }
+    }
+
+    _getRoomForPos(x, y) {
+        const room = this.rooms.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+        return room ? room.name : 'gallery';
     }
 
     checkWallCollision(x, y) {
@@ -522,6 +595,9 @@ class Museum {
 
         // Draw Decorations
         this.drawDecorations(ctx);
+
+        // Draw Run History Board (gallery room)
+        this.drawRunHistoryBoard(ctx);
 
         // Draw Entities
         this.entities.forEach(e => e.draw(ctx));
@@ -589,6 +665,20 @@ class Museum {
                     ctx.fillText(a.text, 0, -25);
                 }
 
+                // "NEW" badge
+                if (a.isNew) {
+                    const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.008);
+                    ctx.globalAlpha = pulse;
+                    ctx.fillStyle = '#ff4444';
+                    ctx.beginPath(); ctx.arc(14, -14, 8, 0, Math.PI * 2); ctx.fill();
+                    ctx.globalAlpha = 1;
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 7px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('NEW', 14, -14);
+                }
+
                 ctx.restore();
             } else if (a.type === 'MEMORY') {
                 ctx.save();
@@ -653,6 +743,20 @@ class Museum {
                     ctx.font = 'bold 11px Arial';
                     ctx.fillStyle = 'rgba(255,255,255,0.90)';
                     ctx.fillText("PRESS E OR (A) TO VIEW", 0, -44);
+                }
+
+                // "NEW" badge — pulsing dot above shard
+                if (a.isNew) {
+                    const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.008);
+                    ctx.globalAlpha = pulse;
+                    ctx.fillStyle = '#ff4444';
+                    ctx.beginPath(); ctx.arc(12, -30, 8, 0, Math.PI * 2); ctx.fill();
+                    ctx.globalAlpha = 1;
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 7px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('NEW', 12, -30);
                 }
 
                 ctx.restore();
@@ -820,6 +924,90 @@ class Museum {
         if (this.player.type === 'poison') color = '#76ff03'; // Toxic Green
 
         drawHeroSprite(ctx, color, 15);
+        ctx.restore();
+    }
+
+    drawRunHistoryBoard(ctx) {
+        const history = saveData.global.runHistory;
+        if (!history || history.length === 0) return;
+
+        const gallery = this.rooms.find(r => r.name === 'gallery');
+        if (!gallery) return;
+
+        // Board placed on the right side of the gallery, upper half
+        const bx = gallery.x + gallery.w - 340;
+        const by = gallery.y + 80;
+        const bw = 300;
+        const rowH = 90;
+        const bh = 50 + history.length * rowH;
+
+        ctx.save();
+
+        // Board background
+        ctx.fillStyle = '#1a1714';
+        ctx.strokeStyle = '#6b5a3e';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // Header
+        ctx.fillStyle = '#d4af37';
+        ctx.font = 'bold 13px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('RUN HISTORY', bx + bw / 2, by + 22);
+
+        // Divider
+        ctx.strokeStyle = '#6b5a3e';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(bx + 10, by + 32);
+        ctx.lineTo(bx + bw - 10, by + 32);
+        ctx.stroke();
+
+        const fmtTime = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+        history.forEach((run, i) => {
+            const ry = by + 44 + i * rowH;
+            const heroColor = this._getHeroColor(run.hero);
+            const isVictory = run.outcome === 'victory';
+
+            // Row bg
+            ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.15)';
+            ctx.fillRect(bx + 6, ry, bw - 12, rowH - 4);
+
+            // Hero color strip
+            ctx.fillStyle = heroColor;
+            ctx.fillRect(bx + 6, ry, 5, rowH - 4);
+
+            // Hero name + outcome icon
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = heroColor;
+            ctx.fillText(run.hero.toUpperCase(), bx + 18, ry + 13);
+
+            ctx.font = '10px Arial';
+            ctx.fillStyle = isVictory ? '#f1c40f' : '#e74c3c';
+            ctx.fillText(isVictory ? '✓ VICTORY' : '✗ DEATH', bx + 18, ry + 26);
+
+            // Stats row
+            ctx.font = '9px Arial';
+            ctx.fillStyle = 'rgba(255,255,255,0.65)';
+            ctx.fillText(`Wave ${run.wave}  •  ${run.score.toLocaleString()} pts`, bx + 18, ry + 40);
+            ctx.fillText(`Kills: ${run.enemiesKilled}  •  Combo: ${run.maxCombo}  •  ${fmtTime(run.timeSec)}`, bx + 18, ry + 52);
+
+            // Divider between rows
+            if (i < history.length - 1) {
+                ctx.strokeStyle = 'rgba(107,90,62,0.4)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(bx + 10, ry + rowH - 2);
+                ctx.lineTo(bx + bw - 10, ry + rowH - 2);
+                ctx.stroke();
+            }
+        });
+
         ctx.restore();
     }
 

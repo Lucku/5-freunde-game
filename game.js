@@ -3264,6 +3264,21 @@ function gameOver(isVictory = false) {
 
     checkAchievements();
 
+    // Save run history (last 5 runs) for Museum run-history wall
+    if (!saveData.global.runHistory) saveData.global.runHistory = [];
+    const _rhTimeSec = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
+    saveData.global.runHistory.unshift({
+        hero: player.type,
+        wave: Math.max(0, wave - 1),
+        score: score,
+        outcome: isVictory ? 'victory' : 'death',
+        enemiesKilled: currentRunStats.enemiesKilled || 0,
+        damageDealt: Math.floor(currentRunStats.damageDealt || 0),
+        maxCombo: currentRunStats.maxCombo || 0,
+        timeSec: _rhTimeSec
+    });
+    if (saveData.global.runHistory.length > 5) saveData.global.runHistory.length = 5;
+
     document.getElementById('menu-overlay').style.display = 'flex';
 
     // Show Screen
