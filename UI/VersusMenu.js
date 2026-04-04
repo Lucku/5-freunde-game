@@ -51,16 +51,6 @@ class VersusMenuUI {
         }
     }
 
-    close() {
-        const screen = document.getElementById('versus-selection-screen');
-        if (screen) screen.style.display = 'none';
-        this.isOpen = false;
-        if (this.inputLoopId) {
-            cancelAnimationFrame(this.inputLoopId);
-            this.inputLoopId = null;
-        }
-    }
-
     renderOpponents() {
         const grid = document.getElementById('versus-opponent-grid');
         if (!grid) return;
@@ -170,7 +160,63 @@ class VersusMenuUI {
         }
     }
 
+    open2PVersus() {
+        const screen = document.getElementById('versus-selection-screen');
+        if (screen) {
+            screen.style.display = 'flex';
+            // Hide opponent section — heroes already chosen in main menu
+            const sections = screen.querySelectorAll('.vs-section');
+            if (sections[0]) sections[0].style.display = 'none';
+
+            const eyebrow = screen.querySelector('.vs-eyebrow');
+            if (eyebrow) eyebrow.textContent = '⚔ 2 PLAYER VERSUS ⚔';
+            const subtitle = screen.querySelector('.vs-subtitle-text');
+            if (subtitle) subtitle.textContent = 'Choose your arena — then fight each other';
+        }
+        this.is2PVersus = true;
+        this.isOpen = true;
+
+        this.renderBiomes();
+        this.currentRow = 1;
+        this.colIndex = 0;
+        this.updateFocus();
+
+        if (!this.inputLoopId) {
+            this.inputLoopId = requestAnimationFrame(() => this.inputLoop());
+        }
+    }
+
+    close() {
+        const screen = document.getElementById('versus-selection-screen');
+        if (screen) {
+            screen.style.display = 'none';
+            // Restore opponent section in case it was hidden for 2P mode
+            const sections = screen.querySelectorAll('.vs-section');
+            if (sections[0]) sections[0].style.display = '';
+            const eyebrow = screen.querySelector('.vs-eyebrow');
+            if (eyebrow) eyebrow.textContent = '⚔ DUEL ARENA ⚔';
+            const subtitle = screen.querySelector('.vs-subtitle-text');
+            if (subtitle) subtitle.textContent = 'Choose your opponent and step into the arena';
+        }
+        this.is2PVersus = false;
+        this.isOpen = false;
+        if (this.inputLoopId) {
+            cancelAnimationFrame(this.inputLoopId);
+            this.inputLoopId = null;
+        }
+    }
+
     start() {
+        if (this.is2PVersus) {
+            const connectedPads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+            if (connectedPads.length < 2) return; // Both controllers must be connected
+            window.selectedBiome = this.biome;
+            window.is2PlayerVersus = true;
+            this.close();
+            if (typeof startGame === 'function') startGame('VERSUS');
+            return;
+        }
+
         let op = this.opponent;
         if (op === 'random') {
             const loveOk = typeof saveData !== 'undefined' && saveData['love'] && saveData['love'].unlocked;
@@ -271,5 +317,6 @@ class VersusMenuUI {
 
 const versusMenu = new VersusMenuUI();
 window.openVersusMenu = () => versusMenu.open();
+window.open2PVersusMenu = () => versusMenu.open2PVersus();
 window.closeVersusMenu = () => versusMenu.close();
 window.startVersusMatch = () => versusMenu.start();

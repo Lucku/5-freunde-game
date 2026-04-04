@@ -961,6 +961,21 @@ class Player {
             dy = -dy;
         }
 
+        // Auto-aim: override aimAngle toward nearest enemy when buff is active.
+        // Doing this here (after all input sources set aimAngle) ensures every
+        // DLC hero that reads player.aimAngle in their shoot() gets auto-aim too.
+        if (this.buffs.autoaim > 0 && typeof enemies !== 'undefined') {
+            let nearest = null, minDst = Infinity;
+            enemies.forEach(e => {
+                if (e.hp <= 0) return;
+                const d = Math.hypot(e.x - this.x, e.y - this.y);
+                if (d < minDst) { minDst = d; nearest = e; }
+            });
+            if (nearest) {
+                this.aimAngle = Math.atan2(nearest.y - this.y, nearest.x - this.x);
+            }
+        }
+
         // Store input for dash direction
         this.moveInput = { x: dx, y: dy };
 

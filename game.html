@@ -468,10 +468,10 @@
                         <button id="btn-story-mode" class="btn btn-story menu-mode-btn" onclick="checkNewGame('STORY')">Story Mode</button>
                         <button id="btn-chaos-mode" class="btn menu-mode-btn menu-mode-chaos" onclick="checkNewGame('SHUFFLE')">Chaos
                             Shuffle</button>
-                        <button id="btn-versus-mode" class="btn menu-mode-btn menu-mode-versus" onclick="openVersusMenu()">Versus
+                        <button id="btn-versus-mode" class="btn menu-mode-btn menu-mode-versus" onclick="window.isCoopMode ? open2PVersusMenu() : openVersusMenu()">Versus
                             Mode</button>
                         <button id="btn-tutorial-mode" class="btn menu-mode-btn menu-mode-tutorial" onclick="checkNewGame('TUTORIAL')">▶ Tutorial</button>
-                        <button class="btn menu-mode-btn menu-mode-coop" id="coop-mode-btn" onclick="toggleCoopMode()">🤝 Co-op</button>
+                        <button class="btn menu-mode-btn menu-mode-coop" id="coop-mode-btn" onclick="toggleCoopMode()">👥 2 Player</button>
                     </div>
 
                     <div class="menu-challenges">

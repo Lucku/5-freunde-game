@@ -549,8 +549,8 @@ function toggleCoopMode() {
         window.coopP2CursorIndex = -1;
     }
 
-    // Grey out unsupported modes in co-op (Story is allowed)
-    const restrictedBtns = ['btn-chaos-mode', 'btn-versus-mode', 'btn-tutorial-mode', 'daily-challenge-btn', 'weekly-challenge-btn'];
+    // Grey out unsupported modes in 2-player (Story and Versus are allowed)
+    const restrictedBtns = ['btn-chaos-mode', 'btn-tutorial-mode', 'daily-challenge-btn', 'weekly-challenge-btn'];
     restrictedBtns.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('coop-disabled', isCoopMode);
@@ -2987,28 +2987,34 @@ function startGame(mode = 'NORMAL') {
     if (typeof window.additionalPlayers !== 'undefined') window.additionalPlayers = [];
 
     if (isVersusMode) {
-        // Spawn Opponent
-        let oppHero = window.selectedOpponent || 'random';
-        if (typeof HeroTypes !== 'undefined' && oppHero === 'random') {
-            // Redundant check
+        if (window.is2PlayerVersus) {
+            // 2P Human vs Human: P2 setup is handled by the co-op block below.
+            // Just disable regular wave spawning.
+            window.is2PlayerVersus = false;
+            waveTimer = 999999;
+            const p2Hero = (coopP2HeroType || 'water').toUpperCase();
+            showNotification(`2P VERSUS: ${heroType.toUpperCase()} VS ${p2Hero}`);
+        } else {
+            // CPU Opponent
+            let oppHero = window.selectedOpponent || 'random';
+
+            console.log("Spawning Versus AI:", oppHero);
+            const p2 = new Player(oppHero, true); // true = isCPU
+            p2.controller = new AIController(player);
+            p2.id = "PLAYER_2_AI";
+
+            // Initial Position (Will be enforced by resumeWaveGeneration too)
+            p2.x = arena.width / 2 + 800;
+            p2.y = arena.height / 2;
+
+            if (!window.additionalPlayers) window.additionalPlayers = [];
+            window.additionalPlayers.push(p2);
+
+            showNotification(`VERSUS: ${heroType.toUpperCase()} VS ${oppHero.toUpperCase()}`);
+
+            // Disable regular spawning setup
+            waveTimer = 999999;
         }
-
-        console.log("Spawning Versus AI:", oppHero);
-        const p2 = new Player(oppHero, true); // true = isCPU
-        p2.controller = new AIController(player);
-        p2.id = "PLAYER_2_AI";
-
-        // Initial Position (Will be enforced by resumeWaveGeneration too)
-        p2.x = arena.width / 2 + 800;
-        p2.y = arena.height / 2;
-
-        if (!window.additionalPlayers) window.additionalPlayers = [];
-        window.additionalPlayers.push(p2);
-
-        showNotification(`VERSUS: ${heroType.toUpperCase()} VS ${oppHero.toUpperCase()}`);
-
-        // Disable regular spawning setup
-        waveTimer = 999999;
     }
 
     if (isCoopMode && window.CoopGamepadController) {
@@ -3029,7 +3035,7 @@ function startGame(mode = 'NORMAL') {
             _p1IconEl.innerText = _p1IconTxt;          // Restore P1's icon
         }
 
-        player2.x = arena.width / 2 + 100;
+        player2.x = isVersusMode ? arena.width / 2 + 800 : arena.width / 2 + 100;
         player2.y = arena.height / 2;
         player2.isDead = false;
         window.player2 = player2;

@@ -2,8 +2,15 @@
 
 - integrate versus mode into coop
 - fix difficulty (currently too easy because of lower enemy count and collision damage)
-- better system to store save file
 - add victory screen music
-- auto-aim ability has to work for all heroes
-- toggle for developer mode
-- list of debug outputs
+- 2-player versus mode can be started without connected controllers
+- check why standard mode button is greyed-out in 2 player
+- make main menu background more interesting
+- save game editor
+- twin event siren sound
+- disable twin event in story mode (?)
+- overhaul design of main menu shops
+
+# Echos of Eternity
+
+- add memory audios with own voices
