@@ -21,6 +21,7 @@ class UIManager {
         else if (this.uiState === 'PERMSHOP') screenId = 'perm-shop-screen';
         else if (this.uiState === 'PAUSE') screenId = 'pause-screen';
         else if (this.uiState === 'GAMEOVER') screenId = 'game-over-screen';
+        else if (this.uiState === 'VICTORY')  screenId = 'victory-screen';
         else if (this.uiState === 'ACHIEVEMENTS') screenId = 'achievements-screen';
         else if (this.uiState === 'HIGHSCORE') screenId = 'highscore-screen';
         else if (this.uiState === 'SKILLTREE') screenId = 'skill-tree-screen';

@@ -525,6 +525,55 @@
             <div style="text-align:center; padding:10px 0 4px; font-size:11px; color:rgba(255,255,255,0.28); letter-spacing:0.1em; pointer-events:none;">&#169; 2025&ndash;2026 LK Games</div>
         </div>
 
+        <!-- VICTORY SCREEN -->
+        <div id="victory-screen">
+            <div class="vc-confetti-container" aria-hidden="true">
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+                <span class="vc-confetti"></span>
+            </div>
+            <div class="vc-header">
+                <h1 class="vc-title">VICTORY!</h1>
+                <div class="vc-subtitle">Run Complete</div>
+                <div class="go-score-container">
+                    <span id="vc-score-val">0</span>
+                    <div class="go-score-label">Final Score</div>
+                    <div id="vc-highscore-msg">🏆 NEW HIGH SCORE!</div>
+                </div>
+            </div>
+            <div class="go-buttons">
+                <button class="game-over-play-btn vc-play-btn" onclick="startGame()">▶ PLAY AGAIN</button>
+                <button class="screen-back-btn" style="margin: 0;" onclick="initMenu()">← MENU</button>
+            </div>
+            <div class="go-content">
+                <div class="go-column">
+                    <h3>Run Performance</h3>
+                    <div id="vc-stats-grid" class="go-grid"></div>
+                </div>
+                <div class="go-column small">
+                    <h3>Final Build</h3>
+                    <div id="vc-build-list" class="go-list"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- GAME OVER SCREEN -->
         <div id="game-over-screen">
             <div class="go-header">

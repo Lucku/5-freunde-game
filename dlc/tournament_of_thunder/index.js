@@ -30,25 +30,25 @@ const TOURNAMENT_OF_THUNDER = {
         // Register audio
         if (typeof audioManager !== 'undefined') {
             audioManager.registerSounds({
-                'battle_thunder_1':          { path: 'dlc/tournament_of_thunder/audio/music/battle_1.wav',  loop: true, volume: 0.4 },
-                'battle_thunder_2':          { path: 'dlc/tournament_of_thunder/audio/music/battle_2.wav',  loop: true, volume: 0.4 },
-                'zeus':                      { path: 'dlc/tournament_of_thunder/audio/music/boss_zeus.wav', loop: true, volume: 0.6 },
-                'attack_lightning':          { path: 'dlc/tournament_of_thunder/audio/sounds/attack_lightning.wav',         volume: 0.25 },
-                'attack_lightning_charged':  { path: 'dlc/tournament_of_thunder/audio/sounds/attack_lightning_charged.wav', volume: 0.25 },
-                'special_lightning':         { path: 'dlc/tournament_of_thunder/audio/sounds/special_lightning.wav',        volume: 0.25 },
-                'thunder_spear_telegraph':   { path: 'dlc/tournament_of_thunder/audio/sounds/boss_thunder_spear_telegraph.wav', volume: 0.55 },
-                'thunder_spear_launch':      { path: 'dlc/tournament_of_thunder/audio/sounds/boss_thunder_spear_launch.wav',    volume: 0.4 },
-                'zeus_storm_ring':           { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_storm_ring.wav',         volume: 0.55 },
-                'zeus_static_field':         { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_static_field.wav',       volume: 0.4 },
-                'wrath_of_olympus':          { path: 'dlc/tournament_of_thunder/audio/sounds/boss_wrath_olympus.wav',           volume: 0.55 },
-                'zeus_phase2_transition':    { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_phase2.wav',             volume: 0.7 },
-                'zeus_phase3_transition':    { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_phase3.wav',             volume: 0.7 },
-                'zeus_teleport_flash':       { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_teleport.wav',           volume: 0.4 },
+                'battle_thunder_1': { path: 'dlc/tournament_of_thunder/audio/music/battle_1.wav', loop: true, volume: 0.4 },
+                'battle_thunder_2': { path: 'dlc/tournament_of_thunder/audio/music/battle_2.wav', loop: true, volume: 0.4 },
+                'zeus': { path: 'dlc/tournament_of_thunder/audio/music/boss_zeus.wav', loop: true, volume: 0.6 },
+                'attack_lightning': { path: 'dlc/tournament_of_thunder/audio/sounds/attack_lightning.wav', volume: 0.25 },
+                'attack_lightning_charged': { path: 'dlc/tournament_of_thunder/audio/sounds/attack_lightning_charged.wav', volume: 0.25 },
+                'special_lightning': { path: 'dlc/tournament_of_thunder/audio/sounds/special_lightning.wav', volume: 0.25 },
+                'thunder_spear_telegraph': { path: 'dlc/tournament_of_thunder/audio/sounds/boss_thunder_spear_telegraph.wav', volume: 0.55 },
+                'thunder_spear_launch': { path: 'dlc/tournament_of_thunder/audio/sounds/boss_thunder_spear_launch.wav', volume: 0.4 },
+                'zeus_storm_ring': { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_storm_ring.wav', volume: 0.55 },
+                'zeus_static_field': { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_static_field.wav', volume: 0.4 },
+                'wrath_of_olympus': { path: 'dlc/tournament_of_thunder/audio/sounds/boss_wrath_olympus.wav', volume: 0.55 },
+                'zeus_phase2_transition': { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_phase2.wav', volume: 0.7 },
+                'zeus_phase3_transition': { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_phase3.wav', volume: 0.7 },
+                'zeus_teleport_flash': { path: 'dlc/tournament_of_thunder/audio/sounds/boss_zeus_teleport.wav', volume: 0.4 },
             });
             audioManager.registerMusicHook({
                 priority: 100,
                 check: () => typeof bossActive !== 'undefined' && bossActive &&
-                             typeof enemies !== 'undefined' && enemies.some(e => e instanceof Boss && e.type === 'ZEUS'),
+                    typeof enemies !== 'undefined' && enemies.some(e => e instanceof Boss && e.type === 'ZEUS'),
                 play: () => 'zeus',
             });
             audioManager.registerMusicHook({
@@ -102,7 +102,6 @@ const TOURNAMENT_OF_THUNDER = {
             window.BIOME_LOGIC['cloud'] = window.CloudBiome;
             // Alias for Hero Type mapping
             window.BIOME_LOGIC['lightning'] = window.CloudBiome;
-            console.log("Cloud Biome registered.");
         } else {
             console.error("CloudBiome class not found!");
         }
@@ -283,16 +282,16 @@ const TOURNAMENT_OF_THUNDER = {
         };
 
         // Lightning Hero — story & progression
-        addDLCAch('thunder_story',       'Tournament Victor',  'Complete Story Mode with the Lightning Hero.',                     1,   'story_lightning',      'speed',  0.10, '+10% Speed');
-        addDLCAch('thunder_prestige_5',  'Thunder God',        'Reach Prestige 5 with the Lightning Hero.',                       5,   'lightning_prestige',   'damage', 0.05, '+5% Dmg');
+        addDLCAch('thunder_story', 'Tournament Victor', 'Complete Story Mode with the Lightning Hero.', 1, 'story_lightning', 'speed', 0.10, '+10% Speed');
+        addDLCAch('thunder_prestige_5', 'Thunder God', 'Reach Prestige 5 with the Lightning Hero.', 5, 'lightning_prestige', 'damage', 0.05, '+5% Dmg');
 
         // Lightning Hero — unique mechanics
-        addDLCAch('thunder_storm_25',    'Eye of the Storm',   'Activate STORM 25 times across all runs.',                        25,  'lightning_storm_count','damage', 0.05, '+5% Dmg');
-        addDLCAch('thunder_charge_50',   'Fully Charged',      'Reach maximum Static Charge 50 times across all runs.',           50,  'lightning_max_charges','damage', 0.05, '+5% Dmg');
-        addDLCAch('thunder_chain_100',   'Chain Reaction',     'Chain Lightning through 5+ enemies 100 times across all runs.',   100, 'lightning_chain_5_count','damage', 0.05, '+5% Dmg');
+        addDLCAch('thunder_storm_25', 'Eye of the Storm', 'Activate STORM 25 times across all runs.', 25, 'lightning_storm_count', 'damage', 0.05, '+5% Dmg');
+        addDLCAch('thunder_charge_50', 'Fully Charged', 'Reach maximum Static Charge 50 times across all runs.', 50, 'lightning_max_charges', 'damage', 0.05, '+5% Dmg');
+        addDLCAch('thunder_chain_100', 'Chain Reaction', 'Chain Lightning through 5+ enemies 100 times across all runs.', 100, 'lightning_chain_5_count', 'damage', 0.05, '+5% Dmg');
 
         // Survival
-        addDLCAch('thunder_wave_25',     'Storm Survivor',     'Reach Wave 25 in the Cloud Biome.',                               25,  'lightning_max_wave',   'health', 0.05, '+5% HP');
+        addDLCAch('thunder_wave_25', 'Storm Survivor', 'Reach Wave 25 in the Cloud Biome.', 25, 'lightning_max_wave', 'health', 0.05, '+5% HP');
     },
 
     injectMemories: function () {

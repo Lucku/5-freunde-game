@@ -157,9 +157,9 @@ function saveGame() {
 // Audio management has been moved to AudioManager.js
 
 
-function loadGame() {
+async function loadGame() {
     if (typeof SaveManager !== 'undefined') {
-        window.saveData = SaveManager.loadGame(defaultSaveData);
+        window.saveData = await SaveManager.loadGame(defaultSaveData);
     } else {
         console.error("SaveManager is not defined!");
         window.saveData = JSON.parse(JSON.stringify(defaultSaveData));
@@ -839,6 +839,7 @@ function initMenu() {
     document.getElementById('start-screen').style.flexDirection = 'column';
     document.getElementById('start-screen').style.alignItems = 'center';
     document.getElementById('game-over-screen').style.display = 'none';
+    document.getElementById('victory-screen').style.display = 'none';
     document.getElementById('skill-tree-screen').style.display = 'none';
     document.getElementById('pause-screen').style.display = 'none';
     document.getElementById('levelup-screen').style.display = 'none';
@@ -1277,6 +1278,7 @@ function _resetGameState() {
     document.getElementById('levelup-screen').style.display = 'none';
     document.getElementById('shop-screen').style.display = 'none';
     document.getElementById('game-over-screen').style.display = 'none';
+    document.getElementById('victory-screen').style.display = 'none';
 }
 window.saveAndQuit = saveAndQuit;
 
@@ -3092,6 +3094,7 @@ function startGame(mode = 'NORMAL') {
     document.getElementById('menu-overlay').style.display = 'none';
     document.getElementById('start-screen').style.display = 'none';
     document.getElementById('game-over-screen').style.display = 'none';
+    document.getElementById('victory-screen').style.display = 'none';
     document.getElementById('pause-screen').style.display = 'none';
     document.getElementById('levelup-screen').style.display = 'none';
     document.getElementById('shop-screen').style.display = 'none';
@@ -3281,24 +3284,28 @@ function gameOver(isVictory = false) {
 
     document.getElementById('menu-overlay').style.display = 'flex';
 
-    // Show Screen
-    const screen = document.getElementById('game-over-screen');
+    // Show the correct screen
+    const screenId = isVictory ? 'victory-screen' : 'game-over-screen';
+    const screen = document.getElementById(screenId);
     if (screen) screen.style.display = 'flex';
 
-    // Update Title
-    const titleEl = document.getElementById('go-title');
-    if (titleEl) {
-        titleEl.innerText = isVictory ? "VICTORY!" : "GAME OVER";
-        titleEl.style.color = isVictory ? "#f1c40f" : "#e74c3c";
+    // Update Game Over title (victory screen has it baked into HTML)
+    if (!isVictory) {
+        const titleEl = document.getElementById('go-title');
+        if (titleEl) {
+            titleEl.innerText = "GAME OVER";
+            titleEl.style.color = "#e74c3c";
+        }
     }
 
     // 1. Header & Score
+    const pfx = isVictory ? 'vc' : 'go';
     const heroData = saveData[player.type];
     const isHighScore = score > heroData.highScore;
     if (isHighScore) heroData.highScore = score;
 
-    document.getElementById('go-score-val').innerText = score.toLocaleString();
-    document.getElementById('go-highscore-msg').style.display = isHighScore ? 'block' : 'none';
+    document.getElementById(`${pfx}-score-val`).innerText = score.toLocaleString();
+    document.getElementById(`${pfx}-highscore-msg`).style.display = isHighScore ? 'block' : 'none';
 
     // 2. Prepare Stats Data
     const timeSurvivedMs = Date.now() - (currentRunStats.startTime || Date.now());
@@ -3327,7 +3334,7 @@ function gameOver(isVictory = false) {
     ];
 
     // 3. Render Run Stats Grid
-    const gridContainer = document.getElementById('go-stats-grid');
+    const gridContainer = document.getElementById(`${pfx}-stats-grid`);
     gridContainer.innerHTML = '';
 
     runStatsList.forEach(item => {
@@ -3349,7 +3356,7 @@ function gameOver(isVictory = false) {
     });
 
     // 4. Render Build Stats List
-    const listContainer = document.getElementById('go-build-list');
+    const listContainer = document.getElementById(`${pfx}-build-list`);
     listContainer.innerHTML = '';
 
     buildStatsList.forEach(item => {
@@ -3363,10 +3370,10 @@ function gameOver(isVictory = false) {
     });
 
     saveGame();
-    setUIState('GAMEOVER');
+    setUIState(isVictory ? 'VICTORY' : 'GAMEOVER');
 
     // Update Play Again button based on mode
-    const playAgainBtn = document.querySelector('#game-over-screen .btn-play-again');
+    const playAgainBtn = document.querySelector(`#${screenId} .game-over-play-btn`);
     if (playAgainBtn) {
         if (isDailyMode) {
             playAgainBtn.onclick = function () { startGame('DAILY'); };
@@ -5567,15 +5574,13 @@ function masterLoop(timestamp) {
     }
 }
 
-// Ensure you call loadGame() at startup!
-loadGame();
-
-// Start DLC loading immediately in the background, regardless of intro setting.
+// Start save loading and DLC loading in parallel.
+const _saveReady = loadGame();
 const _dlcReady = window.dlcManager ? window.dlcManager.init() : Promise.resolve();
 
-// Called once both the intro (if any) is done AND DLCs are loaded.
+// Called once both the intro (if any) is done AND both save + DLCs are loaded.
 function _launchMenu() {
-    _dlcReady.then(() => {
+    Promise.all([_saveReady, _dlcReady]).then(() => {
         // If the loading screen is still visible (intro was off, or DLCs took longer
         // than the intro), fade it out gracefully before showing the menu.
         const loader = document.getElementById('loading-screen');

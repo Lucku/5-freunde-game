@@ -39,9 +39,9 @@ const ECHOS_OF_ETERNITY = {
         if (typeof audioManager !== 'undefined') {
             audioManager.registerSounds({
                 // ── Music ─────────────────────────────────────────────────────────
-                'battle_time_1':    { path: 'dlc/echos_of_eternity/audio/music/battle_1.wav',              loop: true, volume: 0.40 },
-                'battle_time_2':    { path: 'dlc/echos_of_eternity/audio/music/battle_2.wav',              loop: true, volume: 0.40 },
-                'battle_love_1':    { path: 'dlc/echos_of_eternity/audio/music/battle_love_1.wav',         loop: true, volume: 0.38 },
+                'battle_dlc_1':     { path: 'dlc/echos_of_eternity/audio/music/battle_all_1.wav', loop: true, volume: 0.40 },
+                'battle_dlc_2':     { path: 'dlc/echos_of_eternity/audio/music/battle_all_2.wav', loop: true, volume: 0.40 },
+                'battle_dlc_3':     { path: 'dlc/echos_of_eternity/audio/music/battle_all_3.wav', loop: true, volume: 0.40 },
                 'boss_dlc_all':     { path: 'dlc/echos_of_eternity/audio/music/boss_all.wav',              loop: true, volume: 0.60 },
                 'eternal_collapse': { path: 'dlc/echos_of_eternity/audio/music/boss_eternal_collapse.wav', loop: true, volume: 0.65 },
                 'maze_theme':       { path: 'dlc/echos_of_eternity/audio/music/time_maze.wav',             loop: true, volume: 0.45 },
@@ -115,7 +115,7 @@ const ECHOS_OF_ETERNITY = {
                              audioManager.isStoryMode(),
                 play: (am) => {
                     // Keep playing whichever track is already running to avoid mid-song interrupts
-                    const pool = ['battle_time_1', 'battle_time_2', 'battle_love_1'];
+                    const pool = ['battle_dlc_1', 'battle_dlc_2', 'battle_dlc_3'];
                     const playing = pool.find(k => am.tracks[k] && !am.tracks[k].paused);
                     if (playing) return playing;
                     return pool[Math.floor(Math.random() * pool.length)];

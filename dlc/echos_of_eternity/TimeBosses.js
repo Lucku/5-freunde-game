@@ -51,7 +51,7 @@
         if (node.modifiers.includes('ELITE')) {
             const mult = node.waveStrength || 1.0;
             boss.maxHp = Math.round(boss.maxHp * mult);
-            boss.hp    = boss.maxHp;
+            boss.hp = boss.maxHp;
             boss.damage = Math.round(boss.damage * Math.min(2.0, Math.sqrt(mult)));
         }
     }
@@ -61,19 +61,19 @@
     // ─────────────────────────────────────────────────────────────────
     window._DLC_BOSS_REGISTRY['TIME_WRAITH'] = {
         init(b) {
-            b.radius  = 52;
-            b.color   = '#9ab8d0';
-            b.phase   = 1;
-            b.speed   = 1.6;
+            b.radius = 52;
+            b.color = '#9ab8d0';
+            b.phase = 1;
+            b.speed = 1.6;
             b.attackCooldown = 90;
             b.attackMaxCooldown = 90;
-            b.pulseCooldown  = 200;
-            b.blinkCooldown  = 320;
-            b.cloneTimer     = 0;
-            b.clones         = []; // {x,y,life,maxLife}
+            b.pulseCooldown = 200;
+            b.blinkCooldown = 320;
+            b.cloneTimer = 0;
+            b.clones = []; // {x,y,life,maxLife}
             b.telegraphTimer = 0;
-            b.telegraphData  = null;
-            b._phaseFlashed  = false;
+            b.telegraphData = null;
+            b._phaseFlashed = false;
             b._phase3Flashed = false;
             applyHuntElite(b);
         },
@@ -161,7 +161,7 @@
                 b.blinkCooldown = b.phase >= 2 ? 220 : 320;
                 // Teleport 250px in a random direction from target
                 const ba = Math.random() * Math.PI * 2;
-                b.x = Math.max(b.radius, Math.min(ar.width  - b.radius, t.x + Math.cos(ba) * 250));
+                b.x = Math.max(b.radius, Math.min(ar.width - b.radius, t.x + Math.cos(ba) * 250));
                 b.y = Math.max(b.radius, Math.min(ar.height - b.radius, t.y + Math.sin(ba) * 250));
                 explosion(b.x, b.y, '#9ab8d0', 8);
                 sfx('time_wraith_blink');
@@ -233,11 +233,11 @@
     // ─────────────────────────────────────────────────────────────────
     window._DLC_BOSS_REGISTRY['TEMPORAL_RIFT'] = {
         init(b) {
-            b.radius  = 62;
-            b.color   = '#7b2d8b';
-            b.phase   = 1;
-            b.speed   = 1.2;
-            b.damage  = b.damage * 1.1;
+            b.radius = 62;
+            b.color = '#7b2d8b';
+            b.phase = 1;
+            b.speed = 1.2;
+            b.damage = b.damage * 1.1;
             b.attackCooldown = 80;
             b.attackMaxCooldown = 80;
             // Orbiting rifts
@@ -247,9 +247,9 @@
                 b.rifts.push({ angle: (Math.PI * 2 / riftCount) * i, dist: 130, fireCooldown: 90, firePhase: i });
             }
             b.riftAngleSpeed = 0.018;
-            b.pullCooldown   = 280;
-            b.shockCooldown  = 400;
-            b._phase2Done    = false;
+            b.pullCooldown = 280;
+            b.shockCooldown = 400;
+            b._phase2Done = false;
             applyHuntElite(b);
         },
 
@@ -414,24 +414,24 @@
     // ─────────────────────────────────────────────────────────────────
     window._DLC_BOSS_REGISTRY['ETERNAL_COLLAPSE'] = {
         init(b) {
-            b.radius  = 78;
-            b.color   = '#000010';
-            b.phase   = 1;
-            b.speed   = 1.0;
-            b.maxHp   = Math.round(b.maxHp * 2.0);   // Double HP for finale
-            b.hp      = b.maxHp;
-            b.damage  = Math.round(b.damage * 1.3);
+            b.radius = 78;
+            b.color = '#000010';
+            b.phase = 1;
+            b.speed = 1.0;
+            b.maxHp = Math.round(b.maxHp * 2.0);   // Double HP for finale
+            b.hp = b.maxHp;
+            b.damage = Math.round(b.damage * 1.3);
             b.attackCooldown = 70;
             b.attackMaxCooldown = 70;
-            b._absorbing      = false;
-            b._absorbedCount  = 0;
-            b._absorbTimer    = 0;
-            b._collapseReady  = false;
-            b._collapseTimer  = 0;
-            b._phaseMarkers   = [0.75, 0.5, 0.25];
-            b._phases         = [false, false, false];
-            b._orbitAngle     = 0;
-            b._shards         = [];   // visual debris shards
+            b._absorbing = false;
+            b._absorbedCount = 0;
+            b._absorbTimer = 0;
+            b._collapseReady = false;
+            b._collapseTimer = 0;
+            b._phaseMarkers = [0.75, 0.5, 0.25];
+            b._phases = [false, false, false];
+            b._orbitAngle = 0;
+            b._shards = [];   // visual debris shards
             // Initialize debris shards
             for (let i = 0; i < 12; i++) {
                 b._shards.push({
@@ -642,24 +642,24 @@
     // ─────────────────────────────────────────────────────────────────
     window._DLC_BOSS_REGISTRY['MASK_GUARDIAN'] = {
         init(b) {
-            b.radius  = 58;
-            b.color   = '#c8aa6e';
-            b.phase   = 1;
-            b.speed   = 1.4;
+            b.radius = 58;
+            b.color = '#c8aa6e';
+            b.phase = 1;
+            b.speed = 1.4;
             b.attackCooldown = 75;
             b.attackMaxCooldown = 75;
-            b._shieldTimer    = 0;
+            b._shieldTimer = 0;
             b._shieldDuration = 100;
             b._shieldCooldown = 240;
-            b._shielded       = false;
-            b._chargeTimer    = 0;
+            b._shielded = false;
+            b._chargeTimer = 0;
             b._chargeCooldown = 300;
-            b._charging       = false;
-            b._chargeVx       = 0;
-            b._chargeVy       = 0;
-            b._chargeDist     = 0;
-            b._phase2Done     = false;
-            b._boltCooldown   = 120;
+            b._charging = false;
+            b._chargeVx = 0;
+            b._chargeVy = 0;
+            b._chargeDist = 0;
+            b._phase2Done = false;
+            b._boltCooldown = 120;
             applyHuntElite(b);
         },
 
@@ -675,7 +675,7 @@
                 b.speed = 2.0;
                 b.attackMaxCooldown = 50;
                 b._shieldCooldown = 160;
-                b._boltCooldown   = 80;
+                b._boltCooldown = 80;
                 explosion(b.x, b.y, '#c8aa6e', 20);
                 floatText(b.x, b.y, 'MASK UNLEASHED', '#ffd700');
                 sfx('mask_guardian_unleashed');
@@ -813,20 +813,20 @@
     // ─────────────────────────────────────────────────────────────────
     window._DLC_BOSS_REGISTRY['MAKUTA_ECHO'] = {
         init(b) {
-            b.radius  = 58;
-            b.color   = '#1a0030';
-            b.phase   = 1;
-            b.speed   = 1.5;
-            b.maxHp   = Math.round(b.maxHp * 1.2);
-            b.hp      = b.maxHp;
-            b.damage  = Math.round(b.damage * 1.15);
+            b.radius = 58;
+            b.color = '#1a0030';
+            b.phase = 1;
+            b.speed = 1.5;
+            b.maxHp = Math.round(b.maxHp * 1.2);
+            b.hp = b.maxHp;
+            b.damage = Math.round(b.damage * 1.15);
             b.attackCooldown = 65;
             b.attackMaxCooldown = 65;
             b._echoes = []; // {x,y,life,maxLife,fireCooldown}
-            b._echoCooldown  = 300;
+            b._echoCooldown = 300;
             b._voidNovaCooldown = 350;
             b._spiralAngle = 0;
-            b._phase2Done  = false;
+            b._phase2Done = false;
             applyHuntElite(b);
         },
 
@@ -988,24 +988,24 @@
     // ─────────────────────────────────────────────────────────────────
     window._DLC_BOSS_REGISTRY['CHROME_LEVIATHAN'] = {
         init(b) {
-            b.radius  = 85;
-            b.color   = '#8090a0';
-            b.phase   = 1;
-            b.speed   = 0.9;
-            b.maxHp   = Math.round(b.maxHp * 1.8);   // Tanky
-            b.hp      = b.maxHp;
-            b.damage  = Math.round(b.damage * 1.1);
+            b.radius = 85;
+            b.color = '#8090a0';
+            b.phase = 1;
+            b.speed = 0.9;
+            b.maxHp = Math.round(b.maxHp * 1.8);   // Tanky
+            b.hp = b.maxHp;
+            b.damage = Math.round(b.damage * 1.1);
             b.attackCooldown = 90;
             b.attackMaxCooldown = 90;
-            b._laserAngle     = 0;
-            b._laserTimer     = 0;
-            b._laserCooldown  = 300;
-            b._laserActive    = false;
-            b._laserDuration  = 80;
-            b._stompCooldown  = 200;
-            b._stompRings     = [];  // {x,y,r,maxR,life}
-            b._phase2Done     = false;
-            b._segOffset      = 0;  // visual wave animation
+            b._laserAngle = 0;
+            b._laserTimer = 0;
+            b._laserCooldown = 300;
+            b._laserActive = false;
+            b._laserDuration = 80;
+            b._stompCooldown = 200;
+            b._stompRings = [];  // {x,y,r,maxR,life}
+            b._phase2Done = false;
+            b._segOffset = 0;  // visual wave animation
             applyHuntElite(b);
         },
 
@@ -1037,8 +1037,8 @@
             b._laserCooldown--;
             if (b._laserCooldown <= 0 && !b._laserActive) {
                 b._laserActive = true;
-                b._laserTimer  = b._laserDuration;
-                b._laserAngle  = Math.atan2(dy, dx) - 0.8;
+                b._laserTimer = b._laserDuration;
+                b._laserAngle = Math.atan2(dy, dx) - 0.8;
                 floatText(b.x, b.y, 'LASER SWEEP', '#c0d0e0');
                 sfx('chrome_leviathan_laser');
             }
@@ -1201,22 +1201,22 @@
     // ─────────────────────────────────────────────────────────────────
     window._DLC_BOSS_REGISTRY['TEMPORAL_WARDEN'] = {
         init(b) {
-            b.radius  = 46;
-            b.color   = '#e8f0ff';
-            b.phase   = 1;
-            b.speed   = 2.8;
+            b.radius = 46;
+            b.color = '#e8f0ff';
+            b.phase = 1;
+            b.speed = 2.8;
             b.attackCooldown = 40;
             b.attackMaxCooldown = 40;
-            b._dashTimer   = 0;
+            b._dashTimer = 0;
             b._dashCooldown = 150;
-            b._dashing     = false;
-            b._dashVx      = 0;
-            b._dashVy      = 0;
+            b._dashing = false;
+            b._dashVx = 0;
+            b._dashVy = 0;
             b._dashDuration = 0;
             b._eraseTimers = [];  // Visual "erase grid" effect
             b._eraseCooldown = 250;
-            b._phase2Done  = false;
-            b._bladeAngle  = 0;
+            b._phase2Done = false;
+            b._bladeAngle = 0;
             applyHuntElite(b);
         },
 
@@ -1400,8 +1400,8 @@
     function _drawBossHpBar(ctx, b) {
         const barW = b.radius * 2.4;
         const barH = 9;
-        const bx   = b.x - barW / 2;
-        const by   = b.y - b.radius - 22;
+        const bx = b.x - barW / 2;
+        const by = b.y - b.radius - 22;
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
         ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
         const pct = Math.max(0, b.hp / b.maxHp);
@@ -1423,22 +1423,22 @@
     // ─────────────────────────────────────────────────────────────────
     window._DLC_BOSS_REGISTRY['BOSS_THUNDER'] = {
         init(b) {
-            b.radius  = 70;
-            b.color   = '#ffe040';
-            b.phase   = 1;
-            b.speed   = 1.8;
-            b.maxHp   = Math.round(b.maxHp * 1.5);
-            b.hp      = b.maxHp;
-            b.damage  = Math.round(b.damage * 1.25);
+            b.radius = 70;
+            b.color = '#ffe040';
+            b.phase = 1;
+            b.speed = 1.8;
+            b.maxHp = Math.round(b.maxHp * 1.5);
+            b.hp = b.maxHp;
+            b.damage = Math.round(b.damage * 1.25);
             b.attackCooldown = 55;
             b.attackMaxCooldown = 55;
-            b._boltCooldown   = 120;
-            b._stormCooldown  = 280;
-            b._stormActive    = false;
-            b._stormTimer     = 0;
-            b._lightningArcs  = [];  // visual arcs
-            b._chargeAngle    = 0;
-            b._phase2Done     = false;
+            b._boltCooldown = 120;
+            b._stormCooldown = 280;
+            b._stormActive = false;
+            b._stormTimer = 0;
+            b._lightningArcs = [];  // visual arcs
+            b._chargeAngle = 0;
+            b._phase2Done = false;
             applyHuntElite(b);
         },
 
@@ -1454,8 +1454,8 @@
                 b.phase = 2;
                 b.speed = 2.5;
                 b.attackMaxCooldown = 35;
-                b._boltCooldown   = 80;
-                b._stormCooldown  = 180;
+                b._boltCooldown = 80;
+                b._stormCooldown = 180;
                 explosion(b.x, b.y, '#ffe040', 22);
                 floatText(b.x, b.y, 'TITAN FURY', '#ffe040');
                 sfx('boss_thunder_titan_fury');
@@ -1577,24 +1577,24 @@
     // ─────────────────────────────────────────────────────────────────
     window._DLC_BOSS_REGISTRY['BOSS_SPIRIT'] = {
         init(b) {
-            b.radius  = 54;
-            b.color   = '#a060e0';
-            b.phase   = 1;
-            b.speed   = 2.0;
-            b.maxHp   = Math.round(b.maxHp * 1.3);
-            b.hp      = b.maxHp;
-            b.damage  = Math.round(b.damage * 1.1);
+            b.radius = 54;
+            b.color = '#a060e0';
+            b.phase = 1;
+            b.speed = 2.0;
+            b.maxHp = Math.round(b.maxHp * 1.3);
+            b.hp = b.maxHp;
+            b.damage = Math.round(b.damage * 1.1);
             b.attackCooldown = 60;
             b.attackMaxCooldown = 60;
-            b._chaosTimer  = 0;
+            b._chaosTimer = 0;
             b._chaosCooldown = 200;
-            b._luckTimer   = 0;
+            b._luckTimer = 0;
             b._luckCooldown = 140;
-            b._orbAngle    = 0;
-            b._orbs        = [];  // orbiting spirit orbs
-            b._phase2Done  = false;
-            b._ghostAlpha  = 0.8;
-            b._ghostPulse  = 0;
+            b._orbAngle = 0;
+            b._orbs = [];  // orbiting spirit orbs
+            b._phase2Done = false;
+            b._ghostAlpha = 0.8;
+            b._ghostPulse = 0;
             // Spawn 3 spirit orbs
             for (let i = 0; i < 3; i++) {
                 b._orbs.push({ angle: (Math.PI * 2 / 3) * i, dist: 100, hp: 80, maxHp: 80 });
@@ -1616,7 +1616,7 @@
                 b.speed = 3.0;
                 b.attackMaxCooldown = 40;
                 b._chaosCooldown = 130;
-                b._luckCooldown  = 90;
+                b._luckCooldown = 90;
                 // Add 2 more orbs
                 for (let i = 0; i < 2; i++) {
                     b._orbs.push({ angle: Math.random() * Math.PI * 2, dist: 100, hp: 80, maxHp: 80 });
@@ -1665,7 +1665,7 @@
                 b.attackCooldown = b.attackMaxCooldown;
                 const a = Math.atan2(dy, dx);
                 const spread = b.phase === 2 ? 0.5 : 0.35;
-                const count  = b.phase === 2 ? 6 : 4;
+                const count = b.phase === 2 ? 6 : 4;
                 for (let i = 0; i < count; i++) {
                     const ba = a + (Math.random() - 0.5) * spread * 2;
                     spawnProj(b.x, b.y, Math.cos(ba) * (4.5 + Math.random()), Math.sin(ba) * (4.5 + Math.random()), b.damage, '#a060e0', 9);
@@ -1780,6 +1780,4 @@
             ctx.restore();
         }
     };
-
-    console.log('[EoE] TimeBosses registered:', Object.keys(window._DLC_BOSS_REGISTRY).join(', '));
 })();

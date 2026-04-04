@@ -8,6 +8,7 @@ class AudioManager {
             goblin:   new Audio('audio/music/boss_green_goblin.wav'),
             battle:   new Audio('audio/music/battle.wav'),
             gameover: new Audio('audio/music/game_over.wav'),
+            victory:  new Audio('audio/music/victory.wav'),
 
             // SFX
             level_up:          new Audio('audio/sounds/level_up.wav'),
@@ -66,6 +67,7 @@ class AudioManager {
         this.tracks.goblin.loop = true;   this.tracks.goblin.volume = 0.6;
         this.tracks.battle.loop = true;   this.tracks.battle.volume = 0.4;
         this.tracks.gameover.loop = true; this.tracks.gameover.volume = 0.6;
+        this.tracks.victory.loop  = true; this.tracks.victory.volume  = 0.6;
 
         // SFX config
         this.tracks.level_up.volume = 0.5;
@@ -283,7 +285,9 @@ class AudioManager {
 
         const menuStates = ['MENU','OPTIONS','PERMSHOP','ACHIEVEMENTS','COLLECTION','HIGHSCORE','STORY','ALTAR','CHAOSSHOP','TUTORIAL','STATS','COMPLETION','SKILLTREE'];
 
-        if (uiState === 'GAMEOVER') {
+        if (uiState === 'VICTORY') {
+            this.stopAllExcept('victory'); this.play('victory');
+        } else if (uiState === 'GAMEOVER') {
             this.stopAllExcept('gameover'); this.play('gameover');
         } else if (uiState === 'MUSEUM') {
             this.stopAllExcept('museum'); this.play('museum');
