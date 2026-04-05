@@ -549,8 +549,8 @@ function toggleCoopMode() {
         window.coopP2CursorIndex = -1;
     }
 
-    // Grey out unsupported modes in 2-player (Story and Versus are allowed)
-    const restrictedBtns = ['btn-chaos-mode', 'btn-tutorial-mode', 'daily-challenge-btn', 'weekly-challenge-btn'];
+    // Grey out unsupported modes in 2-player
+    const restrictedBtns = ['btn-chaos-mode', 'btn-tutorial-mode'];
     restrictedBtns.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('coop-disabled', isCoopMode);
@@ -649,6 +649,14 @@ function updateCoopUI() {
         if (standardBtn) standardBtn.classList.remove('coop-disabled');
         const continueBtn = document.getElementById('continue-btn');
         if (continueBtn) continueBtn.classList.remove('coop-disabled');
+        const storyBtn = document.getElementById('btn-story-mode');
+        if (storyBtn) storyBtn.classList.remove('coop-disabled');
+        const versusBtn2 = document.getElementById('btn-versus-mode');
+        if (versusBtn2) versusBtn2.classList.remove('coop-disabled');
+        const dailyBtn2 = document.getElementById('daily-challenge-btn');
+        if (dailyBtn2) dailyBtn2.classList.remove('coop-disabled');
+        const weeklyBtn2 = document.getElementById('weekly-challenge-btn');
+        if (weeklyBtn2) weeklyBtn2.classList.remove('coop-disabled');
         return;
     }
     bar.style.display = 'flex';
@@ -674,6 +682,16 @@ function updateCoopUI() {
     // Disable Standard Run until BOTH gamepads are connected
     const standardBtn = document.querySelector('.menu-primary-btn');
     if (standardBtn) standardBtn.classList.toggle('coop-disabled', !ready);
+
+    // Disable Story Mode, 2P Versus, and Challenges until BOTH gamepads are connected
+    const storyBtn = document.getElementById('btn-story-mode');
+    if (storyBtn) storyBtn.classList.toggle('coop-disabled', !ready);
+    const versusBtn = document.getElementById('btn-versus-mode');
+    if (versusBtn) versusBtn.classList.toggle('coop-disabled', !ready);
+    const dailyBtn = document.getElementById('daily-challenge-btn');
+    if (dailyBtn) dailyBtn.classList.toggle('coop-disabled', !ready);
+    const weeklyBtn = document.getElementById('weekly-challenge-btn');
+    if (weeklyBtn) weeklyBtn.classList.toggle('coop-disabled', !ready);
 
     // Continue Run: disable if saved run is solo (can't join a solo run in co-op mid-way)
     const continueBtn = document.getElementById('continue-btn');
@@ -834,6 +852,7 @@ function initMenu() {
     if (_backdrop) _backdrop.style.display = 'none';
 
     if (typeof audioManager !== 'undefined') audioManager.play('menu');
+    if (typeof MenuBackground !== 'undefined') MenuBackground.start();
     document.getElementById('menu-overlay').style.display = 'flex';
     document.getElementById('start-screen').style.display = 'flex';
     document.getElementById('start-screen').style.flexDirection = 'column';
@@ -1197,7 +1216,7 @@ function continueRun() {
 let pendingGameMode = null;
 
 function checkNewGame(mode) {
-    if (isCoopMode && mode !== 'STANDARD' && mode !== 'STORY') return; // co-op supports Standard + Story
+    if (isCoopMode && mode !== 'STANDARD' && mode !== 'STORY' && mode !== 'DAILY' && mode !== 'WEEKLY') return; // co-op supports Standard, Story, Daily, Weekly
     if (isCoopMode && coopP2GamepadIndex === -1) return; // P2 controller not yet connected
     if (saveData.savedRun) {
         pendingGameMode = mode;
@@ -2960,6 +2979,11 @@ function startGame(mode = 'NORMAL') {
     let heroType = selectedHeroType;
     if ((mode === 'DAILY' || mode === 'WEEKLY') && activeMutators.some(m => m.id === 'SHADOW_FORM')) {
         heroType = 'black';
+        // In co-op, P2 also plays as black
+        if (isCoopMode) {
+            coopP2HeroType = 'black';
+            window.coopP2HeroType = 'black';
+        }
     }
 
     // In Shuffle Mode, start with random non-black hero? Or selected? 
@@ -3097,6 +3121,7 @@ function startGame(mode = 'NORMAL') {
     };
 
     // Hide Menus
+    if (typeof MenuBackground !== 'undefined') MenuBackground.stop();
     document.getElementById('menu-overlay').style.display = 'none';
     document.getElementById('start-screen').style.display = 'none';
     document.getElementById('game-over-screen').style.display = 'none';

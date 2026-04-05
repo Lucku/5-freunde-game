@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5 Freunde — Save Editor</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #252836;
+    --border: #2e3244;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --text: #e2e8f0;
+    --text-muted: #7b849a;
+    --success: #48bb78;
+    --warning: #ed8936;
+    --danger: #fc5c65;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: wrap;
+  }
+
+  header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+
+  header .subtitle {
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .header-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { background: var(--border); border-color: #444; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #5a52d5; }
+  .btn.success { background: var(--success); border-color: var(--success); color: #fff; }
+  .btn.success:hover { background: #38a169; }
+  .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .btn.danger:hover { background: #e53e3e; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .status-bar {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 24px;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .status-dot.ok { background: var(--success); }
+  .status-dot.error { background: var(--danger); }
+
+  .main {
+    display: flex;
+    flex-direction: column;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px;
+    gap: 0;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    padding: 10px 18px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Overlay when no save loaded */
+  .locked-overlay {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+
+  .locked-overlay h2 { font-size: 16px; margin-bottom: 8px; color: var(--text); }
+
+  /* Section */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .section-actions { display: flex; gap: 6px; }
+
+  /* Hero grid */
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .hero-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .hero-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .hero-icon {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .hero-name { font-weight: 600; font-size: 14px; }
+
+  .field-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+
+  .field-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .field-value {
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  input[type="number"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    padding: 4px 8px;
+    font-size: 13px;
+    width: 80px;
+    text-align: right;
+  }
+
+  input[type="number"]:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  /* Chaos / Void grid */
+  .item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+  }
+
+  .item-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  .item-card.unlocked { border-color: var(--success); background: rgba(72,187,120,0.06); }
+  .item-card:hover { border-color: var(--accent); }
+
+  .item-card input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: var(--success);
+    flex-shrink: 0;
+    margin-top: 2px;
+    cursor: pointer;
+  }
+
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+  .item-desc { font-size: 11px; color: var(--text-muted); }
+  .item-meta { font-size: 11px; color: var(--accent); margin-top: 2px; }
+
+  /* Void shop level inputs */
+  .void-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+  }
+
+  .void-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .void-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .void-name { font-weight: 600; font-size: 13px; }
+  .void-desc { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
+
+  .void-level-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .void-level-row label { font-size: 12px; color: var(--text-muted); flex: 1; }
+
+  /* Memories */
+  .memory-section {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+
+  .memory-hero-header {
+    padding: 12px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    user-select: none;
+    border-bottom: 1px solid transparent;
+    transition: background 0.1s;
+  }
+
+  .memory-hero-header:hover { background: rgba(255,255,255,0.04); }
+  .memory-hero-header.open { border-bottom-color: var(--border); }
+
+  .memory-hero-name { font-weight: 600; flex: 1; }
+  .memory-count { font-size: 12px; color: var(--accent); }
+  .memory-chevron { color: var(--text-muted); font-size: 12px; transition: transform 0.2s; }
+  .memory-hero-header.open .memory-chevron { transform: rotate(90deg); }
+
+  .memory-body { display: none; padding: 14px 16px; }
+  .memory-body.open { display: block; }
+
+  .memory-actions { display: flex; gap: 6px; margin-bottom: 12px; }
+
+  .memory-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 5px;
+  }
+
+  @media (max-width: 600px) {
+    .memory-grid { grid-template-columns: repeat(5, 1fr); }
+  }
+
+  .mem-chip {
+    aspect-ratio: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.1s;
+    user-select: none;
+  }
+
+  .mem-chip:hover { border-color: var(--accent); color: var(--text); }
+  .mem-chip.unlocked { background: rgba(108,99,255,0.15); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+  /* Cards */
+  .cards-section { margin-bottom: 16px; }
+
+  .card-type-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+
+  .card-type-name { font-weight: 600; font-size: 13px; }
+  .card-type-desc { font-size: 11px; color: var(--text-muted); flex: 1; }
+
+  .card-tiers {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tier-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.1s;
+    user-select: none;
+  }
+
+  .tier-chip:hover { border-color: var(--accent); }
+  .tier-chip.unlocked { border-color: var(--warning); background: rgba(237,137,54,0.1); }
+
+  .tier-chip input[type="checkbox"] {
+    width: 14px; height: 14px;
+    accent-color: var(--warning);
+    cursor: pointer;
+  }
+
+  .tier-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .tier-label { font-size: 12px; font-weight: 500; }
+
+  /* Currency section */
+  .currency-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+  }
+
+  .currency-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  .currency-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .currency-name { font-weight: 600; font-size: 14px; margin-bottom: 12px; }
+
+  .currency-card input[type="number"] {
+    width: 100%;
+    font-size: 18px;
+    padding: 8px 12px;
+    font-weight: 700;
+  }
+
+  /* Import/export modal */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 560px;
+  }
+
+  .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+  .modal p { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+
+  .modal textarea {
+    width: 100%;
+    height: 120px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: monospace;
+    padding: 10px;
+    resize: vertical;
+    margin-bottom: 12px;
+  }
+
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 13px;
+    color: var(--text);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    z-index: 300;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.25s;
+    pointer-events: none;
+  }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { border-color: var(--success); color: var(--success); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>5 Freunde — Save Editor</h1>
+    <div class="subtitle">Standalone save game editor</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn" onclick="showImport()">Import Save</button>
+    <button class="btn" id="btn-load-local" onclick="loadFromLocalStorage()">Load from Browser</button>
+    <button class="btn" onclick="showExport()">Export Save</button>
+    <button class="btn success" id="btn-save" disabled onclick="saveToLocalStorage()">Save to Browser</button>
+  </div>
+</header>
+
+<div class="status-bar">
+  <div class="status-dot" id="status-dot"></div>
+  <span id="status-text">No save loaded. Import a save string or load from browser localStorage.</span>
+</div>
+
+<div class="main">
+  <div id="no-save" class="locked-overlay">
+    <h2>No save loaded</h2>
+    <p>Click "Load from Browser" to read your save from localStorage,<br>or paste a save string using "Import Save".</p>
+    <br>
+    <button class="btn primary" onclick="loadFromLocalStorage()">Load from Browser</button>
+  </div>
+
+  <div id="editor" style="display:none">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="heroes">Heroes</button>
+      <button class="tab-btn" data-tab="chaos">Chaos Shop</button>
+      <button class="tab-btn" data-tab="void">Void Shop</button>
+      <button class="tab-btn" data-tab="memories">Memories</button>
+      <button class="tab-btn" data-tab="cards">Collector Cards</button>
+      <button class="tab-btn" data-tab="currency">Currency</button>
+    </div>
+
+    <!-- HEROES -->
+    <div class="tab-panel active" id="tab-heroes">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Hero Progression</span>
+          <div class="section-actions">
+            <button class="btn" onclick="setAllPrestige()">Set All Prestige…</button>
+            <button class="btn" onclick="maxAllHeroes()">Max All Heroes</button>
+          </div>
+        </div>
+        <div class="hero-grid" id="hero-grid"></div>
+      </div>
+    </div>
+
+    <!-- CHAOS SHOP -->
+    <div class="tab-panel" id="tab-chaos">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Chaos Shop Effects</span>
+          <div class="section-actions">
+            <button class="btn success" onclick="unlockAllChaos()">Unlock All</button>
+            <button class="btn danger" onclick="lockAllChaos()">Lock All</button>
+          </div>
+        </div>
+        <div class="item-grid" id="chaos-grid"></div>
+      </div>
+    </div>
+
+    <!-- VOID SHOP -->
+    <div class="tab-panel" id="tab-void">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Void Shop (Meta Upgrades)</span>
+          <div class="section-actions">
+            <button class="btn success" onclick="maxAllVoid()">Max All (Level 20)</button>
+            <button class="btn danger" onclick="resetAllVoid()">Reset All</button>
+          </div>
+        </div>
+        <div class="void-grid" id="void-grid"></div>
+      </div>
+    </div>
+
+    <!-- MEMORIES -->
+    <div class="tab-panel" id="tab-memories">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Memories</span>
+          <div class="section-actions">
+            <button class="btn success" onclick="unlockAllMemories()">Unlock All</button>
+            <button class="btn danger" onclick="lockAllMemories()">Lock All</button>
+          </div>
+        </div>
+        <div id="memories-container"></div>
+      </div>
+    </div>
+
+    <!-- CARDS -->
+    <div class="tab-panel" id="tab-cards">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Collector's Cards</span>
+          <div class="section-actions">
+            <button class="btn success" onclick="unlockAllCards()">Unlock All</button>
+            <button class="btn danger" onclick="lockAllCards()">Lock All</button>
+          </div>
+        </div>
+        <div id="cards-container"></div>
+      </div>
+    </div>
+
+    <!-- CURRENCY -->
+    <div class="tab-panel" id="tab-currency">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Currency &amp; Stats</span>
+        </div>
+        <div class="currency-grid" id="currency-grid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <h2>Import Save</h2>
+    <p>Paste your encoded save string below (the raw value from localStorage key <code>5FreundeSave</code>).</p>
+    <textarea id="import-textarea" placeholder="Paste save string here…"></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('import-modal')">Cancel</button>
+      <button class="btn primary" onclick="importFromString()">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" id="export-modal">
+  <div class="modal">
+    <h2>Export Save</h2>
+    <p>Copy this string and paste it into your browser console:<br><code>localStorage.setItem('5FreundeSave', '...')</code></p>
+    <textarea id="export-textarea" readonly onclick="this.select()"></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('export-modal')">Close</button>
+      <button class="btn primary" onclick="copyExport()">Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const SECRET = 'FriendeSecretKey_v2__7!zQ#pL9rW$mX@nK3&hJ6^tY8*cB0-vN1=aD4+sF5~gH2';
+const SAVE_KEY = '5FreundeSave';
+
+const BASE_HEROES = [
+  { id: 'fire',  name: 'Fire',   icon: '🔥', color: '#e74c3c' },
+  { id: 'water', name: 'Water',  icon: '💧', color: '#3498db' },
+  { id: 'ice',   name: 'Ice',    icon: '❄️', color: '#74b9ff' },
+  { id: 'plant', name: 'Plant',  icon: '🌿', color: '#2ecc71' },
+  { id: 'metal', name: 'Metal',  icon: '⚙️', color: '#95a5a6' },
+  { id: 'black', name: 'Shadow', icon: '🖤', color: '#636e72' },
+];
+
+const ALL_MEMORY_HEROES = [
+  { id: 'fire',      name: 'Fire',      icon: '🔥' },
+  { id: 'water',     name: 'Water',     icon: '💧' },
+  { id: 'ice',       name: 'Ice',       icon: '❄️' },
+  { id: 'plant',     name: 'Plant',     icon: '🌿' },
+  { id: 'metal',     name: 'Metal',     icon: '⚙️' },
+  { id: 'black',     name: 'Shadow',    icon: '🖤' },
+  { id: 'makuta',    name: 'Makuta',    icon: '👁️' },
+  { id: 'earth',     name: 'Earth',     icon: '🪨', dlc: true },
+  { id: 'lightning', name: 'Lightning', icon: '⚡', dlc: true },
+  { id: 'gravity',   name: 'Gravity',   icon: '🌀', dlc: true },
+  { id: 'void',      name: 'Void',      icon: '🌌', dlc: true },
+  { id: 'spirit',    name: 'Spirit',    icon: '👻', dlc: true },
+  { id: 'chance',    name: 'Chance',    icon: '🎲', dlc: true },
+  { id: 'sound',     name: 'Sound',     icon: '🎵', dlc: true },
+  { id: 'poison',    name: 'Poison',    icon: '☠️', dlc: true },
+  { id: 'air',       name: 'Air',       icon: '🌬️', dlc: true },
+  { id: 'time',      name: 'Time',      icon: '⏰', dlc: true },
+  { id: 'love',      name: 'Love',      icon: '❤️', dlc: true },
+];
+
+const CHAOS_EFFECTS = [
+  { id: 'INVERTED',        name: 'Confused Controls',  desc: 'Movement controls are inverted.',              cost: 5 },
+  { id: 'SLIPPERY',        name: 'Butter Fingers',     desc: 'Movement has zero friction.',                  cost: 3 },
+  { id: 'GIANT_ENEMIES',   name: 'Titan Mode',         desc: 'Enemies are 2× size and HP.',                 cost: 5 },
+  { id: 'TINY_PLAYER',     name: 'Ant Man',            desc: 'Player is 50% size, takes 200% damage.',       cost: 4 },
+  { id: 'EXPLOSIVE_STEPS', name: 'Hot Foot',           desc: 'Spawn explosions while moving (hurts you!).',  cost: 8 },
+  { id: 'DRUNK_CAM',       name: 'Queasy Cam',         desc: 'Camera rotates and sways.',                    cost: 2 },
+  { id: 'SPEED_DEMON',     name: 'Turbo Mode',         desc: 'Game runs at 1.5× speed.',                    cost: 6 },
+  { id: 'GHOST_TOWN',      name: 'Invisible Enemies',  desc: 'Enemies are partially transparent.',           cost: 3 },
+  { id: 'MELEE_ONLY',      name: 'Melee Only',         desc: 'You can only use melee attacks.',              cost: 5 },
+];
+
+const VOID_UPGRADES = [
+  { id: 'health',  name: 'Void Heart',     desc: '+5 Starting HP per level',      icon: '❤️' },
+  { id: 'greed',   name: 'Void Coin',      desc: '+5% Gold Gain per level',        icon: '🪙' },
+  { id: 'power',   name: 'Void Strength',  desc: '+1% Damage per level',           icon: '⚔️' },
+  { id: 'swift',   name: 'Void Step',      desc: '+1% Speed per level',            icon: '👟' },
+  { id: 'defense', name: 'Void Shell',     desc: '+1% Damage Reduction per level', icon: '🛡️' },
+  { id: 'wisdom',  name: 'Void Mind',      desc: '+2% XP Gain per level',          icon: '🧠' },
+];
+
+const CARD_TYPES = [
+  { id: 'BASIC',           name: 'Grunt',           desc: '+10% Crit Chance vs Basics' },
+  { id: 'SHOOTER',         name: 'Shooter',         desc: '15% Chance to Dodge Shooters' },
+  { id: 'BRUTE',           name: 'Brute',           desc: '+20% Crit Chance vs Brutes' },
+  { id: 'SPEEDSTER',       name: 'Speedster',       desc: 'Speedsters 10% Slower' },
+  { id: 'SWARM',           name: 'Swarm',           desc: 'Swarm enemies explode on death' },
+  { id: 'SUMMONER',        name: 'Summoner',        desc: 'Summoners summon 50% slower' },
+  { id: 'GHOST',           name: 'Ghost',           desc: 'Ghosts are always visible' },
+  { id: 'SNIPER',          name: 'Assassin',        desc: 'Take 20% less dmg from Snipers' },
+  { id: 'BOMBER',          name: 'Bomber',          desc: 'Bombers have 50% less HP' },
+  { id: 'TOXIC',           name: 'Toxic',           desc: 'Immune to Toxic Trails' },
+  { id: 'SHIELDER',        name: 'Guardian',        desc: 'Attacks pierce Shields' },
+  { id: 'BOSS',            name: 'Titan',           desc: '+10% Damage vs Bosses' },
+  { id: 'ELITE_AURA_SPEED', name: 'Elite Commander', desc: 'Elites have 10% less HP' },
+  { id: 'ELITE_AURA_HEAL',  name: 'Elite Mender',    desc: 'Elites heal 50% less' },
+  { id: 'ELITE_EXPLODER',   name: 'Elite Volatile',  desc: 'Explosion radius -20%' },
+  { id: 'ELITE_TANK',       name: 'Elite Juggernaut', desc: '+20% Damage vs Elites' },
+];
+
+const TIERS = [
+  { num: 1, label: 'Bronze',   color: '#cd7f32' },
+  { num: 2, label: 'Silver',   color: '#c0c0c0' },
+  { num: 3, label: 'Gold',     color: '#ffd700' },
+  { num: 4, label: 'Platinum', color: '#00d4ff' },
+];
+
+// ─── Crypto helpers (mirrors SaveManager.js) ─────────────────────────────────
+
+let _keyPromise = null;
+
+function getKey() {
+  if (!_keyPromise) {
+    _keyPromise = crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign', 'verify']
+    );
+  }
+  return _keyPromise;
+}
+
+async function signData(plaintext) {
+  const key = await getKey();
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(plaintext));
+  return btoa(String.fromCharCode(...new Uint8Array(sig)));
+}
+
+async function verifyData(plaintext, b64Sig) {
+  const key = await getKey();
+  const sigBytes = Uint8Array.from(atob(b64Sig), c => c.charCodeAt(0));
+  return crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(plaintext));
+}
+
+async function encodeSave(data) {
+  const json = JSON.stringify(data);
+  const b64 = btoa(unescape(encodeURIComponent(json)));
+  const sig = await signData(b64);
+  return btoa(JSON.stringify({ d: b64, s: sig }));
+}
+
+async function decodeSave(raw) {
+  if (!raw) return null;
+  raw = raw.trim();
+
+  // Legacy: plain JSON
+  if (raw.startsWith('{')) return JSON.parse(raw);
+
+  let envelope;
+  try {
+    envelope = JSON.parse(atob(raw));
+  } catch (_) {
+    // Old unsigned base64
+    return JSON.parse(decodeURIComponent(escape(atob(raw))));
+  }
+
+  if (envelope.d && envelope.s) {
+    const valid = await verifyData(envelope.d, envelope.s);
+    if (!valid) throw new Error('HMAC verification failed — save may be corrupted or tampered with.');
+    return JSON.parse(decodeURIComponent(escape(atob(envelope.d))));
+  }
+
+  // Envelope was a direct save object
+  if (envelope.global !== undefined || envelope.fire !== undefined) return envelope;
+  throw new Error('Unrecognised save format.');
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+
+let saveData = null;
+
+// ─── UI helpers ──────────────────────────────────────────────────────────────
+
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = 'toast', 2800);
+}
+
+function setStatus(msg, state = '') {
+  document.getElementById('status-text').textContent = msg;
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot' + (state ? ' ' + state : '');
+}
+
+function showEditor() {
+  document.getElementById('no-save').style.display = 'none';
+  document.getElementById('editor').style.display = 'block';
+  document.getElementById('btn-save').disabled = false;
+  renderAll();
+}
+
+// ─── Load / Save ─────────────────────────────────────────────────────────────
+
+async function loadFromLocalStorage() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) {
+    toast('No save found in localStorage for this origin.', 'error');
+    setStatus('No save found in localStorage.', 'error');
+    return;
+  }
+  await loadRaw(raw);
+}
+
+async function loadRaw(raw) {
+  try {
+    saveData = await decodeSave(raw);
+    if (!saveData) throw new Error('Decoded save is null.');
+    ensureDefaults();
+    showEditor();
+    setStatus('Save loaded successfully.', 'ok');
+    toast('Save loaded.', 'success');
+  } catch (e) {
+    toast('Failed to load save: ' + e.message, 'error');
+    setStatus('Error: ' + e.message, 'error');
+  }
+}
+
+async function saveToLocalStorage() {
+  if (!saveData) return;
+  try {
+    collectAllValues();
+    const encoded = await encodeSave(saveData);
+    localStorage.setItem(SAVE_KEY, encoded);
+    setStatus('Save written to localStorage successfully.', 'ok');
+    toast('Saved to browser.', 'success');
+  } catch (e) {
+    toast('Failed to save: ' + e.message, 'error');
+  }
+}
+
+function ensureDefaults() {
+  if (!saveData.global) saveData.global = {};
+  if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
+  if (!saveData.chaos.unlocked) saveData.chaos.unlocked = [];
+  if (!saveData.metaUpgrades) saveData.metaUpgrades = {};
+  if (!saveData.memories) saveData.memories = {};
+  if (!saveData.collection) saveData.collection = [];
+  for (const h of BASE_HEROES) {
+    if (!saveData[h.id]) saveData[h.id] = { level: 0, unlocked: 0, prestige: 0, highScore: 0, maxWinPrestige: -1 };
+  }
+}
+
+// ─── Import / Export ─────────────────────────────────────────────────────────
+
+function showImport() {
+  document.getElementById('import-textarea').value = '';
+  document.getElementById('import-modal').classList.add('open');
+}
+
+async function importFromString() {
+  const raw = document.getElementById('import-textarea').value.trim();
+  if (!raw) return;
+  closeModal('import-modal');
+  await loadRaw(raw);
+}
+
+async function showExport() {
+  if (!saveData) { toast('Load a save first.', 'error'); return; }
+  collectAllValues();
+  const encoded = await encodeSave(saveData);
+  document.getElementById('export-textarea').value = encoded;
+  document.getElementById('export-modal').classList.add('open');
+}
+
+async function copyExport() {
+  const val = document.getElementById('export-textarea').value;
+  await navigator.clipboard.writeText(val);
+  toast('Copied to clipboard!', 'success');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+
+function renderAll() {
+  renderHeroes();
+  renderChaos();
+  renderVoid();
+  renderMemories();
+  renderCards();
+  renderCurrency();
+}
+
+// ─── Render: Heroes ──────────────────────────────────────────────────────────
+
+function renderHeroes() {
+  const grid = document.getElementById('hero-grid');
+  grid.innerHTML = '';
+
+  for (const hero of BASE_HEROES) {
+    const h = saveData[hero.id] || { level: 0, unlocked: 0, prestige: 0 };
+    const available = Math.max(0, (h.level || 0) - (h.unlocked || 0));
+
+    const card = document.createElement('div');
+    card.className = 'hero-card';
+    card.innerHTML = `
+      <div class="hero-card-header">
+        <div class="hero-icon" style="background:${hero.color}22; border:1px solid ${hero.color}44">
+          ${hero.icon}
+        </div>
+        <div class="hero-name">${hero.name}</div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">XP Level</span>
+        <input type="number" min="0" max="9999" id="hero-${hero.id}-level" value="${h.level || 0}" onchange="updateHeroCalc('${hero.id}')">
+      </div>
+      <div class="field-row">
+        <span class="field-label">Skills Spent</span>
+        <input type="number" min="0" max="100" id="hero-${hero.id}-unlocked" value="${h.unlocked || 0}" onchange="updateHeroCalc('${hero.id}')">
+      </div>
+      <div class="field-row">
+        <span class="field-label">Available Points</span>
+        <span class="field-value" id="hero-${hero.id}-avail">${available}</span>
+      </div>
+      <div class="divider"></div>
+      <div class="field-row" style="margin-top:8px">
+        <span class="field-label">Prestige</span>
+        <input type="number" min="0" max="20" id="hero-${hero.id}-prestige" value="${h.prestige || 0}">
+      </div>
+    `;
+    grid.appendChild(card);
+  }
+}
+
+function updateHeroCalc(heroId) {
+  const level = parseInt(document.getElementById(`hero-${heroId}-level`).value) || 0;
+  const unlocked = parseInt(document.getElementById(`hero-${heroId}-unlocked`).value) || 0;
+  document.getElementById(`hero-${heroId}-avail`).textContent = Math.max(0, level - unlocked);
+}
+
+function maxAllHeroes() {
+  for (const hero of BASE_HEROES) {
+    document.getElementById(`hero-${hero.id}-level`).value = 100;
+    document.getElementById(`hero-${hero.id}-unlocked`).value = 0;
+    updateHeroCalc(hero.id);
+  }
+}
+
+function setAllPrestige() {
+  const val = prompt('Set prestige level for ALL heroes (0–20):', '5');
+  if (val === null) return;
+  const n = parseInt(val);
+  if (isNaN(n) || n < 0) return;
+  for (const hero of BASE_HEROES) {
+    document.getElementById(`hero-${hero.id}-prestige`).value = n;
+  }
+}
+
+// ─── Render: Chaos ───────────────────────────────────────────────────────────
+
+function renderChaos() {
+  const grid = document.getElementById('chaos-grid');
+  grid.innerHTML = '';
+  const unlocked = saveData.chaos?.unlocked || [];
+
+  for (const effect of CHAOS_EFFECTS) {
+    const isUnlocked = unlocked.includes(effect.id);
+    const card = document.createElement('label');
+    card.className = 'item-card' + (isUnlocked ? ' unlocked' : '');
+    card.innerHTML = `
+      <input type="checkbox" id="chaos-${effect.id}" ${isUnlocked ? 'checked' : ''}
+        onchange="toggleChaosCard(this, '${effect.id}')">
+      <div class="item-info">
+        <div class="item-name">${effect.name}</div>
+        <div class="item-desc">${effect.desc}</div>
+        <div class="item-meta">${effect.cost} shards</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  }
+}
+
+function toggleChaosCard(checkbox, id) {
+  checkbox.closest('.item-card').classList.toggle('unlocked', checkbox.checked);
+}
+
+function unlockAllChaos() {
+  for (const e of CHAOS_EFFECTS) {
+    const cb = document.getElementById(`chaos-${e.id}`);
+    cb.checked = true;
+    cb.closest('.item-card').classList.add('unlocked');
+  }
+}
+
+function lockAllChaos() {
+  for (const e of CHAOS_EFFECTS) {
+    const cb = document.getElementById(`chaos-${e.id}`);
+    cb.checked = false;
+    cb.closest('.item-card').classList.remove('unlocked');
+  }
+}
+
+// ─── Render: Void Shop ───────────────────────────────────────────────────────
+
+function renderVoid() {
+  const grid = document.getElementById('void-grid');
+  grid.innerHTML = '';
+  const meta = saveData.metaUpgrades || {};
+
+  for (const upgrade of VOID_UPGRADES) {
+    const level = meta[upgrade.id] || 0;
+    const card = document.createElement('div');
+    card.className = 'void-card';
+    card.innerHTML = `
+      <div class="void-card-header">
+        <div class="void-name">${upgrade.icon} ${upgrade.name}</div>
+      </div>
+      <div class="void-desc">${upgrade.desc}</div>
+      <div class="void-level-row">
+        <label for="void-${upgrade.id}">Level</label>
+        <input type="number" id="void-${upgrade.id}" min="0" max="999" value="${level}" style="width:80px">
+      </div>
+    `;
+    grid.appendChild(card);
+  }
+}
+
+function maxAllVoid() {
+  for (const u of VOID_UPGRADES) {
+    document.getElementById(`void-${u.id}`).value = 20;
+  }
+}
+
+function resetAllVoid() {
+  for (const u of VOID_UPGRADES) {
+    document.getElementById(`void-${u.id}`).value = 0;
+  }
+}
+
+// ─── Render: Memories ────────────────────────────────────────────────────────
+
+function renderMemories() {
+  const container = document.getElementById('memories-container');
+  container.innerHTML = '';
+
+  for (const hero of ALL_MEMORY_HEROES) {
+    const heroMems = saveData.memories?.[hero.id] || [];
+    const unlockCount = heroMems.length;
+
+    const section = document.createElement('div');
+    section.className = 'memory-section';
+
+    const header = document.createElement('div');
+    header.className = 'memory-hero-header';
+    header.innerHTML = `
+      <span style="font-size:16px">${hero.icon}</span>
+      <span class="memory-hero-name">${hero.name}${hero.dlc ? ' <small style="color:var(--text-muted)">DLC</small>' : ''}</span>
+      <span class="memory-count" id="mem-count-${hero.id}">${unlockCount}/50</span>
+      <span class="memory-chevron">▶</span>
+    `;
+
+    const body = document.createElement('div');
+    body.className = 'memory-body';
+    body.id = `mem-body-${hero.id}`;
+
+    const actions = document.createElement('div');
+    actions.className = 'memory-actions';
+    actions.innerHTML = `
+      <button class="btn" style="font-size:12px;padding:4px 10px" onclick="unlockAllHeroMems('${hero.id}')">Unlock All</button>
+      <button class="btn" style="font-size:12px;padding:4px 10px" onclick="lockAllHeroMems('${hero.id}')">Lock All</button>
+    `;
+
+    const grid = document.createElement('div');
+    grid.className = 'memory-grid';
+    grid.id = `mem-grid-${hero.id}`;
+
+    for (let i = 0; i < 50; i++) {
+      const chip = document.createElement('div');
+      chip.className = 'mem-chip' + (heroMems.includes(i) ? ' unlocked' : '');
+      chip.textContent = i + 1;
+      chip.title = `Memory ${i + 1}`;
+      chip.dataset.hero = hero.id;
+      chip.dataset.idx = i;
+      chip.onclick = () => toggleMemory(chip, hero.id, i);
+      grid.appendChild(chip);
+    }
+
+    body.appendChild(actions);
+    body.appendChild(grid);
+    section.appendChild(header);
+    section.appendChild(body);
+    container.appendChild(section);
+
+    header.onclick = () => {
+      const isOpen = header.classList.contains('open');
+      header.classList.toggle('open', !isOpen);
+      body.classList.toggle('open', !isOpen);
+    };
+  }
+}
+
+function toggleMemory(chip, heroId, idx) {
+  chip.classList.toggle('unlocked');
+  updateMemCount(heroId);
+}
+
+function updateMemCount(heroId) {
+  const grid = document.getElementById(`mem-grid-${heroId}`);
+  const count = grid.querySelectorAll('.mem-chip.unlocked').length;
+  document.getElementById(`mem-count-${heroId}`).textContent = `${count}/50`;
+}
+
+function unlockAllHeroMems(heroId) {
+  const grid = document.getElementById(`mem-grid-${heroId}`);
+  grid.querySelectorAll('.mem-chip').forEach(c => c.classList.add('unlocked'));
+  updateMemCount(heroId);
+}
+
+function lockAllHeroMems(heroId) {
+  const grid = document.getElementById(`mem-grid-${heroId}`);
+  grid.querySelectorAll('.mem-chip').forEach(c => c.classList.remove('unlocked'));
+  updateMemCount(heroId);
+}
+
+function unlockAllMemories() {
+  for (const hero of ALL_MEMORY_HEROES) unlockAllHeroMems(hero.id);
+}
+
+function lockAllMemories() {
+  for (const hero of ALL_MEMORY_HEROES) lockAllHeroMems(hero.id);
+}
+
+// ─── Render: Cards ───────────────────────────────────────────────────────────
+
+function renderCards() {
+  const container = document.getElementById('cards-container');
+  container.innerHTML = '';
+  const owned = saveData.collection || [];
+
+  for (const cardType of CARD_TYPES) {
+    const header = document.createElement('div');
+    header.className = 'card-type-header';
+    header.innerHTML = `
+      <span class="card-type-name">${cardType.name}</span>
+      <span class="card-type-desc">${cardType.desc}</span>
+    `;
+
+    const tiers = document.createElement('div');
+    tiers.className = 'card-tiers';
+
+    for (const tier of TIERS) {
+      const cardId = `${cardType.id}_${tier.num}`;
+      const isOwned = owned.includes(cardId);
+
+      const chip = document.createElement('label');
+      chip.className = 'tier-chip' + (isOwned ? ' unlocked' : '');
+      chip.innerHTML = `
+        <input type="checkbox" id="card-${cardId}" ${isOwned ? 'checked' : ''}
+          onchange="this.closest('.tier-chip').classList.toggle('unlocked', this.checked)">
+        <div class="tier-dot" style="background:${tier.color}"></div>
+        <span class="tier-label" style="color:${tier.color}">${tier.label}</span>
+      `;
+      tiers.appendChild(chip);
+    }
+
+    container.appendChild(header);
+    container.appendChild(tiers);
+  }
+}
+
+function unlockAllCards() {
+  for (const ct of CARD_TYPES) {
+    for (const t of TIERS) {
+      const id = `card-${ct.id}_${t.num}`;
+      const cb = document.getElementById(id);
+      cb.checked = true;
+      cb.closest('.tier-chip').classList.add('unlocked');
+    }
+  }
+}
+
+function lockAllCards() {
+  for (const ct of CARD_TYPES) {
+    for (const t of TIERS) {
+      const id = `card-${ct.id}_${t.num}`;
+      const cb = document.getElementById(id);
+      cb.checked = false;
+      cb.closest('.tier-chip').classList.remove('unlocked');
+    }
+  }
+}
+
+// ─── Render: Currency ────────────────────────────────────────────────────────
+
+function renderCurrency() {
+  const grid = document.getElementById('currency-grid');
+  grid.innerHTML = `
+    <div class="currency-card">
+      <div class="currency-label">Void Shop Currency</div>
+      <div class="currency-name">🪙 Total Gold</div>
+      <input type="number" id="cur-totalGold" min="0" value="${saveData.global?.totalGold || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Chaos Shop Currency</div>
+      <div class="currency-name">💜 Chaos Shards</div>
+      <input type="number" id="cur-chaosShards" min="0" value="${saveData.chaos?.shards || 0}">
+    </div>
+  `;
+}
+
+// ─── Collect all form values back into saveData ───────────────────────────────
+
+function collectAllValues() {
+  // Heroes
+  for (const hero of BASE_HEROES) {
+    if (!saveData[hero.id]) saveData[hero.id] = {};
+    saveData[hero.id].level    = parseInt(document.getElementById(`hero-${hero.id}-level`).value) || 0;
+    saveData[hero.id].unlocked = parseInt(document.getElementById(`hero-${hero.id}-unlocked`).value) || 0;
+    saveData[hero.id].prestige = parseInt(document.getElementById(`hero-${hero.id}-prestige`).value) || 0;
+  }
+
+  // Chaos
+  if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
+  saveData.chaos.unlocked = CHAOS_EFFECTS
+    .filter(e => document.getElementById(`chaos-${e.id}`)?.checked)
+    .map(e => e.id);
+
+  // Void
+  if (!saveData.metaUpgrades) saveData.metaUpgrades = {};
+  for (const u of VOID_UPGRADES) {
+    saveData.metaUpgrades[u.id] = parseInt(document.getElementById(`void-${u.id}`).value) || 0;
+  }
+
+  // Memories
+  if (!saveData.memories) saveData.memories = {};
+  for (const hero of ALL_MEMORY_HEROES) {
+    const grid = document.getElementById(`mem-grid-${hero.id}`);
+    if (!grid) continue;
+    const indices = [];
+    grid.querySelectorAll('.mem-chip.unlocked').forEach(c => indices.push(parseInt(c.dataset.idx)));
+    saveData.memories[hero.id] = indices;
+  }
+
+  // Cards
+  const ownedCards = [];
+  for (const ct of CARD_TYPES) {
+    for (const t of TIERS) {
+      const id = `card-${ct.id}_${t.num}`;
+      if (document.getElementById(id)?.checked) ownedCards.push(`${ct.id}_${t.num}`);
+    }
+  }
+  saveData.collection = ownedCards;
+
+  // Currency
+  if (!saveData.global) saveData.global = {};
+  saveData.global.totalGold = parseInt(document.getElementById('cur-totalGold').value) || 0;
+  saveData.chaos.shards = parseInt(document.getElementById('cur-chaosShards').value) || 0;
+}
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tabId = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`tab-${tabId}`).classList.add('active');
+  });
+});
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>

@@ -6,10 +6,9 @@
 - 2-player versus mode can be started without connected controllers
 - check why standard mode button is greyed-out in 2 player
 - make main menu background more interesting
-- save game editor
 - twin event siren sound
 - disable twin event in story mode (?)
-- overhaul design of main menu shops
+- overhaul Makuta boss fight
 
 # Echos of Eternity
 
