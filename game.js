@@ -4281,7 +4281,8 @@ function masterLoop(timestamp) {
                         enemies.unshift(tutBoss);
                     } else {
                         // Standard Boss Spawning
-                        if (Math.random() < 0.05) {
+                        const _isStoryMode = (saveData.story && saveData.story.enabled !== false) && !isDailyMode && !isWeeklyMode && !isChaosShuffleMode && !isVersusMode;
+                        if (!_isStoryMode && Math.random() < 0.05) {
                             document.getElementById('event-text').style.display = 'block';
                             setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
                             enemies.unshift(new Boss(), new Boss());
