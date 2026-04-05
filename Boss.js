@@ -47,21 +47,40 @@ class Boss {
         else if (this.type === 'RHINO') { this.maxHp *= 1.2; this.color = '#7f8c8d'; this.speed *= 0.5; }
         else if (this.type === 'HYDRA') { this.maxHp *= 1.0; this.color = '#27ae60'; }
         else if (this.type === 'MAKUTA') {
-            // Makuta Special Boss
-            this.color = '#000000'; // Pure Black
-            this.radius = 80; // Larger
-
-            // Wave 50 vs Wave 100 Scaling
+            this.color = '#000000';
+            this.radius = 85;
             if (wave === 50) {
-                this.maxHp *= 2.0; // 2x Normal Boss HP
-                this.damage *= 1.5;
-                this.speed *= 1.2;
+                this.maxHp *= 2.5; this.damage *= 1.8; this.speed *= 1.1;
             } else if (wave >= 100) {
-                this.maxHp *= 5.0; // 5x Normal Boss HP (Final Boss)
-                this.damage *= 2.5;
-                this.speed *= 1.5;
+                this.maxHp *= 6.0; this.damage *= 3.0; this.speed *= 1.4;
             }
             this.hp = this.maxHp;
+
+            // Orbiting decorative shadow orbs
+            this.mkOrbs = Array.from({ length: 3 }, (_, i) => ({
+                angle: (Math.PI * 2 / 3) * i, speed: 0.022, dist: 115
+            }));
+
+            // Teleport cooldown
+            this.mkTeleportCd = 180;
+
+            // Attack state machine: 'IDLE' | 'CHANNEL' | 'BARRAGE' | 'SWEEP'
+            this.mkState = 'IDLE';
+            this.mkChannelTimer = 0;
+            this.mkBarrageCount = 0;
+            this.mkBarrageCd = 0;
+            this.mkSweepAngle = 0;
+            this.mkSweepCd = 0;
+            this.mkSweepShots = 0;
+
+            // Visual animation counters
+            this.mkEyeFlare = 0;
+            this.mkBodyPulse = 0;
+            this.mkHornSway = 0;
+
+            // Makuta handles its own phase transitions
+            this.mkP2done = false;
+            this.mkP3done = false;
         } else if (this.type === 'GREEN_GOBLIN') {
             this.color = '#1d8a2e';
             this.radius = 52;
@@ -150,8 +169,8 @@ class Boss {
             }
         }
 
-        // Phase Transition Logic (GREEN_GOBLIN handles its own phases below)
-        if (this.phase === 1 && this.hp <= this.maxHp * 0.5 && this.type !== 'GREEN_GOBLIN') {
+        // Phase Transition Logic (GREEN_GOBLIN and MAKUTA handle their own phases)
+        if (this.phase === 1 && this.hp <= this.maxHp * 0.5 && this.type !== 'GREEN_GOBLIN' && this.type !== 'MAKUTA') {
             this.phase = 2;
             floatingTexts.push(new FloatingText(this.x, this.y - 60, "PHASE 2!", "#e74c3c", 30));
             createExplosion(this.x, this.y, this.color);
@@ -216,7 +235,7 @@ class Boss {
         // ── GREEN GOBLIN — full mechanics ────────────────────────────────────
         if (this.type === 'GREEN_GOBLIN') {
             // Animation ticks
-            this.wiggle  = (this.wiggle  + 0.09) % (Math.PI * 2);
+            this.wiggle = (this.wiggle + 0.09) % (Math.PI * 2);
             this.eyeGlow = (this.eyeGlow + 0.06) % (Math.PI * 2);
 
             // Phase transitions
@@ -296,7 +315,7 @@ class Boss {
                         _m.x = this.x + Math.cos(_ma) * 110;
                         _m.y = this.y + Math.sin(_ma) * 110;
                         _m.color = '#27ae60';
-                        _m.hp   *= 0.45;
+                        _m.hp *= 0.45;
                         _m.radius *= 0.65;
                         enemies.push(_m);
                         createExplosion(_m.x, _m.y, '#27ae60');
@@ -343,28 +362,205 @@ class Boss {
             }
             this.attackCooldown--;
         } else if (this.type === 'MAKUTA') {
-            // Makuta Logic: Teleportation & Shadow Bolts
+            // ── Animation ticks ───────────────────────────────────────────────
+            this.mkBodyPulse = (this.mkBodyPulse + 0.04) % (Math.PI * 2);
+            this.mkHornSway = (this.mkHornSway + 0.018) % (Math.PI * 2);
+            if (this.mkEyeFlare > 0) this.mkEyeFlare = Math.max(0, this.mkEyeFlare - 0.04);
 
-            // Standard Movement
-            nextX += Math.cos(angle) * this.speed;
-            nextY += Math.sin(angle) * this.speed;
+            // Rotate orbiting shadow orbs
+            for (const orb of this.mkOrbs) orb.angle += orb.speed;
 
-            // Teleport Ability (Every 5 seconds)
-            if (frame % 300 === 0) {
-                createExplosion(this.x, this.y, '#000');
+            // ── Phase transitions ─────────────────────────────────────────────
+            if (!this.mkP2done && this.hp < this.maxHp * 0.6) {
+                this.mkP2done = true;
+                this.phase = 2;
+                this.speed *= 1.25;
+                this.mkTeleportCd = 130;
+                this.mkEyeFlare = 1;
+                createExplosion(this.x, this.y, '#330033');
+                for (let i = 0; i < 12; i++) {
+                    const a = (Math.PI * 2 / 12) * i;
+                    projectiles.push(new Projectile(this.x, this.y,
+                        { x: Math.cos(a) * 5, y: Math.sin(a) * 5 },
+                        this.damage * 0.8, '#550055', 10, 'enemy', 0, true));
+                }
+                for (let i = 0; i < 3; i++) {
+                    const mn = new Enemy(true);
+                    mn.x = this.x + Math.cos((Math.PI * 2 / 3) * i) * 120;
+                    mn.y = this.y + Math.sin((Math.PI * 2 / 3) * i) * 120;
+                    mn.color = '#330033'; mn.hp *= 1.2;
+                    enemies.push(mn);
+                }
+                if (typeof showNotification === 'function') showNotification("MAKUTA UNLEASHED!", '#c026d3');
                 if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_teleport');
-                // Teleport near player
-                const offsetAngle = Math.random() * Math.PI * 2;
-                this.x = player.x + Math.cos(offsetAngle) * 300;
-                this.y = player.y + Math.sin(offsetAngle) * 300;
+            }
+            if (!this.mkP3done && this.hp < this.maxHp * 0.25) {
+                this.mkP3done = true;
+                this.phase = 3;
+                this.speed *= 1.2;
+                this.mkTeleportCd = 80;
+                this.mkEyeFlare = 1;
                 createExplosion(this.x, this.y, '#000');
-                // Clamp
-                this.x = Math.max(this.radius, Math.min(arena.width - this.radius, this.x));
-                this.y = Math.max(this.radius, Math.min(arena.height - this.radius, this.y));
-                return; // Skip collision check for this frame
+                if (typeof showNotification === 'function') showNotification("DARKNESS INCARNATE!", '#ff0055');
+                if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_nova');
             }
 
+            // ── Teleport ──────────────────────────────────────────────────────
+            this.mkTeleportCd--;
+            if (this.mkTeleportCd <= 0) {
+                createExplosion(this.x, this.y, '#220022');
+                if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_teleport');
+                const tOff = Math.random() * Math.PI * 2;
+                const tDist = 220 + Math.random() * 120;
+                this.x = Math.max(this.radius, Math.min(arena.width - this.radius, _bossTarget.x + Math.cos(tOff) * tDist));
+                this.y = Math.max(this.radius, Math.min(arena.height - this.radius, _bossTarget.y + Math.sin(tOff) * tDist));
+                createExplosion(this.x, this.y, '#330033');
+                this.mkEyeFlare = 0.6;
+                this.mkTeleportCd = this.phase >= 3 ? 80 : this.phase >= 2 ? 130 : 200;
+                return;
+            }
+
+            // ── Movement ──────────────────────────────────────────────────────
+            if (this.mkState === 'IDLE') {
+                // Orbit / strafe: circle the player at mid-range
+                const dist = Math.hypot(_bossTarget.x - this.x, _bossTarget.y - this.y);
+                const idealDist = 260;
+                if (dist < idealDist - 40) {
+                    nextX -= Math.cos(angle) * this.speed;
+                    nextY -= Math.sin(angle) * this.speed;
+                } else if (dist > idealDist + 80) {
+                    nextX += Math.cos(angle) * this.speed;
+                    nextY += Math.sin(angle) * this.speed;
+                } else {
+                    const strafe = angle + Math.PI / 2;
+                    nextX += Math.cos(strafe) * this.speed * 0.8;
+                    nextY += Math.sin(strafe) * this.speed * 0.8;
+                }
+            } else if (this.mkState === 'CHANNEL') {
+                // Hover in place while charging up
+                nextX += Math.cos(angle) * this.speed * 0.15;
+                nextY += Math.sin(angle) * this.speed * 0.15;
+            } else if (this.mkState === 'SWEEP') {
+                // Drift slowly while sweeping
+                nextX += Math.cos(angle) * this.speed * 0.3;
+                nextY += Math.sin(angle) * this.speed * 0.3;
+            }
+            // BARRAGE: standard approach
+            else {
+                nextX += Math.cos(angle) * this.speed;
+                nextY += Math.sin(angle) * this.speed;
+            }
+
+            // ── Attack state machine ──────────────────────────────────────────
             this.attackCooldown--;
+
+            if (this.mkState === 'CHANNEL') {
+                // Count down, then fire shadow nova burst
+                this.mkChannelTimer--;
+                this.mkEyeFlare = Math.min(1, this.mkEyeFlare + 0.03);
+                if (this.mkChannelTimer <= 0) {
+                    // Burst: rings + aimed beam
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_nova');
+                    const rings = this.phase >= 3 ? 3 : this.phase >= 2 ? 2 : 1;
+                    for (let r = 0; r < rings; r++) {
+                        const ringOffset = (r / rings) * (Math.PI * 2 / 20);
+                        for (let i = 0; i < 20; i++) {
+                            const a = (Math.PI * 2 / 20) * i + ringOffset;
+                            const spd = 5 + r * 1.5;
+                            projectiles.push(new Projectile(this.x, this.y,
+                                { x: Math.cos(a) * spd, y: Math.sin(a) * spd },
+                                this.damage * 0.9, '#550066', 10, 'enemy', 0, true));
+                        }
+                    }
+                    // Aimed shadow beam
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_beam');
+                    const ba = Math.atan2(_bossTarget.y - this.y, _bossTarget.x - this.x);
+                    projectiles.push(new Projectile(this.x, this.y,
+                        { x: Math.cos(ba) * 13, y: Math.sin(ba) * 13 },
+                        this.damage * 2.0, '#ff0055', 18, 'enemy', 0, true));
+                    this.mkEyeFlare = 1;
+                    this.mkState = 'IDLE';
+                    this.attackCooldown = this.phase >= 3 ? 80 : this.phase >= 2 ? 110 : 140;
+                }
+            } else if (this.mkState === 'BARRAGE') {
+                // Rapid triple-shot at player
+                this.mkBarrageCd--;
+                if (this.mkBarrageCd <= 0 && this.mkBarrageCount > 0) {
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_beam');
+                    const ba = Math.atan2(_bossTarget.y - this.y, _bossTarget.x - this.x);
+                    for (let s = -1; s <= 1; s++) {
+                        const a = ba + s * 0.18;
+                        projectiles.push(new Projectile(this.x, this.y,
+                            { x: Math.cos(a) * 11, y: Math.sin(a) * 11 },
+                            this.damage * 1.1, '#220033', 12, 'enemy', 0, true));
+                    }
+                    this.mkBarrageCount--;
+                    this.mkBarrageCd = this.phase >= 3 ? 8 : 12;
+                    this.mkEyeFlare = Math.min(1, this.mkEyeFlare + 0.25);
+                    if (this.mkBarrageCount <= 0) {
+                        this.mkState = 'IDLE';
+                        this.attackCooldown = this.phase >= 3 ? 60 : this.phase >= 2 ? 90 : 120;
+                    }
+                }
+            } else if (this.mkState === 'SWEEP') {
+                // Rotating sweep beam
+                this.mkSweepCd--;
+                if (this.mkSweepCd <= 0 && this.mkSweepShots > 0) {
+                    if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_beam');
+                    for (let s = 0; s < 2; s++) {
+                        const sa = this.mkSweepAngle + s * Math.PI;
+                        projectiles.push(new Projectile(this.x, this.y,
+                            { x: Math.cos(sa) * 9, y: Math.sin(sa) * 9 },
+                            this.damage * 1.2, '#440022', 14, 'enemy', 0, true));
+                    }
+                    this.mkSweepAngle += 0.22;
+                    this.mkSweepShots--;
+                    this.mkSweepCd = 4;
+                    if (this.mkSweepShots <= 0) {
+                        this.mkState = 'IDLE';
+                        this.attackCooldown = this.phase >= 3 ? 50 : 80;
+                    }
+                }
+            } else if (this.attackCooldown <= 0) {
+                // Choose next attack based on phase + randomness
+                const roll = Math.random();
+                if (this.phase >= 2 && roll < 0.35) {
+                    // Sweep (phase 2+)
+                    this.mkState = 'SWEEP';
+                    this.mkSweepAngle = Math.atan2(_bossTarget.y - this.y, _bossTarget.x - this.x);
+                    this.mkSweepShots = this.phase >= 3 ? 28 : 20;
+                    this.mkSweepCd = 4;
+                } else if (roll < 0.65) {
+                    // Barrage
+                    this.mkState = 'BARRAGE';
+                    this.mkBarrageCount = this.phase >= 3 ? 8 : this.phase >= 2 ? 6 : 4;
+                    this.mkBarrageCd = 6;
+                } else {
+                    // Channel nova
+                    this.mkState = 'CHANNEL';
+                    this.mkChannelTimer = this.phase >= 3 ? 55 : 70;
+                }
+            }
+
+            // Phase 2+: summon shadow minions periodically
+            if (this.phase >= 2) {
+                if (!this.mkMinionCd) this.mkMinionCd = 0;
+                this.mkMinionCd--;
+                if (this.mkMinionCd <= 0) {
+                    const mc = this.phase >= 3 ? 3 : 2;
+                    for (let i = 0; i < mc; i++) {
+                        const ma = (Math.PI * 2 / mc) * i + Math.random();
+                        const mn = new Enemy(true);
+                        mn.x = this.x + Math.cos(ma) * 100;
+                        mn.y = this.y + Math.sin(ma) * 100;
+                        mn.color = '#330033'; mn.hp *= 1.0;
+                        mn.radius *= 0.8;
+                        enemies.push(mn);
+                        createExplosion(mn.x, mn.y, '#550055');
+                    }
+                    this.mkMinionCd = this.phase >= 3 ? 480 : 680;
+                }
+            }
         } else if (this.type === 'GREEN_GOBLIN') {
             // ── Glider Dive state machine ──────────────────────────────────
             if (this.goblinState === 'DIVE_WINDUP') {
@@ -493,33 +689,6 @@ class Boss {
                     const vel = { x: Math.cos(a) * 10, y: Math.sin(a) * 10 };
                     projectiles.push(new Projectile(this.x, this.y, vel, this.damage * 0.8, '#f1c40f', 5, 'enemy', 0, true));
                     this.attackCooldown = 10;
-                } else if (this.type === 'MAKUTA') {
-                    // Shadow Nova
-                    if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_nova');
-                    for (let i = 0; i < 16; i++) {
-                        const a = (Math.PI * 2 / 16) * i;
-                        const vel = { x: Math.cos(a) * 7, y: Math.sin(a) * 7 };
-                        projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#000', 12, 'enemy', 0, true));
-                    }
-                    // Summon Shadow Minions
-                    if (Math.random() < 0.5) {
-                        for (let i = 0; i < 3; i++) {
-                            const minion = new Enemy(true);
-                            minion.x = this.x + (Math.random() - 0.5) * 100;
-                            minion.y = this.y + (Math.random() - 0.5) * 100;
-                            // Force Shadow Type for minions
-                            minion.color = '#333';
-                            minion.hp *= 1.5;
-                            enemies.push(minion);
-                        }
-                    }
-                    // Shadow Beam (Aimed at player)
-                    if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_beam');
-                    const beamAngle = Math.atan2(player.y - this.y, player.x - this.x);
-                    const beamVel = { x: Math.cos(beamAngle) * 12, y: Math.sin(beamAngle) * 12 };
-                    projectiles.push(new Projectile(this.x, this.y, beamVel, this.damage * 1.5, '#500', 20, 'enemy', 0, true));
-
-                    this.attackCooldown = 100; // Slightly slower to account for intensity
                 } else if (this.type === 'SUMMONER') {
                     if (typeof audioManager !== 'undefined') audioManager.play('boss_summoner_spawn');
                     for (let i = 0; i < 3; i++) enemies.push(new Enemy(true));
@@ -698,7 +867,7 @@ class Boss {
                 ctx.beginPath();
                 ctx.moveTo(r + 6 + arrowLen, 0);
                 ctx.lineTo(r + 6 + arrowLen - 14, -9);
-                ctx.lineTo(r + 6 + arrowLen - 14,  9);
+                ctx.lineTo(r + 6 + arrowLen - 14, 9);
                 ctx.closePath();
                 ctx.fillStyle = '#e74c3c';
                 ctx.fill();
@@ -726,9 +895,9 @@ class Boss {
 
             // -- Body (dark green sphere with highlight) --
             const bodyGrad = ctx.createRadialGradient(-r * 0.25, -r * 0.25, r * 0.08, 0, 0, r);
-            bodyGrad.addColorStop(0,    '#5ddb6e');
+            bodyGrad.addColorStop(0, '#5ddb6e');
             bodyGrad.addColorStop(0.42, '#1d8a2e');
-            bodyGrad.addColorStop(1,    '#0a3d14');
+            bodyGrad.addColorStop(1, '#0a3d14');
             ctx.beginPath();
             ctx.arc(0, 0, r, 0, Math.PI * 2);
             ctx.fillStyle = bodyGrad;
@@ -752,8 +921,8 @@ class Boss {
             // Cone
             ctx.beginPath();
             ctx.moveTo(-r * 0.40, -r * 0.72);
-            ctx.lineTo(0,          -r * 2.1);
-            ctx.lineTo( r * 0.40, -r * 0.72);
+            ctx.lineTo(0, -r * 2.1);
+            ctx.lineTo(r * 0.40, -r * 0.72);
             ctx.closePath();
             ctx.fill(); ctx.stroke();
             // Hat buckle
@@ -774,13 +943,13 @@ class Boss {
             ctx.fill();
             // Right eye
             ctx.beginPath();
-            ctx.ellipse( r * 0.28, -r * 0.12, r * 0.14, r * 0.09,  0.3, 0, Math.PI * 2);
+            ctx.ellipse(r * 0.28, -r * 0.12, r * 0.14, r * 0.09, 0.3, 0, Math.PI * 2);
             ctx.fill();
             // Dark pupils
             ctx.shadowBlur = 0;
             ctx.fillStyle = '#1a0a00';
             ctx.beginPath(); ctx.arc(-r * 0.28, -r * 0.12, r * 0.055, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc( r * 0.28, -r * 0.12, r * 0.055, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(r * 0.28, -r * 0.12, r * 0.055, 0, Math.PI * 2); ctx.fill();
             ctx.restore();
 
             // -- Wicked grin --
@@ -871,17 +1040,302 @@ class Boss {
         }
         // ── End Green Goblin ───────────────────────────────────────────────────
 
+        // ── MAKUTA custom draw ────────────────────────────────────────────────
+        if (this.type === 'MAKUTA') {
+            const mx = this.x, my = this.y, mr = this.radius;
+            const pulse = 0.5 + 0.5 * Math.sin(this.mkBodyPulse);
+            const hsway = Math.sin(this.mkHornSway) * 0.07;
+            const eFlare = this.mkEyeFlare || 0;
+            const phase = this.phase || 1;
+
+            // ── Orbiting shadow orbs ──────────────────────────────────────────
+            for (const orb of (this.mkOrbs || [])) {
+                const ox = mx + Math.cos(orb.angle) * orb.dist;
+                const oy = my + Math.sin(orb.angle) * orb.dist;
+                ctx.save();
+                ctx.shadowColor = '#cc00ff';
+                ctx.shadowBlur = 14 + 8 * pulse;
+                ctx.fillStyle = phase >= 3 ? '#ff0055' : phase >= 2 ? '#9900cc' : '#550088';
+                ctx.globalAlpha = 0.75 + 0.25 * pulse;
+                ctx.beginPath();
+                ctx.arc(ox, oy, 9 + 4 * pulse, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                // Trailing wisp line toward Makuta
+                ctx.save();
+                ctx.globalAlpha = 0.2;
+                ctx.strokeStyle = '#880088';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 8]);
+                ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(ox, oy); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
+
+            // ── Channel charge aura ───────────────────────────────────────────
+            if (this.mkState === 'CHANNEL') {
+                const cp = Math.max(0, 1 - this.mkChannelTimer / 70);
+                ctx.save();
+                ctx.shadowColor = '#ff00ff';
+                ctx.shadowBlur = 40 * cp;
+                ctx.strokeStyle = `rgba(200,0,255,${0.4 + 0.4 * cp})`;
+                ctx.lineWidth = 4 + 6 * cp;
+                ctx.beginPath();
+                ctx.arc(mx, my, mr + 18 + 20 * cp, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // ── Sweep arc indicator ───────────────────────────────────────────
+            if (this.mkState === 'SWEEP') {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255,0,80,0.35)';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([6, 6]);
+                ctx.beginPath();
+                ctx.arc(mx, my, 240, this.mkSweepAngle - 0.5, this.mkSweepAngle + 0.5);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
+
+            ctx.save();
+            ctx.translate(mx, my);
+
+            // ── Dark aura / shadow corona ─────────────────────────────────────
+            const coronaGrad = ctx.createRadialGradient(0, 0, mr * 0.6, 0, 0, mr * 1.65);
+            coronaGrad.addColorStop(0, `rgba(80,0,100,${0.25 + 0.15 * pulse})`);
+            coronaGrad.addColorStop(0.6, `rgba(30,0,50,${0.15 + 0.08 * pulse})`);
+            coronaGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = coronaGrad;
+            ctx.beginPath();
+            ctx.arc(0, 0, mr * 1.65, 0, Math.PI * 2);
+            ctx.fill();
+
+            // ── Mask face shape — angular & wide ─────────────────────────────
+            // Outer glow ring
+            ctx.save();
+            const glowCol = phase >= 3 ? '#ff0055' : phase >= 2 ? '#cc00ff' : '#660088';
+            ctx.shadowColor = glowCol;
+            ctx.shadowBlur = 28 + 20 * pulse + 30 * eFlare;
+            ctx.strokeStyle = glowCol;
+            ctx.lineWidth = phase >= 2 ? 4 : 2;
+            ctx.globalAlpha = 0.7 + 0.3 * eFlare;
+            ctx.beginPath();
+            ctx.arc(0, 0, mr + 6, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+
+            // Mask body — dark polygon with subtle concave sides
+            ctx.save();
+            ctx.shadowColor = '#000';
+            ctx.shadowBlur = 16;
+            const mg = ctx.createRadialGradient(-mr * 0.2, -mr * 0.3, mr * 0.05, 0, 0, mr);
+            mg.addColorStop(0, '#2a0030');
+            mg.addColorStop(0.5, '#110018');
+            mg.addColorStop(1, '#060008');
+            ctx.fillStyle = mg;
+            ctx.beginPath();
+            // Octagonal angular mask silhouette (wide, flat top, pointed jaw)
+            ctx.moveTo(-mr * 0.72, mr * 0.65);   // bottom-left jaw
+            ctx.lineTo(-mr * 0.55, mr * 0.85);   // chin left
+            ctx.lineTo(0, mr * 0.95);   // chin center
+            ctx.lineTo(mr * 0.55, mr * 0.85);   // chin right
+            ctx.lineTo(mr * 0.72, mr * 0.65);   // bottom-right jaw
+            ctx.lineTo(mr * 1.00, mr * 0.10);   // right cheekbone
+            ctx.lineTo(mr * 0.95, -mr * 0.30);   // right temple
+            ctx.lineTo(mr * 0.65, -mr * 0.75);   // right brow outer
+            ctx.lineTo(mr * 0.22, -mr * 0.95);   // right crown inner
+            ctx.lineTo(0, -mr * 1.00);   // crown center
+            ctx.lineTo(-mr * 0.22, -mr * 0.95);   // left crown inner
+            ctx.lineTo(-mr * 0.65, -mr * 0.75);   // left brow outer
+            ctx.lineTo(-mr * 0.95, -mr * 0.30);   // left temple
+            ctx.lineTo(-mr * 1.00, mr * 0.10);   // left cheekbone
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            // Mask outline stroke
+            ctx.save();
+            ctx.shadowColor = phase >= 2 ? '#9900bb' : '#440055';
+            ctx.shadowBlur = 10;
+            ctx.strokeStyle = phase >= 2 ? '#6600aa' : '#330044';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(-mr * 0.72, mr * 0.65);
+            ctx.lineTo(-mr * 0.55, mr * 0.85);
+            ctx.lineTo(0, mr * 0.95);
+            ctx.lineTo(mr * 0.55, mr * 0.85);
+            ctx.lineTo(mr * 0.72, mr * 0.65);
+            ctx.lineTo(mr * 1.00, mr * 0.10);
+            ctx.lineTo(mr * 0.95, -mr * 0.30);
+            ctx.lineTo(mr * 0.65, -mr * 0.75);
+            ctx.lineTo(mr * 0.22, -mr * 0.95);
+            ctx.lineTo(0, -mr * 1.00);
+            ctx.lineTo(-mr * 0.22, -mr * 0.95);
+            ctx.lineTo(-mr * 0.65, -mr * 0.75);
+            ctx.lineTo(-mr * 0.95, -mr * 0.30);
+            ctx.lineTo(-mr * 1.00, mr * 0.10);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+
+            // ── Crown horns (4 spikes, sway slightly) ────────────────────────
+            ctx.save();
+            ctx.rotate(hsway);
+            const hornColor = phase >= 3 ? '#cc0033' : phase >= 2 ? '#880099' : '#440055';
+            const hornGlowC = phase >= 3 ? '#ff2255' : '#bb00ee';
+            ctx.shadowColor = hornGlowC;
+            ctx.shadowBlur = 12 + 8 * pulse;
+            ctx.fillStyle = hornColor;
+            ctx.strokeStyle = phase >= 2 ? hornGlowC : '#220033';
+            ctx.lineWidth = 1.5;
+            // Center-left horn (tallest)
+            ctx.beginPath();
+            ctx.moveTo(-mr * 0.20, -mr * 0.92);
+            ctx.lineTo(-mr * 0.36, -mr * 1.72);
+            ctx.lineTo(-mr * 0.08, -mr * 0.98);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            // Center-right horn
+            ctx.beginPath();
+            ctx.moveTo(mr * 0.20, -mr * 0.92);
+            ctx.lineTo(mr * 0.36, -mr * 1.72);
+            ctx.lineTo(mr * 0.08, -mr * 0.98);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            // Outer-left horn (shorter)
+            ctx.beginPath();
+            ctx.moveTo(-mr * 0.55, -mr * 0.72);
+            ctx.lineTo(-mr * 0.74, -mr * 1.28);
+            ctx.lineTo(-mr * 0.42, -mr * 0.76);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            // Outer-right horn
+            ctx.beginPath();
+            ctx.moveTo(mr * 0.55, -mr * 0.72);
+            ctx.lineTo(mr * 0.74, -mr * 1.28);
+            ctx.lineTo(mr * 0.42, -mr * 0.76);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.restore();
+
+            // ── Eye slots — fierce V-shaped, inward-angled ───────────────────
+            const eyeCol = phase >= 3 ? '#ff2244' : '#ff3300';
+            const eyeGlow2 = phase >= 3 ? '#ff0033' : phase >= 2 ? '#ff4400' : '#cc2200';
+            const eyeW = mr * 0.085 + mr * 0.04 * eFlare;
+            const eyePulse = 0.80 + 0.20 * Math.sin(frame * 0.18) + 0.3 * eFlare;
+
+            ctx.save();
+            ctx.lineCap = 'round';
+            // Dark shadow under eyes
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = eyeW + 4;
+            // Left eye slit — angled down-right inward
+            ctx.beginPath(); ctx.moveTo(-mr * 0.52, -mr * 0.22); ctx.lineTo(-mr * 0.20, -mr * 0.42); ctx.stroke();
+            // Right eye slit — mirror
+            ctx.beginPath(); ctx.moveTo(mr * 0.52, -mr * 0.22); ctx.lineTo(mr * 0.20, -mr * 0.42); ctx.stroke();
+            // Glowing fill
+            ctx.shadowColor = eyeGlow2;
+            ctx.shadowBlur = 20 + 20 * eFlare;
+            ctx.strokeStyle = eyeCol;
+            ctx.lineWidth = eyeW;
+            ctx.globalAlpha = 0.85 * eyePulse;
+            ctx.beginPath(); ctx.moveTo(-mr * 0.52, -mr * 0.22); ctx.lineTo(-mr * 0.20, -mr * 0.42); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(mr * 0.52, -mr * 0.22); ctx.lineTo(mr * 0.20, -mr * 0.42); ctx.stroke();
+            // Fierce central bridge glow
+            ctx.globalAlpha = 0.6 * eyePulse;
+            ctx.shadowBlur = 24 + 16 * eFlare;
+            ctx.beginPath(); ctx.arc(0, -mr * 0.30, mr * 0.06, 0, Math.PI * 2);
+            ctx.fillStyle = eyeCol; ctx.fill();
+            ctx.restore();
+
+            // ── Nose ridge / face details ─────────────────────────────────────
+            ctx.save();
+            ctx.strokeStyle = '#330044';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.5;
+            // Vertical nose ridge
+            ctx.beginPath();
+            ctx.moveTo(0, -mr * 0.28);
+            ctx.lineTo(0, mr * 0.20);
+            ctx.stroke();
+            // Cheekbone lines
+            ctx.beginPath(); ctx.moveTo(-mr * 0.55, -mr * 0.05); ctx.lineTo(-mr * 0.80, mr * 0.25); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(mr * 0.55, -mr * 0.05); ctx.lineTo(mr * 0.80, mr * 0.25); ctx.stroke();
+            ctx.restore();
+
+            // ── Mouth — jagged cruel grin ─────────────────────────────────────
+            ctx.save();
+            ctx.strokeStyle = '#220033';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'butt';
+            ctx.beginPath();
+            ctx.moveTo(-mr * 0.42, mr * 0.38);
+            ctx.lineTo(-mr * 0.20, mr * 0.52);
+            ctx.lineTo(0, mr * 0.42);
+            ctx.lineTo(mr * 0.20, mr * 0.52);
+            ctx.lineTo(mr * 0.42, mr * 0.38);
+            ctx.stroke();
+            // Lip glow
+            ctx.shadowColor = phase >= 2 ? '#cc0055' : '#550000';
+            ctx.shadowBlur = 8;
+            ctx.strokeStyle = phase >= 2 ? '#990033' : '#440000';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+
+            // ── Phase 2: dark energy cracks across mask ───────────────────────
+            if (phase >= 2) {
+                ctx.save();
+                const crackAlpha = 0.4 + 0.2 * pulse;
+                ctx.strokeStyle = phase >= 3 ? '#ff0055' : '#9900cc';
+                ctx.lineWidth = 1.5;
+                ctx.globalAlpha = crackAlpha;
+                ctx.shadowColor = phase >= 3 ? '#ff0055' : '#cc00ff';
+                ctx.shadowBlur = 6;
+                // Left crack
+                ctx.beginPath();
+                ctx.moveTo(-mr * 0.30, -mr * 0.10);
+                ctx.lineTo(-mr * 0.55, mr * 0.30);
+                ctx.lineTo(-mr * 0.40, mr * 0.50);
+                ctx.stroke();
+                // Right crack
+                ctx.beginPath();
+                ctx.moveTo(mr * 0.30, -mr * 0.10);
+                ctx.lineTo(mr * 0.55, mr * 0.30);
+                ctx.lineTo(mr * 0.40, mr * 0.50);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // ── Phase 3: molten interior glow behind eye slots ────────────────
+            if (phase >= 3) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = 0.12 + 0.10 * pulse;
+                const meltGrad = ctx.createRadialGradient(0, -mr * 0.30, 0, 0, -mr * 0.10, mr * 0.55);
+                meltGrad.addColorStop(0, '#ff2244');
+                meltGrad.addColorStop(1, 'rgba(120,0,0,0)');
+                ctx.fillStyle = meltGrad;
+                ctx.beginPath(); ctx.arc(0, -mr * 0.10, mr * 0.55, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            }
+
+            ctx.restore(); // end translate(mx, my)
+
+            return;
+        }
+        // ── End Makuta ────────────────────────────────────────────────────────
+
         ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(frame * 0.02);
         // 3D boss body — radial gradient lit from top-left
         const _bLight = shadeColor(this.color, +50);
-        const _bDark  = shadeColor(this.color, -65);
+        const _bDark = shadeColor(this.color, -65);
         const _brg = ctx.createRadialGradient(
             -this.radius * 0.28, -this.radius * 0.28, this.radius * 0.05,
-             0, 0, this.radius
+            0, 0, this.radius
         );
-        _brg.addColorStop(0,    _bLight);
+        _brg.addColorStop(0, _bLight);
         _brg.addColorStop(0.45, this.color);
-        _brg.addColorStop(1,    _bDark);
+        _brg.addColorStop(1, _bDark);
         ctx.fillStyle = _brg;
         ctx.strokeStyle = '#ddd';
         ctx.lineWidth = 4;
@@ -909,7 +1363,7 @@ class Boss {
         ctx.strokeStyle = '#000';
         ctx.lineWidth = _bSlitW + 3;
         ctx.beginPath(); ctx.moveTo(-_br * 0.20, -_br * 0.28); ctx.lineTo(-_br * 0.47, -_br * 0.10); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo( _br * 0.20, -_br * 0.28); ctx.lineTo( _br * 0.47, -_br * 0.10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(_br * 0.20, -_br * 0.28); ctx.lineTo(_br * 0.47, -_br * 0.10); ctx.stroke();
 
         // Glowing red fill pass on top
         ctx.shadowColor = '#ff1100';
@@ -917,7 +1371,7 @@ class Boss {
         ctx.strokeStyle = '#ff3300';
         ctx.lineWidth = _bSlitW;
         ctx.beginPath(); ctx.moveTo(-_br * 0.20, -_br * 0.28); ctx.lineTo(-_br * 0.47, -_br * 0.10); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo( _br * 0.20, -_br * 0.28); ctx.lineTo( _br * 0.47, -_br * 0.10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(_br * 0.20, -_br * 0.28); ctx.lineTo(_br * 0.47, -_br * 0.10); ctx.stroke();
 
         // Fierce central glow between the eyes
         ctx.beginPath(); ctx.arc(0, -_br * 0.16, _br * 0.055, 0, Math.PI * 2);
