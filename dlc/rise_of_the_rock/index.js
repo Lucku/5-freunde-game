@@ -60,6 +60,8 @@ const RISE_OF_THE_ROCK = {
                 },
             });
             audioManager.registerVoicePath('earth', (id) => `dlc/rise_of_the_rock/audio/memories/earth_${id}.mp3`);
+            window.STORY_AUDIO_RESOLVERS = window.STORY_AUDIO_RESOLVERS || {};
+            window.STORY_AUDIO_RESOLVERS['EARTH'] = (id) => `dlc/rise_of_the_rock/audio/story/${id}.mp3`;
         }
 
         console.log("[DLC] Loaded: Rise of the Rock (Success)");

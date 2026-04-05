@@ -124,6 +124,12 @@ const ECHOS_OF_ETERNITY = {
 
             audioManager.registerVoicePath('time', id => `dlc/echos_of_eternity/audio/memories/time_${id}.mp3`);
             audioManager.registerVoicePath('love', id => `dlc/echos_of_eternity/audio/memories/love_${id}.mp3`);
+            window.STORY_AUDIO_RESOLVERS = window.STORY_AUDIO_RESOLVERS || {};
+            window.STORY_AUDIO_RESOLVERS['TIME'] = (id) => `dlc/echos_of_eternity/audio/story/${id}.mp3`;
+            window.STORY_AUDIO_RESOLVERS['LOVE'] = (id) => `dlc/echos_of_eternity/audio/story/${id}.mp3`;
+            window.STORY_TITLE_IMAGES = window.STORY_TITLE_IMAGES || {};
+            window.STORY_TITLE_IMAGES['time'] = 'dlc/echos_of_eternity/images/title.png';
+            window.STORY_TITLE_IMAGES['love'] = 'dlc/echos_of_eternity/images/title.png';
 
             // ── Love Hero SFX + weather DLC sounds ───────────────────────────────
             audioManager.registerSounds({

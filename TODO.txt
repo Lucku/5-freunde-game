@@ -3,6 +3,9 @@
 - fix difficulty (currently too easy because of lower enemy count and collision damage)
 - add victory screen music
 - check why standard mode button is greyed-out in 2 player
+- overhaul arena backgrounds for Earth and Lightning
+- generate generic voice lines for common expressions of all heroes (generate automatically)
+- add game icon
 
 # Echos of Eternity
 

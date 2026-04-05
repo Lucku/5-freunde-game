@@ -2231,7 +2231,8 @@ function openStory(story) {
     screen.style.display = 'flex';
 
     // Title background image — per-DLC or base game
-    const _storyTitleImages = {
+    // DLCs can extend this via window.STORY_TITLE_IMAGES (merged here so DLC entries always win)
+    window.STORY_TITLE_IMAGES = Object.assign({
         fire: 'images/title.png',
         water: 'images/title.png',
         ice: 'images/title.png',
@@ -2247,9 +2248,9 @@ function openStory(story) {
         chance: 'dlc/faith_of_fortune/images/title.png',
         sound: 'dlc/symphony_of_sickness/images/title.png',
         poison: 'dlc/symphony_of_sickness/images/title.png',
-    };
+    }, window.STORY_TITLE_IMAGES || {});
     const bgImgEl = document.getElementById('story-bg-img');
-    if (bgImgEl) bgImgEl.src = _storyTitleImages[heroKey] || 'images/title.png';
+    if (bgImgEl) bgImgEl.src = window.STORY_TITLE_IMAGES[heroKey] || 'images/title.png';
 
     document.getElementById('story-hero-icon').textContent = theme.icon;
     document.getElementById('story-arc-label').textContent = story.fromTutorial ? '✦  TUTORIAL  ✦' : _getStoryArcLabel(story.wave || 1, story.hero);
@@ -2309,44 +2310,19 @@ function openStory(story) {
         currentStoryAudio = null;
     }
 
-    // Prefer DLC story audio for Earth hero if available; fall back to base story audio on failure
-    const basePath = `audio/story/${story.id}.mp3`;
-    if (story.hero === 'EARTH') {
-        const dlcPath = `dlc/rise_of_the_rock/audio/story/${story.id}.mp3`;
-        const dlcAudio = new Audio(dlcPath);
-        dlcAudio.play().then(() => {
-            currentStoryAudio = dlcAudio;
-        }).catch(() => {
-            // DLC audio missing or blocked, fall back to base audio
-            const baseAudio = new Audio(basePath);
-            baseAudio.play().catch(() => { /* ignore */ });
-            currentStoryAudio = baseAudio;
-        });
-    } else if (story.hero === 'LIGHTNING') {
-        const dlcPath = `dlc/tournament_of_thunder/audio/story/${story.id}.mp3`;
-        const dlcAudio = new Audio(dlcPath);
-        dlcAudio.play().then(() => {
-            currentStoryAudio = dlcAudio;
-        }).catch(() => {
-            // DLC audio missing or blocked, fall back to base audio
-            const baseAudio = new Audio(basePath);
-            baseAudio.play().catch(() => { /* ignore */ });
-            currentStoryAudio = baseAudio;
-        });
-    } else if (story.hero === 'GRAVITY' || story.hero === 'VOID') {
-        const dlcPath = `dlc/champions_of_chaos/audio/story/${story.id}.mp3`;
-        const dlcAudio = new Audio(dlcPath);
-        dlcAudio.play().then(() => {
-            currentStoryAudio = dlcAudio;
-        }).catch(() => {
-            const baseAudio = new Audio(basePath);
-            baseAudio.play().catch(() => { /* ignore */ });
-            currentStoryAudio = baseAudio;
-        });
-    } else {
-        currentStoryAudio = new Audio(basePath);
-        currentStoryAudio.play().catch(() => { /* ignore */ });
+    // DLCs can register audio in two ways:
+    //   window.STORY_AUDIO_OVERRIDES[storyId] = 'path.mp3'  — per-chapter override
+    //   window.STORY_AUDIO_RESOLVERS[heroKey]  = (id) => path  — per-hero path resolver
+    // Falls back to base game audio/story/<id>.mp3 if nothing matches.
+    const _heroKey = (story.hero || '').toUpperCase();
+    let audioPath = `audio/story/${story.id}.mp3`;
+    if (window.STORY_AUDIO_OVERRIDES && window.STORY_AUDIO_OVERRIDES[story.id]) {
+        audioPath = window.STORY_AUDIO_OVERRIDES[story.id];
+    } else if (window.STORY_AUDIO_RESOLVERS && window.STORY_AUDIO_RESOLVERS[_heroKey]) {
+        audioPath = window.STORY_AUDIO_RESOLVERS[_heroKey](story.id);
     }
+    currentStoryAudio = new Audio(audioPath);
+    currentStoryAudio.play().catch(() => { /* ignore missing audio */ });
 }
 
 function closeStory() {

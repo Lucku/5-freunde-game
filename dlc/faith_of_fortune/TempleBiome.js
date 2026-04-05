@@ -139,16 +139,25 @@ class TempleBiome {
             ctx.fillStyle = "rgba(240, 208, 128, 0.1)";
             ctx.fill();
 
-            // Mandala Floor
+            // 8-pointed star
+            const outerR = s.r * 0.65;
+            const innerR = s.r * 0.28;
+            const points = 8;
             ctx.beginPath();
-            ctx.moveTo(0, -s.r / 2);
-            for (let i = 0; i < 8; i++) {
-                ctx.rotate(Math.PI / 4);
-                ctx.lineTo(0, -s.r / 2);
-                ctx.lineTo(10, -s.r / 1.5);
+            for (let i = 0; i < points * 2; i++) {
+                const angle = (i * Math.PI) / points - Math.PI / 2;
+                const r = i % 2 === 0 ? outerR : innerR;
+                const px = Math.cos(angle) * r;
+                const py = Math.sin(angle) * r;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
             }
-            ctx.strokeStyle = "rgba(240, 208, 128, 0.2)";
+            ctx.closePath();
+            ctx.strokeStyle = "rgba(240, 208, 128, 0.35)";
+            ctx.lineWidth = 2;
             ctx.stroke();
+            ctx.fillStyle = "rgba(240, 208, 128, 0.07)";
+            ctx.fill();
 
             ctx.restore();
 

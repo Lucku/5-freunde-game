@@ -72,6 +72,8 @@ const WAKER_OF_WINDS = {
                 },
             });
             audioManager.registerVoicePath('air', (id) => `dlc/waker_of_winds/audio/memories/air_${id}.mp3`);
+            window.STORY_AUDIO_RESOLVERS = window.STORY_AUDIO_RESOLVERS || {};
+            window.STORY_AUDIO_RESOLVERS['AIR'] = (id) => `dlc/waker_of_winds/audio/story/${id}.mp3`;
         }
 
         console.log("[DLC] Loaded: Waker of Winds (Success)");

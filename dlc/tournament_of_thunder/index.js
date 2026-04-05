@@ -63,6 +63,8 @@ const TOURNAMENT_OF_THUNDER = {
                 },
             });
             audioManager.registerVoicePath('lightning', (id) => `dlc/tournament_of_thunder/audio/memories/lightning_${id}.mp3`);
+            window.STORY_AUDIO_RESOLVERS = window.STORY_AUDIO_RESOLVERS || {};
+            window.STORY_AUDIO_RESOLVERS['LIGHTNING'] = (id) => `dlc/tournament_of_thunder/audio/story/${id}.mp3`;
         }
 
         console.log("[DLC] Loaded: Tournament of Thunder (Success)");
