@@ -91,7 +91,12 @@ const ECHOS_OF_ETERNITY = {
                 'boss_spirit_chaos_nova': { path: 'dlc/echos_of_eternity/audio/sounds/boss_spirit_chaos_nova.wav', volume: 0.55 },
                 'boss_spirit_chaos_ascendant': { path: 'dlc/echos_of_eternity/audio/sounds/boss_spirit_chaos_ascendant.wav', volume: 0.65 },
             });
-            // ── Music hooks (priority: eternal_collapse=100 > boss_dlc=75 > battle=50) ──
+            // ── Music hooks (priority: maze=200 > eternal_collapse=100 > boss_dlc=75 > battle=50) ──
+            audioManager.registerMusicHook({
+                priority: 200,
+                check: () => !!window.mazeIsOpen,
+                play: () => 'maze_theme',
+            });
             audioManager.registerMusicHook({
                 priority: 100,
                 check: () => typeof bossActive !== 'undefined' && bossActive &&
@@ -125,8 +130,9 @@ const ECHOS_OF_ETERNITY = {
             audioManager.registerVoicePath('time', id => `dlc/echos_of_eternity/audio/memories/time_${id}.mp3`);
             audioManager.registerVoicePath('love', id => `dlc/echos_of_eternity/audio/memories/love_${id}.mp3`);
             window.STORY_AUDIO_RESOLVERS = window.STORY_AUDIO_RESOLVERS || {};
-            window.STORY_AUDIO_RESOLVERS['TIME'] = (id) => `dlc/echos_of_eternity/audio/story/${id}.mp3`;
-            window.STORY_AUDIO_RESOLVERS['LOVE'] = (id) => `dlc/echos_of_eternity/audio/story/${id}.mp3`;
+            const _eoeAudio = (id) => `dlc/echos_of_eternity/audio/story/${id.replace(/^maze_/, '')}.mp3`;
+            window.STORY_AUDIO_RESOLVERS['TIME'] = _eoeAudio;
+            window.STORY_AUDIO_RESOLVERS['LOVE'] = _eoeAudio;
             window.STORY_TITLE_IMAGES = window.STORY_TITLE_IMAGES || {};
             window.STORY_TITLE_IMAGES['time'] = 'dlc/echos_of_eternity/images/title.png';
             window.STORY_TITLE_IMAGES['love'] = 'dlc/echos_of_eternity/images/title.png';

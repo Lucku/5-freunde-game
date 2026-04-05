@@ -182,7 +182,7 @@ class AudioManager {
         }
     }
 
-    hasVoice(hero, index) {
+    hasVoice(_hero, index) {
         return index >= 0 && index < 50;
     }
 
@@ -284,6 +284,13 @@ class AudioManager {
     update() {
         if (typeof uiState === 'undefined') return;
         if (uiState === 'PAUSE' || uiState === 'LEVELUP') return;
+
+        // Maze of Time overlay — hold maze_theme regardless of uiState
+        if (window.mazeIsOpen) {
+            this.stopAllExcept('maze_theme');
+            this.play('maze_theme');
+            return;
+        }
 
         const menuStates = ['MENU','OPTIONS','PERMSHOP','ACHIEVEMENTS','COLLECTION','HIGHSCORE','STORY','ALTAR','CHAOSSHOP','TUTORIAL','STATS','COMPLETION','SKILLTREE'];
 

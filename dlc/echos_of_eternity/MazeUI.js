@@ -85,6 +85,7 @@ class MazeUI {
         if (typeof isStoryOpen !== 'undefined') isStoryOpen = true;
 
         // Play maze theme music
+        window.mazeIsOpen = true;
         if (typeof audioManager !== 'undefined') {
             audioManager.stopAllExcept('maze_theme');
             audioManager.play('maze_theme');
@@ -113,6 +114,7 @@ class MazeUI {
         if (typeof isStoryOpen !== 'undefined') isStoryOpen = false;
 
         // Stop maze theme — AudioManager.update() will pick up the correct battle music next frame
+        window.mazeIsOpen = false;
         if (typeof audioManager !== 'undefined' && audioManager.tracks['maze_theme']) {
             audioManager.tracks['maze_theme'].pause();
             audioManager.tracks['maze_theme'].currentTime = 0;

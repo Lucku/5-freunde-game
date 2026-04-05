@@ -2250,7 +2250,10 @@ function openStory(story) {
         poison: 'dlc/symphony_of_sickness/images/title.png',
     }, window.STORY_TITLE_IMAGES || {});
     const bgImgEl = document.getElementById('story-bg-img');
-    if (bgImgEl) bgImgEl.src = window.STORY_TITLE_IMAGES[heroKey] || 'images/title.png';
+    if (bgImgEl) {
+        bgImgEl.onerror = () => { bgImgEl.src = 'images/title.png'; bgImgEl.onerror = null; };
+        bgImgEl.src = window.STORY_TITLE_IMAGES[heroKey] || 'images/title.png';
+    }
 
     document.getElementById('story-hero-icon').textContent = theme.icon;
     document.getElementById('story-arc-label').textContent = story.fromTutorial ? '✦  TUTORIAL  ✦' : _getStoryArcLabel(story.wave || 1, story.hero);
