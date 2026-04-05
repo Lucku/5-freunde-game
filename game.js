@@ -1103,7 +1103,8 @@ function updateContinueButton() {
         if (saveData.savedRun.mode === 'STORY') modeName = 'Story Mode';
         else if (saveData.savedRun.mode === 'SHUFFLE') modeName = 'Chaos Shuffle';
 
-        sub.innerText = `${modeName} - Wave ${saveData.savedRun.wave} - ${saveData.savedRun.player.type.toUpperCase()}`;
+        const _p2Info = saveData.savedRun.coopP2Type ? ` + ${saveData.savedRun.coopP2Type.toUpperCase()}` : '';
+        sub.innerText = `${modeName} - Wave ${saveData.savedRun.wave} - ${saveData.savedRun.player.type.toUpperCase()}${_p2Info}`;
     } else {
         btn.style.display = 'none';
     }
@@ -3012,9 +3013,10 @@ function startGame(mode = 'NORMAL') {
 
     if (isVersusMode) {
         if (window.is2PlayerVersus) {
-            // 2P Human vs Human: P2 setup is handled by the co-op block below.
-            // Just disable regular wave spawning.
+            // 2P Human vs Human: activate co-op so the block below spawns P2 with gamepad.
             window.is2PlayerVersus = false;
+            isCoopMode = true;
+            window.isCoopMode = true;
             waveTimer = 999999;
             const p2Hero = (coopP2HeroType || 'water').toUpperCase();
             showNotification(`2P VERSUS: ${heroType.toUpperCase()} VS ${p2Hero}`);
@@ -3301,8 +3303,17 @@ function gameOver(isVictory = false) {
     // Save run history (last 5 runs) for Museum run-history wall
     if (!saveData.global.runHistory) saveData.global.runHistory = [];
     const _rhTimeSec = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
+    const _rhMode = isDailyMode ? 'daily'
+                  : isWeeklyMode ? 'weekly'
+                  : isVersusMode && isCoopMode ? '2p_versus'
+                  : isVersusMode ? 'versus'
+                  : isChaosShuffleMode ? 'shuffle'
+                  : isTutorialMode ? 'tutorial'
+                  : (saveData.story && saveData.story.enabled) ? 'story'
+                  : 'standard';
     saveData.global.runHistory.unshift({
         hero: player.type,
+        mode: _rhMode,
         wave: Math.max(0, wave - 1),
         score: score,
         outcome: isVictory ? 'victory' : 'death',
@@ -4285,6 +4296,7 @@ function masterLoop(timestamp) {
                         if (!_isStoryMode && Math.random() < 0.05) {
                             document.getElementById('event-text').style.display = 'block';
                             setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
+                            if (typeof audioManager !== 'undefined') audioManager.play('twin_event');
                             enemies.unshift(new Boss(), new Boss());
                         } else {
                             // Mutator: Double Boss

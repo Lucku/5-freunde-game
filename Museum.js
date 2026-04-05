@@ -156,6 +156,28 @@ class Museum {
                 this.decorations.push({ type: 'PLANT_POT', x: room.x + room.w - 100, y: room.y + 100 });
                 this.decorations.push({ type: 'PLANT_POT', x: room.x + 100, y: room.y + room.h - 100 });
                 this.decorations.push({ type: 'PLANT_POT', x: room.x + room.w - 100, y: room.y + room.h - 100 });
+            } else if (room.name === 'ice') {
+                // Crystal clusters along the walls
+                const iceClusters = [
+                    { x: room.x + 180,          y: room.y + 80  },
+                    { x: room.x + room.w - 180,  y: room.y + 80  },
+                    { x: room.x + room.w / 2,    y: room.y + 80  },
+                    { x: room.x + 80,            y: room.y + 280 },
+                    { x: room.x + room.w - 80,   y: room.y + 280 },
+                    { x: room.x + 180,           y: room.y + room.h - 80 },
+                    { x: room.x + room.w - 180,  y: room.y + room.h - 80 },
+                ];
+                iceClusters.forEach(c => this.decorations.push({ type: 'ICE_CRYSTAL', x: c.x, y: c.y }));
+            } else if (room.name === 'metal') {
+                // Wall-mounted gears and pipes
+                this.decorations.push({ type: 'GEAR', x: room.x + 160, y: room.y + 120, r: 55, teeth: 10 });
+                this.decorations.push({ type: 'GEAR', x: room.x + room.w - 160, y: room.y + 120, r: 55, teeth: 10 });
+                this.decorations.push({ type: 'GEAR', x: room.x + 160, y: room.y + room.h - 120, r: 45, teeth: 8 });
+                this.decorations.push({ type: 'GEAR', x: room.x + room.w - 160, y: room.y + room.h - 120, r: 45, teeth: 8 });
+                this.decorations.push({ type: 'GEAR', x: room.x + room.w / 2, y: room.y + 90, r: 38, teeth: 7 });
+                // Horizontal pipe runs
+                this.decorations.push({ type: 'PIPE', x: room.x + 80, y: room.y + 220, w: room.w - 160 });
+                this.decorations.push({ type: 'PIPE', x: room.x + 80, y: room.y + room.h - 220, w: room.w - 160 });
             }
         });
 
@@ -358,6 +380,13 @@ class Museum {
     }
 
     update() {
+        if (this.viewingRunHistory) {
+            const gp = navigator.getGamepads()[0];
+            if (keys['escape']) { this.viewingRunHistory = false; keys['escape'] = false; return; }
+            if (gp && gp.buttons[1].pressed) { this.viewingRunHistory = false; return; }
+            return;
+        }
+
         if (this.viewingStory) {
             if (keys['escape']) {
                 this.viewingStory = null;
@@ -429,8 +458,8 @@ class Museum {
 
         // Exit with Escape
         if (keys['escape']) {
-            setUIState('MENU');
-            document.getElementById('menu-overlay').style.display = 'flex';
+            if (window.initMenu) window.initMenu();
+            else { setUIState('MENU'); document.getElementById('menu-overlay').style.display = 'flex'; }
         }
 
         // Gamepad
@@ -441,8 +470,8 @@ class Museum {
 
             // Exit with B
             if (gp.buttons[1].pressed) {
-                setUIState('MENU');
-                document.getElementById('menu-overlay').style.display = 'flex';
+                if (window.initMenu) window.initMenu();
+                else { setUIState('MENU'); document.getElementById('menu-overlay').style.display = 'flex'; }
             }
         }
 
@@ -521,6 +550,21 @@ class Museum {
         if (gp && gp.buttons[0].pressed) interact = true; // Button A
 
         if (interact) {
+            // Run History Billboard
+            const history = saveData.global.runHistory;
+            if (history && history.length > 0) {
+                const gallery = this.rooms.find(r => r.name === 'gallery');
+                if (gallery) {
+                    const boardCX = gallery.x + gallery.w - 190;
+                    const boardCY = gallery.y + 175;
+                    if (Math.hypot(this.player.x - boardCX, this.player.y - boardCY) < 100) {
+                        this.viewingRunHistory = true;
+                        keys['e'] = false;
+                        return;
+                    }
+                }
+            }
+
             // Artifacts (Memories)
             const closestArtifact = this.artifacts.find(a => a.type === 'MEMORY' && Math.hypot(this.player.x - a.x, this.player.y - a.y) < 50);
             if (closestArtifact) {
@@ -550,6 +594,11 @@ class Museum {
     }
 
     draw(ctx) {
+        if (this.viewingRunHistory) {
+            this.drawRunHistoryScreen(ctx);
+            return;
+        }
+
         if (this.viewingStory) {
             this.drawStory(ctx);
             return;
@@ -873,6 +922,141 @@ class Museum {
                 ctx.strokeStyle = '#3a3530';
                 ctx.lineWidth = 5;
                 ctx.beginPath(); ctx.moveTo(d.x - 55, d.y + 28); ctx.lineTo(d.x + 55, d.y + 28); ctx.stroke();
+
+            } else if (d.type === 'ICE_CRYSTAL') {
+                // A cluster of 4–5 hexagonal prism shards of varying heights
+                const t = Date.now() * 0.0008;
+                const shards = [
+                    { ox: -18, h: 44, w: 11, delay: 0    },
+                    { ox:  -5, h: 62, w: 14, delay: 0.6  },
+                    { ox:  10, h: 50, w: 12, delay: 1.2  },
+                    { ox:  22, h: 36, w:  9, delay: 1.8  },
+                    { ox:   2, h: 28, w:  8, delay: 2.4  },
+                ];
+                shards.forEach(s => {
+                    const glow = 0.55 + 0.18 * Math.sin(t + s.delay);
+                    // Shadow
+                    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+                    ctx.beginPath();
+                    ctx.ellipse(d.x + s.ox + 3, d.y + 4, s.w * 0.6, 4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Shard body — tapered hexagonal column drawn as trapezoid
+                    const bw = s.w, tw = s.w * 0.45, h = s.h;
+                    ctx.fillStyle = `rgba(180,220,245,${glow})`;
+                    ctx.beginPath();
+                    ctx.moveTo(d.x + s.ox - bw / 2, d.y);
+                    ctx.lineTo(d.x + s.ox + bw / 2, d.y);
+                    ctx.lineTo(d.x + s.ox + tw / 2, d.y - h);
+                    ctx.lineTo(d.x + s.ox - tw / 2, d.y - h);
+                    ctx.closePath();
+                    ctx.fill();
+                    // Highlight facet
+                    ctx.fillStyle = `rgba(255,255,255,${glow * 0.55})`;
+                    ctx.beginPath();
+                    ctx.moveTo(d.x + s.ox - bw * 0.05, d.y);
+                    ctx.lineTo(d.x + s.ox + bw * 0.28, d.y);
+                    ctx.lineTo(d.x + s.ox + tw * 0.28, d.y - h);
+                    ctx.lineTo(d.x + s.ox - tw * 0.05, d.y - h);
+                    ctx.closePath();
+                    ctx.fill();
+                    // Tip cap
+                    ctx.fillStyle = `rgba(220,240,255,${glow})`;
+                    ctx.beginPath();
+                    ctx.moveTo(d.x + s.ox - tw / 2, d.y - h);
+                    ctx.lineTo(d.x + s.ox + tw / 2, d.y - h);
+                    ctx.lineTo(d.x + s.ox, d.y - h - s.w * 0.9);
+                    ctx.closePath();
+                    ctx.fill();
+                    // Outer edge
+                    ctx.strokeStyle = `rgba(160,210,240,0.5)`;
+                    ctx.lineWidth = 0.8;
+                    ctx.beginPath();
+                    ctx.moveTo(d.x + s.ox - bw / 2, d.y);
+                    ctx.lineTo(d.x + s.ox - tw / 2, d.y - h);
+                    ctx.lineTo(d.x + s.ox, d.y - h - s.w * 0.9);
+                    ctx.lineTo(d.x + s.ox + tw / 2, d.y - h);
+                    ctx.lineTo(d.x + s.ox + bw / 2, d.y);
+                    ctx.stroke();
+                });
+                // Ambient floor glow
+                const glowAlpha = 0.07 + 0.04 * Math.sin(t);
+                const rg = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, 38);
+                rg.addColorStop(0, `rgba(160,220,255,${glowAlpha * 3})`);
+                rg.addColorStop(1, 'rgba(160,220,255,0)');
+                ctx.fillStyle = rg;
+                ctx.beginPath(); ctx.ellipse(d.x, d.y, 38, 14, 0, 0, Math.PI * 2); ctx.fill();
+
+            } else if (d.type === 'GEAR') {
+                const r = d.r, teeth = d.teeth;
+                const rot = (Date.now() * 0.00025) % (Math.PI * 2);
+                // Drop shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.22)';
+                ctx.beginPath(); ctx.arc(d.x + 4, d.y + 4, r + 6, 0, Math.PI * 2); ctx.fill();
+                // Gear body
+                ctx.fillStyle = '#6b6b6b';
+                ctx.strokeStyle = '#3a3a3a';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let i = 0; i < teeth; i++) {
+                    const a1 = rot + (i / teeth) * Math.PI * 2;
+                    const a2 = rot + ((i + 0.4) / teeth) * Math.PI * 2;
+                    const a3 = rot + ((i + 0.6) / teeth) * Math.PI * 2;
+                    const a4 = rot + ((i + 1.0) / teeth) * Math.PI * 2;
+                    if (i === 0) ctx.moveTo(d.x + Math.cos(a1) * r, d.y + Math.sin(a1) * r);
+                    else         ctx.lineTo(d.x + Math.cos(a1) * r, d.y + Math.sin(a1) * r);
+                    ctx.lineTo(d.x + Math.cos(a1) * (r + 10), d.y + Math.sin(a1) * (r + 10));
+                    ctx.lineTo(d.x + Math.cos(a2) * (r + 10), d.y + Math.sin(a2) * (r + 10));
+                    ctx.lineTo(d.x + Math.cos(a2) * r, d.y + Math.sin(a2) * r);
+                    ctx.lineTo(d.x + Math.cos(a3) * r, d.y + Math.sin(a3) * r);
+                    ctx.lineTo(d.x + Math.cos(a3) * (r + 10), d.y + Math.sin(a3) * (r + 10));
+                    ctx.lineTo(d.x + Math.cos(a4) * (r + 10), d.y + Math.sin(a4) * (r + 10));
+                    ctx.lineTo(d.x + Math.cos(a4) * r, d.y + Math.sin(a4) * r);
+                }
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+                // Inner highlight ring
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(d.x, d.y, r * 0.72, 0, Math.PI * 2); ctx.stroke();
+                // Bolt holes (3 evenly spaced)
+                [0, 1, 2].forEach(i => {
+                    const ba = rot + (i / 3) * Math.PI * 2;
+                    const bx = d.x + Math.cos(ba) * r * 0.48;
+                    const by = d.y + Math.sin(ba) * r * 0.48;
+                    ctx.fillStyle = '#2e2e2e';
+                    ctx.beginPath(); ctx.arc(bx, by, 4, 0, Math.PI * 2); ctx.fill();
+                });
+                // Centre hub
+                ctx.fillStyle = '#555';
+                ctx.strokeStyle = '#3a3a3a';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(d.x, d.y, r * 0.22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+            } else if (d.type === 'PIPE') {
+                const pw = d.w, ph = 18;
+                // Pipe body
+                const pg = ctx.createLinearGradient(d.x, d.y - ph / 2, d.x, d.y + ph / 2);
+                pg.addColorStop(0,   '#888');
+                pg.addColorStop(0.3, '#bbb');
+                pg.addColorStop(0.7, '#777');
+                pg.addColorStop(1,   '#444');
+                ctx.fillStyle = pg;
+                ctx.beginPath(); ctx.roundRect(d.x, d.y - ph / 2, pw, ph, 4); ctx.fill();
+                // Top highlight stripe
+                ctx.fillStyle = 'rgba(255,255,255,0.18)';
+                ctx.beginPath(); ctx.roundRect(d.x + 4, d.y - ph / 2 + 2, pw - 8, 4, 2); ctx.fill();
+                // Flanges (joining rings every ~120px)
+                ctx.fillStyle = '#555';
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                for (let fx = d.x + 60; fx < d.x + pw - 30; fx += 120) {
+                    ctx.beginPath(); ctx.roundRect(fx, d.y - ph / 2 - 4, 14, ph + 8, 2); ctx.fill(); ctx.stroke();
+                }
+                // End caps
+                [d.x, d.x + pw - 14].forEach(ex => {
+                    ctx.fillStyle = '#4a4a4a';
+                    ctx.beginPath(); ctx.roundRect(ex, d.y - ph / 2 - 4, 14, ph + 8, 2); ctx.fill(); ctx.stroke();
+                });
             }
             ctx.restore();
         });
@@ -928,87 +1112,242 @@ class Museum {
     }
 
     drawRunHistoryBoard(ctx) {
-        const history = saveData.global.runHistory;
-        if (!history || history.length === 0) return;
-
         const gallery = this.rooms.find(r => r.name === 'gallery');
         if (!gallery) return;
 
-        // Board placed on the right side of the gallery, upper half
-        const bx = gallery.x + gallery.w - 340;
-        const by = gallery.y + 80;
-        const bw = 300;
-        const rowH = 90;
-        const bh = 50 + history.length * rowH;
+        // Billboard center — same coords used by the interaction check
+        const boardCX = gallery.x + gallery.w - 190;
+        const boardCY = gallery.y + 175;
 
         ctx.save();
+        ctx.translate(boardCX, boardCY);
 
-        // Board background
-        ctx.fillStyle = '#1a1714';
-        ctx.strokeStyle = '#6b5a3e';
+        // ── Post ──────────────────────────────────────────────────
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillRect(4, -60, 14, 100);
+        // Post body
+        const postGrad = ctx.createLinearGradient(-6, 0, 6, 0);
+        postGrad.addColorStop(0, '#4a3828');
+        postGrad.addColorStop(0.4, '#6b5a3e');
+        postGrad.addColorStop(1, '#3a2e1e');
+        ctx.fillStyle = postGrad;
+        ctx.fillRect(-6, -60, 12, 100);
+        // Post cap
+        ctx.fillStyle = '#8c7050';
+        ctx.fillRect(-8, -62, 16, 6);
+
+        // ── Board face ───────────────────────────────────────────
+        const bw = 120, bh = 80;
+        const bx = -bw / 2, by = -bh - 30;
+
+        // Board shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.30)';
+        ctx.beginPath();
+        ctx.roundRect(bx + 5, by + 5, bw, bh, 4);
+        ctx.fill();
+
+        // Board frame
+        ctx.fillStyle = '#5a4428';
+        ctx.strokeStyle = '#8c7050';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.roundRect(bx, by, bw, bh, 6);
+        ctx.roundRect(bx, by, bw, bh, 4);
         ctx.fill();
         ctx.stroke();
 
-        // Header
+        // Board surface
+        ctx.fillStyle = '#1c1a14';
+        ctx.beginPath();
+        ctx.roundRect(bx + 6, by + 6, bw - 12, bh - 12, 2);
+        ctx.fill();
+
+        // Header bar inside board
+        ctx.fillStyle = 'rgba(212,175,55,0.15)';
+        ctx.fillRect(bx + 6, by + 6, bw - 12, 20);
+
+        // Title text
         ctx.fillStyle = '#d4af37';
-        ctx.font = 'bold 13px Arial';
+        ctx.font = 'bold 10px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('RUN HISTORY', bx + bw / 2, by + 22);
+        ctx.fillText('RUN HISTORY', 0, by + 20);
+
+        // Divider line
+        ctx.strokeStyle = 'rgba(212,175,55,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(bx + 10, by + 28);
+        ctx.lineTo(bx + bw - 10, by + 28);
+        ctx.stroke();
+
+        // Mini run entries (just colored dots + outcome icons, no text)
+        const history = saveData.global.runHistory || [];
+        const entryY0 = by + 36;
+        const entryH = (bh - 44) / Math.max(history.length, 1);
+        history.slice(0, 5).forEach((run, i) => {
+            const ey = entryY0 + i * entryH + entryH / 2;
+            const heroColor = this._getHeroColor(run.hero);
+            // Color dot
+            ctx.fillStyle = heroColor;
+            ctx.beginPath();
+            ctx.arc(bx + 16, ey, 4, 0, Math.PI * 2);
+            ctx.fill();
+            // Outcome mark
+            ctx.font = '8px Arial';
+            ctx.fillStyle = run.outcome === 'victory' ? '#f1c40f' : '#e74c3c';
+            ctx.textAlign = 'left';
+            ctx.fillText(run.outcome === 'victory' ? '✓' : '✗', bx + 25, ey + 3);
+            // Hero name
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
+            ctx.font = '8px Arial';
+            ctx.fillText(run.hero.toUpperCase(), bx + 38, ey + 3);
+            // Wave
+            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.textAlign = 'right';
+            ctx.fillText(`W${run.wave}`, bx + bw - 10, ey + 3);
+        });
+
+        if (history.length === 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.28)';
+            ctx.font = '9px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No runs yet', 0, by + 52);
+        }
+
+        ctx.restore();
+
+        // ── Proximity interaction prompt ─────────────────────────
+        const dist = Math.hypot(this.player.x - boardCX, this.player.y - boardCY);
+        if (dist < 100) {
+            ctx.save();
+            ctx.font = 'bold 11px Arial';
+            ctx.fillStyle = 'rgba(255,255,255,0.90)';
+            ctx.textAlign = 'center';
+            ctx.fillText('PRESS E OR (A) TO VIEW', boardCX, boardCY - bh - 45);
+            ctx.restore();
+        }
+    }
+
+    drawRunHistoryScreen(ctx) {
+        const W = canvas.width;
+        const H = canvas.height;
+        const history = (saveData.global.runHistory || []);
+        const fmtTime = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+        // Darkened backdrop
+        ctx.fillStyle = 'rgba(0,0,0,0.82)';
+        ctx.fillRect(0, 0, W, H);
+
+        // Panel
+        const pw = Math.min(700, W - 60);
+        const ph = Math.min(560, H - 80);
+        const px = (W - pw) / 2;
+        const py = (H - ph) / 2;
+
+        ctx.fillStyle = '#18140f';
+        ctx.strokeStyle = '#6b5a3e';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(px, py, pw, ph, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        // Header bar
+        ctx.fillStyle = '#2a2218';
+        ctx.beginPath();
+        ctx.roundRect(px, py, pw, 50, [10, 10, 0, 0]);
+        ctx.fill();
+
+        ctx.fillStyle = '#d4af37';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('📋  RUN HISTORY', W / 2, py + 32);
 
         // Divider
         ctx.strokeStyle = '#6b5a3e';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(bx + 10, by + 32);
-        ctx.lineTo(bx + bw - 10, by + 32);
+        ctx.moveTo(px + 20, py + 52);
+        ctx.lineTo(px + pw - 20, py + 52);
         ctx.stroke();
 
-        const fmtTime = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+        if (history.length === 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No runs recorded yet.', W / 2, py + ph / 2);
+        } else {
+            const rowH = (ph - 70) / history.length;
+            history.forEach((run, i) => {
+                const ry = py + 62 + i * rowH;
+                const heroColor = this._getHeroColor(run.hero);
+                const isVictory = run.outcome === 'victory';
 
-        history.forEach((run, i) => {
-            const ry = by + 44 + i * rowH;
-            const heroColor = this._getHeroColor(run.hero);
-            const isVictory = run.outcome === 'victory';
+                // Row bg
+                ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.2)';
+                ctx.fillRect(px + 10, ry, pw - 20, rowH - 4);
 
-            // Row bg
-            ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.15)';
-            ctx.fillRect(bx + 6, ry, bw - 12, rowH - 4);
+                // Left color bar
+                ctx.fillStyle = heroColor;
+                ctx.fillRect(px + 10, ry, 5, rowH - 4);
 
-            // Hero color strip
-            ctx.fillStyle = heroColor;
-            ctx.fillRect(bx + 6, ry, 5, rowH - 4);
+                // Run number badge
+                ctx.font = 'bold 10px Arial';
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.textAlign = 'left';
+                ctx.fillText(`#${i + 1}`, px + 22, ry + 14);
 
-            // Hero name + outcome icon
-            ctx.font = 'bold 11px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillStyle = heroColor;
-            ctx.fillText(run.hero.toUpperCase(), bx + 18, ry + 13);
+                // Hero name
+                ctx.font = 'bold 15px Arial';
+                ctx.fillStyle = heroColor;
+                ctx.fillText(run.hero.toUpperCase(), px + 45, ry + 16);
 
-            ctx.font = '10px Arial';
-            ctx.fillStyle = isVictory ? '#f1c40f' : '#e74c3c';
-            ctx.fillText(isVictory ? '✓ VICTORY' : '✗ DEATH', bx + 18, ry + 26);
+                // Mode label
+                const modeLabel = { standard: 'Standard', story: 'Story', shuffle: 'Chaos Shuffle',
+                    daily: 'Daily', weekly: 'Weekly', versus: 'Versus', '2p_versus': '2P Versus',
+                    tutorial: 'Tutorial' }[run.mode] || 'Standard';
+                ctx.font = '10px Arial';
+                ctx.fillStyle = 'rgba(255,255,255,0.38)';
+                ctx.textAlign = 'left';
+                ctx.fillText(modeLabel, px + 45, ry + 28);
 
-            // Stats row
-            ctx.font = '9px Arial';
-            ctx.fillStyle = 'rgba(255,255,255,0.65)';
-            ctx.fillText(`Wave ${run.wave}  •  ${run.score.toLocaleString()} pts`, bx + 18, ry + 40);
-            ctx.fillText(`Kills: ${run.enemiesKilled}  •  Combo: ${run.maxCombo}  •  ${fmtTime(run.timeSec)}`, bx + 18, ry + 52);
+                // Outcome
+                ctx.font = 'bold 12px Arial';
+                ctx.fillStyle = isVictory ? '#f1c40f' : '#e74c3c';
+                ctx.textAlign = 'right';
+                ctx.fillText(isVictory ? '✓ VICTORY' : '✗ DEATH', px + pw - 20, ry + 16);
 
-            // Divider between rows
-            if (i < history.length - 1) {
-                ctx.strokeStyle = 'rgba(107,90,62,0.4)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(bx + 10, ry + rowH - 2);
-                ctx.lineTo(bx + bw - 10, ry + rowH - 2);
-                ctx.stroke();
-            }
-        });
+                // Stats line 1
+                ctx.font = '12px Arial';
+                ctx.fillStyle = 'rgba(255,255,255,0.75)';
+                ctx.textAlign = 'left';
+                ctx.fillText(`Wave ${run.wave}`, px + 45, ry + 40);
+                ctx.fillText(`Score: ${run.score.toLocaleString()}`, px + 130, ry + 40);
+                ctx.fillText(`Time: ${fmtTime(run.timeSec)}`, px + 290, ry + 40);
 
-        ctx.restore();
+                // Stats line 2
+                ctx.fillStyle = 'rgba(255,255,255,0.50)';
+                ctx.fillText(`Kills: ${run.enemiesKilled}`, px + 45, ry + 55);
+                ctx.fillText(`Damage: ${run.damageDealt.toLocaleString()}`, px + 130, ry + 55);
+                ctx.fillText(`Max Combo: ${run.maxCombo}`, px + 290, ry + 55);
+
+                // Row divider
+                if (i < history.length - 1) {
+                    ctx.strokeStyle = 'rgba(107,90,62,0.35)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(px + 20, ry + rowH - 2);
+                    ctx.lineTo(px + pw - 20, ry + rowH - 2);
+                    ctx.stroke();
+                }
+            });
+        }
+
+        // Footer hint
+        ctx.font = '12px Arial';
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.textAlign = 'center';
+        ctx.fillText('Press ESC or (B) to close', W / 2, py + ph - 14);
     }
 
     _getHeroColor(h) {
@@ -1367,6 +1706,7 @@ class MuseumEntity {
 
 // Global Museum Helpers
 window.openMuseum = function () {
+    if (typeof MenuBackground !== 'undefined') MenuBackground.stop();
     document.getElementById('menu-overlay').style.display = 'none';
     window.museum = new Museum();
     if (window.setUIState) window.setUIState('MUSEUM');

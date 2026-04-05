@@ -54,6 +54,7 @@ class AudioManager {
             weather_heatwave:     new Audio('audio/sounds/weather_heatwave.wav'),
             weather_thunderstorm: new Audio('audio/sounds/weather_thunderstorm.wav'),
             weather_thunder_crack: new Audio('audio/sounds/weather_thunder_crack.wav'),
+            twin_event:            new Audio('audio/sounds/twin_event.wav'),
         };
 
         // DLC extension points
@@ -101,6 +102,7 @@ class AudioManager {
         this.tracks.weather_heatwave.loop     = true;  this.tracks.weather_heatwave.volume     = 0.25;
         this.tracks.weather_thunderstorm.loop = true;  this.tracks.weather_thunderstorm.volume = 0.35;
         this.tracks.weather_thunder_crack.volume = 0.55;
+        this.tracks.twin_event.volume = 0.7;
 
         this.musicEnabled = true;
         this.sfxEnabled   = true;

@@ -3,7 +3,6 @@
 - fix difficulty (currently too easy because of lower enemy count and collision damage)
 - add victory screen music
 - check why standard mode button is greyed-out in 2 player
-- twin event siren sound
 
 # Echos of Eternity
 
