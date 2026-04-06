@@ -6,6 +6,7 @@
 - overhaul arena backgrounds for Earth and Lightning
 - generate generic voice lines for common expressions of all heroes (generate automatically)
 - add game icon
+- add game mode that lets you play as Makuta and/or Green Goblin against the heroes
 
 # Echos of Eternity
 

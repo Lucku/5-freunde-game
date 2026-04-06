@@ -58,8 +58,9 @@ class AudioManager {
         };
 
         // DLC extension points
-        this.musicHooks  = []; // { priority, check(), play(am) → trackKey }
-        this.voicePaths  = {}; // heroId → (index) => path
+        this.musicHooks       = []; // { priority, check(), play(am) → trackKey }
+        this.voicePaths       = {}; // heroId → (index) => path
+        this.exclamationPaths = {}; // heroId → (situation) => path  (DLC registration)
 
         // Music config
         this.tracks.menu.loop = true;     this.tracks.menu.volume = 0.5;
@@ -147,6 +148,15 @@ class AudioManager {
         this.voicePaths[heroId] = fn;
     }
 
+    /**
+     * Register an exclamation path resolver for a DLC hero.
+     * @param {string}   heroId   e.g. 'air'
+     * @param {(situation: string) => string} fn  Returns the file path for a situation key.
+     */
+    registerExclamationPath(heroId, fn) {
+        this.exclamationPaths[heroId] = fn;
+    }
+
     // ── Playback helpers ──────────────────────────────────────────────────────
 
     startLoop(key) {
@@ -206,6 +216,35 @@ class AudioManager {
         this.voice.onended = () => {
             if (this.tracks.museum) this.tracks.museum.volume = 0.5;
         };
+    }
+
+    // Plays a situational hero exclamation (injured/failure_1/twin_event/etc.)
+    // For paired situations (e.g. failure_1 / failure_2) pass the base key and
+    // the method picks a random variant automatically.
+    playHeroExclamation(hero, situation) {
+        if (!this.sfxEnabled) return;
+        if (this._exclamationPlaying) return; // don't stack on top of each other
+
+        // Randomly pick _1 or _2 variant when both exist
+        const _pick = () => Math.random() < 0.5 ? `${situation}_1` : `${situation}_2`;
+        const key = ['failure', 'boss_moment', 'boss_win', 'found'].includes(situation)
+            ? _pick()
+            : situation;
+
+        let path;
+        if (this.exclamationPaths[hero]) {
+            path = this.exclamationPaths[hero](key);
+        } else {
+            path = `audio/voices/${hero}/${key}.mp3`;
+        }
+
+        const audio = new Audio(path);
+        audio.volume = 0.85;
+        this._exclamationPlaying = true;
+        audio.play().catch(() => {}); // silently skip missing files
+        audio.onended = () => { this._exclamationPlaying = false; };
+        // Safety reset in case the file never loads
+        setTimeout(() => { this._exclamationPlaying = false; }, 6000);
     }
 
     toggleMute() {

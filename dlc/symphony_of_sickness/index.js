@@ -246,6 +246,8 @@ const SymphonyDLC = {
             });
             audioManager.registerVoicePath('sound',  (id) => `dlc/symphony_of_sickness/audio/memories/sound_${id}.mp3`);
             audioManager.registerVoicePath('poison', (id) => `dlc/symphony_of_sickness/audio/memories/poison_${id}.mp3`);
+            audioManager.registerExclamationPath('sound',  (s) => `dlc/symphony_of_sickness/audio/voices/sound/${s}.mp3`);
+            audioManager.registerExclamationPath('poison', (s) => `dlc/symphony_of_sickness/audio/voices/poison/${s}.mp3`);
             window.STORY_AUDIO_RESOLVERS = window.STORY_AUDIO_RESOLVERS || {};
             window.STORY_AUDIO_RESOLVERS['SOUND']  = (id) => `dlc/symphony_of_sickness/audio/story/${id}.mp3`;
             window.STORY_AUDIO_RESOLVERS['POISON'] = (id) => `dlc/symphony_of_sickness/audio/story/${id}.mp3`;

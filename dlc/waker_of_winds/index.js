@@ -72,6 +72,7 @@ const WAKER_OF_WINDS = {
                 },
             });
             audioManager.registerVoicePath('air', (id) => `dlc/waker_of_winds/audio/memories/air_${id}.mp3`);
+            audioManager.registerExclamationPath('air', (s) => `dlc/waker_of_winds/audio/voices/air/${s}.mp3`);
             window.STORY_AUDIO_RESOLVERS = window.STORY_AUDIO_RESOLVERS || {};
             window.STORY_AUDIO_RESOLVERS['AIR'] = (id) => `dlc/waker_of_winds/audio/story/${id}.mp3`;
         }

@@ -7,5 +7,7 @@ ice = iP95p4xoKVk53GoZ742B
 plant = bIHbv24MWmeRgasZH58o
 metal = tZPwJezAhAZUGGBZDmR0
 water = cgSgspJ2msm6clMCkdW9
+lightning = flHkNRp1BlvT73UL6gyz
+earth = DMyrgzQFny3JI1Y1paM5
 poison = Qe9WSybioZxssVEwlBSo
 sound = 6OzrBCQf8cjERkYgzSg8

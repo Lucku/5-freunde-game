@@ -2093,6 +2093,7 @@ function chooseUpgrade(type) {
         target.currentForm = target.getFormName();
         showNotification(`${target.currentForm} ACTIVATED!`);
         createExplosion(target.x, target.y, '#fff');
+        if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(target.type, 'ultimate');
     }
 
     window.levelingUpPlayer = null;
@@ -2697,6 +2698,9 @@ function resumeWaveGeneration() {
         setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
 
         enemies.unshift(new Boss(storyBossId));
+        if (typeof audioManager !== 'undefined' && player) {
+            audioManager.playHeroExclamation(player.type, 'boss_moment');
+        }
     }
 
     arena.generate(currentBiomeType, layoutOverride, trapOverride);
@@ -4275,7 +4279,10 @@ function masterLoop(timestamp) {
                         if (!_isStoryMode && Math.random() < 0.05) {
                             document.getElementById('event-text').style.display = 'block';
                             setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
-                            if (typeof audioManager !== 'undefined') audioManager.play('twin_event');
+                            if (typeof audioManager !== 'undefined') {
+                                audioManager.play('twin_event');
+                                audioManager.playHeroExclamation(player.type, 'twin_event');
+                            }
                             enemies.unshift(new Boss(), new Boss());
                         } else {
                             // Mutator: Double Boss
@@ -4600,7 +4607,10 @@ function masterLoop(timestamp) {
                         `;
                         document.body.appendChild(notif);
 
-                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_card');
+                        if (typeof audioManager !== 'undefined') {
+                            audioManager.play('pickup_card');
+                            audioManager.playHeroExclamation(player.type, 'found');
+                        }
 
                         // Trigger animation
                         setTimeout(() => notif.classList.add('show'), 10);
@@ -4633,13 +4643,19 @@ function masterLoop(timestamp) {
 
                         showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
                         createExplosion(player.x, player.y, '#fff');
-                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_mask');
+                        if (typeof audioManager !== 'undefined') {
+                            audioManager.play('pickup_mask');
+                            audioManager.playHeroExclamation(player.type, 'found');
+                        }
 
                         // Unlock Achievement if exists?
                     } else {
                         saveData[player.type].level++;
                         saveGame();
-                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_mask');
+                        if (typeof audioManager !== 'undefined') {
+                            audioManager.play('pickup_mask');
+                            audioManager.playHeroExclamation(player.type, 'found');
+                        }
                         showNotification("PERMANENT LEVEL UP!");
                         createExplosion(player.x, player.y, '#f1c40f');
                     }
@@ -5279,7 +5295,12 @@ function masterLoop(timestamp) {
 
                             // Start Boss Death Sequence
                             bossDeathTimer = 180; // 3 seconds at 60 FPS
-                            if (typeof audioManager !== 'undefined') audioManager.play('wave_completed');
+                            if (typeof audioManager !== 'undefined') {
+                                audioManager.play('wave_completed');
+                                if (currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT') {
+                                    audioManager.playHeroExclamation(player.type, 'boss_win');
+                                }
+                            }
 
 
                             // Clear all other enemies instantly for dramatic effect
@@ -5427,7 +5448,15 @@ function masterLoop(timestamp) {
                 ctx.restore();
             }
 
-            // Low Health Indicator
+            // Low Health Indicator + injured exclamation (fires once per drop below 20%)
+            if (player.hp / player.maxHp < 0.2) {
+                if (!player._injuredVoicePlayed) {
+                    player._injuredVoicePlayed = true;
+                    if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player.type, 'injured');
+                }
+            } else {
+                player._injuredVoicePlayed = false; // reset when healed above threshold
+            }
             if (player.hp / player.maxHp < 0.2) {
                 ctx.save();
                 // Red Vignette
@@ -5561,6 +5590,7 @@ function masterLoop(timestamp) {
                     if (typeof audioManager !== 'undefined') {
                         // Play Death Sound
                         try { audioManager.play('death'); } catch (e) { }
+                        audioManager.playHeroExclamation(player.type, 'failure');
                     }
                 }
             }

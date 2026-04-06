@@ -93,6 +93,7 @@ class LevelUpUI {
             player.currentForm = player.getFormName();
             if (window.showNotification) window.showNotification(`${player.currentForm} ACTIVATED!`);
             if (window.createExplosion) window.createExplosion(player.x, player.y, '#fff');
+            if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player.type, 'ultimate');
         }
         else {
             console.log("Unknown Upgrade Type: " + type);
