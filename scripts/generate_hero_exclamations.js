@@ -250,48 +250,47 @@ const LINES = {
         found_1: "This crackles with something wild.",
         found_2: "Electric. I like it.",
     },
+    time: {
+        injured: "The timeline is fracturing... hold together.",
+        failure_1: "Even I cannot outrun every ending.",
+        failure_2: "This was always one of the outcomes.",
+        twin_event: "Two of you... I've seen this before. It didn't end well.",
+        boss_moment_1: "I have watched this moment approaching for a long time.",
+        boss_moment_2: "Every path through time led here.",
+        boss_win_1: "This timeline survives.",
+        boss_win_2: "Rewritten.",
+        found_1: "This doesn't belong in this moment.",
+        found_2: "A fragment from another timeline.",
+    },
 
-    // time: {
-    //     injured:        "The timeline is fracturing... hold together.",
-    //     failure_1:      "Even I cannot outrun every ending.",
-    //     failure_2:      "This was always one of the outcomes.",
-    //     twin_event:     "Two of you... I've seen this before. It didn't end well.",
-    //     boss_moment_1:  "I have watched this moment approaching for a long time.",
-    //     boss_moment_2:  "Every path through time led here.",
-    //     boss_win_1:     "This timeline survives.",
-    //     boss_win_2:     "Rewritten.",
-    //     found_1:        "This doesn't belong in this moment.",
-    //     found_2:        "A fragment from another timeline.",
-    // },
-
-    // love: {
-    //     injured:        "It hurts... but I won't let go.",
-    //     failure_1:      "I loved every moment of this.",
-    //     failure_2:      "Even this is an act of love.",
-    //     twin_event:     "Two of you... my heart is big enough.",
-    //     boss_moment_1:  "I'm not fighting out of hate. That's why I'll win.",
-    //     boss_moment_2:  "Love is the strongest force in any world.",
-    //     boss_win_1:     "Love wins.",
-    //     boss_win_2:     "Open your heart.",
-    //     found_1:        "Oh! This feels like it was waiting for me.",
-    //     found_2:        "Something wonderful just found its way to me.",
-    // },
+    love: {
+        injured: "It hurts... but I won't let go.",
+        failure_1: "I loved every moment of this.",
+        failure_2: "Even this is an act of love.",
+        twin_event: "Two of you... my heart is big enough.",
+        boss_moment_1: "I'm not fighting out of hate. That's why I'll win.",
+        boss_moment_2: "Love is the strongest force in any world.",
+        boss_win_1: "Love wins.",
+        boss_win_2: "Open your heart.",
+        found_1: "Oh! This feels like it was waiting for me.",
+        found_2: "Something wonderful just found its way to me.",
+    },
 };
 
 // DLC heroes output to their own DLC directory to stay separate from base game audio
 const DLC_OUTPUT_DIRS = {
-    air:      path.join(__dirname, '../dlc/waker_of_winds/audio/voices/air'),
-    gravity:  path.join(__dirname, '../dlc/champions_of_chaos/audio/voices/gravity'),
-    void:     path.join(__dirname, '../dlc/champions_of_chaos/audio/voices/void'),
-    spirit:   path.join(__dirname, '../dlc/faith_of_fortune/audio/voices/spirit'),
-    chance:   path.join(__dirname, '../dlc/faith_of_fortune/audio/voices/chance'),
-    sound:    path.join(__dirname, '../dlc/symphony_of_sickness/audio/voices/sound'),
-    poison:   path.join(__dirname, '../dlc/symphony_of_sickness/audio/voices/poison'),
-    earth:    path.join(__dirname, '../dlc/rise_of_the_rock/audio/voices/earth'),
+    air: path.join(__dirname, '../dlc/waker_of_winds/audio/voices/air'),
+    gravity: path.join(__dirname, '../dlc/champions_of_chaos/audio/voices/gravity'),
+    void: path.join(__dirname, '../dlc/champions_of_chaos/audio/voices/void'),
+    spirit: path.join(__dirname, '../dlc/faith_of_fortune/audio/voices/spirit'),
+    chance: path.join(__dirname, '../dlc/faith_of_fortune/audio/voices/chance'),
+    sound: path.join(__dirname, '../dlc/symphony_of_sickness/audio/voices/sound'),
+    poison: path.join(__dirname, '../dlc/symphony_of_sickness/audio/voices/poison'),
+    earth: path.join(__dirname, '../dlc/rise_of_the_rock/audio/voices/earth'),
     lightning: path.join(__dirname, '../dlc/tournament_of_thunder/audio/voices/lightning'),
     // echos_of_eternity heroes (add voice IDs to voice_ids.txt to enable):
-    // time:  path.join(__dirname, '../dlc/echos_of_eternity/audio/voices/time'),
-    // love:  path.join(__dirname, '../dlc/echos_of_eternity/audio/voices/love'),
+    time: path.join(__dirname, '../dlc/echos_of_eternity/audio/voices/time'),
+    love: path.join(__dirname, '../dlc/echos_of_eternity/audio/voices/love'),
 };
 
 // ── Main ────────────────────────────────────────────────────────────────────────
@@ -311,7 +310,7 @@ async function main() {
             continue;
         }
         for (const [situation, text] of Object.entries(lines)) {
-            const dir  = DLC_OUTPUT_DIRS[hero] || path.join(OUTPUT_BASE, hero);
+            const dir = DLC_OUTPUT_DIRS[hero] || path.join(OUTPUT_BASE, hero);
             const file = path.join(dir, `${situation}.mp3`);
             tasks.push({ hero, voiceId, situation, text, dir, file });
         }

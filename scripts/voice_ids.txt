@@ -11,3 +11,7 @@ lightning = flHkNRp1BlvT73UL6gyz
 earth = DMyrgzQFny3JI1Y1paM5
 poison = Qe9WSybioZxssVEwlBSo
 sound = 6OzrBCQf8cjERkYgzSg8
+time = QajSKZavaIyUgvSOrelX
+love = 5x1b7R9BDxre5p7xVRsn
+black = xrNwYO0xeioXswMCcFNF
+makuta = bwCXcoVxWNYMlC6Esa8u
