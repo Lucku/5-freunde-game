@@ -36,7 +36,8 @@ class OptionsUI {
             'sfxEnabled':      'opt-sfx-btn',
             'damageNumbers':   'opt-dmg-btn',
             'screenShake':     'opt-shake-btn',
-            'showIntroScreens':'opt-intro-btn'
+            'showIntroScreens':'opt-intro-btn',
+            'subtitlesEnabled':'opt-subtitles-btn'
         };
 
         for (let k in map) {

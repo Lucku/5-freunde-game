@@ -25,63 +25,124 @@ class RockBiome {
 
     static drawBackground(ctx, arena) {
         const cam = arena.camera;
-        const cellSize = 400; // Large grid for sparse decoration
 
+        ctx.save();
+
+        // 1. Stone brick floor tiling
+        const bW = 110, bH = 72;
+        const rowStart = Math.floor(cam.y / bH) - 1;
+        const rowEnd   = Math.ceil((cam.y + cam.height) / bH) + 1;
+        for (let row = rowStart; row <= rowEnd; row++) {
+            const off = (row & 1) * (bW / 2);
+            const colStart = Math.floor((cam.x - off) / bW) - 1;
+            const colEnd   = Math.ceil((cam.x + cam.width - off) / bW) + 1;
+            for (let col = colStart; col <= colEnd; col++) {
+                const bx = col * bW + off;
+                const by = row * bH;
+                const v = Math.abs((Math.sin(col * 127.3 + row * 311.7) * 43758.5) % 1) * 0.07;
+                // Mortar gap
+                ctx.fillStyle = "rgba(14, 10, 6, 0.22)";
+                ctx.fillRect(bx, by, bW, bH);
+                // Brick face
+                ctx.fillStyle = `rgba(65, 48, 30, ${0.1 + v})`;
+                ctx.fillRect(bx + 2, by + 2, bW - 4, bH - 4);
+            }
+        }
+
+        // 2. Floor cracks and embedded rocks
+        const cellSize = 400;
         const sx = Math.floor(cam.x / cellSize) * cellSize;
         const sy = Math.floor(cam.y / cellSize) * cellSize;
         const ex = sx + cam.width + cellSize;
         const ey = sy + cam.height + cellSize;
 
-        ctx.save();
         for (let x = sx; x <= ex; x += cellSize) {
             for (let y = sy; y <= ey; y += cellSize) {
-                // Deterministic pseudo-random based on coordinates
                 const hash = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-                const val = hash - Math.floor(hash); // 0.0 to 1.0
+                const val = hash - Math.floor(hash);
 
-                // 1. Large Cracks on Floor
                 if (val > 0.6) {
-                    const cx = x + (val * 1337) % cellSize;
-                    const cy = y + (val * 7331) % cellSize;
-
-                    ctx.strokeStyle = "rgba(62, 39, 35, 0.2)"; // Dark Brown
-                    ctx.lineWidth = 4;
+                    const crx = x + (val * 1337) % cellSize;
+                    const cry = y + (val * 7331) % cellSize;
+                    ctx.strokeStyle = "rgba(18, 10, 6, 0.28)";
+                    ctx.lineWidth = 3;
                     ctx.lineCap = 'round';
-
                     ctx.beginPath();
-                    ctx.moveTo(cx, cy);
-                    ctx.lineTo(cx + 30 * val, cy + 40 * val);
-                    ctx.lineTo(cx + 10 * val, cy + 80 * val);
-                    ctx.lineTo(cx + 50 * val, cy + 100 * val);
+                    ctx.moveTo(crx, cry);
+                    ctx.lineTo(crx + 30 * val, cry + 40 * val);
+                    ctx.lineTo(crx + 10 * val, cry + 80 * val);
+                    ctx.lineTo(crx + 50 * val, cry + 100 * val);
                     ctx.stroke();
                 }
 
-                // 2. Embedded Rocks/Stones
                 if (val < 0.4) {
                     const rx = x + (val * 9999) % cellSize;
                     const ry = y + (val * 8888) % cellSize;
                     const rSize = 10 + val * 20;
-
-                    // Shadow
-                    ctx.fillStyle = "rgba(0,0,0,0.3)";
+                    ctx.fillStyle = "rgba(0,0,0,0.28)";
                     ctx.beginPath();
                     ctx.arc(rx + 3, ry + 3, rSize, 0, Math.PI * 2);
                     ctx.fill();
-
-                    // Rock Body
-                    ctx.fillStyle = "#4e4030"; // Darker Brown (Blends better with bg)
+                    ctx.fillStyle = "#4e4030";
                     ctx.beginPath();
                     ctx.arc(rx, ry, rSize, 0, Math.PI * 2);
                     ctx.fill();
-
-                    // Highlight
-                    ctx.fillStyle = "rgba(255,255,255,0.05)"; // Subtler highlight
+                    ctx.fillStyle = "rgba(255,255,255,0.04)";
                     ctx.beginPath();
                     ctx.arc(rx - rSize * 0.3, ry - rSize * 0.3, rSize * 0.4, 0, Math.PI * 2);
                     ctx.fill();
                 }
             }
         }
+
+        // 3. Vertical iron cage bars
+        const barSpacing = 210;
+        const barW = 14;
+        const barX0 = Math.floor(cam.x / barSpacing) * barSpacing;
+        for (let bx = barX0; bx <= cam.x + cam.width + barSpacing; bx += barSpacing) {
+            // Drop shadow
+            ctx.fillStyle = "rgba(0,0,0,0.38)";
+            ctx.fillRect(bx - barW / 2 + 4, cam.y, barW + 2, cam.height);
+            // Bar with gradient sheen
+            const g = ctx.createLinearGradient(bx - barW / 2, 0, bx + barW / 2, 0);
+            g.addColorStop(0,    "rgba(16, 12, 8, 0.62)");
+            g.addColorStop(0.25, "rgba(50, 40, 26, 0.58)");
+            g.addColorStop(0.65, "rgba(36, 28, 18, 0.58)");
+            g.addColorStop(1,    "rgba(16, 12, 8, 0.62)");
+            ctx.fillStyle = g;
+            ctx.fillRect(bx - barW / 2, cam.y, barW, cam.height);
+            // Edge highlight
+            ctx.fillStyle = "rgba(95, 72, 44, 0.18)";
+            ctx.fillRect(bx - barW / 2 + 2, cam.y, 2, cam.height);
+        }
+
+        // 4. Horizontal cage crossbars
+        const hBarSpacing = 290;
+        const hBarH = 10;
+        const hBarY0 = Math.floor(cam.y / hBarSpacing) * hBarSpacing;
+        for (let by = hBarY0; by <= cam.y + cam.height + hBarSpacing; by += hBarSpacing) {
+            ctx.fillStyle = "rgba(0,0,0,0.32)";
+            ctx.fillRect(cam.x, by + 4, cam.width, hBarH);
+            const g = ctx.createLinearGradient(0, by - hBarH / 2, 0, by + hBarH / 2);
+            g.addColorStop(0,   "rgba(16, 12, 8, 0.58)");
+            g.addColorStop(0.5, "rgba(48, 36, 22, 0.52)");
+            g.addColorStop(1,   "rgba(16, 12, 8, 0.58)");
+            ctx.fillStyle = g;
+            ctx.fillRect(cam.x, by - hBarH / 2, cam.width, hBarH);
+        }
+
+        // 5. Iron rivets at bar intersections
+        for (let bx = barX0; bx <= cam.x + cam.width + barSpacing; bx += barSpacing) {
+            for (let by = hBarY0; by <= cam.y + cam.height + hBarSpacing; by += hBarSpacing) {
+                ctx.fillStyle = "rgba(0,0,0,0.5)";
+                ctx.beginPath(); ctx.arc(bx + 1, by + 2, 9, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "rgba(58, 44, 28, 0.8)";
+                ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "rgba(95, 75, 48, 0.45)";
+                ctx.beginPath(); ctx.arc(bx - 2, by - 2, 3, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
         ctx.restore();
     }
 

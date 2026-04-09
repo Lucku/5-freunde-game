@@ -18,6 +18,7 @@ class MemoryShard {
             case 'water': return '#2980b9';
             case 'black': return '#000000';
             case 'makuta': return '#8e44ad';
+            case 'goblin': return '#27ae60';
             default: return '#ffffff';
         }
     }

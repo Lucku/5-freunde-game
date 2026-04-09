@@ -143,7 +143,62 @@ const TestingGrounds = {
         });
         html += '</div></div>';
 
+        // Weather controls
+        const allWeathers = Array.isArray(window.WEATHER_TYPES) ? window.WEATHER_TYPES : (typeof WEATHER_TYPES !== 'undefined' ? WEATHER_TYPES : []);
+        const wColorMap = { HEATWAVE: '#e74c3c', THUNDERSTORM: '#9b59b6', SANDSTORM: '#c8922a', ACIDIC_FOG: '#2ecc71', GALE: '#a8d8f0', TEMPORAL_RIFT: '#b8a0ff', PETAL_STORM: '#ff80c0' };
+        html += '<div class="tg-group">';
+        html += '<div class="tg-group-title">Weather</div>';
+        html += '<div class="tg-btn-grid">';
+        allWeathers.forEach(w => {
+            const col = wColorMap[w.id] || '#3498db';
+            const active = (typeof currentWeather !== 'undefined' && currentWeather && currentWeather.id === w.id);
+            const activeStyle = active ? `background:${col}22; outline:2px solid ${col};` : '';
+            html += `<button class="tg-btn" style="border-color:${col}; color:${col}; ${activeStyle}" onclick="TestingGrounds.setWeather('${w.id}')">${w.name}</button>`;
+        });
+        html += `<button class="tg-btn" style="border-color:#888; color:#888;" onclick="TestingGrounds.clearWeather()">Clear</button>`;
+        html += '</div></div>';
+
         container.innerHTML = html;
+    },
+
+    setWeather(id) {
+        const allWeathers = Array.isArray(window.WEATHER_TYPES) ? window.WEATHER_TYPES : (typeof WEATHER_TYPES !== 'undefined' ? WEATHER_TYPES : []);
+        const w = allWeathers.find(w => w.id === id);
+        if (!w) return;
+        // Stop previous weather audio
+        if (typeof currentWeather !== 'undefined' && currentWeather && typeof audioManager !== 'undefined') {
+            audioManager.stopLoop('weather_' + currentWeather.id.toLowerCase());
+        }
+        currentWeather = w;
+        weatherDuration = w.duration;
+        weatherParticles = [];
+        const wColorMap = { HEATWAVE: '#e74c3c', THUNDERSTORM: '#9b59b6', SANDSTORM: '#c8922a', ACIDIC_FOG: '#2ecc71', GALE: '#a8d8f0', TEMPORAL_RIFT: '#b8a0ff', PETAL_STORM: '#ff80c0' };
+        const col = wColorMap[id] || '#3498db';
+        document.getElementById('weather-overlay').style.backgroundColor = w.color;
+        const wDisplay = document.getElementById('weather-display');
+        if (wDisplay) { wDisplay.innerText = `⚠ ${w.name}`; wDisplay.style.color = col; wDisplay.style.display = 'block'; }
+        const wBarWrap = document.getElementById('weather-bar-wrap');
+        const wBarFill = document.getElementById('weather-bar-fill');
+        if (wBarWrap && wBarFill) { wBarWrap.style.display = 'block'; wBarFill.style.background = col; wBarFill.style.width = '100%'; }
+        if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + id.toLowerCase());
+        this.buildSpawnMenu();
+        showNotification(`Weather: ${w.name}`);
+    },
+
+    clearWeather() {
+        if (typeof currentWeather !== 'undefined' && currentWeather && typeof audioManager !== 'undefined') {
+            audioManager.stopLoop('weather_' + currentWeather.id.toLowerCase());
+        }
+        currentWeather = null;
+        weatherDuration = 0;
+        weatherParticles = [];
+        document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
+        const wDisplay = document.getElementById('weather-display');
+        if (wDisplay) wDisplay.style.display = 'none';
+        const wBarWrap = document.getElementById('weather-bar-wrap');
+        if (wBarWrap) wBarWrap.style.display = 'none';
+        this.buildSpawnMenu();
+        showNotification('Weather cleared');
     },
 
     setBiome(id) {

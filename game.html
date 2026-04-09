@@ -78,6 +78,10 @@
             <div id="combo-display">COMBO x0</div>
         </div>
         <div id="notification-area"></div>
+        <div id="hero-subtitle" class="hero-sub-hidden">
+            <span class="hero-sub-name"></span>
+            <span class="hero-sub-text"></span>
+        </div>
         <div id="event-text">TWIN EVENT!</div>
         <div id="weather-display"></div>
         <div id="weather-bar-wrap"><div id="weather-bar-fill"></div></div>
@@ -668,6 +672,14 @@
                     </div>
                     <button id="opt-intro-btn" class="opt-toggle-btn active"
                         onclick="toggleOption('showIntroScreens')">ON</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">◉</span>
+                        <span class="options-label">Hero Subtitles</span>
+                    </div>
+                    <button id="opt-subtitles-btn" class="opt-toggle-btn"
+                        onclick="toggleOption('subtitlesEnabled')">OFF</button>
                 </div>
             </div>
 

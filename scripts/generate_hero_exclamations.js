@@ -11,6 +11,7 @@
 //   boss_moment_1/2 — facing a story super-boss (2 random variants)
 //   boss_win_1/2  — defeating a super-boss (2 random variants)
 //   found_1/2     — picking up a collector card or permanent upgrade (2 random variants)
+//   level_up_1/2  — leveling up during a run, played at 60% random chance (2 random variants)
 //
 // Heroes without a voice ID in voice_ids.txt are skipped with a warning.
 // Add missing IDs to scripts/voice_ids.txt to include them.
@@ -69,6 +70,8 @@ const LINES = {
         found_1: "What is this... it feels powerful.",
         found_2: "Interesting. This changes things.",
         ultimate: "INFERNO! Everything burns!",
+        level_up_1: "The fire grows stronger!",
+        level_up_2: "Burning brighter!",
     },
 
     water: {
@@ -83,6 +86,8 @@ const LINES = {
         found_1: "Something calls to me from this.",
         found_2: "There's depth to this I haven't understood yet.",
         ultimate: "Tidal Wave... the ocean rises!",
+        level_up_1: "Deeper currents awakening.",
+        level_up_2: "The flow strengthens.",
     },
 
     ice: {
@@ -97,6 +102,8 @@ const LINES = {
         found_1: "Curious. The composition is unlike anything I have analyzed.",
         found_2: "Fascinating properties. I'll study this later.",
         ultimate: "Deep Freeze initiated. Nothing moves.",
+        level_up_1: "Efficiency increasing. Good.",
+        level_up_2: "Parameters upgraded. Continuing.",
     },
 
     plant: {
@@ -111,6 +118,8 @@ const LINES = {
         found_1: "This resonates with something ancient.",
         found_2: "I can feel it growing in my hands.",
         ultimate: "OVERGROWTH! The forest reclaims everything.",
+        level_up_1: "New growth. The forest expands.",
+        level_up_2: "Stronger roots. Taller branches.",
     },
 
     metal: {
@@ -125,6 +134,8 @@ const LINES = {
         found_1: "Unusual material. Logging it.",
         found_2: "This has value I can use.",
         ultimate: "Iron Will engaged. Nothing gets through.",
+        level_up_1: "Structural integrity reinforced.",
+        level_up_2: "System upgrade complete.",
     },
 
     black: {
@@ -139,6 +150,8 @@ const LINES = {
         found_1:        "...This thing is familiar. Wrong, but familiar.",
         found_2:        "Something dark called out to me.",
         ultimate:       "THE SHADOW. Try to hit what you can't see.",
+        level_up_1:     "The shadows deepen.",
+        level_up_2:     "Darker. Better.",
     },
 
     air: {
@@ -153,6 +166,8 @@ const LINES = {
         found_1: "Oh, this thing is singing to me.",
         found_2: "Something special just drifted into my hands.",
         ultimate: "TWISTER! Ha! Hold on to something!",
+        level_up_1: "Faster! Higher!",
+        level_up_2: "Ha! Nothing can catch me now!",
     },
 
     void: {
@@ -167,6 +182,8 @@ const LINES = {
         found_1: "It pulses with something I recognize.",
         found_2: "...This thing has seen darkness.",
         ultimate: "Void Eruption. Everything ends.",
+        level_up_1: "The emptiness grows.",
+        level_up_2: "More power. More nothing.",
     },
 
     spirit: {
@@ -181,6 +198,8 @@ const LINES = {
         found_1: "This... I wasn't meant to find this yet.",
         found_2: "A gift from the universe. I accept it with gratitude.",
         ultimate: "I am the stillness at the center of the storm.",
+        level_up_1: "Balance deepens within me.",
+        level_up_2: "The spirit grows.",
     },
 
     chance: {
@@ -195,6 +214,8 @@ const LINES = {
         found_1: "Jackpot! Look at this beauty!",
         found_2: "Someone up there likes me.",
         ultimate: "Wild Card! Anything goes now!",
+        level_up_1: "Luck is on my side today!",
+        level_up_2: "The odds just got better!",
     },
 
     sound: {
@@ -209,6 +230,8 @@ const LINES = {
         found_1: "This vibrates at a frequency I've never heard.",
         found_2: "It harmonizes perfectly.",
         ultimate: "RESONANCE! Feel the full force of the symphony!",
+        level_up_1: "A new movement begins.",
+        level_up_2: "The composition evolves!",
     },
 
     poison: {
@@ -223,6 +246,8 @@ const LINES = {
         found_1: "This is deliciously corrupted.",
         found_2: "Whatever this is, it has potential for harm. Wonderful.",
         ultimate: "PLAGUE FORM. Everything I touch decays.",
+        level_up_1: "The toxin strengthens.",
+        level_up_2: "A more potent strain.",
     },
 
     gravity: {
@@ -237,6 +262,8 @@ const LINES = {
         found_1: "This object bends the space around it.",
         found_2: "I feel its mass before I even touch it.",
         ultimate: "SINGULARITY. Nothing escapes this.",
+        level_up_1: "The pull intensifies.",
+        level_up_2: "Greater mass. Greater force.",
     },
 
     // ── Add voice IDs to voice_ids.txt to enable these ──────────────────────────
@@ -253,6 +280,8 @@ const LINES = {
         found_1: "Something ancient is in this.",
         found_2: "The earth yielded this to me for a reason.",
         ultimate: "OBSIDIAN FORM. Unbreakable.",
+        level_up_1: "Bedrock. Immovable.",
+        level_up_2: "The stone grows harder.",
     },
 
     lightning: {
@@ -267,6 +296,8 @@ const LINES = {
         found_1: "This crackles with something wild.",
         found_2: "Electric. I like it.",
         ultimate: "STORM SURGE! The sky opens!",
+        level_up_1: "Voltage rising!",
+        level_up_2: "Charged up!",
     },
 
     time: {
@@ -281,6 +312,8 @@ const LINES = {
         found_1: "This doesn't belong in this moment.",
         found_2: "A fragment from another timeline.",
         ultimate: "TIME STOPS. Only I remain.",
+        level_up_1: "Another moment mastered.",
+        level_up_2: "Time bends further to my will.",
     },
 
     love: {
@@ -295,6 +328,8 @@ const LINES = {
         found_1: "Oh! This feels like it was waiting for me.",
         found_2: "Something wonderful just found its way to me.",
         ultimate: "HEART OF UNITY. We face this together.",
+        level_up_1: "My heart grows stronger!",
+        level_up_2: "More love, more power.",
     },
 };
 

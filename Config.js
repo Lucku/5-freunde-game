@@ -35,7 +35,10 @@ const defaultConfig = {
     showFPS: false,
 
     // Intro
-    showIntroScreens: true
+    showIntroScreens: true,
+
+    // Accessibility
+    subtitlesEnabled: false
 };
 
 var gameConfig = JSON.parse(JSON.stringify(defaultConfig));

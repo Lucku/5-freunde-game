@@ -167,6 +167,11 @@ class Player {
             window.spawnLevelUpAura(this.x, this.y, heroColor);
         }
 
+        // 60% chance to play a level-up exclamation (skips if another line is already playing)
+        if (Math.random() < 0.6 && typeof audioManager !== 'undefined') {
+            audioManager.playHeroExclamation(this.type, 'level_up');
+        }
+
         let options = [];
 
         if (this.level % 10 === 0) {

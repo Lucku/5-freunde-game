@@ -350,17 +350,28 @@ class Museum {
                 const gx = galleryRoom.x;
                 const gy = galleryRoom.y;
 
-                // Row positions inside gallery
+                // Row positions inside gallery — 6 rows, ~155px spacing, all within gallery bounds
                 const gallerySlots = [
-                    { hero: 'black',     x: gx + 550, y: gy + 110,  color: '#888888' },
-                    { hero: 'air',       x: gx + 350, y: gy + 310,  color: '#40e0d0' },
-                    { hero: 'void',      x: gx + 750, y: gy + 310,  color: '#5a7a90' },
-                    { hero: 'gravity',   x: gx + 250, y: gy + 810,  color: '#8e44ad' },
-                    { hero: 'spirit',    x: gx + 550, y: gy + 810,  color: '#F0D080' },
-                    { hero: 'chance',    x: gx + 850, y: gy + 810,  color: '#e040fb' },
-                    { hero: 'sound',     x: gx + 250, y: gy + 1010, color: '#4fc3f7' },
-                    { hero: 'poison',    x: gx + 550, y: gy + 1010, color: '#76ff03' },
-                    { hero: 'makuta',    x: gx + 850, y: gy + 1010, color: '#8e44ad' },
+                    // Row 1: black hero (center)
+                    { hero: 'black',     x: gx + 550, y: gy +  80,  color: '#888888' },
+                    // Row 2: earth & lightning (DLC base-world heroes)
+                    { hero: 'earth',     x: gx + 350, y: gy + 230,  color: '#8d6e63' },
+                    { hero: 'lightning', x: gx + 750, y: gy + 230,  color: '#f1c40f' },
+                    // Row 3: air & void
+                    { hero: 'air',       x: gx + 350, y: gy + 380,  color: '#40e0d0' },
+                    { hero: 'void',      x: gx + 750, y: gy + 380,  color: '#5a7a90' },
+                    // Row 4: gravity, spirit, chance
+                    { hero: 'gravity',   x: gx + 250, y: gy + 530,  color: '#8e44ad' },
+                    { hero: 'spirit',    x: gx + 550, y: gy + 530,  color: '#F0D080' },
+                    { hero: 'chance',    x: gx + 850, y: gy + 530,  color: '#e040fb' },
+                    // Row 5: sound, poison, makuta
+                    { hero: 'sound',     x: gx + 250, y: gy + 680,  color: '#4fc3f7' },
+                    { hero: 'poison',    x: gx + 550, y: gy + 680,  color: '#76ff03' },
+                    { hero: 'makuta',    x: gx + 850, y: gy + 680,  color: '#8e44ad' },
+                    // Row 6: time, love, goblin
+                    { hero: 'time',      x: gx + 250, y: gy + 830,  color: '#a0c8ff' },
+                    { hero: 'love',      x: gx + 550, y: gy + 830,  color: '#ff6699' },
+                    { hero: 'goblin',    x: gx + 850, y: gy + 830,  color: '#27ae60' },
                 ];
                 gallerySlots.forEach(slot => {
                     const count = getCount(slot.hero);
@@ -1356,6 +1367,7 @@ class Museum {
             metal: '#95a5a6', earth: '#8d6e63', lightning: '#f1c40f', air: '#40e0d0',
             spirit: '#F0D080', chance: '#e040fb', gravity: '#8e44ad', void: '#5a7a90',
             sound: '#4fc3f7', poison: '#76ff03', black: '#999', makuta: '#9b59b6',
+            time: '#a0c8ff', love: '#ff6699', goblin: '#27ae60',
         };
         return map[h] || '#d4af37';
     }

@@ -231,6 +231,13 @@ class Arena {
                 const shard = new MemoryShard(pos.x, pos.y, 'makuta');
                 memoryShards.push(shard);
             }
+
+            // Special Goblin Shard Drop (Very Rare - 0.5% chance)
+            if (Math.random() < 0.005) {
+                const pos = this.getRandomSafePosition(20);
+                const shard = new MemoryShard(pos.x, pos.y, 'goblin');
+                memoryShards.push(shard);
+            }
         }
     }
 

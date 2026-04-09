@@ -1264,6 +1264,11 @@ function saveAndQuit() {
 }
 
 function _resetGameState() {
+    // Stop hero-specific loops that may still be playing (e.g. earth rolling, spirit charging)
+    if (typeof audioManager !== 'undefined') {
+        audioManager.stopLoop('attack_earth_roll');
+        audioManager.stopLoop('special_spirit_charging');
+    }
     gameRunning = false;
     isTutorialMode = false;
     isTestingMode = false;
@@ -4141,7 +4146,9 @@ function masterLoop(timestamp) {
                         }
                         // Projectile wind deflection — drift all projectiles rightward
                         for (let _pi = 0; _pi < projectiles.length; _pi++) {
-                            projectiles[_pi].velocity.x += 0.18 * wFadeIn;
+                            const _pp = projectiles[_pi];
+                            if (_pp.velocity) _pp.velocity.x += 0.18 * wFadeIn;
+                            else if (_pp.vx !== undefined) _pp.vx += 0.18 * wFadeIn;
                         }
                     } else if (window._weatherLogicHooks[currentWeather.id]) {
                         // DLC custom weather logic hook — only run if registering DLC is active
@@ -4245,7 +4252,11 @@ function masterLoop(timestamp) {
                     const _wProg2 = weatherDuration2 / currentWeather2.duration;
                     const _wFI2 = Math.min(1, (currentWeather2.duration - weatherDuration2) / 120);
                     if (currentWeather2.id === 'GALE') {
-                        for (let _pi2 = 0; _pi2 < projectiles.length; _pi2++) projectiles[_pi2].velocity.x += 0.18 * _wFI2;
+                        for (let _pi2 = 0; _pi2 < projectiles.length; _pi2++) {
+                            const _pp2 = projectiles[_pi2];
+                            if (_pp2.velocity) _pp2.velocity.x += 0.18 * _wFI2;
+                            else if (_pp2.vx !== undefined) _pp2.vx += 0.18 * _wFI2;
+                        }
                         if (Math.random() < 0.4 * _wFI2) weatherParticles.push({ x: -10, y: Math.random() * canvas.height, vx: 12 + Math.random() * 8, vy: (Math.random() - 0.5), len: 30 + Math.random() * 30, alpha: 0.1 + Math.random() * 0.15, wobble: 0, gale: true });
                     } else if (currentWeather2.id === 'BLIZZARD') {
                         if (Math.random() < 0.5 * _wFI2) weatherParticles.push({ x: Math.random() * canvas.width, y: -8, vx: (Math.random() - 0.5) * 1.2 - 0.5, vy: 1.2 + Math.random() * 2.0, r: 1.0 + Math.random() * 2.2, alpha: 0.55 + Math.random() * 0.4, wobble: Math.random() * Math.PI * 2 });

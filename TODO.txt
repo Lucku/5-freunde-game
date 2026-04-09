@@ -1,9 +1,6 @@
 # General
 
 - check why standard mode button is greyed-out in 2 player
-- overhaul arena backgrounds for Earth and Lightning
 - add game icon
 - add game mode that lets you play as Makuta and/or Green Goblin against the heroes
 - some kind of introduction to the main game story
-- add Green Goblin memory shards
-- make sure all heroes have Ultimate forms or ask why that might not be the case
