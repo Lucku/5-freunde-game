@@ -2,13 +2,8 @@
 
 - check why standard mode button is greyed-out in 2 player
 - overhaul arena backgrounds for Earth and Lightning
-- generate generic voice lines for common expressions of all heroes (generate automatically)
 - add game icon
 - add game mode that lets you play as Makuta and/or Green Goblin against the heroes
 - some kind of introduction to the main game story
-- add Black hero voice lines
-
-# Echos of Eternity
-
-- add memory audios with own voices
-- add ultimate voice lines for Time and Love
+- add Green Goblin memory shards
+- make sure all heroes have Ultimate forms or ask why that might not be the case

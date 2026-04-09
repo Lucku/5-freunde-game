@@ -127,6 +127,20 @@ const LINES = {
         ultimate: "Iron Will engaged. Nothing gets through.",
     },
 
+    black: {
+        injured:        "Heh... pain is just another shadow.",
+        failure_1:      "The darkness... recedes.",
+        failure_2:      "Even shadows fade in the end.",
+        twin_event:     "Two targets. The dark will swallow you both.",
+        boss_moment_1:  "You think you know fear? I am fear.",
+        boss_moment_2:  "Let's see what hides behind your strength.",
+        boss_win_1:     "Consumed by the dark.",
+        boss_win_2:     "Nothing survives the void I carry.",
+        found_1:        "...This thing is familiar. Wrong, but familiar.",
+        found_2:        "Something dark called out to me.",
+        ultimate:       "THE SHADOW. Try to hit what you can't see.",
+    },
+
     air: {
         injured: "I'm scattered — pull together!",
         failure_1: "Drifting away... where the wind goes...",
@@ -208,6 +222,7 @@ const LINES = {
         boss_win_2: "No antidote for this.",
         found_1: "This is deliciously corrupted.",
         found_2: "Whatever this is, it has potential for harm. Wonderful.",
+        ultimate: "PLAGUE FORM. Everything I touch decays.",
     },
 
     gravity: {
@@ -221,6 +236,7 @@ const LINES = {
         boss_win_2: "Pulled in. As all things are.",
         found_1: "This object bends the space around it.",
         found_2: "I feel its mass before I even touch it.",
+        ultimate: "SINGULARITY. Nothing escapes this.",
     },
 
     // ── Add voice IDs to voice_ids.txt to enable these ──────────────────────────
@@ -236,6 +252,7 @@ const LINES = {
         boss_win_2: "Buried.",
         found_1: "Something ancient is in this.",
         found_2: "The earth yielded this to me for a reason.",
+        ultimate: "OBSIDIAN FORM. Unbreakable.",
     },
 
     lightning: {
@@ -249,7 +266,9 @@ const LINES = {
         boss_win_2: "Overloaded!",
         found_1: "This crackles with something wild.",
         found_2: "Electric. I like it.",
+        ultimate: "STORM SURGE! The sky opens!",
     },
+
     time: {
         injured: "The timeline is fracturing... hold together.",
         failure_1: "Even I cannot outrun every ending.",
@@ -261,6 +280,7 @@ const LINES = {
         boss_win_2: "Rewritten.",
         found_1: "This doesn't belong in this moment.",
         found_2: "A fragment from another timeline.",
+        ultimate: "TIME STOPS. Only I remain.",
     },
 
     love: {
@@ -274,6 +294,7 @@ const LINES = {
         boss_win_2: "Open your heart.",
         found_1: "Oh! This feels like it was waiting for me.",
         found_2: "Something wonderful just found its way to me.",
+        ultimate: "HEART OF UNITY. We face this together.",
     },
 };
 

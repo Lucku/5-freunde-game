@@ -89,6 +89,8 @@ const CHAMPIONS_OF_CHAOS = {
             window.STORY_AUDIO_RESOLVERS = window.STORY_AUDIO_RESOLVERS || {};
             window.STORY_AUDIO_RESOLVERS['GRAVITY'] = (id) => `dlc/champions_of_chaos/audio/story/${id}.mp3`;
             window.STORY_AUDIO_RESOLVERS['VOID']    = (id) => `dlc/champions_of_chaos/audio/story/${id}.mp3`;
+            audioManager.registerExclamationPath('gravity', (s) => `dlc/champions_of_chaos/audio/voices/gravity/${s}.mp3`);
+            audioManager.registerExclamationPath('void',    (s) => `dlc/champions_of_chaos/audio/voices/void/${s}.mp3`);
         }
 
         console.log("[DLC] Loaded: Champions of Chaos (Success)");

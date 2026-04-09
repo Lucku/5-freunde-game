@@ -66,6 +66,8 @@ const FAITH_OF_FORTUNE = {
             window.STORY_AUDIO_RESOLVERS = window.STORY_AUDIO_RESOLVERS || {};
             window.STORY_AUDIO_RESOLVERS['CHANCE'] = (id) => `dlc/faith_of_fortune/audio/story/${id}.mp3`;
             window.STORY_AUDIO_RESOLVERS['SPIRIT'] = (id) => `dlc/faith_of_fortune/audio/story/${id}.mp3`;
+            audioManager.registerExclamationPath('spirit', (s) => `dlc/faith_of_fortune/audio/voices/spirit/${s}.mp3`);
+            audioManager.registerExclamationPath('chance', (s) => `dlc/faith_of_fortune/audio/voices/chance/${s}.mp3`);
         }
 
         console.log("[DLC] Loaded: Faith of Fortune (Success)");

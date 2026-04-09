@@ -133,6 +133,8 @@ const ECHOS_OF_ETERNITY = {
             const _eoeAudio = (id) => `dlc/echos_of_eternity/audio/story/${id.replace(/^maze_/, '')}.mp3`;
             window.STORY_AUDIO_RESOLVERS['TIME'] = _eoeAudio;
             window.STORY_AUDIO_RESOLVERS['LOVE'] = _eoeAudio;
+            audioManager.registerExclamationPath('time', (s) => `dlc/echos_of_eternity/audio/voices/time/${s}.mp3`);
+            audioManager.registerExclamationPath('love', (s) => `dlc/echos_of_eternity/audio/voices/love/${s}.mp3`);
             window.STORY_TITLE_IMAGES = window.STORY_TITLE_IMAGES || {};
             window.STORY_TITLE_IMAGES['time'] = 'dlc/echos_of_eternity/images/title.png';
             window.STORY_TITLE_IMAGES['love'] = 'dlc/echos_of_eternity/images/title.png';
