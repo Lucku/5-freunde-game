@@ -1,6 +1,6 @@
 class IntroManager {
     /**
-     * Play the full intro sequence (dev logo → press-start), then call onComplete.
+     * Play the full intro sequence (dev logo → story intro → press-start), then call onComplete.
      * Skipped when gameConfig.showIntroScreens is false.
      *
      * The intro-backdrop div (display:block in HTML, z-index 9995) covers the canvas
@@ -22,7 +22,7 @@ class IntroManager {
             devScreen.style.display = 'flex';
         }
 
-        this._showDevLogo(() => this._showPressStart(onComplete));
+        this._showDevLogo(() => this._showStoryIntro(() => this._showPressStart(onComplete)));
     }
 
     _showDevLogo(onComplete) {
@@ -34,14 +34,13 @@ class IntroManager {
             screen.style.opacity = '1';
 
             setTimeout(() => {
-                // Pre-position press-start (opacity:0) BEFORE fading dev logo out.
-                // The backdrop underneath ensures nothing leaks through while both
-                // screens are momentarily transparent.
-                const psScreen = document.getElementById('press-start-screen');
-                if (psScreen) {
-                    psScreen.style.transition = 'none';
-                    psScreen.style.opacity = '0';
-                    psScreen.style.display = 'flex';
+                // Pre-position story-intro (opacity:0) BEFORE fading dev logo out
+                // so there is no dark gap between screens.
+                const siScreen = document.getElementById('story-intro-screen');
+                if (siScreen) {
+                    siScreen.style.transition = 'none';
+                    siScreen.style.opacity = '0';
+                    siScreen.style.display = 'flex';
                 }
 
                 screen.style.transition = 'opacity 1s ease';
@@ -52,6 +51,69 @@ class IntroManager {
                 }, 1000);
             }, 2800);
         }));
+    }
+
+    _showStoryIntro(onComplete) {
+        const screen = document.getElementById('story-intro-screen');
+        if (!screen) { onComplete(); return; }
+
+        // Pre-show as invisible so the fade-in CSS animation fires correctly
+        screen.style.transition = 'none';
+        screen.style.opacity = '0';
+        screen.style.display = 'flex';
+
+        // Reset the content animation so it replays each time
+        const content = screen.querySelector('.si-content');
+        if (content) {
+            content.style.animation = 'none';
+            void content.offsetWidth; // reflow to restart animation
+            content.style.animation = '';
+        }
+
+        let advanced = false;
+        const advance = () => {
+            if (advanced) return;
+            advanced = true;
+            cleanup();
+            if (this._introAudio) { this._introAudio.pause(); this._introAudio = null; }
+            screen.style.transition = 'opacity 1s ease';
+            screen.style.opacity = '0';
+            setTimeout(() => {
+                screen.style.display = 'none';
+                onComplete();
+            }, 1000);
+        };
+
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            screen.style.transition = 'opacity 1.4s ease';
+            screen.style.opacity = '1';
+        }));
+
+        // Play narration
+        const audio = new Audio('audio/intro/story_intro.mp3');
+        audio.volume = 0.88;
+        this._introAudio = audio;
+        audio.play().catch(() => {});
+        // Auto-advance 1.5s after narration ends, or after 55s fallback
+        const fallbackTimer = setTimeout(advance, 55000);
+        audio.onended = () => { clearTimeout(fallbackTimer); setTimeout(advance, 1500); };
+
+        // Pre-position press-start hidden so it's ready when we advance
+        const psScreen = document.getElementById('press-start-screen');
+        if (psScreen) {
+            psScreen.style.transition = 'none';
+            psScreen.style.opacity = '0';
+            psScreen.style.display = 'flex';
+        }
+
+        const onKey = () => advance();
+        window.addEventListener('keydown', onKey, { once: true });
+        screen.addEventListener('click', advance, { once: true });
+
+        const cleanup = () => {
+            clearTimeout(fallbackTimer);
+            window.removeEventListener('keydown', onKey);
+        };
     }
 
     _showPressStart(onComplete) {

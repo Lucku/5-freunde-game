@@ -32,12 +32,13 @@ class OptionsUI {
         if (typeof window.gameConfig === 'undefined') return;
 
         const map = {
-            'musicEnabled':    'opt-music-btn',
-            'sfxEnabled':      'opt-sfx-btn',
-            'damageNumbers':   'opt-dmg-btn',
-            'screenShake':     'opt-shake-btn',
-            'showIntroScreens':'opt-intro-btn',
-            'subtitlesEnabled':'opt-subtitles-btn'
+            'musicEnabled':        'opt-music-btn',
+            'sfxEnabled':          'opt-sfx-btn',
+            'damageNumbers':       'opt-dmg-btn',
+            'screenShake':         'opt-shake-btn',
+            'controllerVibration': 'opt-vibration-btn',
+            'showIntroScreens':    'opt-intro-btn',
+            'subtitlesEnabled':    'opt-subtitles-btn'
         };
 
         for (let k in map) {

@@ -49,6 +49,7 @@ const TutorialMode = {
         this.stage = 0;
         this.objective = null;
         this.bossForced = false;
+        this.showBossBanner = false;
         this._resetForStage();
     },
 
@@ -110,7 +111,8 @@ const TutorialMode = {
 
     _forceBoss: function () {
         this.bossForced = true;
-        this.objective = null; // Hide objective tracker immediately
+        this.objective = null;   // Hide the objective progress tracker
+        this.showBossBanner = true; // Show the "Defeat the boss" banner instead
         // Trigger boss-spawn threshold by faking the kill count.
         if (typeof ENEMIES_PER_WAVE !== 'undefined' && typeof wave !== 'undefined') {
             window.enemiesKilledInWave = ENEMIES_PER_WAVE * wave + 100;
@@ -124,6 +126,7 @@ const TutorialMode = {
 
     // Called from game.js bossDeathTimer===0 block instead of triggerStory().
     onBossDefeated: function () {
+        this.showBossBanner = false;
         if (this.stage < 4) {
             // More waves remain — switch to next hero.
             this.stage++;
@@ -196,6 +199,12 @@ const TutorialMode = {
     // ── HUD Rendering ────────────────────────────────────────────────────────
 
     drawHUD: function (ctx) {
+        // Boss-active banner: show a distinct "Defeat the wave boss" objective
+        if (this.showBossBanner) {
+            this._drawBossBanner(ctx);
+            return;
+        }
+
         if (!this.objective) return;
 
         const screenW = ctx.canvas.width;
@@ -260,6 +269,51 @@ const TutorialMode = {
         ctx.textAlign = 'right';
         ctx.textBaseline = 'top';
         ctx.fillText(`WAVE ${this.stage + 1}/5`, bx + barW - 6, by + 2);
+
+        ctx.restore();
+    },
+
+    _drawBossBanner: function (ctx) {
+        const screenW = ctx.canvas.width;
+        const barW = 360;
+        const barH = 44;
+        const bx = (screenW - barW) / 2;
+        const by = 16;
+        const radius = 10;
+        // Pulsing red glow
+        const pulse = 0.55 + Math.sin(Date.now() * 0.005) * 0.15;
+
+        ctx.save();
+
+        // Background
+        ctx.fillStyle = `rgba(80,0,0,${pulse * 0.75})`;
+        this._roundRect(ctx, bx, by, barW, barH, radius);
+        ctx.fill();
+
+        // Red accent border
+        ctx.strokeStyle = `rgba(231,76,60,${pulse})`;
+        ctx.lineWidth = 1.5;
+        this._roundRect(ctx, bx, by, barW, barH, radius);
+        ctx.stroke();
+
+        // Label
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚔ DEFEAT THE WAVE BOSS', screenW / 2, by + barH * 0.42);
+
+        // Sub-hint
+        ctx.fillStyle = `rgba(231,76,60,${0.7 + pulse * 0.3})`;
+        ctx.font = '11px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('Every wave ends with a boss fight', screenW / 2, by + barH * 0.72);
+
+        // Wave indicator
+        ctx.fillStyle = 'rgba(255,255,255,0.38)';
+        ctx.font = '10px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`WAVE ${this.stage + 1}/5`, bx + barW - 6, by + 3);
 
         ctx.restore();
     },

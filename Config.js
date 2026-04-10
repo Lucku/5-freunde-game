@@ -28,6 +28,7 @@ const defaultConfig = {
     // Visuals
     damageNumbers: true,
     screenShake: true,
+    controllerVibration: true,
     particles: true,
 
     // Gameplay

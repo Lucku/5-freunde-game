@@ -1366,6 +1366,8 @@ var isStatsOpen = false;
 let score = 0;
 var wave = 1; // Exposed for DLC
 let frame = 0;
+let _shakeIntensity = 0;
+let _shakeDuration = 0;
 var enemiesKilledInWave = 0; // Exposed for DLC
 var bossActive = false;      // Exposed for DLC
 let bossDeathTimer = 0; // Timer for slow-mo effect
@@ -1382,8 +1384,8 @@ let currentWeather = null;
 let weatherTimer = 3600; // Time until next weather
 let weatherDuration = 0;
 let weatherParticles = [];   // screen-space snow / ember particles
-let _weatherFlash   = 0;     // thunderstorm screen-flash opacity
-let _weatherBolts   = [];    // { x, y, segs, life, maxLife } lightning bolts
+let _weatherFlash = 0;     // thunderstorm screen-flash opacity
+let _weatherBolts = [];    // { x, y, segs, life, maxLife } lightning bolts
 let currentWeather2 = null;  // stacked second weather (wave 30+)
 let weatherDuration2 = 0;
 
@@ -1855,6 +1857,60 @@ function createExplosion(x, y, color, count = 10) {
     for (let i = 0; i < 8; i++) { particles.push(new Particle(x, y, color)); }
 }
 
+/**
+ * Trigger a camera shake effect.
+ * @param {number} intensity  Max pixel offset per frame.
+ * @param {number} duration   Number of frames the shake lasts.
+ */
+function triggerScreenShake(intensity, duration) {
+    if (typeof gameConfig !== 'undefined' && !gameConfig.screenShake) return;
+    // Max-stack: take whichever is stronger
+    _shakeIntensity = Math.max(_shakeIntensity, intensity);
+    _shakeDuration  = Math.max(_shakeDuration,  duration);
+}
+window.triggerScreenShake = triggerScreenShake;
+
+/**
+ * Vibrate all connected gamepads.
+ * @param {number} weak      High-frequency motor magnitude (0–1).
+ * @param {number} strong    Low-frequency motor magnitude (0–1).
+ * @param {number} ms        Duration in milliseconds.
+ * @param {number|null} gpIndex  Specific gamepad index, or null for all.
+ */
+function triggerVibration(weak, strong, ms, gpIndex = null) {
+    if (typeof gameConfig !== 'undefined' && !gameConfig.controllerVibration) return;
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (let i = 0; i < pads.length; i++) {
+        if (gpIndex !== null && i !== gpIndex) continue;
+        const gp = pads[i];
+        if (!gp || !gp.connected) continue;
+        try {
+            if (gp.vibrationActuator) {
+                gp.vibrationActuator.playEffect('dual-rumble', {
+                    startDelay: 0, duration: ms,
+                    weakMagnitude: weak, strongMagnitude: strong
+                });
+            }
+        } catch (e) { /* vibration not supported */ }
+    }
+}
+window.triggerVibration = triggerVibration;
+
+/**
+ * Combined screen shake + controller vibration for a single impact event.
+ * @param {number} shakePx     Shake intensity in pixels.
+ * @param {number} shakeFrames Shake duration in frames.
+ * @param {number} vibWeak     High-freq motor (0–1).
+ * @param {number} vibStrong   Low-freq motor (0–1).
+ * @param {number} vibMs       Vibration duration in milliseconds.
+ * @param {number|null} gpIndex Specific gamepad, or null for all.
+ */
+function triggerImpact(shakePx, shakeFrames, vibWeak, vibStrong, vibMs, gpIndex = null) {
+    triggerScreenShake(shakePx, shakeFrames);
+    triggerVibration(vibWeak, vibStrong, vibMs, gpIndex);
+}
+window.triggerImpact = triggerImpact;
+
 function spawnLevelUpAura(x, y, color) {
     // Upward-rising aura particles — staggered with setTimeout for a flowing effect
     for (let i = 0; i < 40; i++) {
@@ -2152,7 +2208,7 @@ function triggerStory(completedWave) {
         // wave === 0 means this is the intro trigger (new run start) — don't complete a node,
         // just clear the active node from any previous run
         if (completedWave === 0) {
-            window.mazeCurrentNode   = null;
+            window.mazeCurrentNode = null;
             window.mazeCurrentNodeId = null;
             MazeOfTime.clearEnemyPool();
             MazeOfTime.initForRun();
@@ -2163,7 +2219,7 @@ function triggerStory(completedWave) {
         // If no next nodes are available (terminal path), skip the map and fall
         // through to normal wave generation so the game continues without looping.
         const _mazeState = MazeOfTime.getState();
-        const _mazeNext  = MazeOfTime.getNextNodes(_mazeState, player.type);
+        const _mazeNext = MazeOfTime.getNextNodes(_mazeState, player.type);
         if (_mazeNext.length === 0 && _mazeState.runCompleted.length > 0) {
             // Path complete — let the normal story/wave flow handle the rest
         } else {
@@ -2679,6 +2735,7 @@ function resumeWaveGeneration() {
 
     if (storyBossId) {
         bossActive = true;
+        triggerImpact(9, 22, 0.45, 0.90, 550);
         let pName = storyBossId;
         if (storyBossId === 'MAKUTA') {
             showNotification("MAKUTA HAS AWAKENED!");
@@ -2757,7 +2814,7 @@ function resumeWaveGeneration() {
             }
 
             // Save P1's special icon before Player constructor overwrites #special-icon
-            const _p1IconEl  = document.getElementById('special-icon');
+            const _p1IconEl = document.getElementById('special-icon');
             const _p1IconTxt = _p1IconEl ? _p1IconEl.innerText : '★';
 
             player2 = new Player(compType);
@@ -2789,8 +2846,8 @@ function resumeWaveGeneration() {
             if (availableTypes.length > 0) {
                 let pickedType = availableTypes[0];
                 if (companions.length === 0) {
-                    if (player.type === 'ice'   && availableTypes.includes('fire'))  pickedType = 'fire';
-                    else if (player.type === 'fire'  && availableTypes.includes('ice'))   pickedType = 'ice';
+                    if (player.type === 'ice' && availableTypes.includes('fire')) pickedType = 'fire';
+                    else if (player.type === 'fire' && availableTypes.includes('ice')) pickedType = 'ice';
                     else if (player.type === 'metal' && availableTypes.includes('plant')) pickedType = 'plant';
                     else if (player.type === 'plant' && availableTypes.includes('metal')) pickedType = 'metal';
                     else if (player.type === 'water' && availableTypes.includes('plant')) pickedType = 'plant';
@@ -2988,9 +3045,9 @@ function startGame(mode = 'NORMAL') {
     try {
         const hunterData = JSON.parse(localStorage.getItem('maze_hunter_complete') || '{}');
         if (hunterData.complete) {
-            player.damageMultiplier  = (player.damageMultiplier  || 1) * 1.15;
-            player.speedMultiplier   = (player.speedMultiplier   || 1) * 1.10;
-            player.damageReduction   = Math.min(0.5, (player.damageReduction || 0) + 0.05);
+            player.damageMultiplier = (player.damageMultiplier || 1) * 1.15;
+            player.speedMultiplier = (player.speedMultiplier || 1) * 1.10;
+            player.damageReduction = Math.min(0.5, (player.damageReduction || 0) + 0.05);
             if (!player.isCPU) showNotification("🏆 ETERNAL HUNTER: All Foes slain — permanent buff active!");
         }
     } catch (e) { /* ignore */ }
@@ -3088,9 +3145,9 @@ function startGame(mode = 'NORMAL') {
     currentWeather = null;
     weatherTimer = 3600; // Start with 1 minute clear weather
     weatherParticles = [];
-    _weatherFlash    = 0;
-    _weatherBolts    = [];
-    currentWeather2  = null;
+    _weatherFlash = 0;
+    _weatherBolts = [];
+    currentWeather2 = null;
     weatherDuration2 = 0;
     if (typeof audioManager !== 'undefined') {
         ['weather_blizzard', 'weather_heatwave', 'weather_thunderstorm'].forEach(k => audioManager.stopLoop(k));
@@ -3292,13 +3349,13 @@ function gameOver(isVictory = false) {
     if (!saveData.global.runHistory) saveData.global.runHistory = [];
     const _rhTimeSec = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
     const _rhMode = isDailyMode ? 'daily'
-                  : isWeeklyMode ? 'weekly'
-                  : isVersusMode && isCoopMode ? '2p_versus'
-                  : isVersusMode ? 'versus'
-                  : isChaosShuffleMode ? 'shuffle'
-                  : isTutorialMode ? 'tutorial'
-                  : (saveData.story && saveData.story.enabled) ? 'story'
-                  : 'standard';
+        : isWeeklyMode ? 'weekly'
+            : isVersusMode && isCoopMode ? '2p_versus'
+                : isVersusMode ? 'versus'
+                    : isChaosShuffleMode ? 'shuffle'
+                        : isTutorialMode ? 'tutorial'
+                            : (saveData.story && saveData.story.enabled) ? 'story'
+                                : 'standard';
     saveData.global.runHistory.unshift({
         hero: player.type,
         mode: _rhMode,
@@ -3808,9 +3865,9 @@ function masterLoop(timestamp) {
                         const _gpPressed = (idx) => _gp.buttons[idx]?.pressed && !_bossChoiceGpPrev[idx];
                         const _stickX = _gp.axes[0] || 0;
                         const _dRight = _gpPressed(15) || (_stickX > 0.45 && !_bossChoiceGpPrev.sR);
-                        const _dLeft  = _gpPressed(14) || (_stickX < -0.45 && !_bossChoiceGpPrev.sL);
+                        const _dLeft = _gpPressed(14) || (_stickX < -0.45 && !_bossChoiceGpPrev.sL);
                         if (_dRight) _bossChoiceFocus = 1;
-                        if (_dLeft)  _bossChoiceFocus = 0;
+                        if (_dLeft) _bossChoiceFocus = 0;
                         // A confirms focused button; B shortcuts to Save & Quit
                         if (!_bossChoiceGpConsumed) {
                             if (_gpPressed(0)) { _bossChoiceGpConsumed = true; _bossChoiceFocus === 0 ? _doBossContinue() : saveAndQuit(); break; }
@@ -3885,6 +3942,15 @@ function masterLoop(timestamp) {
                 ctx.rotate(angle);
                 ctx.scale(scale, scale);
                 ctx.translate(-cx, -cy);
+            }
+
+            // Screen shake
+            if (_shakeDuration > 0) {
+                const sx = (Math.random() - 0.5) * 2 * _shakeIntensity;
+                const sy = (Math.random() - 0.5) * 2 * _shakeIntensity;
+                ctx.translate(sx, sy);
+                _shakeIntensity *= 0.82;
+                _shakeDuration--;
             }
 
             if (isCoopMode && coopZoom !== 1.0) ctx.scale(coopZoom, coopZoom);
@@ -3979,8 +4045,8 @@ function masterLoop(timestamp) {
                     if (typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + currentWeather.id.toLowerCase());
                     currentWeather = null;
                     weatherParticles = [];
-                    _weatherBolts    = [];
-                    _weatherFlash    = 0;
+                    _weatherBolts = [];
+                    _weatherFlash = 0;
                     document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
                     document.getElementById('weather-display').style.display = 'none';
                     const _wbw = document.getElementById('weather-bar-wrap');
@@ -3999,7 +4065,7 @@ function masterLoop(timestamp) {
                                 y: -8,
                                 vx: (Math.random() - 0.5) * 1.2 - 0.5,
                                 vy: 1.2 + Math.random() * 2.0,
-                                r:  1.0 + Math.random() * 2.2,
+                                r: 1.0 + Math.random() * 2.2,
                                 alpha: 0.55 + Math.random() * 0.4,
                                 wobble: Math.random() * Math.PI * 2,
                             });
@@ -4025,7 +4091,7 @@ function masterLoop(timestamp) {
                                 y: canvas.height + 5,
                                 vx: (Math.random() - 0.5) * 0.8,
                                 vy: -(0.6 + Math.random() * 1.4),
-                                r:  1.2 + Math.random() * 2.5,
+                                r: 1.2 + Math.random() * 2.5,
                                 alpha: 0.3 + Math.random() * 0.35,
                                 wobble: Math.random() * Math.PI * 2,
                                 ember: true,
@@ -4153,8 +4219,8 @@ function masterLoop(timestamp) {
                     } else if (window._weatherLogicHooks[currentWeather.id]) {
                         // DLC custom weather logic hook — only run if registering DLC is active
                         const _lhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
-                        const _lhDlc  = _lhLock && _lhLock.dlcId;
-                        const _lhOk   = !_lhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_lhDlc));
+                        const _lhDlc = _lhLock && _lhLock.dlcId;
+                        const _lhOk = !_lhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_lhDlc));
                         if (_lhOk) window._weatherLogicHooks[currentWeather.id](wFadeIn, frame);
                     }
 
@@ -4175,8 +4241,8 @@ function masterLoop(timestamp) {
                         const lock = window._weatherBiomeLocks && window._weatherBiomeLocks[w.id];
                         if (!lock) return true; // no restriction
                         const biomes = lock.biomes || lock; // support both { biomes, dlcId } and legacy array
-                        const dlcId  = lock.dlcId;
-                        const dlcOk  = !dlcId || (window.dlcManager && window.dlcManager.isDLCActive(dlcId));
+                        const dlcId = lock.dlcId;
+                        const dlcOk = !dlcId || (window.dlcManager && window.dlcManager.isDLCActive(dlcId));
                         return dlcOk && biomes.includes(currentBiomeType);
                     };
 
@@ -4193,7 +4259,7 @@ function masterLoop(timestamp) {
                         const _weatherPool = [];
                         for (const w of WEATHER_TYPES) {
                             if (w.id === 'BLIZZARD' && currentBiomeType === 'fire') continue; // incompatible
-                            if (w.id === 'HEATWAVE' && currentBiomeType === 'ice')  continue;
+                            if (w.id === 'HEATWAVE' && currentBiomeType === 'ice') continue;
                             if (!_weatherAllowed(w)) continue; // DLC/biome-locked
                             const weight = (w.id === _biomeBoost) ? 3 : 1;
                             for (let _wi = 0; _wi < weight; _wi++) _weatherPool.push(w);
@@ -4235,7 +4301,7 @@ function masterLoop(timestamp) {
                         const _lk = window._weatherBiomeLocks && window._weatherBiomeLocks[w.id];
                         if (!_lk) return true;
                         const _biomes = _lk.biomes || _lk;
-                        const _dlcId  = _lk.dlcId;
+                        const _dlcId = _lk.dlcId;
                         return (!_dlcId || (window.dlcManager && window.dlcManager.isDLCActive(_dlcId)))
                             && _biomes.includes(currentBiomeType);
                     });
@@ -4279,6 +4345,8 @@ function masterLoop(timestamp) {
                     // Do nothing, wait for objective completion logic
                 } else {
                     bossActive = true;
+                    // Boss spawn — heavy ground-pound rumble
+                    triggerImpact(9, 22, 0.45, 0.90, 550);
                     if (isTutorialMode) {
                         // Tutorial: one plain boss (no type modifier), reduced HP, no minions
                         const tutBoss = new Boss('BASIC');
@@ -4773,6 +4841,34 @@ function masterLoop(timestamp) {
                     }
                 }
 
+                // 2P Versus PvP: projectile hits between P1 and P2
+                if (isVersusMode && isCoopMode && player2 && !player2.isDead && !proj.isEnemy) {
+                    if (proj.owner === player) {
+                        // P1 projectile → P2
+                        if (Math.hypot(player2.x - proj.x, player2.y - proj.y) < player2.radius + proj.radius) {
+                            const dmg = proj.damage * (1 - player2.damageReduction);
+                            player2.hp -= dmg;
+                            floatingTexts.push(new FloatingText(player2.x, player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
+                            proj.dead = true;
+                            createExplosion(proj.x, proj.y, proj.color);
+                            if (player2.hp <= 0 && !player2.isDead) {
+                                player2.isDead = true; player2.hp = 0;
+                                createExplosion(player2.x, player2.y, '#fff');
+                                showNotification("OPPONENT KO!");
+                                setTimeout(() => gameOver(true), 2000);
+                            }
+                        }
+                    } else if (proj.owner === player2 && !player.isInvincible) {
+                        // P2 projectile → P1
+                        if (Math.hypot(player.x - proj.x, player.y - proj.y) < player.radius + proj.radius) {
+                            player.takeDamage(proj.damage);
+                            proj.dead = true;
+                            createExplosion(proj.x, proj.y, proj.color);
+                        }
+                    }
+                    if (proj.dead) { projectiles.splice(index, 1); return; }
+                }
+
                 proj.draw();
                 if (arena.checkCollision(proj.x, proj.y, proj.radius)) {
                     if (proj.isExplosive) {
@@ -4832,7 +4928,31 @@ function masterLoop(timestamp) {
                     });
                 }
 
-                // PvP Collision: P2 (AI) vs P1
+                // 2P Versus: P1 melee → P2
+                if (isVersusMode && isCoopMode && player2 && !player2.isDead && att.owner === player) {
+                    const pid = 'PLAYER_2';
+                    if (!att.hitList.includes(pid) && Math.hypot(player2.x - att.x, player2.y - att.y) < att.radius + player2.radius) {
+                        let angleTo = Math.atan2(player2.y - att.y, player2.x - att.x);
+                        let diff = angleTo - att.angle;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        if (Math.abs(diff) < Math.PI / 3) {
+                            const dmg = att.damage * (1 - player2.damageReduction);
+                            player2.hp -= dmg;
+                            att.hitList.push(pid);
+                            createExplosion(player2.x, player2.y, att.color);
+                            floatingTexts.push(new FloatingText(player2.x, player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
+                            if (player2.hp <= 0 && !player2.isDead) {
+                                player2.isDead = true; player2.hp = 0;
+                                createExplosion(player2.x, player2.y, '#fff');
+                                showNotification("OPPONENT KO!");
+                                setTimeout(() => gameOver(true), 2000);
+                            }
+                        }
+                    }
+                }
+
+                // PvP Collision: P2 (AI or 2P-Versus) vs P1
                 if (att.owner && att.owner !== player && !att.hitList.includes('PLAYER')) {
                     if (Math.hypot(player.x - att.x, player.y - att.y) < att.radius + player.radius) {
                         let angleTo = Math.atan2(player.y - att.y, player.x - att.x);
@@ -4980,6 +5100,8 @@ function masterLoop(timestamp) {
                             floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
                             currentRunStats.damageTaken += dmgTaken; // Track Damage
                             player.resetCombo(); // Reset Combo on Damage
+                            // Player hit by enemy body — medium jolt
+                            triggerImpact(4, 10, 0.30, 0.55, 200);
                         }
                     }
                     createExplosion(player.x, player.y, '#5e3939');
@@ -5052,6 +5174,8 @@ function masterLoop(timestamp) {
                                 floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
                                 currentRunStats.damageTaken += dmgTaken; // Track Damage
                                 player.resetCombo(); // Reset Combo on Damage
+                                // Player hit by enemy projectile — sharp jolt
+                                triggerImpact(3.5, 10, 0.28, 0.55, 180);
 
                                 // Earth Hero Momentum Loss on Projectile Hit
                                 if (player.heroType === 'EARTH' && player.momentum > 0) {
@@ -5160,6 +5284,11 @@ function masterLoop(timestamp) {
                                 enemy.killer = proj.owner || player;
                             }
 
+                            // Projectile impact — small snappy jolt
+                            triggerImpact(isCrit ? 3.5 : 2, isCrit ? 8 : 5,
+                                          isCrit ? 0.15 : 0.08, isCrit ? 0.25 : 0.12,
+                                          isCrit ? 120 : 80);
+
                             // Enemy takes damage number
                             floatingTexts.push(new FloatingText(
                                 enemy.x,
@@ -5173,6 +5302,8 @@ function masterLoop(timestamp) {
                             saveData.global.totalDamage += finalDamage;
                             createExplosion(enemy.x, enemy.y, proj.color);
                             if (proj.isExplosive) {
+                                // Explosion — bigger rumble on top of base hit
+                                triggerImpact(4.5, 12, 0.22, 0.55, 220);
                                 enemies.forEach(nearby => {
                                     if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
                                         nearby.hp -= proj.damage;
@@ -5216,8 +5347,11 @@ function masterLoop(timestamp) {
                             }
                             if (isTutorialMode && window.TutorialMode) TutorialMode.onMelee();
 
-                            // Melee damage number
+                            // Melee impact — heavier thud
                             const isCrit = att.isCrit;
+                            triggerImpact(isCrit ? 7 : 5, isCrit ? 16 : 13,
+                                          isCrit ? 0.35 : 0.22, isCrit ? 0.70 : 0.50,
+                                          isCrit ? 220 : 160);
                             floatingTexts.push(new FloatingText(
                                 enemy.x,
                                 enemy.y - 20,
@@ -5564,8 +5698,8 @@ function masterLoop(timestamp) {
             // DLC custom weather draw hook (screen-space, after all base weather)
             if (currentWeather && window._weatherDrawHooks[currentWeather.id]) {
                 const _dhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
-                const _dhDlc  = _dhLock && _dhLock.dlcId;
-                const _dhOk   = !_dhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_dhDlc));
+                const _dhDlc = _dhLock && _dhLock.dlcId;
+                const _dhOk = !_dhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_dhDlc));
                 if (_dhOk) {
                     const _wFIForDraw = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
                     window._weatherDrawHooks[currentWeather.id](ctx, _wFIForDraw, frame);
@@ -5577,7 +5711,7 @@ function masterLoop(timestamp) {
 
             // Player Death Logic
             if (player.hp <= 0) {
-                if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player.isDead) {
+                if (!isVersusMode && (isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player.isDead) {
                     // Co-op / AI companion: P1 dies but P2 is alive — drop revival marker
                     player.isDead = true;
                     player.hp = 0;
@@ -5591,6 +5725,8 @@ function masterLoop(timestamp) {
                     isPlayerDying = true;
                     playerDeathTimer = 180; // 3 seconds animation
                     createExplosion(player.x, player.y, '#c0392b');
+                    // Death — maximum rumble
+                    triggerImpact(14, 30, 0.70, 1.0, 800);
 
                     // Force Stop Movement
                     player.isDashing = false;

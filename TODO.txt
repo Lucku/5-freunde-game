@@ -1,6 +1,5 @@
 # General
 
-- check why standard mode button is greyed-out in 2 player
-- add game icon
 - add game mode that lets you play as Makuta and/or Green Goblin against the heroes
-- some kind of introduction to the main game story
+- add sound effects for pick ups
+- add sound effect for Earth hero enemy impact

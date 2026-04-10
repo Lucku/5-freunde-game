@@ -160,6 +160,8 @@ class Player {
         this.maxXp = Math.floor(this.maxXp * 1.2);
         const wasAlreadyLeveling = isLevelingUp;
         isLevelingUp = true;
+        // Level-up — soft upward pulse
+        if (typeof triggerImpact !== 'undefined') triggerImpact(2, 8, 0.05, 0.22, 280);
 
         if (window.spawnLevelUpAura) {
             const heroColor = (typeof BASE_HERO_STATS !== 'undefined' && BASE_HERO_STATS[this.type])
@@ -271,6 +273,8 @@ class Player {
             }
             createExplosion(this.x, this.y, '#fff');
             if (typeof isTutorialMode !== 'undefined' && isTutorialMode && window.TutorialMode) TutorialMode.onDash();
+            // Dash — quick high-frequency buzz, no low rumble
+            if (typeof triggerImpact !== 'undefined') triggerImpact(1.5, 4, 0.25, 0.0, 65);
         }
     }
 
@@ -376,6 +380,8 @@ class Player {
         // Chaos Hook
         if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) checkChaosEvent('SPECIAL');
         if (typeof isTutorialMode !== 'undefined' && isTutorialMode && window.TutorialMode) TutorialMode.onAbility();
+        // Special activation — medium build-up pulse
+        if (typeof triggerImpact !== 'undefined') triggerImpact(2.5, 7, 0.12, 0.30, 130);
 
         // --- DLC HOOK: Custom Special ---
         if (this.customSpecial) {

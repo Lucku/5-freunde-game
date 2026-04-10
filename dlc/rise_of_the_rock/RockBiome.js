@@ -28,7 +28,7 @@ class RockBiome {
 
         ctx.save();
 
-        // 1. Stone brick floor tiling
+        // 1. Stone brick floor tiling with more color variation
         const bW = 110, bH = 72;
         const rowStart = Math.floor(cam.y / bH) - 1;
         const rowEnd   = Math.ceil((cam.y + cam.height) / bH) + 1;
@@ -39,18 +39,19 @@ class RockBiome {
             for (let col = colStart; col <= colEnd; col++) {
                 const bx = col * bW + off;
                 const by = row * bH;
-                const v = Math.abs((Math.sin(col * 127.3 + row * 311.7) * 43758.5) % 1) * 0.07;
+                const v = Math.abs((Math.sin(col * 127.3 + row * 311.7) * 43758.5) % 1) * 0.13;
+                const r = (52 + v * 60) | 0, g2 = (38 + v * 44) | 0, b2 = (22 + v * 26) | 0;
                 // Mortar gap
-                ctx.fillStyle = "rgba(14, 10, 6, 0.22)";
+                ctx.fillStyle = "rgba(12, 8, 4, 0.28)";
                 ctx.fillRect(bx, by, bW, bH);
                 // Brick face
-                ctx.fillStyle = `rgba(65, 48, 30, ${0.1 + v})`;
+                ctx.fillStyle = `rgba(${r}, ${g2}, ${b2}, ${0.12 + v})`;
                 ctx.fillRect(bx + 2, by + 2, bW - 4, bH - 4);
             }
         }
 
-        // 2. Floor cracks and embedded rocks
-        const cellSize = 400;
+        // 2. Floor cracks (denser, with branches) and embedded jagged rocks
+        const cellSize = 280;
         const sx = Math.floor(cam.x / cellSize) * cellSize;
         const sy = Math.floor(cam.y / cellSize) * cellSize;
         const ex = sx + cam.width + cellSize;
@@ -61,85 +62,200 @@ class RockBiome {
                 const hash = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
                 const val = hash - Math.floor(hash);
 
-                if (val > 0.6) {
+                if (val > 0.42) {
                     const crx = x + (val * 1337) % cellSize;
                     const cry = y + (val * 7331) % cellSize;
-                    ctx.strokeStyle = "rgba(18, 10, 6, 0.28)";
-                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = "rgba(14, 8, 4, 0.35)";
+                    ctx.lineWidth = 2 + val * 2;
                     ctx.lineCap = 'round';
                     ctx.beginPath();
                     ctx.moveTo(crx, cry);
-                    ctx.lineTo(crx + 30 * val, cry + 40 * val);
-                    ctx.lineTo(crx + 10 * val, cry + 80 * val);
-                    ctx.lineTo(crx + 50 * val, cry + 100 * val);
+                    ctx.lineTo(crx + 28 * val, cry + 38 * val);
+                    ctx.lineTo(crx + 8 * val, cry + 74 * val);
+                    ctx.lineTo(crx + 48 * val, cry + 102 * val);
                     ctx.stroke();
+                    if (val > 0.62) {
+                        // Branch crack
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(crx + 8 * val, cry + 38 * val);
+                        ctx.lineTo(crx - 22 * val, cry + 58 * val);
+                        ctx.stroke();
+                    }
                 }
 
-                if (val < 0.4) {
+                if (val < 0.52) {
                     const rx = x + (val * 9999) % cellSize;
                     const ry = y + (val * 8888) % cellSize;
-                    const rSize = 10 + val * 20;
-                    ctx.fillStyle = "rgba(0,0,0,0.28)";
+                    const rSize = 7 + val * 22;
+                    // Jagged rock polygon instead of circle
+                    const verts = 5 + ((val * 100 | 0) % 4);
+                    ctx.fillStyle = "rgba(0,0,0,0.30)";
                     ctx.beginPath();
-                    ctx.arc(rx + 3, ry + 3, rSize, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = "#4e4030";
+                    for (let vi = 0; vi < verts; vi++) {
+                        const a = (vi / verts) * Math.PI * 2;
+                        const rn = rSize * (0.65 + Math.abs(Math.sin(a * 2.3 + val * 5)) * 0.35);
+                        const px = rx + 3 + Math.cos(a) * rn, py = ry + 3 + Math.sin(a) * rn;
+                        vi === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+                    }
+                    ctx.closePath(); ctx.fill();
+                    const rv = (62 + val * 22) | 0;
+                    ctx.fillStyle = `rgba(${rv}, ${(rv * 0.72) | 0}, ${(rv * 0.45) | 0}, 0.80)`;
                     ctx.beginPath();
-                    ctx.arc(rx, ry, rSize, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = "rgba(255,255,255,0.04)";
-                    ctx.beginPath();
-                    ctx.arc(rx - rSize * 0.3, ry - rSize * 0.3, rSize * 0.4, 0, Math.PI * 2);
-                    ctx.fill();
+                    for (let vi = 0; vi < verts; vi++) {
+                        const a = (vi / verts) * Math.PI * 2;
+                        const rn = rSize * (0.65 + Math.abs(Math.sin(a * 2.3 + val * 5)) * 0.35);
+                        const px = rx + Math.cos(a) * rn, py = ry + Math.sin(a) * rn;
+                        vi === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+                    }
+                    ctx.closePath(); ctx.fill();
                 }
             }
         }
 
-        // 3. Vertical iron cage bars
+        // 3. Vertical stone columns — position-jittered, varied width, rough surface
         const barSpacing = 210;
-        const barW = 14;
         const barX0 = Math.floor(cam.x / barSpacing) * barSpacing;
-        for (let bx = barX0; bx <= cam.x + cam.width + barSpacing; bx += barSpacing) {
+        for (let bxBase = barX0; bxBase <= cam.x + cam.width + barSpacing; bxBase += barSpacing) {
+            const h1 = Math.abs(Math.sin(bxBase * 0.0073 + 17.3) * 43758.5) % 1;
+            const bx = bxBase + (h1 - 0.5) * 52;   // ±26px position jitter
+            const barW = 11 + h1 * 8;               // 11–19px width variation
+
             // Drop shadow
-            ctx.fillStyle = "rgba(0,0,0,0.38)";
+            ctx.fillStyle = "rgba(0,0,0,0.36)";
             ctx.fillRect(bx - barW / 2 + 4, cam.y, barW + 2, cam.height);
-            // Bar with gradient sheen
+
+            // Main stone column with natural color variation
+            const sr = (26 + h1 * 18) | 0, sg = (18 + h1 * 13) | 0, sb = (11 + h1 * 8) | 0;
             const g = ctx.createLinearGradient(bx - barW / 2, 0, bx + barW / 2, 0);
-            g.addColorStop(0,    "rgba(16, 12, 8, 0.62)");
-            g.addColorStop(0.25, "rgba(50, 40, 26, 0.58)");
-            g.addColorStop(0.65, "rgba(36, 28, 18, 0.58)");
-            g.addColorStop(1,    "rgba(16, 12, 8, 0.62)");
+            g.addColorStop(0,    `rgba(${sr - 8}, ${sg - 5}, ${sb - 3}, 0.62)`);
+            g.addColorStop(0.3,  `rgba(${sr + 10}, ${sg + 7}, ${sb + 4}, 0.58)`);
+            g.addColorStop(0.7,  `rgba(${sr + 5},  ${sg + 3}, ${sb + 2}, 0.58)`);
+            g.addColorStop(1,    `rgba(${sr - 8}, ${sg - 5}, ${sb - 3}, 0.62)`);
             ctx.fillStyle = g;
             ctx.fillRect(bx - barW / 2, cam.y, barW, cam.height);
+
+            // Rough surface patches (simulate stone texture / fracture lines)
+            const patchStep = 90;
+            const patchY0 = Math.floor(cam.y / patchStep) * patchStep;
+            for (let py = patchY0; py <= cam.y + cam.height; py += patchStep) {
+                const ph = Math.abs(Math.sin(bx * 0.053 + py * 0.037) * 43758.5) % 1;
+                if (ph > 0.50) {
+                    const pw = 2 + ph * 5, phH = 12 + ph * 38;
+                    const patchX = bx - barW / 2 + ph * (barW - pw);
+                    ctx.fillStyle = `rgba(0,0,0,${0.12 + ph * 0.14})`;
+                    ctx.fillRect(patchX, py + ph * patchStep * 0.4, pw, phH);
+                }
+            }
+
             // Edge highlight
-            ctx.fillStyle = "rgba(95, 72, 44, 0.18)";
+            ctx.fillStyle = "rgba(75, 55, 34, 0.16)";
             ctx.fillRect(bx - barW / 2 + 2, cam.y, 2, cam.height);
         }
 
-        // 4. Horizontal cage crossbars
+        // 4. Horizontal ledges — y-jittered, varied height, jagged edges
         const hBarSpacing = 290;
-        const hBarH = 10;
         const hBarY0 = Math.floor(cam.y / hBarSpacing) * hBarSpacing;
-        for (let by = hBarY0; by <= cam.y + cam.height + hBarSpacing; by += hBarSpacing) {
-            ctx.fillStyle = "rgba(0,0,0,0.32)";
+        for (let byBase = hBarY0; byBase <= cam.y + cam.height + hBarSpacing; byBase += hBarSpacing) {
+            const hh = Math.abs(Math.sin(byBase * 0.0091 + 3.7) * 43758.5) % 1;
+            const by = byBase + (hh - 0.5) * 64;   // ±32px y-jitter
+            const hBarH = 8 + hh * 8;               // 8–16px height variation
+
+            ctx.fillStyle = "rgba(0,0,0,0.28)";
             ctx.fillRect(cam.x, by + 4, cam.width, hBarH);
-            const g = ctx.createLinearGradient(0, by - hBarH / 2, 0, by + hBarH / 2);
-            g.addColorStop(0,   "rgba(16, 12, 8, 0.58)");
-            g.addColorStop(0.5, "rgba(48, 36, 22, 0.52)");
-            g.addColorStop(1,   "rgba(16, 12, 8, 0.58)");
-            ctx.fillStyle = g;
-            ctx.fillRect(cam.x, by - hBarH / 2, cam.width, hBarH);
+            const hg = ctx.createLinearGradient(0, by, 0, by + hBarH);
+            hg.addColorStop(0,   "rgba(20, 14, 8, 0.55)");
+            hg.addColorStop(0.5, "rgba(50, 36, 22, 0.48)");
+            hg.addColorStop(1,   "rgba(20, 14, 8, 0.55)");
+            ctx.fillStyle = hg;
+            ctx.fillRect(cam.x, by, cam.width, hBarH);
+
+            // Jagged top/bottom edge — small stone chips
+            const chipStep = 32;
+            const chipX0 = Math.floor(cam.x / chipStep) * chipStep;
+            for (let cx2 = chipX0; cx2 <= cam.x + cam.width; cx2 += chipStep) {
+                const ch = Math.abs(Math.sin(cx2 * 0.0313 + byBase * 0.0091) * 43758.5) % 1;
+                if (ch > 0.38) {
+                    const chipH = ch * 5;
+                    ctx.fillStyle = "rgba(0,0,0,0.22)";
+                    ctx.fillRect(cx2, by - chipH, chipStep * ch * 0.75, chipH);
+                    ctx.fillRect(cx2, by + hBarH, chipStep * ch * 0.55, chipH * 0.6);
+                }
+            }
         }
 
-        // 5. Iron rivets at bar intersections
-        for (let bx = barX0; bx <= cam.x + cam.width + barSpacing; bx += barSpacing) {
-            for (let by = hBarY0; by <= cam.y + cam.height + hBarSpacing; by += hBarSpacing) {
-                ctx.fillStyle = "rgba(0,0,0,0.5)";
-                ctx.beginPath(); ctx.arc(bx + 1, by + 2, 9, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = "rgba(58, 44, 28, 0.8)";
-                ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = "rgba(95, 75, 48, 0.45)";
-                ctx.beginPath(); ctx.arc(bx - 2, by - 2, 3, 0, Math.PI * 2); ctx.fill();
+        // 5. Rough stone knobs at column/ledge intersections (irregular rivets)
+        for (let bxBase = barX0; bxBase <= cam.x + cam.width + barSpacing; bxBase += barSpacing) {
+            const h1 = Math.abs(Math.sin(bxBase * 0.0073 + 17.3) * 43758.5) % 1;
+            const bx = bxBase + (h1 - 0.5) * 52;
+            for (let byBase = hBarY0; byBase <= cam.y + cam.height + hBarSpacing; byBase += hBarSpacing) {
+                const hh = Math.abs(Math.sin(byBase * 0.0091 + 3.7) * 43758.5) % 1;
+                const by = byBase + (hh - 0.5) * 64;
+                const kh = Math.abs(Math.sin(bxBase * 0.0137 + byBase * 0.0091) * 43758.5) % 1;
+                const kSize = 4 + kh * 7;                // 4–11px, irregular
+                const kr = (44 + kh * 22) | 0;
+                ctx.fillStyle = "rgba(0,0,0,0.45)";
+                ctx.beginPath(); ctx.arc(bx + 1, by + 2, kSize, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = `rgba(${kr}, ${(kr * 0.72) | 0}, ${(kr * 0.46) | 0}, 0.78)`;
+                ctx.beginPath(); ctx.arc(bx, by, kSize, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "rgba(85, 65, 38, 0.30)";
+                ctx.beginPath(); ctx.arc(bx - kSize * 0.3, by - kSize * 0.3, kSize * 0.35, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        // 6. Stalactites — world-space, tiled rows hanging from ceiling
+        const stalRowSpacing = 430;
+        const stalRowY0 = Math.floor(cam.y / stalRowSpacing) * stalRowSpacing;
+        for (let stRow = stalRowY0; stRow <= cam.y + cam.height + stalRowSpacing; stRow += stalRowSpacing) {
+            const stalStep = 78;
+            const stalSX = Math.floor(cam.x / stalStep) * stalStep;
+            for (let ss = stalSX; ss <= cam.x + cam.width + stalStep; ss += stalStep) {
+                const sh = Math.abs(Math.sin(ss * 0.0197 + stRow * 0.0041 + 7.7) * 43758.5) % 1;
+                if (sh >= 0.68) continue;
+                const stalX = ss + (sh - 0.5) * 28;
+                const stalH = 18 + sh * 95;
+                const stalW = 6 + sh * 13;
+                const stR = (32 + sh * 20) | 0;
+                ctx.fillStyle = "rgba(0,0,0,0.28)";
+                ctx.beginPath();
+                ctx.moveTo(stalX - stalW / 2 + 3, stRow);
+                ctx.lineTo(stalX + stalW / 2 + 3, stRow);
+                ctx.lineTo(stalX + (sh - 0.5) * 5 + 2, stRow + stalH);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = `rgba(${stR}, ${(stR * 0.72) | 0}, ${(stR * 0.44) | 0}, 0.88)`;
+                ctx.beginPath();
+                ctx.moveTo(stalX - stalW / 2, stRow);
+                ctx.lineTo(stalX + stalW / 2, stRow);
+                ctx.lineTo(stalX + (sh - 0.5) * 5, stRow + stalH);
+                ctx.closePath(); ctx.fill();
+            }
+        }
+
+        // 7. Stalagmites — world-space, tiled rows rising from floor
+        const stagRowSpacing = 380;
+        const stagRowY0 = Math.floor(cam.y / stagRowSpacing) * stagRowSpacing + stagRowSpacing;
+        for (let stRow = stagRowY0; stRow <= cam.y + cam.height + stagRowSpacing; stRow += stagRowSpacing) {
+            const stagStep = 92;
+            const stagSX = Math.floor(cam.x / stagStep) * stagStep;
+            for (let ss = stagSX; ss <= cam.x + cam.width + stagStep; ss += stagStep) {
+                const sh = Math.abs(Math.sin(ss * 0.0233 + stRow * 0.0053 + 13.4) * 43758.5) % 1;
+                if (sh >= 0.62) continue;
+                const stalX = ss + (sh - 0.5) * 34;
+                const stalH = 12 + sh * 62;
+                const stalW = 7 + sh * 11;
+                const stR = (28 + sh * 16) | 0;
+                ctx.fillStyle = "rgba(0,0,0,0.24)";
+                ctx.beginPath();
+                ctx.moveTo(stalX - stalW / 2 + 3, stRow);
+                ctx.lineTo(stalX + stalW / 2 + 3, stRow);
+                ctx.lineTo(stalX + (sh - 0.5) * 6 + 2, stRow - stalH);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = `rgba(${stR}, ${(stR * 0.70) | 0}, ${(stR * 0.42) | 0}, 0.82)`;
+                ctx.beginPath();
+                ctx.moveTo(stalX - stalW / 2, stRow);
+                ctx.lineTo(stalX + stalW / 2, stRow);
+                ctx.lineTo(stalX + (sh - 0.5) * 6, stRow - stalH);
+                ctx.closePath(); ctx.fill();
             }
         }
 

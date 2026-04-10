@@ -23,32 +23,86 @@
     </div>
     <!-- Intro Backdrop — solid black cover, visible from the very first paint so the canvas never
          bleeds through. Sits behind all intro/loading screens. Removed by initMenu(). -->
-    <div id="intro-backdrop" style="display:block; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:9995; pointer-events:none;"></div>
+    <div id="intro-backdrop"
+        style="display:block; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:9995; pointer-events:none;">
+    </div>
 
     <!-- Developer Logo Screen -->
     <div id="dev-logo-screen"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:9998; justify-content:center; align-items:center;">
-        <img src="images/developer_dark.png" alt="Developer" style="max-width:420px; width:50%; pointer-events:none; user-select:none;" draggable="false" />
+        <img src="images/developer_dark.png" alt="Developer"
+            style="max-width:420px; width:50%; pointer-events:none; user-select:none;" draggable="false" />
+    </div>
+
+    <!-- Story Intro Screen -->
+    <div id="story-intro-screen"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:9997; justify-content:center; align-items:center; overflow:hidden;">
+        <div class="si-bg"></div>
+        <div class="si-content">
+            <div class="si-text-block">
+                <div class="si-headline">Heroes are not born.</div>
+                <div class="si-headline">They are chosen.</div>
+                <div class="si-spacer"></div>
+                <div class="si-body">Five friends. One ordinary world.</div>
+                <div class="si-body">One night that changed everything.</div>
+                <div class="si-spacer"></div>
+                <div class="si-body">Without warning, they fell unconscious — and when they opened their eyes,</div>
+                <div class="si-body">they stood in a world unlike their own. Each of them wielding a power they had
+                    never asked for.</div>
+                <div class="si-spacer si-spacer-sm"></div>
+                <div class="si-body">Fire &nbsp;·&nbsp; Water &nbsp;·&nbsp; Ice &nbsp;·&nbsp; Plant &nbsp;·&nbsp;
+                    Metal</div>
+                <div class="si-spacer"></div>
+                <div class="si-body">This new world was brutal, dangerous, and already at the edge of ruin.</div>
+                <div class="si-body">A great shadow was spreading — ancient, patient, unstoppable.</div>
+                <div class="si-spacer si-spacer-sm"></div>
+                <div class="si-body">But not by five.</div>
+                <div class="si-spacer"></div>
+                <div class="si-body">They had not chosen this.</div>
+                <div class="si-body">But the world had chosen them.</div>
+                <div class="si-spacer"></div>
+                <div class="si-body">When they face what must be faced...</div>
+                <div class="si-body">will they ever find their way home?</div>
+            </div>
+            <div class="si-skip-hint">Press any key to skip</div>
+        </div>
     </div>
 
     <!-- Press-Start Screen -->
     <div id="press-start-screen"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:9997; flex-direction:column; justify-content:center; align-items:center; overflow:hidden;">
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:9996; flex-direction:column; justify-content:center; align-items:center; overflow:hidden;">
         <!-- Title image as full background -->
-        <div style="position:absolute; inset:0; background:url('images/title.png') center/cover no-repeat; filter:brightness(0.55);"></div>
-        <!-- Content layer -->
-        <div style="position:relative; display:flex; flex-direction:column; align-items:center; gap:48px; padding:40px;">
-            <img src="images/logo.png" alt="5 Freunde" style="max-width:680px; width:72vw; pointer-events:none; user-select:none; filter:drop-shadow(0 4px 32px rgba(0,0,0,0.8));" draggable="false" />
-            <div id="ps-prompt-text" style="font-family:'Segoe UI',Arial,sans-serif; font-size:clamp(16px,2.2vw,26px); font-weight:600; letter-spacing:0.18em; color:#fff; text-transform:uppercase; text-shadow:0 2px 12px rgba(0,0,0,0.9); animation:ps-blink 1.4s ease-in-out infinite;">Press ENTER to start</div>
+        <div
+            style="position:absolute; inset:0; background:url('images/title.png') center/cover no-repeat; filter:brightness(0.55);">
         </div>
-        <div style="position:absolute; bottom:18px; left:0; width:100%; text-align:center; font-family:'Segoe UI',Arial,sans-serif; font-size:clamp(10px,1.1vw,13px); color:rgba(255,255,255,0.45); letter-spacing:0.12em; pointer-events:none;">&#169; 2025&ndash;2026 LK Games</div>
+        <!-- Content layer -->
+        <div
+            style="position:relative; display:flex; flex-direction:column; align-items:center; gap:48px; padding:40px;">
+            <img src="images/logo.png" alt="5 Freunde"
+                style="max-width:680px; width:72vw; pointer-events:none; user-select:none; filter:drop-shadow(0 4px 32px rgba(0,0,0,0.8));"
+                draggable="false" />
+            <div id="ps-prompt-text"
+                style="font-size:clamp(16px,2.2vw,26px); font-weight:600; letter-spacing:0.18em; color:#fff; text-transform:uppercase; text-shadow:0 2px 12px rgba(0,0,0,0.9); animation:ps-blink 1.4s ease-in-out infinite;">
+                Press ENTER to start</div>
+        </div>
+        <div
+            style="position:absolute; bottom:18px; left:0; width:100%; text-align:center; font-size:clamp(10px,1.1vw,13px); color:rgba(255,255,255,0.45); letter-spacing:0.12em; pointer-events:none;">
+            &#169; 2025&ndash;2026 LK Games</div>
     </div>
 
     <style>
         @keyframes ps-blink {
-            0%, 100% { opacity: 1; }
-            50%       { opacity: 0.2; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.2;
+            }
         }
+
         @keyframes spin {
             0% {
                 transform: rotate(0deg);
@@ -84,7 +138,9 @@
         </div>
         <div id="event-text">TWIN EVENT!</div>
         <div id="weather-display"></div>
-        <div id="weather-bar-wrap"><div id="weather-bar-fill"></div></div>
+        <div id="weather-bar-wrap">
+            <div id="weather-bar-fill"></div>
+        </div>
 
         <div id="objective-display"
             style="display:none; position:absolute; top:80px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); padding:10px 20px; border-radius:10px; border:2px solid #fff; color:#fff; font-weight:bold; font-size:18px; text-align:center;">
@@ -394,7 +450,9 @@
             <div class="coll-eyebrow">✦ MONSTER COMPENDIUM ✦</div>
             <div class="coll-title">COLLECTOR'S CODEX</div>
             <div class="coll-subtitle">Every card is a battle remembered</div>
-            <div class="coll-progress-wrap"><div id="coll-progress-fill"></div></div>
+            <div class="coll-progress-wrap">
+                <div id="coll-progress-fill"></div>
+            </div>
             <div id="coll-progress-label"></div>
         </div>
         <div id="collection-grid"></div>
@@ -469,13 +527,18 @@
                     <button class="btn menu-primary-btn" onclick="checkNewGame('STANDARD')">▶ Standard Run</button>
 
                     <div class="menu-modes-grid">
-                        <button id="btn-story-mode" class="btn btn-story menu-mode-btn" onclick="checkNewGame('STORY')">Story Mode</button>
-                        <button id="btn-chaos-mode" class="btn menu-mode-btn menu-mode-chaos" onclick="checkNewGame('SHUFFLE')">Chaos
+                        <button id="btn-story-mode" class="btn btn-story menu-mode-btn"
+                            onclick="checkNewGame('STORY')">Story Mode</button>
+                        <button id="btn-chaos-mode" class="btn menu-mode-btn menu-mode-chaos"
+                            onclick="checkNewGame('SHUFFLE')">Chaos
                             Shuffle</button>
-                        <button id="btn-versus-mode" class="btn menu-mode-btn menu-mode-versus" onclick="window.isCoopMode ? open2PVersusMenu() : openVersusMenu()">Versus
+                        <button id="btn-versus-mode" class="btn menu-mode-btn menu-mode-versus"
+                            onclick="window.isCoopMode ? open2PVersusMenu() : openVersusMenu()">Versus
                             Mode</button>
-                        <button id="btn-tutorial-mode" class="btn menu-mode-btn menu-mode-tutorial" onclick="checkNewGame('TUTORIAL')">▶ Tutorial</button>
-                        <button class="btn menu-mode-btn menu-mode-coop" id="coop-mode-btn" onclick="toggleCoopMode()">👥 2 Player</button>
+                        <button id="btn-tutorial-mode" class="btn menu-mode-btn menu-mode-tutorial"
+                            onclick="checkNewGame('TUTORIAL')">▶ Tutorial</button>
+                        <button class="btn menu-mode-btn menu-mode-coop" id="coop-mode-btn"
+                            onclick="toggleCoopMode()">👥 2 Player</button>
                     </div>
 
                     <div class="menu-challenges">
@@ -526,7 +589,9 @@
                     </div>
                 </div>
             </div>
-            <div style="text-align:center; padding:10px 0 4px; font-size:11px; color:rgba(255,255,255,0.28); letter-spacing:0.1em; pointer-events:none;">&#169; 2025&ndash;2026 LK Games</div>
+            <div
+                style="text-align:center; padding:10px 0 4px; font-size:11px; color:rgba(255,255,255,0.28); letter-spacing:0.1em; pointer-events:none;">
+                &#169; 2025&ndash;2026 LK Games</div>
         </div>
 
         <!-- VICTORY SCREEN -->
@@ -660,6 +725,14 @@
                     </div>
                     <button id="opt-shake-btn" class="opt-toggle-btn active"
                         onclick="toggleOption('screenShake')">ON</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">⌁</span>
+                        <span class="options-label">Controller Vibration</span>
+                    </div>
+                    <button id="opt-vibration-btn" class="opt-toggle-btn active"
+                        onclick="toggleOption('controllerVibration')">ON</button>
                 </div>
             </div>
 
@@ -815,44 +888,107 @@
     <script src="TestingGrounds.js"></script>
 
     <!-- Tutorial Welcome Overlay (first launch) -->
-    <div id="tutorial-welcome-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10000; justify-content:center; align-items:center;">
-        <div style="background:#1a1a2e; border:2px solid rgba(241,196,15,0.6); border-radius:16px; padding:40px; max-width:480px; text-align:center; color:#fff;">
+    <div id="tutorial-welcome-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10000; justify-content:center; align-items:center;">
+        <div
+            style="background:#1a1a2e; border:2px solid rgba(241,196,15,0.6); border-radius:16px; padding:40px; max-width:480px; text-align:center; color:#fff;">
             <h2 style="font-size:28px; margin-bottom:12px; color:#f1c40f;">Welcome to 5 Freunde!</h2>
-            <p style="font-size:15px; line-height:1.6; color:#ccc; margin-bottom:28px;">This is your first time here. Would you like to play the Tutorial? It guides you through the basics with all 5 heroes.</p>
+            <p style="font-size:15px; line-height:1.6; color:#ccc; margin-bottom:28px;">This is your first time here.
+                Would you like to play the Tutorial? It guides you through the basics with all 5 heroes.</p>
             <div style="display:flex; gap:16px; justify-content:center;">
-                <button id="tutorial-accept-btn" class="btn" onclick="acceptTutorialPrompt()" style="padding:12px 28px; font-size:16px; background:#f1c40f; color:#000; border:2px solid transparent; border-radius:8px; cursor:pointer; font-weight:bold;">▶ Play Tutorial</button>
-                <button id="tutorial-skip-btn" class="btn" onclick="skipTutorialPrompt()" style="padding:12px 28px; font-size:16px; background:#333; color:#fff; border:2px solid #555; border-radius:8px; cursor:pointer;">Skip for now</button>
+                <button id="tutorial-accept-btn" class="btn" onclick="acceptTutorialPrompt()"
+                    style="padding:12px 28px; font-size:16px; background:#f1c40f; color:#000; border:2px solid transparent; border-radius:8px; cursor:pointer; font-weight:bold;">▶
+                    Play Tutorial</button>
+                <button id="tutorial-skip-btn" class="btn" onclick="skipTutorialPrompt()"
+                    style="padding:12px 28px; font-size:16px; background:#333; color:#fff; border:2px solid #555; border-radius:8px; cursor:pointer;">Skip
+                    for now</button>
             </div>
         </div>
     </div>
 
     <!-- Testing Grounds: Spawn Menu (debug only, non-Electron) -->
-    <div id="testing-spawn-menu" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.88); z-index:9000; justify-content:center; align-items:flex-start; padding-top:40px; box-sizing:border-box;">
-        <div style="background:#12121e; border:2px solid #f1c40f; border-radius:14px; padding:28px; max-width:720px; width:92%; max-height:82vh; overflow-y:auto; color:#fff; font-family:monospace;">
+    <div id="testing-spawn-menu"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.88); z-index:9000; justify-content:center; align-items:flex-start; padding-top:40px; box-sizing:border-box;">
+        <div
+            style="background:#12121e; border:2px solid #f1c40f; border-radius:14px; padding:28px; max-width:720px; width:92%; max-height:82vh; overflow-y:auto; color:#fff; font-family:monospace;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <div>
                     <span style="color:#f1c40f; font-size:20px; font-weight:bold;">Testing Grounds</span>
-                    <span style="color:#888; font-size:13px; margin-left:12px;">Select an enemy to spawn it near the player</span>
+                    <span style="color:#888; font-size:13px; margin-left:12px;">Select an enemy to spawn it near the
+                        player</span>
                 </div>
-                <button onclick="TestingGrounds.toggleSpawnMenu()" style="background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:6px 14px; cursor:pointer; font-size:14px;">✕ Close</button>
+                <button onclick="TestingGrounds.toggleSpawnMenu()"
+                    style="background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:6px 14px; cursor:pointer; font-size:14px;">✕
+                    Close</button>
             </div>
             <div id="testing-enemy-list" style="display:flex; flex-direction:column; gap:16px;"></div>
             <div style="margin-top:20px; border-top:1px solid #333; padding-top:16px;">
-                <button onclick="TestingGrounds.clearAll(); TestingGrounds.toggleSpawnMenu();" style="background:#c0392b; color:#fff; border:none; border-radius:6px; padding:8px 20px; cursor:pointer; font-size:14px; font-weight:bold;">Clear All Enemies</button>
+                <button onclick="TestingGrounds.clearAll(); TestingGrounds.toggleSpawnMenu();"
+                    style="background:#c0392b; color:#fff; border:none; border-radius:6px; padding:8px 20px; cursor:pointer; font-size:14px; font-weight:bold;">Clear
+                    All Enemies</button>
             </div>
         </div>
     </div>
     <style>
-        .tg-group-title { color:#f1c40f; font-size:13px; font-weight:bold; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
-        .tg-btn-grid { display:flex; flex-wrap:wrap; gap:8px; }
-        .tg-btn { background:#1e1e30; color:#ccc; border:1px solid #444; border-radius:6px; padding:7px 14px; cursor:pointer; font-size:13px; font-family:monospace; transition:background 0.15s; }
-        .tg-btn:hover { background:#2a2a44; color:#fff; border-color:#888; }
-        .tg-btn-elite { background:#1e1e30; border-width:1px; }
-        .tg-btn-elite:hover { background:#2a2a44; }
-        .tg-btn-dlc { color:#a78bfa; border-color:#6b46c1; }
-        .tg-btn-dlc:hover { background:#2d1b69; }
-        .tg-btn-boss { background:#1a0a0a; border-width:2px; }
-        .tg-btn-boss:hover { background:#2d0f0f; }
+        .tg-group-title {
+            color: #f1c40f;
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tg-btn-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tg-btn {
+            background: #1e1e30;
+            color: #ccc;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 7px 14px;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: monospace;
+            transition: background 0.15s;
+        }
+
+        .tg-btn:hover {
+            background: #2a2a44;
+            color: #fff;
+            border-color: #888;
+        }
+
+        .tg-btn-elite {
+            background: #1e1e30;
+            border-width: 1px;
+        }
+
+        .tg-btn-elite:hover {
+            background: #2a2a44;
+        }
+
+        .tg-btn-dlc {
+            color: #a78bfa;
+            border-color: #6b46c1;
+        }
+
+        .tg-btn-dlc:hover {
+            background: #2d1b69;
+        }
+
+        .tg-btn-boss {
+            background: #1a0a0a;
+            border-width: 2px;
+        }
+
+        .tg-btn-boss:hover {
+            background: #2d0f0f;
+        }
     </style>
 
     <div id="ach-notif" aria-live="polite">

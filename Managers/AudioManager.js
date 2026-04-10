@@ -192,6 +192,26 @@ class AudioManager {
         }
     }
 
+    /**
+     * Play a sound, but only if fewer than `max` instances are currently active.
+     * Falls back to `fallbackKey` (also capped) when the primary track is missing.
+     * Prevents sound overload from area-of-effect abilities hitting many targets at once.
+     */
+    playCapped(key, max, fallbackKey) {
+        if (!this.sfxEnabled) return;
+        const track = this.tracks[key] || (fallbackKey && this.tracks[fallbackKey]);
+        if (!track) return;
+        if (!this._cappedActive) this._cappedActive = {};
+        const activeKey = this.tracks[key] ? key : fallbackKey;
+        const count = this._cappedActive[activeKey] || 0;
+        if (count >= max) return;
+        this._cappedActive[activeKey] = count + 1;
+        const sfx = track.cloneNode();
+        sfx.volume = track.volume;
+        sfx.play().catch(() => {});
+        sfx.onended = () => { this._cappedActive[activeKey] = Math.max(0, (this._cappedActive[activeKey] || 1) - 1); };
+    }
+
     hasVoice(_hero, index) {
         return index >= 0 && index < 50;
     }

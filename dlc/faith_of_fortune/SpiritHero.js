@@ -242,7 +242,7 @@ class SpiritHero {
             if (window.frame % 15 === 0) {
                 // Pulse damage around
                 if (typeof enemies !== 'undefined') {
-                    createExplosion(player.x, player.y, "#ffffff", 20); // Pulse visual
+                    let hitsThisPulse = 0;
                     enemies.forEach(e => {
                         const dist = Math.hypot(e.x - player.x, e.y - player.y);
                         if (dist < 150) {
@@ -250,8 +250,14 @@ class SpiritHero {
                             // Pushback
                             e.x += (e.x - player.x) / dist * 5;
                             e.y += (e.y - player.y) / dist * 5;
+                            hitsThisPulse++;
                         }
                     });
+                    if (hitsThisPulse > 0) {
+                        // Single visual + single sound per pulse regardless of how many enemies are hit
+                        createExplosion(player.x, player.y, "#ffffff", 20);
+                        if (typeof audioManager !== 'undefined') audioManager.playCapped('aura_pulse', 1, 'enemy_damage');
+                    }
                 }
             }
 
