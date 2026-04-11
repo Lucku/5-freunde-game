@@ -7,6 +7,3 @@
 - hide achievements that give away story details
 - set dynamic background for all menus
 - add feedback function via button
-- evil mode: bosses should turn with the camera
-    - Green Goblin doesn't deal damage currently
-    - Makuta has no projectile attack

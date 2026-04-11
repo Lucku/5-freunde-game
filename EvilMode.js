@@ -32,35 +32,35 @@ const EvilMode = (() => {
     const EVIL_STORY_EVENTS = [
         // ── Green Goblin arc (waves 1-5) ──
         {
-            wave: 1, hero: 'green_goblin',
+            wave: 1, hero: 'green_goblin', id: 'evil_1_green_goblin',
             arcLabel: '🎃  ACT I  ·  THE GOBLIN HUNTS  🎃',
             title: "Into the Fire",
             text: "Heheheh! Makuta has given me a simple task: eliminate the Five Heroes before they grow too strong. I start with the Fire Hero. Cocky little ember — thinks passion alone will save them. Let's see how they handle my tricks!",
             type: 'NARRATIVE',
         },
         {
-            wave: 2, hero: 'green_goblin',
+            wave: 2, hero: 'green_goblin', id: 'evil_2_green_goblin',
             arcLabel: '🎃  ACT I  ·  THE GOBLIN HUNTS  🎃',
             title: "Dampening the Tide",
             text: "One down, four to go! The Water Hero thinks their precious adaptability will save them. Flows like the ocean, they say. Well, oceans can dry up. Time to show them what happens when you face a bomb that doesn't care how fluid you are.",
             type: 'NARRATIVE',
         },
         {
-            wave: 3, hero: 'green_goblin',
+            wave: 3, hero: 'green_goblin', id: 'evil_3_green_goblin',
             arcLabel: '🎃  ACT I  ·  THE GOBLIN HUNTS  🎃',
             title: "Cracking the Ice",
             text: "I do enjoy the Ice Biome. The cold keeps my bombs stable — more precise. The Ice Hero is calm, calculating. Perfect. I like dismantling calm people. Nothing breaks composure faster than realizing your defenses mean nothing against me.",
             type: 'NARRATIVE',
         },
         {
-            wave: 4, hero: 'green_goblin',
+            wave: 4, hero: 'green_goblin', id: 'evil_4_green_goblin',
             arcLabel: '🎃  ACT I  ·  THE GOBLIN HUNTS  🎃',
             title: "Uprooting the Garden",
             text: "Patience. Strength through roots. How poetic. The Plant Hero thinks they can outlast me. Heheheh — I've been blowing things up for years. I have infinite patience for destruction. Let the garden burn.",
             type: 'NARRATIVE',
         },
         {
-            wave: 5, hero: 'green_goblin',
+            wave: 5, hero: 'green_goblin', id: 'evil_5_green_goblin',
             arcLabel: '🎃  ACT I  ·  THE GOBLIN HUNTS  🎃',
             title: "Shattering Iron",
             text: "The Metal Hero. The strongest of the five. This one actually makes me nervous — I won't lie. But nervous is good. Nervous means I'm taking it seriously. And when I take something seriously... I always win. Time to prove it.",
@@ -69,35 +69,35 @@ const EvilMode = (() => {
 
         // ── Transition to Makuta (shown before wave 6, triggered as wave 5 clears) ──
         {
-            wave: 6, hero: 'makuta',
+            wave: 6, hero: 'makuta', id: 'evil_6_makuta',
             arcLabel: '👁  ACT II  ·  THE SHADOW DESCENDS  👁',
             title: "The Shadow Rises",
             text: "Goblin has done his part — softened them, bruised their pride. But a cracked wall still stands. I am Makuta. And I do not crack walls. I erase them. The five heroes will face me now, in the very biomes they call home. There is no sanctuary from shadow.",
             type: 'NARRATIVE',
         },
         {
-            wave: 7, hero: 'makuta',
+            wave: 7, hero: 'makuta', id: 'evil_7_makuta',
             arcLabel: '👁  ACT II  ·  THE SHADOW DESCENDS  👁',
             title: "The Tide Bows",
             text: "The Water Hero learned to bend. Admirable. But shadow does not bend — it seeps. It fills every crack, every doubt, every moment of hesitation. I will flood the Water Biome with darkness until there is nothing left to flow.",
             type: 'NARRATIVE',
         },
         {
-            wave: 8, hero: 'makuta',
+            wave: 8, hero: 'makuta', id: 'evil_8_makuta',
             arcLabel: '👁  ACT II  ·  THE SHADOW DESCENDS  👁',
             title: "Absolute Cold",
             text: "The Ice Hero froze their fear and called it strength. I respect the discipline. But true cold has no emotion at all — not even resolve. I am the void between stars. The Ice Hero will learn the difference between cold and nothing.",
             type: 'NARRATIVE',
         },
         {
-            wave: 9, hero: 'makuta',
+            wave: 9, hero: 'makuta', id: 'evil_9_makuta',
             arcLabel: '👁  ACT II  ·  THE SHADOW DESCENDS  👁',
             title: "The Roots Wither",
             text: "Life persists. Nature endures. These are the lies the Plant Hero tells itself as it clings to the earth. But I have watched civilizations built over millennia crumble into dust. One hero, however rooted, is nothing before eternity.",
             type: 'NARRATIVE',
         },
         {
-            wave: 10, hero: 'makuta',
+            wave: 10, hero: 'makuta', id: 'evil_10_makuta',
             arcLabel: '👁  ACT II  ·  THE SHADOW DESCENDS  👁',
             title: "The Final Pillar",
             text: "Metal. The last of the five. They call it indestructible. They say no force can bend it. Those who say such things have not yet faced the full weight of shadow. Every metal rusts. Every wall corrodes. I am patient enough to wait — and powerful enough not to have to.",
@@ -106,7 +106,7 @@ const EvilMode = (() => {
 
         // ── Final wave ──
         {
-            wave: 11, hero: 'makuta',
+            wave: 11, hero: 'makuta', id: 'evil_11_makuta',
             arcLabel: '👁  ACT III  ·  ELEMENTAL ARENA  👁',
             title: "All Five. One Arena.",
             text: "They have gathered. All five heroes, standing together in defiance. I can feel their bond — that insufferable warmth they call friendship. Let them cling to each other. In the end, all light fades. All bonds break. This is where the story of the Five Friends ends. This is the Elemental Arena. And I am its final chapter.",
@@ -115,7 +115,7 @@ const EvilMode = (() => {
 
         // ── Epilogue (after wave 11 victory) ──
         {
-            wave: 12, hero: 'makuta',
+            wave: 12, hero: 'makuta', id: 'evil_12_makuta',
             arcLabel: '👁  EPILOGUE  ·  THE WORLD FALLS  👁',
             title: "Eternity Begins",
             text: "It is done. The Five Heroes — who dared call themselves chosen — lie broken. The Golden Mask is mine. The world, at last, falls silent. No more light. No more hope. No more... resistance. I have waited ages for this moment. This is not an end. This is the beginning of an eternity under shadow. My shadow.",
@@ -142,6 +142,25 @@ const EvilMode = (() => {
         active          = true;
         currentWave     = 0;
         waveJustCleared = false;
+
+        // Register audio path resolver so openStory() finds evil_N_hero.mp3 files
+        window.STORY_AUDIO_RESOLVERS = window.STORY_AUDIO_RESOLVERS || {};
+        const _resolver = (id) => `audio/story/evil_mode/${id}.mp3`;
+        window.STORY_AUDIO_RESOLVERS['GREEN_GOBLIN'] = _resolver;
+        window.STORY_AUDIO_RESOLVERS['MAKUTA']       = _resolver;
+
+        // Register music hook: play the villain's boss theme during Evil Mode battles
+        if (typeof audioManager !== 'undefined') {
+            audioManager.registerMusicHook({
+                priority: 90, // Higher than DLC hooks (typically 10-50), lower than Maze (always wins)
+                check: () => typeof isEvilMode !== 'undefined' && isEvilMode &&
+                             typeof player !== 'undefined' && !!player,
+                play: () => {
+                    if (typeof player !== 'undefined' && player && player.type === 'makuta') return 'makuta';
+                    return 'goblin';
+                },
+            });
+        }
     }
 
     function stop() {
@@ -180,8 +199,8 @@ const EvilMode = (() => {
 
         arena.generate(def.biome, wave === 11 ? null : 'VERSUS_1V1');
 
-        // ── Possible hero switch at wave 6 ───────────────────────────────────
-        if (wave === 6 && typeof player !== 'undefined' && player.type === 'green_goblin') {
+        // ── Possible hero switch at wave 6+ (>6 handles debug J-key jumps) ───
+        if (wave >= 6 && typeof player !== 'undefined' && player.type === 'green_goblin') {
             _switchToMakuta();
         }
 

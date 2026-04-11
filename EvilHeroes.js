@@ -13,7 +13,7 @@ if (!window.HERO_LOGIC) window.HERO_LOGIC = {};
 window.HERO_LOGIC['green_goblin'] = {
     upgradePool: [
         { id: 'damage',    title: 'Volatility',     desc: 'Increase all damage dealt by 12%.',          icon: '💣' },
-        { id: 'speed',     title: 'Glider Speed',   desc: 'Increase Movement Speed by 12%.',            icon: '🛹' },
+        { id: 'speed',     title: 'Manic Stride',   desc: 'Increase Movement Speed by 12%.',            icon: '🛹' },
         { id: 'cooldown',  title: 'Quick Fuse',     desc: 'Reduce ability cooldowns by 12%.',           icon: '⏩' },
         { id: 'health',    title: 'Goblin Armor',   desc: 'Increase Max HP by 30 and Heal 20%.',        icon: '🪖' },
         { id: 'defense',   title: 'Shields Up',     desc: 'Reduce incoming damage by 6%.',              icon: '🛡️' },
@@ -35,6 +35,7 @@ window.HERO_LOGIC['green_goblin'] = {
             const gx = this.x, gy = this.y, r = this.radius;
             ctx.save();
             ctx.translate(gx, gy);
+            ctx.rotate(this.aimAngle);
 
             // ── Wings (behind body) ──────────────────────────────────────────
             const wingFlap = Math.sin(frame * 0.12) * 0.22;
@@ -143,8 +144,8 @@ window.HERO_LOGIC['green_goblin'] = {
     // Override the shoot() projectile with a bomb toss
     customShoot(p) {
         const bombTimer = 90;         // 1.5 s at 60 fps
-        const baseRadius = 90;
-        const dmg = p.stats.rangeDmg * p.damageMultiplier * 1.4;
+        const baseRadius = 70;
+        const dmg = p.stats.rangeDmg * p.damageMultiplier * 0.65;
         const blastR = baseRadius * (p._bombBlastMult || 1) * (p.stats.blastRadiusMult || 1);
 
         // Primary bomb toward aim
@@ -168,30 +169,40 @@ window.HERO_LOGIC['green_goblin'] = {
         return true;
     },
 
-    // Special: glider dive
+    // Special: magnet pull — suck nearby enemies in, then scatter bombs around player
     customSpecial(p) {
-        const diveDist = 380;
-        const dx = Math.cos(p.aimAngle) * diveDist;
-        const dy = Math.sin(p.aimAngle) * diveDist;
+        const pullRange = 500;
+        const pullStrength = 240; // pixels pulled per activation
 
-        // Instant position shift (like a fast dash), brief i-frames
-        p.x = Math.max(p.radius, Math.min(arena.width  - p.radius, p.x + dx));
-        p.y = Math.max(p.radius, Math.min(arena.height - p.radius, p.y + dy));
-        p.invincibleTimer = 25;
-
-        // Damage anything hit on the path (checked by proximity at landing)
-        const diveDmg = p.stats.meleeDmg * p.damageMultiplier * 1.2;
-        enemies.forEach(e => {
-            if (Math.hypot(e.x - p.x, e.y - p.y) < 100) {
-                e.hp -= diveDmg;
-                if (typeof floatingTexts !== 'undefined')
-                    floatingTexts.push(new FloatingText(e.x, e.y - 20, Math.ceil(diveDmg), '#e67e22', 22));
+        // Pull all nearby targets toward player
+        const _targets = [...(enemies || []), ...(window.additionalPlayers || [])];
+        _targets.forEach(e => {
+            if ((e.isDead) || e.hp <= 0) return;
+            const dist = Math.hypot(e.x - p.x, e.y - p.y);
+            if (dist < pullRange && dist > 1) {
+                const ratio = pullStrength / dist;
+                e.x += (p.x - e.x) * Math.min(ratio, 1);
+                e.y += (p.y - e.y) * Math.min(ratio, 1);
+                e.x = Math.max(e.radius, Math.min(arena.width  - e.radius, e.x));
+                e.y = Math.max(e.radius, Math.min(arena.height - e.radius, e.y));
             }
         });
 
-        if (typeof createExplosion !== 'undefined') createExplosion(p.x, p.y, '#1d8a2e');
-        if (typeof audioManager !== 'undefined') audioManager.play('boss_rhino_charge');
-        if (typeof showNotification !== 'undefined') showNotification('GLIDER DIVE!');
+        // Scatter 5 short-fuse bombs around the player
+        const blastR = 75 * (p._bombBlastMult || 1);
+        const dmg    = p.stats.rangeDmg * p.damageMultiplier * 0.8;
+        for (let i = 0; i < 5; i++) {
+            const angle = (Math.PI * 2 / 5) * i;
+            const bx = p.x + Math.cos(angle) * 100;
+            const by = p.y + Math.sin(angle) * 100;
+            p._goblinBombs.push({ x: bx, y: by, timer: 35, maxTimer: 35, radius: blastR, dmg });
+        }
+
+        p.invincibleTimer = 20;
+
+        if (typeof triggerImpact    !== 'undefined') triggerImpact(3, 10, 0.3, 0.55, 300);
+        if (typeof audioManager     !== 'undefined') audioManager.play('boss_stomp');
+        if (typeof showNotification !== 'undefined') showNotification('TRICK OR TREAT!');
         return true;
     },
 
@@ -201,7 +212,8 @@ window.HERO_LOGIC['green_goblin'] = {
         if (typeof triggerImpact !== 'undefined') triggerImpact(5, 14, 0.4, 0.7, 400);
 
         // Step 1: pull enemies toward player
-        enemies.forEach(e => {
+        [...(enemies || []), ...(window.additionalPlayers || [])].forEach(e => {
+            if ((e.isDead) || e.hp <= 0) return;
             const dist = Math.hypot(e.x - p.x, e.y - p.y);
             if (dist < 400 && dist > 1) {
                 const pull = 2.2 * p.damageMultiplier;
@@ -213,8 +225,8 @@ window.HERO_LOGIC['green_goblin'] = {
         });
 
         // Step 2: ring of 8 bombs detonating around the player with a short delay
-        const blastR = 110 * (p._bombBlastMult || 1);
-        const dmg    = p.stats.rangeDmg * p.damageMultiplier * 2.0;
+        const blastR = 85 * (p._bombBlastMult || 1);
+        const dmg    = p.stats.rangeDmg * p.damageMultiplier * 1.1;
         for (let i = 0; i < 8; i++) {
             const angle = (Math.PI * 2 / 8) * i;
             const bx = p.x + Math.cos(angle) * 130;
@@ -239,7 +251,9 @@ window.HERO_LOGIC['green_goblin'] = {
                 if (typeof createExplosion !== 'undefined') createExplosion(b.x, b.y, '#e67e22');
                 if (typeof audioManager !== 'undefined') audioManager.play('boss_stomp');
 
-                enemies.forEach(e => {
+                const _bombTargets = [...(enemies || []), ...(window.additionalPlayers || [])];
+                _bombTargets.forEach(e => {
+                    if ((e.isDead) || e.hp <= 0) return;
                     if (Math.hypot(e.x - b.x, e.y - b.y) < b.radius + e.radius) {
                         const isCrit = Math.random() < p.critChance;
                         const dmg = b.dmg * (isCrit ? p.critMultiplier : 1) * (1 - (e.damageReduction || 0));
@@ -341,6 +355,7 @@ window.HERO_LOGIC['makuta'] = {
 
             ctx.save();
             ctx.translate(mx, my);
+            ctx.rotate(this.aimAngle);
 
             // ── Dark aura / corona ───────────────────────────────────────────
             const coronaGrad = ctx.createRadialGradient(0, 0, mr * 0.6, 0, 0, mr * 1.65);
@@ -448,15 +463,15 @@ window.HERO_LOGIC['makuta'] = {
 
         angles.forEach(a => {
             const isCrit = Math.random() < p.critChance;
+            const finalDmg = isCrit ? dmg * p.critMultiplier : dmg;
             const proj = new Projectile(
                 p.x, p.y,
-                Math.cos(a) * speed, Math.sin(a) * speed,
-                isCrit ? dmg * p.critMultiplier : dmg,
-                '#8e44ad', size + 2, pierce
+                { x: Math.cos(a) * speed, y: Math.sin(a) * speed },
+                finalDmg,
+                '#8e44ad', size + 2, 'makuta', 0, false
             );
             proj.ownerIsPlayer = true;
             proj.isCrit = isCrit;
-            proj.color = '#8e44ad';
             proj.outlineColor = '#cc00ff';
             projectiles.push(proj);
         });
@@ -467,27 +482,54 @@ window.HERO_LOGIC['makuta'] = {
         return true;
     },
 
-    // Special: blink teleport
+    // Special: shadow nova — ring of shadow projectiles + aimed beams toward nearest enemy
     customSpecial(p) {
-        const maxRange = 500;
-        const dx = Math.cos(p.aimAngle) * maxRange;
-        const dy = Math.sin(p.aimAngle) * maxRange;
+        const baseDmg  = p.stats.rangeDmg * p.damageMultiplier;
+        const speed    = p.stats.projectileSpeed;
+        const size     = p.stats.projectileSize;
 
-        const tx = Math.max(p.radius, Math.min(arena.width  - p.radius, p.x + dx));
-        const ty = Math.max(p.radius, Math.min(arena.height - p.radius, p.y + dy));
+        // Outward ring of 16 shadow bolts
+        if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_nova');
+        const ringCount = 16;
+        for (let i = 0; i < ringCount; i++) {
+            const a = (Math.PI * 2 / ringCount) * i;
+            const proj = new Projectile(
+                p.x, p.y,
+                { x: Math.cos(a) * (speed * 0.7), y: Math.sin(a) * (speed * 0.7) },
+                baseDmg * 0.8,
+                '#550066', size + 1, 'makuta', 0, false
+            );
+            proj.ownerIsPlayer = true;
+            projectiles.push(proj);
+        }
 
-        // Departure flash
-        if (typeof createExplosion !== 'undefined') createExplosion(p.x, p.y, '#000000');
+        // 3 aimed shadow beams toward nearest enemy (or aim direction if none)
+        const allTargets = [...(window.additionalPlayers || []).filter(e => !e.isDead && e.hp > 0)];
+        let aimTarget = null;
+        if (allTargets.length > 0) {
+            allTargets.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+            aimTarget = allTargets[0];
+        }
+        const baseAngle = aimTarget
+            ? Math.atan2(aimTarget.y - p.y, aimTarget.x - p.x)
+            : p.aimAngle;
 
-        p.x = tx;
-        p.y = ty;
-        p.invincibleTimer = 20;
-        p._mkTeleportFlash = 12;
+        if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_beam');
+        for (let s = -1; s <= 1; s++) {
+            const a = baseAngle + s * 0.2;
+            const proj = new Projectile(
+                p.x, p.y,
+                { x: Math.cos(a) * (speed * 1.4), y: Math.sin(a) * (speed * 1.4) },
+                baseDmg * 2.0,
+                '#ff0055', size + 3, 'makuta', 0, false
+            );
+            proj.ownerIsPlayer = true;
+            projectiles.push(proj);
+        }
 
-        // Arrival shockwave
-        if (typeof createExplosion !== 'undefined') createExplosion(p.x, p.y, '#8e44ad');
-        if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_teleport');
-        if (typeof showNotification !== 'undefined') showNotification('VOID BLINK!');
+        p.invincibleTimer = 18;
+        if (typeof triggerImpact    !== 'undefined') triggerImpact(4, 12, 0.4, 0.7, 350);
+        if (typeof showNotification !== 'undefined') showNotification('SHADOW NOVA!');
         return true;
     },
 
@@ -521,12 +563,14 @@ window.HERO_LOGIC['makuta'] = {
 
         // Ray-cast a series of points along the laser
         const steps = 14;
+        const _sweepTargets = [...(enemies || []), ...(window.additionalPlayers || [])];
         for (let s = 0; s < steps; s++) {
             const frac = (s + 1) / steps;
             const lx = p.x + Math.cos(curAngle) * laserLen * frac;
             const ly = p.y + Math.sin(curAngle) * laserLen * frac;
 
-            enemies.forEach(e => {
+            _sweepTargets.forEach(e => {
+                if ((e.isDead) || e.hp <= 0) return;
                 if (Math.hypot(e.x - lx, e.y - ly) < e.radius + 14) {
                     e.hp -= dmgPerFrame;
                     if (typeof floatingTexts !== 'undefined' && Math.random() < 0.08)

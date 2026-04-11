@@ -2449,7 +2449,8 @@ function closeStory() {
     }
 
     // Force Hero Swap to match Narrative (Generic Logic for Chaos/Fortune/etc)
-    if (currentStoryEvent && currentStoryEvent.hero) {
+    // Skip in Evil Mode — villain hero is managed exclusively by EvilMode.setupWave()
+    if (!isEvilMode && currentStoryEvent && currentStoryEvent.hero) {
         // Convert to lowercase because player types are lowercase (gravity/void/spirit/chance)
         const requiredHero = currentStoryEvent.hero.toLowerCase();
 
@@ -2464,7 +2465,7 @@ function closeStory() {
     // Special case: If wave is 0 (Intro), always advance to Wave 1
     // Maze node events skip the shop entirely — the maze has its own reward flow
     const _isMazeEvent = currentStoryEvent && currentStoryEvent.id && currentStoryEvent.id.startsWith('maze_');
-    if (wave === 0 || isTutorialMode) {
+    if (wave === 0 || isTutorialMode || isEvilMode) {
         advanceWave();
     } else if (!_isMazeEvent && wave % 4 === 0) {
         openShop();
@@ -4891,22 +4892,28 @@ function masterLoop(timestamp) {
                             proj.dead = true; // Mark dead
                             createExplosion(proj.x, proj.y, proj.color);
                             if (p2.hp <= 0) {
-                                let idx = window.additionalPlayers.indexOf(p2);
-                                if (idx > -1) window.additionalPlayers.splice(idx, 1);
-                                createExplosion(p2.x, p2.y, '#fff');
-                                showNotification("OPPONENT KO!");
+                                if (typeof isEvilMode !== 'undefined' && isEvilMode) {
+                                    // Evil Mode: mark dead so checkWaveEnd() sees it — don't splice yet
+                                    p2.isDead = true;
+                                    createExplosion(p2.x, p2.y, '#fff');
+                                } else {
+                                    let idx = window.additionalPlayers.indexOf(p2);
+                                    if (idx > -1) window.additionalPlayers.splice(idx, 1);
+                                    createExplosion(p2.x, p2.y, '#fff');
+                                    showNotification("OPPONENT KO!");
 
-                                if (isVersusMode && window.additionalPlayers.length === 0) {
-                                    setTimeout(() => gameOver(true), 2000);
-                                } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
-                                    // Story Mode Duel Victory
-                                    bossActive = false;
-                                    bossDeathTimer = 180; // 3 seconds for dramatic effect
+                                    if (isVersusMode && window.additionalPlayers.length === 0) {
+                                        setTimeout(() => gameOver(true), 2000);
+                                    } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
+                                        // Story Mode Duel Victory
+                                        bossActive = false;
+                                        bossDeathTimer = 180; // 3 seconds for dramatic effect
 
-                                    // Clear any remaining enemies/projectiles
-                                    enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
-                                    enemies = [];
-                                    projectiles = [];
+                                        // Clear any remaining enemies/projectiles
+                                        enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
+                                        enemies = [];
+                                        projectiles = [];
+                                    }
                                 }
                             }
                         }
@@ -4994,19 +5001,25 @@ function masterLoop(timestamp) {
                                     createExplosion(p2.x, p2.y, att.color);
                                     floatingTexts.push(new FloatingText(p2.x, p2.y - 40, att.damage.toFixed(0), "#ff0000", 25));
                                     if (p2.hp <= 0) {
-                                        let idx = window.additionalPlayers.indexOf(p2);
-                                        if (idx > -1) window.additionalPlayers.splice(idx, 1);
-                                        createExplosion(p2.x, p2.y, '#fff');
-                                        showNotification("OPPONENT KO!");
+                                        if (typeof isEvilMode !== 'undefined' && isEvilMode) {
+                                            // Evil Mode: mark dead so checkWaveEnd() sees it — don't splice yet
+                                            p2.isDead = true;
+                                            createExplosion(p2.x, p2.y, '#fff');
+                                        } else {
+                                            let idx = window.additionalPlayers.indexOf(p2);
+                                            if (idx > -1) window.additionalPlayers.splice(idx, 1);
+                                            createExplosion(p2.x, p2.y, '#fff');
+                                            showNotification("OPPONENT KO!");
 
-                                        if (isVersusMode && window.additionalPlayers.length === 0) {
-                                            setTimeout(() => gameOver(true), 2000);
-                                        } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
-                                            bossActive = false;
-                                            bossDeathTimer = 180;
-                                            enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
-                                            enemies = [];
-                                            projectiles = [];
+                                            if (isVersusMode && window.additionalPlayers.length === 0) {
+                                                setTimeout(() => gameOver(true), 2000);
+                                            } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
+                                                bossActive = false;
+                                                bossDeathTimer = 180;
+                                                enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
+                                                enemies = [];
+                                                projectiles = [];
+                                            }
                                         }
                                     }
                                 }
