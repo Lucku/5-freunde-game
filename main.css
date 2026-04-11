@@ -2592,6 +2592,24 @@ input:checked+.slider:before {
     border-color: rgba(52, 152, 219, 0.5) !important;
 }
 
+/* ── Evil Mode button ── */
+.menu-mode-evil {
+    border-color: rgba(90, 20, 120, 0.5) !important;
+    color: rgba(220, 160, 255, 0.95) !important;
+    animation: evil-pulse 2.8s ease-in-out infinite;
+}
+
+.menu-mode-evil:hover {
+    background: rgba(90, 20, 120, 0.18) !important;
+    border-color: rgba(160, 60, 220, 0.7) !important;
+    color: #e0aaff !important;
+}
+
+@keyframes evil-pulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(120, 30, 160, 0.25); }
+    50%       { box-shadow: 0 0 16px rgba(160, 60, 220, 0.55); }
+}
+
 /* ── Co-op button ── */
 .menu-mode-coop {
     border-color: rgba(167, 139, 250, 0.3) !important;

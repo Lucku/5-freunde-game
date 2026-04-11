@@ -84,6 +84,7 @@ let isVersusMode = false;
 let isChaosShuffleMode = false;
 let isTutorialMode = false;
 let isTestingMode = false;
+let isEvilMode = false;
 let isCoopMode = false;
 let isAICompanionMode = false; // Story companion: full Player driven by AIController
 let coopP2HeroType = null;
@@ -550,7 +551,7 @@ function toggleCoopMode() {
     }
 
     // Grey out unsupported modes in 2-player
-    const restrictedBtns = ['btn-chaos-mode', 'btn-tutorial-mode'];
+    const restrictedBtns = ['btn-chaos-mode', 'btn-tutorial-mode', 'btn-evil-mode'];
     restrictedBtns.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('coop-disabled', isCoopMode);
@@ -846,6 +847,12 @@ function startStoryGame() {
     startGame('NORMAL');
 }
 
+function startEvilGame() {
+    if (!saveData.story) saveData.story = { unlockedChapters: [], enabled: false };
+    saveData.story.enabled = false;
+    startGame('EVIL');
+}
+
 function initMenu() {
     // Remove the intro backdrop now that the menu is ready to show.
     const _backdrop = document.getElementById('intro-backdrop');
@@ -943,6 +950,7 @@ function initMenu() {
 
     renderHeroSelect();
     updateContinueButton();
+    if (typeof EvilMode !== 'undefined') EvilMode.checkUnlock();
     setUIState('MENU'); // Set State
 
     // First-launch tutorial prompt
@@ -1227,6 +1235,7 @@ function checkNewGame(mode) {
         if (mode === 'STORY') startStoryGame();
         else if (mode === 'SHUFFLE') startShuffleGame();
         else if (mode === 'TUTORIAL') startTutorialGame();
+        else if (mode === 'EVIL') startEvilGame();
         else startStandardGame();
     }
 }
@@ -1238,6 +1247,7 @@ function confirmNewGame() {
     if (mode === 'STORY') startStoryGame();
     else if (mode === 'SHUFFLE') startShuffleGame();
     else if (mode === 'TUTORIAL') startTutorialGame();
+    else if (mode === 'EVIL') startEvilGame();
     else startStandardGame();
 }
 
@@ -1569,6 +1579,14 @@ inputManager.onKeyDown = e => {
             if (overlay) overlay.style.display = 'flex';
             setUIState('TUTORIAL_PROMPT');
             showNotification('DEBUG: FIRST LAUNCH SIMULATED');
+        }
+
+        // DEBUG: Force-unlock Evil Mode with 'E' in Menu
+        if (e.code === 'KeyE' && uiState === 'MENU') {
+            if (typeof EvilMode !== 'undefined') {
+                EvilMode.forceUnlock();
+                showNotification('DEBUG: Evil Mode FORCE-UNLOCKED (saved)');
+            }
         }
 
         // DEBUG: Open Testing Grounds with 'D' in Menu (only when menu overlay is actually visible)
@@ -2191,6 +2209,20 @@ window._afterUpgradeChosen = function () {
 
 // --- Story Logic ---
 function triggerStory(completedWave) {
+    // Evil Mode has its own story pipeline
+    if (isEvilMode && typeof EvilMode !== 'undefined') {
+        const nextWave = completedWave + 1;
+        const evilStory = EvilMode.getStoryForWave(nextWave);
+        if (evilStory) {
+            currentStoryEvent = evilStory;
+            openStory(evilStory);
+        } else {
+            currentStoryEvent = null;
+            advanceWave();
+        }
+        return;
+    }
+
     // Check if story mode is enabled or if it's daily/weekly mode
     if ((saveData.story && saveData.story.enabled === false) || isDailyMode || isWeeklyMode) {
         // Skip story
@@ -2258,11 +2290,18 @@ const _STORY_THEMES = {
     void: { rgb: '0,188,212', icon: '☯️' },
     spirit: { rgb: '240,208,128', icon: '✨' },
     chance: { rgb: '224,64,251', icon: '🎲' },
+    green_goblin: { rgb: '29,138,46', icon: '🎃' },
+    makuta: { rgb: '90,20,120', icon: '👁' },
 };
 
 function _getStoryArcLabel(wave, hero) {
     const h = (hero || 'ALL').toLowerCase();
     const w = wave || 1;
+
+    // Evil Mode arc labels
+    if ((h === 'green_goblin' || h === 'makuta') && typeof EvilMode !== 'undefined') {
+        return EvilMode.getArcLabel(w);
+    }
 
     // DLC-injected arc labels (each DLC registers its own hero labels here)
     if (window.STORY_ARC_LABELS && typeof window.STORY_ARC_LABELS[h] === 'function') {
@@ -2310,6 +2349,8 @@ function openStory(story) {
         chance: 'dlc/faith_of_fortune/images/title.png',
         sound: 'dlc/symphony_of_sickness/images/title.png',
         poison: 'dlc/symphony_of_sickness/images/title.png',
+        green_goblin: 'images/title.png',
+        makuta: 'images/title.png',
     }, window.STORY_TITLE_IMAGES || {});
     const bgImgEl = document.getElementById('story-bg-img');
     if (bgImgEl) {
@@ -2660,6 +2701,12 @@ function resumeWaveGeneration() {
 
     if (isChaosShuffleMode && wave > 0) generateChaosObjective();
 
+    // Evil Mode — delegate entirely to EvilMode.setupWave; skip all normal spawning
+    if (isEvilMode && typeof EvilMode !== 'undefined') {
+        EvilMode.setupWave(wave);
+        return;
+    }
+
     // Randomize Biome (Skip in Versus Mode)
     if (!isVersusMode) {
         let types = ['fire', 'water', 'ice', 'plant', 'metal'];
@@ -3002,6 +3049,8 @@ function startGame(mode = 'NORMAL') {
     isChaosShuffleMode = (mode === 'SHUFFLE');
     isVersusMode = (mode === 'VERSUS');
     isTutorialMode = (mode === 'TUTORIAL');
+    isEvilMode = (mode === 'EVIL');
+    if (isEvilMode && typeof EvilMode !== 'undefined') EvilMode.start();
 
     // Always reset the chaos HUD so "CHALLENGE FAILED" text from a previous run never bleeds in
     const _chaosHud = document.getElementById('chaos-challenge-hud');
@@ -3021,6 +3070,11 @@ function startGame(mode = 'NORMAL') {
         if (currentBiomeType === 'black') currentBiomeType = 'chaos';
     }
 
+    // Evil Mode: force Green Goblin as starting hero
+    if (isEvilMode) {
+        currentBiomeType = 'fire'; // wave 1 biome; EvilMode.setupWave will override per wave
+    }
+
     // Check for Shadow Form Mutator BEFORE creating player
     let heroType = selectedHeroType;
     if ((mode === 'DAILY' || mode === 'WEEKLY') && activeMutators.some(m => m.id === 'SHADOW_FORM')) {
@@ -3036,6 +3090,7 @@ function startGame(mode = 'NORMAL') {
     // "Shuffles the current hero... Result in shuffling the 5 main game heroes... and DLC"
     // Let's start with the selected hero, then shuffle next wave.
 
+    if (isEvilMode) heroType = 'green_goblin';
     player = new Player(heroType);
     // Center Player in Arena
     player.x = arena.width / 2;
@@ -3197,6 +3252,12 @@ function startGame(mode = 'NORMAL') {
         TutorialMode.init();
         return;
     }
+    if (mode === 'EVIL') {
+        // Show wave 1 narration before the first wave starts
+        triggerStory(0);
+        return;
+    }
+
     if (mode === 'TESTING') {
         isDailyMode = false;
         isWeeklyMode = false;
@@ -3240,6 +3301,17 @@ function startGame(mode = 'NORMAL') {
 }
 
 function gameOver(isVictory = false) {
+    // Capture before any resets so the Play Again button can reference it
+    const wasEvilMode = isEvilMode;
+
+    // Evil Mode — unlock achievement on first clear
+    if (isEvilMode && isVictory) {
+        if (saveData.global) saveData.global.evil_mode_beaten = (saveData.global.evil_mode_beaten || 0) + 1;
+        unlockAchievement('EVIL_MODE_BEATEN');
+    }
+    if (typeof EvilMode !== 'undefined') EvilMode.stop();
+    isEvilMode = false;
+
     gameRunning = false;
     isTutorialMode = false;
     isTestingMode = false;
@@ -3354,8 +3426,9 @@ function gameOver(isVictory = false) {
                 : isVersusMode ? 'versus'
                     : isChaosShuffleMode ? 'shuffle'
                         : isTutorialMode ? 'tutorial'
-                            : (saveData.story && saveData.story.enabled) ? 'story'
-                                : 'standard';
+                            : isEvilMode ? 'evil'
+                                : (saveData.story && saveData.story.enabled) ? 'story'
+                                    : 'standard';
     saveData.global.runHistory.unshift({
         hero: player.type,
         mode: _rhMode,
@@ -3466,6 +3539,8 @@ function gameOver(isVictory = false) {
             playAgainBtn.onclick = function () { startGame('DAILY'); };
         } else if (isWeeklyMode) {
             playAgainBtn.onclick = function () { startGame('WEEKLY'); };
+        } else if (wasEvilMode) {
+            playAgainBtn.onclick = function () { startEvilGame(); };
         } else {
             playAgainBtn.onclick = function () { startGame('NORMAL'); };
         }
@@ -3516,6 +3591,11 @@ function masterLoop(timestamp) {
         }
 
         if (gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen) {
+
+            // Evil Mode — check if all enemy heroes are dead → advance wave
+            if (isEvilMode && typeof EvilMode !== 'undefined' && EvilMode.checkWaveEnd()) {
+                EvilMode.onWaveCleared();
+            }
 
             if (isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
 
@@ -4340,7 +4420,7 @@ function masterLoop(timestamp) {
 
             // --- Spawning Logic ---
             // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
-            if (!bossActive && bossDeathTimer === 0 && !isTestingMode && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave && (!isTutorialMode || TutorialMode.bossForced)) {
+            if (!bossActive && bossDeathTimer === 0 && !isTestingMode && !isEvilMode && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave && (!isTutorialMode || TutorialMode.bossForced)) {
                 if (currentObjective && currentObjective.state === 'ACTIVE') {
                     // Do nothing, wait for objective completion logic
                 } else {
@@ -4379,7 +4459,7 @@ function masterLoop(timestamp) {
                 }
             }
 
-            if (!isVersusMode && !isTestingMode) {
+            if (!isVersusMode && !isTestingMode && !isEvilMode) {
                 if (!bossActive && bossDeathTimer === 0) {
                     let spawnRate = Math.max(10, 45 - (wave * 1.3));
                     let forcedType = null;
@@ -4547,6 +4627,13 @@ function masterLoop(timestamp) {
                 player.update();
             }
             player.draw();
+
+            // Evil Mode hero ability updates and overlay rendering
+            if (isEvilMode && window.HERO_LOGIC && window.HERO_LOGIC[player.type]) {
+                const _hl = window.HERO_LOGIC[player.type];
+                if (_hl.update)      _hl.update(player, deltaTime / 1000);
+                if (_hl.drawOverlay) _hl.drawOverlay(player, ctx);
+            }
 
             // Co-op / AI companion: update + draw P2
             if ((isCoopMode || isAICompanionMode) && player2) {

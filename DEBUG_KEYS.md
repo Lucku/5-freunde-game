@@ -38,3 +38,4 @@ Enter Testing Grounds from the menu with `D` (see below).
 | `P` | Menu state | Adds +1 skill point to the currently selected hero and saves |
 | `T` | Menu state | Resets the tutorial-seen flag in save data and re-triggers the first-launch tutorial prompt |
 | `D` | Menu state, menu overlay visible | Opens the **Testing Grounds** sandbox mode |
+| `E` | Menu state | Force-unlocks **Evil Mode** — sets `maxWinPrestige = 0` for all 5 base heroes in save data and saves, making the hidden Evil Mode button appear in the mode selection |

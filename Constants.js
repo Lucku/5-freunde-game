@@ -5,7 +5,10 @@ const BASE_HERO_STATS = {
     ice: { color: '#ecf0f1', hp: 50, speed: 4, rangeDmg: 15, meleeDmg: 90, rangeCd: 25, meleeCd: 130, projectileSpeed: 15, projectileSize: 4, knockback: 2 },
     plant: { color: '#2ecc71', hp: 70, speed: 3.5, rangeDmg: 22, meleeDmg: 120, rangeCd: 30, meleeCd: 140, projectileSpeed: 9, projectileSize: 7, knockback: 8 },
     metal: { color: '#95a5a6', hp: 100, speed: 3, rangeDmg: 40, meleeDmg: 150, rangeCd: 40, meleeCd: 180, projectileSpeed: 18, projectileSize: 8, knockback: 12 },
-    black: { color: '#2c3e50', hp: 150, speed: 5, rangeDmg: 50, meleeDmg: 200, rangeCd: 10, meleeCd: 80, projectileSpeed: 20, projectileSize: 10, knockback: 25 } // Hero of Darkness
+    black: { color: '#2c3e50', hp: 150, speed: 5, rangeDmg: 50, meleeDmg: 200, rangeCd: 10, meleeCd: 80, projectileSpeed: 20, projectileSize: 10, knockback: 25 }, // Hero of Darkness
+    // Evil Mode playable villains (not selectable in hero screen)
+    green_goblin: { color: '#1d8a2e', hp: 90, speed: 5.5, rangeDmg: 35, meleeDmg: 110, rangeCd: 12, meleeCd: 100, projectileSpeed: 14, projectileSize: 6, knockback: 10, icon: '🎃' },
+    makuta:       { color: '#000000', hp: 200, speed: 4.2, rangeDmg: 60, meleeDmg: 180, rangeCd: 8,  meleeCd: 90,  projectileSpeed: 18, projectileSize: 9,  knockback: 18, icon: '👁' }
 };
 
 const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI', 'AUTOAIM'];
@@ -100,6 +103,7 @@ voidTiers.forEach(t => addAch(`void_${t[0]}`, t[1], `Spend ${t[0]} Gold in Void 
 
 // 12. Special Achievements
 addAch('MAKUTA_SLAYER', 'Makuta Slayer', 'Defeat Makuta in Story Mode.', 1, 'makuta_kills', 'damage', 0.10, '+10% Dmg');
+addAch('EVIL_MODE_BEATEN', 'The True Villain', 'Complete Evil Mode. Grants +10% damage to all base heroes.', 1, 'evil_mode_beaten', 'damage', 0.10, '+10% Dmg');
 
 // Story Completion Achievements (Per Hero)
 addAch('STORY_FIRE', 'Fire Champion', 'Complete Story Mode with Fire Hero.', 1, 'story_fire', 'damage', 0.05, '+5% Dmg');

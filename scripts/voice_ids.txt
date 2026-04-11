@@ -15,3 +15,4 @@ time = QajSKZavaIyUgvSOrelX
 love = 5x1b7R9BDxre5p7xVRsn
 black = xrNwYO0xeioXswMCcFNF
 makuta = bwCXcoVxWNYMlC6Esa8u
+goblin = qhH5VOAvpCwvNpmn2srO

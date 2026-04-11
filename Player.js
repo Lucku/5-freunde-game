@@ -129,7 +129,11 @@ class Player {
     }
 
     gainXp(amount) {
-        this.xp += amount * (this.stats.xpMultiplier || 1);
+        let mult = this.stats.xpMultiplier || 1;
+        if (typeof isEvilMode !== 'undefined' && isEvilMode && typeof EvilMode !== 'undefined') {
+            mult *= EvilMode.getXpMultiplier();
+        }
+        this.xp += amount * mult;
         if (this.xp >= this.maxXp) {
             this.xp -= this.maxXp;
             this.levelUp();
@@ -234,6 +238,8 @@ class Player {
         if (this.type === 'water') return 'OCEAN';
         if (this.type === 'black') return 'THE SHADOW';
         if (this.type === 'earth') return 'OBSIDIAN GOLEM';
+        if (this.type === 'green_goblin') return 'MANIC GOBLIN';
+        if (this.type === 'makuta') return 'SHADOW GOD';
         return 'ULTIMATE';
     }
 
@@ -279,6 +285,21 @@ class Player {
     }
 
     setupSpecial() {
+        // Evil Mode villain heroes: delegate special to HERO_LOGIC
+        if (this.type === 'green_goblin' || this.type === 'makuta') {
+            const hl = window.HERO_LOGIC && window.HERO_LOGIC[this.type];
+            if (hl) {
+                this.specialMaxCooldown = 720; // 12 s
+                this.specialName = this.type === 'makuta' ? 'VOID BLINK' : 'GLIDER DIVE';
+                this.customSpecial = () => hl.customSpecial(this);
+                if (!this.isCPU) {
+                    const iconEl = document.getElementById('special-icon');
+                    if (iconEl) iconEl.innerText = this.type === 'makuta' ? '🌀' : '🛹';
+                }
+            }
+            return;
+        }
+
         // UI updates should only happen for the main player
         if (this.isCPU) {
             // Setup internal stats WITHOUT touching DOM
@@ -1188,6 +1209,15 @@ class Player {
 
     shoot() {
         if (this.rangeCooldown > 0) return;
+
+        // Evil Mode villain heroes: delegate to HERO_LOGIC customShoot
+        if (typeof isEvilMode !== 'undefined' && isEvilMode &&
+            window.HERO_LOGIC && window.HERO_LOGIC[this.type] &&
+            typeof window.HERO_LOGIC[this.type].customShoot === 'function') {
+            window.HERO_LOGIC[this.type].customShoot(this);
+            return;
+        }
+
         if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode && typeof checkChaosEvent === 'function') checkChaosEvent('ATTACK');
 
         // Melee Only Mutator / Chaos Effect
