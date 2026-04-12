@@ -329,12 +329,12 @@ const FAITH_OF_FORTUNE = {
     injectAchievements: function () {
         if (typeof addAch === 'function') {
             // Spirit Hero — gameplay-based achievements
-            addAch('faith_spirit_story', 'Serenity Achieved', 'Complete Story Mode with the Spirit Hero.', 1, 'story_spirit', 'health', 0.05, '+5% HP');
+            addAch('faith_spirit_story', 'Serenity Achieved', 'Complete Story Mode with the Spirit Hero.', 1, 'story_spirit', 'health', 0.05, '+5% HP', true);
             addAch('faith_spirit_prestige', 'Enlightened Mind', 'Reach Prestige 5 with the Spirit Hero.', 5, 'spirit_prestige', 'cooldown', 0.05, '-5% CD');
             addAch('faith_spirit_transcend', 'Perfect Harmony', 'Activate TRANSCEND 50 times across all runs.', 50, 'spirit_transcend_count', 'damage', 0.05, '+5% Dmg');
 
             // Chance Hero — gameplay-based achievements
-            addAch('faith_chance_story', 'Lady Luck', 'Complete Story Mode with the Chance Hero.', 1, 'story_chance', 'gold', 0.05, '+5% Gold');
+            addAch('faith_chance_story', 'Lady Luck', 'Complete Story Mode with the Chance Hero.', 1, 'story_chance', 'gold', 0.05, '+5% Gold', true);
             addAch('faith_chance_jackpot', 'Jackpot!', 'Win the SLOTS jackpot 10 times across all runs.', 10, 'chance_jackpots', 'gold', 0.10, '+10% Gold');
             addAch('faith_luck_max', "Fortune's Favorite", 'Accumulate 1000 Luck points across all runs.', 1000, 'chance_total_luck', 'gold', 0.05, '+5% Gold');
         }

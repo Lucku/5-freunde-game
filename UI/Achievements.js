@@ -58,15 +58,16 @@ class AchievementsUI {
 
             catAchs.forEach(ach => {
                 const unlocked = unlockedSet.has(ach.id);
+                const isHidden = ach.hidden && !unlocked;
                 const div = document.createElement('div');
-                div.className = `achievement-row${unlocked ? ' unlocked' : ''}`;
+                div.className = `achievement-row${unlocked ? ' unlocked' : ''}${isHidden ? ' hidden-ach' : ''}`;
                 div.innerHTML = `
                     <div class="ach-icon">${unlocked ? '🏆' : '🔒'}</div>
                     <div class="ach-info">
-                        <h3>${ach.title}</h3>
-                        <p>${ach.desc}</p>
+                        <h3>${isHidden ? '???' : ach.title}</h3>
+                        <p>${isHidden ? 'Hidden Achievement' : ach.desc}</p>
                     </div>
-                    <div class="ach-reward">${ach.bonus.text}</div>
+                    <div class="ach-reward">${isHidden ? '???' : ach.bonus.text}</div>
                 `;
                 list.appendChild(div);
             });

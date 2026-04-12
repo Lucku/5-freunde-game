@@ -3031,6 +3031,7 @@ function checkAchievements() {
 
             if (unlocked) {
                 saveData.global.unlockedAchievements.push(ach.id);
+                if (typeof audioManager !== 'undefined') audioManager.play('achievement_unlocked');
                 showAchievementNotif(ach);
                 saveGame();
             }

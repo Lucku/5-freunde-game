@@ -23,8 +23,8 @@ const SKILL_TREE_SIZE = 100;
 window.ACHIEVEMENTS = [];
 const ACHIEVEMENTS = window.ACHIEVEMENTS;
 
-function addAch(id, title, desc, req, stat, type, val, text) {
-    window.ACHIEVEMENTS.push({ id, title, desc, req, stat, bonus: { type, val, text } });
+function addAch(id, title, desc, req, stat, type, val, text, hidden = false) {
+    window.ACHIEVEMENTS.push({ id, title, desc, req, stat, bonus: { type, val, text }, hidden });
 }
 
 // 1. Kills (Total)
@@ -102,19 +102,19 @@ const voidTiers = [
 voidTiers.forEach(t => addAch(`void_${t[0]}`, t[1], `Spend ${t[0]} Gold in Void Shop.`, t[0], 'totalVoidGoldSpent', 'damage', t[2], `+${(t[2] * 100).toFixed(0)}% Dmg`));
 
 // 12. Special Achievements
-addAch('MAKUTA_SLAYER', 'Makuta Slayer', 'Defeat Makuta in Story Mode.', 1, 'makuta_kills', 'damage', 0.10, '+10% Dmg');
-addAch('EVIL_MODE_BEATEN', 'The True Villain', 'Complete Evil Mode. Grants +10% damage to all base heroes.', 1, 'evil_mode_beaten', 'damage', 0.10, '+10% Dmg');
+addAch('MAKUTA_SLAYER', 'Makuta Slayer', 'Defeat Makuta in Story Mode.', 1, 'makuta_kills', 'damage', 0.10, '+10% Dmg', true);
+addAch('EVIL_MODE_BEATEN', 'The True Villain', 'Complete Evil Mode. Grants +10% damage to all base heroes.', 1, 'evil_mode_beaten', 'damage', 0.10, '+10% Dmg', true);
 
 // Story Completion Achievements (Per Hero)
-addAch('STORY_FIRE', 'Fire Champion', 'Complete Story Mode with Fire Hero.', 1, 'story_fire', 'damage', 0.05, '+5% Dmg');
-addAch('STORY_WATER', 'Water Champion', 'Complete Story Mode with Water Hero.', 1, 'story_water', 'health', 0.05, '+5% HP');
-addAch('STORY_ICE', 'Ice Champion', 'Complete Story Mode with Ice Hero.', 1, 'story_ice', 'cooldown', 0.05, '-5% CD');
-addAch('STORY_PLANT', 'Plant Champion', 'Complete Story Mode with Plant Hero.', 1, 'story_plant', 'health', 0.05, '+5% HP');
-addAch('STORY_METAL', 'Metal Champion', 'Complete Story Mode with Metal Hero.', 1, 'story_metal', 'defense', 0.05, '+5% Def');
+addAch('STORY_FIRE', 'Fire Champion', 'Complete Story Mode with Fire Hero.', 1, 'story_fire', 'damage', 0.05, '+5% Dmg', true);
+addAch('STORY_WATER', 'Water Champion', 'Complete Story Mode with Water Hero.', 1, 'story_water', 'health', 0.05, '+5% HP', true);
+addAch('STORY_ICE', 'Ice Champion', 'Complete Story Mode with Ice Hero.', 1, 'story_ice', 'cooldown', 0.05, '-5% CD', true);
+addAch('STORY_PLANT', 'Plant Champion', 'Complete Story Mode with Plant Hero.', 1, 'story_plant', 'health', 0.05, '+5% HP', true);
+addAch('STORY_METAL', 'Metal Champion', 'Complete Story Mode with Metal Hero.', 1, 'story_metal', 'defense', 0.05, '+5% Def', true);
 
 // Makuta Hard Mode Achievements (1-10)
 for (let i = 1; i <= 10; i++) {
-    addAch(`MAKUTA_HM_${i}`, `Makuta Hard Mode ${i}`, `Defeat Makuta with Prestige ${i}+.`, 1, `makuta_hm_${i}`, 'damage', 0.05, '+5% Dmg');
+    addAch(`MAKUTA_HM_${i}`, `Makuta Hard Mode ${i}`, `Defeat Makuta with Prestige ${i}+.`, 1, `makuta_hm_${i}`, 'damage', 0.05, '+5% Dmg', true);
 }
 
 // Tutorial Achievement
