@@ -52,6 +52,9 @@ fs.readFileSync(VOICE_IDS_FILE, 'utf8').split('\n').forEach(line => {
 // Gravity is defined in generate_audio.js but not yet in voice_ids.txt — add here as fallback
 if (!voiceIds['gravity']) voiceIds['gravity'] = 'esy0r39YPLQjOczyOib8';
 
+// Villain aliases: voice_ids.txt uses 'goblin'/'makuta', but game uses 'green_goblin'/'makuta'
+if (!voiceIds['green_goblin'] && voiceIds['goblin']) voiceIds['green_goblin'] = voiceIds['goblin'];
+
 // ── Voice lines ────────────────────────────────────────────────────────────────
 // Key format: { situation: text } for single lines, { situation_1/2: text } for pairs.
 // Keep texts short — they are in-game reactions, not narration.
@@ -331,6 +334,35 @@ const LINES = {
         level_up_1: "My heart grows stronger!",
         level_up_2: "More love, more power.",
     },
+
+    // ── Villains (Evil Mode + boss encounters) ─────────────────────────────────
+    // Only the situations that make narrative sense for villain characters.
+
+    green_goblin: {
+        injured:       "Hahaha! You actually HIT me?! Impressive... and infuriating!",
+        failure_1:     "This isn't over! The Green Goblin ALWAYS comes back!",
+        failure_2:     "Impossible! I am the Green Goblin! I DON'T lose!",
+        boss_moment_1: "You little heroes think you can stop me?! How delightfully foolish!",
+        boss_moment_2: "Ah, fresh heroes crawling out to face me. PERFECT! Hahaha!",
+        boss_win_1:    "Yes! Grovel before the Green Goblin! HAHAHAHA!",
+        boss_win_2:    "Another pathetic hero, CRUSHED! Is that all you've got?!",
+    },
+
+    makuta: {
+        injured:       "You cannot harm what is eternal...",
+        failure_1:     "I will... return. The darkness never truly dies.",
+        failure_2:     "This is not the end. Nothing ever truly ends.",
+        boss_moment_1: "Foolish hero. You cannot stop what has already begun.",
+        boss_moment_2: "Step forward. And meet your end.",
+        boss_win_1:    "As it was always written. You fall before me.",
+        boss_win_2:    "The mask is mine. As it was always destined.",
+    },
+};
+
+// Per-hero voice setting overrides (villains need different expressiveness tuning)
+const VOICE_SETTINGS_OVERRIDES = {
+    green_goblin: { stability: 0.42, similarity_boost: 0.78, style: 0.35, use_speaker_boost: true },
+    makuta:       { stability: 0.55, similarity_boost: 0.72, style: 0.30, use_speaker_boost: true },
 };
 
 // DLC heroes output to their own DLC directory to stay separate from base game audio
@@ -392,7 +424,7 @@ async function main() {
                 text: task.text,
                 model_id: MODEL_ID,
                 output_format: 'mp3_44100_128',
-                voice_settings: VOICE_SETTINGS,
+                voice_settings: VOICE_SETTINGS_OVERRIDES[task.hero] || VOICE_SETTINGS,
             });
 
             const fileStream = fs.createWriteStream(task.file);

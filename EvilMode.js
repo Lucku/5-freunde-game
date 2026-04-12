@@ -238,6 +238,11 @@ const EvilMode = (() => {
 
         if (typeof bossActive !== 'undefined') bossActive = false;
         if (typeof waveTimer  !== 'undefined') waveTimer  = 999999;
+
+        // Villain taunts the heroes at the start of every wave
+        if (typeof audioManager !== 'undefined' && typeof player !== 'undefined' && player) {
+            audioManager.playHeroExclamation(player.type, 'boss_moment');
+        }
     }
 
     // Called every frame. Returns true when all enemy heroes are dead.
@@ -251,6 +256,11 @@ const EvilMode = (() => {
     function onWaveCleared() {
         if (!active || waveJustCleared) return;
         waveJustCleared = true;
+
+        // Villain gloats over defeated heroes
+        if (typeof audioManager !== 'undefined' && typeof player !== 'undefined' && player) {
+            audioManager.playHeroExclamation(player.type, 'boss_win');
+        }
 
         // Clean up enemies and stray projectiles
         window.additionalPlayers = [];

@@ -2349,8 +2349,8 @@ function openStory(story) {
         chance: 'dlc/faith_of_fortune/images/title.png',
         sound: 'dlc/symphony_of_sickness/images/title.png',
         poison: 'dlc/symphony_of_sickness/images/title.png',
-        green_goblin: 'images/title.png',
-        makuta: 'images/title.png',
+        green_goblin: 'images/title_evil.png',
+        makuta: 'images/title_evil.png',
     }, window.STORY_TITLE_IMAGES || {});
     const bgImgEl = document.getElementById('story-bg-img');
     if (bgImgEl) {
@@ -2808,8 +2808,15 @@ function resumeWaveGeneration() {
         setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
 
         enemies.unshift(new Boss(storyBossId));
-        if (typeof audioManager !== 'undefined' && player) {
-            audioManager.playHeroExclamation(player.type, 'boss_moment');
+        if (typeof audioManager !== 'undefined') {
+            // Villain taunts when they spawn as a boss; hero reacts otherwise
+            if (storyBossId === 'GREEN_GOBLIN') {
+                audioManager.playHeroExclamation('green_goblin', 'boss_moment');
+            } else if (storyBossId === 'MAKUTA') {
+                audioManager.playHeroExclamation('makuta', 'boss_moment');
+            } else if (player) {
+                audioManager.playHeroExclamation(player.type, 'boss_moment');
+            }
         }
     }
 
@@ -5556,6 +5563,11 @@ function masterLoop(timestamp) {
                                 audioManager.play('wave_completed');
                                 if (currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT') {
                                     audioManager.playHeroExclamation(player.type, 'boss_win');
+                                    // Villain defeat cry (delayed so it doesn't clash with player's win line)
+                                    if (enemy.type === 'GREEN_GOBLIN' || enemy.type === 'MAKUTA') {
+                                        const _vType = enemy.type === 'GREEN_GOBLIN' ? 'green_goblin' : 'makuta';
+                                        setTimeout(() => audioManager.playHeroExclamation(_vType, 'failure'), 2200);
+                                    }
                                 }
                             }
 
