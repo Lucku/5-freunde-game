@@ -1,7 +1,6 @@
 class SkillTreeUI {
     openSkillTree() {
         if (typeof audioManager !== 'undefined') audioManager.play('menu');
-        if (typeof MenuBackground !== 'undefined') MenuBackground.stop();
         document.getElementById('menu-overlay').style.display = 'none';
         document.getElementById('skill-tree-screen').style.display = 'flex';
         this.renderSkillTree();

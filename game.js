@@ -4838,12 +4838,22 @@ function masterLoop(timestamp) {
                         player.hp = Math.min(player.hp + 30, player.maxHp);
                         if (isChaosShuffleMode) checkChaosEvent('HEAL');
                         createExplosion(player.x, player.y, '#2ecc71');
+                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_heal');
                     }
-                    else if (pup.type === 'MAXHP') { player.maxHp += 20; player.hp += 20; createExplosion(player.x, player.y, '#e74c3c'); }
-                    else if (pup.type === 'SPEED') { player.buffs.speed = 600; createExplosion(player.x, player.y, '#f1c40f'); }
+                    else if (pup.type === 'MAXHP') {
+                        player.maxHp += 20; player.hp += 20;
+                        createExplosion(player.x, player.y, '#e74c3c');
+                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_maxhp');
+                    }
+                    else if (pup.type === 'SPEED') {
+                        player.buffs.speed = 600;
+                        createExplosion(player.x, player.y, '#f1c40f');
+                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_speed');
+                    }
                     else if (pup.type === 'MULTI') {
                         player.buffs.multi = 600;
                         createExplosion(player.x, player.y, '#3498db');
+                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_multi');
                     }
                     else if (pup.type === 'AUTOAIM') {
                         if (player.heroType === 'EARTH') {
@@ -4856,6 +4866,7 @@ function masterLoop(timestamp) {
                             player.buffs.autoaim = 600;
                             createExplosion(player.x, player.y, '#9b59b6');
                         }
+                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_autoaim');
                     }
                     powerUps.splice(index, 1);
                 } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {

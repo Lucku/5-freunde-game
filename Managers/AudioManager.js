@@ -15,6 +15,11 @@ class AudioManager {
             pickup_card:       new Audio('audio/sounds/pick_up_collectors_card.wav'),
             pickup_mask:       new Audio('audio/sounds/pick_up_golden_mark.wav'),
             pickup_gold:       new Audio('audio/sounds/pickup_gold.wav'),
+            pickup_heal:       new Audio('audio/sounds/pickup_heal.wav'),
+            pickup_maxhp:      new Audio('audio/sounds/pickup_maxhp.wav'),
+            pickup_speed:      new Audio('audio/sounds/pickup_speed.wav'),
+            pickup_multi:      new Audio('audio/sounds/pickup_multi.wav'),
+            pickup_autoaim:    new Audio('audio/sounds/pickup_autoaim.wav'),
             wave_completed:    new Audio('audio/sounds/wave_completed.wav'),
             achievement_unlocked: new Audio('audio/sounds/achievement_unlocked.wav'),
             enemy_damage:      new Audio('audio/sounds/enemy_damage.wav'),
@@ -73,9 +78,14 @@ class AudioManager {
 
         // SFX config
         this.tracks.level_up.volume = 0.5;
-        this.tracks.pickup_card.volume = 0.5;
-        this.tracks.pickup_mask.volume = 0.6;
-        this.tracks.pickup_gold.volume = 0.4;
+        this.tracks.pickup_card.volume    = 0.5;
+        this.tracks.pickup_mask.volume    = 0.6;
+        this.tracks.pickup_gold.volume    = 0.4;
+        this.tracks.pickup_heal.volume    = 0.5;
+        this.tracks.pickup_maxhp.volume   = 0.55;
+        this.tracks.pickup_speed.volume   = 0.45;
+        this.tracks.pickup_multi.volume   = 0.45;
+        this.tracks.pickup_autoaim.volume = 0.45;
         this.tracks.wave_completed.volume = 0.6;
         this.tracks.achievement_unlocked.volume = 0.7;
         this.tracks.enemy_damage.volume = 0.25;
@@ -392,15 +402,21 @@ class AudioManager {
         } else if (menuStates.includes(uiState)) {
             this.stopAllExcept('menu'); this.play('menu');
         } else {
+            // Evil Mode: player IS the villain — play their theme regardless of menuStates logic
+            const isEvilGoblin = typeof isEvilMode !== 'undefined' && isEvilMode &&
+                typeof player !== 'undefined' && player && player.type === 'green_goblin';
+            const isEvilMakuta = typeof isEvilMode !== 'undefined' && isEvilMode &&
+                typeof player !== 'undefined' && player && player.type === 'makuta';
+
             // Base game bosses
             const isMakutaActive = typeof bossActive !== 'undefined' && bossActive &&
                 typeof enemies !== 'undefined' && enemies.some(e => e instanceof Boss && e.type === 'MAKUTA');
             const isGoblinActive = typeof bossActive !== 'undefined' && bossActive &&
                 typeof enemies !== 'undefined' && enemies.some(e => e instanceof Boss && e.type === 'GREEN_GOBLIN');
 
-            if (isMakutaActive) {
+            if (isMakutaActive || isEvilMakuta) {
                 this.stopAllExcept('makuta'); this.play('makuta');
-            } else if (isGoblinActive) {
+            } else if (isGoblinActive || isEvilGoblin) {
                 this.stopAllExcept('goblin'); this.play('goblin');
             } else {
                 // Try DLC hooks in priority order

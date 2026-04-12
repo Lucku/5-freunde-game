@@ -294,7 +294,7 @@ class Player {
                 this.customSpecial = () => hl.customSpecial(this);
                 if (!this.isCPU) {
                     const iconEl = document.getElementById('special-icon');
-                    if (iconEl) iconEl.innerText = this.type === 'makuta' ? '🌀' : '🛹';
+                    if (iconEl) iconEl.innerText = this.type === 'makuta' ? '🌀' : '💣';
                 }
             }
             return;

@@ -301,14 +301,6 @@ window.HERO_LOGIC['green_goblin'] = {
         return false;
     },
 
-    // Replace the level-10 transform option with a pure stat spike choice
-    getCustomLevelUpOptions(p, options) {
-        return options.map(opt => opt.id === 'transform'
-            ? { id: 'transform', title: 'MANIC BOMB STORM', desc: 'Unleash a magnetic pull followed by a ring of devastating bombs!', icon: '💣' }
-            : opt
-        );
-    },
-
     getFormName() { return 'MANIC GOBLIN'; },
 };
 
@@ -449,7 +441,7 @@ window.HERO_LOGIC['makuta'] = {
 
     // Override shoot — shadow bolt with pierce
     customShoot(p) {
-        const dmg    = p.stats.rangeDmg * p.damageMultiplier;
+        const dmg    = p.stats.rangeDmg * p.damageMultiplier * 0.40;
         const speed  = p.stats.projectileSpeed;
         const size   = p.stats.projectileSize;
         const pierce = 1 + Math.floor((p.stats.pierce || 0));
@@ -496,7 +488,7 @@ window.HERO_LOGIC['makuta'] = {
             const proj = new Projectile(
                 p.x, p.y,
                 { x: Math.cos(a) * (speed * 0.7), y: Math.sin(a) * (speed * 0.7) },
-                baseDmg * 0.8,
+                baseDmg * 0.28,
                 '#550066', size + 1, 'makuta', 0, false
             );
             proj.ownerIsPlayer = true;
@@ -520,7 +512,7 @@ window.HERO_LOGIC['makuta'] = {
             const proj = new Projectile(
                 p.x, p.y,
                 { x: Math.cos(a) * (speed * 1.4), y: Math.sin(a) * (speed * 1.4) },
-                baseDmg * 2.0,
+                baseDmg * 0.8,
                 '#ff0055', size + 3, 'makuta', 0, false
             );
             proj.ownerIsPlayer = true;
@@ -559,7 +551,7 @@ window.HERO_LOGIC['makuta'] = {
         const totalArc  = (p._sweepArcDeg + p._sweepExtraAngle) * (Math.PI / 180);
         const curAngle  = p._sweepAngle + totalArc * progress;
         const laserLen  = 600;
-        const dmgPerFrame = p.stats.rangeDmg * p.damageMultiplier * 0.55;
+        const dmgPerFrame = p.stats.rangeDmg * p.damageMultiplier * 0.18;
 
         // Ray-cast a series of points along the laser
         const steps = 14;
@@ -645,14 +637,6 @@ window.HERO_LOGIC['makuta'] = {
             return true;
         }
         return false;
-    },
-
-    // Replace the level-10 transform option with the shadow sweep description
-    getCustomLevelUpOptions(p, options) {
-        return options.map(opt => opt.id === 'transform'
-            ? { id: 'transform', title: 'SHADOW SWEEP', desc: 'Release a devastating 240° shadow laser arc that tears through all enemies.', icon: '👁' }
-            : opt
-        );
     },
 
     getFormName() { return 'SHADOW GOD'; },

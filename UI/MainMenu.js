@@ -9,10 +9,12 @@ class MainMenuUI {
         container.innerHTML = '';
 
         // Dynamically get heroes from BASE_HERO_STATS
-        // Filter out 'black' (handled separately) and 'love' until unlocked via Maze of Time
+        // Filter out 'black' (debug-only), 'green_goblin'/'makuta' (Evil Mode villains, not selectable),
+        // and 'love' until unlocked via Maze of Time
         const loveUnlocked = window.saveData && window.saveData['love'] && window.saveData['love'].unlocked;
+        const MENU_HIDDEN = new Set(['black', 'green_goblin', 'makuta']);
         const heroes = Object.keys(BASE_HERO_STATS).filter(h => {
-            if (h === 'black') return false;
+            if (MENU_HIDDEN.has(h)) return false;
             if (h === 'love' && !loveUnlocked) return false;
             return true;
         });
