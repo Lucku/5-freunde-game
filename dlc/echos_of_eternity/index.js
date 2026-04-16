@@ -39,17 +39,17 @@ const ECHOS_OF_ETERNITY = {
         if (typeof audioManager !== 'undefined') {
             audioManager.registerSounds({
                 // ── Music ─────────────────────────────────────────────────────────
-                'battle_dlc_1':     { path: 'dlc/echos_of_eternity/audio/music/battle_all_1.wav', loop: true, volume: 0.40 },
-                'battle_dlc_2':     { path: 'dlc/echos_of_eternity/audio/music/battle_all_2.wav', loop: true, volume: 0.40 },
-                'battle_dlc_3':     { path: 'dlc/echos_of_eternity/audio/music/battle_all_3.wav', loop: true, volume: 0.40 },
-                'boss_dlc_all':     { path: 'dlc/echos_of_eternity/audio/music/boss_all.wav',              loop: true, volume: 0.60 },
+                'battle_dlc_1': { path: 'dlc/echos_of_eternity/audio/music/battle_all_1.wav', loop: true, volume: 0.40 },
+                'battle_dlc_2': { path: 'dlc/echos_of_eternity/audio/music/battle_all_2.wav', loop: true, volume: 0.40 },
+                'battle_dlc_3': { path: 'dlc/echos_of_eternity/audio/music/battle_all_3.wav', loop: true, volume: 0.40 },
+                'boss_dlc_all': { path: 'dlc/echos_of_eternity/audio/music/boss_all.wav', loop: true, volume: 0.60 },
                 'eternal_collapse': { path: 'dlc/echos_of_eternity/audio/music/boss_eternal_collapse.wav', loop: true, volume: 0.65 },
-                'maze_theme':       { path: 'dlc/echos_of_eternity/audio/music/time_maze.wav',             loop: true, volume: 0.45 },
+                'maze_theme': { path: 'dlc/echos_of_eternity/audio/music/time_maze.wav', loop: true, volume: 0.45 },
                 // ── Time Hero SFX ─────────────────────────────────────────────────
-                'attack_time':      { path: 'dlc/echos_of_eternity/audio/sounds/attack_time.wav',      volume: 0.22 },
-                'melee_time':       { path: 'dlc/echos_of_eternity/audio/sounds/melee_time.wav',       volume: 0.28 },
-                'anchor_time':      { path: 'dlc/echos_of_eternity/audio/sounds/anchor_time.wav',      volume: 0.50 },
-                'paradox_time':     { path: 'dlc/echos_of_eternity/audio/sounds/paradox_time.wav',     volume: 0.65 },
+                'attack_time': { path: 'dlc/echos_of_eternity/audio/sounds/attack_time.wav', volume: 0.22 },
+                'melee_time': { path: 'dlc/echos_of_eternity/audio/sounds/melee_time.wav', volume: 0.28 },
+                'special_time': { path: 'dlc/echos_of_eternity/audio/sounds/special_time.wav', volume: 0.50 },
+                'paradox_time': { path: 'dlc/echos_of_eternity/audio/sounds/paradox_time.wav', volume: 0.65 },
                 'paradox_end_time': { path: 'dlc/echos_of_eternity/audio/sounds/paradox_end_time.wav', volume: 0.45 },
                 // ── TimeBoss SFX ──────────────────────────────────────────────────
                 'time_wraith_shadow_pulse': { path: 'dlc/echos_of_eternity/audio/sounds/boss_time_wraith_shadow_pulse.wav', volume: 0.45 },
@@ -100,24 +100,24 @@ const ECHOS_OF_ETERNITY = {
             audioManager.registerMusicHook({
                 priority: 100,
                 check: () => typeof bossActive !== 'undefined' && bossActive &&
-                             typeof player !== 'undefined' && player &&
-                             (player.type === 'time' || player.type === 'love') &&
-                             typeof enemies !== 'undefined' &&
-                             enemies.some(e => e instanceof Boss && e.type === 'ETERNAL_COLLAPSE'),
+                    typeof player !== 'undefined' && player &&
+                    (player.type === 'time' || player.type === 'love') &&
+                    typeof enemies !== 'undefined' &&
+                    enemies.some(e => e instanceof Boss && e.type === 'ETERNAL_COLLAPSE'),
                 play: () => 'eternal_collapse',
             });
             audioManager.registerMusicHook({
                 priority: 75,
                 check: () => typeof bossActive !== 'undefined' && bossActive &&
-                             typeof player !== 'undefined' && player &&
-                             (player.type === 'time' || player.type === 'love'),
+                    typeof player !== 'undefined' && player &&
+                    (player.type === 'time' || player.type === 'love'),
                 play: () => 'boss_dlc_all',
             });
             audioManager.registerMusicHook({
                 priority: 50,
                 check: () => typeof player !== 'undefined' && player &&
-                             (player.type === 'time' || player.type === 'love') &&
-                             audioManager.isStoryMode(),
+                    (player.type === 'time' || player.type === 'love') &&
+                    audioManager.isStoryMode(),
                 play: (am) => {
                     // Keep playing whichever track is already running to avoid mid-song interrupts
                     const pool = ['battle_dlc_1', 'battle_dlc_2', 'battle_dlc_3'];
@@ -141,13 +141,13 @@ const ECHOS_OF_ETERNITY = {
 
             // ── Love Hero SFX + weather DLC sounds ───────────────────────────────
             audioManager.registerSounds({
-                'attack_love':      { path: 'dlc/echos_of_eternity/audio/sounds/attack_love.wav',      volume: 0.22 },
-                'melee_love':       { path: 'dlc/echos_of_eternity/audio/sounds/melee_love.wav',       volume: 0.28 },
-                'anchor_love':      { path: 'dlc/echos_of_eternity/audio/sounds/anchor_love.wav',      volume: 0.50 },
-                'unity_love':       { path: 'dlc/echos_of_eternity/audio/sounds/unity_love.wav',       volume: 0.65 },
-                'heartburst_love':  { path: 'dlc/echos_of_eternity/audio/sounds/heartburst_love.wav',  volume: 0.55 },
+                'attack_love': { path: 'dlc/echos_of_eternity/audio/sounds/attack_love.wav', volume: 0.22 },
+                'melee_love': { path: 'dlc/echos_of_eternity/audio/sounds/melee_love.wav', volume: 0.28 },
+                'special_love': { path: 'dlc/echos_of_eternity/audio/sounds/special_love.wav', volume: 0.50 },
+                'unity_love': { path: 'dlc/echos_of_eternity/audio/sounds/unity_love.wav', volume: 0.65 },
+                'heartburst_love': { path: 'dlc/echos_of_eternity/audio/sounds/heartburst_love.wav', volume: 0.55 },
                 'weather_temporal_rift': { path: 'dlc/echos_of_eternity/audio/sounds/weather_temporal_rift.wav', loop: true, volume: 0.30 },
-                'weather_petal_storm':   { path: 'dlc/echos_of_eternity/audio/sounds/weather_petal_storm.wav',   loop: true, volume: 0.25 },
+                'weather_petal_storm': { path: 'dlc/echos_of_eternity/audio/sounds/weather_petal_storm.wav', loop: true, volume: 0.25 },
             });
         }
 
