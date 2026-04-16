@@ -2827,6 +2827,11 @@ input:checked+.slider:before {
     border-color: rgba(231, 76, 60, 0.3) !important;
 }
 
+.menu-sys-bug:hover {
+    color: rgba(241, 196, 15, 0.75) !important;
+    border-color: rgba(241, 196, 15, 0.25) !important;
+}
+
 /* ── Legacy button variants (still used elsewhere in UI) ── */
 .btn-void {
     background: linear-gradient(45deg, #8e44ad, #9b59b6);

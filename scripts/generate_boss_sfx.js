@@ -625,6 +625,30 @@ const SOUNDS = [
 
     // ── WEATHER AMBIENCE ──────────────────────────────────────────────────────
     {
+        id: 'weather_sandstorm',
+        boss: 'weather',
+        filename: 'weather_sandstorm.wav',
+        duration: 4.0,
+        promptInfluence: 0.3,
+        description: 'Desert sandstorm ambience loop, fierce wind carrying thick waves of sand and grit, deep roaring gusts with hissing sand grains sweeping across arid terrain, relentless dry storm atmosphere',
+    },
+    {
+        id: 'weather_acidic_fog',
+        boss: 'weather',
+        filename: 'weather_acidic_fog.wav',
+        duration: 4.0,
+        promptInfluence: 0.3,
+        description: 'Eerie acidic fog ambience loop, slow bubbling and hissing of corrosive mist, unsettling low drones with occasional soft dripping and chemical sizzling sounds, toxic swamp atmosphere',
+    },
+    {
+        id: 'weather_gale',
+        boss: 'weather',
+        filename: 'weather_gale.wav',
+        duration: 4.0,
+        promptInfluence: 0.3,
+        description: 'Powerful gale force wind ambience loop, howling high-speed gusts roaring across open landscape, deep turbulent air whoosh with whistling tones, strong wind buffeting and swirling, dramatic storm wind loop',
+    },
+    {
         id: 'weather_blizzard',
         boss: 'weather',
         filename: 'weather_blizzard.wav',

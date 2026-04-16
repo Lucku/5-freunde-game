@@ -1273,12 +1273,28 @@ function saveAndQuit() {
     initMenu();
 }
 
+function _stopWeather() {
+    currentWeather = null;
+    weatherTimer = 3600;
+    weatherParticles = [];
+    _weatherFlash = 0;
+    _weatherBolts = [];
+    currentWeather2 = null;
+    weatherDuration2 = 0;
+    if (typeof audioManager !== 'undefined') {
+        (typeof WEATHER_TYPES !== 'undefined' ? WEATHER_TYPES : []).forEach(w => {
+            audioManager.stopLoop('weather_' + w.id.toLowerCase());
+        });
+    }
+}
+
 function _resetGameState() {
     // Stop hero-specific loops that may still be playing (e.g. earth rolling, spirit charging)
     if (typeof audioManager !== 'undefined') {
         audioManager.stopLoop('attack_earth_roll');
         audioManager.stopLoop('special_spirit_charging');
     }
+    _stopWeather();
     gameRunning = false;
     isTutorialMode = false;
     isTestingMode = false;
@@ -3211,16 +3227,7 @@ function startGame(mode = 'NORMAL') {
     gamePaused = false;
     isLevelingUp = false;
     isShopping = false;
-    currentWeather = null;
-    weatherTimer = 3600; // Start with 1 minute clear weather
-    weatherParticles = [];
-    _weatherFlash = 0;
-    _weatherBolts = [];
-    currentWeather2 = null;
-    weatherDuration2 = 0;
-    if (typeof audioManager !== 'undefined') {
-        ['weather_blizzard', 'weather_heatwave', 'weather_thunderstorm'].forEach(k => audioManager.stopLoop(k));
-    }
+    _stopWeather();
 
     // Reset Stats
     currentRunStats = {
@@ -3317,6 +3324,9 @@ function startGame(mode = 'NORMAL') {
 function gameOver(isVictory = false) {
     // Capture before any resets so the Play Again button can reference it
     const wasEvilMode = isEvilMode;
+
+    // Stop any active weather immediately
+    _stopWeather();
 
     // Evil Mode — unlock achievement on first clear
     if (isEvilMode && isVictory) {
@@ -4177,13 +4187,6 @@ function masterLoop(timestamp) {
                         }
 
                     } else if (currentWeather.id === 'HEATWAVE') {
-                        // ── Periodic heat damage to player ────────────────────────────
-                        if (frame % 300 === 0 && wFadeIn >= 1 && !player.isInvincible) {
-                            const heatDmg = Math.ceil(player.maxHp * 0.02); // 2% max HP
-                            player.hp -= heatDmg * (1 - player.damageReduction);
-                            floatingTexts.push(new FloatingText(player.x, player.y - 30, `🔥${heatDmg}`, '#e74c3c', 16));
-                        }
-
                         // ── Rising ember / shimmer particles ─────────────────────────
                         if (Math.random() < 0.35 * wFadeIn) {
                             weatherParticles.push({

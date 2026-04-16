@@ -1025,6 +1025,7 @@ class Player {
 
         // Weather Slow
         if (currentWeather && currentWeather.id === 'BLIZZARD') currentSpeed *= 0.8;
+        if (currentWeather && currentWeather.id === 'HEATWAVE') currentSpeed *= 0.85;
 
         // Chaos: Double Speed
         if (typeof isChaosActive === 'function' && isChaosActive('DOUBLE_SPEED')) {

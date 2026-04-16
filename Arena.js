@@ -92,9 +92,10 @@ class Arena {
         // Scale positions relative to map size
         const w = this.width;
         const h = this.height;
-        // Seeded per-position: ~60% of obstacles get biome-themed skin, rest stay stone
+        // Biome obstacle density: 0.0 = all stone, 1.0 = all themed (default 1.0)
         const themedObstacle = (ox, oy, ow, oh) => {
-            const themed = (Math.sin(ox * 0.0413 + oy * 0.0271) * 0.5 + 0.5) > 0.4;
+            const threshold = 1.0 - (typeof window.BIOME_OBSTACLE_DENSITY !== 'undefined' ? window.BIOME_OBSTACLE_DENSITY : 1.0);
+            const themed = (Math.sin(ox * 0.0413 + oy * 0.0271) * 0.5 + 0.5) > threshold;
             return new Obstacle(ox, oy, ow, oh, themed ? biomeType : null);
         };
 

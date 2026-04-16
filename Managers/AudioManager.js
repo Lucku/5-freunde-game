@@ -58,6 +58,9 @@ class AudioManager {
             weather_blizzard:     new Audio('audio/sounds/weather_blizzard.wav'),
             weather_heatwave:     new Audio('audio/sounds/weather_heatwave.wav'),
             weather_thunderstorm: new Audio('audio/sounds/weather_thunderstorm.wav'),
+            weather_sandstorm:    new Audio('audio/sounds/weather_sandstorm.wav'),
+            weather_acidic_fog:   new Audio('audio/sounds/weather_acidic_fog.wav'),
+            weather_gale:         new Audio('audio/sounds/weather_gale.wav'),
             weather_thunder_crack: new Audio('audio/sounds/weather_thunder_crack.wav'),
             twin_event:            new Audio('audio/sounds/twin_event.wav'),
         };
@@ -112,6 +115,9 @@ class AudioManager {
         this.tracks.weather_blizzard.loop     = true;  this.tracks.weather_blizzard.volume     = 0.30;
         this.tracks.weather_heatwave.loop     = true;  this.tracks.weather_heatwave.volume     = 0.25;
         this.tracks.weather_thunderstorm.loop = true;  this.tracks.weather_thunderstorm.volume = 0.35;
+        this.tracks.weather_sandstorm.loop    = true;  this.tracks.weather_sandstorm.volume    = 0.30;
+        this.tracks.weather_acidic_fog.loop   = true;  this.tracks.weather_acidic_fog.volume   = 0.20;
+        this.tracks.weather_gale.loop         = true;  this.tracks.weather_gale.volume         = 0.30;
         this.tracks.weather_thunder_crack.volume = 0.55;
         this.tracks.twin_event.volume = 0.7;
 

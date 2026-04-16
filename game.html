@@ -587,6 +587,7 @@
                         <input type="file" id="import-file" style="display: none;" onchange="importSave(this)">
                         <button id="btn-import-save" class="btn menu-sys-btn"
                             onclick="document.getElementById('import-file').click()">Import Save</button>
+                        <button class="btn menu-sys-btn menu-sys-bug" onclick="openBugReport()">🐛 Report Bug</button>
                         <button class="btn menu-sys-btn menu-sys-exit" onclick="closeGame()">Exit</button>
                     </div>
                 </div>
@@ -994,6 +995,69 @@
             background: #2d0f0f;
         }
     </style>
+
+    <!-- Bug Report Overlay -->
+    <div id="bug-report-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:3000; flex-direction:column; align-items:center; justify-content:center;"
+        onkeydown="event.stopPropagation()" onkeyup="event.stopPropagation()" onkeypress="event.stopPropagation()">
+        <div class="modal-panel" style="max-width:480px; width:90%;">
+            <div class="screen-header" style="margin-bottom:16px;">
+                <div class="screen-title">REPORT A BUG</div>
+                <div class="screen-subtitle">Found something wrong? Let us know!</div>
+            </div>
+            <form id="bug-report-form" action="https://submit-form.com/5udFuQqQ2" onsubmit="submitBugReport(event)">
+                <textarea id="bug-message" name="message" placeholder="Describe the bug or feedback..." required
+                    style="width:100%; min-height:140px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.18); border-radius:8px; color:#fff; font-size:14px; padding:12px; font-family:inherit; resize:vertical; box-sizing:border-box; outline:none;"></textarea>
+                <div id="bug-report-status" style="font-size:13px; min-height:20px; margin-top:8px; text-align:center;">
+                </div>
+                <div style="display:flex; gap:12px; margin-top:16px; justify-content:center;">
+                    <button type="submit" class="screen-action-btn" style="margin:0;">Send</button>
+                    <button type="button" class="screen-back-btn" style="margin:0;" onclick="closeBugReport()">←
+                        Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        function openBugReport() {
+            const overlay = document.getElementById('bug-report-overlay');
+            overlay.style.display = 'flex';
+            document.getElementById('bug-message').value = '';
+            document.getElementById('bug-report-status').textContent = '';
+            document.getElementById('bug-message').focus();
+        }
+        function closeBugReport() {
+            document.getElementById('bug-report-overlay').style.display = 'none';
+        }
+        async function submitBugReport(e) {
+            e.preventDefault();
+            const status = document.getElementById('bug-report-status');
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            status.style.color = '#aaa';
+            status.textContent = 'Sending...';
+            try {
+                const form = document.getElementById('bug-report-form');
+                const data = new FormData(form);
+                const res = await fetch('https://submit-form.com/5udFuQqQ2', {
+                    method: 'POST',
+                    body: data,
+                    headers: { Accept: 'application/json' }
+                });
+                if (res.ok) {
+                    status.style.color = '#2ecc71';
+                    status.textContent = 'Thanks! Your feedback was sent.';
+                    setTimeout(closeBugReport, 1800);
+                } else {
+                    throw new Error('server error');
+                }
+            } catch {
+                status.style.color = '#e74c3c';
+                status.textContent = 'Failed to send. Please try again.';
+                btn.disabled = false;
+            }
+        }
+    </script>
 
     <div id="ach-notif" aria-live="polite">
         <div class="ach-notif-label">Achievement Unlocked</div>
