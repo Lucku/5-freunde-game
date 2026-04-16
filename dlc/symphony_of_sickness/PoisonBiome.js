@@ -306,6 +306,83 @@ class PoisonBiome {
 
         ctx.restore();
     }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: murky toxic dark green
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#0e2208');
+        grd.addColorStop(0.5, '#091808');
+        grd.addColorStop(1,   '#050e04');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Toxic drip streaks down the sides
+        ctx.lineCap = 'round';
+        const numDrips = 3 + (r(seed + 1) * 4 | 0);
+        for (let i = 0; i < numDrips; i++) {
+            const s = seed + i * 1.13;
+            const dx = x + r(s) * w;
+            const dStart = y + r(s + 0.1) * h * 0.3;
+            const dEnd   = y + h * (0.5 + r(s + 0.2) * 0.5);
+            ctx.strokeStyle = `rgba(${80 + (r(s + 0.3) * 40 | 0)},${180 + (r(s + 0.4) * 60 | 0)},0,${0.4 + r(s + 0.5) * 0.3})`;
+            ctx.lineWidth = 1 + r(s + 0.6) * 1.5;
+            ctx.beginPath(); ctx.moveTo(dx, dStart); ctx.lineTo(dx + (r(s + 0.7) - 0.5) * 8, dEnd); ctx.stroke();
+            // Drip bulb at end
+            ctx.fillStyle = `rgba(100,220,0,${0.35 + r(s + 0.8) * 0.25})`;
+            ctx.beginPath(); ctx.arc(dx + (r(s + 0.7) - 0.5) * 8, dEnd, 2 + r(s + 0.9) * 3, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Bubbling toxic spots
+        const numBubbles = 4 + (r(seed + 8) * 5 | 0);
+        for (let i = 0; i < numBubbles; i++) {
+            const s = seed + i * 0.89;
+            const bx = x + r(s)       * w;
+            const by = y + r(s + 0.1) * h;
+            const br = 2 + r(s + 0.2) * 5;
+            ctx.fillStyle = `rgba(${60 + (r(s + 0.3) * 60 | 0)},${160 + (r(s + 0.4) * 80 | 0)},0,0.40)`;
+            ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+            // Highlight
+            ctx.fillStyle = 'rgba(180,255,50,0.20)';
+            ctx.beginPath(); ctx.arc(bx - br * 0.3, by - br * 0.3, br * 0.4, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Mushroom cap bumps on top edge
+        const numCaps = 2 + (r(seed + 14) * 3 | 0);
+        for (let i = 0; i < numCaps; i++) {
+            const s = seed + i * 1.71;
+            const mx = x + (0.1 + r(s) * 0.8) * w;
+            const mw = 12 + r(s + 0.1) * 20;
+            const mh = 8  + r(s + 0.2) * 12;
+            ctx.fillStyle = `rgba(${40 + (r(s + 0.3) * 40 | 0)},${100 + (r(s + 0.4) * 60 | 0)},10,0.70)`;
+            ctx.beginPath(); ctx.ellipse(mx, y + 2, mw * 0.5, mh * 0.5, 0, Math.PI, Math.PI * 2); ctx.fill();
+            // Spots
+            ctx.fillStyle = 'rgba(180,255,0,0.25)';
+            ctx.beginPath(); ctx.arc(mx - mw * 0.2, y + 2, mw * 0.1, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(mx + mw * 0.15, y + 4, mw * 0.07, 0, Math.PI * 2); ctx.fill();
+        }
+
+        ctx.restore();
+
+        // Bevel: sickly green tint
+        ctx.fillStyle = 'rgba(40,120,0,0.22)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#030a02';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+    }
 }
 
 // Register

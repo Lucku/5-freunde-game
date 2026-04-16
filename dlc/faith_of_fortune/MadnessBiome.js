@@ -367,6 +367,69 @@ class MadnessBiome {
         };
         arena.biomeZones.push(safeZone);
     }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: deep dark purple
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#1e0038');
+        grd.addColorStop(0.5, '#120025');
+        grd.addColorStop(1,   '#080010');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Magenta scanline bands
+        const numBands = 3 + (r(seed + 1) * 4 | 0);
+        for (let i = 0; i < numBands; i++) {
+            const s = seed + i * 1.43;
+            const by = y + r(s) * h;
+            const bh = 1 + r(s + 0.1) * 3;
+            ctx.fillStyle = `rgba(255,0,255,${0.12 + r(s + 0.2) * 0.18})`;
+            ctx.fillRect(x, by, w, bh);
+        }
+
+        // Glitched pixel patches
+        const numPatches = 4 + (r(seed + 7) * 5 | 0);
+        for (let i = 0; i < numPatches; i++) {
+            const s = seed + i * 0.83;
+            const px = x + r(s)       * w;
+            const py = y + r(s + 0.1) * h;
+            const pw = 4 + r(s + 0.2) * 12;
+            const ph = 2 + r(s + 0.3) * 6;
+            const isCyan = r(s + 0.4) > 0.6;
+            ctx.fillStyle = isCyan ? `rgba(0,255,255,${0.20 + r(s + 0.5) * 0.25})` : `rgba(255,0,255,${0.20 + r(s + 0.5) * 0.25})`;
+            ctx.fillRect(px, py, pw, ph);
+        }
+
+        // Warning "!" symbol
+        const warnX = x + (0.35 + r(seed + 14) * 0.3) * w;
+        const warnY = y + h * 0.45;
+        const fs = Math.min(w, h) * 0.35;
+        ctx.fillStyle = `rgba(255,0,255,${0.18 + r(seed + 15) * 0.12})`;
+        ctx.fillRect(warnX - fs * 0.12, warnY - fs * 0.55, fs * 0.24, fs * 0.38);
+        ctx.beginPath(); ctx.arc(warnX, warnY + fs * 0.1, fs * 0.12, 0, Math.PI * 2); ctx.fill();
+
+        ctx.restore();
+
+        // Bevel: magenta tint
+        ctx.fillStyle = 'rgba(180,0,180,0.22)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.60)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#0a0018';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+    }
 }
 
 if (typeof window.BIOME_LOGIC === 'undefined') window.BIOME_LOGIC = {};

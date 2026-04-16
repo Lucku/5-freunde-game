@@ -29,23 +29,24 @@ const RISE_OF_THE_ROCK = {
         // Register audio
         if (typeof audioManager !== 'undefined') {
             audioManager.registerSounds({
-                'battle_rock_1':     { path: 'dlc/rise_of_the_rock/audio/music/battle_1.wav',    loop: true,  volume: 0.4 },
-                'battle_rock_2':     { path: 'dlc/rise_of_the_rock/audio/music/battle_2.wav',    loop: true,  volume: 0.4 },
-                'golem':             { path: 'dlc/rise_of_the_rock/audio/music/boss_dark_golem.wav', loop: true, volume: 0.6 },
-                'attack_earth':      { path: 'dlc/rise_of_the_rock/audio/sounds/attack_earth.wav',      volume: 0.25 },
+                'battle_rock_1': { path: 'dlc/rise_of_the_rock/audio/music/battle_1.wav', loop: true, volume: 0.4 },
+                'battle_rock_2': { path: 'dlc/rise_of_the_rock/audio/music/battle_2.wav', loop: true, volume: 0.4 },
+                'golem': { path: 'dlc/rise_of_the_rock/audio/music/boss_dark_golem.wav', loop: true, volume: 0.6 },
+                'attack_earth': { path: 'dlc/rise_of_the_rock/audio/sounds/attack_earth.wav', volume: 0.25 },
                 'attack_earth_roll': { path: 'dlc/rise_of_the_rock/audio/sounds/attack_earth_roll.wav', loop: true, volume: 0.3 },
-                'melee_earth':       { path: 'dlc/rise_of_the_rock/audio/sounds/melee_earth.wav',       volume: 0.25 },
-                'dark_golem_boulder':{ path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_boulder.wav', volume: 0.4 },
-                'dark_golem_slam':   { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_slam.wav',    volume: 0.55 },
-                'dark_golem_lava':   { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_lava.wav',    volume: 0.55 },
-                'dark_golem_crack':  { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_crack.wav',   volume: 0.7 },
-                'dark_golem_charge': { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_charge.wav',  volume: 0.4 },
-                'dark_golem_berserk':{ path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_berserk.wav', volume: 0.7 },
+                'attack_earth_roll_impact': { path: 'dlc/rise_of_the_rock/audio/sounds/attack_earth_roll_impact.wav', volume: 0.6 },
+                'melee_earth': { path: 'dlc/rise_of_the_rock/audio/sounds/melee_earth.wav', volume: 0.25 },
+                'dark_golem_boulder': { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_boulder.wav', volume: 0.4 },
+                'dark_golem_slam': { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_slam.wav', volume: 0.55 },
+                'dark_golem_lava': { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_lava.wav', volume: 0.55 },
+                'dark_golem_crack': { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_crack.wav', volume: 0.7 },
+                'dark_golem_charge': { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_charge.wav', volume: 0.4 },
+                'dark_golem_berserk': { path: 'dlc/rise_of_the_rock/audio/sounds/boss_dark_golem_berserk.wav', volume: 0.7 },
             });
             audioManager.registerMusicHook({
                 priority: 100,
                 check: () => typeof bossActive !== 'undefined' && bossActive &&
-                             typeof enemies !== 'undefined' && enemies.some(e => e instanceof Boss && e.type === 'DARK_GOLEM'),
+                    typeof enemies !== 'undefined' && enemies.some(e => e instanceof Boss && e.type === 'DARK_GOLEM'),
                 play: () => 'golem',
             });
             audioManager.registerMusicHook({
@@ -139,16 +140,16 @@ const RISE_OF_THE_ROCK = {
         };
 
         // Earth Hero — story & progression
-        addDLCAch('rock_story',        'Earthshaker',    'Complete Story Mode with the Earth Hero.',                       1,    'story_earth',         'health', 0.05, '+5% HP');
-        addDLCAch('rock_prestige_5',   'Living Mountain', 'Reach Prestige 5 with the Earth Hero.',                        5,    'earth_prestige',      'damage', 0.05, '+5% Dmg');
+        addDLCAch('rock_story', 'Earthshaker', 'Complete Story Mode with the Earth Hero.', 1, 'story_earth', 'health', 0.05, '+5% HP');
+        addDLCAch('rock_prestige_5', 'Living Mountain', 'Reach Prestige 5 with the Earth Hero.', 5, 'earth_prestige', 'damage', 0.05, '+5% Dmg');
 
         // Earth Hero — unique mechanics
-        addDLCAch('rock_golem_summons','Colossus',       'Summon the Obsidian Golem 20 times across all runs.',           20,   'earth_golem_summons', 'damage', 0.05, '+5% Dmg');
-        addDLCAch('rock_wave_25',      'Stone Wall',     'Reach Wave 25 in the Rock Biome.',                              25,   'rock_max_wave',       'health', 0.05, '+5% HP');
+        addDLCAch('rock_golem_summons', 'Colossus', 'Summon the Obsidian Golem 20 times across all runs.', 20, 'earth_golem_summons', 'damage', 0.05, '+5% Dmg');
+        addDLCAch('rock_wave_25', 'Stone Wall', 'Reach Wave 25 in the Rock Biome.', 25, 'rock_max_wave', 'health', 0.05, '+5% HP');
 
         // Earth Hero — enemy encounters
-        addDLCAch('rock_golem_kills',  'Golem Breaker',  'Kill 500 Golems.',                                              500,  'kill_GOLEM',          'damage', 0.05, '+5% Dmg');
-        addDLCAch('rock_burrower_kills','Exterminator',  'Kill 500 Burrowers.',                                           500,  'kill_BURROWER',       'speed',  0.05, '+5% Speed');
+        addDLCAch('rock_golem_kills', 'Golem Breaker', 'Kill 500 Golems.', 500, 'kill_GOLEM', 'damage', 0.05, '+5% Dmg');
+        addDLCAch('rock_burrower_kills', 'Exterminator', 'Kill 500 Burrowers.', 500, 'kill_BURROWER', 'speed', 0.05, '+5% Speed');
     },
 
     injectHero: function () {
@@ -617,29 +618,29 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
     window._DLC_BOSS_REGISTRY['DARK_GOLEM'] = {
 
         init(boss) {
-            boss.name            = 'Dark Golem';
-            boss.color           = '#263238';
-            boss.radius          = 88;
-            boss.maxHp          *= 2.5;
-            boss.hp              = boss.maxHp;
-            boss.damage         *= 1.5;
-            boss.speed          *= 0.45;
+            boss.name = 'Dark Golem';
+            boss.color = '#263238';
+            boss.radius = 88;
+            boss.maxHp *= 2.5;
+            boss.hp = boss.maxHp;
+            boss.damage *= 1.5;
+            boss.speed *= 0.45;
             boss.knockbackResist = 0.95;
-            boss.phase           = 1;
+            boss.phase = 1;
 
-            boss._slamTimer    = 90;
+            boss._slamTimer = 90;
             boss._boulderTimer = 200;
-            boss._spikeTimer   = 300;
-            boss._lavaTimer    = 240;
-            boss._chargeTimer  = 300;
-            boss._charging     = false;
-            boss._chargeVelX   = 0;
-            boss._chargeVelY   = 0;
-            boss._chargeDur    = 0;
+            boss._spikeTimer = 300;
+            boss._lavaTimer = 240;
+            boss._chargeTimer = 300;
+            boss._charging = false;
+            boss._chargeVelX = 0;
+            boss._chargeVelY = 0;
+            boss._chargeDur = 0;
         },
 
         update(boss, player, arena) {
-            const tgt  = (typeof getCoopTarget === 'function') ? getCoopTarget(boss.x, boss.y) : player;
+            const tgt = (typeof getCoopTarget === 'function') ? getCoopTarget(boss.x, boss.y) : player;
             const dist = Math.hypot(tgt.x - boss.x, tgt.y - boss.y);
 
             // Phase transitions
@@ -663,11 +664,11 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
                 // Spawn 2 obsidian mini-golems
                 if (typeof enemies !== 'undefined') {
                     for (let i = 0; i < 2; i++) {
-                        const a    = (Math.PI / 2) + i * Math.PI;
+                        const a = (Math.PI / 2) + i * Math.PI;
                         const mini = new Enemy(false, 'BASIC');
                         mini.x = boss.x + Math.cos(a) * 130; mini.y = boss.y + Math.sin(a) * 130;
                         mini.radius = 30; mini.hp = boss.maxHp * 0.08; mini.maxHp = mini.hp;
-                        mini.speed  = 2.5; mini.color = '#546e7a'; mini.damage = boss.damage * 0.3;
+                        mini.speed = 2.5; mini.color = '#546e7a'; mini.damage = boss.damage * 0.3;
                         enemies.push(mini);
                     }
                 }
@@ -685,16 +686,16 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
                     tgt.vx = (tgt.vx || 0) + Math.cos(pa) * 40;
                     tgt.vy = (tgt.vy || 0) + Math.sin(pa) * 40;
                 }
-                boss.x = Math.max(boss.radius, Math.min(arena.width  - boss.radius, boss.x));
+                boss.x = Math.max(boss.radius, Math.min(arena.width - boss.radius, boss.x));
                 boss.y = Math.max(boss.radius, Math.min(arena.height - boss.radius, boss.y));
                 return;
             }
 
             // Slow march toward target
             const ang = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
-            const mx  = boss.x + Math.cos(ang) * boss.speed;
-            const my  = boss.y + Math.sin(ang) * boss.speed;
-            if (!arena.checkCollision(mx, my, boss.radius))          { boss.x = mx; boss.y = my; }
+            const mx = boss.x + Math.cos(ang) * boss.speed;
+            const my = boss.y + Math.sin(ang) * boss.speed;
+            if (!arena.checkCollision(mx, my, boss.radius)) { boss.x = mx; boss.y = my; }
             else if (!arena.checkCollision(mx, boss.y, boss.radius)) { boss.x = mx; }
             else if (!arena.checkCollision(boss.x, my, boss.radius)) { boss.y = my; }
 
@@ -724,24 +725,24 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
 
             // Charge attack (phase 3, every 5s)
             if (boss.phase === 3 && --boss._chargeTimer <= 0) {
-                boss._chargeTimer  = 300;
-                boss._charging     = true;
-                boss._chargeDur    = 32;
+                boss._chargeTimer = 300;
+                boss._charging = true;
+                boss._chargeDur = 32;
                 const ca = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
-                boss._chargeVelX   = Math.cos(ca) * boss.speed * 6;
-                boss._chargeVelY   = Math.sin(ca) * boss.speed * 6;
+                boss._chargeVelX = Math.cos(ca) * boss.speed * 6;
+                boss._chargeVelY = Math.sin(ca) * boss.speed * 6;
                 if (typeof audioManager !== 'undefined') audioManager.play('dark_golem_charge');
                 createExplosion(boss.x, boss.y, '#546e7a');
                 if (typeof showNotification === 'function') showNotification('GOLEM CHARGES!');
             }
 
-            boss.x = Math.max(boss.radius, Math.min(arena.width  - boss.radius, boss.x));
+            boss.x = Math.max(boss.radius, Math.min(arena.width - boss.radius, boss.x));
             boss.y = Math.max(boss.radius, Math.min(arena.height - boss.radius, boss.y));
         },
 
         _groundSlam(boss, tgt) {
             const count = boss.phase === 3 ? 18 : 10;
-            const col   = boss.phase >= 2 ? '#ff6600' : '#546e7a';
+            const col = boss.phase >= 2 ? '#ff6600' : '#546e7a';
             for (let i = 0; i < count; i++) {
                 const a = (Math.PI * 2 / count) * i;
                 projectiles.push(new Projectile(boss.x, boss.y,
@@ -760,7 +761,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
             const bx = boss.x, by = boss.y;
             for (let i = 0; i < count; i++) {
                 const spread = (i - Math.floor(count / 2)) * 0.28;
-                const a      = Math.atan2(tgt.y - boss.y, tgt.x - boss.x) + spread;
+                const a = Math.atan2(tgt.y - boss.y, tgt.x - boss.x) + spread;
                 setTimeout(() => {
                     if (typeof projectiles === 'undefined') return;
                     projectiles.push(new Projectile(bx, by,
@@ -802,9 +803,9 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
         },
 
         draw(ctx, boss) {
-            const t     = Date.now() / 1000;
+            const t = Date.now() / 1000;
             const pulse = 0.5 + 0.5 * Math.sin(frame * 0.06);
-            const r     = boss.radius;
+            const r = boss.radius;
 
             ctx.save();
             ctx.translate(boss.x, boss.y);
@@ -820,12 +821,12 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
             // Main obsidian body
             const glowCol = boss.phase === 3 ? '#6b0a00' : boss.phase === 2 ? '#3a1200' : '#1a2027';
             const rg = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.05, 0, 0, r);
-            rg.addColorStop(0,    '#546e7a');
+            rg.addColorStop(0, '#546e7a');
             rg.addColorStop(0.35, '#37474f');
             rg.addColorStop(0.72, '#263238');
-            rg.addColorStop(1,    glowCol);
+            rg.addColorStop(1, glowCol);
             ctx.shadowColor = boss.phase === 3 ? '#ff3300' : boss.phase === 2 ? '#ff6600' : '#263238';
-            ctx.shadowBlur  = boss.phase >= 2 ? 18 + 10 * pulse : 5;
+            ctx.shadowBlur = boss.phase >= 2 ? 18 + 10 * pulse : 5;
             ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
             ctx.fillStyle = rg; ctx.fill();
             ctx.shadowBlur = 0;
@@ -848,12 +849,12 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
             // Lava crack lines (phase 2+)
             if (boss.phase >= 2) {
                 ctx.strokeStyle = `rgba(255, ${boss.phase === 3 ? 60 : 130}, 0, ${boss.phase === 3 ? 0.92 : 0.65})`;
-                ctx.lineWidth   = boss.phase === 3 ? 3 : 2;
+                ctx.lineWidth = boss.phase === 3 ? 3 : 2;
                 ctx.shadowColor = '#ff6600'; ctx.shadowBlur = 8;
                 [
-                    [[-0.15, -0.62], [ 0.08,  0.06], [ 0.28,  0.52]],
-                    [[ 0.35, -0.44], [ 0.52,  0.18]],
-                    [[-0.45,  0.08], [-0.18,  0.58]],
+                    [[-0.15, -0.62], [0.08, 0.06], [0.28, 0.52]],
+                    [[0.35, -0.44], [0.52, 0.18]],
+                    [[-0.45, 0.08], [-0.18, 0.58]],
                 ].forEach(pts => {
                     ctx.beginPath(); ctx.moveTo(pts[0][0] * r, pts[0][1] * r);
                     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] * r, pts[i][1] * r);
@@ -865,7 +866,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
             // Glowing eyes
             const eyeC = boss.phase === 3 ? '#ff2200' : boss.phase === 2 ? '#ff8800' : '#aed6f1';
             ctx.shadowColor = eyeC; ctx.shadowBlur = 14;
-            ctx.fillStyle   = eyeC;
+            ctx.fillStyle = eyeC;
             const ex = r * 0.3, ey = r * 0.15;
             ctx.save(); ctx.translate(-ex, -ey); ctx.rotate(0.3);
             ctx.beginPath(); ctx.ellipse(0, 0, r * 0.12, r * 0.055, 0, 0, Math.PI * 2); ctx.fill();
@@ -880,7 +881,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
                 ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 2;
                 ctx.shadowColor = '#ff6600'; ctx.shadowBlur = 6;
                 for (let i = 0; i < 4; i++) {
-                    const sa  = Math.random() * Math.PI * 2;
+                    const sa = Math.random() * Math.PI * 2;
                     const len = 10 + Math.random() * 18;
                     ctx.beginPath();
                     ctx.moveTo(Math.cos(sa) * r, Math.sin(sa) * r);

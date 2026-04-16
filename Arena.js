@@ -92,28 +92,33 @@ class Arena {
         // Scale positions relative to map size
         const w = this.width;
         const h = this.height;
+        // Seeded per-position: ~60% of obstacles get biome-themed skin, rest stay stone
+        const themedObstacle = (ox, oy, ow, oh) => {
+            const themed = (Math.sin(ox * 0.0413 + oy * 0.0271) * 0.5 + 0.5) > 0.4;
+            return new Obstacle(ox, oy, ow, oh, themed ? biomeType : null);
+        };
 
         if (layout === 0) { // 4 Corners
-            this.obstacles.push(new Obstacle(w * 0.1, h * 0.1, 200, 200));
-            this.obstacles.push(new Obstacle(w * 0.9 - 200, h * 0.1, 200, 200));
-            this.obstacles.push(new Obstacle(w * 0.1, h * 0.9 - 200, 200, 200));
-            this.obstacles.push(new Obstacle(w * 0.9 - 200, h * 0.9 - 200, 200, 200));
+            this.obstacles.push(themedObstacle(w * 0.1, h * 0.1, 200, 200));
+            this.obstacles.push(themedObstacle(w * 0.9 - 200, h * 0.1, 200, 200));
+            this.obstacles.push(themedObstacle(w * 0.1, h * 0.9 - 200, 200, 200));
+            this.obstacles.push(themedObstacle(w * 0.9 - 200, h * 0.9 - 200, 200, 200));
         } else if (layout === 1) { // Horizontal Bars
-            this.obstacles.push(new Obstacle(cx - 600, cy - 100, 200, 200));
-            this.obstacles.push(new Obstacle(cx + 400, cy - 100, 200, 200));
+            this.obstacles.push(themedObstacle(cx - 600, cy - 100, 200, 200));
+            this.obstacles.push(themedObstacle(cx + 400, cy - 100, 200, 200));
         } else if (layout === 2) { // Vertical Walls
-            this.obstacles.push(new Obstacle(w * 0.3, h * 0.1, 100, h * 0.3));
-            this.obstacles.push(new Obstacle(w * 0.3, h * 0.6, 100, h * 0.3));
-            this.obstacles.push(new Obstacle(w * 0.7, h * 0.1, 100, h * 0.3));
-            this.obstacles.push(new Obstacle(w * 0.7, h * 0.6, 100, h * 0.3));
+            this.obstacles.push(themedObstacle(w * 0.3, h * 0.1, 100, h * 0.3));
+            this.obstacles.push(themedObstacle(w * 0.3, h * 0.6, 100, h * 0.3));
+            this.obstacles.push(themedObstacle(w * 0.7, h * 0.1, 100, h * 0.3));
+            this.obstacles.push(themedObstacle(w * 0.7, h * 0.6, 100, h * 0.3));
         } else if (layout === 3) { // Central Block
-            this.obstacles.push(new Obstacle(cx - 150, cy - 150, 300, 300));
+            this.obstacles.push(themedObstacle(cx - 150, cy - 150, 300, 300));
         } else if (layout === 4) { // Scattered
             for (let i = 0; i < 15; i++) {
                 const x = Math.random() * (w - 200) + 100;
                 const y = Math.random() * (h - 200) + 100;
                 if (Math.hypot(x - cx, y - cy) > 400) { // Keep center clear
-                    this.obstacles.push(new Obstacle(x, y, 100, 100));
+                    this.obstacles.push(themedObstacle(x, y, 100, 100));
                 }
             }
         } else if (layout === 5) { // Maze-like
@@ -121,7 +126,7 @@ class Arena {
             for (let x = 100; x < w - 100; x += cellSize) {
                 for (let y = 100; y < h - 100; y += cellSize) {
                     if (Math.random() < 0.3 && Math.hypot(x - cx, y - cy) > 300) {
-                        this.obstacles.push(new Obstacle(x, y, 100, 100));
+                        this.obstacles.push(themedObstacle(x, y, 100, 100));
                     }
                 }
             }
@@ -132,7 +137,7 @@ class Arena {
                 const angle = (Math.PI * 2 / count) * i;
                 const x = cx + Math.cos(angle) * radius;
                 const y = cy + Math.sin(angle) * radius;
-                this.obstacles.push(new Obstacle(x - 50, y - 50, 100, 100));
+                this.obstacles.push(themedObstacle(x - 50, y - 50, 100, 100));
             }
         } else if (layout === 7) { // Checkerboard
             const size = 300;
@@ -141,7 +146,7 @@ class Arena {
                     if ((Math.floor(x / size) + Math.floor(y / size)) % 2 === 0) {
                         if (Math.hypot(x + size / 2 - cx, y + size / 2 - cy) > 400) {
                             // 50% chance for obstacle, 50% for trap (handled later)
-                            if (Math.random() < 0.5) this.obstacles.push(new Obstacle(x + 50, y + 50, 200, 200));
+                            if (Math.random() < 0.5) this.obstacles.push(themedObstacle(x + 50, y + 50, 200, 200));
                         }
                     }
                 }
@@ -149,17 +154,17 @@ class Arena {
         } else if (layout === 'VERSUS_1V1') {
             // Symmetrical 1v1 Layout
             // Central cover (small)
-            this.obstacles.push(new Obstacle(cx - 50, cy - 150, 100, 300));
+            this.obstacles.push(themedObstacle(cx - 50, cy - 150, 100, 300));
 
             // Flanking pillars
-            this.obstacles.push(new Obstacle(cx - 600, cy - 400, 150, 150));
-            this.obstacles.push(new Obstacle(cx + 450, cy - 400, 150, 150));
-            this.obstacles.push(new Obstacle(cx - 600, cy + 250, 150, 150));
-            this.obstacles.push(new Obstacle(cx + 450, cy + 250, 150, 150));
+            this.obstacles.push(themedObstacle(cx - 600, cy - 400, 150, 150));
+            this.obstacles.push(themedObstacle(cx + 450, cy - 400, 150, 150));
+            this.obstacles.push(themedObstacle(cx - 600, cy + 250, 150, 150));
+            this.obstacles.push(themedObstacle(cx + 450, cy + 250, 150, 150));
 
             // Outer barriers
-            this.obstacles.push(new Obstacle(cx - 1200, cy - 1000, 200, 2000)); // Left wall segment
-            this.obstacles.push(new Obstacle(cx + 1000, cy - 1000, 200, 2000)); // Right wall segment
+            this.obstacles.push(themedObstacle(cx - 1200, cy - 1000, 200, 2000)); // Left wall segment
+            this.obstacles.push(themedObstacle(cx + 1000, cy - 1000, 200, 2000)); // Right wall segment
         }
 
         // Ensure spawn area is clear
@@ -522,8 +527,9 @@ class BiomeZone {
 }
 
 class Obstacle {
-    constructor(x, y, w, h) {
+    constructor(x, y, w, h, biomeType = null) {
         this.x = x; this.y = y; this.w = w; this.h = h;
+        this.biomeType = biomeType;
         this._buildDecor();
     }
 
@@ -574,6 +580,12 @@ class Obstacle {
     }
 
     draw(ctx) {
+        // Delegate to biome-specific renderer if available
+        if (this.biomeType && window.BIOME_LOGIC?.[this.biomeType]?.drawObstacle) {
+            window.BIOME_LOGIC[this.biomeType].drawObstacle(ctx, this);
+            return;
+        }
+
         const { x, y, w, h } = this;
         const bev = 6;
 

@@ -488,6 +488,7 @@ class EarthHero {
         if (player.meleeCooldown > 0) player.meleeCooldown--;
         if (player.rangeCooldown > 0) player.rangeCooldown--;
         if (player.specialCooldown > 0) player.specialCooldown--;
+        if (player._rollImpactCooldown > 0) player._rollImpactCooldown--;
 
         // Clamp to Arena
         if (typeof arena !== 'undefined') {
@@ -557,6 +558,12 @@ class EarthHero {
 
                         // Apply Damage
                         e.hp -= damage;
+
+                        // Impact SFX (debounced so it doesn't fire every frame)
+                        if (typeof audioManager !== 'undefined' && !(player._rollImpactCooldown > 0)) {
+                            audioManager.play('attack_earth_roll_impact');
+                            player._rollImpactCooldown = 30; // ~0.5s at 60fps
+                        }
 
                         // Nature's Embrace (c14)
                         if (has('c14')) {

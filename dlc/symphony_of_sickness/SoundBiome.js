@@ -263,6 +263,74 @@ class SoundBiome {
 
         ctx.restore();
     }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: very dark navy
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#020816');
+        grd.addColorStop(0.5, '#010510');
+        grd.addColorStop(1,   '#00030a');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Equaliser bars — speaker face
+        const numBars = 5 + (r(seed + 1) * 5 | 0);
+        const barW = (w * 0.8) / numBars;
+        const barBaseY = y + h - bev - 4;
+        for (let i = 0; i < numBars; i++) {
+            const s = seed + i * 0.61;
+            const barH = (h * 0.25) + r(s) * (h * 0.45);
+            const barX = x + w * 0.1 + i * barW;
+            const hue  = 185 + (r(s + 0.1) * 36 | 0);
+            ctx.fillStyle = `hsla(${hue},100%,60%,0.55)`;
+            ctx.fillRect(barX, barBaseY - barH, barW * 0.7, barH);
+            // Bar highlight
+            ctx.fillStyle = `hsla(${hue},100%,80%,0.25)`;
+            ctx.fillRect(barX, barBaseY - barH, barW * 0.2, barH);
+        }
+
+        // Waveform sine line across mid
+        ctx.strokeStyle = 'rgba(0,229,255,0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        const midY = y + h * 0.42;
+        ctx.beginPath();
+        ctx.moveTo(x + 4, midY);
+        for (let px = 4; px < w - 4; px += 3) {
+            const wave = Math.sin((px / w) * Math.PI * 4 + seed * 8) * (h * 0.06);
+            ctx.lineTo(x + px, midY + wave);
+        }
+        ctx.stroke();
+
+        // Speaker grille dots (corners)
+        const dotPositions = [[0.08, 0.12],[0.92, 0.12],[0.08, 0.88],[0.92, 0.88]];
+        dotPositions.forEach(([dx, dy]) => {
+            ctx.fillStyle = 'rgba(0,229,255,0.30)';
+            ctx.beginPath(); ctx.arc(x + dx * w, y + dy * h, 3, 0, Math.PI * 2); ctx.fill();
+        });
+
+        ctx.restore();
+
+        // Bevel: subtle cyan tint
+        ctx.fillStyle = 'rgba(0,180,220,0.18)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.60)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#000308';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+    }
 }
 
 // Register

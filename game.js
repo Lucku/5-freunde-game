@@ -1625,6 +1625,10 @@ function togglePause() {
     document.getElementById('pause-screen').style.display = gamePaused ? 'flex' : 'none';
     setUIState(gamePaused ? 'PAUSE' : 'GAME');
     _syncSoundBiomeMusic();
+    // Stop hero-specific loops on pause; EarthHero.update() will restart them on resume.
+    if (gamePaused && typeof audioManager !== 'undefined') {
+        audioManager.stopLoop('attack_earth_roll');
+    }
 }
 
 // Pause or resume battle_sound_sync to keep beat visualizations in sync with the music

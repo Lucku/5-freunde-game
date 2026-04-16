@@ -355,6 +355,91 @@ class CloudBiome {
             ctx.restore();
         }
     }
+
+    static drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: dark storm-steel gradient
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#1c2a3a');
+        grd.addColorStop(0.4, '#141e2a');
+        grd.addColorStop(1,   '#0c1420');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Hexagonal tile face pattern (matches floor)
+        const hexR = 14;
+        const hexW = hexR * Math.sqrt(3);
+        const hexH = hexR * 2;
+        for (let row = -1; row <= Math.ceil(h / (hexH * 0.75)) + 1; row++) {
+            for (let col = -1; col <= Math.ceil(w / hexW) + 1; col++) {
+                const hx = x + col * hexW + (row % 2 === 0 ? 0 : hexW * 0.5);
+                const hy = y + row * hexH * 0.75;
+                const hue = 210 + (r(seed + row * 7 + col * 3) * 20 | 0);
+                ctx.strokeStyle = `hsla(${hue},30%,25%,0.55)`;
+                ctx.lineWidth = 0.8;
+                ctx.beginPath();
+                for (let j = 0; j < 6; j++) {
+                    const a = (j / 6) * Math.PI * 2 - Math.PI / 6;
+                    j === 0 ? ctx.moveTo(hx + Math.cos(a) * hexR, hy + Math.sin(a) * hexR)
+                            : ctx.lineTo(hx + Math.cos(a) * hexR, hy + Math.sin(a) * hexR);
+                }
+                ctx.closePath(); ctx.stroke();
+            }
+        }
+
+        // Lightning bolt mark on face
+        const lx = x + (0.25 + r(seed + 1) * 0.5) * w;
+        const ly = y + (0.15 + r(seed + 2) * 0.2) * h;
+        const lh = Math.min(h * 0.5, 40) * (0.6 + r(seed + 3) * 0.4);
+        ctx.fillStyle = `rgba(180,210,255,${0.25 + r(seed + 4) * 0.15})`;
+        ctx.beginPath();
+        ctx.moveTo(lx + lh * 0.25, ly);
+        ctx.lineTo(lx - lh * 0.10, ly + lh * 0.45);
+        ctx.lineTo(lx + lh * 0.08, ly + lh * 0.45);
+        ctx.lineTo(lx - lh * 0.25, ly + lh);
+        ctx.lineTo(lx + lh * 0.10, ly + lh * 0.55);
+        ctx.lineTo(lx - lh * 0.08, ly + lh * 0.55);
+        ctx.closePath(); ctx.fill();
+
+        // Electric spark segments
+        ctx.lineCap = 'round';
+        const numSparks = 2 + (r(seed + 8) * 3 | 0);
+        for (let i = 0; i < numSparks; i++) {
+            const s = seed + i * 1.47;
+            const sx = x + r(s)       * w;
+            const sy = y + r(s + 0.1) * h;
+            const sl = 6 + r(s + 0.2) * 14;
+            const sa = r(s + 0.3) * Math.PI * 2;
+            ctx.strokeStyle = `rgba(150,200,255,${0.30 + r(s + 0.4) * 0.30})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(sx + Math.cos(sa) * sl * 0.5 + (r(s + 0.5) - 0.5) * 6, sy + Math.sin(sa) * sl * 0.5);
+            ctx.lineTo(sx + Math.cos(sa) * sl,                                  sy + Math.sin(sa) * sl);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Bevel: blue-grey highlight
+        ctx.fillStyle = 'rgba(100,150,200,0.20)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#080e18';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+    }
 }
 
 window.CloudBiome = CloudBiome;

@@ -143,6 +143,72 @@ class FireBiome {
         ctx.globalAlpha = 1;
         ctx.restore();
     }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+        const t = Date.now() * 0.001;
+
+        // Base: near-black obsidian gradient
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#221008');
+        grd.addColorStop(0.4, '#1a0800');
+        grd.addColorStop(1,   '#0d0400');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Angular facet shards
+        for (let i = 0; i < 3; i++) {
+            const fx = x + r(i * 2)       * w;
+            const fy = y + r(i * 2 + 1)   * h;
+            ctx.fillStyle = `rgba(80,20,5,${0.25 + r(i * 3) * 0.2})`;
+            ctx.beginPath();
+            ctx.moveTo(fx, fy);
+            ctx.lineTo(fx + (r(i + 7) - 0.5) * w * 0.5, fy + (r(i + 8) - 0.5) * h * 0.3);
+            ctx.lineTo(fx + (r(i + 9) - 0.5) * w * 0.3, fy + (r(i + 10) - 0.5) * h * 0.5);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Lava crack network — pulsing orange lines
+        const pulse = 0.6 + 0.4 * Math.sin(t * 1.8 + seed * 3.2);
+        ctx.lineCap = 'round';
+        const numCracks = 2 + (r(seed + 1) * 2 | 0);
+        for (let i = 0; i < numCracks; i++) {
+            const s = seed + i * 1.7;
+            const ox = r(s)       * w;
+            const oy = r(s + 0.1) * h;
+            const ex = r(s + 0.2) * w;
+            const ey = r(s + 0.3) * h;
+            const mx = (ox + ex) * 0.5 + (r(s + 0.4) - 0.5) * w * 0.2;
+            const my = (oy + ey) * 0.5 + (r(s + 0.5) - 0.5) * h * 0.2;
+            ctx.strokeStyle = `rgba(220,60,0,${0.15 * pulse})`;
+            ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(x + ox, y + oy); ctx.quadraticCurveTo(x + mx, y + my, x + ex, y + ey); ctx.stroke();
+            ctx.strokeStyle = `rgba(255,${100 + (r(s + 0.6) * 80 | 0)},0,${0.7 * pulse})`;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.moveTo(x + ox, y + oy); ctx.quadraticCurveTo(x + mx, y + my, x + ex, y + ey); ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Bevel: dark red tint on top/left, deep shadow on bottom/right
+        ctx.fillStyle = 'rgba(150,30,5,0.30)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#0d0400';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+    }
 }
 
 // ─────────────────────────────────────────────
@@ -243,6 +309,74 @@ class WaterBiome {
         });
         ctx.globalAlpha = 1;
         ctx.restore();
+    }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: muted deep teal
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#1d4a5e');
+        grd.addColorStop(0.45,'#154050');
+        grd.addColorStop(1,   '#0d2e3b');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Wet sheen: diagonal highlight
+        const sheen = ctx.createLinearGradient(x, y, x + w * 0.4, y + h * 0.3);
+        sheen.addColorStop(0, 'rgba(255,255,255,0.10)');
+        sheen.addColorStop(1, 'rgba(255,255,255,0.00)');
+        ctx.fillStyle = sheen;
+        ctx.fillRect(x, y, w, h);
+
+        // Barnacle dots
+        const numBarnacles = 4 + (r(seed + 3) * 6 | 0);
+        for (let i = 0; i < numBarnacles; i++) {
+            const s = seed + i * 0.83;
+            const bx = x + r(s)       * w;
+            const by = y + r(s + 0.1) * h;
+            const br = 2 + r(s + 0.2) * 4;
+            ctx.fillStyle = `rgba(180,165,130,${0.5 + r(s + 0.3) * 0.3})`;
+            ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(100,85,60,0.4)';
+            ctx.beginPath(); ctx.arc(bx, by, br * 0.45, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Coral spurs along top edge
+        const numSpurs = 3 + (r(seed + 11) * 4 | 0);
+        ctx.lineCap = 'round';
+        for (let i = 0; i < numSpurs; i++) {
+            const s = seed + i * 1.23;
+            const sx = x + (0.1 + r(s) * 0.8) * w;
+            const spurH = 8 + r(s + 0.1) * Math.min(h * 0.25, 30);
+            const ang   = -Math.PI * 0.5 + (r(s + 0.2) - 0.5) * 0.8;
+            ctx.strokeStyle = `rgba(232,${120 + (r(s + 0.3) * 50 | 0)},155,0.85)`;
+            ctx.lineWidth = 2 + r(s + 0.4) * 2;
+            ctx.beginPath();
+            ctx.moveTo(sx, y + 4);
+            ctx.lineTo(sx + Math.cos(ang) * spurH, y + 4 - Math.abs(Math.sin(ang) * spurH));
+            ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Bevel: blue-tinted
+        ctx.fillStyle = 'rgba(50,130,180,0.20)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#091e28';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
     }
 }
 
@@ -356,6 +490,70 @@ class IceBiome {
         });
         ctx.globalAlpha = 1;
         ctx.restore();
+    }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: icy blue-white gradient
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#c8dde6');
+        grd.addColorStop(0.4, '#a0c4d4');
+        grd.addColorStop(1,   '#7aaabb');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Soft inner glow
+        const glow = ctx.createRadialGradient(x + w * 0.5, y + h * 0.4, 0, x + w * 0.5, y + h * 0.4, Math.max(w, h) * 0.5);
+        glow.addColorStop(0, 'rgba(220,240,255,0.22)');
+        glow.addColorStop(1, 'rgba(220,240,255,0.00)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(x, y, w, h);
+
+        // Facet lines — crystal planes
+        ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+        ctx.lineWidth = 1;
+        ctx.lineCap = 'butt';
+        const numFacets = 3 + (r(seed + 5) * 3 | 0);
+        for (let i = 0; i < numFacets; i++) {
+            const s = seed + i * 1.11;
+            ctx.beginPath();
+            ctx.moveTo(x + r(s) * w,       y + r(s + 0.1) * h);
+            ctx.lineTo(x + r(s + 0.2) * w, y + r(s + 0.3) * h);
+            ctx.stroke();
+        }
+
+        // Snow/ice cap on top edge
+        ctx.fillStyle = 'rgba(235,248,255,0.70)';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        const capPts = 6 + (r(seed + 20) * 4 | 0);
+        for (let i = 0; i <= capPts; i++) {
+            ctx.lineTo(x + (i / capPts) * w, y + r(seed + 20 + i) * Math.min(h * 0.18, 20));
+        }
+        ctx.lineTo(x + w, y);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+
+        // Bevel: bright icy top/left, deep blue shadow
+        ctx.fillStyle = 'rgba(255,255,255,0.38)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(30,80,120,0.45)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#4a7a90';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
     }
 }
 
@@ -487,6 +685,87 @@ class PlantBiome {
         });
         ctx.globalAlpha = 1;
         ctx.restore();
+    }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: dark bark gradient
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#4a2810');
+        grd.addColorStop(0.4, '#3a1e0a');
+        grd.addColorStop(1,   '#261206');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Vertical bark lines
+        ctx.lineCap = 'round';
+        const numBark = 4 + (r(seed + 1) * 5 | 0);
+        for (let i = 0; i < numBark; i++) {
+            const s = seed + i * 0.97;
+            const bx = x + r(s) * w;
+            ctx.strokeStyle = `rgba(0,0,0,${0.25 + r(s + 0.1) * 0.2})`;
+            ctx.lineWidth = 1 + r(s + 0.2) * 2;
+            ctx.beginPath();
+            ctx.moveTo(bx + (r(s + 0.3) - 0.5) * 6, y + 2);
+            ctx.lineTo(bx + (r(s + 0.4) - 0.5) * 6, y + h - 2);
+            ctx.stroke();
+            ctx.strokeStyle = `rgba(255,255,255,${0.05 + r(s + 0.5) * 0.05})`;
+            ctx.lineWidth = 0.7;
+            ctx.beginPath();
+            ctx.moveTo(bx + 1 + (r(s + 0.3) - 0.5) * 6, y + 2);
+            ctx.lineTo(bx + 1 + (r(s + 0.4) - 0.5) * 6, y + h - 2);
+            ctx.stroke();
+        }
+
+        // Knot holes
+        const numKnots = 1 + (r(seed + 7) * 2 | 0);
+        for (let i = 0; i < numKnots; i++) {
+            const s = seed + i * 2.31;
+            const kx = x + 0.15 * w + r(s)       * w * 0.7;
+            const ky = y + 0.15 * h + r(s + 0.1) * h * 0.7;
+            const kw = 6 + r(s + 0.2) * 10;
+            const kh = kw * (0.5 + r(s + 0.3) * 0.5);
+            ctx.fillStyle = 'rgba(0,0,0,0.45)';
+            ctx.beginPath(); ctx.ellipse(kx, ky, kw, kh, r(s + 0.4) * Math.PI, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(80,40,10,0.3)';
+            ctx.beginPath(); ctx.ellipse(kx, ky, kw * 0.55, kh * 0.55, r(s + 0.4) * Math.PI, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Moss patches on top edge
+        const mossCoverage = 0.3 + r(seed + 15) * 0.5;
+        const numMoss = 3 + (r(seed + 16) * 4 | 0);
+        for (let i = 0; i < numMoss; i++) {
+            const s = seed + i * 1.59;
+            if (r(s + 0.5) > mossCoverage) continue;
+            const mx = x + r(s) * w;
+            const mw = 15 + r(s + 0.1) * (w * 0.25);
+            const mh = 8  + r(s + 0.2) * 14;
+            ctx.fillStyle = `rgba(${30 + (r(s + 0.3) * 30 | 0)},${90 + (r(s + 0.4) * 40 | 0)},${20 + (r(s + 0.5) * 20 | 0)},0.80)`;
+            ctx.beginPath();
+            ctx.ellipse(mx, y + mh * 0.5, mw * 0.5, mh * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+
+        // Bevel: warm brown tint
+        ctx.fillStyle = 'rgba(100,55,15,0.30)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.50)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#1a0a02';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
     }
 }
 
@@ -627,6 +906,91 @@ class MetalBiome {
         });
         ctx.globalAlpha = 1;
         ctx.restore();
+    }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: dark steel gradient
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#363636');
+        grd.addColorStop(0.4, '#2a2a2a');
+        grd.addColorStop(1,   '#1a1a1a');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Horizontal pipe bands
+        const pipeSpacing = 28 + r(seed + 1) * 12;
+        for (let py = pipeSpacing * 0.5; py < h - 6; py += pipeSpacing) {
+            const pipeY = y + py;
+            const pipeH = 8 + r(seed + py) * 6;
+            const pipGrd = ctx.createLinearGradient(x, pipeY, x, pipeY + pipeH);
+            pipGrd.addColorStop(0,    '#555');
+            pipGrd.addColorStop(0.35, '#444');
+            pipGrd.addColorStop(0.65, '#333');
+            pipGrd.addColorStop(1,    '#222');
+            ctx.fillStyle = pipGrd;
+            ctx.fillRect(x, pipeY, w, pipeH);
+            ctx.fillStyle = 'rgba(255,255,255,0.07)';
+            ctx.fillRect(x, pipeY, w, pipeH * 0.3);
+            // Rivets
+            const rivetCount = 2 + (w / 80 | 0);
+            for (let ri = 0; ri < rivetCount; ri++) {
+                const rx = x + (ri + 0.5) * (w / rivetCount);
+                ctx.fillStyle = '#606060';
+                ctx.beginPath(); ctx.arc(rx, pipeY + pipeH * 0.5, 3.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,0.20)';
+                ctx.beginPath(); ctx.arc(rx - 1, pipeY + pipeH * 0.4, 1.2, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        // Hazard stripe band at bottom
+        const stripeH = Math.min(h * 0.18, 18);
+        const stripeY = y + h - stripeH - bev;
+        const stripeW = 16;
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x, stripeY, w, stripeH); ctx.clip();
+        for (let sx = x - stripeH; sx < x + w + stripeH; sx += stripeW * 2) {
+            ctx.fillStyle = '#f0c000';
+            ctx.beginPath();
+            ctx.moveTo(sx, stripeY);
+            ctx.lineTo(sx + stripeW, stripeY);
+            ctx.lineTo(sx + stripeW - stripeH, stripeY + stripeH);
+            ctx.lineTo(sx - stripeH, stripeY + stripeH);
+            ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+
+        // Rust patches
+        const numRust = 2 + (r(seed + 9) * 3 | 0);
+        for (let i = 0; i < numRust; i++) {
+            const s = seed + i * 1.77;
+            const rx = x + r(s)       * w;
+            const ry = y + r(s + 0.1) * h;
+            const rr = 8 + r(s + 0.2) * 16;
+            ctx.fillStyle = `rgba(140,${50 + (r(s + 0.3) * 30 | 0)},10,${0.20 + r(s + 0.4) * 0.15})`;
+            ctx.beginPath(); ctx.arc(rx, ry, rr, 0, Math.PI * 2); ctx.fill();
+        }
+
+        ctx.restore();
+
+        // Bevel: metal highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.14)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.50)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
     }
 }
 
@@ -874,6 +1238,84 @@ class BlackBiome {
         ctx.fillRect(cam.x, cam.y, cam.width, cam.height);
 
         ctx.restore();
+    }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+        const t = Date.now() * 0.001;
+
+        // Base: near-void gradient
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#110020');
+        grd.addColorStop(0.5, '#0a0015');
+        grd.addColorStop(1,   '#050008');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        // Outer void aura (beneath everything else)
+        const pulse = 0.55 + 0.45 * Math.sin(t * 1.3 + seed * 2.8);
+        ctx.fillStyle = `rgba(80,0,150,${0.05 + 0.04 * pulse})`;
+        ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Void cracks — pulsing purple
+        ctx.lineCap = 'round';
+        const numCracks = 2 + (r(seed + 2) * 2 | 0);
+        for (let i = 0; i < numCracks; i++) {
+            const s = seed + i * 1.91;
+            const ox = r(s)       * w;
+            const oy = r(s + 0.1) * h;
+            const ex = r(s + 0.2) * w;
+            const ey = r(s + 0.3) * h;
+            const mx = (ox + ex) * 0.5 + (r(s + 0.4) - 0.5) * w * 0.25;
+            const my = (oy + ey) * 0.5 + (r(s + 0.5) - 0.5) * h * 0.25;
+            ctx.strokeStyle = `rgba(140,30,210,${0.18 * pulse})`;
+            ctx.lineWidth = 5;
+            ctx.beginPath(); ctx.moveTo(x + ox, y + oy); ctx.quadraticCurveTo(x + mx, y + my, x + ex, y + ey); ctx.stroke();
+            ctx.strokeStyle = `rgba(180,60,255,${0.65 * pulse})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(x + ox, y + oy); ctx.quadraticCurveTo(x + mx, y + my, x + ex, y + ey); ctx.stroke();
+        }
+
+        // Crystal shard growths on top edge
+        const numCrystals = 2 + (r(seed + 17) * 4 | 0);
+        for (let i = 0; i < numCrystals; i++) {
+            const s = seed + i * 1.43;
+            const cx2 = x + (0.1 + r(s) * 0.8) * w;
+            const ch  = 12 + r(s + 0.1) * Math.min(h * 0.3, 40);
+            const cw  = 4  + r(s + 0.2) * 8;
+            ctx.fillStyle = r(s + 0.3) > 0.5 ? '#9333ea' : '#6b21a8';
+            ctx.beginPath();
+            ctx.moveTo(cx2, y - ch * 0.1);
+            ctx.lineTo(cx2 - cw * 0.5, y + ch * 0.6);
+            ctx.lineTo(cx2 + cw * 0.5, y + ch * 0.6);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = 'rgba(200,140,255,0.25)';
+            ctx.beginPath();
+            ctx.moveTo(cx2, y - ch * 0.1);
+            ctx.lineTo(cx2 - cw * 0.15, y + ch * 0.4);
+            ctx.lineTo(cx2,              y + ch * 0.4);
+            ctx.closePath(); ctx.fill();
+        }
+
+        ctx.restore();
+
+        // Bevel: deep purple tint
+        ctx.fillStyle = 'rgba(100,20,180,0.22)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.60)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#08000f';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
     }
 }
 

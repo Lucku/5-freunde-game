@@ -242,6 +242,71 @@ class WindBiome {
         ctx.closePath();
         ctx.fill();
     }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: sky blue-grey gradient
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#8ac8e0');
+        grd.addColorStop(0.4, '#6aaac8');
+        grd.addColorStop(1,   '#4a8aaa');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Wind-carved horizontal striations
+        ctx.lineCap = 'round';
+        const numStriae = 4 + (r(seed + 1) * 5 | 0);
+        for (let i = 0; i < numStriae; i++) {
+            const s = seed + i * 1.07;
+            const sy = y + (0.1 + (i / numStriae) * 0.8 + (r(s) - 0.5) * 0.06) * h;
+            ctx.strokeStyle = `rgba(255,255,255,${0.12 + r(s + 0.1) * 0.12})`;
+            ctx.lineWidth = 0.5 + r(s + 0.2) * 1.5;
+            // Slightly wavy
+            ctx.beginPath();
+            ctx.moveTo(x + 3, sy);
+            for (let px = 3; px < w - 3; px += 12) {
+                ctx.lineTo(x + px + 6, sy + (r(s + px * 0.01) - 0.5) * 3);
+                ctx.lineTo(x + px + 12, sy + (r(s + px * 0.02) - 0.5) * 2);
+            }
+            ctx.stroke();
+        }
+
+        // Wispy cloud puffs along top edge
+        const numPuffs = 2 + (r(seed + 8) * 3 | 0);
+        for (let i = 0; i < numPuffs; i++) {
+            const s = seed + i * 1.53;
+            const px = x + (0.05 + r(s) * 0.85) * w;
+            const pw = 18 + r(s + 0.1) * (w * 0.2);
+            const ph = 8  + r(s + 0.2) * 10;
+            ctx.fillStyle = `rgba(255,255,255,${0.35 + r(s + 0.3) * 0.25})`;
+            ctx.beginPath();
+            ctx.arc(px,             y + ph * 0.6, ph * 0.5, 0, Math.PI * 2);
+            ctx.arc(px + pw * 0.3,  y + ph * 0.4, ph * 0.65, 0, Math.PI * 2);
+            ctx.arc(px + pw * 0.65, y + ph * 0.55, ph * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+
+        // Bevel: bright sky tint
+        ctx.fillStyle = 'rgba(200,235,255,0.32)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,40,80,0.40)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#2a6888';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+    }
 }
 
 // Instantiate and Register

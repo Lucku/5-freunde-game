@@ -97,6 +97,69 @@ class FracturedBiome {
         });
         ctx.globalAlpha = 1;
     }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: near-black with faint cyan tinge
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#010a0a');
+        grd.addColorStop(0.5, '#010606');
+        grd.addColorStop(1,   '#000303');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Glitch pixel blocks — seeded cyan/white rectangles
+        const numBlocks = 5 + (r(seed + 1) * 7 | 0);
+        for (let i = 0; i < numBlocks; i++) {
+            const s = seed + i * 0.79;
+            const bx = x + r(s)       * w;
+            const by = y + r(s + 0.1) * h;
+            const bw = 3 + r(s + 0.2) * 14;
+            const bh = 1 + r(s + 0.3) * 5;
+            const isBright = r(s + 0.4) > 0.55;
+            ctx.fillStyle = isBright
+                ? `rgba(255,255,255,${0.12 + r(s + 0.5) * 0.18})`
+                : `rgba(0,188,212,${0.15 + r(s + 0.5) * 0.25})`;
+            ctx.fillRect(bx, by, bw, bh);
+        }
+
+        // Scanline artifacts — thin horizontal cyan lines
+        const numLines = 3 + (r(seed + 9) * 4 | 0);
+        for (let i = 0; i < numLines; i++) {
+            const s = seed + i * 1.31;
+            const ly = y + r(s) * h;
+            ctx.fillStyle = `rgba(0,188,212,${0.08 + r(s + 0.1) * 0.10})`;
+            ctx.fillRect(x, ly, w, 1);
+        }
+
+        // Cyan edge glow strips
+        ctx.fillStyle = 'rgba(0,188,212,0.10)';
+        ctx.fillRect(x,         y, 2, h);
+        ctx.fillRect(x + w - 2, y, 2, h);
+        ctx.fillRect(x, y,         w, 2);
+        ctx.fillRect(x, y + h - 2, w, 2);
+
+        ctx.restore();
+
+        // Bevel: cyan tint
+        ctx.fillStyle = 'rgba(0,160,180,0.18)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.60)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#00bcd4';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x, y, w, h);
+    }
 }
 
 // Register

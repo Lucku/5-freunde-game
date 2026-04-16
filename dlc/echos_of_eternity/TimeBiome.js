@@ -521,6 +521,87 @@ class TimeBiome {
             ctx.restore();
         }
     }
+
+    static drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: deep indigo gradient
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#1e0a3c');
+        grd.addColorStop(0.5, '#160830');
+        grd.addColorStop(1,   '#0a0418');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Clock face fragment — circle + tick marks + frozen hands
+        const cr = Math.min(w, h) * 0.3;
+        const cx2 = x + (0.25 + r(seed + 1) * 0.5) * w;
+        const cy2 = y + (0.3  + r(seed + 2) * 0.4) * h;
+        ctx.strokeStyle = `rgba(${180 + (r(seed + 3) * 40 | 0)},${120 + (r(seed + 4) * 60 | 0)},255,0.30)`;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(cx2, cy2, cr, 0, Math.PI * 2); ctx.stroke();
+        // Tick marks
+        for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * Math.PI * 2;
+            const isMain = i % 3 === 0;
+            const len = isMain ? cr * 0.18 : cr * 0.10;
+            ctx.lineWidth = isMain ? 1.2 : 0.7;
+            ctx.beginPath();
+            ctx.moveTo(cx2 + Math.cos(a) * (cr - len), cy2 + Math.sin(a) * (cr - len));
+            ctx.lineTo(cx2 + Math.cos(a) * cr,          cy2 + Math.sin(a) * cr);
+            ctx.stroke();
+        }
+        // Frozen hands
+        const hAngle = r(seed + 5) * Math.PI * 2;
+        const mAngle = r(seed + 6) * Math.PI * 2;
+        ctx.strokeStyle = `rgba(167,139,250,0.55)`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx2, cy2); ctx.lineTo(cx2 + Math.cos(hAngle) * cr * 0.55, cy2 + Math.sin(hAngle) * cr * 0.55); ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx2, cy2); ctx.lineTo(cx2 + Math.cos(mAngle) * cr * 0.78, cy2 + Math.sin(mAngle) * cr * 0.78); ctx.stroke();
+
+        // Time cracks — branching gold/purple lines
+        ctx.lineCap = 'round';
+        const numCracks = 2 + (r(seed + 9) * 2 | 0);
+        for (let i = 0; i < numCracks; i++) {
+            const s = seed + i * 1.83;
+            const useGold = r(s + 0.7) > 0.5;
+            const ox = r(s)       * w;
+            const oy = r(s + 0.1) * h;
+            const ex = r(s + 0.2) * w;
+            const ey = r(s + 0.3) * h;
+            ctx.strokeStyle = useGold ? `rgba(212,170,50,0.45)` : `rgba(140,80,240,0.40)`;
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(x + ox, y + oy); ctx.lineTo(x + ex, y + ey); ctx.stroke();
+        }
+
+        // Sand mote specks at base
+        for (let i = 0; i < 8; i++) {
+            const s = seed + i * 0.71;
+            ctx.fillStyle = `rgba(${180 + (r(s) * 60 | 0)},${140 + (r(s + 0.1) * 40 | 0)},60,${0.3 + r(s + 0.2) * 0.3})`;
+            ctx.beginPath(); ctx.arc(x + r(s + 0.3) * w, y + h - 4 - r(s + 0.4) * 10, 1 + r(s + 0.5), 0, Math.PI * 2); ctx.fill();
+        }
+
+        ctx.restore();
+
+        // Bevel: purple-gold tint
+        ctx.fillStyle = 'rgba(120,60,220,0.25)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#0a0418';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+    }
 }
 
 window.TimeBiome = TimeBiome;

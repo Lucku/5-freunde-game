@@ -1,7 +1,4 @@
 # General
 
-- overhaul pick up sound effects
-- add sound effect for Earth hero enemy impact
 - add feedback function via button
 - bug: weather effect visuals persist if play again is selected
-- put more objects into the world (?)

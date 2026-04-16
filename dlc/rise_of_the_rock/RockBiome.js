@@ -356,6 +356,86 @@ class RockBiome {
             });
         }
     }
+
+    static drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: earthy brown-grey gradient
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#4e3a22');
+        grd.addColorStop(0.4, '#3c2c18');
+        grd.addColorStop(1,   '#261c0e');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Horizontal strata lines
+        const numStrata = 3 + (r(seed + 1) * 4 | 0);
+        for (let i = 0; i < numStrata; i++) {
+            const s = seed + i * 1.19;
+            const sy = y + (0.15 + (i / numStrata) * 0.7 + (r(s) - 0.5) * 0.08) * h;
+            const isDark = r(s + 0.1) > 0.5;
+            ctx.strokeStyle = isDark ? `rgba(0,0,0,${0.25 + r(s + 0.2) * 0.15})` : `rgba(255,255,255,${0.06 + r(s + 0.3) * 0.06})`;
+            ctx.lineWidth = 1 + r(s + 0.4) * 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x + 2, sy + (r(s + 0.5) - 0.5) * 4);
+            ctx.lineTo(x + w - 2, sy + (r(s + 0.6) - 0.5) * 4);
+            ctx.stroke();
+        }
+
+        // Embedded stone chunks (jagged polygons)
+        const numChunks = 2 + (r(seed + 7) * 3 | 0);
+        for (let i = 0; i < numChunks; i++) {
+            const s = seed + i * 2.07;
+            const px = x + (0.1 + r(s) * 0.8) * w;
+            const py = y + (0.1 + r(s + 0.1) * 0.8) * h;
+            const pr = 6 + r(s + 0.2) * 14;
+            ctx.fillStyle = `rgba(${80 + (r(s + 0.3) * 40 | 0)},${60 + (r(s + 0.4) * 30 | 0)},${40 + (r(s + 0.5) * 20 | 0)},0.40)`;
+            ctx.beginPath();
+            const sides = 5 + (r(s + 0.6) * 3 | 0);
+            for (let j = 0; j < sides; j++) {
+                const a = (j / sides) * Math.PI * 2;
+                const jitter = 0.7 + r(s + j * 0.3) * 0.6;
+                const method = j === 0 ? 'moveTo' : 'lineTo';
+                ctx[method](px + Math.cos(a) * pr * jitter, py + Math.sin(a) * pr * jitter);
+            }
+            ctx.closePath(); ctx.fill();
+        }
+
+        // Rock chip marks (small dark triangles)
+        const numChips = 3 + (r(seed + 13) * 4 | 0);
+        for (let i = 0; i < numChips; i++) {
+            const s = seed + i * 0.97;
+            const cx2 = x + r(s) * w;
+            const cy2 = y + r(s + 0.1) * h;
+            const cs  = 3 + r(s + 0.2) * 6;
+            ctx.fillStyle = `rgba(0,0,0,${0.25 + r(s + 0.3) * 0.2})`;
+            ctx.beginPath();
+            ctx.moveTo(cx2, cy2);
+            ctx.lineTo(cx2 + cs, cy2 + cs * 0.5);
+            ctx.lineTo(cx2 + cs * 0.3, cy2 + cs);
+            ctx.closePath(); ctx.fill();
+        }
+
+        ctx.restore();
+
+        // Bevel: warm stone tint
+        ctx.fillStyle = 'rgba(130,90,40,0.28)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.50)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#1a1008';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+    }
 }
 
 window.RockBiome = RockBiome;

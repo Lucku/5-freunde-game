@@ -588,6 +588,79 @@ class LoveBiome {
             ctx.restore();
         }
     }
+
+    static drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: deep rose → magenta gradient
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#5c1030');
+        grd.addColorStop(0.45,'#7a0a40');
+        grd.addColorStop(1,   '#3a0820');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Scattered heart symbols
+        const numHearts = 2 + (r(seed + 1) * 3 | 0);
+        for (let i = 0; i < numHearts; i++) {
+            const s = seed + i * 1.37;
+            const hx = x + (0.15 + r(s) * 0.7) * w;
+            const hy = y + (0.2  + r(s + 0.1) * 0.6) * h;
+            const hs = 6 + r(s + 0.2) * 10;
+            ctx.fillStyle = `rgba(255,${80 + (r(s + 0.3) * 80 | 0)},${120 + (r(s + 0.4) * 60 | 0)},${0.3 + r(s + 0.5) * 0.3})`;
+            ctx.beginPath();
+            ctx.moveTo(hx, hy + hs * 0.3);
+            ctx.bezierCurveTo(hx, hy - hs * 0.1, hx - hs * 0.6, hy - hs * 0.5, hx - hs * 0.5, hy - hs * 0.15);
+            ctx.arc(hx - hs * 0.25, hy - hs * 0.2, hs * 0.28, Math.PI * 1.1, Math.PI * 0, false);
+            ctx.arc(hx + hs * 0.25, hy - hs * 0.2, hs * 0.28, Math.PI, Math.PI * 1.9, false);
+            ctx.bezierCurveTo(hx + hs * 0.6, hy - hs * 0.5, hx, hy - hs * 0.1, hx, hy + hs * 0.3);
+            ctx.closePath(); ctx.fill();
+        }
+
+        // Rose petal blobs along top edge
+        const numPetals = 3 + (r(seed + 8) * 4 | 0);
+        for (let i = 0; i < numPetals; i++) {
+            const s = seed + i * 1.11;
+            const px = x + (0.05 + r(s) * 0.9) * w;
+            const pw = 10 + r(s + 0.1) * 16;
+            const ph = 7  + r(s + 0.2) * 10;
+            ctx.fillStyle = `rgba(255,${100 + (r(s + 0.3) * 60 | 0)},150,${0.45 + r(s + 0.4) * 0.3})`;
+            ctx.beginPath(); ctx.ellipse(px, y + ph * 0.5, pw * 0.5, ph * 0.5, r(s + 0.5) * 0.6, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Sparkle highlights (4-point stars)
+        const numSparkles = 2 + (r(seed + 15) * 3 | 0);
+        for (let i = 0; i < numSparkles; i++) {
+            const s = seed + i * 2.03;
+            const sx = x + r(s)       * w;
+            const sy = y + r(s + 0.1) * h;
+            const sl = 4 + r(s + 0.2) * 5;
+            ctx.strokeStyle = `rgba(255,220,240,${0.5 + r(s + 0.3) * 0.4})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(sx - sl, sy); ctx.lineTo(sx + sl, sy); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(sx, sy - sl); ctx.lineTo(sx, sy + sl); ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Bevel: warm pink tint
+        ctx.fillStyle = 'rgba(220,60,130,0.28)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.50)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#2a0415';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+    }
 }
 
 window.LoveBiome = LoveBiome;

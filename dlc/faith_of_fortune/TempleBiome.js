@@ -247,6 +247,75 @@ class TempleBiome {
             ctx.restore();
         });
     }
+
+    drawObstacle(ctx, obs) {
+        const { x, y, w, h } = obs;
+        const bev = 6;
+        const seed = obs.x * 0.0071 + obs.y * 0.0137;
+        const r = (i) => { const s = Math.sin(seed + i * 0.391) * 43758.5453; return s - Math.floor(s); };
+
+        // Base: warm aged stone with gold undertone
+        const grd = ctx.createLinearGradient(x, y, x + w, y + h);
+        grd.addColorStop(0,   '#4a3810');
+        grd.addColorStop(0.45,'#3a2c0c');
+        grd.addColorStop(1,   '#261c06');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x + 1, y + 1, w - 2, h - 2); ctx.clip();
+
+        // Arabesque: concentric circle rings (sacred geometry)
+        const numRings = 2 + (r(seed + 1) * 2 | 0);
+        for (let i = 0; i < numRings; i++) {
+            const s = seed + i * 1.29;
+            const cx2 = x + (0.2 + r(s) * 0.6) * w;
+            const cy2 = y + (0.2 + r(s + 0.1) * 0.6) * h;
+            const cr  = 10 + r(s + 0.2) * Math.min(w, h) * 0.22;
+            ctx.strokeStyle = `rgba(${200 + (r(s + 0.3) * 40 | 0)},${150 + (r(s + 0.4) * 40 | 0)},40,${0.28 + r(s + 0.5) * 0.15})`;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath(); ctx.arc(cx2, cy2, cr, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx2, cy2, cr * 0.65, 0, Math.PI * 2); ctx.stroke();
+            // 8-point cross
+            for (let j = 0; j < 8; j++) {
+                const a = (j / 8) * Math.PI * 2;
+                ctx.beginPath();
+                ctx.moveTo(cx2 + Math.cos(a) * cr * 0.3, cy2 + Math.sin(a) * cr * 0.3);
+                ctx.lineTo(cx2 + Math.cos(a) * cr,       cy2 + Math.sin(a) * cr);
+                ctx.stroke();
+            }
+        }
+
+        // Gold trim bands (horizontal)
+        const numBands = 2 + (r(seed + 9) * 2 | 0);
+        for (let i = 0; i < numBands; i++) {
+            const s = seed + i * 1.77;
+            const by = y + (0.2 + i / numBands * 0.6) * h;
+            ctx.fillStyle = `rgba(${200 + (r(s) * 40 | 0)},${150 + (r(s + 0.1) * 40 | 0)},30,${0.22 + r(s + 0.2) * 0.12})`;
+            ctx.fillRect(x, by, w, 2 + r(s + 0.3) * 2);
+        }
+
+        // Flame orb on top
+        const fx = x + (0.3 + r(seed + 15) * 0.4) * w;
+        ctx.fillStyle = `rgba(255,${140 + (r(seed + 16) * 60 | 0)},0,0.65)`;
+        ctx.beginPath(); ctx.arc(fx, y + 6, 5 + r(seed + 17) * 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,220,80,0.40)';
+        ctx.beginPath(); ctx.arc(fx - 1, y + 5, 2.5, 0, Math.PI * 2); ctx.fill();
+
+        ctx.restore();
+
+        // Bevel: warm gold tint
+        ctx.fillStyle = 'rgba(180,130,20,0.28)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - bev, y + bev); ctx.lineTo(x + bev, y + bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + bev, y + bev); ctx.lineTo(x + bev, y + h - bev); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.50)';
+        ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + bev, y + h - bev); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - bev, y + h - bev); ctx.lineTo(x + w - bev, y + bev); ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = '#180e02';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+    }
 }
 
 if (typeof window.BIOME_LOGIC === 'undefined') window.BIOME_LOGIC = {};
