@@ -694,6 +694,24 @@ AudioManager._exclamationTexts = {
         level_up_1:    "My heart grows stronger!",
         level_up_2:    "More love, more power.",
     },
+    green_goblin: {
+        injured:       "Hahaha! You actually HIT me?! Impressive... and infuriating!",
+        failure_1:     "This isn't over! The Green Goblin ALWAYS comes back!",
+        failure_2:     "Impossible! I am the Green Goblin! I DON'T lose!",
+        boss_moment_1: "You little heroes think you can stop me?! How delightfully foolish!",
+        boss_moment_2: "Ah, fresh heroes crawling out to face me. PERFECT! Hahaha!",
+        boss_win_1:    "Yes! Grovel before the Green Goblin! HAHAHAHA!",
+        boss_win_2:    "Another pathetic hero, CRUSHED! Is that all you've got?!",
+    },
+    makuta: {
+        injured:       "You cannot harm what is eternal...",
+        failure_1:     "I will... return. The darkness never truly dies.",
+        failure_2:     "This is not the end. Nothing ever truly ends.",
+        boss_moment_1: "Foolish hero. You cannot stop what has already begun.",
+        boss_moment_2: "Step forward. And meet your end.",
+        boss_win_1:    "As it was always written. You fall before me.",
+        boss_win_2:    "The mask is mine. As it was always destined.",
+    },
 };
 
 const audioManager = new AudioManager();

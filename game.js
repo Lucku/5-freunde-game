@@ -2704,6 +2704,7 @@ function resumeWaveGeneration() {
 
     // Evil Mode — delegate entirely to EvilMode.setupWave; skip all normal spawning
     if (isEvilMode && typeof EvilMode !== 'undefined') {
+        setUIState('GAME'); // Must set before early return — normal path sets it at the end
         EvilMode.setupWave(wave);
         return;
     }
@@ -3601,9 +3602,14 @@ function masterLoop(timestamp) {
 
         if (gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen) {
 
-            // Evil Mode — check if all enemy heroes are dead → advance wave
+            // Evil Mode — check if all enemy heroes are dead → boss-defeated cinematic then advance
             if (isEvilMode && typeof EvilMode !== 'undefined' && EvilMode.checkWaveEnd()) {
-                EvilMode.onWaveCleared();
+                EvilMode.onWaveCleared(); // cleanup + sets waveJustCleared
+                if (typeof audioManager !== 'undefined') {
+                    audioManager.play('wave_completed');
+                    if (player) audioManager.playHeroExclamation(player.type, 'boss_win');
+                }
+                bossDeathTimer = 180;
             }
 
             if (isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
@@ -3868,6 +3874,7 @@ function masterLoop(timestamp) {
                         }
 
                         if (isTutorialMode) { TutorialMode.onBossDefeated(); return; }
+                        if (isEvilMode && typeof EvilMode !== 'undefined') { EvilMode.onBossScreenDone(); return; }
                         // Open choice screen — player picks Continue or Save & Quit
                         _bossChoiceScreen = true;
                         _bossChoiceFrame = 0;
@@ -5678,6 +5685,54 @@ function masterLoop(timestamp) {
 
             // Testing Grounds HUD
             if (isTestingMode && window.TestingGrounds) TestingGrounds.drawHUD(ctx);
+
+            // Boss Off-Screen Direction Indicator
+            if (bossActive && enemies.length > 0 && enemies[0] instanceof Boss) {
+                const _boss = enemies[0];
+                const _bsx = _boss.x - arena.camera.x;
+                const _bsy = _boss.y - arena.camera.y;
+                const _br = _boss.radius || 60;
+                const _offScreen = _bsx < -_br || _bsx > canvas.width + _br ||
+                                   _bsy < -_br || _bsy > canvas.height + _br;
+                if (_offScreen) {
+                    const _cx = canvas.width / 2;
+                    const _cy = canvas.height / 2;
+                    const _angle = Math.atan2(_bsy - _cy, _bsx - _cx);
+                    // Inner margin rectangle – keeps arrow off corners where UI lives
+                    const _ml = 52, _mr = canvas.width - 52;
+                    const _mt = 76, _mb = canvas.height - 52;
+                    const _dx = _bsx - _cx, _dy = _bsy - _cy;
+                    let _t = Infinity;
+                    if (_dx > 0) { const _ty = (_mr - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
+                    if (_dx < 0) { const _ty = (_ml - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
+                    if (_dy > 0) { const _tx = (_mb - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
+                    if (_dy < 0) { const _tx = (_mt - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
+                    if (_t !== Infinity) {
+                        const _ax = _cx + _t * _dx, _ay = _cy + _t * _dy;
+                        const _pulse = 0.55 + 0.2 * ((Math.sin(frame * 0.08) + 1) / 2);
+                        ctx.save();
+                        ctx.translate(_ax, _ay);
+                        ctx.rotate(_angle);
+                        ctx.globalAlpha = _pulse;
+                        const _s = 11;
+                        // Shadow
+                        ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                        ctx.shadowBlur = 4;
+                        ctx.fillStyle = 'rgba(255, 80, 60, 1)';
+                        ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+                        ctx.lineWidth = 1.2;
+                        ctx.beginPath();
+                        ctx.moveTo(_s, 0);
+                        ctx.lineTo(-_s * 0.55, -_s * 0.6);
+                        ctx.lineTo(-_s * 0.15, 0);
+                        ctx.lineTo(-_s * 0.55, _s * 0.6);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+            }
 
             // SANDSTORM vision reduction (radial vignette)
             if (currentWeather && currentWeather.id === 'SANDSTORM') {

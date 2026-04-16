@@ -253,23 +253,22 @@ const EvilMode = (() => {
     }
 
     // Called when the last enemy hero of the current wave is killed.
+    // Only does immediate cleanup — cinematic + story continuation handled by game.js/onBossScreenDone().
     function onWaveCleared() {
         if (!active || waveJustCleared) return;
         waveJustCleared = true;
 
-        // Villain gloats over defeated heroes
-        if (typeof audioManager !== 'undefined' && typeof player !== 'undefined' && player) {
-            audioManager.playHeroExclamation(player.type, 'boss_win');
-        }
-
-        // Clean up enemies and stray projectiles
+        // Clean up enemies and stray projectiles immediately
         window.additionalPlayers = [];
         if (typeof projectiles !== 'undefined') {
             projectiles = projectiles.filter(p => !p.isEnemy);
         }
+    }
 
+    // Called by game.js when the boss-defeated cinematic finishes, to continue the wave flow.
+    function onBossScreenDone() {
         if (currentWave >= 11) {
-            // Show the epilogue story before final game over
+            // Epilogue story before final game over
             if (typeof triggerStory !== 'undefined') triggerStory(currentWave);
             return;
         }
@@ -283,9 +282,7 @@ const EvilMode = (() => {
                 if (typeof showNotification !== 'undefined') showNotification('THE GOLDEN MASK APPEARS! CLAIM IT!', '#f1c40f');
                 if (typeof createExplosion !== 'undefined')  createExplosion(arena.width / 2, arena.height / 2, '#f1c40f');
                 if (typeof triggerImpact !== 'undefined')    triggerImpact(5, 14, 0.3, 0.6, 400);
-            }, 1200); // short delay so the defeat explosion settles first
-
-            // Give player a few seconds to collect it, then advance
+            }, 1200);
             setTimeout(() => {
                 if (typeof triggerStory !== 'undefined') triggerStory(currentWave);
             }, 6000);
@@ -398,7 +395,7 @@ const EvilMode = (() => {
     return {
         start, stop, isActive,
         getXpMultiplier,
-        setupWave, checkWaveEnd, onWaveCleared,
+        setupWave, checkWaveEnd, onWaveCleared, onBossScreenDone,
         getStoryForWave, getArcLabel: _getArcLabel,
         checkUnlock, forceUnlock,
     };

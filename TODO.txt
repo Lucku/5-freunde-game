@@ -1,10 +1,7 @@
 # General
 
+- overhaul pick up sound effects
 - add sound effect for Earth hero enemy impact
 - add feedback function via button
 - bug: weather effect visuals persist if play again is selected
-- boss theme not playing now any more in evil mode
 - put more objects into the world (?)
-- arrow that points to boss if on screen edge
-- Evil mode/general: Boss defeated screen when ending wave
-- Subtitles for villain expressions
