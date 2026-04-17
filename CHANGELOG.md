@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-04-17
+
 ### Added
 - Story intro screen is now gamepad-compatible: pressing A skips it, matching the press-start screen behaviour
 - Skip hint on story intro screen updated to mention A button

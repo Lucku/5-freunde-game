@@ -1,4 +1,4 @@
-const APP_VERSION = '1.0.0'; // Keep in sync with package.json and Git tags
+const APP_VERSION = '1.0.1'; // Keep in sync with package.json and Git tags
 
 // --- Configuration ---
 const BASE_HERO_STATS = {
@@ -10,7 +10,7 @@ const BASE_HERO_STATS = {
     black: { color: '#2c3e50', hp: 150, speed: 5, rangeDmg: 50, meleeDmg: 200, rangeCd: 10, meleeCd: 80, projectileSpeed: 20, projectileSize: 10, knockback: 25 }, // Hero of Darkness
     // Evil Mode playable villains (not selectable in hero screen)
     green_goblin: { color: '#1d8a2e', hp: 90, speed: 5.5, rangeDmg: 35, meleeDmg: 110, rangeCd: 12, meleeCd: 100, projectileSpeed: 14, projectileSize: 6, knockback: 10, icon: '🎃' },
-    makuta:       { color: '#000000', hp: 200, speed: 4.2, rangeDmg: 60, meleeDmg: 180, rangeCd: 8,  meleeCd: 90,  projectileSpeed: 18, projectileSize: 9,  knockback: 18, icon: '👁' }
+    makuta: { color: '#000000', hp: 200, speed: 4.2, rangeDmg: 60, meleeDmg: 180, rangeCd: 8, meleeCd: 90, projectileSpeed: 18, projectileSize: 9, knockback: 18, icon: '👁' }
 };
 
 const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI', 'AUTOAIM'];
@@ -139,12 +139,12 @@ const weeklyTiers = [
 weeklyTiers.forEach(t => addAch(`WEEKLY_CHALLENGE_${t[0]}`, t[1], `Complete ${t[0]} Weekly Challenges.`, t[0], 'weekly_wins', 'gold', t[2], `+${(t[2] * 100).toFixed(0)}% Gold`));
 
 const WEATHER_TYPES = [
-    { id: 'BLIZZARD',     name: 'BLIZZARD',     color: 'rgba(200, 230, 255, 0.15)', duration: 900 },
-    { id: 'HEATWAVE',     name: 'HEATWAVE',     color: 'rgba(255, 100, 50, 0.12)',  duration: 750 },
+    { id: 'BLIZZARD', name: 'BLIZZARD', color: 'rgba(200, 230, 255, 0.15)', duration: 900 },
+    { id: 'HEATWAVE', name: 'HEATWAVE', color: 'rgba(255, 100, 50, 0.12)', duration: 750 },
     { id: 'THUNDERSTORM', name: 'THUNDERSTORM', color: 'rgba(40,  40,  70,  0.30)', duration: 780 },
-    { id: 'SANDSTORM',    name: 'SANDSTORM',    color: 'rgba(180, 130, 60, 0.25)',  duration: 720 },
-    { id: 'ACIDIC_FOG',   name: 'ACIDIC FOG',   color: 'rgba(60,  140, 60, 0.20)',  duration: 660 },
-    { id: 'GALE',         name: 'GALE',         color: 'rgba(200, 220, 255, 0.10)', duration: 840 },
+    { id: 'SANDSTORM', name: 'SANDSTORM', color: 'rgba(180, 130, 60, 0.25)', duration: 720 },
+    { id: 'ACIDIC_FOG', name: 'ACIDIC FOG', color: 'rgba(60,  140, 60, 0.20)', duration: 660 },
+    { id: 'GALE', name: 'GALE', color: 'rgba(200, 220, 255, 0.10)', duration: 840 },
 ];
 
 const ELITE_TYPES = [
