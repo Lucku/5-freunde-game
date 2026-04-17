@@ -2571,6 +2571,16 @@ input:checked+.slider:before {
     box-shadow: 0 0 20px rgba(241, 196, 15, 0.6) !important;
 }
 
+/* ── Controller-focus (selected) overrides for all menu button types ── */
+.menu-continue-btn.selected,
+.menu-mode-btn.selected,
+.menu-challenge-btn.selected,
+.menu-lib-btn.selected,
+.menu-sys-btn.selected {
+    border: 3px solid #f1c40f !important;
+    box-shadow: 0 0 20px rgba(241, 196, 15, 0.6) !important;
+}
+
 /* ── Secondary mode buttons ── */
 .menu-modes-grid {
     display: grid;

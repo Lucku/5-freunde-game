@@ -64,7 +64,7 @@
                 <div class="si-body">When they face what must be faced...</div>
                 <div class="si-body">will they ever find their way home?</div>
             </div>
-            <div class="si-skip-hint">Press any key to skip</div>
+            <div class="si-skip-hint" id="si-skip-hint">Press any key or A to skip</div>
         </div>
     </div>
 
@@ -1033,9 +1033,11 @@
             document.getElementById('bug-message').value = '';
             document.getElementById('bug-report-status').textContent = '';
             document.getElementById('bug-message').focus();
+            if (typeof setUIState !== 'undefined') setUIState('BUGREPORT');
         }
         function closeBugReport() {
             document.getElementById('bug-report-overlay').style.display = 'none';
+            if (typeof setUIState !== 'undefined') setUIState('MENU');
         }
         async function submitBugReport(e) {
             e.preventDefault();

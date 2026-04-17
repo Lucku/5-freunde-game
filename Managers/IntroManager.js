@@ -1,3 +1,8 @@
+// A "real" game controller has at least 10 buttons and 2 axes.
+// USB receivers / non-controller HID devices that the Gamepad API accidentally
+// picks up typically enumerate with 0 buttons and 0 axes.
+window.isRealGamepad = (gp) => gp && gp.connected && gp.buttons.length >= 10 && gp.axes.length >= 2;
+
 class IntroManager {
     /**
      * Play the full intro sequence (dev logo → story intro → press-start), then call onComplete.
@@ -110,9 +115,16 @@ class IntroManager {
         window.addEventListener('keydown', onKey, { once: true });
         screen.addEventListener('click', advance, { once: true });
 
+        const gpInterval = setInterval(() => {
+            for (const gp of navigator.getGamepads()) {
+                if (window.isRealGamepad(gp) && gp.buttons[0]?.pressed) { advance(); return; }
+            }
+        }, 50);
+
         const cleanup = () => {
             clearTimeout(fallbackTimer);
             window.removeEventListener('keydown', onKey);
+            clearInterval(gpInterval);
         };
     }
 
@@ -153,7 +165,7 @@ class IntroManager {
 
         const gpInterval = setInterval(() => {
             for (const gp of navigator.getGamepads()) {
-                if (gp && gp.buttons[0] && gp.buttons[0].pressed) { advance(); return; }
+                if (window.isRealGamepad(gp) && gp.buttons[0]?.pressed) { advance(); return; }
             }
         }, 50);
 
@@ -168,7 +180,7 @@ class IntroManager {
     _updatePromptText() {
         const el = document.getElementById('ps-prompt-text');
         if (!el) return;
-        const hasGamepad = Array.from(navigator.getGamepads()).some(g => g && g.connected);
+        const hasGamepad = Array.from(navigator.getGamepads()).some(g => window.isRealGamepad(g));
         el.textContent = hasGamepad ? 'Press A to start' : 'Press ENTER to start';
     }
 }

@@ -4,10 +4,18 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Added
+- Story intro screen is now gamepad-compatible: pressing A skips it, matching the press-start screen behaviour
+- Skip hint on story intro screen updated to mention A button
+- Bug report overlay closes with gamepad B button (tracks `BUGREPORT` UI state)
+- Manual closes with gamepad B button (fixed broken `closeTutorial` reference → `Manual.close()`)
+- Evil Mode button and all other main-menu button types now show the yellow gamepad-focus ring when selected (added `.selected` overrides for `menu-mode-btn`, `menu-lib-btn`, `menu-challenge-btn`, `menu-continue-btn`, `menu-sys-btn`)
+
 ### Fixed
 - Story Mode button now shows yellow controller-selection outline when navigated to with a gamepad (was hidden by `border: none !important`)
 - Windows installer now uses the correct app icon (`images/icons/win/icon.ico`) instead of the default Electron icon; icon path is now platform-aware in `forge.config.js`
 - Installed app on Windows now correctly shows `5 Freunde: Elemental Arena` as product name instead of `5-freunde-arena`
+- USB receivers and other non-controller HID devices are no longer mistaken for gamepads; `isRealGamepad()` filter (≥10 buttons, ≥2 axes) is applied in menu navigation, co-op assignment, and the `gamepadconnected` event handler
 
 ## [1.0.0] — 2026-04-17
 

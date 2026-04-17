@@ -275,18 +275,23 @@ function handleGamepadMenu() {
     const gamepads = navigator.getGamepads();
 
     // Determine which gamepad drives menu input
-    let gpIndex = 0;
+    let gpIndex = -1;
     if (isCoopMode) {
         if (uiState === 'PAUSE' && window.pausedByGamepadIndex !== undefined && window.pausedByGamepadIndex !== -1) {
             gpIndex = window.pausedByGamepadIndex; // Pause menu → whoever paused
         } else if (uiState === 'LEVELUP' && window.levelingUpPlayer && window.levelingUpPlayer.controller && window.levelingUpPlayer.controller.gamepadIndex !== undefined) {
             gpIndex = window.levelingUpPlayer.controller.gamepadIndex; // Level-up → whoever leveled up
         } else {
-            gpIndex = coopP1GamepadIndex !== -1 ? coopP1GamepadIndex : 0;
+            gpIndex = coopP1GamepadIndex !== -1 ? coopP1GamepadIndex : -1;
+        }
+    } else {
+        // Find the first real controller, skipping USB receivers / non-controller HID devices
+        for (let i = 0; i < gamepads.length; i++) {
+            if (window.isRealGamepad(gamepads[i])) { gpIndex = i; break; }
         }
     }
 
-    const gp = gamepads[gpIndex];
+    const gp = gpIndex !== -1 ? gamepads[gpIndex] : null;
     if (!gp) return;
 
     if (uiDebounce > 0) {
@@ -392,10 +397,12 @@ function handleGamepadMenu() {
         else if (uiState === 'ACHIEVEMENTS') closeAchievements();
         else if (uiState === 'HIGHSCORE') closeHighScores();
         else if (uiState === 'SKILLTREE') closeSkillTree();
-        else if (uiState === 'STATS') closeStats(); // Added STATS
+        else if (uiState === 'STATS') closeStats();
         else if (uiState === 'COLLECTION') closeCollection();
         else if (uiState === 'ALTAR') closeAltar();
         else if (uiState === 'COMPLETION') closeCompletion();
+        else if (uiState === 'BUGREPORT') closeBugReport();
+        else if (uiState === 'TUTORIAL') Manual.close();
         uiDebounce = 15;
     }
 
@@ -497,18 +504,10 @@ function handleGamepadMenu() {
 
     // Back Action (B Button)
     if (b && !lastGamepadState.b) {
-        if (uiState === 'PERMSHOP') closePermShop();
-        else if (uiState === 'SHOP') closeShop();
-        else if (uiState === 'PAUSE') togglePause();
-        else if (uiState === 'ACHIEVEMENTS') closeAchievements();
-        else if (uiState === 'HIGHSCORE') closeHighScores();
-        else if (uiState === 'SKILLTREE') closeSkillTree(); // Added SKILLTREE
-        else if (uiState === 'STATS') closeStats(); // Added STATS
-        else if (uiState === 'STORY') closeStory(); // Added STORY
-        else if (uiState === 'TUTORIAL') closeTutorial(); // Added TUTORIAL
-        else if (uiState === 'CHAOSSHOP') closeChaosShop(); // Added CHAOSSHOP
+        if (uiState === 'STORY') closeStory();
+        else if (uiState === 'CHAOSSHOP') closeChaosShop();
         else if (uiState === 'DAILY_INFO') closeDailyInfo();
-        uiDebounce = 30; // Increased from 20 to 30
+        uiDebounce = 30;
     }
 
     lastGamepadState = { a, b, y };
@@ -532,10 +531,10 @@ function toggleCoopMode() {
         coopP1GamepadIndex = -1;
         coopP2GamepadIndex = -1;
 
-        // Assign first two connected gamepads: P1 → first, P2 → second
+        // Assign first two connected real controllers: P1 → first, P2 → second
         const gamepads = navigator.getGamepads();
         for (let i = 0; i < gamepads.length; i++) {
-            if (gamepads[i]) {
+            if (window.isRealGamepad(gamepads[i])) {
                 if (coopP1GamepadIndex === -1) coopP1GamepadIndex = i;
                 else if (coopP2GamepadIndex === -1) { coopP2GamepadIndex = i; break; }
             }
@@ -774,6 +773,7 @@ function handleCoopP2Gamepad() {
 }
 
 window.addEventListener('gamepadconnected', e => {
+    if (!window.isRealGamepad(e.gamepad)) return; // Ignore USB receivers / non-controller HID devices
     if (isCoopMode) {
         if (coopP1GamepadIndex === -1) {
             coopP1GamepadIndex = e.gamepad.index;
