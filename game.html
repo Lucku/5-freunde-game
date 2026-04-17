@@ -466,12 +466,14 @@
             <div class="completion-screen-title">COMPLETION TRACKER</div>
             <div class="completion-screen-sub">Track your journey across all content</div>
         </div>
-        <button id="completion-filter-btn" class="completion-filter-btn" onclick="window.completionMenu && window.completionMenu.toggleFilter()">◻ Hide Completed: OFF</button>
+        <button id="completion-filter-btn" class="completion-filter-btn"
+            onclick="window.completionMenu && window.completionMenu.toggleFilter()">◻ Hide Completed: OFF</button>
         <div id="completion-grid"
             style="width: 100%; max-width: 960px; display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 4px 4px 4px 0;">
             <!-- Generated via JS -->
         </div>
-        <button class="screen-back-btn" onclick="closeCompletion()" style="margin-top: 18px; flex-shrink: 0;">← BACK</button>
+        <button class="screen-back-btn" onclick="closeCompletion()" style="margin-top: 18px; flex-shrink: 0;">←
+            BACK</button>
     </div>
 
     <!-- DLC Screen -->
@@ -524,7 +526,8 @@
                         ↩ Continue Run<br><span id="continue-subtitle" class="menu-continue-sub"></span>
                     </button>
 
-                    <button id="btn-story-mode" class="btn menu-primary-btn" onclick="checkNewGame('STORY')">▶ Story Mode</button>
+                    <button id="btn-story-mode" class="btn menu-primary-btn" onclick="checkNewGame('STORY')">▶ Story
+                        Mode</button>
 
                     <div class="menu-modes-grid">
                         <button id="btn-standard-run" class="btn btn-story menu-mode-btn"
@@ -596,7 +599,8 @@
                 style="display:flex; justify-content:center; align-items:center; padding:10px 16px 4px; font-size:11px; color:rgba(255,255,255,0.28); letter-spacing:0.1em; pointer-events:none; position:relative;">
                 <span style="flex:1;"></span>
                 <span>&#169; 2025&ndash;2026 Lucas Kuhring</span>
-                <span style="flex:1; text-align:right; padding-left:32px;"><span id="version-label"></span></span></div>
+                <span style="flex:1; text-align:right; padding-left:32px;"><span id="version-label"></span></span>
+            </div>
         </div>
 
         <!-- VICTORY SCREEN -->
@@ -861,6 +865,7 @@
 
     <!-- UI Modules -->
     <script src="UI/HeroDetails.js"></script>
+    <script src="UI/Completion.js"></script>
     <script src="UI/Collection.js"></script>
     <script src="UI/SkillTree.js"></script>
     <script src="UI/Achievements.js"></script>

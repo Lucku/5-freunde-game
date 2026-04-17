@@ -146,25 +146,6 @@ class HeroDetailsUI {
         }
     }
 
-    // --- Completion Menu Logic ---
-    openCompletion() {
-        document.getElementById('menu-overlay').style.display = 'none';
-        document.getElementById('completion-screen').style.display = 'flex';
-        if (typeof CompletionMenu !== 'undefined') {
-            window.completionMenu = new CompletionMenu();
-            // Reset filter state and button label on each open
-            if (typeof _completionHideCompleted !== 'undefined') _completionHideCompleted = false;
-            const btn = document.getElementById('completion-filter-btn');
-            if (btn) { btn.textContent = '◻ Hide Completed: OFF'; btn.classList.remove('active'); }
-            window.completionMenu.render();
-        }
-        if (window.setUIState) window.setUIState('COMPLETION');
-    }
-
-    closeCompletion() {
-        document.getElementById('completion-screen').style.display = 'none';
-        if (window.initMenu) window.initMenu();
-    }
 }
 
 // Instantiate and expose
@@ -177,6 +158,4 @@ window.closeHeroDetails = () => heroDetailsUI.closeHeroDetails();
 // Backwards compatibility
 window.openStats = () => heroDetailsUI.openHeroDetails();
 window.closeStats = () => heroDetailsUI.closeHeroDetails();
-window.openCompletion = () => heroDetailsUI.openCompletion();
-window.closeCompletion = () => heroDetailsUI.closeCompletion();
 
