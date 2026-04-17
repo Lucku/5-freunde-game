@@ -6,9 +6,4 @@
     player.customDraw	@	LoveHero.js:48
     draw	@	Player.js:1106
 
-- Can you please check why "report a bug" submissions are not coming into Formspark? The provider itself states the following in their FAQs:
-
-# My submissions are not showing up
-1. Ensure all input, select and textarea elements inside your form have a name attribute, otherwise you will not receive the data filled in these fields.
-2. Keep in mind that empty submissions are ignored by Formspark.
-3. Are you using some form of spam protection? Temporarily disable the protection, if you are able to submit without it then you probably need to double-check your integration. Step-by-step instructions can be found here.
+- include version number on bottom of main menu and CHANGELOG

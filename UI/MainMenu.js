@@ -121,7 +121,7 @@ class MainMenuUI {
     }
 
     updateStoryButton() {
-        const btn = document.querySelector('.btn-story');
+        const btn = document.querySelector('.menu-primary-btn');
         if (!btn) return;
 
         let title = "Story Mode";
@@ -138,7 +138,7 @@ class MainMenuUI {
                 }
             }
         }
-        btn.innerText = title;
+        btn.innerText = '▶ ' + title;
     }
 }
 

@@ -1,3 +1,5 @@
+const APP_VERSION = '1.0.0'; // Keep in sync with package.json and Git tags
+
 // --- Configuration ---
 const BASE_HERO_STATS = {
     fire: { color: '#e74c3c', hp: 60, speed: 4, rangeDmg: 25, meleeDmg: 100, rangeCd: 15, meleeCd: 120, projectileSpeed: 12, projectileSize: 6, knockback: 4 },

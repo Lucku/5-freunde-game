@@ -257,9 +257,11 @@ class LoveHero {
         if (!comp || comp.life <= 0) return;
 
         // Orbit player
+        if (!isFinite(player.x) || !isFinite(player.y)) return;
         comp.angle += 0.025;
         const targetX = player.x + Math.cos(comp.angle) * 70;
         const targetY = player.y + Math.sin(comp.angle) * 70;
+        if (!isFinite(comp.x) || !isFinite(comp.y)) { comp.x = targetX; comp.y = targetY; }
         comp.x += (targetX - comp.x) * 0.12;
         comp.y += (targetY - comp.y) * 0.12;
 
@@ -624,22 +626,24 @@ class LoveHero {
         // Draw Love Companion (world-space)
         if (player._loveCompanion && player._loveCompanion.life > 0) {
             const comp = player._loveCompanion;
-            ctx.save();
-            const cg = ctx.createRadialGradient(comp.x, comp.y, 3, comp.x, comp.y, comp.radius * 2);
-            cg.addColorStop(0, 'rgba(255,157,191,0.5)');
-            cg.addColorStop(1, 'rgba(255,107,157,0)');
-            ctx.beginPath();
-            ctx.arc(comp.x, comp.y, comp.radius * 2, 0, Math.PI * 2);
-            ctx.fillStyle = cg;
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(comp.x, comp.y, comp.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#ff9dbf';
-            ctx.fill();
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            ctx.restore();
+            if (isFinite(comp.x) && isFinite(comp.y) && isFinite(comp.radius) && comp.radius > 0) {
+                ctx.save();
+                const cg = ctx.createRadialGradient(comp.x, comp.y, 3, comp.x, comp.y, comp.radius * 2);
+                cg.addColorStop(0, 'rgba(255,157,191,0.5)');
+                cg.addColorStop(1, 'rgba(255,107,157,0)');
+                ctx.beginPath();
+                ctx.arc(comp.x, comp.y, comp.radius * 2, 0, Math.PI * 2);
+                ctx.fillStyle = cg;
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(comp.x, comp.y, comp.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#ff9dbf';
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                ctx.restore();
+            }
         }
 
         // Melee AoE ring — expands from player.x/y and fades out (world-space)
@@ -728,19 +732,24 @@ class LoveHero {
 
     // ─── AI Input (CPU companion or co-op AI) ───────────────────────────────
     static getAIInput(player, controller, target) {
-        if (!target) return {};
+        if (!target) return { x: 0, y: 0, aimAngle: player.aimAngle || 0, shoot: false, melee: false, dash: false, special: false, pause: false, usingGamepad: false };
         const dx = target.x - player.x;
         const dy = target.y - player.y;
         const dist = Math.hypot(dx, dy) || 1;
+        const aimAngle = Math.atan2(dy, dx);
         // Love AI: keep medium distance, always shoot, use special when available
         const desiredDist = 180;
         const moveScale = dist > desiredDist + 40 ? 1 : (dist < desiredDist - 40 ? -0.6 : 0);
         return {
-            moveX: (dx / dist) * moveScale,
-            moveY: (dy / dist) * moveScale,
+            x: (dx / dist) * moveScale,
+            y: (dy / dist) * moveScale,
+            aimAngle,
             shoot: true,
             melee: dist < 100,
-            useSpecial: player.specialCooldown <= 0,
+            dash: Math.random() < 0.008,
+            special: player.specialCooldown <= 0 && Math.random() < 0.005,
+            pause: false,
+            usingGamepad: false,
         };
     }
 }

@@ -646,12 +646,12 @@ function updateCoopUI() {
 
     if (!isCoopMode) {
         bar.style.display = 'none';
-        const standardBtn = document.querySelector('.menu-primary-btn');
-        if (standardBtn) standardBtn.classList.remove('coop-disabled');
-        const continueBtn = document.getElementById('continue-btn');
-        if (continueBtn) continueBtn.classList.remove('coop-disabled');
         const storyBtn = document.getElementById('btn-story-mode');
         if (storyBtn) storyBtn.classList.remove('coop-disabled');
+        const continueBtn = document.getElementById('continue-btn');
+        if (continueBtn) continueBtn.classList.remove('coop-disabled');
+        const standardBtn = document.getElementById('btn-standard-run');
+        if (standardBtn) standardBtn.classList.remove('coop-disabled');
         const versusBtn2 = document.getElementById('btn-versus-mode');
         if (versusBtn2) versusBtn2.classList.remove('coop-disabled');
         const dailyBtn2 = document.getElementById('daily-challenge-btn');
@@ -680,13 +680,13 @@ function updateCoopUI() {
         bar.innerHTML = `${p1Chip}<span class="coop-divider">|</span>${p2Chip}`;
     }
 
-    // Disable Standard Run until BOTH gamepads are connected
-    const standardBtn = document.querySelector('.menu-primary-btn');
-    if (standardBtn) standardBtn.classList.toggle('coop-disabled', !ready);
-
-    // Disable Story Mode, 2P Versus, and Challenges until BOTH gamepads are connected
+    // Disable Story Mode until BOTH gamepads are connected
     const storyBtn = document.getElementById('btn-story-mode');
     if (storyBtn) storyBtn.classList.toggle('coop-disabled', !ready);
+
+    // Disable Standard Run, 2P Versus, and Challenges until BOTH gamepads are connected
+    const standardBtn = document.getElementById('btn-standard-run');
+    if (standardBtn) standardBtn.classList.toggle('coop-disabled', !ready);
     const versusBtn = document.getElementById('btn-versus-mode');
     if (versusBtn) versusBtn.classList.toggle('coop-disabled', !ready);
     const dailyBtn = document.getElementById('daily-challenge-btn');
@@ -4939,6 +4939,7 @@ function masterLoop(timestamp) {
                                     showNotification("OPPONENT KO!");
 
                                     if (isVersusMode && window.additionalPlayers.length === 0) {
+                                        audioManager.playHeroExclamation(player.type, 'boss_win');
                                         setTimeout(() => gameOver(true), 2000);
                                     } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
                                         // Story Mode Duel Victory
@@ -4985,6 +4986,7 @@ function masterLoop(timestamp) {
                                 player2.isDead = true; player2.hp = 0;
                                 createExplosion(player2.x, player2.y, '#fff');
                                 showNotification("OPPONENT KO!");
+                                audioManager.playHeroExclamation(player.type, 'boss_win');
                                 setTimeout(() => gameOver(true), 2000);
                             }
                         }
@@ -5048,6 +5050,7 @@ function masterLoop(timestamp) {
                                             showNotification("OPPONENT KO!");
 
                                             if (isVersusMode && window.additionalPlayers.length === 0) {
+                                                audioManager.playHeroExclamation(player.type, 'boss_win');
                                                 setTimeout(() => gameOver(true), 2000);
                                             } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
                                                 bossActive = false;
@@ -5082,6 +5085,7 @@ function masterLoop(timestamp) {
                                 player2.isDead = true; player2.hp = 0;
                                 createExplosion(player2.x, player2.y, '#fff');
                                 showNotification("OPPONENT KO!");
+                                audioManager.playHeroExclamation(player.type, 'boss_win');
                                 setTimeout(() => gameOver(true), 2000);
                             }
                         }

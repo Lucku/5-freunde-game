@@ -283,6 +283,7 @@ class AudioManager {
     // the method picks a random variant automatically.
     playHeroExclamation(hero, situation) {
         if (!this.sfxEnabled) return;
+        if (window.isVersusMode && situation !== 'boss_win') return;
         if (this._exclamationPlaying) return; // don't stack on top of each other
 
         // Randomly pick _1 or _2 variant when both exist
