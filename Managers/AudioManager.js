@@ -54,6 +54,27 @@ class AudioManager {
             special_plant:     new Audio('audio/sounds/special_plant.wav'),
             special_water:     new Audio('audio/sounds/special_water.wav'),
 
+            // Hero-specific level-up SFX
+            level_up_fire:         new Audio('audio/sounds/level_up_fire.wav'),
+            level_up_water:        new Audio('audio/sounds/level_up_water.wav'),
+            level_up_ice:          new Audio('audio/sounds/level_up_ice.wav'),
+            level_up_plant:        new Audio('audio/sounds/level_up_plant.wav'),
+            level_up_metal:        new Audio('audio/sounds/level_up_metal.wav'),
+            level_up_black:        new Audio('audio/sounds/level_up_black.wav'),
+            level_up_air:          new Audio('audio/sounds/level_up_air.wav'),
+            level_up_void:         new Audio('audio/sounds/level_up_void.wav'),
+            level_up_spirit:       new Audio('audio/sounds/level_up_spirit.wav'),
+            level_up_chance:       new Audio('audio/sounds/level_up_chance.wav'),
+            level_up_sound:        new Audio('audio/sounds/level_up_sound.wav'),
+            level_up_poison:       new Audio('audio/sounds/level_up_poison.wav'),
+            level_up_gravity:      new Audio('audio/sounds/level_up_gravity.wav'),
+            level_up_earth:        new Audio('audio/sounds/level_up_earth.wav'),
+            level_up_lightning:    new Audio('audio/sounds/level_up_lightning.wav'),
+            level_up_time:         new Audio('audio/sounds/level_up_time.wav'),
+            level_up_love:         new Audio('audio/sounds/level_up_love.wav'),
+            level_up_green_goblin: new Audio('audio/sounds/level_up_green_goblin.wav'),
+            level_up_makuta:       new Audio('audio/sounds/level_up_makuta.wav'),
+
             // Weather ambience (looped)
             weather_blizzard:     new Audio('audio/sounds/weather_blizzard.wav'),
             weather_heatwave:     new Audio('audio/sounds/weather_heatwave.wav'),
@@ -80,7 +101,10 @@ class AudioManager {
         this.tracks.victory.loop  = true; this.tracks.victory.volume  = 0.6;
 
         // SFX config
-        this.tracks.level_up.volume = 0.5;
+        this.tracks.level_up.volume = 0.8;
+        ['fire','water','ice','plant','metal','black','air','void','spirit','chance','sound','poison','gravity','earth','lightning','time','love','green_goblin','makuta'].forEach(h => {
+            if (this.tracks[`level_up_${h}`]) this.tracks[`level_up_${h}`].volume = 0.85;
+        });
         this.tracks.pickup_card.volume    = 0.5;
         this.tracks.pickup_mask.volume    = 0.6;
         this.tracks.pickup_gold.volume    = 0.4;

@@ -4,16 +4,18 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
-    icon: 'images/icon',
+    icon: 'images/icons/icon',
   },
   rebuildConfig: {},
   makers: [
-    /* 
     {
       name: '@electron-forge/maker-squirrel',
-      config: {},
-    }, 
-    */
+      config: {
+        name: '5_freunde_arena',
+        setupExe: '5FreundeArena-Setup.exe',
+        shortcutName: '5 Freunde: Elemental Arena',
+      },
+    },
     {
       name: '@electron-forge/maker-zip',
       platforms: ['darwin', 'linux', 'win32'],

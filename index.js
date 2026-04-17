@@ -1,6 +1,9 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
+// Handle Squirrel.Windows installer events (install, update, uninstall shortcuts)
+if (require('electron-squirrel-startup')) app.quit();
+
 function createWindow() {
     const win = new BrowserWindow({
         width: 1280,

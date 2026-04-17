@@ -3323,7 +3323,8 @@ function startGame(mode = 'NORMAL') {
 
 function gameOver(isVictory = false) {
     // Capture before any resets so the Play Again button can reference it
-    const wasEvilMode = isEvilMode;
+    const wasEvilMode   = isEvilMode;
+    const wasVersusMode = isVersusMode;
 
     // Stop any active weather immediately
     _stopWeather();
@@ -3565,6 +3566,8 @@ function gameOver(isVictory = false) {
             playAgainBtn.onclick = function () { startGame('WEEKLY'); };
         } else if (wasEvilMode) {
             playAgainBtn.onclick = function () { startEvilGame(); };
+        } else if (wasVersusMode) {
+            playAgainBtn.onclick = function () { startGame('VERSUS'); };
         } else {
             playAgainBtn.onclick = function () { startGame('NORMAL'); };
         }

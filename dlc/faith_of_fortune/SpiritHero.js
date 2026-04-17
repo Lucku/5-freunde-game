@@ -209,7 +209,7 @@ class SpiritHero {
                             vx: 0, vy: 0, life: 300,
                             type: 'VINE',
                             radius: 15, color: '#2ecc71',
-                            damage: 10, knockback: 0,
+                            damage: 10, knockback: 0, owner: player,
                             update: function () { this.life--; if (this.life <= 0) this.dead = true; },
                             draw: function () {
                                 const ctx = window.ctx; if (!ctx) return;
@@ -329,7 +329,7 @@ class SpiritHero {
                     damage: dmg, // Map dmg property for standard collision
                     pierce: player.pierceCount || 1, // Default 1 pierce
                     knockback: 0, // Spirit mantras do not knock back
-                    type: 'MANTRA',
+                    type: 'MANTRA', owner: player,
 
                     onHit: function (enemy) {
                         // Spirit Mechanics: Violence disturbs peace

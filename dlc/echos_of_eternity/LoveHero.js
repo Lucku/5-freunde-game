@@ -281,6 +281,7 @@ class LoveHero {
                     dmg, '#ff9dbf', 6, 'player', 0, false
                 );
                 proj._loveHeartBolt = true;
+                proj.owner = player;
                 // Fill affection meter on companion kills (checked after damage is applied)
                 proj.onHit = (enemy) => {
                     if (enemy.hp <= 0) {
@@ -358,6 +359,7 @@ class LoveHero {
 
             // Mark for charm-on-hit; fill affection meter on kill
             // cl2 Frozen Heart: freeze instead of charm
+            proj.owner = player;
             proj.onHit = (enemy) => {
                 if (player._mutCl2) {
                     const freezeDur = 75 + (player.stats.charmDuration || 0);
@@ -543,6 +545,7 @@ class LoveHero {
             );
             proj._loveHeartArrow = true;
             proj.pierce = 99;
+            proj.owner = player;
             proj.onHit = (enemy) => {
                 LoveHero._charmEnemy(player, enemy);
                 return undefined;

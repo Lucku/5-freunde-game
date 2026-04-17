@@ -1,15 +1,18 @@
 const BIOME_META = {
-    random: { name: 'Random',  rgb: '180,180,180' },
-    fire:   { name: 'Volcano', rgb: '231,76,60'   },
-    water:  { name: 'Ocean',   rgb: '52,152,219'  },
-    ice:    { name: 'Tundra',  rgb: '200,220,240' },
-    plant:  { name: 'Forest',  rgb: '46,204,113'  },
-    metal:  { name: 'Factory', rgb: '149,165,166' },
-    rock:   { name: 'Canyon',  rgb: '180,120,60'  },
-    cloud:  { name: 'Sky',     rgb: '64,224,208'  },
-    chaos:  { name: 'Void',    rgb: '155,89,182'  },
-    sound:  { name: 'Harmonic', rgb: '129,212,250' },
-    poison: { name: 'Bog',      rgb: '139,195,74'  },
+    random:  { name: 'Random',    rgb: '180,180,180' },
+    fire:    { name: 'Volcano',   rgb: '231,76,60'   },
+    water:   { name: 'Ocean',     rgb: '52,152,219'  },
+    ice:     { name: 'Tundra',    rgb: '200,220,240' },
+    plant:   { name: 'Forest',    rgb: '46,204,113'  },
+    metal:   { name: 'Factory',   rgb: '149,165,166' },
+    rock:    { name: 'Canyon',    rgb: '180,120,60'  },
+    cloud:   { name: 'Sky',       rgb: '64,224,208'  },
+    chaos:   { name: 'Void',      rgb: '155,89,182'  },
+    sound:   { name: 'Harmonic',  rgb: '129,212,250' },
+    poison:  { name: 'Bog',       rgb: '139,195,74'  },
+    generic: { name: 'Ruins',     rgb: '140,130,120' },
+    time:    { name: 'Continuum', rgb: '160,100,240' },
+    love:    { name: 'Heartlands', rgb: '240,100,150' },
 };
 
 class VersusMenuUI {
@@ -56,10 +59,12 @@ class VersusMenuUI {
         if (!grid) return;
         grid.innerHTML = '';
 
-        const loveUnlocked = typeof saveData !== 'undefined' && saveData['love'] && saveData['love'].unlocked;
+        const loveUnlocked  = typeof saveData !== 'undefined' && saveData['love'] && saveData['love'].unlocked;
+        const evilUnlocked  = typeof saveData !== 'undefined' && saveData.global && saveData.global.evil_mode_beaten > 0;
         this.heroIds = ['random', ...Object.keys(BASE_HERO_STATS).filter(h => {
             if (h === 'black') return false;
             if (h === 'love' && !loveUnlocked) return false;
+            if ((h === 'green_goblin' || h === 'makuta') && !evilUnlocked) return false;
             return true;
         })];
 
@@ -67,7 +72,8 @@ class VersusMenuUI {
             const isRandom = (h === 'random');
             const color = isRandom ? '#aaaaaa' : (BASE_HERO_STATS[h]?.color || '#ffffff');
             const rgb = this._hexRgb(color);
-            const label = isRandom ? 'Random' : h.charAt(0).toUpperCase() + h.slice(1);
+            const VILLAIN_LABELS = { green_goblin: 'Goblin', makuta: 'Makuta' };
+            const label = isRandom ? 'Random' : (VILLAIN_LABELS[h] || h.charAt(0).toUpperCase() + h.slice(1));
 
             const card = document.createElement('div');
             card.id = 'opp-opt-' + index;
@@ -78,6 +84,36 @@ class VersusMenuUI {
             let helmetInner;
             if (isRandom) {
                 helmetInner = `<span style="font-size:22px; line-height:1;">?</span>`;
+            } else if (h === 'green_goblin') {
+                helmetInner = `<svg viewBox="0 0 32 32" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+                  <polygon points="16,2 10,14 22,14" fill="#0a5c1a"/>
+                  <ellipse cx="16" cy="21" rx="11" ry="10" fill="#1d8a2e"/>
+                  <ellipse cx="5" cy="20" rx="3" ry="4" fill="#1d8a2e"/>
+                  <ellipse cx="27" cy="20" rx="3" ry="4" fill="#1d8a2e"/>
+                  <path d="M7 17 Q16 14 25 17" fill="none" stroke="#0a5c1a" stroke-width="2"/>
+                  <ellipse cx="11" cy="19" rx="3" ry="2.5" fill="#f0c020"/>
+                  <ellipse cx="11" cy="19.2" rx="1.4" ry="2" fill="#0a0a0a"/>
+                  <ellipse cx="21" cy="19" rx="3" ry="2.5" fill="#f0c020"/>
+                  <ellipse cx="21" cy="19.2" rx="1.4" ry="2" fill="#0a0a0a"/>
+                  <path d="M8 25 Q16 32 24 25" fill="#0a0a0a"/>
+                  <rect x="10" y="24.5" width="3" height="3.5" rx="0.5" fill="white"/>
+                  <rect x="14.5" y="24.5" width="3" height="3.5" rx="0.5" fill="white"/>
+                  <rect x="19" y="24.5" width="3" height="3.5" rx="0.5" fill="white"/>
+                </svg>`;
+            } else if (h === 'makuta') {
+                helmetInner = `<svg viewBox="0 0 32 32" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+                  <polygon points="9,15 5,2 15,12" fill="#2a0040"/>
+                  <polygon points="23,15 27,2 17,12" fill="#2a0040"/>
+                  <ellipse cx="16" cy="20" rx="12" ry="11" fill="#0d0015"/>
+                  <path d="M6 16 Q16 10 26 16" fill="none" stroke="#3d0060" stroke-width="1.5"/>
+                  <ellipse cx="16" cy="20" rx="9" ry="6" fill="#1a0030"/>
+                  <ellipse cx="16" cy="20" rx="6" ry="4" fill="#5500a0"/>
+                  <ellipse cx="16" cy="20" rx="2.5" ry="4" fill="#cc00ff"/>
+                  <ellipse cx="16" cy="20" rx="1" ry="2" fill="#ffaaff"/>
+                  <ellipse cx="16" cy="20" rx="10" ry="7" fill="none" stroke="#9900cc" stroke-width="0.7" opacity="0.5"/>
+                  <line x1="10" y1="26" x2="9" y2="29" stroke="#5500a0" stroke-width="1.5" stroke-linecap="round"/>
+                  <line x1="22" y1="26" x2="23" y2="29" stroke="#5500a0" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>`;
             } else if (BASE_HERO_STATS[h]?.icon) {
                 helmetInner = `<span style="font-size:20px; line-height:1;">${BASE_HERO_STATS[h].icon}</span>`;
             } else {
@@ -98,11 +134,16 @@ class VersusMenuUI {
         if (!grid) return;
         grid.innerHTML = '';
 
+        const loveUnlocked = typeof saveData !== 'undefined' && saveData['love'] && saveData['love'].unlocked;
+        const eoeActive    = typeof window.dlcManager !== 'undefined' && window.dlcManager.isDLCActive('echos_of_eternity');
+
         const biomes = [
             { id: 'random' }, { id: 'fire' },  { id: 'water' },
             { id: 'ice' },    { id: 'plant' }, { id: 'metal' },
             { id: 'rock' },   { id: 'cloud' }, { id: 'chaos' },
-            { id: 'sound' },  { id: 'poison' },
+            { id: 'sound' },  { id: 'poison' }, { id: 'generic' },
+            ...(eoeActive                       ? [{ id: 'time' }]  : []),
+            ...(eoeActive && loveUnlocked       ? [{ id: 'love' }]  : []),
         ];
         this.biomeIds = biomes;
 
@@ -220,7 +261,13 @@ class VersusMenuUI {
         let op = this.opponent;
         if (op === 'random') {
             const loveOk = typeof saveData !== 'undefined' && saveData['love'] && saveData['love'].unlocked;
-            const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black' && (h !== 'love' || loveOk));
+            const evilOk = typeof saveData !== 'undefined' && saveData.global && saveData.global.evil_mode_beaten > 0;
+            const heroes = Object.keys(BASE_HERO_STATS).filter(h => {
+                if (h === 'black') return false;
+                if (h === 'love' && !loveOk) return false;
+                if ((h === 'green_goblin' || h === 'makuta') && !evilOk) return false;
+                return true;
+            });
             op = heroes[Math.floor(Math.random() * heroes.length)];
         }
 

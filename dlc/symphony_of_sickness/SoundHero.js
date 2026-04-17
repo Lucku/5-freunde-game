@@ -678,7 +678,7 @@ class SoundHero {
                     damage: dmg,
                     knockback: player.stats.knockback || 0,
                     life: 60,
-                    type: 'NOTE',
+                    type: 'NOTE', owner: player,
                     update: function () {
                         this.x += this.vx;
                         this.y += this.vy;
@@ -732,7 +732,7 @@ class SoundHero {
                     damage: dmg,
                     knockback: player.stats.knockback || 0,
                     life: 48,
-                    type: 'WAVE',
+                    type: 'WAVE', owner: player,
                     update: function () {
                         this.x += this.vx;
                         this.y += this.vy;
@@ -790,6 +790,7 @@ class SoundHero {
             color: '#00e5ff',
             life: 120,       // 2 seconds to expand
             type: 'CRESCENDO_RING',
+            owner: player,
             hitEnemies: [],
             onHit() { return 'STOP'; }, // Bypass standard circle collision — ring handles its own hit detection in update()
             update() {

@@ -878,17 +878,21 @@ class AirHero {
         player.lastShotTime = now;
 
         if (typeof audioManager !== 'undefined' && audioManager.sfxEnabled) {
-            const windDir = (player.weatherVane && player.weatherVane.direction) ? player.weatherVane.direction : 'NORTH';
-            const dirs = ['NORTH', 'EAST', 'SOUTH', 'WEST'];
-            const idx = dirs.indexOf(windDir);
-            const trackName = `attack_air_${idx + 1}`;
+            const sfxNow = Date.now();
+            if (!player._lastAirAttackSfx || sfxNow - player._lastAirAttackSfx >= 250) {
+                const windDir = (player.weatherVane && player.weatherVane.direction) ? player.weatherVane.direction : 'NORTH';
+                const dirs = ['NORTH', 'EAST', 'SOUTH', 'WEST'];
+                const idx = dirs.indexOf(windDir);
+                const trackName = `attack_air_${idx + 1}`;
 
-            if (audioManager.tracks[trackName]) {
-                const sfx = audioManager.tracks[trackName].cloneNode();
-                sfx.volume = 0.3;
-                sfx.play().catch(e => { });
-            } else {
-                audioManager.play('attack_shooter'); // Fallback
+                if (audioManager.tracks[trackName]) {
+                    const sfx = audioManager.tracks[trackName].cloneNode();
+                    sfx.volume = 0.3;
+                    sfx.play().catch(e => { });
+                } else {
+                    audioManager.play('attack_shooter');
+                }
+                player._lastAirAttackSfx = sfxNow;
             }
         }
 

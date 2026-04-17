@@ -137,7 +137,9 @@ class AIController extends PlayerController {
 
         // Custom AI Hook for specific Heroes (DLCs)
         if (player.getAIInput) {
-            return player.getAIInput(player, this, this.target);
+            const customInput = player.getAIInput(player, this, this.target);
+            if (customInput) return customInput;
+            // null/undefined means "fall through to default AI"
         }
 
         if (this.target) {

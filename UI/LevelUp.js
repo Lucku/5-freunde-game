@@ -50,7 +50,8 @@ class LevelUpUI {
         if (window.setUIState) window.setUIState('LEVELUP');
 
         if (typeof audioManager !== 'undefined') {
-            audioManager.play('level_up');
+            const heroKey = `level_up_${player.type}`;
+            audioManager.play(audioManager.tracks[heroKey] ? heroKey : 'level_up');
         }
     }
 

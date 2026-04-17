@@ -431,6 +431,7 @@ class PoisonHero {
             }
             ctx.restore();
         };
+        p.owner = player;
         window.projectiles.push(p);
     }
 
@@ -499,6 +500,7 @@ class PoisonHero {
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🩸', 0, 0);
             ctx.restore();
         };
+        p.owner = player;
         window.projectiles.push(p);
     }
 
@@ -547,12 +549,13 @@ class PoisonHero {
             }
             ctx.restore();
         };
+        wave.owner = player;
         window.projectiles.push(wave);
         // Phase 2: frost zone after 100ms
         setTimeout(() => {
             if (!window.projectiles) return;
             const zone = new Projectile(cx, cy, {x:0,y:0}, 0, 'rgba(30,100,180,0.15)', 200, 'FROST_ZONE', 0, false);
-            zone.life = 240; zone.pierce = 9999; zone.onHit = () => 'STOP';
+            zone.life = 240; zone.pierce = 9999; zone.onHit = () => 'STOP'; zone.owner = player;
             zone.update = function() {
                 this.life--; if (this.life<=0){this.dead=true;return;}
                 if (window.enemies && window.frame%20===0) {
@@ -608,6 +611,7 @@ class PoisonHero {
             ctx.setLineDash([8,6]); ctx.strokeStyle=`rgba(100,255,50,${alpha})`; ctx.lineWidth=2;
             ctx.beginPath(); ctx.arc(cx,cy,rainR,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
         };
+        ctrl.owner = player;
         window.projectiles.push(ctrl);
     }
 
@@ -639,6 +643,7 @@ class PoisonHero {
             ctx.fillStyle='rgba(200,255,100,0.7)'; ctx.beginPath(); ctx.arc(-2,-2,3,0,Math.PI*2); ctx.fill();
             ctx.restore();
         };
+        p.owner = player;
         window.projectiles.push(p);
     }
 
@@ -673,6 +678,7 @@ class PoisonHero {
             }
             ctx.restore();
         };
+        p.owner = player;
         window.projectiles.push(p);
     }
 
@@ -680,7 +686,7 @@ class PoisonHero {
     static createHemorrhageChain(player, cx, cy) {
         if (typeof showNotification === 'function') showNotification("💀 HEMORRHAGE CHAIN", "#c0392b");
         const firstR=200, chainR=120, baseDmg=25*(player.damageMultiplier||1);
-        PoisonHero._spawnRingShockwave(cx, cy, firstR, '#c0392b');
+        PoisonHero._spawnRingShockwave(cx, cy, firstR, '#c0392b', player);
         if (typeof createExplosion === 'function') createExplosion(cx, cy, '#c0392b', 80);
         if (window.enemies) {
             window.enemies.forEach(e => {
@@ -697,7 +703,7 @@ class PoisonHero {
             window.enemies.forEach(e => {
                 if (!e||e.hp<=0||!e.bleedStacks||e.bleedStacks<10) return;
                 if (typeof createExplosion==='function') createExplosion(e.x,e.y,'#8b0000',50);
-                PoisonHero._spawnRingShockwave(e.x, e.y, chainR, '#8b0000');
+                PoisonHero._spawnRingShockwave(e.x, e.y, chainR, '#8b0000', player);
                 const ex=e.x, ey=e.y;
                 window.enemies.forEach(nb => {
                     if (nb!==e && nb.hp>0 && Math.hypot(nb.x-ex,nb.y-ey)<chainR) {
@@ -715,10 +721,10 @@ class PoisonHero {
         }, 500);
     }
 
-    static _spawnRingShockwave(cx, cy, maxR, color) {
+    static _spawnRingShockwave(cx, cy, maxR, color, owner) {
         if (!window.projectiles) return;
         const p = new Projectile(cx,cy,{x:0,y:0},0,'rgba(0,0,0,0)',maxR,'RING_WAVE',0,false);
-        p.life=30; p.pierce=9999; p.onHit=()=>'STOP'; p._maxR=maxR; p._col=color;
+        p.life=30; p.pierce=9999; p.onHit=()=>'STOP'; p._maxR=maxR; p._col=color; if (owner) p.owner=owner;
         p.update=function(){this.life--;if(this.life<=0)this.dead=true;};
         p.draw=function(){
             if (!window.ctx) return;
@@ -790,6 +796,7 @@ class PoisonHero {
             }
             ctx.restore();
         };
+        p.owner = player;
         window.projectiles.push(p);
     }
 
@@ -848,6 +855,7 @@ class PoisonHero {
             ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('☣',0,0);
             ctx.restore();
         };
+        p.owner = player;
         window.projectiles.push(p);
     }
 
@@ -905,6 +913,7 @@ class PoisonHero {
             ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('👁',0,0);
             ctx.restore();
         };
+        p.owner = player;
         window.projectiles.push(p);
     }
 
@@ -953,6 +962,7 @@ class PoisonHero {
             ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⚗',0,0);
             ctx.restore();
         };
+        p.owner = player;
         window.projectiles.push(p);
     }
 
@@ -976,7 +986,7 @@ class PoisonHero {
                 }
             });
         }
-        PoisonHero._spawnRingShockwave(cx, cy, blastR, '#ff6600');
+        PoisonHero._spawnRingShockwave(cx, cy, blastR, '#ff6600', player);
     }
 
     // BLUE_GREEN: Viral Mutation — infected enemies become spreading carriers
@@ -1041,6 +1051,7 @@ class PoisonHero {
             });
             ctx.restore();
         };
+        ctrl.owner = player;
         window.projectiles.push(ctrl);
     }
 
@@ -1080,7 +1091,7 @@ class PoisonHero {
                 // Adjusted by Skill Tree (RADIUS node)
                 p.life = (player.stats.attackRange || 15);
                 p.hitEnemies = [];
-
+                p.owner = player;
                 window.projectiles.push(p);
             }
         }
