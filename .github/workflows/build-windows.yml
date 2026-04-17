@@ -1,0 +1,41 @@
+name: Build Windows Installer
+
+on:
+  push:
+    tags:
+      - "v*" # Runs automatically on version tags (e.g. v1.0.0)
+  workflow_dispatch:
+    # Also allows manual trigger from the GitHub Actions UI
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Make Windows installer
+        run: npx electron-forge make --platform win32 --arch x64
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: out/make/squirrel.windows/x64/5FreundeArena-Setup.exe
+          if-no-files-found: error
+
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/make/squirrel.windows/x64/5FreundeArena-Setup.exe

@@ -1,6 +1,5 @@
 node_modules
 out
 *.code-workspace
-.github
 .claude
 CLAUDE.md
