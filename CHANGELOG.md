@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Fixed
+- Story Mode button now shows yellow controller-selection outline when navigated to with a gamepad (was hidden by `border: none !important`)
+- Windows installer now uses the correct app icon (`images/icons/win/icon.ico`) instead of the default Electron icon; icon path is now platform-aware in `forge.config.js`
+- Installed app on Windows now correctly shows `5 Freunde: Elemental Arena` as product name instead of `5-freunde-arena`
+
 ## [1.0.0] — 2026-04-17
 
 ### Added

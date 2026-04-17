@@ -4,7 +4,10 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
-    icon: 'images/icons/icon',
+    icon: process.platform === 'win32' ? 'images/icons/win/icon'
+        : process.platform === 'darwin' ? 'images/icons/mac/icon'
+        : 'images/icons/png/256x256',
+    executableName: '5FreundeArena',
   },
   rebuildConfig: {},
   makers: [
@@ -14,6 +17,7 @@ module.exports = {
         name: '5_freunde_arena',
         setupExe: '5FreundeArena-Setup.exe',
         shortcutName: '5 Freunde: Elemental Arena',
+        setupIcon: 'images/icons/win/icon.ico',
       },
     },
     {

@@ -2566,6 +2566,11 @@ input:checked+.slider:before {
     box-shadow: 0 6px 24px rgba(46, 204, 113, 0.42) !important;
 }
 
+.menu-primary-btn.selected {
+    border: 3px solid #f1c40f !important;
+    box-shadow: 0 0 20px rgba(241, 196, 15, 0.6) !important;
+}
+
 /* ── Secondary mode buttons ── */
 .menu-modes-grid {
     display: grid;
