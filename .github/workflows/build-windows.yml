@@ -1,4 +1,4 @@
-name: Build Windows Installer
+name: Build Installers
 
 on:
   push:
@@ -10,6 +10,8 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -39,3 +41,37 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: out/make/squirrel.windows/x64/5FreundeArena-Setup.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Make Linux zip
+        run: npx electron-forge make --platform linux --arch x64
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-zip
+          path: out/make/zip/linux/x64/*.zip
+          if-no-files-found: error
+
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/make/zip/linux/x64/*.zip
