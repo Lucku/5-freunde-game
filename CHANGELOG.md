@@ -4,9 +4,12 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Added
+
 ## [1.0.0] — 2026-04-17
 
 ### Added
+- Completion menu: "Hide Completed" toggle button filters out 100% categories and sub-categories; controller-compatible
 - Version number displayed subtly in the bottom-right of the main menu footer; single source of truth is `APP_VERSION` in `Constants.js`
 - Boss-win audio exclamation plays for the winning hero when defeating an opponent in versus mode (all four KO code paths: AI-opponent projectile, AI-opponent melee, 2P projectile, 2P melee)
 - GitHub Actions workflow
@@ -31,5 +34,10 @@ All notable changes to this project will be documented in this file, starting wi
 - Daily Challenge mode
 - Save import/export
 
+### Changed
+- Manual: expanded Game Modes section with entries for Versus Mode, Co-op Mode, Chaos Shuffle Mode, and Evil Mode
+
 ### Fixed
+- Completion menu BACK button now appears directly below the content instead of being pushed to the bottom of the screen
+- Completion menu now scrolls as a whole page (no inner scrollbar) and expanded categories scroll into view automatically
 - Version number and copyright text no longer overlap in the main menu footer

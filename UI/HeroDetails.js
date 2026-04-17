@@ -150,10 +150,13 @@ class HeroDetailsUI {
     openCompletion() {
         document.getElementById('menu-overlay').style.display = 'none';
         document.getElementById('completion-screen').style.display = 'flex';
-        // Assuming CompletionMenu is already a class in CompletionMenu.js
         if (typeof CompletionMenu !== 'undefined') {
-            const menu = new CompletionMenu();
-            menu.render();
+            window.completionMenu = new CompletionMenu();
+            // Reset filter state and button label on each open
+            if (typeof _completionHideCompleted !== 'undefined') _completionHideCompleted = false;
+            const btn = document.getElementById('completion-filter-btn');
+            if (btn) { btn.textContent = '◻ Hide Completed: OFF'; btn.classList.remove('active'); }
+            window.completionMenu.render();
         }
         if (window.setUIState) window.setUIState('COMPLETION');
     }

@@ -1,6 +1,18 @@
+let _completionHideCompleted = false;
+
 class CompletionMenu {
     constructor() {
         this.container = document.getElementById('completion-content');
+    }
+
+    toggleFilter() {
+        _completionHideCompleted = !_completionHideCompleted;
+        const btn = document.getElementById('completion-filter-btn');
+        if (btn) {
+            btn.textContent = _completionHideCompleted ? '✓ Hide Completed: ON' : '◻ Hide Completed: OFF';
+            btn.classList.toggle('active', _completionHideCompleted);
+        }
+        this.render();
     }
 
     calculateProgress() {
@@ -601,6 +613,8 @@ class CompletionMenu {
 
         categories.forEach(cat => {
             const p = progress[cat.id];
+            if (_completionHideCompleted && p.percent >= 100) return;
+
             const el = document.createElement('div');
             // DLC card spans both columns since it has many sub-entries
             el.className = cat.id === 'dlc' ? 'completion-item completion-item--wide' : 'completion-item';
@@ -629,6 +643,7 @@ class CompletionMenu {
             if (p.subs) {
                 for (const subName in p.subs) {
                     const sub = p.subs[subName];
+                    if (_completionHideCompleted && sub.percent >= 100) continue;
                     const subEl = document.createElement('div');
                     subEl.className = 'completion-sub-item';
 
@@ -656,6 +671,9 @@ class CompletionMenu {
                 const isHidden = subContainer.style.display === 'none';
                 subContainer.style.display = isHidden ? 'block' : 'none';
                 header.classList.toggle('active', isHidden);
+                if (isHidden) {
+                    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 10);
+                }
             };
 
             el.appendChild(header);

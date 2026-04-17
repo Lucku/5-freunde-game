@@ -4753,6 +4753,38 @@ function masterLoop(timestamp) {
                             saveGame();
                         }
                     }
+                } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+                    const distP2 = Math.hypot(player2.x - shard.x, player2.y - shard.y);
+                    if (distP2 < player2.radius + 20) {
+                        memoryShards.splice(index, 1);
+                        showNotification("MEMORY RECOVERED!");
+                        createExplosion(shard.x, shard.y, shard.color);
+
+                        if (!saveData.memories) saveData.memories = {};
+                        const shardType = shard.heroType;
+                        if (typeof saveData.memories[shardType] === 'number') {
+                            const count = saveData.memories[shardType];
+                            saveData.memories[shardType] = [];
+                            for (let i = 0; i < count; i++) saveData.memories[shardType].push(i);
+                        }
+                        if (!saveData.memories[shardType]) saveData.memories[shardType] = [];
+                        const unlockedIndices = saveData.memories[shardType];
+                        const allStories = MEMORY_STORIES[shardType] || [];
+                        const availableIndices = [];
+                        for (let i = 0; i < allStories.length; i++) {
+                            if (!unlockedIndices.includes(i)) availableIndices.push(i);
+                        }
+                        if (availableIndices.length > 0) {
+                            const newIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+                            saveData.memories[shardType].push(newIndex);
+                            const storyText = allStories[newIndex];
+                            showNotification(`MEMORY: "${storyText}"`);
+                            if (typeof audioManager !== 'undefined') audioManager.playVoice(shardType, newIndex);
+                        } else {
+                            showNotification("MEMORY RECOVERED! (All collected)");
+                        }
+                        saveGame();
+                    }
                 }
             });
 
@@ -4814,6 +4846,32 @@ function masterLoop(timestamp) {
                     }
 
                     cardDrops.splice(index, 1);
+                } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+                    const distP2 = Math.hypot(player2.x - drop.x, player2.y - drop.y);
+                    if (distP2 < player2.radius + 20) {
+                        const cardKey = drop.cardKey;
+                        const card = COLLECTOR_CARDS[cardKey];
+                        if (card && !saveData.collection.includes(cardKey)) {
+                            saveData.collection.push(cardKey);
+                            saveGame();
+                            const notif = document.createElement('div');
+                            notif.className = 'achievement-popup';
+                            notif.style.borderColor = card.color;
+                            notif.innerHTML = `
+                                <div style="font-size: 12px; color: #aaa;">NEW CARD FOUND!</div>
+                                <div style="color: ${card.color}; font-weight: bold; font-size: 16px; margin: 5px 0;">${card.name}</div>
+                                <div style="font-size: 12px;">${card.desc}</div>
+                            `;
+                            document.body.appendChild(notif);
+                            if (typeof audioManager !== 'undefined') {
+                                audioManager.play('pickup_card');
+                                audioManager.playHeroExclamation(player2.type, 'found');
+                            }
+                            setTimeout(() => notif.classList.add('show'), 10);
+                            setTimeout(() => { notif.classList.remove('show'); setTimeout(() => notif.remove(), 1000); }, 4000);
+                        }
+                        cardDrops.splice(index, 1);
+                    }
                 }
             });
 
@@ -4852,6 +4910,30 @@ function masterLoop(timestamp) {
                         createExplosion(player.x, player.y, '#f1c40f');
                     }
                     holyMasks.splice(index, 1);
+                } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+                    const distP2 = Math.hypot(player2.x - mask.x, player2.y - mask.y);
+                    if (distP2 < player2.radius + 20) {
+                        if (mask.isTrueGolden) {
+                            player2.damageMultiplier += 0.5;
+                            player2.speedMultiplier += 0.2;
+                            player2.maxHp += 50;
+                            player2.hp += 50;
+                            player2.cooldownMultiplier *= 0.8;
+                            player2.isGolden = true;
+                            showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
+                            createExplosion(player2.x, player2.y, '#fff');
+                        } else {
+                            saveData[player2.type].level++;
+                            saveGame();
+                            showNotification("PERMANENT LEVEL UP!");
+                            createExplosion(player2.x, player2.y, '#f1c40f');
+                        }
+                        if (typeof audioManager !== 'undefined') {
+                            audioManager.play('pickup_mask');
+                            audioManager.playHeroExclamation(player2.type, 'found');
+                        }
+                        holyMasks.splice(index, 1);
+                    }
                 }
             });
 
@@ -5273,6 +5355,7 @@ function masterLoop(timestamp) {
                             player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
                             p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
                             createExplosion(player2.x, player2.y, '#3b82f6');
+                            if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'failure');
                             showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
                         }
                     }
@@ -5344,6 +5427,7 @@ function masterLoop(timestamp) {
                                     player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
                                     p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
                                     createExplosion(player2.x, player2.y, '#3b82f6');
+                                    if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'failure');
                                     showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
                                 }
                             }
@@ -5794,6 +5878,17 @@ function masterLoop(timestamp) {
                 }
             } else {
                 player._injuredVoicePlayed = false; // reset when healed above threshold
+            }
+            // Co-op: P2 injured exclamation
+            if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+                if (player2.hp / player2.maxHp < 0.2) {
+                    if (!player2._injuredVoicePlayed) {
+                        player2._injuredVoicePlayed = true;
+                        if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'injured');
+                    }
+                } else {
+                    player2._injuredVoicePlayed = false;
+                }
             }
             if (player.hp / player.maxHp < 0.2) {
                 ctx.save();

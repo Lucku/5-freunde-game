@@ -1,9 +1,1 @@
 # General
--  Bug: Game crashes if versus mode opponent is Love hero:
-
-    LoveHero.js:628 Uncaught TypeError: Failed to execute 'createRadialGradient' on 'CanvasRenderingContext2D': The provided double value is non-finite.
-    draw	@	LoveHero.js:628
-    player.customDraw	@	LoveHero.js:48
-    draw	@	Player.js:1106
-
-- include version number on bottom of main menu and CHANGELOG

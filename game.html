@@ -461,17 +461,17 @@
 
     <!-- Completion Screen -->
     <div id="completion-screen"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:2000; flex-direction:column; align-items:center; padding:30px 24px 24px; overflow:hidden;">
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:2000; flex-direction:column; align-items:center; padding:30px 24px 24px; overflow-y:auto;">
         <div class="completion-screen-header">
             <div class="completion-screen-title">COMPLETION TRACKER</div>
             <div class="completion-screen-sub">Track your journey across all content</div>
         </div>
+        <button id="completion-filter-btn" class="completion-filter-btn" onclick="window.completionMenu && window.completionMenu.toggleFilter()">◻ Hide Completed: OFF</button>
         <div id="completion-grid"
-            style="width: 100%; max-width: 960px; display: flex; flex-direction: column; align-items: center; gap: 24px; overflow-y: auto; flex-grow: 1; padding: 4px 4px 4px 0;">
+            style="width: 100%; max-width: 960px; display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 4px 4px 4px 0;">
             <!-- Generated via JS -->
         </div>
-        <button class="screen-back-btn" onclick="closeCompletion()" style="margin-top: 18px; flex-shrink: 0;">←
-            BACK</button>
+        <button class="screen-back-btn" onclick="closeCompletion()" style="margin-top: 18px; flex-shrink: 0;">← BACK</button>
     </div>
 
     <!-- DLC Screen -->

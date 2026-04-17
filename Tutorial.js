@@ -200,6 +200,39 @@ const Manual = {
                 </div>
 
                 <div class="tut-card">
+                    <div class="tut-card-title">Versus Mode</div>
+                    <p>Go head-to-head against an AI opponent or a second player. Both fighters share the arena — last hero standing wins.</p>
+                    <ul>
+                        <li><b>Solo Versus:</b> Pick an opponent hero (or Random) and an arena biome (or Random), then fight a CPU-controlled rival.</li>
+                        <li><b>2P Versus:</b> Enable Co-op Mode first, connect two gamepads, then launch Versus. Both players control their own hero.</li>
+                        <li>No wave progression — pure 1v1 combat. Kills, special abilities, and power-ups all work as normal.</li>
+                        <li>Enemy waves are disabled; the timer runs indefinitely until one fighter dies.</li>
+                    </ul>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">2 Player Mode</div>
+                    <p>Play any mode (Standard, Story, Daily, Weekly, or Versus) alongside a second local player on separate gamepads.</p>
+                    <ul>
+                        <li>Toggle Co-op with the <b>2 Player</b> button in the main menu — connect two gamepads before starting.</li>
+                        <li>P1 and P2 each pick a different hero. In survival modes, both players must die before a run ends.</li>
+                        <li>When one player falls, a <b>Revival Marker</b> appears — the surviving player can stand on it to bring them back.</li>
+                        <li>Co-op saves are separate from solo saves and are marked so the locked P2 hero is preserved on resume.</li>
+                    </ul>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Chaos Shuffle Mode</div>
+                    <p>A chaotic run where your hero changes every wave. Adapt on the fly — no two waves play the same.</p>
+                    <ul>
+                        <li>At the start of each wave a new random hero is assigned. A notification announces the swap.</li>
+                        <li>Each wave has a <b>Chaos Objective</b> — a bonus challenge (e.g. "kill 15 enemies before time runs out"). Completing it awards bonus gold.</li>
+                        <li>Shop waves and boss scaling work as in Standard Mode.</li>
+                        <li>Progress is saved and can be continued like a normal run.</li>
+                    </ul>
+                </div>
+
+                <div class="tut-card">
                     <div class="tut-card-title">Daily Challenge</div>
                     <p>A seeded run that resets every day at midnight UTC. Every player in the world plays the exact same conditions: same enemy spawn order, same mutators, same biomes.</p>
                     <ul>
