@@ -12,8 +12,8 @@ class LightningHero {
         // Setup Special UI: STORM SURGE
         // This is the active spacebar ability.
         player.specialName = "STORM";
-        // Cooldown: 15 seconds
-        player.specialMaxCooldown = 15000;
+        // Cooldown: 15 seconds (900 frames @ 60 fps)
+        player.specialMaxCooldown = 900;
 
         if (!player.isCPU) {
             const iconEl = document.getElementById('special-icon');

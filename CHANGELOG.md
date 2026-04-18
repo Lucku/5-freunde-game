@@ -12,12 +12,18 @@ All notable changes to this project will be documented in this file, starting wi
 - Bug report overlay closes with gamepad B button (tracks `BUGREPORT` UI state)
 - Manual closes with gamepad B button (fixed broken `closeTutorial` reference → `Manual.close()`)
 - Evil Mode button and all other main-menu button types now show the yellow gamepad-focus ring when selected (added `.selected` overrides for `menu-mode-btn`, `menu-lib-btn`, `menu-challenge-btn`, `menu-continue-btn`, `menu-sys-btn`)
+- Symphony of Sickness DLC: added Collector Cards for Toxic Crawler, Speedster, and Shadow Clone enemy types (`injectCards`)
 
 ### Fixed
 - Story Mode button now shows yellow controller-selection outline when navigated to with a gamepad (was hidden by `border: none !important`)
 - Windows installer now uses the correct app icon (`images/icons/win/icon.ico`) instead of the default Electron icon; icon path is now platform-aware in `forge.config.js`
 - Installed app on Windows now correctly shows `5 Freunde: Elemental Arena` as product name instead of `5-freunde-arena`
 - USB receivers and other non-controller HID devices are no longer mistaken for gamepads; `isRealGamepad()` filter (≥10 buttons, ≥2 axes) is applied in menu navigation, co-op assignment, and the `gamepadconnected` event handler
+- Lightning Hero: `specialMaxCooldown` corrected from 15000 to 900 frames (was effectively a 4-minute cooldown instead of 15 seconds)
+- Time Hero: `rangeCooldown` and `meleeCooldown` now respect `cooldownMultiplier` on assignment (cooldown reduction upgrades had no effect)
+- Time Hero: CPU/co-op AI no longer returns `null`; now uses standard target-following behaviour
+- Symphony of Sickness DLC: beat loop `setInterval` now clears any previous interval before creating a new one, preventing stacked ticks on reload
+- Air Hero, Poison Hero, Sound Hero: special-icon DOM access is now guarded by `!player.isCPU`, preventing errors in CPU/co-op contexts
 
 ## [1.0.0] — 2026-04-17
 

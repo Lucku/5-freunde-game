@@ -167,8 +167,9 @@ const SymphonyDLC = {
             }
         };
 
-        // Start Beat Loop
-        setInterval(() => this.updateBeat(), 16);
+        // Start Beat Loop (clear any previous interval to avoid stacking on reload)
+        if (this._beatInterval) clearInterval(this._beatInterval);
+        this._beatInterval = setInterval(() => this.updateBeat(), 16);
 
         // 3. Inject story arc labels and themes
         this.injectStoryArcLabels();
@@ -182,6 +183,9 @@ const SymphonyDLC = {
 
         // 6. Inject Memory Stories
         this.injectMemories();
+
+        // 7. Inject Collector Cards
+        this.injectCards();
 
         // Register audio
         if (typeof audioManager !== 'undefined') {
@@ -480,6 +484,28 @@ const SymphonyDLC = {
                 }
             }
         }
+    },
+
+    injectCards: function () {
+        if (typeof COLLECTOR_CARDS === 'undefined') return;
+
+        const mkSet = (type, name, specialDesc, specialBonus) => ({
+            [`${type}_1`]: { name: `${name} Bronze`, desc: 'Unlock Card', chance: 0.05, color: '#cd7f32', bonus: { type: 'unlock', target: type } },
+            [`${type}_2`]: { name: `${name} Silver`, desc: `+10% Def vs ${name}s`, chance: 0.01, color: '#c0c0c0', bonus: { type: 'defense_vs', val: 0.1, target: type } },
+            [`${type}_3`]: { name: `${name} Gold`, desc: `+20% XP from ${name}s`, chance: 0.001, color: '#ffd700', bonus: { type: 'xp_vs', val: 0.2, target: type } },
+            [`${type}_4`]: { name: `${name} Platinum`, desc: specialDesc, chance: 0.0005, color: '#e5e4e2', bonus: specialBonus }
+        });
+
+        Object.assign(COLLECTOR_CARDS, {
+            // Poison biome enemy — mutated toxic crawler
+            ...mkSet('TOXIC', 'Toxic Crawler', 'Toxic Crawlers cannot apply poison stacks to you', { type: 'special', id: 'TOXIC_IMMUNE' }),
+            // Sound biome enemy — frantic speedster
+            ...mkSet('SPEEDSTER', 'Speedster', 'Speedsters deal 25% less contact damage to you', { type: 'special', id: 'SPEEDSTER_SLOW' }),
+            // DLC boss — the Shadow Clone
+            ...mkSet('SHADOW_CLONE', 'Shadow Clone', 'Shadow Clone illusions deal 30% less damage to you', { type: 'special', id: 'CLONE_RESIST' }),
+        });
+
+        console.log("Symphony of Sickness: Collector Cards Injected.");
     }
 };
 

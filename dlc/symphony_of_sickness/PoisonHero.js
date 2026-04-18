@@ -17,8 +17,10 @@ class PoisonHero {
         player.specialMaxCooldown = 600; // 10s Standard Cooldown
 
         // Update UI Icon
-        const iconEl = document.getElementById('special-icon');
-        if (iconEl) iconEl.innerText = "⚗️";
+        if (!player.isCPU) {
+            const iconEl = document.getElementById('special-icon');
+            if (iconEl) iconEl.innerText = "⚗️";
+        }
 
         player.customUpdate = (dx, dy) => PoisonHero.update(player, dx, dy);
         player.customSpecial = () => PoisonHero.useSpecial(player);

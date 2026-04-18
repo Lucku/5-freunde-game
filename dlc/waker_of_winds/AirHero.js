@@ -21,8 +21,10 @@ class AirHero {
 
         // Ult Icon
         player.icon = "🌪️";
-        const iconEl = document.getElementById('special-icon');
-        if (iconEl) iconEl.innerText = "🌪️";
+        if (!player.isCPU) {
+            const iconEl = document.getElementById('special-icon');
+            if (iconEl) iconEl.innerText = "🌪️";
+        }
 
         // Ultimate: TORNADO FORM
         player.specialName = "TORNADO";

@@ -397,7 +397,7 @@ class TimeHero {
 
         const gainMult = player.stats.chronoGainMult || 1;
         player.chronoEnergy = Math.min(100, player.chronoEnergy + 7 * gainMult);
-        player.rangeCooldown = player.stats.rangeCd;
+        player.rangeCooldown = player.stats.rangeCd * (player.cooldownMultiplier || 1);
 
         if (typeof audioManager !== 'undefined') audioManager.play('attack_time');
     }
@@ -475,7 +475,7 @@ class TimeHero {
             player.chronoEnergy = Math.min(100, player.chronoEnergy + 14 * Math.min(hitCount, 3) * gainMult);
         }
 
-        player.meleeCooldown = player.stats.meleeCd;
+        player.meleeCooldown = player.stats.meleeCd * (player.cooldownMultiplier || 1);
         if (typeof audioManager !== 'undefined') audioManager.play('melee_time');
     }
 
@@ -944,7 +944,26 @@ class TimeHero {
     }
 
     // ─── AI ──────────────────────────────────────────────────────────────────
-    static getAIInput(player, controllers, target) { return null; }
+    static getAIInput(player, controllers, target) {
+        if (!target) return { x: 0, y: 0, aimAngle: player.aimAngle || 0, shoot: false, melee: false, dash: false, special: false, pause: false, usingGamepad: false };
+        const dx = target.x - player.x;
+        const dy = target.y - player.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const aimAngle = Math.atan2(dy, dx);
+        const desiredDist = 200;
+        const moveScale = dist > desiredDist + 40 ? 1 : (dist < desiredDist - 40 ? -0.6 : 0);
+        return {
+            x: (dx / dist) * moveScale,
+            y: (dy / dist) * moveScale,
+            aimAngle,
+            shoot: true,
+            melee: dist < 110,
+            dash: Math.random() < 0.006,
+            special: player.specialCooldown <= 0 && Math.random() < 0.004,
+            pause: false,
+            usingGamepad: false,
+        };
+    }
 }
 
 window.TimeHero = TimeHero;

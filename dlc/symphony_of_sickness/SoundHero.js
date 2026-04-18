@@ -24,8 +24,10 @@ class SoundHero {
         player.specialName = "CRESCENDO";
         player.specialMaxCooldown = 900; // 15s
 
-        const iconEl = document.getElementById('special-icon');
-        if (iconEl) iconEl.innerText = "🎵";
+        if (!player.isCPU) {
+            const iconEl = document.getElementById('special-icon');
+            if (iconEl) iconEl.innerText = "🎵";
+        }
 
         if (!player.specialName || player.specialName === "undefined") {
             player.specialName = "CRESCENDO";
