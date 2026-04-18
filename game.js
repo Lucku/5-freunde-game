@@ -8,6 +8,20 @@ if (isElectron) {
     // Use the path we set in index.js
     saveFilePath = path.join(process.env.APP_SAVE_PATH, 'save_data.json');
     console.log("Save File Location:", saveFilePath); // Useful for debugging
+
+    // Write uncaught JS errors directly to the log file so crashes are captured
+    // even if the renderer freezes before the main process can log them.
+    const _logPath = process.env.APP_LOG_PATH;
+    if (_logPath) {
+        window.onerror = function (message, source, lineno, colno, error) {
+            const entry = `[${new Date().toISOString()}] [RENDERER:UNCAUGHT] ${message}\n  at ${source}:${lineno}:${colno}\n${error && error.stack ? error.stack : ''}\n`;
+            try { fs.appendFileSync(_logPath, entry); } catch (_) {}
+        };
+        window.onunhandledrejection = function (event) {
+            const entry = `[${new Date().toISOString()}] [RENDERER:UNHANDLED_REJECTION] ${event.reason && event.reason.stack ? event.reason.stack : event.reason}\n`;
+            try { fs.appendFileSync(_logPath, entry); } catch (_) {}
+        };
+    }
 }
 
 const canvas = document.getElementById('gameCanvas');

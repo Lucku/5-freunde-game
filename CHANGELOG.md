@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Added
+- Electron build now writes a persistent `game.log` to the userData directory; all renderer `console.*` output, uncaught JS errors, and renderer crashes are captured there for debugging
+
 ## [1.0.1] — 2026-04-17
 
 ### Added
