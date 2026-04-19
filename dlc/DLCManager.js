@@ -1,3 +1,18 @@
+// Electron detection (mirrors Config.js pattern)
+const _isElectronDLC = typeof process !== 'undefined' && process.versions && process.versions.electron;
+let _fsDLC, _pathDLC, _dlcFilePath;
+if (_isElectronDLC) {
+    try {
+        _fsDLC = require('fs');
+        _pathDLC = require('path');
+        if (process.env.APP_SAVE_PATH) {
+            _dlcFilePath = _pathDLC.join(process.env.APP_SAVE_PATH, 'dlcs.json');
+        }
+    } catch (e) {
+        console.warn("DLCManager: failed to load Electron fs modules:", e);
+    }
+}
+
 class DLCManager {
     constructor() {
         this.activeDLCs = [];
@@ -40,15 +55,51 @@ class DLCManager {
         };
     }
 
-    getDLCList() {
-        // Migration: Check for old ID
-        let enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "waker_of_winds", "faith_of_fortune"]');
-        if (enabledDLCs.includes('the_wind_waker')) {
-            enabledDLCs = enabledDLCs.filter(e => e !== 'the_wind_waker');
-            if (!enabledDLCs.includes('waker_of_winds')) enabledDLCs.push('waker_of_winds');
-            localStorage.setItem('enabled_dlcs', JSON.stringify(enabledDLCs));
+    _loadEnabledDLCs() {
+        let raw = null;
+        if (_isElectronDLC && _fsDLC && _dlcFilePath) {
+            try {
+                if (_fsDLC.existsSync(_dlcFilePath)) {
+                    raw = _fsDLC.readFileSync(_dlcFilePath, 'utf8');
+                }
+            } catch (e) {
+                console.error("DLCManager: failed to read dlcs file:", e);
+            }
         }
+        if (!raw) raw = localStorage.getItem('enabled_dlcs');
 
+        if (raw !== null) {
+            try {
+                let enabled = JSON.parse(raw);
+                // Migration: rename old ID
+                if (enabled.includes('the_wind_waker')) {
+                    enabled = enabled.filter(e => e !== 'the_wind_waker');
+                    if (!enabled.includes('waker_of_winds')) enabled.push('waker_of_winds');
+                    this._saveEnabledDLCs(enabled);
+                }
+                return enabled;
+            } catch (e) {
+                console.error("DLCManager: failed to parse enabled DLCs:", e);
+            }
+        }
+        // First run: all DLCs disabled by default
+        return [];
+    }
+
+    _saveEnabledDLCs(enabled) {
+        const json = JSON.stringify(enabled);
+        if (_isElectronDLC && _fsDLC && _dlcFilePath) {
+            try {
+                _fsDLC.writeFileSync(_dlcFilePath, json);
+            } catch (e) {
+                console.error("DLCManager: failed to write dlcs file:", e);
+            }
+        }
+        localStorage.setItem('enabled_dlcs', json);
+    }
+
+    getDLCList() {
+        const enabledDLCs = this._loadEnabledDLCs();
         return Object.keys(this.availableDLCs).map(id => ({
             id: id,
             ...this.availableDLCs[id],
@@ -58,17 +109,7 @@ class DLCManager {
 
     async init() {
         console.log("Initializing DLC Manager...");
-
-        // Load enabled DLCs from storage (default to enabled for now)
-        let enabledDLCs = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock", "champions_of_chaos", "waker_of_winds", "faith_of_fortune", "symphony_of_sickness", "echos_of_eternity"]');
-
-        // Migration check again to be safe
-        if (enabledDLCs.includes('the_wind_waker')) {
-            enabledDLCs = enabledDLCs.filter(e => e !== 'the_wind_waker');
-            if (!enabledDLCs.includes('waker_of_winds')) enabledDLCs.push('waker_of_winds');
-            localStorage.setItem('enabled_dlcs', JSON.stringify(enabledDLCs));
-        }
-
+        const enabledDLCs = this._loadEnabledDLCs();
         for (const id of enabledDLCs) {
             if (this.availableDLCs.hasOwnProperty(id)) {
                 await this.loadDLC(id);
@@ -77,13 +118,13 @@ class DLCManager {
     }
 
     toggleDLC(id, enable) {
-        let enabled = JSON.parse(localStorage.getItem('enabled_dlcs') || '["rise_of_the_rock"]');
+        let enabled = this._loadEnabledDLCs();
         if (enable) {
             if (!enabled.includes(id)) enabled.push(id);
         } else {
             enabled = enabled.filter(e => e !== id);
         }
-        localStorage.setItem('enabled_dlcs', JSON.stringify(enabled));
+        this._saveEnabledDLCs(enabled);
         alert(`DLC ${id} ${enable ? 'enabled' : 'disabled'}. Please restart the game.`);
     }
 

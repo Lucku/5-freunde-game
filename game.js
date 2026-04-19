@@ -1223,9 +1223,9 @@ function continueRun() {
     _bossChoiceFrame = 0;
     bossActive = false;
     enemiesKilledInWave = 0; // Reset kill count for the wave we are about to start
-    // Show story narration for the current wave before starting it (player hasn't seen it yet)
-    // wave is currently state.wave - 1; triggerStory(wave) checks for story at wave+1 = state.wave
-    triggerStory(wave);
+    // The save was made at the start of state.wave (after story/shop already ran for the previous wave).
+    // Just advance directly to restart that wave — no story or shop re-trigger needed.
+    advanceWave();
 
     // Clear the save slot immediately upon loading (Rogue-lite style)
     // Or keep it until next wave start? 

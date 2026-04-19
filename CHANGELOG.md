@@ -12,11 +12,13 @@ All notable changes to this project will be documented in this file, starting wi
 
 ### Changed
 - Standard boss enemies (Rhino, Speedster, Summoner, Nova, Hydra) now face the direction they are moving instead of spinning around their own axis
+- DLC enabled-state is now stored in `dlcs.json` (Electron) / `localStorage` (web), mirroring the Config.js pattern; all DLCs are disabled by default on first run and must be explicitly enabled
 
 ### Fixed
 - Entering any game mode with a controller connected no longer crashes: `PlayerController.js` now uses optional chaining (`?.pressed`) on all gamepad button accesses so gamepads with fewer than 10 buttons are handled safely
 - Controller inputs in-game no longer go dead when a USB receiver occupies gamepad index 0: `HumanController` now uses `isRealGamepad()` to find the first real controller, consistent with menu navigation
 - Completion menu no longer crashes (showing only the toggle and back button) on first run: `CompletionMenu.calculateProgress()` now uses optional chaining when reading `.prestige` for altar convergence nodes whose hero slots may not yet exist in `saveData`
+- "Continue Run" no longer opens the shop when resuming a saved run on a wave that follows a shop wave (e.g. wave 5 after the wave-4 shop)
 
 ## [1.0.1] — 2026-04-17
 
