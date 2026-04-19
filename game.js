@@ -51,6 +51,7 @@ function _doBossContinue() {
     _bossChoiceGpPrev = {};
     window._bossContinueBtn = null;
     window._bossQuitBtn = null;
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // clear frozen boss-choice frame before story opens
     triggerStory(wave);
 }
 const buffContainer = document.getElementById('buff-container');
@@ -1655,9 +1656,10 @@ function togglePause() {
     document.getElementById('pause-screen').style.display = gamePaused ? 'flex' : 'none';
     setUIState(gamePaused ? 'PAUSE' : 'GAME');
     _syncSoundBiomeMusic();
-    // Stop hero-specific loops on pause; EarthHero.update() will restart them on resume.
+    // Stop hero-specific loops on pause; hero update() will restart them on resume.
     if (gamePaused && typeof audioManager !== 'undefined') {
         audioManager.stopLoop('attack_earth_roll');
+        audioManager.stopLoop('special_spirit_charging');
     }
 }
 
@@ -3987,7 +3989,7 @@ function masterLoop(timestamp) {
                 if (_bossChoiceFrame > 20) {
                     const _gpads = navigator.getGamepads ? navigator.getGamepads() : [];
                     for (const _gp of _gpads) {
-                        if (!_gp) continue;
+                        if (!_gp || !isRealGamepad(_gp)) continue;
                         _gpActive = true;
                         const _gpPressed = (idx) => _gp.buttons[idx]?.pressed && !_bossChoiceGpPrev[idx];
                         const _stickX = _gp.axes[0] || 0;
@@ -4009,6 +4011,9 @@ function masterLoop(timestamp) {
                         break; // only first connected gamepad
                     }
                 }
+
+                // If a gamepad action dismissed the screen this frame, stop rendering it
+                if (!_bossChoiceScreen) return;
 
                 ctx.save();
                 ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

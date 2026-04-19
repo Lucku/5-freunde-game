@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+## [1.0.3] — 2026-04-19
+
+### Added
+- Automatic update check on launch: fetches the latest GitHub release and shows a dialog if a newer version is available, with a direct download button
+
+### Fixed
+- Spirit Hero's charging sound loop no longer continues playing after pausing the game
+- Boss defeated screen (story mode) is now controller-navigable on Windows Electron: gamepad detection now uses `isRealGamepad()` to skip USB receivers at index 0
+- Boss defeated screen no longer persists over the story chapter screen after selecting Continue: canvas is cleared immediately on dismissal and the render loop early-exits when the screen is dismissed mid-frame
+
 ## [1.0.2] — 2026-04-19
 
 ### Added

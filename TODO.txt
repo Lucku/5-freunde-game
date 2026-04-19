@@ -1,2 +1,1 @@
 # General
-- add automatic update check against Github, with auto download and installation

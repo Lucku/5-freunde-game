@@ -1,6 +1,7 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 
 // Handle Squirrel.Windows installer events (install, update, uninstall shortcuts)
 if (require('electron-squirrel-startup')) app.quit();
@@ -74,12 +75,70 @@ app.whenReady().then(() => {
 
     createWindow();
 
+    // Check for updates after window is created
+    checkForUpdates();
+
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
         }
     });
 });
+
+ipcMain.on('open-url', (event, url) => {
+    shell.openExternal(url);
+});
+
+function parseVersion(v) {
+    return (v || '').replace(/^v/, '').split('.').map(Number);
+}
+
+function isNewer(latest, current) {
+    const l = parseVersion(latest);
+    const c = parseVersion(current);
+    for (let i = 0; i < 3; i++) {
+        if ((l[i] || 0) > (c[i] || 0)) return true;
+        if ((l[i] || 0) < (c[i] || 0)) return false;
+    }
+    return false;
+}
+
+function checkForUpdates() {
+    const options = {
+        hostname: 'api.github.com',
+        path: '/repos/Lucku/5-freunde-game/releases/latest',
+        headers: { 'User-Agent': 'Freunde-Elemental-Arena' }
+    };
+    https.get(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+            try {
+                const release = JSON.parse(data);
+                const latestTag = release.tag_name;
+                const currentVersion = app.getVersion();
+                if (latestTag && isNewer(latestTag, currentVersion)) {
+                    const downloadUrl = release.html_url;
+                    const wins = BrowserWindow.getAllWindows();
+                    if (wins.length > 0) {
+                        // Wait for renderer to be ready before sending
+                        const win = wins[0];
+                        const send = () => win.webContents.send('update-available', { version: latestTag, url: downloadUrl });
+                        if (win.webContents.isLoading()) {
+                            win.webContents.once('did-finish-load', send);
+                        } else {
+                            send();
+                        }
+                    }
+                }
+            } catch (e) {
+                // Silently ignore parse errors
+            }
+        });
+    }).on('error', () => {
+        // Silently ignore network errors
+    });
+}
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {

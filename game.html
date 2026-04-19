@@ -488,6 +488,21 @@
         <button class="screen-back-btn" style="margin-top:32px;" onclick="closeDLCMenu()">← CLOSE</button>
     </div>
 
+    <!-- Update Available Dialog -->
+    <div id="update-dialog"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:4000; flex-direction:column; align-items:center; justify-content:center;">
+        <div class="modal-panel" style="max-width:480px;">
+            <div class="screen-header" style="margin-bottom:4px;">
+                <div class="screen-title st-gold">UPDATE AVAILABLE</div>
+            </div>
+            <p class="dialog-text" id="update-dialog-text">A new version is available.</p>
+            <div class="dialog-buttons">
+                <button class="screen-back-btn" id="update-download-btn">Download</button>
+                <button class="screen-back-btn" onclick="document.getElementById('update-dialog').style.display='none'">Later</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Confirmation Dialog -->
     <div id="confirm-dialog"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:3000; flex-direction:column; align-items:center; justify-content:center;">
@@ -1085,6 +1100,18 @@
 
     <script>
         document.getElementById('version-label').textContent = 'v' + APP_VERSION;
+    </script>
+    <script>
+        (function () {
+            const { ipcRenderer } = require('electron');
+            ipcRenderer.on('update-available', (event, { version, url }) => {
+                document.getElementById('update-dialog-text').textContent =
+                    `Version ${version} is now available. You are running v${APP_VERSION}.`;
+                const btn = document.getElementById('update-download-btn');
+                btn.onclick = () => ipcRenderer.send('open-url', url);
+                document.getElementById('update-dialog').style.display = 'flex';
+            });
+        })();
     </script>
 </body>
 
