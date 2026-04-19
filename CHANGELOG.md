@@ -4,9 +4,14 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+## [1.0.2] — 2026-04-19
+
 ### Added
-- Electron build now writes a persistent `game.log` to the userData directory; all renderer `console.*` output, uncaught JS errors, and renderer crashes are captured there for debugging
+- Electron file logging (`game.log`) is now toggled by a `LOGGING_ENABLED` constant in `index.js` (disabled by default)
 - README now includes Windows build instructions; GitHub Actions workflow file renamed from `build-windows.yml` to `build.yml`
+
+### Changed
+- Standard boss enemies (Rhino, Speedster, Summoner, Nova, Hydra) now face the direction they are moving instead of spinning around their own axis
 
 ### Fixed
 - Entering any game mode with a controller connected no longer crashes: `PlayerController.js` now uses optional chaining (`?.pressed`) on all gamepad button accesses so gamepads with fewer than 10 buttons are handled safely

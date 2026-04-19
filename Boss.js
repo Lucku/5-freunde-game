@@ -1325,7 +1325,9 @@ class Boss {
         }
         // ── End Makuta ────────────────────────────────────────────────────────
 
-        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(frame * 0.02);
+        const _drawTarget = (typeof getCoopTarget === 'function') ? getCoopTarget(this.x, this.y) : player;
+        const _facingAngle = Math.atan2(_drawTarget.y - this.y, _drawTarget.x - this.x);
+        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(_facingAngle + Math.PI / 2);
         // 3D boss body — radial gradient lit from top-left
         const _bLight = shadeColor(this.color, +50);
         const _bDark = shadeColor(this.color, -65);

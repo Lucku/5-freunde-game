@@ -5,10 +5,12 @@ const fs = require('fs');
 // Handle Squirrel.Windows installer events (install, update, uninstall shortcuts)
 if (require('electron-squirrel-startup')) app.quit();
 
+const LOGGING_ENABLED = false;
+
 let logStream = null;
 
 function writeLog(level, source, ...args) {
-    if (!logStream) return;
+    if (!LOGGING_ENABLED || !logStream) return;
     const line = `[${new Date().toISOString()}] [${source}:${level}] ${args.join(' ')}\n`;
     logStream.write(line);
 }
@@ -51,22 +53,24 @@ app.whenReady().then(() => {
     // Define the save path in the environment variables so the game can read it
     process.env.APP_SAVE_PATH = app.getPath('userData');
 
-    // Open a persistent log file (append mode so multiple sessions accumulate)
-    const logPath = path.join(app.getPath('userData'), 'game.log');
-    try {
-        logStream = fs.createWriteStream(logPath, { flags: 'a' });
-        logStream.write(`\n${'='.repeat(60)}\n`);
-        writeLog('INFO', 'MAIN', `Session started — log: ${logPath}`);
-        writeLog('INFO', 'MAIN', `Save dir: ${process.env.APP_SAVE_PATH}`);
-        process.env.APP_LOG_PATH = logPath;
-    } catch (e) {
-        console.error('Failed to open log file:', e);
-    }
+    if (LOGGING_ENABLED) {
+        // Open a persistent log file (append mode so multiple sessions accumulate)
+        const logPath = path.join(app.getPath('userData'), 'game.log');
+        try {
+            logStream = fs.createWriteStream(logPath, { flags: 'a' });
+            logStream.write(`\n${'='.repeat(60)}\n`);
+            writeLog('INFO', 'MAIN', `Session started — log: ${logPath}`);
+            writeLog('INFO', 'MAIN', `Save dir: ${process.env.APP_SAVE_PATH}`);
+            process.env.APP_LOG_PATH = logPath;
+        } catch (e) {
+            console.error('Failed to open log file:', e);
+        }
 
-    // Catch unhandled errors in the main process itself
-    process.on('uncaughtException', (err) => {
-        writeLog('ERROR', 'MAIN', `Uncaught exception: ${err.stack || err}`);
-    });
+        // Catch unhandled errors in the main process itself
+        process.on('uncaughtException', (err) => {
+            writeLog('ERROR', 'MAIN', `Uncaught exception: ${err.stack || err}`);
+        });
+    }
 
     createWindow();
 
