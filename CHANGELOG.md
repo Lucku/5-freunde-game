@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file, starting wi
 ### Added
 - Electron build now writes a persistent `game.log` to the userData directory; all renderer `console.*` output, uncaught JS errors, and renderer crashes are captured there for debugging
 
+### Fixed
+- Entering any game mode with a controller connected no longer crashes: `PlayerController.js` now uses optional chaining (`?.pressed`) on all gamepad button accesses so gamepads with fewer than 10 buttons are handled safely
+- Completion menu no longer crashes (showing only the toggle and back button) on first run: `CompletionMenu.calculateProgress()` now uses optional chaining when reading `.prestige` for altar convergence nodes whose hero slots may not yet exist in `saveData`
+
 ## [1.0.1] — 2026-04-17
 
 ### Added

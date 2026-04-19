@@ -492,7 +492,7 @@ class CompletionMenu {
             const sub = { current: 0, total: ALTAR_TREE.convergence.length, percent: 0, missing: [] };
             ALTAR_TREE.convergence.forEach(node => {
                 const reqs = Object.keys(node.req);
-                const isUnlocked = reqs.every(h => (saveData[h].prestige || 0) >= node.req[h]);
+                const isUnlocked = reqs.every(h => (saveData[h]?.prestige || 0) >= node.req[h]);
                 if (isUnlocked) {
                     sub.current++;
                 } else {
