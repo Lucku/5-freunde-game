@@ -52,15 +52,17 @@ class HumanController extends PlayerController {
         const gamepads = navigator.getGamepads();
         let gp = null;
 
-        // Find specific gamepad index OR first connected one if index is 0 and we want default behavior?
-        // To support multiplayer, we must respect this.gamepadIndex
-        if (gamepads[this.gamepadIndex] && gamepads[this.gamepadIndex].connected) {
-            gp = gamepads[this.gamepadIndex];
-        } else if (this.gamepadIndex === 0) {
-            // Fallback for Player 1: Grab first available if index 0 is missing? 
-            // Or strict mapping? Strict mapping is better for fixed slots, 
-            // but original logic just grabbed "any". Let's stick to original logic for P1 (index 0).
-            for (let g of gamepads) { if (g && g.connected) { gp = g; break; } }
+        // Always scan for the first *real* controller so that USB receivers and
+        // other low-button-count HID devices sitting at index 0 are skipped.
+        // isRealGamepad() is defined in game.js and available during gameplay.
+        if (typeof window.isRealGamepad === 'function') {
+            for (let g of gamepads) { if (g && g.connected && window.isRealGamepad(g)) { gp = g; break; } }
+        } else {
+            if (gamepads[this.gamepadIndex] && gamepads[this.gamepadIndex].connected) {
+                gp = gamepads[this.gamepadIndex];
+            } else if (this.gamepadIndex === 0) {
+                for (let g of gamepads) { if (g && g.connected) { gp = g; break; } }
+            }
         }
 
         if (gp) {

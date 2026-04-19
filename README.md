@@ -9,11 +9,9 @@ Quick summary
 - Includes a DLC system under `dlc/` (example DLC: `rise_of_the_rock`).
 - Audio is handled by `AudioManager.js`; story audio and DLC audio are located in `dlc/.../music`.
 
-Building for Steam Deck (Linux x64)
------------------------------------
-These are the minimal steps used to build an Electron app for Linux x64 (Steam Deck):
-
-1. Install dependencies
+Building
+--------
+First, install dependencies:
 
 ```bash
 npm install
@@ -21,11 +19,23 @@ npm install electron --save-dev
 npm install --save-dev @electron-forge/cli
 ```
 
-2. Build the distributable for Linux x64
+### Steam Deck / Linux (x64)
 
 ```bash
 npm run make -- --platform=linux --arch=x64
 ```
+
+Output: `out/make/zip/linux/x64/*.zip`
+
+### Windows (x64)
+
+Run on a Windows machine (or via the GitHub Actions workflow):
+
+```bash
+npm run make -- --platform=win32 --arch=x64
+```
+
+Output: `out/make/squirrel.windows/x64/5FreundeArena-Setup.exe`
 
 Notes
 -----
