@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Changed
+- Developer logo intro screen now plays an animated video (`developer_animated.mp4`) instead of a static image
+- Title background in the press-start screen now plays a looping animated video (`title_animated.mp4`) instead of a static image
+
 ## [1.0.3] — 2026-04-19
 
 ### Added

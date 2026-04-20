@@ -34,6 +34,9 @@ class IntroManager {
         const screen = document.getElementById('dev-logo-screen');
         if (!screen) { onComplete(); return; }
 
+        const video = screen.querySelector('video');
+        if (video) { video.currentTime = 0; video.play().catch(() => { }); }
+
         requestAnimationFrame(() => requestAnimationFrame(() => {
             screen.style.transition = 'opacity 1.2s ease';
             screen.style.opacity = '1';
@@ -54,7 +57,7 @@ class IntroManager {
                     screen.style.display = 'none';
                     onComplete();
                 }, 1000);
-            }, 2800);
+            }, 4000);
         }));
     }
 
@@ -98,7 +101,7 @@ class IntroManager {
         const audio = new Audio('audio/intro/story_intro.mp3');
         audio.volume = 0.88;
         this._introAudio = audio;
-        audio.play().catch(() => {});
+        audio.play().catch(() => { });
         // Auto-advance 1.5s after narration ends, or after 55s fallback
         const fallbackTimer = setTimeout(advance, 55000);
         audio.onended = () => { clearTimeout(fallbackTimer); setTimeout(advance, 1500); };
@@ -132,11 +135,14 @@ class IntroManager {
         const screen = document.getElementById('press-start-screen');
         if (!screen) { onComplete(); return; }
 
+        const video = screen.querySelector('video');
+        if (video) { video.currentTime = 0; video.play().catch(() => { }); }
+
         this._updatePromptText();
 
-        const _onGPConnect    = () => this._updatePromptText();
+        const _onGPConnect = () => this._updatePromptText();
         const _onGPDisconnect = () => this._updatePromptText();
-        window.addEventListener('gamepadconnected',    _onGPConnect);
+        window.addEventListener('gamepadconnected', _onGPConnect);
         window.addEventListener('gamepaddisconnected', _onGPDisconnect);
 
         requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -171,7 +177,7 @@ class IntroManager {
 
         const cleanup = () => {
             window.removeEventListener('keydown', onKey);
-            window.removeEventListener('gamepadconnected',    _onGPConnect);
+            window.removeEventListener('gamepadconnected', _onGPConnect);
             window.removeEventListener('gamepaddisconnected', _onGPDisconnect);
             clearInterval(gpInterval);
         };

@@ -5,7 +5,7 @@ module.exports = {
   packagerConfig: {
     asar: true,
     icon: process.platform === 'win32' ? 'images/icons/win/icon'
-        : process.platform === 'darwin' ? 'images/icons/mac/icon'
+      : process.platform === 'darwin' ? 'images/icons/mac/icon'
         : 'images/icons/png/256x256',
     executableName: '5FreundeArena',
   },
@@ -18,6 +18,7 @@ module.exports = {
         setupExe: '5FreundeArena-Setup.exe',
         shortcutName: '5 Freunde: Elemental Arena',
         setupIcon: 'images/icons/win/icon.ico',
+        loadingGif: 'images/installer/loading.gif',
       },
     },
     {
