@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Added
+- **Hit flash on enemies**: Enemies briefly flash white when hit (6-frame fade), giving instant visual confirmation on every shot and melee strike
+- **Enemy death burst**: Regular enemies emit a small directional 8-particle burst in their own color on death
+- **Hit stop**: Significant hits (melee: 2 frames, crit projectile: 3 frames, melee crit: 4 frames) freeze enemy and projectile movement for classic fighting-game impact feel
+- **Combo milestone animation**: Reaching combo x10, x25, x50 or x100 triggers a scale-bounce and color pop on the combo counter
+- **Low health heartbeat**: The health bar now persistently pulses at <25% HP (slow) and <10% HP (fast panic-rate); canvas vignette also activates earlier (25% vs 20%) with pulse speed scaling down with HP
+
 ### Changed
 - Developer logo intro screen now plays an animated video (`developer_animated.mp4`) instead of a static image
 - Title background in the press-start screen now plays a looping animated video (`title_animated.mp4`) instead of a static image

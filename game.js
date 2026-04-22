@@ -1409,6 +1409,9 @@ var wave = 1; // Exposed for DLC
 let frame = 0;
 let _shakeIntensity = 0;
 let _shakeDuration = 0;
+let _hitStopFrames = 0;
+let _comboMilestoneTimer = 0;
+let _prevCombo = 0;
 var enemiesKilledInWave = 0; // Exposed for DLC
 var bossActive = false;      // Exposed for DLC
 let bossDeathTimer = 0; // Timer for slow-mo effect
@@ -1965,6 +1968,23 @@ function triggerImpact(shakePx, shakeFrames, vibWeak, vibStrong, vibMs, gpIndex 
 }
 window.triggerImpact = triggerImpact;
 
+function triggerHitStop(frames) {
+    _hitStopFrames = Math.max(_hitStopFrames, frames);
+}
+
+function createDeathBurst(x, y, color) {
+    if (particles.length >= MAX_PARTICLES) return;
+    const count = 8;
+    for (let i = 0; i < count; i++) {
+        const p = new Particle(x, y, color);
+        const speed = 1.5 + Math.random() * 2.5;
+        const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+        p.velocity = { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
+        p.life = 0.015 + Math.random() * 0.02;
+        particles.push(p);
+    }
+}
+
 function spawnLevelUpAura(x, y, color) {
     // Upward-rising aura particles — staggered with setTimeout for a flowing effect
     for (let i = 0; i < 40; i++) {
@@ -2048,11 +2068,30 @@ function updateUI() {
 
     const comboEl = document.getElementById('combo-display');
     if (player.combo > 0) {
+        const _comboMilestones = [10, 25, 50, 100];
+        if (_comboMilestones.includes(player.combo) && player.combo !== _prevCombo) {
+            _comboMilestoneTimer = 22;
+        }
+        _prevCombo = player.combo;
+
         comboEl.innerText = `COMBO x${player.combo}`;
         comboEl.style.opacity = 1;
-        comboEl.style.transform = `scale(${1 + Math.min(0.5, player.combo / 100)})`;
+        const _baseScale = 1 + Math.min(0.5, player.combo / 100);
+        if (_comboMilestoneTimer > 0) {
+            const _t = _comboMilestoneTimer / 22;
+            const _bounce = 1 + Math.sin(_t * Math.PI) * 0.55;
+            comboEl.style.transform = `scale(${_baseScale * _bounce})`;
+            comboEl.style.color = `hsl(${45 + _t * 20}, 100%, ${55 + _t * 25}%)`;
+            comboEl.style.textShadow = `0 0 ${12 + _t * 30}px rgba(255,220,30,${0.6 + _t * 0.4}), 0 2px 4px rgba(0,0,0,0.7)`;
+            _comboMilestoneTimer--;
+        } else {
+            comboEl.style.transform = `scale(${_baseScale})`;
+            comboEl.style.color = '#f1c40f';
+            comboEl.style.textShadow = '0 0 24px rgba(241,196,15,0.9), 0 2px 4px rgba(0,0,0,0.7)';
+        }
     } else {
         comboEl.style.opacity = 0;
+        _prevCombo = 0;
     }
 
     const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
@@ -2060,12 +2099,22 @@ function updateUI() {
     const hpFill = document.getElementById('health-fill');
     hpFill.style.width = hpPercent + '%';
     document.getElementById('health-text').innerText = displayHp + " / " + player.maxHp;
+    const hpWrap = hpFill.parentElement;
     if (_hudPrevHp !== null && player.hp < _hudPrevHp) {
-        const hpWrap = hpFill.parentElement;
         if (!hpWrap.classList.contains('bar-glow-health')) {
             hpWrap.classList.add('bar-glow-health');
             setTimeout(() => hpWrap.classList.remove('bar-glow-health'), 550);
         }
+    }
+    // Persistent heartbeat glow when low health
+    if (hpPercent < 10) {
+        hpWrap.classList.remove('health-critical-slow');
+        hpWrap.classList.add('health-critical-fast');
+    } else if (hpPercent < 25) {
+        hpWrap.classList.remove('health-critical-fast');
+        hpWrap.classList.add('health-critical-slow');
+    } else {
+        hpWrap.classList.remove('health-critical-slow', 'health-critical-fast');
     }
     _hudPrevHp = player.hp;
 
@@ -3634,6 +3683,8 @@ function masterLoop(timestamp) {
         }
 
         if (gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen) {
+            const _isHitStopped = _hitStopFrames > 0;
+            if (_hitStopFrames > 0) _hitStopFrames--;
 
             // Evil Mode — check if all enemy heroes are dead → boss-defeated cinematic then advance
             if (isEvilMode && typeof EvilMode !== 'undefined' && EvilMode.checkWaveEnd()) {
@@ -5010,7 +5061,7 @@ function masterLoop(timestamp) {
             });
 
             projectiles.forEach((proj, index) => {
-                proj.update();
+                if (!_isHitStopped) proj.update();
                 if (proj.life !== null && proj.life <= 0) {
                     projectiles.splice(index, 1);
                     return;
@@ -5269,7 +5320,7 @@ function masterLoop(timestamp) {
                 });
                 enemy.biomeSpeedMod = enemySpeedMod;
 
-                enemy.update(); enemy.draw();
+                if (!_isHitStopped) enemy.update(); enemy.draw();
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
 
                 if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
@@ -5521,6 +5572,7 @@ function masterLoop(timestamp) {
                             }
 
                             enemy.hp -= finalDamage;
+                            enemy.hitFlashTimer = 6;
                             audioManager.play('enemy_damage');
                             if (enemy.hp <= 0 && enemy.hp + finalDamage > 0) {
                                 enemy.lastHitBy = 'PROJECTILE';
@@ -5531,6 +5583,7 @@ function masterLoop(timestamp) {
                             triggerImpact(isCrit ? 3.5 : 2, isCrit ? 8 : 5,
                                           isCrit ? 0.15 : 0.08, isCrit ? 0.25 : 0.12,
                                           isCrit ? 120 : 80);
+                            if (isCrit) triggerHitStop(4);
 
                             // Enemy takes damage number
                             floatingTexts.push(new FloatingText(
@@ -5584,6 +5637,7 @@ function masterLoop(timestamp) {
                         while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
                         if (Math.abs(diff) < Math.PI / 3) {
                             enemy.hp -= att.damage;
+                            enemy.hitFlashTimer = 6;
                             if (enemy.hp <= 0 && enemy.hp + att.damage > 0) {
                                 enemy.lastHitBy = 'MELEE';
                                 enemy.killer = att.owner || player;
@@ -5595,6 +5649,7 @@ function masterLoop(timestamp) {
                             triggerImpact(isCrit ? 7 : 5, isCrit ? 16 : 13,
                                           isCrit ? 0.35 : 0.22, isCrit ? 0.70 : 0.50,
                                           isCrit ? 220 : 160);
+                            if (isCrit) triggerHitStop(5); else triggerHitStop(2);
                             floatingTexts.push(new FloatingText(
                                 enemy.x,
                                 enemy.y - 20,
@@ -5613,6 +5668,7 @@ function masterLoop(timestamp) {
 
                 if (enemy.hp <= 0) {
                     enemy.dead = true; // Prevent double-processing if forEach+splice skips this enemy
+                    if (!(enemy instanceof Boss)) createDeathBurst(enemy.x, enemy.y, enemy.color || '#e74c3c');
                     if (isChaosShuffleMode) checkChaosEvent('KILL', { isMelee: (enemy.lastHitBy === 'MELEE') });
                     if (isTutorialMode && window.TutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
                     // Boss Minion Logic
@@ -5909,18 +5965,20 @@ function masterLoop(timestamp) {
                     player2._injuredVoicePlayed = false;
                 }
             }
-            if (player.hp / player.maxHp < 0.2) {
+            const _hpRatio = player.hp / player.maxHp;
+            if (_hpRatio < 0.25) {
                 ctx.save();
-                // Red Vignette
-                const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.4, canvas.width / 2, canvas.height / 2, canvas.height * 0.8);
-                gradient.addColorStop(0, 'transparent');
-                gradient.addColorStop(1, 'rgba(255, 0, 0, 0.4)');
-                ctx.fillStyle = gradient;
+                const _vigIntensity = Math.min(1, (0.25 - _hpRatio) / 0.25);
+                // Static red vignette
+                const _vg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.35, canvas.width / 2, canvas.height / 2, canvas.height * 0.78);
+                _vg.addColorStop(0, 'transparent');
+                _vg.addColorStop(1, `rgba(255, 0, 0, ${0.45 * _vigIntensity})`);
+                ctx.fillStyle = _vg;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Pulsing Overlay
-                const pulse = (Math.sin(frame * 0.1) + 1) / 2; // 0 to 1
-                ctx.fillStyle = `rgba(255, 0, 0, ${pulse * 0.15})`;
+                // Pulse speed increases as HP drops (0.06 at 25%, 0.18 at 0%)
+                const _pulseSpeed = 0.06 + _vigIntensity * 0.12;
+                const _pulse = (Math.sin(frame * _pulseSpeed) + 1) / 2;
+                ctx.fillStyle = `rgba(255, 0, 0, ${_pulse * 0.2 * _vigIntensity})`;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.restore();
             }

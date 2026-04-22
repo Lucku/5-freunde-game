@@ -167,6 +167,8 @@ class Enemy {
             if (window.ENEMY_LOGIC[this.subType].update(this)) return;
         }
 
+        if (this.hitFlashTimer > 0) this.hitFlashTimer--;
+
         if (this.frozenTimer > 0) {
             this.frozenTimer--;
             if (frame % 10 === 0) particles.push(new Particle(this.x, this.y, '#aaddff'));
@@ -440,6 +442,25 @@ class Enemy {
         ctx.beginPath(); ctx.moveTo(_er * 0.20, -_er * 0.12); ctx.lineTo(_er * 0.48, -_er * 0.30); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(_er * 0.20,  _er * 0.12); ctx.lineTo(_er * 0.48,  _er * 0.30); ctx.stroke();
         ctx.restore();
+
+        // Hit flash — white overlay that fades over 6 frames
+        if (this.hitFlashTimer > 0) {
+            ctx.save();
+            ctx.globalAlpha = (this.hitFlashTimer / 6) * 0.7;
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            if (this.sides === 0) {
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+            } else {
+                ctx.moveTo(this.radius, 0);
+                for (let i = 1; i <= this.sides; i++) {
+                    ctx.lineTo(this.radius * Math.cos(i * 2 * Math.PI / this.sides), this.radius * Math.sin(i * 2 * Math.PI / this.sides));
+                }
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
 
         // Visual Markers
         if (this.subType === 'SNIPER') {
