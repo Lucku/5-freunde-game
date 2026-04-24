@@ -8,11 +8,21 @@ All notable changes to this project will be documented in this file, starting wi
 - **Sound Hero — GRAND FINALE ultimate**: PERFORMER form now triggers a full musical assault: shots become a 5-way (7-way on-beat) sonic fan at 2.5×–3.5× damage; every beat auto-fires an 8-way omnidirectional note burst; orbiting musical notes deal close-range AoE damage every 30 frames; lasts 10 seconds
 - **Gravity Hero — DARK STAR ultimate**: Gravity Hero now has the DARK STAR form: activation jolts all enemies inward; gravity pull range triples with 5× force; enemies within 80px take 15 DPS × damageMultiplier; spinning purple accretion disk ellipses render around the player; deactivates on damage (standard rule)
 - **Poison Hero — PANDEMIC PROTOCOL ultimate**: PLAGUEBRINGER form now activates a true pandemic: all living enemies are instantly infected to 100 poison stacks on activation; turbo stack field applies +10 stacks/10 frames in radius 400; poison DoT ticks 3× faster (every 10 frames); plague explosions chain on poison kills; player leeches 5% of all poison DoT dealt; lasts 15 seconds
+- **Air Hero — STORM INCARNATE ultimate**: ZEPHYR form fires all 4 compass attack styles simultaneously (scatter shotgun, sniper lance, rapid blades, vortex orb) per shot; hurricane ring damage boosted 7.5× (15 × damageMultiplier); activation triggers a 5-point wind burst; lasts 10 seconds
+- **Lightning Hero — ABSOLUTE DISCHARGE ultimate**: FLASH form activates with an 8-way super lightning omni-burst; static charge generates 3× faster; every time charge fills to 100% an 8-way super omni-burst auto-fires; speed boost to 1.6× while active; lasts 10 seconds
+- **Chance Hero — ALL IN ultimate**: JACKPOT form forces all dice to be explosive (always `allMatch`); explosive hits have a 25% chance to chain-bounce to the nearest enemy for 75% damage; slot machine auto-fires every second with a guaranteed JACKPOT outcome; 4 lucky symbols orbit the player; lasts 10 seconds
+- **Spirit Hero — DIVINE RADIANCE ultimate**: Level-10 ENLIGHTENED form fully heals the player and fills Inner Peace; purification aura boosted to 40 × damageMultiplier every 10 frames at radius 250 (vs. 20 × mult / 15 frames / radius 150 from special); each aura pulse heals 0.5 HP; shots become Sacred Beams (pierce 10, 3× damage, 2× speed); Inner Peace drains at 0.2/frame for longer duration
+- **Void Hero — SYSTEM COLLAPSE ultimate**: ENTROPY form instantly marks all living enemies as glitched; emits expanding corruption wave rings every 2 seconds (40 × damageMultiplier to all enemies within 300px); System Corruption AoE boosted to every 8 frames with 20% instant-delete for non-boss enemies below 50% HP; on form end, all remaining glitched enemies detonate for 200 × damageMultiplier; lasts 10 seconds
+- **Poison visual on enemies**: Enemies with active poison stacks now show a green body tint, a glowing pulsing toxic ring, and rising bubble drips — all scaling with stack intensity (0–100) so lightly and heavily poisoned enemies are clearly distinguishable
 - **Hit flash on enemies**: Enemies briefly flash white when hit (6-frame fade), giving instant visual confirmation on every shot and melee strike
 - **Enemy death burst**: Regular enemies emit a small directional 8-particle burst in their own color on death
 - **Hit stop**: Significant hits (melee: 2 frames, crit projectile: 3 frames, melee crit: 4 frames) freeze enemy and projectile movement for classic fighting-game impact feel
 - **Combo milestone animation**: Reaching combo x10, x25, x50 or x100 triggers a scale-bounce and color pop on the combo counter
 - **Low health heartbeat**: The health bar now persistently pulses at <25% HP (slow) and <10% HP (fast panic-rate); canvas vignette also activates earlier (25% vs 20%) with pulse speed scaling down with HP
+
+### Fixed
+- Weather effects now always reset at the start of each new wave instead of persisting into the next wave
+- Gravity Hero no longer plays the shoot sound or fires a projectile while in DARK STAR ultimate form
 
 ### Changed
 - Developer logo intro screen now plays an animated video (`developer_animated.mp4`) instead of a static image

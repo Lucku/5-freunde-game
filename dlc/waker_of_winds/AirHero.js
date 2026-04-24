@@ -110,9 +110,22 @@ class AirHero {
     static applyUpgrade(player, type) {
         if (type === 'wind_shift') {
             AirHero.applyWindShift(player);
-            return true; // Handled
+            return true;
         }
-        return false; // Not handled
+        if (type === 'transform') {
+            player.transformActive = true;
+            player.currentForm = 'ZEPHYR';
+            player.hurricaneActive = true;
+            player.zephyrTimer = 600;
+            for (let i = 0; i < 5; i++) {
+                const a = (i / 5) * Math.PI * 2;
+                if (typeof createExplosion !== 'undefined') createExplosion(player.x + Math.cos(a) * 60, player.y + Math.sin(a) * 60, '#40e0d0', 20);
+            }
+            if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#fff', 60);
+            if (typeof showNotification === 'function') showNotification("STORM INCARNATE!", "#40e0d0");
+            return true;
+        }
+        return false;
     }
 
     static update(player, dx, dy) {
@@ -218,6 +231,12 @@ class AirHero {
         // Sync transformation state
         if (player.transformActive && player.currentForm === 'ZEPHYR') {
             player.hurricaneActive = true;
+            player.zephyrTimer--;
+            if (player.zephyrTimer <= 0) {
+                player.transformActive = false;
+                player.hurricaneActive = false;
+                if (typeof showNotification === 'function') showNotification("WINDS STILL...", "#40e0d0");
+            }
         }
 
         if (player.hurricaneActive && window.ctx) {
@@ -298,7 +317,8 @@ class AirHero {
         if (player.hurricaneActive && frame % 10 === 0 && window.enemies) {
             window.enemies.forEach(e => {
                 if (Math.hypot(e.x - player.x, e.y - player.y) < 220) {
-                    e.hp -= 2 * player.damageMultiplier;
+                    const hurricaneDmg = (player.transformActive && player.currentForm === 'ZEPHYR') ? 15 : 2;
+                    e.hp -= hurricaneDmg * player.damageMultiplier;
                     // Suck them into the "Wall" of the storm (radius 200)
                     const angle = Math.atan2(e.y - player.y, e.x - player.x);
                     // If outside 200, pull in. If inside 200, push out.
@@ -856,8 +876,81 @@ class AirHero {
         }
     }
 
+    static fireZephyrStorm(player) {
+        if (!window.projectiles) return;
+        const angle = player.aimAngle || 0;
+        const speed = player.stats.projectileSpeed * 2.0;
+        const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier;
+        const baseRadius = player.stats.projectileSize * 1.5;
+
+        const push = (props) => {
+            window.projectiles.push({
+                x: player.x, y: player.y,
+                vx: Math.cos(props.angle) * props.speed,
+                vy: Math.sin(props.angle) * props.speed,
+                owner: player,
+                life: props.life || 60,
+                damage: props.damage,
+                radius: props.radius || baseRadius,
+                knockback: 4,
+                color: props.color || '#e0f7fa',
+                type: 'WIND_BURST',
+                pierce: props.pierce || 0,
+                windStyle: props.windStyle || 'DEFAULT',
+                onHit: function () { return 'CONTINUE'; },
+                update: function () {
+                    this.x += this.vx; this.y += this.vy; this.life--;
+                    if (this.life <= 0) this.dead = true;
+                    if (typeof createExplosion !== 'undefined' && Math.random() < 0.3) createExplosion(this.x, this.y, '#e0f7fa', 2);
+                },
+                draw: function () {
+                    const ctx = window.ctx; if (!ctx) return;
+                    ctx.save(); ctx.translate(this.x, this.y);
+                    const rot = Math.atan2(this.vy, this.vx); ctx.rotate(rot);
+                    if (this.windStyle === 'SCATTER') {
+                        ctx.fillStyle = this.color; ctx.globalAlpha = 0.8; ctx.beginPath();
+                        for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * this.radius, Math.sin(a) * this.radius); }
+                        ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, this.radius * 0.4, 0, Math.PI * 2); ctx.fill();
+                    } else if (this.windStyle === 'LANCE') {
+                        ctx.fillStyle = '#fff'; ctx.shadowColor = this.color; ctx.shadowBlur = 10; ctx.beginPath();
+                        ctx.moveTo(this.radius * 2, 0); ctx.lineTo(-this.radius, -this.radius * 0.4); ctx.lineTo(-this.radius * 0.5, 0); ctx.lineTo(-this.radius, this.radius * 0.4); ctx.fill();
+                    } else if (this.windStyle === 'BLADE') {
+                        ctx.strokeStyle = this.color; ctx.lineWidth = 3; ctx.lineCap = 'round';
+                        ctx.beginPath(); ctx.arc(-this.radius, 0, this.radius * 1.5, -Math.PI / 3, Math.PI / 3); ctx.stroke();
+                    } else if (this.windStyle === 'ORB') {
+                        const spin = (Date.now() / 100) % (Math.PI * 2); ctx.rotate(-rot + spin);
+                        ctx.fillStyle = 'rgba(64,224,208,0.4)'; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                        ctx.strokeStyle = this.color; ctx.lineWidth = 2;
+                        for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI * 2 / 3); ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(this.radius, this.radius, this.radius * 1.2, 0); ctx.stroke(); }
+                    } else {
+                        ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                    }
+                    ctx.restore();
+                }
+            });
+        };
+
+        // NORTH: scatter shotgun (5-way)
+        for (let i = -2; i <= 2; i++) push({ angle: angle + i * 0.15, speed: speed * 0.9, damage: dmg * 0.5, life: 25, radius: 5, color: '#a2f1c1', windStyle: 'SCATTER' });
+        // SOUTH: sniper lance
+        push({ angle, speed: speed * 2.5, damage: dmg * 5.0, life: 120, radius: 8, color: '#81eff7', pierce: 999, windStyle: 'LANCE' });
+        // EAST: rapid blades (3-way)
+        for (let i = -1; i <= 1; i++) push({ angle: angle + i * 0.15, speed: speed * 1.3, damage: dmg * 0.6, life: 80, radius: 6, color: '#20b2aa', windStyle: 'BLADE' });
+        // WEST: vortex orb
+        push({ angle, speed: speed * 0.3, damage: dmg * 1.5, life: 150, radius: 15, color: '#00ced1', pierce: 999, windStyle: 'ORB' });
+    }
+
     static shoot(player, dx, dy) {
         if (!gameRunning || gamePaused || isLevelingUp || isShopping) return;
+
+        if (player.transformActive && player.currentForm === 'ZEPHYR') {
+            const now = Date.now();
+            const stormCd = Math.max(60, (player.stats.rangeCd || 200) * player.cooldownMultiplier * 0.4);
+            if (player.lastShotTime && (now - player.lastShotTime < stormCd)) return;
+            player.lastShotTime = now;
+            AirHero.fireZephyrStorm(player);
+            return;
+        }
 
         // Mutation Helper (Altar of Mastery)
         const has = (id) => (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active && saveData.altar.active.includes(id));

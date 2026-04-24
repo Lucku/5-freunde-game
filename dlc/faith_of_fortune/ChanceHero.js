@@ -72,6 +72,18 @@ class ChanceHero {
 
     // LEVEL UP: Per-Run Upgrades
     static applyUpgrade(player, type) {
+        if (type === 'transform') {
+            player.transformActive = true;
+            player.currentForm = 'JACKPOT';
+            player.luck = 100;
+            player.jackpotTimer = 600;
+            if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#ff00ff', 60);
+            if (typeof goldDrops !== 'undefined') {
+                for (let i = 0; i < 20; i++) goldDrops.push(new GoldDrop(player.x, player.y, 25));
+            }
+            if (typeof showNotification === 'function') showNotification("ALL IN — JACKPOT FORM!", "#ff00ff");
+            return true;
+        }
         if (type === 'chance_luck') {
             player.luck = (player.luck || 10) + 10;
             if (typeof saveData !== 'undefined') {
@@ -175,9 +187,41 @@ class ChanceHero {
 
         // Form Logic: JACKPOT
         if (player.transformActive && player.currentForm === 'JACKPOT') {
-            player.luck = 100; // Max Luck
+            player.luck = 100;
+            player.jackpotTimer--;
+
+            // Auto-trigger slot machine every 60 frames (guaranteed jackpot)
+            if (window.frame % 60 === 0 && !player.slotMachine.active) {
+                player.slotMachine.active = true;
+                player.slotMachine.timer = 30;
+                player.slotMachine.outcome = 'JACKPOT';
+            }
+
+            // Orbiting lucky symbols
+            if (window.ctx) {
+                const ctx = window.ctx;
+                const symbols = ['7', '💎', '🔔', '🍒'];
+                ctx.save();
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ff00ff';
+                for (let i = 0; i < 4; i++) {
+                    const a = (window.frame * 0.04) + (i * Math.PI / 2);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(symbols[i], player.x + Math.cos(a) * 60, player.y + Math.sin(a) * 60);
+                }
+                ctx.restore();
+            }
+
             if (window.frame % 30 === 0 && typeof createExplosion !== 'undefined') {
-                createExplosion(player.x, player.y, "#ff00ff", 5); // Sparkle
+                createExplosion(player.x, player.y, "#ff00ff", 5);
+            }
+
+            if (player.jackpotTimer <= 0) {
+                player.transformActive = false;
+                if (typeof showNotification === 'function') showNotification("LUCK RUNS OUT...", "#888");
             }
         }
 
@@ -442,6 +486,8 @@ class ChanceHero {
 
             // Determine mismatch/match logic (if all match and count > 1, big boom)
             const allMatch = count > 1 && faces.every(f => f === faces[0]);
+            const isJackpotForm = player.transformActive && player.currentForm === 'JACKPOT';
+            const effectiveAllMatch = allMatch || isJackpotForm;
 
             for (let i = 0; i < count; i++) {
                 // Fan Spread for Chance
@@ -450,8 +496,8 @@ class ChanceHero {
                 const angle = player.aimAngle + ((i - (count - 1) / 2) * spread);
                 const speed = 22 + Math.random() * 6; // Start fast for "toss" effect
 
-                const isExplosive = allMatch;
-                const isPair = !allMatch && count > 1 && faces.filter(f => f === faces[i]).length > 1;
+                const isExplosive = effectiveAllMatch;
+                const isPair = !effectiveAllMatch && count > 1 && faces.filter(f => f === faces[i]).length > 1;
 
                 const projScale = (isExplosive ? 2.0 : (isPair ? 1.5 : 1.0));
 
@@ -481,6 +527,15 @@ class ChanceHero {
                                         e.hp -= this.damage;
                                     }
                                 });
+                            }
+                            // 25% chain bounce during JACKPOT form
+                            if (isJackpotForm && Math.random() < 0.25 && typeof enemies !== 'undefined') {
+                                const bounceTarget = enemies.find(nb => nb !== enemy && nb.hp > 0 &&
+                                    Math.hypot(nb.x - this.x, nb.y - this.y) < 200);
+                                if (bounceTarget) {
+                                    bounceTarget.hp -= this.damage * 0.75;
+                                    if (typeof createExplosion !== 'undefined') createExplosion(bounceTarget.x, bounceTarget.y, '#ff00ff', 15);
+                                }
                             }
                         }
                         return 'DEFAULT'; // Let standard system apply direct hit damage too

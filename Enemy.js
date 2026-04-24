@@ -462,6 +462,59 @@ class Enemy {
             ctx.restore();
         }
 
+        // Poison overlay — scales with stack intensity
+        if (this.poisonStacks > 0) {
+            const stackPct = Math.min(1, this.poisonStacks / 100);
+            ctx.save();
+
+            // Green body tint
+            ctx.globalAlpha = 0.25 + stackPct * 0.35;
+            ctx.fillStyle = '#39d353';
+            ctx.beginPath();
+            if (this.sides === 0) {
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+            } else {
+                ctx.moveTo(this.radius, 0);
+                for (let i = 1; i <= this.sides; i++) {
+                    ctx.lineTo(this.radius * Math.cos(i * 2 * Math.PI / this.sides), this.radius * Math.sin(i * 2 * Math.PI / this.sides));
+                }
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Pulsing toxic ring
+            const pulse = Math.sin((typeof frame !== 'undefined' ? frame : 0) * 0.18) * 3;
+            ctx.globalAlpha = 0.4 + stackPct * 0.45;
+            ctx.strokeStyle = '#76ff03';
+            ctx.lineWidth = 1.5 + stackPct * 2.5;
+            ctx.shadowColor = '#76ff03';
+            ctx.shadowBlur = 6 + stackPct * 10;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 4 + pulse, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Dripping bubbles for heavy stacks
+            if (stackPct > 0.3) {
+                const t = typeof frame !== 'undefined' ? frame : 0;
+                const bubbleCount = Math.floor(1 + stackPct * 3);
+                ctx.globalAlpha = 0.7 * stackPct;
+                ctx.fillStyle = '#b9f6ca';
+                ctx.shadowBlur = 4;
+                for (let b = 0; b < bubbleCount; b++) {
+                    const angle = (b / bubbleCount) * Math.PI * 2 + t * 0.04;
+                    const drift = ((t * 0.8 + b * 37) % (this.radius * 2 + 12)) - 6;
+                    const bx = Math.cos(angle) * (this.radius * 0.6);
+                    const by = -drift;
+                    const br = 2 + stackPct * 2;
+                    ctx.beginPath();
+                    ctx.arc(bx, by, br, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            ctx.restore();
+        }
+
         // Visual Markers
         if (this.subType === 'SNIPER') {
             // Laser sight

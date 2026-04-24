@@ -2726,6 +2726,8 @@ function shuffleHero(targetHeroType = null) {
 function advanceWave() {
     if (isTestingMode) return; // Testing Grounds: no wave progression
 
+    _stopWeather(); // Clear any active weather at the start of every new wave
+
     // No-hit wave tracking for wind_no_hit achievement
     // Uses currentRunStats._noHitBaseline (resets per run) instead of a function property (persists across runs)
     if (player?.type === 'air' && typeof saveData !== 'undefined' && wave > 0) {

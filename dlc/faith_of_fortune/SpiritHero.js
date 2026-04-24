@@ -90,6 +90,40 @@ class SpiritHero {
 
     // LEVEL UP: Per-Run Upgrades
     static applyUpgrade(player, type) {
+        if (type === 'transform') {
+            player.transformActive = true;
+            player.currentForm = 'ENLIGHTENED';
+            player._divineRadiance = true;
+            player.hp = player.maxHp;
+            player.innerPeace = player.maxInnerPeace;
+            player.speedMultiplier = 1.3;
+            if (typeof createExplosion !== 'undefined') {
+                createExplosion(player.x, player.y, '#ffffff', 80);
+                createExplosion(player.x, player.y, '#F0D080', 50);
+            }
+            if (typeof showNotification === 'function') showNotification("DIVINE RADIANCE", "#F0D080");
+            if (typeof projectiles !== 'undefined') {
+                projectiles.push({
+                    x: player.x, y: player.y, vx: 0, vy: 0,
+                    life: 9999, type: 'SPIRIT_AURA', radius: 100, angle: 0,
+                    owner: player, damage: 0, knockback: 0, pierce: 9999,
+                    update: function () {
+                        if (!this.owner.transformActive || this.owner.currentForm !== 'ENLIGHTENED') { this.dead = true; return; }
+                        this.x = this.owner.x; this.y = this.owner.y; this.angle += 0.05;
+                    },
+                    draw: function () {
+                        const ctx = window.ctx; if (!ctx) return;
+                        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+                        ctx.strokeStyle = "rgba(240, 208, 128, 0.6)"; ctx.lineWidth = 3;
+                        ctx.beginPath(); ctx.arc(0, 0, 60 + Math.sin(this.angle * 2) * 5, 0, Math.PI * 2); ctx.stroke();
+                        ctx.beginPath(); ctx.rect(-40, -40, 80, 80); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.stroke();
+                        ctx.rotate(Math.PI / 4); ctx.beginPath(); ctx.rect(-40, -40, 80, 80); ctx.stroke();
+                        ctx.restore();
+                    }
+                });
+            }
+            return true;
+        }
         if (type === 'max_peace') {
             player.maxInnerPeace = (player.maxInnerPeace || 100) + 50;
             return true;
@@ -235,38 +269,40 @@ class SpiritHero {
 
         // 2. Transcendent State (Ultimate Active)
         if (player.transformActive && player.currentForm === 'ENLIGHTENED') {
-            player.innerPeace -= 0.5; // Drain resource
-            player.invincibleTimer = 10; // Perma-invincible while active
+            const drainRate = player._divineRadiance ? 0.2 : 0.5;
+            player.innerPeace -= drainRate;
+            player.invincibleTimer = 10;
 
-            // Purification Aura
-            if (window.frame % 15 === 0) {
-                // Pulse damage around
+            const pulseInterval = player._divineRadiance ? 10 : 15;
+            const auraDmg = player._divineRadiance ? 40 : 20;
+            const auraRadius = player._divineRadiance ? 250 : 150;
+
+            if (window.frame % pulseInterval === 0) {
                 if (typeof enemies !== 'undefined') {
                     let hitsThisPulse = 0;
                     enemies.forEach(e => {
                         const dist = Math.hypot(e.x - player.x, e.y - player.y);
-                        if (dist < 150) {
-                            e.hp -= 20 * player.damageMultiplier; // Aura damage
-                            // Pushback
-                            e.x += (e.x - player.x) / dist * 5;
-                            e.y += (e.y - player.y) / dist * 5;
+                        if (dist < auraRadius) {
+                            e.hp -= auraDmg * player.damageMultiplier;
+                            e.x += (e.x - player.x) / (dist || 1) * 5;
+                            e.y += (e.y - player.y) / (dist || 1) * 5;
                             hitsThisPulse++;
                         }
                     });
                     if (hitsThisPulse > 0) {
-                        // Single visual + single sound per pulse regardless of how many enemies are hit
-                        createExplosion(player.x, player.y, "#ffffff", 20);
+                        createExplosion(player.x, player.y, "#ffffff", player._divineRadiance ? 40 : 20);
+                        if (player._divineRadiance) player.hp = Math.min(player.maxHp, player.hp + 0.5);
                         if (typeof audioManager !== 'undefined') audioManager.playCapped('aura_pulse', 1, 'enemy_damage');
                     }
                 }
             }
 
             if (player.innerPeace <= 0) {
-                // End form
                 player.transformActive = false;
                 player.currentForm = null;
+                player._divineRadiance = false;
                 if (typeof showNotification === 'function') showNotification("Peace Expended", "#F0D080");
-                player.speedMultiplier = 0.95; // Reset speed
+                player.speedMultiplier = 0.95;
             }
         }
 
@@ -278,6 +314,34 @@ class SpiritHero {
 
     static shootMantra(player) {
         if (player.rangeCooldown > 0) return;
+
+        if (player._divineRadiance) {
+            const peaceMod = 0.5 + (player.innerPeace / 100);
+            const dmg = (player.stats.rangeDmg || 15) * peaceMod * player.damageMultiplier * 3;
+            const angle = player.aimAngle || 0;
+            if (typeof projectiles !== 'undefined') {
+                projectiles.push({
+                    x: player.x, y: player.y,
+                    vx: Math.cos(angle) * 14, vy: Math.sin(angle) * 14,
+                    radius: 18, color: '#fff',
+                    damage: dmg, dmg: dmg,
+                    life: 100, pierce: 10, knockback: 0,
+                    type: 'SACRED_BEAM', owner: player,
+                    onHit: function (enemy) { return 'DEFAULT'; },
+                    update: function () { this.x += this.vx; this.y += this.vy; this.life--; if (this.life <= 0) this.dead = true; },
+                    draw: function () {
+                        const ctx = window.ctx; if (!ctx) return;
+                        ctx.save(); ctx.translate(this.x, this.y);
+                        ctx.shadowBlur = 25; ctx.shadowColor = '#F0D080';
+                        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, this.radius / 2, 0, Math.PI * 2); ctx.fill();
+                        ctx.strokeStyle = '#F0D080'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.stroke();
+                        ctx.restore();
+                    }
+                });
+            }
+            player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier * 0.5;
+            return;
+        }
 
         if (typeof audioManager !== 'undefined') audioManager.play('attack_spirit');
 

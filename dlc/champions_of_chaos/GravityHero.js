@@ -205,6 +205,9 @@ window.HERO_LOGIC['gravity'] = {
         // Let's hook 'shoot' to inject custom projectile visuals after creation.
         const originalShoot = player.shoot.bind(player);
         player.shoot = function () {
+            // No shooting during DARK STAR ultimate (gravity pull form)
+            if (player.transformActive && player.currentForm === 'DARK STAR') return;
+
             // Play Attack Sound
             if (typeof audioManager !== 'undefined') audioManager.play('attack_gravity');
 
@@ -320,6 +323,10 @@ window.HERO_LOGIC['gravity'] = {
 
         // DARK STAR form: become a walking singularity
         if (player.transformActive && player.currentForm === 'DARK STAR') {
+            // Rolling invincibility — prevents contact damage from ending the form
+            // while enemies are being pulled directly into the player
+            player.invincibleTimer = 10;
+
             const allEnemies = (typeof enemies !== 'undefined') ? enemies : (window.enemies || []);
             const ultRange = (player.gravityWellSize + (player.level * 2)) * 3;
 

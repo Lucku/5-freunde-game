@@ -31,20 +31,31 @@ class LightningHero {
         // 1. Passive: Moving generates Static Charge
         if (dx !== 0 || dy !== 0) {
             // Charge faster if in Flash form?
-            let rate = player.currentForm === 'FLASH' ? 2.0 : 1.0;
+            let rate = player.currentForm === 'FLASH' ? 3.0 : 1.0;
             if (player.stats && player.stats.staticGenMult) rate *= player.stats.staticGenMult;
             player.staticCharge = Math.min(player.maxStaticCharge, player.staticCharge + rate);
         }
 
         // 2. FLASH Form Logic (Level 10 Transformation)
         if (player.transformActive) {
-            if (player.currentForm !== 'FLASH') {
-                player.currentForm = 'FLASH';
+            if (player.currentForm !== 'FLASH') player.currentForm = 'FLASH';
+            player.flashTimer = (player.flashTimer || 0) - 1;
+            player.speedMultiplier = Math.max(player.speedMultiplier || 1, 1.6);
+
+            // Omni-burst when charge fills
+            if (player.staticCharge >= 100) {
+                player.staticCharge = 0;
+                LightningHero.fireFlashOmniBurst(player);
             }
 
-            // Auto-fire lightning sparks (Reduced frequency)
+            // Auto-fire lightning sparks
             if (Math.random() < 0.15) {
                 LightningHero.shoot(player, 0, 0, true);
+            }
+
+            if (player.flashTimer <= 0) {
+                player.transformActive = false;
+                if (typeof showNotification === 'function') showNotification("DISCHARGE COMPLETE", "#00ffff");
             }
         }
 
@@ -394,9 +405,40 @@ class LightningHero {
             base.staticGenMult = (base.staticGenMult || 1) + node.value;
         }
     }
+
+    static applyUpgrade(player, type) {
+        if (type === 'transform') {
+            player.transformActive = true;
+            player.currentForm = 'FLASH';
+            player.flashTimer = 600;
+            player.staticCharge = 100;
+            LightningHero.fireFlashOmniBurst(player);
+            if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#00ffff', 50);
+            if (typeof showNotification === 'function') showNotification("ABSOLUTE DISCHARGE!", "#00ffff");
+            return true;
+        }
+        return false;
+    }
+
+    static fireFlashOmniBurst(player) {
+        if (typeof LightningProjectile === 'undefined' || !window.projectiles) return;
+        const speed = 12;
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            const dmg = (player.stats.rangeDmg || 15) * 2.5 * (player.damageMultiplier || 1);
+            const p = new LightningProjectile(player.x, player.y, Math.cos(a) * speed, Math.sin(a) * speed, dmg, 20, true, 5, 600, []);
+            p.owner = player;
+            window.projectiles.push(p);
+        }
+        if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#00ffff', 30);
+    }
 }
 
 window.LightningHero = LightningHero;
+
+if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
+if (!window.HERO_LOGIC['lightning']) window.HERO_LOGIC['lightning'] = {};
+window.HERO_LOGIC['lightning'].applyUpgrade = LightningHero.applyUpgrade.bind(LightningHero);
 
 
 // ---------------------------------------------------------

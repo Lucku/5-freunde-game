@@ -1,3 +1,2 @@
 # General
-- check Ultimate form of all heroes and implement them properly
 - add DLC popup

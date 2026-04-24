@@ -77,6 +77,27 @@ window.HERO_LOGIC['void'] = {
         }
     },
 
+    applyUpgrade: function (player, type) {
+        if (type === 'transform') {
+            player.transformActive = true;
+            player.currentForm = 'ENTROPY';
+            player.entropyTimer = 600;
+            player._corruptionRings = [];
+            let count = 0;
+            if (window.enemies) {
+                window.enemies.forEach(e => { if (e.hp > 0) { e.glitched = true; count++; } });
+            }
+            if (typeof createExplosion !== 'undefined') {
+                createExplosion(player.x, player.y, '#000', 80);
+                createExplosion(player.x, player.y, '#00bcd4', 55);
+                createExplosion(player.x, player.y, '#fff', 30);
+            }
+            if (typeof showNotification === 'function') showNotification(`SYSTEM COLLAPSE: ${count} CORRUPTED`, "#ff0000");
+            return true;
+        }
+        return false;
+    },
+
     init: function (player) {
         // Base Stats
         player.damageMultiplier = 1.2;
@@ -349,42 +370,80 @@ window.HERO_LOGIC['void'] = {
     update: function (player, dx, dy) {
         // 1. ENTROPY Form Logic (Level 10 Transformation)
         if (player.transformActive) {
-            if (player.currentForm !== 'ENTROPY') {
-                player.currentForm = 'ENTROPY';
-                if (typeof showNotification === 'function') showNotification("FORM: ENTROPY DETECTED", "#ff0000");
-            }
+            if (player.currentForm !== 'ENTROPY') player.currentForm = 'ENTROPY';
+            player.entropyTimer = (player.entropyTimer || 0) - 1;
 
-            // Visual: Unstable Glitching
+            // Glitch particles
             if (Math.random() < 0.2 && typeof createExplosion !== 'undefined') {
                 createExplosion(player.x + (Math.random() - 0.5) * 40, player.y + (Math.random() - 0.5) * 40, "#000", 5);
             }
 
-            // Passive: "System Corruption" Area (Radius 200)
-            if (typeof enemies !== 'undefined') {
-                // Throttle to every few frames
-                if (window.frame % 15 === 0) {
-                    enemies.forEach(e => {
-                        const dist = Math.hypot(e.x - player.x, e.y - player.y);
-                        if (dist < 200) {
-                            // Heavy True Damage
-                            const dmg = 20 * player.damageMultiplier;
-                            e.hp -= dmg;
-
-                            // Visual Glitch on enemy
-                            if (typeof FloatingText !== 'undefined' && Math.random() < 0.3) {
-                                floatingTexts.push(new FloatingText(e.x, e.y - 30, "CORRUPT", "#ff0000", 16));
-                            }
-
-                            // Chance to instant delete weak enemies
-                            if (!e.isBoss && e.hp < e.maxHp * 0.3 && Math.random() < 0.05) {
-                                e.hp = -999;
-                                if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, "#ff0044", 15);
-                            }
-
+            // Corruption wave ring every 2s
+            if (window.frame % 120 === 0) {
+                player._corruptionRings = player._corruptionRings || [];
+                player._corruptionRings.push({ x: player.x, y: player.y, radius: 20, alpha: 1.0 });
+                if (window.enemies) {
+                    const waveDmg = 40 * (player.damageMultiplier || 1);
+                    window.enemies.forEach(e => {
+                        if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < 300) {
+                            e.hp -= waveDmg;
                             if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
+                            if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, '#00bcd4', 8);
                         }
                     });
                 }
+            }
+
+            // Draw and update corruption rings
+            if (player._corruptionRings && window.ctx) {
+                const ctx = window.ctx;
+                player._corruptionRings = player._corruptionRings.filter(r => r.alpha > 0);
+                player._corruptionRings.forEach(r => {
+                    r.radius += 8; r.alpha -= 0.02;
+                    ctx.save();
+                    ctx.strokeStyle = `rgba(0,188,212,${r.alpha})`;
+                    ctx.lineWidth = 3; ctx.shadowBlur = 10; ctx.shadowColor = '#00bcd4';
+                    ctx.beginPath(); ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2); ctx.stroke();
+                    ctx.restore();
+                });
+            }
+
+            // System Corruption AoE (boosted: every 8 frames, 20% instant-delete < 50% HP)
+            if (typeof enemies !== 'undefined' && window.frame % 8 === 0) {
+                enemies.forEach(e => {
+                    const dist = Math.hypot(e.x - player.x, e.y - player.y);
+                    if (dist < 200) {
+                        const dmg = 20 * (player.damageMultiplier || 1);
+                        e.hp -= dmg;
+                        if (typeof FloatingText !== 'undefined' && Math.random() < 0.3) {
+                            floatingTexts.push(new FloatingText(e.x, e.y - 30, "CORRUPT", "#ff0000", 16));
+                        }
+                        if (!e.isBoss && e.hp < e.maxHp * 0.5 && Math.random() < 0.2) {
+                            e.hp = -999;
+                            if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, "#ff0044", 15);
+                        }
+                        if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
+                    }
+                });
+            }
+
+            // End of form: detonate all glitched enemies
+            if (player.entropyTimer <= 0) {
+                player.transformActive = false;
+                let killCount = 0;
+                if (window.enemies) {
+                    window.enemies.forEach(e => {
+                        if (e.glitched && e.hp > 0) {
+                            e.hp -= 200 * (player.damageMultiplier || 1);
+                            if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, '#fff', 25);
+                            e.glitched = false;
+                            if (e.hp <= 0) { if (typeof player.onKill === 'function') player.onKill(e); killCount++; }
+                        }
+                    });
+                }
+                if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#00bcd4', 80);
+                if (typeof showNotification === 'function') showNotification(`SYSTEM CRASH: ${killCount} DELETED`, "#fff");
+                player._corruptionRings = [];
             }
         }
 
