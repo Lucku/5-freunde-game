@@ -81,6 +81,25 @@ class PoisonHero {
             if (typeof showNotification === 'function') showNotification("POISON POTENCY UP!", "#76ff03");
             return true; // Stop default
         }
+        if (type === 'transform') {
+            player.transformActive = true;
+            player.currentForm = 'PLAGUEBRINGER';
+            player.transformTimer = 900;
+            // PANDEMIC PROTOCOL: instantly infect every living enemy to max stacks
+            let count = 0;
+            if (window.enemies) {
+                window.enemies.forEach(e => {
+                    if (e.hp > 0) {
+                        e.poisonStacks = 100;
+                        count++;
+                        if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, '#76ff03', 12);
+                    }
+                });
+            }
+            if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#76ff03', 60);
+            if (typeof showNotification === 'function') showNotification(`☠ PANDEMIC! ${count} INFECTED`, "#76ff03");
+            return true;
+        }
         return false;
     }
 
@@ -126,46 +145,69 @@ class PoisonHero {
         // 2. UI Overlay for Flasks
         PoisonHero.drawFlaskUI(player);
 
-        // 3. Transformation handling (Miasma)
+        // 3. PLAGUEBRINGER: PANDEMIC PROTOCOL
         if (player.transformActive) {
             player.transformTimer--;
 
-            // Effect: Decay Field around player
-            if (window.frame % 20 === 0 && window.enemies) { // Slowed down tick rate
-                const radius = 300;
+            // TURBO FIELD: apply heavy stacks to all enemies in radius 400
+            if (window.frame % 10 === 0 && window.enemies) {
                 window.enemies.forEach(e => {
-                    if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < radius) {
-                        // Fix: Use takeDamage if available, otherwise direct HP
-                        if (typeof e.takeDamage === 'function') {
-                            e.takeDamage(1); // Low damage
-                        } else {
-                            e.hp -= 1;
-                        }
-
-                        if (!e.poisonStacks) e.poisonStacks = 0;
-                        e.poisonStacks = Math.min(e.poisonStacks + 2, 100);
+                    if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < 400) {
+                        e.poisonStacks = Math.min((e.poisonStacks || 0) + 10, 100);
                     }
                 });
+            }
 
-                // Visuals for field
-                if (window.particles && Math.random() < 0.5 && typeof Particle !== 'undefined') {
-                    const a = Math.random() * Math.PI * 2;
-                    const r = Math.random() * radius;
-                    const p = new Particle(player.x + Math.cos(a) * r, player.y + Math.sin(a) * r, 'rgba(50, 50, 50, 0.5)');
-                    p.velocity = { x: 0, y: -1 };
-                    window.particles.push(p);
-                }
+            // TURBO DOT: tick every 10 frames (3× faster than the normal 30-frame loop)
+            if (window.frame % 10 === 0 && window.enemies) {
+                const potency = (player.stats.dotMultiplier || 1);
+                window.enemies.forEach(e => {
+                    if (e.poisonStacks > 0 && e.hp > 0) {
+                        const dmg = Math.min(
+                            Math.max(1, (e.maxHp * 0.001 + 0.1) * e.poisonStacks * player.damageMultiplier * potency),
+                            e.hp * 0.05 + 10
+                        );
+                        const hpBefore = e.hp;
+                        if (typeof e.takeDamage === 'function') e.takeDamage(dmg); else e.hp -= dmg;
+                        // Life leech: 5% of poison damage dealt
+                        player.hp = Math.min(player.maxHp, player.hp + dmg * 0.05);
+                        // Plague explosion on poison kill
+                        if (hpBefore > 0 && e.hp <= 0) {
+                            const ex = e.x, ey = e.y;
+                            if (typeof createExplosion !== 'undefined') createExplosion(ex, ey, '#76ff03', 40);
+                            const blastDmg = 20 * (player.damageMultiplier || 1);
+                            window.enemies.forEach(nb => {
+                                if (nb !== e && nb.hp > 0 && Math.hypot(nb.x - ex, nb.y - ey) < 150) {
+                                    if (typeof nb.takeDamage === 'function') nb.takeDamage(blastDmg); else nb.hp -= blastDmg;
+                                    nb.poisonStacks = Math.min((nb.poisonStacks || 0) + 30, 100);
+                                }
+                            });
+                            if (typeof player.onKill === 'function') player.onKill(e);
+                        }
+                    }
+                });
+            }
+
+            // Particles: rising toxic cloud across field
+            if (window.particles && Math.random() < 0.4 && typeof Particle !== 'undefined') {
+                const a = Math.random() * Math.PI * 2;
+                const r = Math.random() * 300;
+                const pp = new Particle(player.x + Math.cos(a) * r, player.y + Math.sin(a) * r, 'rgba(118,255,3,0.45)');
+                pp.velocity = { x: (Math.random() - 0.5) * 0.6, y: -1.2 - Math.random() };
+                pp.life = 55;
+                window.particles.push(pp);
             }
 
             if (player.transformTimer <= 0) {
                 player.transformActive = false;
-                if (typeof showNotification === 'function') showNotification("Miasma Fades...", "#ccc");
+                if (typeof showNotification === 'function') showNotification("PANDEMIC ENDS...", "#ccc");
             }
         }
 
         // --- GLOBAL POISON DOT LOGIC (INJECTED) ---
         // Since core game loop doesn't handle poisonStacks, we do it here.
-        if (window.enemies && window.frame % 30 === 0) { // Tick every 0.5s
+        // Skipped during PANDEMIC PROTOCOL (transform active) — turbo DoT runs at 3× speed above.
+        if (window.enemies && window.frame % 30 === 0 && !player.transformActive) { // Tick every 0.5s
             // Altar checks (read once per tick for performance)
             const dotActive = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
             const dotHas = (id) => dotActive.includes(id);

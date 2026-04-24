@@ -79,6 +79,16 @@ class SoundHero {
             player.autoSync = true;
             return true;
         }
+        if (type === 'transform') {
+            player.transformActive = true;
+            player.currentForm = 'PERFORMER';
+            player.grandFinaleTimer = 600;
+            player._beatFired = false;
+            SoundHero.spawnResonanceRing(player);
+            if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#00e5ff', 30);
+            if (typeof showNotification === 'function') showNotification("GRAND FINALE!", "#00e5ff");
+            return true;
+        }
         return false;
     }
 
@@ -157,6 +167,39 @@ class SoundHero {
                 player.syncStateDuration = 0;
             }
             player.syncMeter = 0;
+        }
+
+        // ── PERFORMER: GRAND FINALE form ──
+        if (player.transformActive && player.currentForm === 'PERFORMER') {
+            if (!player.grandFinaleTimer) player.grandFinaleTimer = 600;
+            player.grandFinaleTimer--;
+
+            // Auto-fire 8-way omnidirectional burst on every beat
+            const onBeat = window.SYMPHONY_STATE && window.SYMPHONY_STATE.onBeat;
+            if (onBeat && !player._beatFired) {
+                player._beatFired = true;
+                SoundHero.fireGrandFinaleOmni(player);
+            }
+            if (!onBeat) player._beatFired = false;
+
+            // Orbiting note damage ring every 30 frames
+            if (window.frame % 30 === 0 && window.enemies) {
+                const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier * 1.2;
+                window.enemies.forEach(e => {
+                    if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < 100) {
+                        if (typeof e.takeDamage === 'function') e.takeDamage(dmg); else e.hp -= dmg;
+                        if (e.resonating > 0) {
+                            if (typeof e.takeDamage === 'function') e.takeDamage(dmg); else e.hp -= dmg;
+                        }
+                        if (typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y - 15, Math.floor(dmg), '#00e5ff');
+                    }
+                });
+            }
+
+            if (player.grandFinaleTimer <= 0) {
+                player.transformActive = false;
+                if (typeof showNotification === 'function') showNotification("FINAL NOTE...", "#90caf9");
+            }
         }
 
         // ── Visuals, AoE, and UI ──
@@ -584,6 +627,41 @@ class SoundHero {
             }
         }
 
+        // ── PERFORMER form: orbiting notes + close-range ring ──
+        if (player.transformActive && player.currentForm === 'PERFORMER') {
+            const t = (window.frame || 0) * 0.07;
+            const orbitR = 85;
+            const notes = ['♪', '♫', '♩'];
+            notes.forEach((note, i) => {
+                const a = t + (i / notes.length) * Math.PI * 2;
+                const nx = player.x + Math.cos(a) * orbitR;
+                const ny = player.y + Math.sin(a) * orbitR;
+                ctx.save();
+                ctx.fillStyle = `rgba(0, 229, 255, ${0.75 + 0.25 * Math.sin(t * 3 + i)})`;
+                ctx.font = '18px Arial';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.shadowBlur = 12; ctx.shadowColor = '#00e5ff';
+                ctx.fillText(note, nx, ny);
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            });
+            // Pulsing ring
+            const pulse = 0.3 + 0.2 * Math.sin(t * 4);
+            ctx.strokeStyle = `rgba(0, 229, 255, ${pulse})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, orbitR, 0, Math.PI * 2);
+            ctx.stroke();
+            // Timer bar (screen space)
+            const timerPct = Math.max(0, (player.grandFinaleTimer || 0) / 600);
+            const bw = 50, bh = 4;
+            const bx = player.x - bw / 2, by = player.y - 52;
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(bx, by, bw, bh);
+            ctx.fillStyle = '#00e5ff';
+            ctx.fillRect(bx, by, bw * timerPct, bh);
+        }
+
         // ── Beat pulse ring (Sound biome only) ──
         if (inSoundBiome && player.visualPulse > 0) {
             ctx.beginPath();
@@ -599,6 +677,10 @@ class SoundHero {
     // ─────────────────────────────────────────────────────────────────────────
 
     static shootNote(player, dx, dy) {
+        if (player.transformActive && player.currentForm === 'PERFORMER') {
+            SoundHero.fireGrandFinaleNote(player, dx, dy);
+            return;
+        }
         if (player.rangeCooldown > 0) return;
 
         if (dx === undefined || dy === undefined) {
@@ -761,6 +843,97 @@ class SoundHero {
         }
 
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GRAND FINALE: 5-way directional fan (replaces normal shot in PERFORMER form)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    static fireGrandFinaleNote(player, dx, dy) {
+        if (player.rangeCooldown > 0) return;
+
+        if (dx === undefined || dy === undefined) {
+            const angle = player.aimAngle || 0;
+            dx = Math.cos(angle); dy = Math.sin(angle);
+        }
+
+        const isOnBeat = window.SYMPHONY_STATE && window.SYMPHONY_STATE.onBeat;
+        const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier * (isOnBeat ? 3.5 : 2.5);
+        const baseAngle = Math.atan2(dy, dx);
+        const offsets = isOnBeat ? [-0.5, -0.25, 0, 0.25, 0.5, -0.75, 0.75] : [-0.4, -0.2, 0, 0.2, 0.4];
+
+        if (typeof projectiles !== 'undefined') {
+            offsets.forEach(offset => {
+                const angle = baseAngle + offset;
+                const note = isOnBeat ? '♫' : '♪';
+                projectiles.push({
+                    x: player.x, y: player.y,
+                    vx: Math.cos(angle) * 11, vy: Math.sin(angle) * 11,
+                    radius: 11,
+                    color: '#00e5ff', damage: dmg,
+                    knockback: player.stats.knockback || 0,
+                    life: 65, type: 'FINALE_NOTE', owner: player,
+                    _note: note,
+                    update: function () {
+                        this.x += this.vx; this.y += this.vy;
+                        this.radius += 0.25; this.life--;
+                        if (this.life <= 0) this.dead = true;
+                    },
+                    draw: function () {
+                        const ctx = window.ctx; if (!ctx) return;
+                        ctx.save();
+                        ctx.shadowBlur = 18; ctx.shadowColor = '#00e5ff';
+                        ctx.fillStyle = '#00e5ff';
+                        ctx.font = (this.radius * 2.2) + 'px Arial';
+                        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                        ctx.fillText(this._note, this.x, this.y);
+                        ctx.shadowBlur = 0;
+                        ctx.restore();
+                    }
+                });
+            });
+        }
+
+        if (isOnBeat) {
+            if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_crit');
+        }
+        player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier * 0.65;
+    }
+
+    // GRAND FINALE: automatic 8-way omnidirectional burst on each beat
+    static fireGrandFinaleOmni(player) {
+        const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier * 2.0;
+        if (typeof projectiles !== 'undefined') {
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                projectiles.push({
+                    x: player.x, y: player.y,
+                    vx: Math.cos(angle) * 9, vy: Math.sin(angle) * 9,
+                    radius: 9,
+                    color: '#ffffff', damage: dmg,
+                    knockback: player.stats.knockback || 0,
+                    life: 55, type: 'OMNI_NOTE', owner: player,
+                    update: function () {
+                        this.x += this.vx; this.y += this.vy;
+                        this.life--;
+                        if (this.life <= 0) this.dead = true;
+                    },
+                    draw: function () {
+                        const ctx = window.ctx; if (!ctx) return;
+                        ctx.save();
+                        ctx.globalAlpha = this.life / 55;
+                        ctx.shadowBlur = 12; ctx.shadowColor = '#ffffff';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = '20px Arial';
+                        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                        ctx.fillText('♩', this.x, this.y);
+                        ctx.shadowBlur = 0;
+                        ctx.restore();
+                    }
+                });
+            }
+        }
+        if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_sync_' + (Math.floor(Math.random() * 4) + 1));
     }
 
     // ─────────────────────────────────────────────────────────────────────────

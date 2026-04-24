@@ -82,8 +82,28 @@ window.HERO_LOGIC['gravity'] = {
 
     applyUpgrade: function(player, type) {
         if (type === 'radius') {
-             player.gravityWellSize = (player.gravityWellSize || 100) * 1.25;
-             return true;
+            player.gravityWellSize = (player.gravityWellSize || 100) * 1.25;
+            return true;
+        }
+        if (type === 'transform') {
+            player.transformActive = true;
+            player.currentForm = 'DARK STAR';
+            // Activation burst: pull all enemies inward with a massive jolt
+            const targets = (typeof enemies !== 'undefined') ? enemies : (window.enemies || []);
+            targets.forEach(e => {
+                if (e.hp <= 0) return;
+                const dist = Math.hypot(e.x - player.x, e.y - player.y);
+                const angle = Math.atan2(player.y - e.y, player.x - e.x);
+                const force = Math.min(40, 3500 / (dist + 30));
+                e.x += Math.cos(angle) * force;
+                e.y += Math.sin(angle) * force;
+            });
+            if (typeof createExplosion === 'function') {
+                createExplosion(player.x, player.y, '#000', 70);
+                createExplosion(player.x, player.y, '#8e44ad', 50);
+            }
+            if (typeof showNotification === 'function') showNotification("DARK STAR RISING", "#8e44ad");
+            return true;
         }
         return false;
     },
@@ -227,6 +247,8 @@ window.HERO_LOGIC['gravity'] = {
             return false; // Return false to let default movement run
         };
 
+        player.getFormName = function () { return 'DARK STAR'; };
+
         // Force UI update immediately if we are the selected hero
         player.setupSpecial();
     },
@@ -294,6 +316,69 @@ window.HERO_LOGIC['gravity'] = {
         if (player.activeBlackHole) {
             player.activeBlackHole.update();
             // Drawing is handled inside update() using window.ctx
+        }
+
+        // DARK STAR form: become a walking singularity
+        if (player.transformActive && player.currentForm === 'DARK STAR') {
+            const allEnemies = (typeof enemies !== 'undefined') ? enemies : (window.enemies || []);
+            const ultRange = (player.gravityWellSize + (player.level * 2)) * 3;
+
+            allEnemies.forEach(e => {
+                if (e.hp <= 0) return;
+                const dist = Math.hypot(e.x - player.x, e.y - player.y);
+                if (dist < ultRange) {
+                    // Massively amplified pull — 5× base force, capped per frame
+                    const angle = Math.atan2(player.y - e.y, player.x - e.x);
+                    const force = Math.min(20, (1000 / (dist + 10)) * 5);
+                    const resist = e.knockbackResist || 0;
+                    if (Math.random() > resist) {
+                        e.x += Math.cos(angle) * force;
+                        e.y += Math.sin(angle) * force;
+                    }
+                    // Annihilation zone: close-range DoT
+                    if (dist < 80) {
+                        const dotDmg = 15 * (player.damageMultiplier || 1);
+                        e.hp -= dotDmg;
+                        if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
+                        if ((window.frame || 0) % 15 === 0 && typeof createExplosion === 'function') {
+                            createExplosion(e.x, e.y, '#8e44ad', 6);
+                        }
+                    }
+                }
+            });
+
+            // Accretion disk visual: 3 spinning purple ellipses + dark vortex center
+            if (window.ctx) {
+                const ctx = window.ctx;
+                ctx.save();
+                ctx.translate(player.x, player.y);
+                const rot = (window.frame || 0) * 0.04;
+                for (let ring = 0; ring < 3; ring++) {
+                    const r = 45 + ring * 22;
+                    ctx.strokeStyle = `rgba(${142 - ring * 25}, 68, ${173 + ring * 15}, ${0.75 - ring * 0.2})`;
+                    ctx.lineWidth = 4 - ring * 0.8;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#8e44ad';
+                    ctx.setLineDash([10, 7]);
+                    ctx.save();
+                    ctx.rotate(rot + ring * 0.6);
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, r, r * 0.3, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                ctx.setLineDash([]);
+                const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 38);
+                grad.addColorStop(0, 'rgba(0,0,0,0.92)');
+                grad.addColorStop(0.75, 'rgba(0,0,0,0.5)');
+                grad.addColorStop(1, 'rgba(142,68,173,0)');
+                ctx.beginPath();
+                ctx.arc(0, 0, 38, 0, Math.PI * 2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
         }
     }
 };

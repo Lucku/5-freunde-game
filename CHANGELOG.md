@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file, starting wi
 ## [Unreleased]
 
 ### Added
+- **Sound Hero — GRAND FINALE ultimate**: PERFORMER form now triggers a full musical assault: shots become a 5-way (7-way on-beat) sonic fan at 2.5×–3.5× damage; every beat auto-fires an 8-way omnidirectional note burst; orbiting musical notes deal close-range AoE damage every 30 frames; lasts 10 seconds
+- **Gravity Hero — DARK STAR ultimate**: Gravity Hero now has the DARK STAR form: activation jolts all enemies inward; gravity pull range triples with 5× force; enemies within 80px take 15 DPS × damageMultiplier; spinning purple accretion disk ellipses render around the player; deactivates on damage (standard rule)
+- **Poison Hero — PANDEMIC PROTOCOL ultimate**: PLAGUEBRINGER form now activates a true pandemic: all living enemies are instantly infected to 100 poison stacks on activation; turbo stack field applies +10 stacks/10 frames in radius 400; poison DoT ticks 3× faster (every 10 frames); plague explosions chain on poison kills; player leeches 5% of all poison DoT dealt; lasts 15 seconds
 - **Hit flash on enemies**: Enemies briefly flash white when hit (6-frame fade), giving instant visual confirmation on every shot and melee strike
 - **Enemy death burst**: Regular enemies emit a small directional 8-particle burst in their own color on death
 - **Hit stop**: Significant hits (melee: 2 frames, crit projectile: 3 frames, melee crit: 4 frames) freeze enemy and projectile movement for classic fighting-game impact feel
