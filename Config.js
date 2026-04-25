@@ -39,7 +39,10 @@ const defaultConfig = {
     showIntroScreens: true,
 
     // Accessibility
-    subtitlesEnabled: false
+    subtitlesEnabled: false,
+
+    // Dismissed info dialogues (array of dialogue IDs)
+    dismissedDialogues: []
 };
 
 var gameConfig = JSON.parse(JSON.stringify(defaultConfig));

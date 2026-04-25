@@ -10,16 +10,30 @@ class MemoryShard {
     }
 
     getColorByType(type) {
+        // DLC hook: allow overrides via prototype patching
+        if (window.BIOME_LOGIC && window._MEMORY_SHARD_COLORS && window._MEMORY_SHARD_COLORS[type]) {
+            return window._MEMORY_SHARD_COLORS[type];
+        }
         switch (type) {
-            case 'fire': return '#e74c3c';
-            case 'ice': return '#3498db';
-            case 'plant': return '#2ecc71';
-            case 'metal': return '#95a5a6';
-            case 'water': return '#2980b9';
-            case 'black': return '#000000';
-            case 'makuta': return '#8e44ad';
-            case 'goblin': return '#27ae60';
-            default: return '#ffffff';
+            case 'fire':        return '#e74c3c';
+            case 'water':       return '#3498db';
+            case 'ice':         return '#aac8da';
+            case 'plant':       return '#2ecc71';
+            case 'metal':       return '#95a5a6';
+            case 'earth':       return '#8d6e63';
+            case 'lightning':   return '#f1c40f';
+            case 'gravity':     return '#9b59b6';
+            case 'void':        return '#00bcd4';
+            case 'spirit':      return '#f0d080';
+            case 'chance':      return '#e040fb';
+            case 'time':        return '#c8aa6e';
+            case 'love':        return '#ff6b9d';
+            case 'air':         return '#40e0d0';
+            case 'black':       return '#2c3e50';
+            case 'green_goblin':
+            case 'goblin':      return '#27ae60';
+            case 'makuta':      return '#8e44ad';
+            default:            return '#ffffff';
         }
     }
 

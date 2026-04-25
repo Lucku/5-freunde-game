@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-04-25
+
 ### Added
+- **Info dialogue system**: Generic queued info dialogue that appears on main menu launch; controller-compatible (navigate with stick/D-pad, A to activate, B to close); dismissable via "Don't show this again" checkbox persisted in config; plays menu music seamlessly; new dialogues can be registered via `infoDialogueManager.register()`
+- **"Expansions Available" info dialogue**: First-launch popup pointing players to the Expansions section; can be permanently dismissed
 - **Sound Hero — GRAND FINALE ultimate**: PERFORMER form now triggers a full musical assault: shots become a 5-way (7-way on-beat) sonic fan at 2.5×–3.5× damage; every beat auto-fires an 8-way omnidirectional note burst; orbiting musical notes deal close-range AoE damage every 30 frames; lasts 10 seconds
 - **Gravity Hero — DARK STAR ultimate**: Gravity Hero now has the DARK STAR form: activation jolts all enemies inward; gravity pull range triples with 5× force; enemies within 80px take 15 DPS × damageMultiplier; spinning purple accretion disk ellipses render around the player; deactivates on damage (standard rule)
 - **Poison Hero — PANDEMIC PROTOCOL ultimate**: PLAGUEBRINGER form now activates a true pandemic: all living enemies are instantly infected to 100 poison stacks on activation; turbo stack field applies +10 stacks/10 frames in radius 400; poison DoT ticks 3× faster (every 10 frames); plague explosions chain on poison kills; player leeches 5% of all poison DoT dealt; lasts 15 seconds
@@ -23,6 +27,13 @@ All notable changes to this project will be documented in this file, starting wi
 ### Fixed
 - Weather effects now always reset at the start of each new wave instead of persisting into the next wave
 - Gravity Hero no longer plays the shoot sound or fires a projectile while in DARK STAR ultimate form
+- Memory shard pickups now display the correct color for every hero type (all DLC heroes — earth, lightning, gravity, void, spirit, chance, time, love, air — were previously defaulting to white)
+- Time and Love heroes now render in their correct colors in the Museum (player avatar and entity sprites)
+- Void Hero special icon now correctly shows 👻 (was showing default icon because the override applied after the first setup call)
+- Void Hero ENTROPY ultimate now correctly marks all enemies as glitched and runs its 10-second form; the `chooseUpgrade` path was bypassing `HERO_LOGIC.applyUpgrade`, so the timer and glitch-marking logic never executed
+- Void Hero biome obstacles now render with the cyan fractured-reality style instead of default stone (FracturedBiome was creating obstacles without a `biomeType`)
+- Hero exclamations are now clearly audible over music — volume raised to 1.0 and background music ducks to 10% while a line plays, then restores
+- DLC Expansions menu no longer plays the battle theme — `'DLC'` added to the menu state list in AudioManager
 
 ### Changed
 - Developer logo intro screen now plays an animated video (`developer_animated.mp4`) instead of a static image

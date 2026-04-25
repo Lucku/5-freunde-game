@@ -117,20 +117,13 @@ window.HERO_LOGIC['void'] = {
         player.riftColor = "#00bcd4"; // Cyan/Glitch Blue
 
         // Override UI
-        const originalSetup = player.setupSpecial.bind(player);
         player.setupSpecial = function () {
-            // CPU Guard
-            if (this.isCPU) {
-                this.specialName = "REALM SHIFT";
-                this.specialMaxCooldown = 1200;
-                return;
-            }
-
+            this.specialName = "REALM SHIFT";
+            this.specialMaxCooldown = 1200; // 20s
+            if (this.isCPU) return;
             const iconEl = document.getElementById('special-icon');
             if (iconEl) {
-                this.specialName = "REALM SHIFT";
-                this.specialMaxCooldown = 1200; // 20s
-                iconEl.innerText = "👻"; // Ghost icon
+                iconEl.innerText = "👻";
                 const container = document.getElementById('special-container');
                 if (container) {
                     container.style.boxShadow = "0 0 10px #00bcd4";
@@ -138,6 +131,8 @@ window.HERO_LOGIC['void'] = {
                 }
             }
         };
+        // Apply now — constructor already ran the original setupSpecial before init was called
+        player.setupSpecial();
         // Override Form Name Logic for Level 10 Transformation
         player.getFormName = function () {
             return 'ENTROPY';

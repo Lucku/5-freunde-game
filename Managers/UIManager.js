@@ -35,6 +35,7 @@ class UIManager {
         else if (this.uiState === 'COMPLETION') screenId = 'completion-screen';
         else if (this.uiState === 'DLC') screenId = 'dlc-screen';
         else if (this.uiState === 'OPTIONS') screenId = 'options-screen';
+        else if (this.uiState === 'INFO_DIALOGUE') screenId = 'info-dialogue-screen';
 
         if (!screenId) return [];
         const screen = document.getElementById(screenId);
@@ -75,7 +76,7 @@ class UIManager {
             const el = focusables[this.uiSelectionIndex];
             el.classList.add('selected');
 
-            const scrollableStates = ['MENU', 'ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE', 'ALTAR', 'COMPLETION', 'STATS', 'CHAOSSHOP', 'TUTORIAL', 'DAILY_INFO', 'OPTIONS', 'DLC'];
+            const scrollableStates = ['MENU', 'ACHIEVEMENTS', 'SKILLTREE', 'SHOP', 'PERMSHOP', 'COLLECTION', 'HIGHSCORE', 'ALTAR', 'COMPLETION', 'STATS', 'CHAOSSHOP', 'TUTORIAL', 'DAILY_INFO', 'OPTIONS', 'DLC', 'INFO_DIALOGUE'];
             if (scrollableStates.includes(this.uiState)) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
             }

@@ -300,12 +300,27 @@ class AudioManager {
         }
 
         const audio = new Audio(path);
-        audio.volume = 0.85;
+        audio.volume = 1.0;
         this._exclamationPlaying = true;
-        audio.play().catch(() => {}); // silently skip missing files
-        audio.onended = () => { this._exclamationPlaying = false; };
+
+        // Duck music while the exclamation plays, restore after
+        const _savedVols = {};
+        for (const key in this.tracks) {
+            if (this.isMusic(key) && !this.tracks[key].paused) {
+                _savedVols[key] = this.tracks[key].volume;
+                this.tracks[key].volume = 0.1;
+            }
+        }
+        const _restoreMusic = () => {
+            for (const key in _savedVols) {
+                if (this.tracks[key]) this.tracks[key].volume = _savedVols[key];
+            }
+        };
+
+        audio.play().catch(() => { _restoreMusic(); }); // silently skip missing files
+        audio.onended = () => { this._exclamationPlaying = false; _restoreMusic(); };
         // Safety reset in case the file never loads
-        setTimeout(() => { this._exclamationPlaying = false; }, 6000);
+        setTimeout(() => { this._exclamationPlaying = false; _restoreMusic(); }, 6000);
 
         // Show subtitle if enabled
         if (window.gameConfig && window.gameConfig.subtitlesEnabled) {
@@ -422,7 +437,7 @@ class AudioManager {
             return;
         }
 
-        const menuStates = ['MENU','OPTIONS','PERMSHOP','ACHIEVEMENTS','COLLECTION','HIGHSCORE','STORY','ALTAR','CHAOSSHOP','TUTORIAL','STATS','COMPLETION','SKILLTREE'];
+        const menuStates = ['MENU','OPTIONS','PERMSHOP','ACHIEVEMENTS','COLLECTION','HIGHSCORE','STORY','ALTAR','CHAOSSHOP','TUTORIAL','STATS','COMPLETION','SKILLTREE','INFO_DIALOGUE','DLC'];
 
         if (uiState === 'VICTORY') {
             this.stopAllExcept('victory'); this.play('victory');

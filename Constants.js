@@ -1,4 +1,4 @@
-const APP_VERSION = '1.0.3'; // Keep in sync with package.json and Git tags
+const APP_VERSION = '1.1.0'; // Keep in sync with package.json and Git tags
 
 // --- Configuration ---
 const BASE_HERO_STATS = {

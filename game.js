@@ -403,6 +403,49 @@ function handleGamepadMenu() {
         }
     }
 
+    // --- INFO DIALOGUE ---
+    if (uiState === 'INFO_DIALOGUE') {
+        if (a) {
+            const focused = getFocusables()[uiSelectionIndex];
+            if (focused) focused.click();
+            uiDebounce = 20;
+        }
+        if (b) {
+            infoDialogueManager.close();
+            uiDebounce = 20;
+        }
+        if (up || down) {
+            const wrap = document.getElementById('info-dialogue-body-wrap');
+            const scrollable = wrap && wrap.scrollHeight > wrap.clientHeight;
+            if (scrollable) {
+                const atTop    = wrap.scrollTop <= 0;
+                const atBottom = wrap.scrollTop >= wrap.scrollHeight - wrap.clientHeight - 1;
+                // Scroll body unless we're already at the edge going that direction
+                if ((down && !atBottom) || (up && !atTop)) {
+                    wrap.scrollTop += down ? 80 : -80;
+                    uiDebounce = 8;
+                } else {
+                    // At edge — fall through to focusable navigation
+                    const focusables = getFocusables();
+                    if (focusables.length > 1) {
+                        uiSelectionIndex = (uiSelectionIndex + (down ? 1 : -1) + focusables.length) % focusables.length;
+                        uiManager.updateUIHighlight();
+                        uiDebounce = 10;
+                    }
+                }
+            } else {
+                const focusables = getFocusables();
+                if (focusables.length > 1) {
+                    uiSelectionIndex = (uiSelectionIndex + (down ? 1 : -1) + focusables.length) % focusables.length;
+                    uiManager.updateUIHighlight();
+                    uiDebounce = 10;
+                }
+            }
+        }
+        lastGamepadState = { a, b, y };
+        return;
+    }
+
     // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
     if (b && !lastGamepadState.b) {
         if (uiState === 'OPTIONS') closeOptions();
@@ -968,16 +1011,8 @@ function initMenu() {
     if (typeof EvilMode !== 'undefined') EvilMode.checkUnlock();
     setUIState('MENU'); // Set State
 
-    // First-launch tutorial prompt
-    if (saveData.tutorial && !saveData.tutorial.seen) {
-        const overlay = document.getElementById('tutorial-welcome-overlay');
-        if (overlay) overlay.style.display = 'flex';
-        setUIState('TUTORIAL_PROMPT');
-        setTimeout(() => {
-            const btn = document.getElementById('tutorial-accept-btn');
-            if (btn) btn.focus();
-        }, 50);
-    }
+    // Show queued info dialogues (DLC announcements, etc.), then tutorial prompt if needed.
+    infoDialogueManager.startQueue();
 }
 
 // --- DLC Menu Logic ---
@@ -2253,10 +2288,14 @@ function chooseUpgrade(type) {
     else if (type === 'luck') { target.maskChance += 0.005; target.runBuffs.luck += 0.005; }
     else if (type === 'crit') { target.critChance += 0.05; target.critMultiplier += 0.2; }
     else if (type === 'transform') {
-        target.transformActive = true;
-        target.currentForm = target.getFormName();
-        showNotification(`${target.currentForm} ACTIVATED!`);
-        createExplosion(target.x, target.y, '#fff');
+        const _hl = window.HERO_LOGIC && window.HERO_LOGIC[target.type];
+        const _handled = _hl && _hl.applyUpgrade && _hl.applyUpgrade(target, 'transform');
+        if (!_handled) {
+            target.transformActive = true;
+            target.currentForm = target.getFormName();
+            showNotification(`${target.currentForm} ACTIVATED!`);
+            createExplosion(target.x, target.y, '#fff');
+        }
         if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(target.type, 'ultimate');
     }
 

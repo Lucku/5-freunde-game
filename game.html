@@ -487,6 +487,33 @@
         <button class="screen-back-btn" style="margin-top:32px;" onclick="closeDLCMenu()">← CLOSE</button>
     </div>
 
+    <!-- Info Dialogue (generic, queued) -->
+    <div id="info-dialogue-screen"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:9500; flex-direction:column; align-items:center; justify-content:center;">
+        <div class="modal-panel" style="max-width:520px; width:92%; display:flex; flex-direction:column; max-height:90vh;">
+            <div class="screen-header" style="margin-bottom:16px; flex-shrink:0;">
+                <div class="screen-title st-gold" id="info-dialogue-title"></div>
+            </div>
+            <div id="info-dialogue-body-wrap"
+                style="overflow-y:auto; flex:1 1 auto; min-height:0; margin-bottom:16px; padding-right:6px; scrollbar-width:thin; scrollbar-color:rgba(241,196,15,0.35) rgba(255,255,255,0.05);">
+                <div class="dialog-text" id="info-dialogue-body" style="margin:0;"></div>
+            </div>
+            <div id="info-dialogue-checkbox-row"
+                style="display:none; align-items:center; gap:12px; margin-bottom:16px; justify-content:center; flex-shrink:0;">
+                <button id="info-dialogue-checkbox-btn"
+                    onclick="infoDialogueManager.toggleCheckbox()"
+                    style="background:none; border:2px solid #666; border-radius:4px; width:26px; height:26px; font-size:17px; color:#888; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0; line-height:1;">☐</button>
+                <span id="info-dialogue-checkbox-label"
+                    style="color:#bbb; font-size:14px; cursor:pointer;"
+                    onclick="infoDialogueManager.toggleCheckbox()"></span>
+            </div>
+            <div class="dialog-buttons" style="flex-shrink:0;">
+                <button class="screen-back-btn" id="info-dialogue-close-btn"
+                    onclick="infoDialogueManager.close()">Got it</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Update Available Dialog -->
     <div id="update-dialog"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:4000; flex-direction:column; align-items:center; justify-content:center;">
@@ -888,6 +915,7 @@
     <script src="UI/LevelUp.js"></script>
     <script src="UI/Options.js"></script>
     <script src="UI/VersusMenu.js"></script>
+    <script src="UI/InfoDialogueManager.js"></script>
     <script src="UI/MainMenu.js"></script>
     <script src="UI/MenuBackground.js"></script>
     <script src="ChaosMode.js"></script>

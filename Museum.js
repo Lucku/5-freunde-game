@@ -1117,6 +1117,8 @@ class Museum {
         if (this.player.type === 'chance') color = '#ff00ff'; // Magenta
         if (this.player.type === 'sound') color = '#4fc3f7';  // Light Blue
         if (this.player.type === 'poison') color = '#76ff03'; // Toxic Green
+        if (this.player.type === 'time') color = '#c8aa6e';  // Sand gold
+        if (this.player.type === 'love') color = '#ff6b9d';  // Rose pink
 
         drawHeroSprite(ctx, color, 15);
         ctx.restore();
@@ -1558,11 +1560,20 @@ class MuseumEntity {
         this.alpha = 1;
 
         if (this.isHero) {
-            if (this.type === 'fire') this.color = '#e74c3c';
-            if (this.type === 'water') this.color = '#3498db';
-            if (this.type === 'ice') this.color = '#ecf0f1';
-            if (this.type === 'plant') this.color = '#2ecc71';
-            if (this.type === 'metal') this.color = '#95a5a6';
+            if (this.type === 'fire')        this.color = '#e74c3c';
+            if (this.type === 'water')       this.color = '#3498db';
+            if (this.type === 'ice')         this.color = '#ecf0f1';
+            if (this.type === 'plant')       this.color = '#2ecc71';
+            if (this.type === 'metal')       this.color = '#95a5a6';
+            if (this.type === 'earth')       this.color = '#8d6e63';
+            if (this.type === 'lightning')   this.color = '#ffeb3b';
+            if (this.type === 'gravity')     this.color = '#8e44ad';
+            if (this.type === 'void')        this.color = '#00bcd4';
+            if (this.type === 'air')         this.color = '#40e0d0';
+            if (this.type === 'spirit')      this.color = '#f0d080';
+            if (this.type === 'chance')      this.color = '#e040fb';
+            if (this.type === 'time')        this.color = '#c8aa6e';
+            if (this.type === 'love')        this.color = '#ff6b9d';
         } else {
             // Enemy Defaults
             this.radius = 15 + Math.random() * 10;

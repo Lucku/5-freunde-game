@@ -25,8 +25,8 @@ class FracturedBiome {
         for (let i = 0; i < 20; i++) {
             const x = Math.random() * (w - 100);
             const y = Math.random() * (h - 100);
-            arena.obstacles.push(new Obstacle(x, y, 50, 200)); // Tall thin blocks
-            arena.obstacles.push(new Obstacle(x + 60, y + 50, 200, 50)); // Wide flat blocks
+            arena.obstacles.push(new Obstacle(x, y, 50, 200, 'void'));
+            arena.obstacles.push(new Obstacle(x + 60, y + 50, 200, 50, 'void'));
         }
     }
 
