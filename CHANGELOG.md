@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file, starting wi
 
 ### Added
 - **Cloud Save system**: New server component (`server/`) provides REST API-backed cloud save storage running on any Node.js host (e.g. Raspberry Pi). Players can register/login from the Options menu → Cloud Save section, then enable Cloud Sync to automatically upload saves after every save and download on game start. Conflict detection compares local and cloud saves; a modal lets the player choose which version to keep when both differ since the last sync.
+- **Cloud Save info dialogue**: One-time menu announcement that explains the cloud save feature and directs players to Options → Cloud Save to set it up.
 
 ### Changed
 - **Museum — door widths**: Doors between top rooms (Fire, Water, Ice) and the gallery corridor are now 200 px (Fire/Ice) and 300 px (Water), centred within each room, replacing the previous 100 px / 600 px extremes.

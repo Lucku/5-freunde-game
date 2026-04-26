@@ -143,3 +143,31 @@ infoDialogueManager.register({
     body: 'New DLC expansions are waiting in the <strong>DLCs</strong> section of the main menu.<br><br>Each expansion adds a new hero, biome, enemies, and story chapter. Head to <strong>DLCs</strong> to enable them.',
     checkboxLabel: "Don't show this again"
 });
+
+infoDialogueManager.register({
+    id: 'cloud_save_v1',
+    title: '☁ CLOUD SAVE',
+    body: `
+        <div style="line-height:1.75; font-size:13px; color:rgba(255,255,255,0.78);">
+            Your progress can now be synced across devices using a personal cloud save server.
+            <br><br>
+            <div style="color:#5dade2; font-weight:bold; margin-bottom:4px;">HOW IT WORKS</div>
+            Run the included server on any machine on your network — a Raspberry Pi works great.
+            Once it's up, head to <strong>Options → Cloud Save</strong>, enter the server address,
+            create an account, and turn on <strong>Cloud Sync</strong>.
+            <br><br>
+            From that point on your save is uploaded automatically after every game and loaded
+            fresh each time you start — on any device that can reach the server.
+            <br><br>
+            <div style="color:#5dade2; font-weight:bold; margin-bottom:4px;">CONFLICT HANDLING</div>
+            If saves on two devices have diverged, the game will ask you which version to keep
+            before the menu loads. The other copy is overwritten, so you're always in control.
+            <br><br>
+            <div style="color:rgba(255,255,255,0.4); font-size:11px;">
+                The server files are in the <em>server/</em> folder of the game directory.
+                See <em>server/README.md</em> for setup instructions.
+            </div>
+        </div>
+    `,
+    checkboxLabel: "Don't show this again"
+});
