@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Added
+- **Museum — Forbidden Archive (basement)**: A hidden basement section below the Creature Wing accessible via a staircase. Entry is sealed until the player finds and activates three hidden switches scattered across the museum (fire room, ice room, gallery). Once all switches are activated the locked gate opens permanently. The Makuta and Green Goblin memory shards are housed exclusively here instead of the main gallery.
+
 ## [1.1.0] - 2026-04-25
 
 ### Added

@@ -58,7 +58,7 @@ const MUSEUM_DIALOGUES = {
 class Museum {
     constructor() {
         this.width = 2400;
-        this.height = 2200;
+        this.height = 2650;
         this.camera = { x: 0, y: 0, width: canvas.width, height: canvas.height };
         this.entities = [];
         this.walls = [];
@@ -80,12 +80,14 @@ class Museum {
 
     generateLayout() {
         // Walls (x, y, w, h)
+        const basementUnlocked = !!(saveData.global && saveData.global.basementUnlocked);
+
         this.walls = [
-            // Outer Boundary (world is now 2400 x 2200)
+            // Outer Boundary (world is 2400 x 2650)
             { x: 0,    y: 0,    w: 2400, h: 50 },    // Top
-            { x: 0,    y: 2150, w: 2400, h: 50 },    // Bottom (extended for jail)
-            { x: 0,    y: 0,    w: 50,   h: 2200 },  // Left
-            { x: 2350, y: 0,    w: 50,   h: 2200 },  // Right
+            { x: 0,    y: 2600, w: 2400, h: 50 },    // Bottom
+            { x: 0,    y: 0,    w: 50,   h: 2650 },  // Left
+            { x: 2350, y: 0,    w: 50,   h: 2650 },  // Right
 
             // Top Room Dividers (horizontal at y=600)
             { x: 0,    y: 600, w: 350, h: 50 },   // Fire door left
@@ -104,22 +106,36 @@ class Museum {
             // Lower floor: plant/metal room bottom walls (gap in centre for jail entrance)
             { x: 50,   y: 1750, w: 550, h: 50 },  // Plant room bottom
             { x: 1800, y: 1750, w: 550, h: 50 },  // Metal room bottom
-            // Gap at x=600-1800 leads down into the Creature Wing
 
-            // Creature Wing (Jail) side walls
-            { x: 600,  y: 1800, w: 50, h: 350 }, // Jail left wall
-            { x: 1750, y: 1800, w: 50, h: 350 }, // Jail right wall
+            // Floor sealing under plant/metal below the jail level
+            { x: 50,   y: 2150, w: 550, h: 50 },  // Under plant room
+            { x: 1800, y: 2150, w: 550, h: 50 },  // Under metal room
+
+            // Jail + basement side walls (extended to new world bottom)
+            { x: 600,  y: 1800, w: 50, h: 800 }, // Left wall (jail + basement)
+            { x: 1750, y: 1800, w: 50, h: 800 }, // Right wall (jail + basement)
+
+            // Staircase separator — narrow passage at x=1050–1350
+            { x: 650,  y: 2200, w: 400, h: 50 }, // Left of staircase
+            { x: 1350, y: 2200, w: 400, h: 50 }, // Right of staircase
+
+            // Basement floor
+            { x: 650,  y: 2550, w: 1100, h: 50 },
+
+            // Locked gate — removed once all switches are found
+            ...(!basementUnlocked ? [{ x: 1050, y: 2200, w: 300, h: 50 }] : []),
         ];
 
         // Define Zones for Logic / Decor
         this.rooms = [
-            { name: 'fire',    x: 50,   y: 50,   w: 750,  h: 550,  color: '#3c1212' },
-            { name: 'water',   x: 850,  y: 50,   w: 750,  h: 550,  color: '#111e2e' },
-            { name: 'ice',     x: 1650, y: 50,   w: 700,  h: 550,  color: '#1e2e35' },
-            { name: 'plant',   x: 50,   y: 650,  w: 550,  h: 1100, color: '#102e18' },
-            { name: 'metal',   x: 1800, y: 650,  w: 550,  h: 1100, color: '#212122' },
-            { name: 'gallery', x: 650,  y: 650,  w: 1100, h: 1100, color: '#272320' },
-            { name: 'jail',    x: 650,  y: 1800, w: 1100, h: 350,  color: '#171210' },
+            { name: 'fire',     x: 50,   y: 50,   w: 750,  h: 550,  color: '#3c1212' },
+            { name: 'water',    x: 850,  y: 50,   w: 750,  h: 550,  color: '#111e2e' },
+            { name: 'ice',      x: 1650, y: 50,   w: 700,  h: 550,  color: '#1e2e35' },
+            { name: 'plant',    x: 50,   y: 650,  w: 550,  h: 1100, color: '#102e18' },
+            { name: 'metal',    x: 1800, y: 650,  w: 550,  h: 1100, color: '#212122' },
+            { name: 'gallery',  x: 650,  y: 650,  w: 1100, h: 1100, color: '#272320' },
+            { name: 'jail',     x: 650,  y: 1800, w: 1100, h: 350,  color: '#171210' },
+            { name: 'basement', x: 650,  y: 2250, w: 1100, h: 300,  color: '#0c0610' },
         ];
     }
 
@@ -192,6 +208,27 @@ class Museum {
                 this.decorations.push({ type: 'JAIL_BAR', x: bx, y: jail.y });
             }
         }
+
+        // Hidden switches — must all be activated to unlock the basement
+        const activatedSwitches = (saveData.global && saveData.global.basementSwitches) || [];
+        this.decorations.push({
+            type: 'SWITCH', id: 'switch_1',
+            x: 90, y: 300,   // Fire room — left wall
+            activated: activatedSwitches.includes('switch_1'),
+        });
+        this.decorations.push({
+            type: 'SWITCH', id: 'switch_2',
+            x: 2310, y: 300, // Ice room — right wall
+            activated: activatedSwitches.includes('switch_2'),
+        });
+        this.decorations.push({
+            type: 'SWITCH', id: 'switch_3',
+            x: 710, y: 1700, // Gallery — lower-left corner
+            activated: activatedSwitches.includes('switch_3'),
+        });
+
+        // Staircase decoration (passage between jail and basement)
+        this.decorations.push({ type: 'STAIR', x: 1200, y: 2175 });
     }
 
     generateTrophies() {
@@ -351,6 +388,7 @@ class Museum {
                 const gy = galleryRoom.y;
 
                 // Row positions inside gallery — 6 rows, ~155px spacing, all within gallery bounds
+                // Note: makuta and goblin are housed in the basement, not the gallery
                 const gallerySlots = [
                     // Row 1: black hero (center)
                     { hero: 'black',     x: gx + 550, y: gy +  80,  color: '#888888' },
@@ -364,16 +402,36 @@ class Museum {
                     { hero: 'gravity',   x: gx + 250, y: gy + 530,  color: '#8e44ad' },
                     { hero: 'spirit',    x: gx + 550, y: gy + 530,  color: '#F0D080' },
                     { hero: 'chance',    x: gx + 850, y: gy + 530,  color: '#e040fb' },
-                    // Row 5: sound, poison, makuta
-                    { hero: 'sound',     x: gx + 250, y: gy + 680,  color: '#4fc3f7' },
-                    { hero: 'poison',    x: gx + 550, y: gy + 680,  color: '#76ff03' },
-                    { hero: 'makuta',    x: gx + 850, y: gy + 680,  color: '#8e44ad' },
-                    // Row 6: time, love, goblin
-                    { hero: 'time',      x: gx + 250, y: gy + 830,  color: '#a0c8ff' },
-                    { hero: 'love',      x: gx + 550, y: gy + 830,  color: '#ff6699' },
-                    { hero: 'goblin',    x: gx + 850, y: gy + 830,  color: '#27ae60' },
+                    // Row 5: sound, poison (makuta moved to basement)
+                    { hero: 'sound',     x: gx + 350, y: gy + 680,  color: '#4fc3f7' },
+                    { hero: 'poison',    x: gx + 750, y: gy + 680,  color: '#76ff03' },
+                    // Row 6: time, love (goblin moved to basement)
+                    { hero: 'time',      x: gx + 350, y: gy + 830,  color: '#a0c8ff' },
+                    { hero: 'love',      x: gx + 750, y: gy + 830,  color: '#ff6699' },
                 ];
                 gallerySlots.forEach(slot => {
+                    const count = getCount(slot.hero);
+                    if (count > 0 && Array.isArray(saveData.memories[slot.hero])) {
+                        this.artifacts.push({
+                            x: slot.x, y: slot.y,
+                            text: `${slot.hero}: ${count}`,
+                            color: slot.color,
+                            type: 'MEMORY', hero: slot.hero,
+                            count, total: getTotal(slot.hero),
+                            isNew: count > (seenCounts[slot.hero] || 0)
+                        });
+                    }
+                });
+            }
+
+            // Forbidden Archive (basement) — makuta and goblin shards housed here
+            const basementRoom = this.rooms.find(r => r.name === 'basement');
+            if (basementRoom) {
+                const basementSlots = [
+                    { hero: 'makuta', x: basementRoom.x + basementRoom.w * 0.33, y: basementRoom.y + basementRoom.h / 2, color: '#8e44ad' },
+                    { hero: 'goblin', x: basementRoom.x + basementRoom.w * 0.67, y: basementRoom.y + basementRoom.h / 2, color: '#27ae60' },
+                ];
+                basementSlots.forEach(slot => {
                     const count = getCount(slot.hero);
                     if (count > 0 && Array.isArray(saveData.memories[slot.hero])) {
                         this.artifacts.push({
@@ -560,7 +618,50 @@ class Museum {
         let interact = keys['e'];
         if (gp && gp.buttons[0].pressed) interact = true; // Button A
 
+        // Update switch proximity flags (used by drawDecorations for prompts)
+        this.decorations.forEach(d => {
+            if (d.type === 'SWITCH') {
+                d._nearPlayer = Math.hypot(this.player.x - d.x, this.player.y - d.y) < 60;
+            }
+        });
+
         if (interact) {
+            // Hidden switches
+            const nearSwitch = this.decorations.find(d =>
+                d.type === 'SWITCH' && !d.activated && d._nearPlayer
+            );
+            if (nearSwitch) {
+                nearSwitch.activated = true;
+                if (!saveData.global.basementSwitches) saveData.global.basementSwitches = [];
+                if (!saveData.global.basementSwitches.includes(nearSwitch.id)) {
+                    saveData.global.basementSwitches.push(nearSwitch.id);
+                }
+                const allActivated = this.decorations
+                    .filter(d => d.type === 'SWITCH')
+                    .every(d => d.activated);
+                if (allActivated && !saveData.global.basementUnlocked) {
+                    saveData.global.basementUnlocked = true;
+                    this.generateLayout(); // Rebuild walls — removes the locked gate
+                    this.activeDialogue = {
+                        text: 'A hidden passage unlocks somewhere below...',
+                        x: this.player.x,
+                        y: this.player.y - 50,
+                        timer: 360,
+                    };
+                } else {
+                    const remaining = this.decorations.filter(d => d.type === 'SWITCH' && !d.activated).length;
+                    this.activeDialogue = {
+                        text: remaining > 0 ? `Switch activated. ${remaining} more to find...` : 'All switches found!',
+                        x: this.player.x,
+                        y: this.player.y - 50,
+                        timer: 240,
+                    };
+                }
+                saveGame();
+                keys['e'] = false;
+                return;
+            }
+
             // Run History Billboard
             const history = saveData.global.runHistory;
             if (history && history.length > 0) {
@@ -583,7 +684,7 @@ class Museum {
                 this.selectedStoryIndex = 0;
                 this.scrollY = 0;
                 keys['e'] = false;
-                return; // Stop processing other interactions
+                return;
             }
         }
     }
@@ -628,10 +729,12 @@ class Museum {
             ctx.fillRect(r.x, r.y, r.w, r.h);
 
             // Room Label
-            ctx.fillStyle = 'rgba(255,255,255,0.13)';
+            ctx.fillStyle = r.name === 'basement' ? 'rgba(180,80,255,0.12)' : 'rgba(255,255,255,0.13)';
             ctx.font = 'bold 40px Arial';
             ctx.textAlign = 'center';
-            const label = r.name === 'jail' ? 'CREATURE WING' : r.name.toUpperCase();
+            const label = r.name === 'jail' ? 'CREATURE WING'
+                        : r.name === 'basement' ? 'FORBIDDEN ARCHIVE'
+                        : r.name.toUpperCase();
             ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2);
 
             // Draw Artifacts (Prestige)
@@ -655,6 +758,25 @@ class Museum {
 
         // Draw Decorations
         this.drawDecorations(ctx);
+
+        // Staircase locked/unlocked proximity hint (world-space, near the passage)
+        const stairX = 1200, stairY = 2175;
+        const stairDist = Math.hypot(this.player.x - stairX, this.player.y - stairY);
+        if (stairDist < 180) {
+            const basementUnlocked = !!(saveData.global && saveData.global.basementUnlocked);
+            ctx.save();
+            ctx.textAlign = 'center';
+            if (!basementUnlocked) {
+                ctx.font = 'bold 13px Arial';
+                ctx.fillStyle = 'rgba(255,180,80,0.90)';
+                ctx.fillText('PASSAGE SEALED — FIND THE HIDDEN SWITCHES', stairX, stairY - 35);
+            } else {
+                ctx.font = 'bold 12px Arial';
+                ctx.fillStyle = 'rgba(180,100,255,0.85)';
+                ctx.fillText('FORBIDDEN ARCHIVE', stairX, stairY - 30);
+            }
+            ctx.restore();
+        }
 
         // Draw Run History Board (gallery room)
         this.drawRunHistoryBoard(ctx);
@@ -1068,6 +1190,88 @@ class Museum {
                     ctx.fillStyle = '#4a4a4a';
                     ctx.beginPath(); ctx.roundRect(ex, d.y - ph / 2 - 4, 14, ph + 8, 2); ctx.fill(); ctx.stroke();
                 });
+
+            } else if (d.type === 'SWITCH') {
+                // Wall-mounted lever panel
+                const panelW = 22, panelH = 32;
+                const glow = d.activated ? '#22dd55' : '#cc2222';
+                // Panel backing
+                ctx.fillStyle = '#2a2525';
+                ctx.strokeStyle = d.activated ? '#22dd55' : '#551111';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.roundRect(d.x - panelW / 2, d.y - panelH / 2, panelW, panelH, 3);
+                ctx.fill(); ctx.stroke();
+                // Status indicator light
+                ctx.shadowBlur = d.activated ? 10 : 4;
+                ctx.shadowColor = glow;
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(d.x, d.y - 9, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // Lever pivot
+                ctx.fillStyle = '#888';
+                ctx.beginPath(); ctx.arc(d.x, d.y + 4, 4, 0, Math.PI * 2); ctx.fill();
+                // Lever arm (up = activated, right = idle)
+                ctx.strokeStyle = d.activated ? '#ccffcc' : '#aaaaaa';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(d.x, d.y + 4);
+                if (d.activated) {
+                    ctx.lineTo(d.x, d.y - 4);        // lever pointing up
+                } else {
+                    ctx.lineTo(d.x + 8, d.y + 4);    // lever pointing right (idle)
+                }
+                ctx.stroke();
+                ctx.lineCap = 'butt';
+                // Proximity prompt
+                if (d._nearPlayer && !d.activated) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+                    ctx.font = 'bold 11px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('PRESS E TO ACTIVATE', d.x, d.y - 26);
+                }
+
+            } else if (d.type === 'STAIR') {
+                // Descending staircase visual in the passage between jail and basement
+                const steps = 4;
+                const stepW = 280, stepH = 11;
+                const basementUnlocked = !!(saveData.global && saveData.global.basementUnlocked);
+                for (let i = 0; i < steps; i++) {
+                    const sw = stepW - i * 40;
+                    const sy = d.y + i * stepH;
+                    const alpha = 0.55 + i * 0.1;
+                    ctx.fillStyle = `rgba(60,50,45,${alpha})`;
+                    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.rect(d.x - sw / 2, sy, sw, stepH - 1);
+                    ctx.fill(); ctx.stroke();
+                    // Step edge highlight
+                    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+                    ctx.fillRect(d.x - sw / 2, sy, sw, 2);
+                }
+                // Locked gate overlay
+                if (!basementUnlocked) {
+                    const gateY = d.y - 2;
+                    ctx.strokeStyle = '#3a3530';
+                    ctx.lineWidth = 6;
+                    for (let bx = d.x - 130; bx <= d.x + 130; bx += 26) {
+                        ctx.beginPath(); ctx.moveTo(bx, gateY - 20); ctx.lineTo(bx, gateY + 20); ctx.stroke();
+                    }
+                    ctx.lineWidth = 4;
+                    ctx.beginPath(); ctx.moveTo(d.x - 135, gateY); ctx.lineTo(d.x + 135, gateY); ctx.stroke();
+                    // Padlock icon
+                    ctx.fillStyle = '#c0a060';
+                    ctx.beginPath(); ctx.roundRect(d.x - 10, gateY - 8, 20, 16, 3); ctx.fill();
+                    ctx.strokeStyle = '#c0a060';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.arc(d.x, gateY - 8, 7, Math.PI, 0);
+                    ctx.stroke();
+                }
             }
             ctx.restore();
         });
