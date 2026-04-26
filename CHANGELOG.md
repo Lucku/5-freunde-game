@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file, starting wi
 ## [Unreleased]
 
 ### Added
+- **Cloud Save system**: New server component (`server/`) provides REST API-backed cloud save storage running on any Node.js host (e.g. Raspberry Pi). Players can register/login from the Options menu → Cloud Save section, then enable Cloud Sync to automatically upload saves after every save and download on game start. Conflict detection compares local and cloud saves; a modal lets the player choose which version to keep when both differ since the last sync.
+
+### Changed
+- **Museum — door widths**: Doors between top rooms (Fire, Water, Ice) and the gallery corridor are now 200 px (Fire/Ice) and 300 px (Water), centred within each room, replacing the previous 100 px / 600 px extremes.
+- **Museum — Metal Room decorations**: Replaced floor-level gears with a compact clockwork cluster mounted on the north wall; removed the south-wall pipe; added four metal shields on the side walls and a crossed-sword rack on the south wall.
+
+### Added
 - **Museum — Forbidden Archive (basement)**: A hidden basement section below the Creature Wing accessible via a staircase. Entry is sealed until the player finds and activates three hidden switches scattered across the museum (fire room, ice room, gallery). Once all switches are activated the locked gate opens permanently. The Makuta and Green Goblin memory shards are housed exclusively here instead of the main gallery.
 
 ## [1.1.0] - 2026-04-25

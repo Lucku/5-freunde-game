@@ -89,11 +89,11 @@ class Museum {
             { x: 0,    y: 0,    w: 50,   h: 2650 },  // Left
             { x: 2350, y: 0,    w: 50,   h: 2650 },  // Right
 
-            // Top Room Dividers (horizontal at y=600)
-            { x: 0,    y: 600, w: 350, h: 50 },   // Fire door left
-            { x: 450,  y: 600, w: 450, h: 50 },   // Fire/Water gap wall
-            { x: 1500, y: 600, w: 450, h: 50 },   // Water/Ice gap wall
-            { x: 2050, y: 600, w: 350, h: 50 },   // Ice door right
+            // Top Room Dividers (horizontal at y=600) — 200px doors for fire/ice, 300px for water
+            { x: 0,    y: 600, w: 225, h: 50 },   // Left of fire door
+            { x: 425,  y: 600, w: 700, h: 50 },   // Between fire and water doors
+            { x: 1425, y: 600, w: 550, h: 50 },   // Between water and ice doors
+            { x: 2175, y: 600, w: 225, h: 50 },   // Right of ice door
 
             // Vertical Top Room Dividers
             { x: 800,  y: 0, w: 50, h: 600 },  // Fire / Water
@@ -185,15 +185,19 @@ class Museum {
                 ];
                 iceClusters.forEach(c => this.decorations.push({ type: 'ICE_CRYSTAL', x: c.x, y: c.y }));
             } else if (room.name === 'metal') {
-                // Wall-mounted gears and pipes
-                this.decorations.push({ type: 'GEAR', x: room.x + 160, y: room.y + 120, r: 55, teeth: 10 });
-                this.decorations.push({ type: 'GEAR', x: room.x + room.w - 160, y: room.y + 120, r: 55, teeth: 10 });
-                this.decorations.push({ type: 'GEAR', x: room.x + 160, y: room.y + room.h - 120, r: 45, teeth: 8 });
-                this.decorations.push({ type: 'GEAR', x: room.x + room.w - 160, y: room.y + room.h - 120, r: 45, teeth: 8 });
-                this.decorations.push({ type: 'GEAR', x: room.x + room.w / 2, y: room.y + 90, r: 38, teeth: 7 });
-                // Horizontal pipe runs
-                this.decorations.push({ type: 'PIPE', x: room.x + 80, y: room.y + 220, w: room.w - 160 });
-                this.decorations.push({ type: 'PIPE', x: room.x + 80, y: room.y + room.h - 220, w: room.w - 160 });
+                // Clockwork mechanism on the ceiling/north wall
+                this.decorations.push({ type: 'GEAR', x: room.x + room.w / 2, y: room.y + 80, r: 55, teeth: 10 });
+                this.decorations.push({ type: 'GEAR', x: room.x + 155, y: room.y + 80, r: 38, teeth: 8 });
+                this.decorations.push({ type: 'GEAR', x: room.x + room.w - 155, y: room.y + 80, r: 38, teeth: 8 });
+                // Pipe runs along the north wall
+                this.decorations.push({ type: 'PIPE', x: room.x + 80, y: room.y + 170, w: room.w - 160 });
+                // Shields mounted on the side walls
+                this.decorations.push({ type: 'METAL_SHIELD', x: room.x + 45, y: room.y + 320 });
+                this.decorations.push({ type: 'METAL_SHIELD', x: room.x + 45, y: room.y + 720 });
+                this.decorations.push({ type: 'METAL_SHIELD', x: room.x + room.w - 45, y: room.y + 320 });
+                this.decorations.push({ type: 'METAL_SHIELD', x: room.x + room.w - 45, y: room.y + 720 });
+                // Sword rack on the south wall
+                this.decorations.push({ type: 'SWORD_RACK', x: room.x + room.w / 2, y: room.y + room.h - 55 });
             }
         });
 
@@ -1190,6 +1194,61 @@ class Museum {
                     ctx.fillStyle = '#4a4a4a';
                     ctx.beginPath(); ctx.roundRect(ex, d.y - ph / 2 - 4, 14, ph + 8, 2); ctx.fill(); ctx.stroke();
                 });
+
+            } else if (d.type === 'METAL_SHIELD') {
+                const sr = 30;
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath(); ctx.ellipse(d.x + 4, d.y + 5, sr, sr * 0.85, 0, 0, Math.PI * 2); ctx.fill();
+                const sg = ctx.createRadialGradient(d.x - sr * 0.3, d.y - sr * 0.3, 2, d.x, d.y, sr);
+                sg.addColorStop(0, '#b0b8c0');
+                sg.addColorStop(0.6, '#78808a');
+                sg.addColorStop(1, '#3a3e44');
+                ctx.fillStyle = sg;
+                ctx.beginPath(); ctx.arc(d.x, d.y, sr, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#555'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(d.x, d.y, sr, 0, Math.PI * 2); ctx.stroke();
+                ctx.strokeStyle = '#888'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.arc(d.x, d.y, sr - 6, 0, Math.PI * 2); ctx.stroke();
+                // Decorative cross
+                ctx.strokeStyle = '#9aa0a8'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(d.x, d.y - sr * 0.55); ctx.lineTo(d.x, d.y + sr * 0.55); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(d.x - sr * 0.55, d.y); ctx.lineTo(d.x + sr * 0.55, d.y); ctx.stroke();
+                // Boss
+                ctx.fillStyle = '#6a6a6a';
+                ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.arc(d.x, d.y, sr * 0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+            } else if (d.type === 'SWORD_RACK') {
+                // Mount board on the wall
+                ctx.fillStyle = '#2e2018';
+                ctx.strokeStyle = '#4a3525'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.roundRect(d.x - 50, d.y - 22, 100, 44, 4); ctx.fill(); ctx.stroke();
+                // Two crossed swords
+                for (const sign of [-1, 1]) {
+                    ctx.save();
+                    ctx.translate(d.x, d.y);
+                    ctx.rotate(sign * Math.PI / 6);
+                    // Blade
+                    const bg = ctx.createLinearGradient(-3, -28, 3, 28);
+                    bg.addColorStop(0, '#dde2e8');
+                    bg.addColorStop(0.5, '#aab0b8');
+                    bg.addColorStop(1, '#70787f');
+                    ctx.fillStyle = bg;
+                    ctx.beginPath(); ctx.roundRect(-3, -28, 6, 40, 2); ctx.fill();
+                    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                    ctx.beginPath(); ctx.roundRect(-1, -26, 2, 36, 1); ctx.fill();
+                    // Guard
+                    ctx.fillStyle = '#888';
+                    ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.roundRect(-11, -2, 22, 5, 2); ctx.fill(); ctx.stroke();
+                    // Grip
+                    ctx.fillStyle = '#5a3010';
+                    ctx.beginPath(); ctx.roundRect(-2.5, 4, 5, 13, 2); ctx.fill();
+                    // Pommel
+                    ctx.fillStyle = '#888';
+                    ctx.beginPath(); ctx.arc(0, 18, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    ctx.restore();
+                }
 
             } else if (d.type === 'SWITCH') {
                 // Wall-mounted lever panel

@@ -93,10 +93,10 @@ class SaveManager {
     }
 
     static async saveGame(data) {
-        if (!data) return;
+        if (!data) return null;
 
         const encoded = await this.encodeSaveData(data);
-        if (!encoded) return;
+        if (!encoded) return null;
 
         if (typeof isElectron !== 'undefined' && isElectron && typeof fs !== 'undefined') {
             try {
@@ -109,6 +109,21 @@ class SaveManager {
         }
 
         console.log('Game Saved Successfully');
+        return encoded;
+    }
+
+    // Returns the raw encoded save blob from disk/localStorage without decoding.
+    static getRawBlob() {
+        try {
+            if (typeof isElectron !== 'undefined' && isElectron && typeof fs !== 'undefined') {
+                if (fs.existsSync(saveFilePath)) return fs.readFileSync(saveFilePath, 'utf8');
+            } else {
+                return localStorage.getItem('5FreundeSave') || null;
+            }
+        } catch (e) {
+            console.error('Failed to read raw save blob:', e);
+        }
+        return null;
     }
 
     static async loadGame(defaultSaveData) {

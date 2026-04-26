@@ -42,7 +42,19 @@ const defaultConfig = {
     subtitlesEnabled: false,
 
     // Dismissed info dialogues (array of dialogue IDs)
-    dismissedDialogues: []
+    dismissedDialogues: [],
+
+    // Cloud save sync toggle (boolean, shown in options)
+    cloudSaveEnabled: false,
+
+    // Cloud save connection + auth state (object merged separately on load)
+    cloudSave: {
+        serverUrl: 'http://localhost:3001',
+        token: null,
+        username: null,
+        lastSyncAt: 0,
+        lastSyncHash: null
+    }
 };
 
 var gameConfig = JSON.parse(JSON.stringify(defaultConfig));
@@ -69,8 +81,12 @@ function loadConfig() {
     if (raw) {
         try {
             const data = JSON.parse(raw);
-            // Merge to ensure new keys exist
-            gameConfig = { ...defaultConfig, ...data };
+            // Merge to ensure new keys exist; deep-merge nested cloudSave object
+            gameConfig = {
+                ...defaultConfig,
+                ...data,
+                cloudSave: { ...defaultConfig.cloudSave, ...(data.cloudSave || {}) }
+            };
             console.log("Config loaded:", gameConfig);
         } catch (e) {
             console.error("Failed to parse config:", e);

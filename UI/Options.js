@@ -38,7 +38,8 @@ class OptionsUI {
             'screenShake':         'opt-shake-btn',
             'controllerVibration': 'opt-vibration-btn',
             'showIntroScreens':    'opt-intro-btn',
-            'subtitlesEnabled':    'opt-subtitles-btn'
+            'subtitlesEnabled':    'opt-subtitles-btn',
+            'cloudSaveEnabled':    'opt-cloud-btn'
         };
 
         for (let k in map) {
@@ -47,6 +48,38 @@ class OptionsUI {
                 const isActive = window.gameConfig[k];
                 btn.innerText = isActive ? "ON" : "OFF";
                 btn.className = isActive ? "opt-toggle-btn active" : "opt-toggle-btn";
+            }
+        }
+
+        this._updateCloudAccountRow();
+    }
+
+    _updateCloudAccountRow() {
+        const row = document.getElementById('cloud-account-row');
+        const label = document.getElementById('cloud-account-label');
+        const btn = document.getElementById('opt-cloud-account-btn');
+        if (!row) return;
+
+        const cloudEnabled = window.gameConfig.cloudSaveEnabled;
+        row.style.display = cloudEnabled ? 'flex' : 'none';
+        if (!cloudEnabled) return;
+
+        const cfg = window.gameConfig.cloudSave || {};
+        if (cfg.username && cfg.token) {
+            if (label) label.textContent = `Logged in: ${cfg.username}`;
+            if (btn) {
+                btn.textContent = 'LOGOUT';
+                btn.onclick = () => {
+                    if (typeof CloudSaveManager !== 'undefined') CloudSaveManager.logout();
+                };
+            }
+        } else {
+            if (label) label.textContent = 'Not logged in';
+            if (btn) {
+                btn.textContent = 'LOGIN';
+                btn.onclick = () => {
+                    if (typeof CloudSaveManager !== 'undefined') CloudSaveManager.showLoginModal();
+                };
             }
         }
     }

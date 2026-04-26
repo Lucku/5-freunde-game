@@ -93,6 +93,7 @@ const defaultSaveData = {
     savedRun: null, // Slot for mid-run save
     tutorial: { seen: false, completed: false }, // First-launch & completion tracking
 };
+window._defaultSaveData = defaultSaveData;
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
 let isVersusMode = false;
@@ -163,9 +164,12 @@ let currentRunStats = {
 // --- Save Encoding/Decoding ---
 // Moved to SaveManager.js
 
-function saveGame() {
+async function saveGame() {
     if (typeof SaveManager !== 'undefined') {
-        SaveManager.saveGame(window.saveData);
+        const blob = await SaveManager.saveGame(window.saveData);
+        if (typeof CloudSaveManager !== 'undefined') {
+            CloudSaveManager.uploadInBackground(blob);
+        }
     }
 }
 
@@ -179,6 +183,9 @@ async function loadGame() {
     } else {
         console.error("SaveManager is not defined!");
         window.saveData = JSON.parse(JSON.stringify(defaultSaveData));
+    }
+    if (typeof CloudSaveManager !== 'undefined') {
+        await CloudSaveManager.syncOnStartup();
     }
 }
 
