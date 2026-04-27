@@ -36,16 +36,24 @@ class UIManager {
         else if (this.uiState === 'DLC') screenId = 'dlc-screen';
         else if (this.uiState === 'OPTIONS') screenId = 'options-screen';
         else if (this.uiState === 'INFO_DIALOGUE') screenId = 'info-dialogue-screen';
+        else if (this.uiState === 'ONLINE_LOBBY')  screenId = 'online-lobby-screen';
+        else if (this.uiState === 'SIGN_IN') screenId = 'cloud-login-modal';
 
         if (!screenId) return [];
         const screen = document.getElementById(screenId);
         if (!screen) return [];
 
+        // For text-entry modals and options, inputs are also navigable so the gamepad can reach them
+        const inputStates = ['SIGN_IN', 'OPTIONS'];
+        const inputSelector = inputStates.includes(this.uiState)
+            ? ', input[type="text"], input[type="password"], input[type="url"]'
+            : '';
+
         const elements = Array.from(screen.querySelectorAll(
             'button, .hero-card, .upgrade-card, .shop-item, .skill-node,' +
             '.collection-card, .coll-set,' +
             '.switch, .altar-node, .altar-pill, .altar-rune, .altar-conv-item,' +
-            '.achievement-row, .stat-row, .summary-card, .dlc-card'
+            '.achievement-row, .stat-row, .summary-card, .dlc-card' + inputSelector
         ));
         return elements.filter(el => el.offsetParent !== null && !el.classList.contains('coop-disabled'));
     }

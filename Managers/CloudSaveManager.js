@@ -1,27 +1,31 @@
 class CloudSaveManager {
     static _syncing = false;
 
+    static _baseUrl() {
+        return (window.gameConfig.serverUrl || 'http://localhost:3001').replace(/\/$/, '');
+    }
+
+    static _account() {
+        return window.gameConfig.account || {};
+    }
+
     static _cfg() {
         return window.gameConfig.cloudSave || {};
     }
 
-    static _baseUrl() {
-        return (this._cfg().serverUrl || 'http://localhost:3001').replace(/\/$/, '');
-    }
-
     static async _fetch(endpoint, options = {}) {
-        const token = this._cfg().token;
+        const token = this._account().token;
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
         return fetch(this._baseUrl() + endpoint, { ...options, headers });
     }
 
     static isEnabled() {
-        return !!(window.gameConfig.cloudSaveEnabled && this._cfg().token);
+        return !!(window.gameConfig.cloudSaveEnabled && this._account().token);
     }
 
     static isLoggedIn() {
-        return !!this._cfg().token;
+        return !!this._account().token;
     }
 
     // Simple blob fingerprint: length + first/last 16 chars
@@ -31,42 +35,41 @@ class CloudSaveManager {
         return `${len}:${blob.substring(0, 16)}|${blob.substring(len - 16)}`;
     }
 
-    static async login(username, password, serverUrl) {
-        if (serverUrl) window.gameConfig.cloudSave.serverUrl = serverUrl;
+    static async login(username, password) {
         const res = await this._fetch('/api/login', {
             method: 'POST',
             body: JSON.stringify({ username, password })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Login failed');
-        window.gameConfig.cloudSave.token = data.token;
-        window.gameConfig.cloudSave.username = data.username;
+        window.gameConfig.account.token    = data.token;
+        window.gameConfig.account.username = data.username;
         if (typeof saveConfig === 'function') saveConfig();
         return data;
     }
 
-    static async register(username, password, serverUrl) {
-        if (serverUrl) window.gameConfig.cloudSave.serverUrl = serverUrl;
+    static async register(username, password) {
         const res = await this._fetch('/api/register', {
             method: 'POST',
             body: JSON.stringify({ username, password })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Registration failed');
-        window.gameConfig.cloudSave.token = data.token;
-        window.gameConfig.cloudSave.username = data.username;
+        window.gameConfig.account.token    = data.token;
+        window.gameConfig.account.username = data.username;
         if (typeof saveConfig === 'function') saveConfig();
         return data;
     }
 
     static logout() {
-        window.gameConfig.cloudSave.token = null;
-        window.gameConfig.cloudSave.username = null;
-        window.gameConfig.cloudSave.lastSyncAt = 0;
+        window.gameConfig.account.token    = null;
+        window.gameConfig.account.username = null;
+        window.gameConfig.cloudSave.lastSyncAt   = 0;
         window.gameConfig.cloudSave.lastSyncHash = null;
         window.gameConfig.cloudSaveEnabled = false;
         if (typeof saveConfig === 'function') saveConfig();
         if (typeof updateOptionButtons === 'function') updateOptionButtons();
+        if (typeof updateMenuAccountBadge === 'function') updateMenuAccountBadge();
     }
 
     static async _downloadSave() {
@@ -86,7 +89,7 @@ class CloudSaveManager {
             throw new Error(err.error || 'Upload failed');
         }
         const data = await res.json();
-        window.gameConfig.cloudSave.lastSyncAt = data.savedAt;
+        window.gameConfig.cloudSave.lastSyncAt   = data.savedAt;
         window.gameConfig.cloudSave.lastSyncHash = this._blobHash(blob);
         if (typeof saveConfig === 'function') saveConfig();
     }
@@ -114,7 +117,6 @@ class CloudSaveManager {
             }
 
             if (!cloudData) {
-                // No cloud save yet — push local
                 if (localBlob) this.uploadInBackground(localBlob);
                 return;
             }
@@ -124,23 +126,19 @@ class CloudSaveManager {
             const localChanged = this._blobHash(localBlob) !== cfg.lastSyncHash;
 
             if (!cloudChanged) {
-                // Cloud hasn't changed since last sync — upload local if it has changed
                 if (localChanged && localBlob) this.uploadInBackground(localBlob);
                 return;
             }
 
             if (!localChanged || cloudBlob === localBlob) {
-                // Cloud is newer, local unchanged — silently apply cloud save
                 await this._applyCloudSave(cloudBlob, cloudSavedAt);
                 return;
             }
 
-            // Both changed since last sync — present conflict dialog
             const choice = await this._showConflictModal(cloudSavedAt);
             if (choice === 'cloud') {
                 await this._applyCloudSave(cloudBlob, cloudSavedAt);
             } else {
-                // User chose local — upload it to cloud
                 if (localBlob) await this._uploadSave(localBlob).catch(e => console.warn('[CloudSave]', e.message));
             }
         } finally {
@@ -149,14 +147,12 @@ class CloudSaveManager {
     }
 
     static async _applyCloudSave(cloudBlob, cloudSavedAt) {
-        // Decode cloud save blob
         const data = await SaveManager.decodeSaveData(cloudBlob);
         if (!data) {
             console.error('[CloudSave] Failed to decode cloud save blob');
             return;
         }
 
-        // Merge with defaults (mirror SaveManager.loadGame merge logic)
         const def = window._defaultSaveData || {};
         const merged = { ...def, ...data, global: { ...(def.global || {}), ...data.global } };
         if (!merged.story) merged.story = { unlockedChapters: [], enabled: true };
@@ -165,11 +161,9 @@ class CloudSaveManager {
         if (!merged.weekly) merged.weekly = { lastCompleted: null };
 
         window.saveData = merged;
-
-        // Persist locally so it's available on next offline start
         await SaveManager.saveGame(merged);
 
-        window.gameConfig.cloudSave.lastSyncAt = cloudSavedAt;
+        window.gameConfig.cloudSave.lastSyncAt   = cloudSavedAt;
         window.gameConfig.cloudSave.lastSyncHash = this._blobHash(cloudBlob);
         if (typeof saveConfig === 'function') saveConfig();
     }
@@ -196,8 +190,6 @@ class CloudSaveManager {
     static showLoginModal() {
         const modal = document.getElementById('cloud-login-modal');
         if (!modal) return;
-        const urlInput = document.getElementById('cloud-server-url');
-        if (urlInput) urlInput.value = this._cfg().serverUrl || 'http://localhost:3001';
         const userInput = document.getElementById('cloud-username');
         if (userInput) userInput.value = '';
         const passInput = document.getElementById('cloud-password');
@@ -205,18 +197,21 @@ class CloudSaveManager {
         const statusEl = document.getElementById('cloud-login-status');
         if (statusEl) { statusEl.textContent = ''; statusEl.style.color = '#aaa'; }
         modal.style.display = 'flex';
-        if (userInput) setTimeout(() => userInput.focus(), 50);
+        // Track previous UI state so we can restore it on close
+        this._prevUIState = window.uiState || 'MENU';
+        if (window.setUIState) window.setUIState('SIGN_IN');
     }
 
     static hideLoginModal() {
         const modal = document.getElementById('cloud-login-modal');
         if (modal) modal.style.display = 'none';
+        if (window.setUIState) window.setUIState(this._prevUIState || 'MENU');
+        this._prevUIState = null;
     }
 
     static async submitLogin(isRegister) {
         const username = (document.getElementById('cloud-username')?.value || '').trim();
         const password = document.getElementById('cloud-password')?.value || '';
-        const serverUrl = (document.getElementById('cloud-server-url')?.value || '').trim();
         const statusEl = document.getElementById('cloud-login-status');
 
         if (!username || !password) {
@@ -227,14 +222,15 @@ class CloudSaveManager {
 
         try {
             if (isRegister) {
-                await this.register(username, password, serverUrl);
+                await this.register(username, password);
             } else {
-                await this.login(username, password, serverUrl);
+                await this.login(username, password);
             }
-            if (statusEl) { statusEl.textContent = `Logged in as ${this._cfg().username}`; statusEl.style.color = '#77ff88'; }
+            if (statusEl) { statusEl.textContent = `Logged in as ${this._account().username}`; statusEl.style.color = '#77ff88'; }
             setTimeout(() => {
                 this.hideLoginModal();
                 if (typeof updateOptionButtons === 'function') updateOptionButtons();
+                if (typeof updateMenuAccountBadge === 'function') updateMenuAccountBadge();
             }, 700);
         } catch (e) {
             if (statusEl) { statusEl.textContent = e.message; statusEl.style.color = '#ff7777'; }

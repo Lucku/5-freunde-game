@@ -44,14 +44,20 @@ const defaultConfig = {
     // Dismissed info dialogues (array of dialogue IDs)
     dismissedDialogues: [],
 
-    // Cloud save sync toggle (boolean, shown in options)
-    cloudSaveEnabled: false,
+    // Server URL — shared by cloud saves and online multiplayer
+    serverUrl: 'http://localhost:3001',
 
-    // Cloud save connection + auth state (object merged separately on load)
-    cloudSave: {
-        serverUrl: 'http://localhost:3001',
+    // Account credentials — shared by cloud saves and online multiplayer
+    account: {
         token: null,
-        username: null,
+        username: null
+    },
+
+    // Cloud save sync toggle (boolean, shown in options); defaults to on when logged in
+    cloudSaveEnabled: true,
+
+    // Cloud save sync metadata only (no auth state here)
+    cloudSave: {
         lastSyncAt: 0,
         lastSyncHash: null
     }
@@ -81,10 +87,11 @@ function loadConfig() {
     if (raw) {
         try {
             const data = JSON.parse(raw);
-            // Merge to ensure new keys exist; deep-merge nested cloudSave object
+            // Deep-merge nested objects so new keys from defaultConfig always exist
             gameConfig = {
                 ...defaultConfig,
                 ...data,
+                account:   { ...defaultConfig.account,   ...(data.account   || {}) },
                 cloudSave: { ...defaultConfig.cloudSave, ...(data.cloudSave || {}) }
             };
             console.log("Config loaded:", gameConfig);

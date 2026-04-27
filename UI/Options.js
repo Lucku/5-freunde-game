@@ -55,18 +55,19 @@ class OptionsUI {
     }
 
     _updateCloudAccountRow() {
-        const row = document.getElementById('cloud-account-row');
+        const urlInput = document.getElementById('opt-server-url');
+        if (urlInput && document.activeElement !== urlInput) {
+            urlInput.value = window.gameConfig?.serverUrl || 'http://localhost:3001';
+        }
+
         const label = document.getElementById('cloud-account-label');
-        const btn = document.getElementById('opt-cloud-account-btn');
-        if (!row) return;
+        const btn   = document.getElementById('opt-cloud-account-btn');
+        const account = window.gameConfig?.account || {};
 
-        const cloudEnabled = window.gameConfig.cloudSaveEnabled;
-        row.style.display = cloudEnabled ? 'flex' : 'none';
-        if (!cloudEnabled) return;
+        const loggedIn = !!(account.username && account.token);
 
-        const cfg = window.gameConfig.cloudSave || {};
-        if (cfg.username && cfg.token) {
-            if (label) label.textContent = `Logged in: ${cfg.username}`;
+        if (loggedIn) {
+            if (label) label.textContent = `${account.username}`;
             if (btn) {
                 btn.textContent = 'LOGOUT';
                 btn.onclick = () => {
@@ -74,7 +75,7 @@ class OptionsUI {
                 };
             }
         } else {
-            if (label) label.textContent = 'Not logged in';
+            if (label) label.textContent = 'Not signed in';
             if (btn) {
                 btn.textContent = 'LOGIN';
                 btn.onclick = () => {
@@ -82,6 +83,10 @@ class OptionsUI {
                 };
             }
         }
+
+        // Cloud Sync toggle only makes sense when logged in
+        const cloudSection = document.getElementById('opt-cloud-section');
+        if (cloudSection) cloudSection.style.display = loggedIn ? '' : 'none';
     }
 }
 

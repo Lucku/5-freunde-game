@@ -221,6 +221,21 @@ class Player {
             return;
         }
 
+        // Online host: intercept level-up routing
+        if (typeof isOnlineHost !== 'undefined' && isOnlineHost) {
+            if (this === window.player2) {
+                // Guest's character leveled up — relay options to guest, don't show local UI
+                window._onlineP2LevelUpOptions = options;
+                window.networkManager?.relay({ type: 'LEVEL_UP', player: 'p2', options });
+                window.levelingUpPlayer = this;
+                // isLevelingUp stays true; game pauses until LEVEL_UP_CHOICE comes back
+                return;
+            } else {
+                // Host's own character leveling — tell guest to show wait overlay
+                window.networkManager?.relay({ type: 'PARTNER_LEVELING' });
+            }
+        }
+
         window.levelingUpPlayer = this; // Track which player is choosing
         if (typeof window._syncSoundBiomeMusic === 'function') window._syncSoundBiomeMusic();
         if (window.levelUpUI) {

@@ -8,10 +8,13 @@ class LevelUpUI {
         const container = document.getElementById('upgrade-options');
         if (!container) return;
 
-        // Show which player is choosing in co-op
+        // Show which player is choosing in co-op / online
         const subtitle = document.querySelector('#levelup-screen .screen-subtitle');
         if (subtitle) {
-            if (window.isCoopMode && player === window.player2) {
+            if (typeof isOnlineGuest !== 'undefined' && isOnlineGuest && player === window.player) {
+                subtitle.textContent = 'Your Turn — Choose an Upgrade';
+                subtitle.style.color = '#60a5fa';
+            } else if (window.isCoopMode && player === window.player2) {
                 subtitle.textContent = 'Player 2 — Choose an Upgrade';
                 subtitle.style.color = '#60a5fa';
             } else {
@@ -56,6 +59,11 @@ class LevelUpUI {
     }
 
     chooseUpgrade(type, player) {
+        // Online guest: relay choice to host so player2 ghost gets the same upgrade
+        if (typeof isOnlineGuest !== 'undefined' && isOnlineGuest && player === window.player) {
+            window.networkManager?.relay({ type: 'LEVEL_UP_CHOICE', choice: type });
+        }
+
         // 1. Try Hero Specific Upgrade Logic
         // Defined in Hero Class (e.g. SpiritHero.applyUpgrade)
         if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && typeof window.HERO_LOGIC[player.type].applyUpgrade === 'function') {

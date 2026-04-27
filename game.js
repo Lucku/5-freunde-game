@@ -103,6 +103,12 @@ let isTestingMode = false;
 let isEvilMode = false;
 let isCoopMode = false;
 let isAICompanionMode = false; // Story companion: full Player driven by AIController
+let isOnlineMode  = false;  // true when an online co-op session is active (host or guest)
+let isOnlineHost  = false;  // this client runs the authoritative simulation
+let isOnlineGuest = false;  // this client receives state snapshots
+let _onlineFrame  = 0;      // frame counter for throttling network sends
+let _onlineEvents = [];     // event queue flushed with each host snapshot
+let _onlineP2Controller = null; // NetworkInputController instance (host-side)
 let coopP2HeroType = null;
 let coopP1GamepadIndex = -1;
 let coopP2GamepadIndex = -1;
@@ -453,6 +459,24 @@ function handleGamepadMenu() {
         return;
     }
 
+    // --- SIGN IN MODAL ---
+    if (uiState === 'SIGN_IN') {
+        if (b && !lastGamepadState.b) {
+            if (typeof CloudSaveManager !== 'undefined') CloudSaveManager.hideLoginModal();
+            uiDebounce = 20;
+        }
+        if (a && !lastGamepadState.a) {
+            const focused = getFocusables()[uiSelectionIndex];
+            if (focused) {
+                if (focused.tagName === 'INPUT') focused.focus();
+                else focused.click();
+            }
+            uiDebounce = 15;
+        }
+        lastGamepadState = { a, b, y };
+        return;
+    }
+
     // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
     if (b && !lastGamepadState.b) {
         if (uiState === 'OPTIONS') closeOptions();
@@ -563,8 +587,12 @@ function handleGamepadMenu() {
 
     // Select Action (A Button)
     if (a && !lastGamepadState.a) {
-        focusables[uiSelectionIndex].click();
-        uiDebounce = 15; // Reduced from 30 to 15 for snappier feel
+        const el = focusables[uiSelectionIndex];
+        if (el) {
+            if (el.tagName === 'INPUT') el.focus(); // focus text inputs for keyboard entry
+            else el.click();
+        }
+        uiDebounce = 15;
     }
 
     // Back Action (B Button)
@@ -1017,10 +1045,29 @@ function initMenu() {
     updateContinueButton();
     if (typeof EvilMode !== 'undefined') EvilMode.checkUnlock();
     setUIState('MENU'); // Set State
+    updateMenuAccountBadge();
 
     // Show queued info dialogues (DLC announcements, etc.), then tutorial prompt if needed.
     infoDialogueManager.startQueue();
 }
+
+function updateMenuAccountBadge() {
+    const badge = document.getElementById('menu-account-badge');
+    if (!badge) return;
+    const account = window.gameConfig?.account || {};
+    if (account.username && account.token) {
+        badge.textContent = `● ${account.username}`;
+        badge.classList.add('signed-in');
+        badge.onclick = () => { if (typeof openOptions === 'function') openOptions(); };
+        badge.title = 'Signed in — open Options to manage account';
+    } else {
+        badge.textContent = '○ Sign in';
+        badge.classList.remove('signed-in');
+        badge.onclick = () => { if (typeof CloudSaveManager !== 'undefined') CloudSaveManager.showLoginModal(); };
+        badge.title = 'Sign in for cloud saves & online play';
+    }
+}
+window.updateMenuAccountBadge = updateMenuAccountBadge;
 
 // --- DLC Menu Logic ---
 const DLC_META = {
@@ -1280,6 +1327,100 @@ function continueRun() {
 }
 
 let pendingGameMode = null;
+
+// ── Online Co-op entry point ──────────────────────────────────────────────────
+// Called by OnlineLobby.js when the server fires GAME_START.
+function startOnlineGame(msg) {
+    // msg: { hostHero, guestHero, hostUsername, guestUsername }
+    const nm = window.networkManager;
+
+    isOnlineMode  = true;
+    window.isOnlineMode = true;
+    isOnlineHost  = nm.isHost();
+    isOnlineGuest = nm.isGuest();
+    window.isOnlineHost  = isOnlineHost;
+    window.isOnlineGuest = isOnlineGuest;
+
+    // Store player names for HUD display
+    window._onlineHostName  = msg.hostUsername  || 'Host';
+    window._onlineGuestName = msg.guestUsername || 'Guest';
+    _onlineShowNameBar(true);
+
+    // Set co-op flags so all existing co-op rendering and revival logic applies
+    isCoopMode = true;
+    window.isCoopMode = true;
+
+    // Hero assignment: host=P1, guest=P2
+    const myHero      = isOnlineHost ? msg.hostHero : msg.guestHero;
+    const partnerHero = isOnlineHost ? msg.guestHero : msg.hostHero;
+
+    coopP2HeroType = partnerHero;
+    window.coopP2HeroType = partnerHero;
+    coopP1GamepadIndex = -1; // not using gamepad indices in online mode
+    coopP2GamepadIndex = -1;
+
+    // Select our own hero in the hero-select state
+    const _heroes = Object.keys(BASE_HERO_STATS);
+    const myIdx = _heroes.indexOf(myHero);
+    if (myIdx !== -1) window.selectedHeroIndex = myIdx;
+
+    _onlineFrame  = 0;
+    _onlineEvents = [];
+
+    // Wire up the relay handler before startGame so it's ready immediately
+    if (isOnlineHost) {
+        _onlineP2Controller = new NetworkInputController();
+        nm.on('RELAY', (msg) => {
+            if (!isOnlineMode || !isOnlineHost) return;
+            if (msg.payload?.type === 'INPUT') {
+                _onlineP2Controller.receive(msg.payload);
+            } else if (msg.payload?.type === 'LEVEL_UP_CHOICE') {
+                _onlineHandleLevelUpChoice(msg.payload.choice);
+            }
+        });
+    } else {
+        nm.on('RELAY', (msg) => {
+            if (!isOnlineMode || !isOnlineGuest) return;
+            const p = msg.payload;
+            if (!p) return;
+            if (p.type === 'SNAPSHOT') _onlineApplySnapshot(p);
+            else if (p.type === 'LEVEL_UP') _onlineShowLevelUpForGuest(p);
+            else if (p.type === 'PARTNER_LEVELING') _onlineShowPartnerLevelingOverlay(true);
+            else if (p.type === 'LEVEL_UP_DONE') _onlineShowPartnerLevelingOverlay(false);
+            else if (p.type === 'GAME_OVER') gameOver(p.victory || false);
+        });
+    }
+
+    nm.on('PARTNER_DISCONNECTED', () => _onlineShowReconnectOverlay(true));
+    nm.on('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
+    nm.on('GAME_OVER', () => { if (isOnlineGuest) gameOver(false); });
+
+    startGame('NORMAL');
+}
+window.startOnlineGame = startOnlineGame;
+
+function _onlineCleanup() {
+    isOnlineMode  = false;
+    isOnlineHost  = false;
+    isOnlineGuest = false;
+    window.isOnlineMode  = false;
+    window.isOnlineHost  = false;
+    window.isOnlineGuest = false;
+    _onlineP2Controller  = null;
+    _onlineEvents = [];
+}
+window._onlineCleanup = _onlineCleanup;
+
+function abortOnlineGame() {
+    window.networkManager?.signalGameOver();
+    _onlineCleanup();
+    ['online-reconnect-overlay', 'online-partner-leveling-overlay', 'online-wait-overlay', 'online-name-bar'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    gameOver(false);
+}
+window.abortOnlineGame = abortOnlineGame;
 
 function checkNewGame(mode) {
     if (isCoopMode && mode !== 'STANDARD' && mode !== 'STORY' && mode !== 'DAILY' && mode !== 'WEEKLY') return; // co-op supports Standard, Story, Daily, Weekly
@@ -2310,9 +2451,20 @@ function chooseUpgrade(type) {
     isLevelingUp = false;
     document.getElementById('levelup-screen').style.display = 'none';
 
+    // Online host: tell guest P1's level-up is done
+    if (isOnlineMode && isOnlineHost) window.networkManager?.relay({ type: 'LEVEL_UP_DONE' });
+
     // Co-op / AI companion: dequeue P2 level-up if pending
     if ((isCoopMode || isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
         p2LevelUpPending = false;
+        // Online host: relay P2 level-up to guest instead of showing locally
+        if (isOnlineMode && isOnlineHost) {
+            window._onlineP2LevelUpOptions = p2LevelUpOptions;
+            window.networkManager?.relay({ type: 'LEVEL_UP', player: 'p2', options: p2LevelUpOptions });
+            isLevelingUp = true;
+            window.levelingUpPlayer = window.player2;
+            return;
+        }
         isLevelingUp = true;
         window.levelingUpPlayer = window.player2;
         window.levelUpUI.showLevelUp(window.player2, p2LevelUpOptions);
@@ -2326,8 +2478,18 @@ function chooseUpgrade(type) {
 // Called by LevelUpUI after any upgrade is chosen — handles P2 dequeue
 window._afterUpgradeChosen = function () {
     window.levelingUpPlayer = null;
+    // Online host: tell guest P1's level-up is done
+    if (isOnlineMode && isOnlineHost) window.networkManager?.relay({ type: 'LEVEL_UP_DONE' });
     if ((isCoopMode || isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
         p2LevelUpPending = false;
+        // Online host: relay P2 level-up to guest instead of showing locally
+        if (isOnlineMode && isOnlineHost) {
+            window._onlineP2LevelUpOptions = p2LevelUpOptions;
+            window.networkManager?.relay({ type: 'LEVEL_UP', player: 'p2', options: p2LevelUpOptions });
+            isLevelingUp = true;
+            window.levelingUpPlayer = window.player2;
+            return;
+        }
         isLevelingUp = true;
         window.levelingUpPlayer = window.player2;
         window.levelUpUI.showLevelUp(window.player2, p2LevelUpOptions);
@@ -3286,22 +3448,40 @@ function startGame(mode = 'NORMAL') {
         }
     }
 
-    if (isCoopMode && window.CoopGamepadController) {
-        // P1 uses dedicated gamepad — no keyboard/mouse fallback during co-op
-        player.controller = new CoopGamepadController(coopP1GamepadIndex);
+    if (isCoopMode && (window.CoopGamepadController || isOnlineMode)) {
+        if (!isOnlineMode) {
+            // Local co-op: P1 uses dedicated gamepad
+            player.controller = new CoopGamepadController(coopP1GamepadIndex);
+        }
 
         // Save P1's special icon before P2's constructor overwrites #special-icon
         const _p1IconEl = document.getElementById('special-icon');
         const _p1IconTxt = _p1IconEl ? _p1IconEl.innerText : '★';
 
         player2 = new Player(coopP2HeroType || 'water');
-        player2.controller = new CoopGamepadController(coopP2GamepadIndex);
+
+        if (isOnlineMode) {
+            if (isOnlineHost) {
+                // Host drives P2 via network inputs
+                player2.controller = _onlineP2Controller;
+            } else {
+                // Guest: P2 is a ghost — no controller, positions come from host snapshots
+                player2.controller = null;
+                player2._ghost = true;
+                // Wrap our own local controller to also forward inputs to host
+                if (player.controller) {
+                    player.controller = new RecordingInputController(player.controller);
+                }
+            }
+        } else {
+            player2.controller = new CoopGamepadController(coopP2GamepadIndex);
+        }
 
         // P2's constructor wrote its icon to #special-icon — move it to #p2-special-icon, restore P1's
         const _p2IconEl = document.getElementById('p2-special-icon');
         if (_p2IconEl && _p1IconEl) {
-            _p2IconEl.innerText = _p1IconEl.innerText; // This is now P2's hero icon
-            _p1IconEl.innerText = _p1IconTxt;          // Restore P1's icon
+            _p2IconEl.innerText = _p1IconEl.innerText;
+            _p1IconEl.innerText = _p1IconTxt;
         }
 
         player2.x = isVersusMode ? arena.width / 2 + 800 : arena.width / 2 + 100;
@@ -3468,6 +3648,14 @@ function gameOver(isVictory = false) {
     p2RevivalMarker = null;
     coopZoom = 1.0;
     p2LevelUpPending = false;
+    if (isOnlineMode) {
+        if (isOnlineHost) window.networkManager?.signalGameOver();
+        ['online-reconnect-overlay', 'online-partner-leveling-overlay', 'online-wait-overlay', 'online-name-bar'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        _onlineCleanup();
+    }
 
     // Clear Saved Run on Death
     clearSavedRun();
@@ -3691,6 +3879,238 @@ function gameOver(isVictory = false) {
 let lastTime = 0;
 const FPS = 60;
 const frameDelay = 1000 / FPS;
+
+// ── Online Co-op sync ─────────────────────────────────────────────────────────
+
+/** HOST: serialize and relay a state snapshot to the guest every ~3 frames. */
+function _onlineSendSnapshot() {
+    const nm = window.networkManager;
+    if (!nm || !nm.isInGame()) return;
+
+    const _p = (pl) => pl ? {
+        x: Math.round(pl.x), y: Math.round(pl.y),
+        vx: Math.round((pl.vx || 0) * 10) / 10,
+        vy: Math.round((pl.vy || 0) * 10) / 10,
+        hp: Math.round(pl.hp), maxHp: pl.maxHp,
+        isDead: pl.isDead, level: pl.level,
+        xp: Math.round(pl.xp), maxXp: pl.maxXp,
+        gold: Math.round(pl.gold || 0),
+        aimAngle: Math.round((pl.aimAngle || 0) * 100) / 100,
+        isInvincible: !!pl.isInvincible,
+    } : null;
+
+    const snapshot = {
+        type: 'SNAPSHOT',
+        t: Date.now(),
+        p1: _p(player),
+        p2: _p(player2),
+        wave, score, bossActive,
+        isLevelingUp, isShopping,
+        enemies: enemies.slice(0, 80).map(e => ({
+            _id: e._id,
+            x: Math.round(e.x), y: Math.round(e.y),
+            vx: Math.round((e.vx || 0) * 10) / 10,
+            vy: Math.round((e.vy || 0) * 10) / 10,
+            hp: Math.round(e.hp), maxHp: e.maxHp,
+            subType: e.subType, color: e.color,
+            sides: e.sides, radius: e.radius,
+            alpha: e.alpha !== 1 ? Math.round((e.alpha || 1) * 100) / 100 : 1,
+            frozenTimer: e.frozenTimer > 0 ? Math.round(e.frozenTimer) : 0,
+            slowTimer:   e.slowTimer   > 0 ? Math.round(e.slowTimer)   : 0,
+        })),
+        projectiles: projectiles.slice(0, 150).map(p => ({
+            _id: p._id || 0,
+            x: Math.round(p.x), y: Math.round(p.y),
+            vx: Math.round((p.velocity?.x || 0) * 10) / 10,
+            vy: Math.round((p.velocity?.y || 0) * 10) / 10,
+            color: p.color, radius: p.radius,
+            isEnemy: !!p.isEnemy, isExplosive: !!p.isExplosive, isCrit: !!p.isCrit,
+        })),
+        events: _onlineEvents.splice(0),
+    };
+
+    nm.relay(snapshot);
+}
+
+/** GUEST: apply a state snapshot received from the host. */
+function _onlineApplySnapshot(s) {
+    if (!s || !gameRunning) return;
+
+    // Update host ghost (rendered as player2 on guest's machine)
+    if (player2 && s.p1) {
+        player2.x         = s.p1.x;
+        player2.y         = s.p1.y;
+        player2.hp        = s.p1.hp;
+        player2.maxHp     = s.p1.maxHp;
+        player2.isDead    = s.p1.isDead;
+        player2.level     = s.p1.level;
+        player2.aimAngle  = s.p1.aimAngle;
+        player2.isInvincible = s.p1.isInvincible;
+    }
+
+    // Reconcile guest's own player (authoritative HP/level from host)
+    if (player && s.p2) {
+        player.hp     = s.p2.hp;
+        player.maxHp  = s.p2.maxHp;
+        player.isDead = s.p2.isDead;
+        player.level  = s.p2.level;
+        player.xp     = s.p2.xp;
+        player.maxXp  = s.p2.maxXp;
+        player.gold   = s.p2.gold;
+        // Position correction only when significantly off (> 80px)
+        const _dx = s.p2.x - player.x, _dy = s.p2.y - player.y;
+        if (_dx * _dx + _dy * _dy > 6400) { player.x = s.p2.x; player.y = s.p2.y; }
+    }
+
+    // Rebuild ghost enemy array from snapshot
+    const _now = Date.now();
+    const _prevMap = new Map(enemies.filter(e => e._ghost).map(e => [e._id, e]));
+    enemies = s.enemies.map(ed => {
+        // Reuse existing ghost object if possible (avoids GC churn)
+        let e = _prevMap.get(ed._id);
+        if (!e) {
+            e = Object.create(Enemy.prototype);
+            e._ghost = true;
+            e.frame = 0; e.targetAngle = 0; e.isAttacking = false;
+            e.dead = false; e.isBoss = false; e.isElite = false;
+            e.isSummonedMinion = false; e.eliteType = null;
+        }
+        e._id = ed._id;
+        e._sx = ed.x; e._sy = ed.y;    // snapshot position for extrapolation
+        e._snapshotAt = _now;
+        e.x = ed.x; e.y = ed.y;
+        e.vx = ed.vx || 0; e.vy = ed.vy || 0;
+        e.hp = ed.hp; e.maxHp = ed.maxHp;
+        e.subType = ed.subType; e.color = ed.color;
+        e.sides = ed.sides; e.radius = ed.radius;
+        e.alpha = ed.alpha !== undefined ? ed.alpha : 1;
+        e.frozenTimer = ed.frozenTimer || 0;
+        e.slowTimer   = ed.slowTimer   || 0;
+        return e;
+    });
+    window.enemies = enemies;
+
+    // Rebuild ghost projectile array
+    projectiles = s.projectiles.map(pd => {
+        const p = Object.create(Projectile ? Projectile.prototype : Object.prototype);
+        p._ghost = true;
+        p._id = pd._id;
+        p.x = pd.x; p.y = pd.y;
+        p.velocity = { x: pd.vx, y: pd.vy };
+        p.color = pd.color; p.radius = pd.radius;
+        p.isEnemy = pd.isEnemy; p.isExplosive = pd.isExplosive; p.isCrit = pd.isCrit;
+        p.life = 1; p.dead = false; p.pierce = 0; p.owner = null;
+        p.damage = 0; p.knockback = 0; p.type = '';
+        return p;
+    });
+    window.projectiles = projectiles;
+
+    // Game state
+    if (s.wave     !== undefined) wave      = s.wave;
+    if (s.score    !== undefined) score     = s.score;
+    if (s.bossActive !== undefined) bossActive = s.bossActive;
+
+    // Process events
+    if (s.events) s.events.forEach(_onlineProcessGuestEvent);
+}
+
+/** GUEST: handle one-shot events relayed from the host. */
+function _onlineProcessGuestEvent(ev) {
+    if (!ev) return;
+    switch (ev.type) {
+        case 'enemy_death':
+            createExplosion(ev.x, ev.y, ev.color || '#fff');
+            break;
+        case 'gold_drop':
+            goldDrops.push(new GoldDrop(ev.x, ev.y));
+            break;
+        case 'wave_start':
+            wave = ev.wave;
+            showNotification(`WAVE ${ev.wave}`);
+            break;
+        case 'game_over':
+            gameOver(ev.victory || false);
+            break;
+    }
+}
+
+/** HOST: push an event to be included in the next snapshot. */
+function _onlineQueueEvent(ev) {
+    if (isOnlineHost) _onlineEvents.push(ev);
+}
+window._onlineQueueEvent = _onlineQueueEvent;
+
+/** HOST: receives the guest's level-up choice and applies it to player2. */
+function _onlineHandleLevelUpChoice(choice) {
+    if (!player2 || !window._onlineP2LevelUpOptions) return;
+    const options = window._onlineP2LevelUpOptions;
+    const chosen = options.find(o => o.id === choice) || options[0];
+    if (chosen && player2.applyUpgrade) player2.applyUpgrade(chosen);
+    window._onlineP2LevelUpOptions = null;
+    window.levelingUpPlayer = null;
+    isLevelingUp = false;
+    p2LevelUpPending = false;
+    document.getElementById('levelup-screen').style.display = 'none';
+    _syncSoundBiomeMusic();
+    setUIState('GAME');
+}
+
+/** GUEST: display the level-up screen for their own character (choice relayed to host via LevelUp.js). */
+function _onlineShowLevelUpForGuest(ev) {
+    if (!ev.options || !player) return;
+    isLevelingUp = true;
+    if (window.levelUpUI) window.levelUpUI.showLevelUp(player, ev.options);
+}
+
+/** GUEST: remove the "waiting for partner to level up" dimming. */
+function _onlineHideLevelUpWait() {
+    const el = document.getElementById('online-wait-overlay');
+    if (el) el.style.display = 'none';
+}
+
+/** GUEST: show/hide the "partner is choosing an upgrade" overlay. */
+function _onlineShowPartnerLevelingOverlay(show) {
+    const el = document.getElementById('online-partner-leveling-overlay');
+    if (!el) return;
+    el.style.display = show ? 'flex' : 'none';
+}
+
+/** Show/hide the in-game online player name bar. */
+function _onlineShowNameBar(show) {
+    const bar = document.getElementById('online-name-bar');
+    if (!bar) return;
+    if (show) {
+        const p1El = document.getElementById('online-name-p1');
+        const p2El = document.getElementById('online-name-p2');
+        if (p1El) p1El.textContent = window._onlineHostName  || 'Host';
+        if (p2El) p2El.textContent = window._onlineGuestName || 'Guest';
+        bar.style.display = 'flex';
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
+/** Show or hide the mid-game reconnect overlay. */
+function _onlineShowReconnectOverlay(show) {
+    const ov = document.getElementById('online-reconnect-overlay');
+    if (!ov) return;
+    ov.style.display = show ? 'flex' : 'none';
+    if (show) {
+        gamePaused = true;
+        let secs = 90;
+        const timer = document.getElementById('online-reconnect-timer');
+        const iv = setInterval(() => {
+            if (!isOnlineMode || ov.style.display === 'none') { clearInterval(iv); return; }
+            secs--;
+            if (timer) timer.textContent = `Giving up in ${secs}s…`;
+            if (secs <= 0) { clearInterval(iv); abortOnlineGame(); }
+        }, 1000);
+        ov._iv = iv;
+    } else {
+        clearInterval(ov._iv);
+        gamePaused = false;
+    }
+}
 
 function masterLoop(timestamp) {
     if (typeof audioManager !== 'undefined') {
@@ -4782,23 +5202,49 @@ function masterLoop(timestamp) {
             // Co-op / AI companion: update + draw P2
             if ((isCoopMode || isAICompanionMode) && player2) {
                 if (!player2.isDead) {
-                    player2.update();
-                    // Distance enforcement — rubber band above 1800px
-                    const _sep = Math.hypot(player2.x - player.x, player2.y - player.y);
-                    if (_sep > 1800) {
-                        const _force = (_sep - 1800) * 0.06;
-                        const _ang = Math.atan2(player.y - player2.y, player.x - player2.x);
-                        player2.x += Math.cos(_ang) * _force;
-                        player2.y += Math.sin(_ang) * _force;
-                        // Also push P1 toward P2 when very far apart
-                        const _ang2 = Math.atan2(player2.y - player.y, player2.x - player.x);
-                        player.x += Math.cos(_ang2) * _force * 0.3;
-                        player.y += Math.sin(_ang2) * _force * 0.3;
+                    // Online guest: P2 is a ghost — skip local physics, position set by network
+                    if (!player2._ghost) {
+                        player2.update();
+                        // Distance enforcement — rubber band above 1800px (skip for online — server handles)
+                        if (!isOnlineMode) {
+                            const _sep = Math.hypot(player2.x - player.x, player2.y - player.y);
+                            if (_sep > 1800) {
+                                const _force = (_sep - 1800) * 0.06;
+                                const _ang = Math.atan2(player.y - player2.y, player.x - player2.x);
+                                player2.x += Math.cos(_ang) * _force;
+                                player2.y += Math.sin(_ang) * _force;
+                                const _ang2 = Math.atan2(player2.y - player.y, player2.x - player.x);
+                                player.x += Math.cos(_ang2) * _force * 0.3;
+                                player.y += Math.sin(_ang2) * _force * 0.3;
+                            }
+                            if (_sep > 1400) drawCoopDistanceWarning(ctx, player2, _sep);
+                        }
                     }
-                    if (_sep > 1400) drawCoopDistanceWarning(ctx, player2, _sep);
                 }
                 player2.draw();
                 updateDrawRevivalMarkers(ctx);
+            }
+
+            // Online: extrapolate ghost enemies, flush input (guest) or send snapshot (host)
+            if (isOnlineMode && gameRunning && !gamePaused) {
+                _onlineFrame++;
+
+                // Guest: extrapolate ghost enemy positions between snapshots
+                if (isOnlineGuest) {
+                    const _now = Date.now();
+                    enemies.forEach(e => {
+                        if (!e._ghost) return;
+                        const _dt = Math.min((_now - (e._snapshotAt || _now)) / 1000 * 60, 12);
+                        e.x = (e._sx || e.x) + (e.vx || 0) * _dt;
+                        e.y = (e._sy || e.y) + (e.vy || 0) * _dt;
+                    });
+                }
+
+                // Every 3 frames (~20fps) — send network data
+                if (_onlineFrame % 3 === 0) {
+                    if (isOnlineHost)  _onlineSendSnapshot();
+                    if (isOnlineGuest) window.networkManager?.flushInput();
+                }
             }
 
             // Update Companions
@@ -5109,7 +5555,7 @@ function masterLoop(timestamp) {
             });
 
             projectiles.forEach((proj, index) => {
-                if (!_isHitStopped) proj.update();
+                if (!_isHitStopped && !proj._ghost) proj.update();
                 if (proj.life !== null && proj.life <= 0) {
                     projectiles.splice(index, 1);
                     return;
@@ -5368,7 +5814,7 @@ function masterLoop(timestamp) {
                 });
                 enemy.biomeSpeedMod = enemySpeedMod;
 
-                if (!_isHitStopped) enemy.update(); enemy.draw();
+                if (!_isHitStopped && !enemy._ghost) enemy.update(); enemy.draw();
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
 
                 if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {

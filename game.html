@@ -130,6 +130,13 @@
             </div>
             <div id="combo-display">COMBO x0</div>
         </div>
+        <!-- Online player name bar — shown only in online co-op -->
+        <div id="online-name-bar" style="display:none;">
+            <span id="online-name-p1" class="online-name online-name-host"></span>
+            <span class="online-name-vs">vs</span>
+            <span id="online-name-p2" class="online-name online-name-guest"></span>
+        </div>
+
         <div id="notification-area"></div>
         <div id="hero-subtitle" class="hero-sub-hidden">
             <span class="hero-sub-name"></span>
@@ -585,7 +592,10 @@
                             onclick="checkNewGame('EVIL')" style="display:none;">👁 Evil Mode</button>
                         <button class="btn menu-mode-btn menu-mode-coop" id="coop-mode-btn"
                             onclick="toggleCoopMode()">👥 2 Player</button>
+                        <button class="btn menu-mode-btn menu-mode-online" id="online-mode-btn"
+                            onclick="openOnlineLobby()">🌐 Online 2-Player</button>
                     </div>
+                    <button id="menu-account-badge" class="menu-account-badge" title="Sign in for cloud saves &amp; online play"></button>
 
                     <div class="menu-challenges">
                         <button id="daily-challenge-btn" class="btn menu-challenge-btn"
@@ -807,6 +817,27 @@
             </div>
 
             <div class="options-section">
+                <div class="options-section-label">Server &amp; Account</div>
+                <div class="options-row">
+                    <div class="options-row-left" style="flex:1; min-width:0;">
+                        <span class="options-icon">🌐</span>
+                        <input id="opt-server-url" class="opt-url-input" type="url"
+                            placeholder="http://192.168.1.x:3001"
+                            onchange="window.gameConfig.serverUrl=this.value.trim(); if(typeof saveConfig==='function')saveConfig();"
+                            onblur="window.gameConfig.serverUrl=this.value.trim(); if(typeof saveConfig==='function')saveConfig();">
+                    </div>
+                </div>
+                <div id="cloud-account-row" class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">◎</span>
+                        <span id="cloud-account-label" class="options-label">Not signed in</span>
+                    </div>
+                    <button id="opt-cloud-account-btn" class="opt-toggle-btn"
+                        onclick="CloudSaveManager.showLoginModal()">LOGIN</button>
+                </div>
+            </div>
+
+            <div id="opt-cloud-section" class="options-section">
                 <div class="options-section-label">Cloud Save</div>
                 <div class="options-row">
                     <div class="options-row-left">
@@ -816,35 +847,21 @@
                     <button id="opt-cloud-btn" class="opt-toggle-btn"
                         onclick="toggleOption('cloudSaveEnabled')">OFF</button>
                 </div>
-                <div id="cloud-account-row" class="options-row" style="display:none;">
-                    <div class="options-row-left">
-                        <span class="options-icon">◎</span>
-                        <span id="cloud-account-label" class="options-label">Not logged in</span>
-                    </div>
-                    <button id="opt-cloud-account-btn" class="opt-toggle-btn"
-                        onclick="CloudSaveManager.showLoginModal()">LOGIN</button>
-                </div>
             </div>
 
             <button class="opt-back-btn" onclick="closeOptions()">← BACK</button>
         </div>
     </div>
 
-    <!-- Cloud Save Login Modal -->
+    <!-- Account Login Modal -->
     <div id="cloud-login-modal"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:4000; flex-direction:column; align-items:center; justify-content:center; color:white;">
         <div class="modal-panel" style="max-width:420px; width:90%;">
             <div class="screen-header">
-                <div class="screen-title st-blue">CLOUD SAVE</div>
-                <div class="screen-subtitle">Sync your progress anywhere</div>
+                <div class="screen-title st-blue">SIGN IN</div>
+                <div class="screen-subtitle">Used for cloud saves &amp; online play</div>
             </div>
             <div class="cloud-form">
-                <div class="cloud-field">
-                    <label class="cloud-label">Server URL</label>
-                    <input id="cloud-server-url" class="cloud-input" type="url"
-                        placeholder="http://192.168.1.x:3001"
-                        onkeydown="if(event.key==='Enter')CloudSaveManager.submitLogin(false)">
-                </div>
                 <div class="cloud-field">
                     <label class="cloud-label">Username</label>
                     <input id="cloud-username" class="cloud-input" type="text"
@@ -860,7 +877,7 @@
                 <div id="cloud-login-status" class="cloud-status"></div>
             </div>
             <button class="screen-action-btn" style="background:#2980b9;"
-                onclick="CloudSaveManager.submitLogin(false)">LOGIN</button>
+                onclick="CloudSaveManager.submitLogin(false)">SIGN IN</button>
             <button class="screen-action-btn" style="background:#27ae60; margin-top:8px;"
                 onclick="CloudSaveManager.submitLogin(true)">CREATE ACCOUNT</button>
             <button class="screen-back-btn" onclick="CloudSaveManager.hideLoginModal()">← CANCEL</button>
@@ -888,6 +905,87 @@
                 ⬛ USE LOCAL SAVE
             </button>
         </div>
+    </div>
+
+    <!-- Online Lobby Screen -->
+    <div id="online-lobby-screen"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(5,10,20,0.97); z-index:3500; flex-direction:column; align-items:center; justify-content:center; color:white;">
+
+        <div class="options-panel" style="max-width:680px; width:92%;">
+            <div class="options-header">
+                <div class="options-title">🌐 ONLINE CO-OP</div>
+                <div id="ol-connect-status" class="options-subtitle" style="color:#5dade2;">Connecting…</div>
+            </div>
+
+            <!-- Connect panel: create or join -->
+            <div id="ol-connect-panel" style="flex-direction:column; align-items:center; gap:14px; width:100%; display:flex;">
+                <button class="screen-action-btn" style="background:#2980b9; width:100%;"
+                    onclick="onlineLobby.createGame()">+ HOST GAME</button>
+                <div style="color:rgba(255,255,255,0.3); font-size:12px; letter-spacing:2px;">— OR —</div>
+                <div style="display:flex; gap:10px; width:100%;">
+                    <input id="ol-join-code" class="cloud-input" type="text" maxlength="6"
+                        placeholder="Enter 6-letter code"
+                        style="flex:1; text-transform:uppercase; letter-spacing:4px; font-size:18px; text-align:center;"
+                        onkeydown="if(event.key==='Enter') onlineLobby.joinGame()">
+                    <button class="screen-action-btn" style="background:#27ae60; width:160px; margin:0;"
+                        onclick="onlineLobby.joinGame()">JOIN</button>
+                </div>
+                <div id="ol-status-msg" class="cloud-status" style="min-height:20px;"></div>
+            </div>
+
+            <!-- Lobby panel: hero select + ready -->
+            <div id="ol-lobby-panel" style="flex-direction:column; align-items:center; gap:16px; width:100%; display:none;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="color:rgba(255,255,255,0.45); font-size:12px; letter-spacing:2px;">LOBBY CODE</span>
+                    <span id="ol-code-value" style="font-size:22px; font-weight:900; letter-spacing:6px; color:#f1c40f;">—</span>
+                </div>
+
+                <!-- Two player slots -->
+                <div style="display:flex; align-items:center; gap:20px; width:100%;">
+                    <div class="ol-player-slot">
+                        <div id="ol-my-hero" class="ol-hero-display">?</div>
+                        <div id="ol-my-check" class="ol-ready-check" style="display:none;">✓</div>
+                        <div id="ol-my-name" class="ol-player-name">You</div>
+                    </div>
+                    <div style="font-size:28px; color:rgba(255,255,255,0.3); flex-shrink:0;">+</div>
+                    <div class="ol-player-slot">
+                        <div id="ol-partner-hero" class="ol-hero-display" style="opacity:0.3;">?</div>
+                        <div id="ol-partner-check" class="ol-ready-check" style="display:none;">✓</div>
+                        <div id="ol-partner-name" class="ol-player-name">—</div>
+                    </div>
+                </div>
+
+                <!-- Hero selection grid -->
+                <div id="ol-hero-grid" class="ol-hero-grid"></div>
+
+                <button id="ol-ready-btn" class="screen-action-btn"
+                    onclick="onlineLobby.confirmReady()">READY</button>
+                <div id="ol-status-msg" class="cloud-status" style="min-height:20px;"></div>
+            </div>
+
+            <button class="screen-back-btn" onclick="onlineLobby.close()">← BACK</button>
+        </div>
+    </div>
+
+    <!-- Online: partner is choosing an upgrade (guest sees this while host levels up) -->
+    <div id="online-partner-leveling-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:5500; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center; pointer-events:none;">
+        <div style="font-size:20px; font-weight:700; letter-spacing:2px; opacity:0.85;">Partner is choosing an upgrade…</div>
+    </div>
+
+    <!-- Online: guest chose, waiting for host to process (host sees this) -->
+    <div id="online-wait-overlay"
+        style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:rgba(255,255,255,0.7); padding:8px 20px; border-radius:8px; font-size:13px; z-index:5500; pointer-events:none;">
+        Waiting for partner…
+    </div>
+
+    <!-- Online Reconnect Overlay (shown mid-game when partner drops) -->
+    <div id="online-reconnect-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.82); z-index:6000; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center;">
+        <div style="font-size:28px; font-weight:900; letter-spacing:3px; margin-bottom:12px;">CONNECTION LOST</div>
+        <div id="online-reconnect-msg" style="font-size:15px; color:rgba(255,255,255,0.6); margin-bottom:24px;">Waiting for partner to reconnect…</div>
+        <div class="cloud-status" id="online-reconnect-timer"></div>
+        <button class="screen-back-btn" style="margin-top:20px;" onclick="window.abortOnlineGame && abortOnlineGame()">GIVE UP</button>
     </div>
 
     <!-- Daily Challenge Info Modal -->
@@ -980,10 +1078,12 @@
     <script src="Managers/InputManager.js"></script>
     <script src="Managers/SaveManager.js"></script>
     <script src="Managers/CloudSaveManager.js"></script>
+    <script src="Managers/NetworkManager.js"></script>
     <script src="Managers/UIManager.js"></script>
 
     <!-- Controllers -->
     <script src="Entities/PlayerController.js"></script>
+    <script src="Entities/NetworkInputController.js"></script>
 
     <!-- UI Modules -->
     <script src="UI/HeroDetails.js"></script>
@@ -995,6 +1095,7 @@
     <script src="UI/Shop.js"></script>
     <script src="UI/LevelUp.js"></script>
     <script src="UI/Options.js"></script>
+    <script src="UI/OnlineLobby.js"></script>
     <script src="UI/VersusMenu.js"></script>
     <script src="UI/InfoDialogueManager.js"></script>
     <script src="UI/MainMenu.js"></script>

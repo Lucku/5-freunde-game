@@ -159,6 +159,8 @@ class Enemy {
         }
 
         this.maxHp = this.hp;
+        this._id = ++Enemy._nextId;
+        this._ghost = false;
     }
 
     update() {
@@ -539,3 +541,4 @@ class Enemy {
         ctx.restore();
     }
 }
+Enemy._nextId = 0;
