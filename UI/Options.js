@@ -55,9 +55,11 @@ class OptionsUI {
     }
 
     _updateCloudAccountRow() {
-        const urlInput = document.getElementById('opt-server-url');
-        if (urlInput && document.activeElement !== urlInput) {
-            urlInput.value = window.gameConfig?.serverUrl || 'http://localhost:3001';
+        const hostLabel = document.getElementById('opt-server-host-label');
+        if (hostLabel) {
+            hostLabel.textContent = (typeof CloudSaveManager !== 'undefined')
+                ? CloudSaveManager._displayHost()
+                : (window.gameConfig?.serverUrl || 'localhost');
         }
 
         const label = document.getElementById('cloud-account-label');

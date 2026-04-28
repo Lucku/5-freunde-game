@@ -100,6 +100,7 @@ class MainMenuUI {
 
     updateSkillTreeBadge() {
         const badge = document.getElementById('skill-tree-badge');
+        const btn = document.getElementById('btn-skill-tree');
         if (!badge) return;
 
         const hero = window.selectedHeroType || 'fire';
@@ -110,13 +111,16 @@ class MainMenuUI {
             const points = level - unlocked;
 
             if (points > 0) {
-                badge.style.display = 'inline-block';
-                badge.innerText = "!";
+                badge.style.display = '';
+                badge.innerText = points;
+                btn?.classList.add('menu-lib-btn-has-points');
             } else {
                 badge.style.display = 'none';
+                btn?.classList.remove('menu-lib-btn-has-points');
             }
         } else {
             badge.style.display = 'none';
+            btn?.classList.remove('menu-lib-btn-has-points');
         }
     }
 

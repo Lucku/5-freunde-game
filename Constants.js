@@ -103,7 +103,17 @@ const voidTiers = [
 ];
 voidTiers.forEach(t => addAch(`void_${t[0]}`, t[1], `Spend ${t[0]} Gold in Void Shop.`, t[0], 'totalVoidGoldSpent', 'damage', t[2], `+${(t[2] * 100).toFixed(0)}% Dmg`));
 
-// 12. Special Achievements
+// 12. Online 2 Player
+addAch('online_games_1', 'Going Online', 'Play your first Online 2-Player game.', 1, 'onlineGamesPlayed', 'speed', 0.01, '+1% Speed');
+addAch('online_games_5', 'Playing Together', 'Play 5 Online 2-Player games.', 5, 'onlineGamesPlayed', 'speed', 0.02, '+2% Speed');
+addAch('online_games_25', 'Reliable Partner', 'Play 25 Online 2-Player games.', 25, 'onlineGamesPlayed', 'gold', 0.05, '+5% Gold');
+addAch('online_games_100', 'Online Legend', 'Play 100 Online 2-Player games.', 100, 'onlineGamesPlayed', 'damage', 0.05, '+5% Dmg');
+addAch('online_wave_10', 'Online Survivor', 'Reach Wave 10 in Online 2-Player.', 10, 'onlineMaxWave', 'health', 0.05, '+5% HP');
+addAch('online_wave_20', 'Online Veteran', 'Reach Wave 20 in Online 2-Player.', 20, 'onlineMaxWave', 'health', 0.05, '+5% HP');
+addAch('online_wave_30', 'Online Elite', 'Reach Wave 30 in Online 2-Player.', 30, 'onlineMaxWave', 'damage', 0.05, '+5% Dmg');
+addAch('online_wave_50', 'Online Champion', 'Reach Wave 50 in Online 2-Player.', 50, 'onlineMaxWave', 'damage', 0.10, '+10% Dmg');
+
+// 13. Special Achievements
 addAch('MAKUTA_SLAYER', 'Makuta Slayer', 'Defeat Makuta in Story Mode.', 1, 'makuta_kills', 'damage', 0.10, '+10% Dmg', true);
 addAch('EVIL_MODE_BEATEN', 'The True Villain', 'Complete Evil Mode. Grants +10% damage to all base heroes.', 1, 'evil_mode_beaten', 'damage', 0.10, '+10% Dmg', true);
 

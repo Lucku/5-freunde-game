@@ -2,7 +2,24 @@ class CloudSaveManager {
     static _syncing = false;
 
     static _baseUrl() {
-        return (window.gameConfig.serverUrl || 'http://localhost:3001').replace(/\/$/, '');
+        const raw = (window.gameConfig.serverUrl || 'localhost').trim();
+        if (raw.startsWith('http://') || raw.startsWith('https://')) return raw.replace(/\/$/, '');
+        return `http://${raw}:3001`;
+    }
+
+    // Returns just the hostname/IP for display
+    static _displayHost() {
+        const raw = (window.gameConfig.serverUrl || 'localhost').trim();
+        if (raw.startsWith('http://') || raw.startsWith('https://')) {
+            try { return new URL(raw).hostname; } catch { return raw; }
+        }
+        return raw.split(':')[0]; // strip port if someone typed host:port
+    }
+
+    // Stores a bare hostname/IP into config
+    static _saveHost(host) {
+        window.gameConfig.serverUrl = host.trim().replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+        if (typeof saveConfig === 'function') saveConfig();
     }
 
     static _account() {

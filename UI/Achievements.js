@@ -22,6 +22,7 @@ class AchievementsUI {
             if (/^(skill_|prestige_|games_|death_)/.test(id)) return 'MASTERY';
             if (/^(STORY_|MAKUTA_SLAYER|MAKUTA_HM_)/.test(id)) return 'STORY';
             if (/^(DAILY_|WEEKLY_|void_)/.test(id)) return 'CHALLENGES';
+            if (/^online_/.test(id)) return 'ONLINE';
             if (/^rock_/.test(id)) return 'DLC: RISE OF THE ROCK';
             if (/^thunder_/.test(id)) return 'DLC: TOURNAMENT OF THUNDER';
             if (/^(GRAVITY_|GALAXY_|ENTROPY_)/.test(id)) return 'DLC: CHAMPIONS OF CHAOS';
@@ -32,7 +33,7 @@ class AchievementsUI {
         };
 
         const groupOrder = [
-            'PROGRESSION', 'MASTERY', 'STORY', 'CHALLENGES',
+            'PROGRESSION', 'MASTERY', 'STORY', 'CHALLENGES', 'ONLINE',
             'DLC: RISE OF THE ROCK', 'DLC: TOURNAMENT OF THUNDER',
             'DLC: CHAMPIONS OF CHAOS', 'DLC: WAKER OF WINDS',
             'DLC: FAITH OF FORTUNE', 'DLC: SYMPHONY OF SICKNESS', 'CORE'

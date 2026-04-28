@@ -2802,21 +2802,36 @@ input:checked+.slider:before {
     color: #fff !important;
 }
 
+@keyframes skill-badge-pulse {
+    0%, 100% { box-shadow: 0 0 4px 1px rgba(246, 201, 14, 0.5), 0 0 0 0 rgba(246, 201, 14, 0.4); }
+    50% { box-shadow: 0 0 8px 3px rgba(246, 201, 14, 0.65), 0 0 0 6px rgba(246, 201, 14, 0); }
+}
+
 .menu-lib-badge {
     position: absolute;
-    top: 3px;
-    right: 4px;
-    background: #e74c3c;
-    color: #fff;
-    border-radius: 50%;
-    width: 14px;
-    height: 14px;
-    font-size: 9px;
+    top: -6px;
+    right: -6px;
+    background: linear-gradient(135deg, #f6c90e, #e67e22);
+    color: #1a0d00;
+    border-radius: 10px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    font-size: 10px;
     font-weight: bold;
     display: flex;
     align-items: center;
     justify-content: center;
     line-height: 1;
+    animation: skill-badge-pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(246, 201, 14, 0.5);
+    z-index: 1;
+}
+
+.menu-lib-btn-has-points {
+    border-color: rgba(246, 201, 14, 0.3) !important;
+    box-shadow: 0 0 14px rgba(246, 201, 14, 0.12), inset 0 0 8px rgba(246, 201, 14, 0.04) !important;
+    background: rgba(246, 201, 14, 0.06) !important;
 }
 
 /* ── System bar ── */
@@ -3818,21 +3833,21 @@ input:checked+.slider:before {
     outline-color: rgba(93,173,226,0.6);
 }
 
-/* Server URL input in Options */
-.opt-url-input {
-    flex: 1;
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 6px;
-    color: #ddd;
+/* Server host display label in Options */
+.opt-server-host-label {
+    font-family: monospace;
     font-size: 12px;
-    padding: 5px 10px;
-    outline: none;
-    min-width: 0;
-    width: 100%;
-    font-family: inherit;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.02em;
 }
-.opt-url-input:focus { border-color: rgba(93,173,226,0.6); background: rgba(255,255,255,0.1); }
+
+/* Port hint below the hostname input in the server config modal */
+.opt-server-port-hint {
+    margin-top: 5px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 0.02em;
+}
 
 /* In-game online name bar */
 #online-name-bar {

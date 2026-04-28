@@ -595,7 +595,6 @@
                         <button class="btn menu-mode-btn menu-mode-online" id="online-mode-btn"
                             onclick="openOnlineLobby()">🌐 Online 2-Player</button>
                     </div>
-                    <button id="menu-account-badge" class="menu-account-badge" title="Sign in for cloud saves &amp; online play"></button>
 
                     <div class="menu-challenges">
                         <button id="daily-challenge-btn" class="btn menu-challenge-btn"
@@ -603,6 +602,7 @@
                         <button id="weekly-challenge-btn" class="btn menu-challenge-btn"
                             onclick="startWeeklyChallenge()">📅 Weekly Challenge</button>
                     </div>
+                    <button id="menu-account-badge" class="menu-account-badge" title="Sign in for cloud saves &amp; online play"></button>
                 </div>
 
                 <!-- Library Panel: Progression + Extras + System -->
@@ -819,13 +819,11 @@
             <div class="options-section">
                 <div class="options-section-label">Server &amp; Account</div>
                 <div class="options-row">
-                    <div class="options-row-left" style="flex:1; min-width:0;">
+                    <div class="options-row-left">
                         <span class="options-icon">🌐</span>
-                        <input id="opt-server-url" class="opt-url-input" type="url"
-                            placeholder="http://192.168.1.x:3001"
-                            onchange="window.gameConfig.serverUrl=this.value.trim(); if(typeof saveConfig==='function')saveConfig();"
-                            onblur="window.gameConfig.serverUrl=this.value.trim(); if(typeof saveConfig==='function')saveConfig();">
+                        <span id="opt-server-host-label" class="options-label opt-server-host-label">—</span>
                     </div>
+                    <button class="opt-toggle-btn" onclick="openServerConfigModal()">CHANGE</button>
                 </div>
                 <div id="cloud-account-row" class="options-row">
                     <div class="options-row-left">
@@ -884,6 +882,32 @@
         </div>
     </div>
 
+    <!-- Server Configuration Modal -->
+    <div id="server-config-modal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:4000; flex-direction:column; align-items:center; justify-content:center; color:white;">
+        <div class="modal-panel" style="max-width:420px; width:90%;">
+            <div class="screen-header">
+                <div class="screen-title st-blue">SERVER</div>
+                <div class="screen-subtitle">Enter your server hostname or IP address</div>
+            </div>
+            <div class="cloud-form">
+                <div class="cloud-field">
+                    <label class="cloud-label">Hostname / IP</label>
+                    <input id="server-host-input" class="cloud-input" type="text"
+                        placeholder="192.168.1.x  or  myserver.local"
+                        onkeydown="if(event.key==='Enter')checkServerConnection()">
+                    <div class="opt-server-port-hint">Port 3001 is used automatically.</div>
+                </div>
+                <div id="server-check-status" class="cloud-status"></div>
+            </div>
+            <button class="screen-action-btn" style="background:#27ae60;"
+                onclick="checkServerConnection()">TEST CONNECTION</button>
+            <button class="screen-action-btn" style="background:#2980b9; margin-top:8px;"
+                onclick="saveServerConfig()">SAVE</button>
+            <button class="screen-back-btn" onclick="closeServerConfigModal()">← CANCEL</button>
+        </div>
+    </div>
+
     <!-- Cloud Save Conflict Modal -->
     <div id="cloud-conflict-modal"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.97); z-index:4000; flex-direction:column; align-items:center; justify-content:center; color:white;">
@@ -913,7 +937,7 @@
 
         <div class="options-panel" style="max-width:680px; width:92%;">
             <div class="options-header">
-                <div class="options-title">🌐 ONLINE CO-OP</div>
+                <div class="options-title">🌐 ONLINE 2-PLAYER</div>
                 <div id="ol-connect-status" class="options-subtitle" style="color:#5dade2;">Connecting…</div>
             </div>
 

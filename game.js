@@ -79,7 +79,8 @@ const defaultSaveData = {
         totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0,
         totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0,
         totalVoidGoldSpent: 0, unlockedAchievements: [],
-        daily_wins: 0, weekly_wins: 0
+        daily_wins: 0, weekly_wins: 0,
+        onlineGamesPlayed: 0, onlineMaxWave: 0
     },
     collection: [],
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0, defense: 0, wisdom: 0 },
@@ -129,7 +130,7 @@ window.saveData = {
     metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     earth: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     black: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
-    global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0, totalVoidGoldSpent: 0, unlockedAchievements: [], daily_wins: 0, weekly_wins: 0 },
+    global: { totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0, totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0, totalVoidGoldSpent: 0, unlockedAchievements: [], daily_wins: 0, weekly_wins: 0, onlineGamesPlayed: 0, onlineMaxWave: 0 },
     collection: [],
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0, defense: 0, wisdom: 0 },
     stats: {
@@ -463,6 +464,23 @@ function handleGamepadMenu() {
     if (uiState === 'SIGN_IN') {
         if (b && !lastGamepadState.b) {
             if (typeof CloudSaveManager !== 'undefined') CloudSaveManager.hideLoginModal();
+            uiDebounce = 20;
+        }
+        if (a && !lastGamepadState.a) {
+            const focused = getFocusables()[uiSelectionIndex];
+            if (focused) {
+                if (focused.tagName === 'INPUT') focused.focus();
+                else focused.click();
+            }
+            uiDebounce = 15;
+        }
+        lastGamepadState = { a, b, y };
+        return;
+    }
+
+    if (uiState === 'CHANGE_SERVER') {
+        if (b && !lastGamepadState.b) {
+            closeServerConfigModal();
             uiDebounce = 20;
         }
         if (a && !lastGamepadState.a) {
@@ -1056,10 +1074,10 @@ function updateMenuAccountBadge() {
     if (!badge) return;
     const account = window.gameConfig?.account || {};
     if (account.username && account.token) {
-        badge.textContent = `● ${account.username}`;
+        badge.textContent = `● Logged in as ${account.username}`;
         badge.classList.add('signed-in');
         badge.onclick = () => { if (typeof openOptions === 'function') openOptions(); };
-        badge.title = 'Signed in — open Options to manage account';
+        badge.title = 'Open Options to manage account';
     } else {
         badge.textContent = '○ Sign in';
         badge.classList.remove('signed-in');
@@ -1421,6 +1439,61 @@ function abortOnlineGame() {
     gameOver(false);
 }
 window.abortOnlineGame = abortOnlineGame;
+
+// --- Server Configuration Modal ---
+
+function openServerConfigModal() {
+    const modal = document.getElementById('server-config-modal');
+    if (!modal) return;
+    const input = document.getElementById('server-host-input');
+    if (input) input.value = typeof CloudSaveManager !== 'undefined' ? CloudSaveManager._displayHost() : '';
+    const status = document.getElementById('server-check-status');
+    if (status) { status.textContent = ''; status.style.color = '#aaa'; }
+    modal.style.display = 'flex';
+    window._prevServerUIState = window.uiState || 'OPTIONS';
+    if (window.setUIState) window.setUIState('CHANGE_SERVER');
+}
+window.openServerConfigModal = openServerConfigModal;
+
+function closeServerConfigModal() {
+    const modal = document.getElementById('server-config-modal');
+    if (modal) modal.style.display = 'none';
+    if (window.setUIState) window.setUIState(window._prevServerUIState || 'OPTIONS');
+    window._prevServerUIState = null;
+}
+window.closeServerConfigModal = closeServerConfigModal;
+
+async function checkServerConnection() {
+    const host = (document.getElementById('server-host-input')?.value || '').trim();
+    const status = document.getElementById('server-check-status');
+    if (!host) {
+        if (status) { status.textContent = 'Please enter a hostname or IP.'; status.style.color = '#ff7777'; }
+        return;
+    }
+    if (status) { status.textContent = 'Checking…'; status.style.color = '#aaa'; }
+    try {
+        const url = `http://${host.split(':')[0]}:3001/api/health`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        const data = await res.json();
+        if (res.ok && data.status === 'ok') {
+            if (status) { status.textContent = '✓ Connected — server is reachable.'; status.style.color = '#77ff88'; }
+        } else {
+            if (status) { status.textContent = 'Server responded but returned an error.'; status.style.color = '#ff7777'; }
+        }
+    } catch (e) {
+        if (status) { status.textContent = `Could not reach server: ${e.message}`; status.style.color = '#ff7777'; }
+    }
+}
+window.checkServerConnection = checkServerConnection;
+
+function saveServerConfig() {
+    const host = (document.getElementById('server-host-input')?.value || '').trim();
+    if (!host) return;
+    if (typeof CloudSaveManager !== 'undefined') CloudSaveManager._saveHost(host);
+    if (typeof updateOptionButtons === 'function') updateOptionButtons();
+    closeServerConfigModal();
+}
+window.saveServerConfig = saveServerConfig;
 
 function checkNewGame(mode) {
     if (isCoopMode && mode !== 'STANDARD' && mode !== 'STORY' && mode !== 'DAILY' && mode !== 'WEEKLY') return; // co-op supports Standard, Story, Daily, Weekly
@@ -3739,6 +3812,12 @@ function gameOver(isVictory = false) {
             const achId = dlcStoryMap[player.type];
             if (achId) unlockAchievement(achId);
         }
+    }
+
+    // Online co-op stat tracking
+    if (isOnlineMode) {
+        saveData.global.onlineGamesPlayed = (saveData.global.onlineGamesPlayed || 0) + 1;
+        if (wave > (saveData.global.onlineMaxWave || 0)) saveData.global.onlineMaxWave = wave;
     }
 
     checkAchievements();
