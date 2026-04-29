@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file, starting wi
 ## [Unreleased]
 
 ### Added
+- **Global Lobby**: A new persistent social hub accessible from the Online 2-Player screen. All players currently online can walk around the museum map together, see each other's hero avatars with username labels, and interact. Includes 5 emotes (Wave, Dance, Laugh, Cheer, Shrug) triggered by keys 1–5 shown in a bottom HUD bar. Players near each other (within 80 px) see a challenge prompt; accepting auto-creates a private match using both players' current heroes. An in-scene hero selector (Tab / Y button) lets players change their hero and have others see the update in real time. Pressing Escape returns to the main menu.
 - **Online achievements**: 8 new achievements in the ONLINE category tracking online games played (Going Online → Online Legend) and max wave reached in Online 2-Player (Online Survivor → Online Champion).
 - **Server config modal**: Options → Server & Account now shows a "CHANGE" button that opens a dedicated modal where only the hostname/IP is entered (port 3001 assumed). Includes a "Test Connection" button with a live health-check result. The raw URL is no longer shown in the options list.
 - **Account badge repositioned**: "Logged in as \<username\>" badge moved to below the challenge buttons on the main menu.

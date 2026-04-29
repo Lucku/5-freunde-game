@@ -54,6 +54,17 @@ class OnlineLobbyUI {
 
     // ── Lobby actions ─────────────────────────────────────────────────────────
 
+    openGlobalLobby() {
+        const nm = window.networkManager;
+        if (!nm.connected) { this._setStatus('Not connected to server.', 'err'); return; }
+        this._removeHandlers();
+        clearTimeout(this._pollTimer);
+        const screen = document.getElementById('online-lobby-screen');
+        if (screen) screen.style.display = 'none';
+        const hero = window.selectedHeroType || 'fire';
+        if (typeof window.openGlobalLobby === 'function') window.openGlobalLobby(hero);
+    }
+
     createGame() {
         const nm = window.networkManager;
         if (!nm.connected) { this._setStatus('Not connected to server.', 'err'); return; }

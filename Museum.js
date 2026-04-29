@@ -56,7 +56,8 @@ const MUSEUM_DIALOGUES = {
 };
 
 class Museum {
-    constructor() {
+    constructor(options = {}) {
+        this.noInteraction = !!options.noInteraction;
         this.width = 2400;
         this.height = 2650;
         this.camera = { x: 0, y: 0, width: canvas.width, height: canvas.height };
@@ -582,7 +583,7 @@ class Museum {
         if (!this.dialogueCooldown) this.dialogueCooldown = 0;
         if (this.dialogueCooldown > 0) this.dialogueCooldown--;
 
-        if (this.dialogueCooldown <= 0 && !this.activeDialogue) {
+        if (!this.noInteraction && this.dialogueCooldown <= 0 && !this.activeDialogue) {
             const closestEntity = this.entities.find(e => e.isHero && Math.hypot(this.player.x - e.x, this.player.y - e.y) < 100);
             if (closestEntity) {
                 const heroDialogue = MUSEUM_DIALOGUES[closestEntity.type] || MUSEUM_DIALOGUES['bg'];
@@ -623,13 +624,13 @@ class Museum {
         if (gp && gp.buttons[0].pressed) interact = true; // Button A
 
         // Update switch proximity flags (used by drawDecorations for prompts)
-        this.decorations.forEach(d => {
+        if (!this.noInteraction) this.decorations.forEach(d => {
             if (d.type === 'SWITCH') {
                 d._nearPlayer = Math.hypot(this.player.x - d.x, this.player.y - d.y) < 60;
             }
         });
 
-        if (interact) {
+        if (!this.noInteraction && interact) {
             // Hidden switches
             const nearSwitch = this.decorations.find(d =>
                 d.type === 'SWITCH' && !d.activated && d._nearPlayer
@@ -1996,4 +1997,13 @@ window.openMuseum = function () {
     document.getElementById('menu-overlay').style.display = 'none';
     window.museum = new Museum();
     if (window.setUIState) window.setUIState('MUSEUM');
+};
+
+window.openGlobalLobby = function (heroType) {
+    if (typeof MenuBackground !== 'undefined') MenuBackground.stop();
+    document.getElementById('menu-overlay').style.display = 'none';
+    const screen = document.getElementById('online-lobby-screen');
+    if (screen) screen.style.display = 'none';
+    window.globalLobbyScene = new GlobalLobbyScene(heroType);
+    if (window.setUIState) window.setUIState('GLOBAL_LOBBY');
 };

@@ -122,6 +122,20 @@ const lobbies = new Map();
 // userId → active lobby code (for reconnects)
 const userLobby = new Map();
 
+// ── Global Lobby state ────────────────────────────────────────────────────────
+
+// userId → { ws, userId, username, x, y, angle, hero }
+const globalLobby = new Map();
+
+// inviteId → { fromUserId, targetUserId, fromHero, targetHero }
+const pendingInvites = new Map();
+
+function broadcastGlobal(msg, exceptUserId) {
+    for (const player of globalLobby.values()) {
+        if (player.userId !== exceptUserId) send(player.ws, msg);
+    }
+}
+
 const LOBBY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function makeLobbyCode() {
     let code;
@@ -293,10 +307,105 @@ function handleMessage(ws, msg) {
             send(ws, { type: 'PONG', t: msg.t });
             break;
         }
+
+        // ── Global Lobby ───────────────────────────────────────────────────────
+
+        case 'JOIN_GLOBAL_LOBBY': {
+            if (globalLobby.has(ws.userId)) break; // already in
+            const entry = { ws, userId: ws.userId, username: ws.username, x: 1200, y: 1300, angle: 0, hero: msg.hero || 'fire' };
+            globalLobby.set(ws.userId, entry);
+            ws.inGlobalLobby = true;
+            // Send current state to the joining player
+            const players = Array.from(globalLobby.values())
+                .filter(p => p.userId !== ws.userId)
+                .map(({ userId, username, x, y, angle, hero }) => ({ userId, username, x, y, angle, hero }));
+            send(ws, { type: 'GLOBAL_LOBBY_STATE', players });
+            // Notify others
+            broadcastGlobal({ type: 'GLOBAL_PLAYER_JOINED', userId: ws.userId, username: ws.username, x: entry.x, y: entry.y, angle: 0, hero: entry.hero }, ws.userId);
+            break;
+        }
+
+        case 'LEAVE_GLOBAL_LOBBY': {
+            if (!globalLobby.has(ws.userId)) break;
+            globalLobby.delete(ws.userId);
+            ws.inGlobalLobby = false;
+            broadcastGlobal({ type: 'GLOBAL_PLAYER_LEFT', userId: ws.userId }, null);
+            break;
+        }
+
+        case 'PLAYER_MOVE': {
+            const entry = globalLobby.get(ws.userId);
+            if (!entry) break;
+            entry.x = msg.x; entry.y = msg.y; entry.angle = msg.angle;
+            if (msg.hero) entry.hero = msg.hero;
+            broadcastGlobal({ type: 'GLOBAL_PLAYER_UPDATE', userId: ws.userId, x: entry.x, y: entry.y, angle: entry.angle, hero: entry.hero }, ws.userId);
+            break;
+        }
+
+        case 'GLOBAL_EMOTE': {
+            if (!globalLobby.has(ws.userId)) break;
+            broadcastGlobal({ type: 'GLOBAL_EMOTE', userId: ws.userId, emoteType: msg.emoteType }, ws.userId);
+            break;
+        }
+
+        case 'GAME_INVITE': {
+            const inviter = globalLobby.get(ws.userId);
+            const target  = globalLobby.get(msg.targetUserId);
+            if (!inviter || !target) break;
+            const inviteId = Math.random().toString(36).slice(2, 10);
+            pendingInvites.set(inviteId, { fromUserId: ws.userId, targetUserId: msg.targetUserId });
+            send(target.ws, { type: 'GAME_INVITE_INCOMING', fromUserId: ws.userId, fromUsername: ws.username, inviteId });
+            break;
+        }
+
+        case 'GAME_INVITE_RESPONSE': {
+            const invite = pendingInvites.get(msg.inviteId);
+            if (!invite) break;
+            pendingInvites.delete(msg.inviteId);
+            const inviter = globalLobby.get(invite.fromUserId);
+            const target  = globalLobby.get(invite.targetUserId);
+            if (!msg.accept) {
+                if (inviter) send(inviter.ws, { type: 'GAME_INVITE_DECLINED', inviteId: msg.inviteId });
+                break;
+            }
+            if (!inviter || !target) break;
+            // Remove both from global lobby
+            globalLobby.delete(invite.fromUserId);
+            globalLobby.delete(invite.targetUserId);
+            inviter.ws.inGlobalLobby = false;
+            target.ws.inGlobalLobby = false;
+            broadcastGlobal({ type: 'GLOBAL_PLAYER_LEFT', userId: invite.fromUserId }, null);
+            broadcastGlobal({ type: 'GLOBAL_PLAYER_LEFT', userId: invite.targetUserId }, null);
+            // Create a private lobby and start the game immediately
+            const code = makeLobbyCode();
+            const hostHero  = inviter.hero;
+            const guestHero = target.hero;
+            lobbies.set(code, {
+                code, phase: 'in_game',
+                host:  { ws: inviter.ws, userId: inviter.userId, username: inviter.username },
+                guest: { ws: target.ws,  userId: target.userId,  username: target.username },
+                hostHero, guestHero, hostConfirmed: true, guestConfirmed: true,
+            });
+            inviter.ws.lobbyCode = code; inviter.ws.role = 'host';
+            target.ws.lobbyCode  = code; target.ws.role  = 'guest';
+            userLobby.set(inviter.userId, code);
+            userLobby.set(target.userId,  code);
+            const startMsg = { type: 'GAME_START', hostHero, guestHero, hostUsername: inviter.username, guestUsername: target.username };
+            send(inviter.ws, startMsg);
+            send(target.ws,  startMsg);
+            break;
+        }
     }
 }
 
 function handleClose(ws) {
+    // Clean up from global lobby if present
+    if (ws.inGlobalLobby) {
+        globalLobby.delete(ws.userId);
+        ws.inGlobalLobby = false;
+        broadcastGlobal({ type: 'GLOBAL_PLAYER_LEFT', userId: ws.userId }, null);
+    }
+
     if (!ws.lobbyCode) return;
     const lobby = lobbies.get(ws.lobbyCode);
     if (!lobby) return;

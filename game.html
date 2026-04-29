@@ -943,6 +943,9 @@
 
             <!-- Connect panel: create or join -->
             <div id="ol-connect-panel" style="flex-direction:column; align-items:center; gap:14px; width:100%; display:flex;">
+                <button class="screen-action-btn" style="background:#8e44ad; width:100%;"
+                    onclick="onlineLobby.openGlobalLobby()">🌍 GLOBAL LOBBY  <span style="font-size:11px; opacity:0.65; font-weight:400;">— walk around with everyone online</span></button>
+                <div style="color:rgba(255,255,255,0.3); font-size:12px; letter-spacing:2px;">— OR PRIVATE MATCH —</div>
                 <button class="screen-action-btn" style="background:#2980b9; width:100%;"
                     onclick="onlineLobby.createGame()">+ HOST GAME</button>
                 <div style="color:rgba(255,255,255,0.3); font-size:12px; letter-spacing:2px;">— OR —</div>
@@ -1085,6 +1088,7 @@
     <script src="Arena.js"></script>
     <script src="Biomes.js"></script>
     <script src="Museum.js"></script>
+    <script src="GlobalLobbyScene.js"></script>
     <script src="Altar.js"></script>
     <script src="Tutorial.js"></script>
     <script src="Managers/StoryManager.js"></script>

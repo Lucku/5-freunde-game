@@ -33,6 +33,13 @@ class NetworkManager {
 
         // In-game input latch — host reads this for P2; guest writes from local controller
         this.pendingInput   = { x: 0, y: 0, aimAngle: 0, shoot: false, melee: false, dash: false, special: false };
+
+        // Global lobby — remote player state (userId → { x, y, angle, hero, username })
+        this.remotePlayers  = {};
+        this._lastMoveSent  = 0;
+        this._lastMoveX     = null;
+        this._lastMoveY     = null;
+        this._lastMoveAngle = null;
     }
 
     // ── Connection ─────────────────────────────────────────────────────────────
@@ -144,6 +151,20 @@ class NetworkManager {
             this.lobbyCode = null;
             this.role      = null;
         }
+        if (msg.type === 'GLOBAL_LOBBY_STATE') {
+            this.remotePlayers = {};
+            (msg.players || []).forEach(p => { this.remotePlayers[p.userId] = p; });
+        }
+        if (msg.type === 'GLOBAL_PLAYER_JOINED') {
+            this.remotePlayers[msg.userId] = { userId: msg.userId, username: msg.username, x: msg.x, y: msg.y, angle: msg.angle, hero: msg.hero };
+        }
+        if (msg.type === 'GLOBAL_PLAYER_LEFT') {
+            delete this.remotePlayers[msg.userId];
+        }
+        if (msg.type === 'GLOBAL_PLAYER_UPDATE') {
+            const p = this.remotePlayers[msg.userId];
+            if (p) { p.x = msg.x; p.y = msg.y; p.angle = msg.angle; p.hero = msg.hero; }
+        }
 
         // Fan out to registered handlers
         const list = this._handlers[msg.type];
@@ -230,6 +251,43 @@ class NetworkManager {
     isHost()   { return this.role === 'host'; }
     isGuest()  { return this.role === 'guest'; }
     isInGame() { return this.phase === 'in_game'; }
+
+    // ── Global Lobby ───────────────────────────────────────────────────────────
+
+    joinGlobalLobby(hero) {
+        this.remotePlayers = {};
+        this.send({ type: 'JOIN_GLOBAL_LOBBY', hero });
+    }
+
+    leaveGlobalLobby() {
+        this.send({ type: 'LEAVE_GLOBAL_LOBBY' });
+        this.remotePlayers = {};
+    }
+
+    sendPlayerMove(x, y, angle, hero) {
+        const now = Date.now();
+        const dx = Math.abs(x - this._lastMoveX);
+        const dy = Math.abs(y - this._lastMoveY);
+        const da = Math.abs(angle - this._lastMoveAngle);
+        if (now - this._lastMoveSent < 100 && dx < 2 && dy < 2 && da < 0.09) return;
+        this._lastMoveSent  = now;
+        this._lastMoveX     = x;
+        this._lastMoveY     = y;
+        this._lastMoveAngle = angle;
+        this.send({ type: 'PLAYER_MOVE', x, y, angle, hero });
+    }
+
+    sendEmote(emoteType) {
+        this.send({ type: 'GLOBAL_EMOTE', emoteType });
+    }
+
+    sendGameInvite(targetUserId) {
+        this.send({ type: 'GAME_INVITE', targetUserId });
+    }
+
+    respondToInvite(inviteId, accept) {
+        this.send({ type: 'GAME_INVITE_RESPONSE', inviteId, accept });
+    }
 
     _startPing() {
         this._stopPing();

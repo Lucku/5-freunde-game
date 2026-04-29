@@ -4220,6 +4220,13 @@ function masterLoop(timestamp) {
             return; // Skip normal game loop
         }
 
+        // --- GLOBAL LOBBY STATE ---
+        if (uiState === 'GLOBAL_LOBBY' && window.globalLobbyScene) {
+            window.globalLobbyScene.update();
+            window.globalLobbyScene.draw(ctx);
+            return;
+        }
+
         // --- BIG GAMBLE STATE (FROZEN CONTEXT) ---
         if (typeof window.isBigGambleActive !== 'undefined' && window.isBigGambleActive) {
             if (window.HERO_LOGIC && window.HERO_LOGIC['chance']) {
