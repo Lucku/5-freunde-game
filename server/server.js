@@ -27,6 +27,18 @@ db.exec(`
         username     TEXT UNIQUE NOT NULL COLLATE NOCASE,
         password_hash TEXT NOT NULL,
         created_at   INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS scores (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id      INTEGER NOT NULL,
+        username     TEXT NOT NULL,
+        hero         TEXT NOT NULL,
+        mode         TEXT NOT NULL,
+        wave         INTEGER NOT NULL DEFAULT 0,
+        score        INTEGER NOT NULL DEFAULT 0,
+        outcome      TEXT NOT NULL DEFAULT 'death',
+        time_sec     INTEGER NOT NULL DEFAULT 0,
+        submitted_at INTEGER NOT NULL
     )
 `);
 
@@ -48,6 +60,32 @@ function requireAuth(req, res, next) {
 }
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+
+// ── Leaderboard ───────────────────────────────────────────────────────────────
+
+app.post('/api/leaderboard', requireAuth, (req, res) => {
+    const { hero, mode, wave, score, outcome, timeSec } = req.body || {};
+    if (typeof score !== 'number' || score < 0) return res.status(400).json({ error: 'Invalid score' });
+    db.prepare(`
+        INSERT INTO scores (user_id, username, hero, mode, wave, score, outcome, time_sec, submitted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(req.user.id, req.user.username, hero || 'fire', mode || 'standard',
+           Math.max(0, wave | 0), score | 0, outcome || 'death', Math.max(0, timeSec | 0), Date.now());
+    // Keep at most 1000 rows total — prune oldest beyond that
+    db.prepare(`DELETE FROM scores WHERE id NOT IN (SELECT id FROM scores ORDER BY score DESC LIMIT 1000)`).run();
+    res.json({ ok: true });
+});
+
+app.get('/api/leaderboard', (req, res) => {
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 50);
+    const rows = db.prepare(`
+        SELECT username, hero, mode, wave, score, outcome, time_sec AS timeSec, submitted_at AS submittedAt
+        FROM scores
+        ORDER BY score DESC
+        LIMIT ?
+    `).all(limit);
+    res.json({ entries: rows });
+});
 
 app.post('/api/register', async (req, res) => {
     const { username, password } = req.body || {};

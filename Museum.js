@@ -73,10 +73,24 @@ class Museum {
         // Player Avatar in Museum (defaults to selected hero)
         this.player = { x: 1200, y: 1300, radius: 20, speed: 5, type: selectedHeroType, angle: 0 };
 
+        this.viewingLeaderboard  = false;
+        this._leaderboardData    = null; // null = not yet fetched
+
         this.generateLayout();
         this.generateDecorations(); // Generate Decorations
         this.generateTrophies(); // Generate Trophies
         this.spawnEntities();
+
+        if (this.noInteraction) this._fetchLeaderboard();
+    }
+
+    _fetchLeaderboard() {
+        const baseUrl = (typeof CloudSaveManager !== 'undefined') ? CloudSaveManager._baseUrl() : null;
+        if (!baseUrl) { this._leaderboardData = []; return; }
+        fetch(`${baseUrl}/api/leaderboard?limit=10`)
+            .then(r => r.json())
+            .then(data => { this._leaderboardData = data.entries || []; })
+            .catch(() => { this._leaderboardData = []; });
     }
 
     generateLayout() {
@@ -214,23 +228,25 @@ class Museum {
             }
         }
 
-        // Hidden switches — must all be activated to unlock the basement
-        const activatedSwitches = (saveData.global && saveData.global.basementSwitches) || [];
-        this.decorations.push({
-            type: 'SWITCH', id: 'switch_1',
-            x: 90, y: 300,   // Fire room — left wall
-            activated: activatedSwitches.includes('switch_1'),
-        });
-        this.decorations.push({
-            type: 'SWITCH', id: 'switch_2',
-            x: 2310, y: 300, // Ice room — right wall
-            activated: activatedSwitches.includes('switch_2'),
-        });
-        this.decorations.push({
-            type: 'SWITCH', id: 'switch_3',
-            x: 710, y: 1700, // Gallery — lower-left corner
-            activated: activatedSwitches.includes('switch_3'),
-        });
+        // Hidden switches — must all be activated to unlock the basement (hidden in global lobby)
+        if (!this.noInteraction) {
+            const activatedSwitches = (saveData.global && saveData.global.basementSwitches) || [];
+            this.decorations.push({
+                type: 'SWITCH', id: 'switch_1',
+                x: 90, y: 300,   // Fire room — left wall
+                activated: activatedSwitches.includes('switch_1'),
+            });
+            this.decorations.push({
+                type: 'SWITCH', id: 'switch_2',
+                x: 2310, y: 300, // Ice room — right wall
+                activated: activatedSwitches.includes('switch_2'),
+            });
+            this.decorations.push({
+                type: 'SWITCH', id: 'switch_3',
+                x: 710, y: 1700, // Gallery — lower-left corner
+                activated: activatedSwitches.includes('switch_3'),
+            });
+        }
 
         // Staircase decoration (passage between jail and basement)
         this.decorations.push({ type: 'STAIR', x: 1200, y: 2175 });
@@ -334,12 +350,14 @@ class Museum {
     }
 
     spawnEntities() {
-        // Spawn Heroes in their rooms (Exclude current player)
-        if (this.player.type !== 'fire') this.entities.push(new MuseumEntity(400, 300, 'fire', true));
-        if (this.player.type !== 'water') this.entities.push(new MuseumEntity(1200, 300, 'water', true));
-        if (this.player.type !== 'ice') this.entities.push(new MuseumEntity(2000, 300, 'ice', true));
-        if (this.player.type !== 'plant') this.entities.push(new MuseumEntity(300, 1200, 'plant', true));
-        if (this.player.type !== 'metal') this.entities.push(new MuseumEntity(2100, 1200, 'metal', true));
+        // Spawn Heroes in their rooms (Exclude current player; skipped in global lobby)
+        if (!this.noInteraction) {
+            if (this.player.type !== 'fire') this.entities.push(new MuseumEntity(400, 300, 'fire', true));
+            if (this.player.type !== 'water') this.entities.push(new MuseumEntity(1200, 300, 'water', true));
+            if (this.player.type !== 'ice') this.entities.push(new MuseumEntity(2000, 300, 'ice', true));
+            if (this.player.type !== 'plant') this.entities.push(new MuseumEntity(300, 1200, 'plant', true));
+            if (this.player.type !== 'metal') this.entities.push(new MuseumEntity(2100, 1200, 'metal', true));
+        }
 
         // Spawn Collected Enemies in the Creature Wing (Jail) — one per unique type, free-roaming
         const jailRoom = this.rooms.find(r => r.name === 'jail');
@@ -359,8 +377,8 @@ class Museum {
             }
         });
 
-        // Spawn Memory Displays
-        if (saveData.memories) {
+        // Spawn Memory Displays (skipped in global lobby)
+        if (!this.noInteraction && saveData.memories) {
             const getTotal = h => (typeof MEMORY_STORIES !== 'undefined' && MEMORY_STORIES[h]) ? MEMORY_STORIES[h].length : '?';
             const getCount = h => Array.isArray(saveData.memories[h]) ? saveData.memories[h].length : (saveData.memories[h] || 0);
             const seenCounts = saveData.global.seenMemoryCounts || {};
@@ -458,6 +476,13 @@ class Museum {
             const gp = navigator.getGamepads()[0];
             if (keys['escape']) { this.viewingRunHistory = false; keys['escape'] = false; return; }
             if (gp && gp.buttons[1].pressed) { this.viewingRunHistory = false; return; }
+            return;
+        }
+
+        if (this.viewingLeaderboard) {
+            const gp = navigator.getGamepads()[0];
+            if (keys['escape']) { this.viewingLeaderboard = false; keys['escape'] = false; return; }
+            if (gp && gp.buttons[1].pressed) { this.viewingLeaderboard = false; return; }
             return;
         }
 
@@ -630,6 +655,38 @@ class Museum {
             }
         });
 
+        // Leaderboard Billboard — only in global lobby (noInteraction) mode
+        if (this.noInteraction && interact) {
+            const gallery = this.rooms.find(r => r.name === 'gallery');
+            if (gallery) {
+                const lbCX = gallery.x + 190;
+                const lbCY = gallery.y + 175;
+                if (Math.hypot(this.player.x - lbCX, this.player.y - lbCY) < 100) {
+                    this.viewingLeaderboard = true;
+                    if (this._leaderboardData === null) this._fetchLeaderboard();
+                    keys['e'] = false;
+                    return;
+                }
+            }
+        }
+
+        // Run History Billboard — available in all modes including global lobby
+        if (interact) {
+            const _rhHistory = saveData.global.runHistory;
+            if (_rhHistory && _rhHistory.length > 0) {
+                const _rhGallery = this.rooms.find(r => r.name === 'gallery');
+                if (_rhGallery) {
+                    const _rhCX = _rhGallery.x + _rhGallery.w - 190;
+                    const _rhCY = _rhGallery.y + 175;
+                    if (Math.hypot(this.player.x - _rhCX, this.player.y - _rhCY) < 100) {
+                        this.viewingRunHistory = true;
+                        keys['e'] = false;
+                        return;
+                    }
+                }
+            }
+        }
+
         if (!this.noInteraction && interact) {
             // Hidden switches
             const nearSwitch = this.decorations.find(d =>
@@ -667,21 +724,6 @@ class Museum {
                 return;
             }
 
-            // Run History Billboard
-            const history = saveData.global.runHistory;
-            if (history && history.length > 0) {
-                const gallery = this.rooms.find(r => r.name === 'gallery');
-                if (gallery) {
-                    const boardCX = gallery.x + gallery.w - 190;
-                    const boardCY = gallery.y + 175;
-                    if (Math.hypot(this.player.x - boardCX, this.player.y - boardCY) < 100) {
-                        this.viewingRunHistory = true;
-                        keys['e'] = false;
-                        return;
-                    }
-                }
-            }
-
             // Artifacts (Memories)
             const closestArtifact = this.artifacts.find(a => a.type === 'MEMORY' && Math.hypot(this.player.x - a.x, this.player.y - a.y) < 50);
             if (closestArtifact) {
@@ -713,6 +755,11 @@ class Museum {
     draw(ctx) {
         if (this.viewingRunHistory) {
             this.drawRunHistoryScreen(ctx);
+            return;
+        }
+
+        if (this.viewingLeaderboard) {
+            this.drawLeaderboardScreen(ctx);
             return;
         }
 
@@ -785,6 +832,9 @@ class Museum {
 
         // Draw Run History Board (gallery room)
         this.drawRunHistoryBoard(ctx);
+
+        // Draw Leaderboard Board (global lobby only)
+        if (this.noInteraction) this.drawLeaderboardBoard(ctx);
 
         // Draw Entities
         this.entities.forEach(e => e.draw(ctx));
@@ -1582,11 +1632,18 @@ class Museum {
                 // Mode label
                 const modeLabel = { standard: 'Standard', story: 'Story', shuffle: 'Chaos Shuffle',
                     daily: 'Daily', weekly: 'Weekly', versus: 'Versus', '2p_versus': '2P Versus',
-                    tutorial: 'Tutorial' }[run.mode] || 'Standard';
+                    tutorial: 'Tutorial', evil: 'Evil Mode' }[run.mode] || 'Standard';
                 ctx.font = '10px Arial';
                 ctx.fillStyle = 'rgba(255,255,255,0.38)';
                 ctx.textAlign = 'left';
                 ctx.fillText(modeLabel, px + 45, ry + 28);
+
+                // Online badge
+                if (run.online) {
+                    const badgeX = px + 45 + ctx.measureText(modeLabel).width + 6;
+                    ctx.fillStyle = '#5dade2';
+                    ctx.fillText('🌐 Online', badgeX, ry + 28);
+                }
 
                 // Outcome
                 ctx.font = 'bold 12px Arial';
@@ -1621,6 +1678,245 @@ class Museum {
         }
 
         // Footer hint
+        ctx.font = '12px Arial';
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.textAlign = 'center';
+        ctx.fillText('Press ESC or (B) to close', W / 2, py + ph - 14);
+    }
+
+    // ── Global Leaderboard (global lobby only) ────────────────────────────────
+
+    drawLeaderboardBoard(ctx) {
+        const gallery = this.rooms.find(r => r.name === 'gallery');
+        if (!gallery) return;
+
+        const boardCX = gallery.x + 190;
+        const boardCY = gallery.y + 175;
+
+        ctx.save();
+        ctx.translate(boardCX, boardCY);
+
+        // Post shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillRect(4, -60, 14, 100);
+        // Post body
+        const postGrad = ctx.createLinearGradient(-6, 0, 6, 0);
+        postGrad.addColorStop(0, '#0d2a3a');
+        postGrad.addColorStop(0.4, '#1a4a5e');
+        postGrad.addColorStop(1, '#0a1e2a');
+        ctx.fillStyle = postGrad;
+        ctx.fillRect(-6, -60, 12, 100);
+        // Post cap
+        ctx.fillStyle = '#2a7aa0';
+        ctx.fillRect(-8, -62, 16, 6);
+
+        // Board dimensions
+        const bw = 120, bh = 80;
+        const bx = -bw / 2, by = -bh - 30;
+
+        // Board shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.30)';
+        ctx.beginPath();
+        ctx.roundRect(bx + 5, by + 5, bw, bh, 4);
+        ctx.fill();
+
+        // Board frame
+        ctx.fillStyle = '#0d2a3a';
+        ctx.strokeStyle = '#2a7aa0';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        // Board surface
+        ctx.fillStyle = '#091520';
+        ctx.beginPath();
+        ctx.roundRect(bx + 6, by + 6, bw - 12, bh - 12, 2);
+        ctx.fill();
+
+        // Header bar
+        ctx.fillStyle = 'rgba(42,122,160,0.20)';
+        ctx.fillRect(bx + 6, by + 6, bw - 12, 20);
+
+        // Title
+        ctx.fillStyle = '#5dade2';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🌐 LEADERBOARD', 0, by + 20);
+
+        // Divider
+        ctx.strokeStyle = 'rgba(42,122,160,0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(bx + 10, by + 28);
+        ctx.lineTo(bx + bw - 10, by + 28);
+        ctx.stroke();
+
+        const entries = this._leaderboardData;
+
+        if (!entries) {
+            // Still loading
+            ctx.fillStyle = 'rgba(255,255,255,0.28)';
+            ctx.font = '9px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Loading…', 0, by + 52);
+        } else if (entries.length === 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.28)';
+            ctx.font = '9px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No scores yet', 0, by + 52);
+        } else {
+            const entryY0 = by + 36;
+            const entryH = (bh - 44) / Math.min(entries.length, 3);
+            entries.slice(0, 3).forEach((e, i) => {
+                const ey = entryY0 + i * entryH + entryH / 2;
+                const rankColors = ['#f1c40f', '#aaa', '#cd7f32'];
+                ctx.font = 'bold 8px Arial';
+                ctx.fillStyle = rankColors[i] || 'rgba(255,255,255,0.4)';
+                ctx.textAlign = 'left';
+                ctx.fillText(`#${i + 1}`, bx + 10, ey + 3);
+                ctx.font = '8px Arial';
+                ctx.fillStyle = 'rgba(255,255,255,0.80)';
+                ctx.fillText(e.username, bx + 26, ey + 3);
+                ctx.fillStyle = '#5dade2';
+                ctx.textAlign = 'right';
+                ctx.fillText(e.score.toLocaleString(), bx + bw - 8, ey + 3);
+            });
+        }
+
+        ctx.restore();
+
+        // Proximity prompt
+        const dist = Math.hypot(this.player.x - boardCX, this.player.y - boardCY);
+        if (dist < 100) {
+            ctx.save();
+            ctx.font = 'bold 11px Arial';
+            ctx.fillStyle = 'rgba(255,255,255,0.90)';
+            ctx.textAlign = 'center';
+            ctx.fillText('PRESS E OR (A) TO VIEW', boardCX, boardCY - bh - 45);
+            ctx.restore();
+        }
+    }
+
+    drawLeaderboardScreen(ctx) {
+        const W = canvas.width;
+        const H = canvas.height;
+        const entries = this._leaderboardData;
+        const fmtTime = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+        // Backdrop
+        ctx.fillStyle = 'rgba(0,0,0,0.82)';
+        ctx.fillRect(0, 0, W, H);
+
+        const pw = Math.min(700, W - 60);
+        const ph = Math.min(560, H - 80);
+        const px = (W - pw) / 2;
+        const py = (H - ph) / 2;
+
+        // Panel
+        ctx.fillStyle = '#08131a';
+        ctx.strokeStyle = '#2a7aa0';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(px, py, pw, ph, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        // Header bar
+        ctx.fillStyle = '#0d1f2a';
+        ctx.beginPath();
+        ctx.roundRect(px, py, pw, 50, [10, 10, 0, 0]);
+        ctx.fill();
+
+        ctx.fillStyle = '#5dade2';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🌐  GLOBAL LEADERBOARD', W / 2, py + 32);
+
+        ctx.strokeStyle = '#2a7aa0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(px + 20, py + 52);
+        ctx.lineTo(px + pw - 20, py + 52);
+        ctx.stroke();
+
+        if (!entries) {
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Loading…', W / 2, py + ph / 2);
+        } else if (entries.length === 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No scores submitted yet. Play online to appear here!', W / 2, py + ph / 2);
+        } else {
+            const rowH = (ph - 70) / entries.length;
+            const rankColors = ['#f1c40f', '#c0c0c0', '#cd7f32'];
+            entries.forEach((e, i) => {
+                const ry = py + 62 + i * rowH;
+                const heroColor = this._getHeroColor(e.hero);
+                const isVictory = e.outcome === 'victory';
+
+                // Row bg
+                ctx.fillStyle = i % 2 === 0 ? 'rgba(42,122,160,0.07)' : 'rgba(0,0,0,0.15)';
+                ctx.fillRect(px + 10, ry, pw - 20, rowH - 4);
+
+                // Left accent bar (rank colour for top 3, hero colour otherwise)
+                ctx.fillStyle = rankColors[i] || heroColor;
+                ctx.fillRect(px + 10, ry, 5, rowH - 4);
+
+                // Rank badge
+                ctx.font = 'bold 13px Arial';
+                ctx.fillStyle = rankColors[i] || 'rgba(255,255,255,0.35)';
+                ctx.textAlign = 'center';
+                ctx.fillText(`#${i + 1}`, px + 30, ry + rowH / 2 + 5);
+
+                // Username
+                ctx.font = 'bold 15px Arial';
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'left';
+                ctx.fillText(e.username, px + 50, ry + 16);
+
+                // Hero + mode label
+                const modeLabel = { standard: 'Standard', story: 'Story', shuffle: 'Chaos Shuffle',
+                    daily: 'Daily', weekly: 'Weekly', versus: 'Versus', '2p_versus': '2P Versus',
+                    tutorial: 'Tutorial', evil: 'Evil Mode' }[e.mode] || 'Standard';
+                ctx.font = '10px Arial';
+                ctx.fillStyle = heroColor;
+                ctx.fillText(`${e.hero.toUpperCase()}  ·  ${modeLabel}`, px + 50, ry + 29);
+
+                // Outcome badge
+                ctx.font = 'bold 12px Arial';
+                ctx.fillStyle = isVictory ? '#f1c40f' : '#e74c3c';
+                ctx.textAlign = 'right';
+                ctx.fillText(isVictory ? '✓ VICTORY' : '✗ DEATH', px + pw - 20, ry + 16);
+
+                // Score (prominent, right-aligned)
+                ctx.font = 'bold 16px Arial';
+                ctx.fillStyle = '#5dade2';
+                ctx.fillText(e.score.toLocaleString(), px + pw - 20, ry + 32);
+
+                // Stats line: wave · time
+                ctx.font = '11px Arial';
+                ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                ctx.textAlign = 'left';
+                ctx.fillText(`Wave ${e.wave}   Time: ${fmtTime(e.timeSec)}`, px + 50, ry + 44);
+
+                // Row divider
+                if (i < entries.length - 1) {
+                    ctx.strokeStyle = 'rgba(42,122,160,0.25)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(px + 20, ry + rowH - 2);
+                    ctx.lineTo(px + pw - 20, ry + rowH - 2);
+                    ctx.stroke();
+                }
+            });
+        }
+
+        // Footer
         ctx.font = '12px Arial';
         ctx.fillStyle = 'rgba(255,255,255,0.35)';
         ctx.textAlign = 'center';

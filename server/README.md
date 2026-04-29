@@ -1,11 +1,12 @@
 # 5 Freunde — Game Server
 
-A lightweight Node.js server that provides two features over a single connection:
+A lightweight Node.js server that provides three features over a single connection:
 
 1. **Cloud saves** — sync player progress across devices
 2. **Online multiplayer** — 2-player co-op over LAN or the internet
+3. **Global Lobby & Leaderboard** — persistent social hub and server-side high-score table
 
-One account is used for both. The server runs well on a Raspberry Pi or any always-on machine on your network.
+One account is used for all three. The server runs well on a Raspberry Pi or any always-on machine on your network.
 
 ---
 
@@ -25,6 +26,14 @@ The **host** runs the full game simulation and sends compact state snapshots (~2
 
 If a player disconnects mid-game, the lobby stays alive for 90 seconds to allow reconnect. After that the remaining player is returned to the menu.
 
+### Global Lobby
+
+Any logged-in player can enter the **Global Lobby** from the Online 2-Player screen. All connected players appear simultaneously in a shared museum map where they can walk around, use emotes, and challenge each other to a match. When two players accept a challenge the server automatically creates a private lobby using their current heroes and starts the game immediately — no lobby code exchange needed.
+
+### Leaderboard
+
+Every run completed in Online 2-Player mode is automatically submitted to the server. The top scores (up to 1000 stored, top 10 shown) are visible on the leaderboard billboard inside the Global Lobby. Scores are ranked by points and include the player's username, hero, mode, wave reached, outcome, and run time.
+
 **Lobby lifecycle**
 
 ```
@@ -42,7 +51,7 @@ waiting → hero_select → in_game → finished
 
 ```
 data/
-  users.db          ← SQLite database (user accounts)
+  users.db          ← SQLite database (user accounts + leaderboard scores)
   saves/
     1.save          ← encoded save blob for user id 1
     1.save.meta     ← JSON with { savedAt: <unix ms> }
@@ -149,6 +158,38 @@ All endpoints accept and return JSON. Protected endpoints require `Authorization
 | `POST` | `/api/login` | — | Authenticate → `{ token, username }` |
 | `GET`  | `/api/save` | required | Download save → `{ blob, savedAt }` |
 | `PUT`  | `/api/save` | required | Upload save (body: `{ blob }`) → `{ savedAt }` |
+| `POST` | `/api/leaderboard` | required | Submit a run score (body below) → `{ ok: true }` |
+| `GET`  | `/api/leaderboard` | — | Fetch top scores → `{ entries: [...] }` — optional `?limit=N` (max 50, default 10) |
+
+**Submit score body**
+
+```json
+{
+  "hero": "fire",
+  "mode": "standard",
+  "wave": 12,
+  "score": 48200,
+  "outcome": "victory",
+  "timeSec": 743
+}
+```
+
+**Leaderboard entry shape**
+
+```json
+{
+  "username": "lucas",
+  "hero": "fire",
+  "mode": "standard",
+  "wave": 12,
+  "score": 48200,
+  "outcome": "victory",
+  "timeSec": 743,
+  "submittedAt": 1714300000000
+}
+```
+
+The server keeps at most 1000 scores total (oldest beyond that are pruned after each submission).
 
 **Register / Login body**
 
@@ -162,7 +203,7 @@ Username rules: 3–32 characters, letters/numbers/`_`/`-` only, case-insensitiv
 
 Connect to `ws://<host>:3001/ws?token=<jwt>`. All messages are JSON.
 
-**Client → Server**
+**Client → Server — private match**
 
 | `type` | Payload | Description |
 |--------|---------|-------------|
@@ -175,7 +216,18 @@ Connect to `ws://<host>:3001/ws?token=<jwt>`. All messages are JSON.
 | `LEAVE_LOBBY` | — | Leave the current lobby |
 | `PING` | — | Keepalive |
 
-**Server → Client**
+**Client → Server — global lobby**
+
+| `type` | Payload | Description |
+|--------|---------|-------------|
+| `JOIN_GLOBAL_LOBBY` | `{ hero }` | Enter the shared museum lobby |
+| `LEAVE_GLOBAL_LOBBY` | — | Leave the shared museum lobby |
+| `PLAYER_MOVE` | `{ x, y, angle, hero }` | Broadcast current position and hero |
+| `GLOBAL_EMOTE` | `{ emoteType }` | Broadcast emote to all lobby players |
+| `GAME_INVITE` | `{ targetUserId }` | Challenge a nearby player |
+| `GAME_INVITE_RESPONSE` | `{ inviteId, accept }` | Accept or decline a challenge |
+
+**Server → Client — private match**
 
 | `type` | Description |
 |--------|-------------|
@@ -185,12 +237,24 @@ Connect to `ws://<host>:3001/ws?token=<jwt>`. All messages are JSON.
 | `GUEST_JOINED` | Partner joined your lobby → `{ guestUsername, guestHero }` |
 | `HERO_UPDATE` | Partner changed hero → `{ side, hero }` |
 | `HERO_CONFIRMED` | Partner confirmed ready → `{ side }` |
-| `GAME_START` | Both confirmed → `{ hostHero, guestHero, hostUsername, guestUsername }` |
+| `GAME_START` | Both confirmed (or challenge accepted) → `{ hostHero, guestHero, hostUsername, guestUsername }` |
 | `RELAY` | Forwarded payload from partner → `{ payload }` |
 | `PARTNER_DISCONNECTED` | Partner lost connection |
 | `PARTNER_RECONNECTED` | Partner reconnected |
 | `GAME_OVER` | Game ended (sent when other player signals GAME_OVER) |
 | `ERROR` | Error message → `{ error }` |
+
+**Server → Client — global lobby**
+
+| `type` | Description |
+|--------|-------------|
+| `GLOBAL_LOBBY_STATE` | Full snapshot on join → `{ players: [{ userId, username, x, y, angle, hero }] }` |
+| `GLOBAL_PLAYER_JOINED` | New player entered → `{ userId, username, x, y, angle, hero }` |
+| `GLOBAL_PLAYER_LEFT` | Player left or disconnected → `{ userId }` |
+| `GLOBAL_PLAYER_UPDATE` | Position/hero update → `{ userId, x, y, angle, hero }` |
+| `GLOBAL_EMOTE` | Emote broadcast → `{ userId, emoteType }` |
+| `GAME_INVITE_INCOMING` | Incoming challenge → `{ fromUserId, fromUsername, inviteId }` |
+| `GAME_INVITE_DECLINED` | Challenge was declined → `{ inviteId }` |
 
 ---
 

@@ -3834,9 +3834,27 @@ function gameOver(isVictory = false) {
                             : isEvilMode ? 'evil'
                                 : (saveData.story && saveData.story.enabled) ? 'story'
                                     : 'standard';
+    // Submit to global leaderboard when playing online
+    if (isOnlineMode) {
+        const _lbToken = window.gameConfig?.account?.token;
+        const _lbUrl   = (typeof CloudSaveManager !== 'undefined') ? CloudSaveManager._baseUrl() : null;
+        if (_lbToken && _lbUrl) {
+            fetch(`${_lbUrl}/api/leaderboard`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_lbToken}` },
+                body: JSON.stringify({
+                    hero: player.type, mode: _rhMode, wave: Math.max(0, wave - 1),
+                    score, outcome: isVictory ? 'victory' : 'death',
+                    timeSec: _rhTimeSec,
+                }),
+            }).catch(() => {}); // fire-and-forget
+        }
+    }
+
     saveData.global.runHistory.unshift({
         hero: player.type,
         mode: _rhMode,
+        online: !!isOnlineMode,
         wave: Math.max(0, wave - 1),
         score: score,
         outcome: isVictory ? 'victory' : 'death',

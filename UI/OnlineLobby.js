@@ -38,7 +38,10 @@ class OnlineLobbyUI {
         // Connect (or reconnect) the WebSocket using the shared credentials
         const nm = window.networkManager;
         if (!nm.connected) {
-            nm.connect(window.gameConfig.serverUrl || 'http://localhost:3001', account.token);
+            const serverUrl = (typeof CloudSaveManager !== 'undefined')
+                ? CloudSaveManager._baseUrl()
+                : (window.gameConfig.serverUrl || 'http://localhost:3001');
+            nm.connect(serverUrl, account.token);
         }
         this._pollConnectStatus();
     }
