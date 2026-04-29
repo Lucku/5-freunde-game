@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Added
+- **Global Lobby: controller-friendly emotes**: Shoulder buttons now trigger all 5 emotes on gamepad — LB=Wave, RB=Dance, LT=Laugh, RT=Cheer, X=Shrug. The emote bar and nearby-player prompt adapt their labels to show gamepad button names when a controller is active. The hero-change button shows `[Y]` instead of `[TAB]` for gamepad users.
+- **Global Lobby: lobby menu (Start / B)**: Pressing Start or B (when no invite is pending) in the Global Lobby walk-around scene opens an overlay with Resume and Quit Lobby options, navigable with D-Pad / A / B. The scene continues running in the background so networking stays alive. The old behavior of B immediately exiting is removed.
+- **Online dialogues: controller hints**: The Sign In modal, Server Config modal, and Online Lobby screen now show a `🎮 Navigate: D-Pad · Confirm: A · Cancel: B` hint line. The join-code input on the Online Lobby screen is now reachable via D-Pad navigation (it was previously excluded from the controller focus list).
+
 ### Fixed
 - **Online lobby WebSocket connection**: When the server hostname was configured via Options → Server (which stores a bare hostname like `192.168.1.x`), the Online lobby passed it raw to `NetworkManager.connect()`, whose `replace(/^http/, 'ws')` found no match and produced a relative URL. Running from a `file://` page, the browser resolved this to `file:///...`, causing "file is not allowed" WebSocket errors. The lobby now routes through `CloudSaveManager._baseUrl()`, which already prepends `http://` and port 3001 for bare hostnames.
 

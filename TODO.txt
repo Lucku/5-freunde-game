@@ -1,1 +1,3 @@
 # General
+- login mask in main menu plays the battle theme
+- don't allow to join a game with yourself or join the lobby multiple times with the same user

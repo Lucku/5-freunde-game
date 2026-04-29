@@ -128,6 +128,9 @@ class GlobalLobbyScene {
         const p   = this.museum.player;
         const gp  = navigator.getGamepads?.()[0] || null;
 
+        // ── Lobby menu blocks all player input ────────────────────────────────
+        if (window.uiState === 'GLOBAL_LOBBY_MENU') return;
+
         // ── Hero selector input ────────────────────────────────────────────────
         const tabPressed    = keys['tab'] && !this._gpPrev.tab;
         const gpYPressed    = gp && gp.buttons[3]?.pressed && !this._gpPrev.gpY;
@@ -155,13 +158,15 @@ class GlobalLobbyScene {
             }
         }
 
-        // ── Emote input: keys 1–5 ─────────────────────────────────────────────
+        // ── Emote input: keys 1–5 (keyboard) or LB/RB/LT/RT/X (gamepad) ──────
+        // Gamepad mapping: LB=4 RB=5 LT=6 RT=7 X=2
+        const GP_EMOTE_BUTTONS = [4, 5, 6, 7, 2];
         for (let i = 0; i < GLOBAL_EMOTES.length; i++) {
             const emote = GLOBAL_EMOTES[i];
             const keyPressed = keys[emote.key] && !this._gpPrev['emote' + i];
-            // D-pad: buttons 12=up,13=down,14=left,15=right — use face buttons for emotes on gamepad
-            // Face buttons: 0=A,1=B,2=X,3=Y → already used; map D-pad right+face combos later
-            if (keyPressed) {
+            const gpBtnIdx   = GP_EMOTE_BUTTONS[i];
+            const gpPressed  = gp && gp.buttons[gpBtnIdx]?.pressed && !this._gpPrev['gpEmote' + i];
+            if (keyPressed || gpPressed) {
                 this.localEmote = { emoji: emote.emoji, timer: 120, y: 0 };
                 nm.sendEmote(emote.key);
             }
@@ -192,6 +197,13 @@ class GlobalLobbyScene {
                 keys['escape'] = false;
                 keys['Escape'] = false;
             }
+        }
+
+        // ── Lobby menu: Start button or B when no pending invite ──────────────
+        const startPressed = gp && gp.buttons[9]?.pressed && !this._gpPrev.start;
+        const bForMenu     = !this.pendingInvite && gp && gp.buttons[1]?.pressed && !this._gpPrev.gpB;
+        if (startPressed || bForMenu) {
+            if (typeof window.toggleLobbyMenu === 'function') window.toggleLobbyMenu();
         }
 
         // ── Exit: Escape (when no modal open) ─────────────────────────────────
@@ -227,10 +239,16 @@ class GlobalLobbyScene {
             gpY:    gp?.buttons[3]?.pressed,
             gpA:    gp?.buttons[0]?.pressed,
             gpB:    gp?.buttons[1]?.pressed,
+            start:  gp?.buttons[9]?.pressed,
             e:      keys['e'],
             enter:  keys['enter'],
             escape: keys['escape'] || keys['Escape'],
             emote0: keys['1'], emote1: keys['2'], emote2: keys['3'], emote3: keys['4'], emote4: keys['5'],
+            gpEmote0: gp?.buttons[4]?.pressed,
+            gpEmote1: gp?.buttons[5]?.pressed,
+            gpEmote2: gp?.buttons[6]?.pressed,
+            gpEmote3: gp?.buttons[7]?.pressed,
+            gpEmote4: gp?.buttons[2]?.pressed,
         };
     }
 
@@ -375,6 +393,9 @@ class GlobalLobbyScene {
         const startX = (W - totalW) / 2;
         const startY = H - slotH - 16;
 
+        const useGamepad = window.inputManager?.lastInputType === 'GAMEPAD';
+        const GP_LABELS = ['LB', 'RB', 'LT', 'RT', 'X'];
+
         GLOBAL_EMOTES.forEach((emote, i) => {
             const x = startX + i * (slotW + gap);
             const isActive = this.localEmote?.emoji === emote.emoji && (this.localEmote?.timer || 0) > 100;
@@ -391,7 +412,8 @@ class GlobalLobbyScene {
             ctx.fillText(emote.emoji, x + slotW / 2, startY + 27);
             ctx.font = 'bold 10px Arial';
             ctx.fillStyle = 'rgba(255,255,255,0.45)';
-            ctx.fillText(`[${emote.key}]`, x + slotW / 2, startY + 44);
+            const label = useGamepad ? GP_LABELS[i] : `[${emote.key}]`;
+            ctx.fillText(label, x + slotW / 2, startY + 44);
             ctx.restore();
         });
     }
@@ -412,7 +434,8 @@ class GlobalLobbyScene {
         ctx.fillText(emoji, x + 27, y + 25);
         ctx.font = 'bold 9px Arial';
         ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.fillText('[TAB]', x + 27, y + 36);
+        const heroHint = window.inputManager?.lastInputType === 'GAMEPAD' ? '[Y]' : '[TAB]';
+        ctx.fillText(heroHint, x + 27, y + 36);
         ctx.restore();
     }
 
@@ -431,8 +454,9 @@ class GlobalLobbyScene {
 
     _drawNearbyPrompt(ctx) {
         const name = this.nearbyPlayer.username;
-        const text = `Press [E] / [A]  ·  Challenge ${name}`;
-        this._drawCenteredHUD(ctx, text, canvas.height / 2 + 120, 'rgba(255,220,50,0.9)');
+        const useGamepad = window.inputManager?.lastInputType === 'GAMEPAD';
+        const hint = useGamepad ? '[A]' : '[E] / [A]';
+        this._drawCenteredHUD(ctx, `${hint}  ·  Challenge ${name}`, canvas.height / 2 + 120, 'rgba(255,220,50,0.9)');
     }
 
     _drawInvitePrompt(ctx) {

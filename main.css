@@ -4005,6 +4005,14 @@ input:checked+.slider:before {
     font-weight: 600;
 }
 
+.gamepad-hint {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    text-align: center;
+    margin-top: 12px;
+    letter-spacing: 0.5px;
+}
+
 .cloud-conflict-desc {
     font-size: 14px;
     color: rgba(255, 255, 255, 0.7);

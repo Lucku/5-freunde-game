@@ -39,13 +39,14 @@ class UIManager {
         else if (this.uiState === 'ONLINE_LOBBY')  screenId = 'online-lobby-screen';
         else if (this.uiState === 'SIGN_IN') screenId = 'cloud-login-modal';
         else if (this.uiState === 'CHANGE_SERVER') screenId = 'server-config-modal';
+        else if (this.uiState === 'GLOBAL_LOBBY_MENU') screenId = 'global-lobby-menu';
 
         if (!screenId) return [];
         const screen = document.getElementById(screenId);
         if (!screen) return [];
 
         // For text-entry modals and options, inputs are also navigable so the gamepad can reach them
-        const inputStates = ['SIGN_IN', 'OPTIONS', 'CHANGE_SERVER'];
+        const inputStates = ['SIGN_IN', 'OPTIONS', 'CHANGE_SERVER', 'ONLINE_LOBBY'];
         const inputSelector = inputStates.includes(this.uiState)
             ? ', input[type="text"], input[type="password"], input[type="url"]'
             : '';

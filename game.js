@@ -495,6 +495,12 @@ function handleGamepadMenu() {
         return;
     }
 
+    // --- GLOBAL LOBBY (walk-around scene handles its own input) ---
+    if (uiState === 'GLOBAL_LOBBY') {
+        lastGamepadState = { a, b };
+        return;
+    }
+
     // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
     if (b && !lastGamepadState.b) {
         if (uiState === 'OPTIONS') closeOptions();
@@ -510,6 +516,8 @@ function handleGamepadMenu() {
         else if (uiState === 'COMPLETION') closeCompletion();
         else if (uiState === 'BUGREPORT') closeBugReport();
         else if (uiState === 'TUTORIAL') Manual.close();
+        else if (uiState === 'ONLINE_LOBBY') onlineLobby.close();
+        else if (uiState === 'GLOBAL_LOBBY_MENU') toggleLobbyMenu();
         uiDebounce = 15;
     }
 
@@ -1920,6 +1928,30 @@ function togglePause() {
         audioManager.stopLoop('attack_earth_roll');
         audioManager.stopLoop('special_spirit_charging');
     }
+}
+
+function toggleLobbyMenu() {
+    const menu = document.getElementById('global-lobby-menu');
+    const isOpen = menu.style.display !== 'none';
+    if (isOpen) {
+        menu.style.display = 'none';
+        setUIState('GLOBAL_LOBBY');
+    } else {
+        menu.style.display = 'flex';
+        setUIState('GLOBAL_LOBBY_MENU');
+    }
+}
+
+function quitGlobalLobby() {
+    document.getElementById('global-lobby-menu').style.display = 'none';
+    const nm = window.networkManager;
+    if (nm) nm.leaveGlobalLobby();
+    if (window.globalLobbyScene) {
+        window.globalLobbyScene._cleanup();
+        window.globalLobbyScene = null;
+    }
+    if (window.initMenu) window.initMenu();
+    else { setUIState('MENU'); document.getElementById('menu-overlay').style.display = 'flex'; }
 }
 
 // Pause or resume battle_sound_sync to keep beat visualizations in sync with the music
@@ -4238,8 +4270,8 @@ function masterLoop(timestamp) {
             return; // Skip normal game loop
         }
 
-        // --- GLOBAL LOBBY STATE ---
-        if (uiState === 'GLOBAL_LOBBY' && window.globalLobbyScene) {
+        // --- GLOBAL LOBBY STATE (also draw during lobby menu so canvas stays live) ---
+        if ((uiState === 'GLOBAL_LOBBY' || uiState === 'GLOBAL_LOBBY_MENU') && window.globalLobbyScene) {
             window.globalLobbyScene.update();
             window.globalLobbyScene.draw(ctx);
             return;

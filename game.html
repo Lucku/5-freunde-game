@@ -260,6 +260,19 @@
         </div>
     </div>
 
+    <!-- Global Lobby Menu (replaces pause in the walk-around online lobby) -->
+    <div id="global-lobby-menu"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:5000; flex-direction:column; align-items:center; justify-content:center; color:white;">
+        <div class="modal-panel">
+            <div class="screen-header" style="margin-bottom: 10px;">
+                <div class="screen-title">GLOBAL LOBBY</div>
+            </div>
+            <button class="pause-resume-btn" onclick="toggleLobbyMenu()">▶ RESUME</button>
+            <button class="pause-quit-btn" onclick="quitGlobalLobby()">← QUIT LOBBY</button>
+            <div class="gamepad-hint">🎮 Navigate: D-Pad · Confirm: A · Resume: B</div>
+        </div>
+    </div>
+
     <!-- Level Up Screen -->
     <div id="levelup-screen">
         <div class="screen-header" style="margin-bottom: 24px;">
@@ -879,6 +892,7 @@
             <button class="screen-action-btn" style="background:#27ae60; margin-top:8px;"
                 onclick="CloudSaveManager.submitLogin(true)">CREATE ACCOUNT</button>
             <button class="screen-back-btn" onclick="CloudSaveManager.hideLoginModal()">← CANCEL</button>
+            <div class="gamepad-hint">🎮 Navigate: D-Pad · Confirm: A · Cancel: B</div>
         </div>
     </div>
 
@@ -905,6 +919,7 @@
             <button class="screen-action-btn" style="background:#2980b9; margin-top:8px;"
                 onclick="saveServerConfig()">SAVE</button>
             <button class="screen-back-btn" onclick="closeServerConfigModal()">← CANCEL</button>
+            <div class="gamepad-hint">🎮 Navigate: D-Pad · Confirm: A · Cancel: B</div>
         </div>
     </div>
 
@@ -991,6 +1006,7 @@
             </div>
 
             <button class="screen-back-btn" onclick="onlineLobby.close()">← BACK</button>
+            <div class="gamepad-hint">🎮 Navigate: D-Pad · Confirm: A · Back: B</div>
         </div>
     </div>
 
