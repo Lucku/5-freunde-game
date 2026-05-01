@@ -29,6 +29,7 @@ class AchievementsUI {
             if (/^(AIR_|wind_|TEMPEST_)/.test(id)) return 'DLC: WAKER OF WINDS';
             if (/^faith_/.test(id)) return 'DLC: FAITH OF FORTUNE';
             if (/^sickness_/.test(id)) return 'DLC: SYMPHONY OF SICKNESS';
+            if (/^echo_/.test(id)) return 'DLC: ECHOS OF ETERNITY';
             return 'CORE';
         };
 
@@ -36,7 +37,7 @@ class AchievementsUI {
             'PROGRESSION', 'MASTERY', 'STORY', 'CHALLENGES', 'ONLINE',
             'DLC: RISE OF THE ROCK', 'DLC: TOURNAMENT OF THUNDER',
             'DLC: CHAMPIONS OF CHAOS', 'DLC: WAKER OF WINDS',
-            'DLC: FAITH OF FORTUNE', 'DLC: SYMPHONY OF SICKNESS', 'CORE'
+            'DLC: FAITH OF FORTUNE', 'DLC: SYMPHONY OF SICKNESS', 'DLC: ECHOS OF ETERNITY', 'CORE'
         ];
 
         const groups = {};

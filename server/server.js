@@ -1,21 +1,21 @@
-try { require('dotenv').config(); } catch {}
+try { require('dotenv').config(); } catch { }
 
-const express   = require('express');
-const cors      = require('cors');
-const bcrypt    = require('bcrypt');
-const jwt       = require('jsonwebtoken');
-const Database  = require('better-sqlite3');
-const http      = require('http');
+const express = require('express');
+const cors = require('cors');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const Database = require('better-sqlite3');
+const http = require('http');
 const WebSocket = require('ws');
-const fs        = require('fs');
-const path      = require('path');
+const fs = require('fs');
+const path = require('path');
 
-const PORT       = process.env.PORT       || 3001;
+const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
-const DATA_DIR   = path.join(__dirname, 'data');
-const SAVES_DIR  = path.join(DATA_DIR, 'saves');
+const DATA_DIR = path.join(__dirname, 'data');
+const SAVES_DIR = path.join(DATA_DIR, 'saves');
 
-fs.mkdirSync(DATA_DIR,  { recursive: true });
+fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(SAVES_DIR, { recursive: true });
 
 // ── Database ──────────────────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ app.post('/api/leaderboard', requireAuth, (req, res) => {
         INSERT INTO scores (user_id, username, hero, mode, wave, score, outcome, time_sec, submitted_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(req.user.id, req.user.username, hero || 'fire', mode || 'standard',
-           Math.max(0, wave | 0), score | 0, outcome || 'death', Math.max(0, timeSec | 0), Date.now());
+        Math.max(0, wave | 0), score | 0, outcome || 'death', Math.max(0, timeSec | 0), Date.now());
     // Keep at most 1000 rows total — prune oldest beyond that
     db.prepare(`DELETE FROM scores WHERE id NOT IN (SELECT id FROM scores ORDER BY score DESC LIMIT 1000)`).run();
     res.json({ ok: true });
@@ -89,13 +89,13 @@ app.get('/api/leaderboard', (req, res) => {
 
 app.post('/api/register', async (req, res) => {
     const { username, password } = req.body || {};
-    if (!username || !password)                    return res.status(400).json({ error: 'Username and password required' });
+    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
     if (username.length < 3 || username.length > 32) return res.status(400).json({ error: 'Username must be 3–32 characters' });
-    if (!/^[a-zA-Z0-9_-]+$/.test(username))        return res.status(400).json({ error: 'Username may only contain letters, numbers, _ and -' });
-    if (password.length < 6)                        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (!/^[a-zA-Z0-9_-]+$/.test(username)) return res.status(400).json({ error: 'Username may only contain letters, numbers, _ and -' });
+    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
     try {
         const hash = await bcrypt.hash(password, 10);
-        const row  = db.prepare('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)').run(username, hash, Date.now());
+        const row = db.prepare('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)').run(username, hash, Date.now());
         const token = jwt.sign({ id: row.lastInsertRowid, username }, JWT_SECRET, { expiresIn: '90d' });
         res.json({ token, username });
     } catch (e) {
@@ -134,7 +134,7 @@ app.put('/api/save', requireAuth, (req, res) => {
     const { blob } = req.body || {};
     if (!blob || typeof blob !== 'string') return res.status(400).json({ error: 'Save blob required' });
     const savePath = path.join(SAVES_DIR, `${req.user.id}.save`);
-    const savedAt  = Date.now();
+    const savedAt = Date.now();
     try {
         fs.writeFileSync(savePath, blob, 'utf8');
         fs.writeFileSync(savePath + '.meta', JSON.stringify({ savedAt }), 'utf8');
@@ -197,15 +197,15 @@ function partner(lobby, role) {
 // ── WebSocket connection handling ─────────────────────────────────────────────
 
 wss.on('connection', (ws, req) => {
-    const url   = new URL(req.url, 'http://localhost');
+    const url = new URL(req.url, 'http://localhost');
     const token = url.searchParams.get('token');
-    const user  = verifyToken(token);
+    const user = verifyToken(token);
 
     if (!user) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Unauthorized' })); ws.close(); return; }
 
-    ws.userId   = user.id;
+    ws.userId = user.id;
     ws.username = user.username;
-    ws.role     = null;
+    ws.role = null;
     ws.lobbyCode = null;
 
     send(ws, { type: 'CONNECTED', username: user.username });
@@ -263,10 +263,10 @@ function handleMessage(ws, msg) {
         case 'JOIN_LOBBY': {
             const code = (msg.code || '').toUpperCase().trim();
             const lobby = lobbies.get(code);
-            if (!lobby)                          return send(ws, { type: 'ERROR', message: 'Lobby not found' });
-            if (lobby.guest)                     return send(ws, { type: 'ERROR', message: 'Lobby is full' });
+            if (!lobby) return send(ws, { type: 'ERROR', message: 'Lobby not found' });
+            if (lobby.guest) return send(ws, { type: 'ERROR', message: 'Lobby is full' });
             if (lobby.host.userId === ws.userId) return send(ws, { type: 'ERROR', message: 'Cannot join your own lobby' });
-            if (lobby.phase !== 'waiting')       return send(ws, { type: 'ERROR', message: 'Game already in progress' });
+            if (lobby.phase !== 'waiting') return send(ws, { type: 'ERROR', message: 'Game already in progress' });
 
             leaveLobby(ws);
             lobby.guest = { ws, userId: ws.userId, username: ws.username };
@@ -276,7 +276,7 @@ function handleMessage(ws, msg) {
             userLobby.set(ws.userId, code);
 
             send(lobby.host.ws, { type: 'GUEST_JOINED', guestUsername: ws.username, guestHero: lobby.guestHero });
-            send(ws,            { type: 'LOBBY_JOINED', code, hostUsername: lobby.host.username, hostHero: lobby.hostHero });
+            send(ws, { type: 'LOBBY_JOINED', code, hostUsername: lobby.host.username, hostHero: lobby.hostHero });
             break;
         }
 
@@ -311,7 +311,7 @@ function handleMessage(ws, msg) {
                     hostHero: lobby.hostHero, guestHero: lobby.guestHero,
                     hostUsername: lobby.host.username, guestUsername: lobby.guest.username,
                 };
-                send(lobby.host.ws,  startMsg);
+                send(lobby.host.ws, startMsg);
                 send(lobby.guest.ws, startMsg);
             }
             break;
@@ -349,7 +349,14 @@ function handleMessage(ws, msg) {
         // ── Global Lobby ───────────────────────────────────────────────────────
 
         case 'JOIN_GLOBAL_LOBBY': {
-            if (globalLobby.has(ws.userId)) break; // already in
+            // Session takeover: evict the stale connection so the new device takes over cleanly
+            if (globalLobby.has(ws.userId)) {
+                const stale = globalLobby.get(ws.userId);
+                stale.ws.inGlobalLobby = false;
+                stale.ws.terminate();
+                globalLobby.delete(ws.userId);
+                broadcastGlobal({ type: 'GLOBAL_PLAYER_LEFT', userId: ws.userId }, null);
+            }
             const entry = { ws, userId: ws.userId, username: ws.username, x: 1200, y: 1300, angle: 0, hero: msg.hero || 'fire' };
             globalLobby.set(ws.userId, entry);
             ws.inGlobalLobby = true;
@@ -388,7 +395,7 @@ function handleMessage(ws, msg) {
 
         case 'GAME_INVITE': {
             const inviter = globalLobby.get(ws.userId);
-            const target  = globalLobby.get(msg.targetUserId);
+            const target = globalLobby.get(msg.targetUserId);
             if (!inviter || !target) break;
             const inviteId = Math.random().toString(36).slice(2, 10);
             pendingInvites.set(inviteId, { fromUserId: ws.userId, targetUserId: msg.targetUserId });
@@ -401,7 +408,7 @@ function handleMessage(ws, msg) {
             if (!invite) break;
             pendingInvites.delete(msg.inviteId);
             const inviter = globalLobby.get(invite.fromUserId);
-            const target  = globalLobby.get(invite.targetUserId);
+            const target = globalLobby.get(invite.targetUserId);
             if (!msg.accept) {
                 if (inviter) send(inviter.ws, { type: 'GAME_INVITE_DECLINED', inviteId: msg.inviteId });
                 break;
@@ -416,21 +423,21 @@ function handleMessage(ws, msg) {
             broadcastGlobal({ type: 'GLOBAL_PLAYER_LEFT', userId: invite.targetUserId }, null);
             // Create a private lobby and start the game immediately
             const code = makeLobbyCode();
-            const hostHero  = inviter.hero;
+            const hostHero = inviter.hero;
             const guestHero = target.hero;
             lobbies.set(code, {
                 code, phase: 'in_game',
-                host:  { ws: inviter.ws, userId: inviter.userId, username: inviter.username },
-                guest: { ws: target.ws,  userId: target.userId,  username: target.username },
+                host: { ws: inviter.ws, userId: inviter.userId, username: inviter.username },
+                guest: { ws: target.ws, userId: target.userId, username: target.username },
                 hostHero, guestHero, hostConfirmed: true, guestConfirmed: true,
             });
             inviter.ws.lobbyCode = code; inviter.ws.role = 'host';
-            target.ws.lobbyCode  = code; target.ws.role  = 'guest';
+            target.ws.lobbyCode = code; target.ws.role = 'guest';
             userLobby.set(inviter.userId, code);
-            userLobby.set(target.userId,  code);
+            userLobby.set(target.userId, code);
             const startMsg = { type: 'GAME_START', hostHero, guestHero, hostUsername: inviter.username, guestUsername: target.username };
             send(inviter.ws, startMsg);
-            send(target.ws,  startMsg);
+            send(target.ws, startMsg);
             break;
         }
     }
@@ -488,7 +495,7 @@ function leaveLobby(ws) {
 function cleanupLobby(code) {
     const lobby = lobbies.get(code);
     if (!lobby) return;
-    if (lobby.host)  { userLobby.delete(lobby.host.userId);  lobby.host.ws.lobbyCode  = null; lobby.host.ws.role  = null; }
+    if (lobby.host) { userLobby.delete(lobby.host.userId); lobby.host.ws.lobbyCode = null; lobby.host.ws.role = null; }
     if (lobby.guest) { userLobby.delete(lobby.guest.userId); lobby.guest.ws.lobbyCode = null; lobby.guest.ws.role = null; }
     lobbies.delete(code);
 }

@@ -4,12 +4,22 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Fixed
+- **Achievements menu: Echos of Eternity**: The 10 achievements for the Echos of Eternity DLC (`echo_` prefix) were falling into the "CORE" category because the `categoryFor()` function had no case for them. Added the missing prefix check and a new `DLC: ECHOS OF ETERNITY` section in the group order.
+
+### Fixed
+- **DLC menu back button**: Added `flex-shrink: 0` to the DLC list and back button so they are no longer compressed in the scrollable container. Renamed button label from "CLOSE" to "BACK" for consistency with other menus.
+- **DLC menu controller support**: The gamepad B button now closes the DLC menu (added `DLC` state to the back-button handler). The `dlc-card` elements were already focusable; navigation and selection already worked.
+- **DLC toggle dialog**: Replaced the native browser `alert()` with the custom styled `info-dialogue-screen`. The dialog is controller-navigable (A to confirm, B to dismiss), shows the DLC title and action, and returns to the DLC menu on close.
+- **Info dialogue controller input**: Added `!lastGamepadState` guards to the A and B handlers in the `INFO_DIALOGUE` gamepad block. Without them, holding A to select a DLC card would cause the restart dialog to auto-dismiss once the debounce expired (~250 ms).
+
 ### Added
 - **Global Lobby: controller-friendly emotes**: Shoulder buttons now trigger all 5 emotes on gamepad — LB=Wave, RB=Dance, LT=Laugh, RT=Cheer, X=Shrug. The emote bar and nearby-player prompt adapt their labels to show gamepad button names when a controller is active. The hero-change button shows `[Y]` instead of `[TAB]` for gamepad users.
 - **Global Lobby: lobby menu (Start / B)**: Pressing Start or B (when no invite is pending) in the Global Lobby walk-around scene opens an overlay with Resume and Quit Lobby options, navigable with D-Pad / A / B. The scene continues running in the background so networking stays alive. The old behavior of B immediately exiting is removed.
 - **Online dialogues: controller hints**: The Sign In modal, Server Config modal, and Online Lobby screen now show a `🎮 Navigate: D-Pad · Confirm: A · Cancel: B` hint line. The join-code input on the Online Lobby screen is now reachable via D-Pad navigation (it was previously excluded from the controller focus list).
 
 ### Fixed
+- **Global Lobby duplicate session**: When the same account connects from a second device while already present in the Global Lobby, the server now terminates the stale connection and lets the new device take over cleanly (session takeover). Previously the second join was silently dropped, leaving the new device invisible to all other players.
 - **Online lobby WebSocket connection**: When the server hostname was configured via Options → Server (which stores a bare hostname like `192.168.1.x`), the Online lobby passed it raw to `NetworkManager.connect()`, whose `replace(/^http/, 'ws')` found no match and produced a relative URL. Running from a `file://` page, the browser resolved this to `file:///...`, causing "file is not allowed" WebSocket errors. The lobby now routes through `CloudSaveManager._baseUrl()`, which already prepends `http://` and port 3001 for bare hostnames.
 
 ### Added

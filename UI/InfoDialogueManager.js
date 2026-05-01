@@ -58,9 +58,18 @@ class InfoDialogueManager {
         btn.style.color = checked ? '#f1c40f' : '#888';
     }
 
+    showNow(title, body, returnState = 'MENU') {
+        this._current = { id: null, title, body };
+        this._immediateReturnState = returnState;
+        this._dontShowAgain = false;
+        this._render();
+        document.getElementById('info-dialogue-screen').style.display = 'flex';
+        setUIState('INFO_DIALOGUE');
+    }
+
     close() {
         if (!this._current) return;
-        if (this._dontShowAgain) {
+        if (this._dontShowAgain && this._current.id) {
             if (!gameConfig.dismissedDialogues) gameConfig.dismissedDialogues = [];
             if (!gameConfig.dismissedDialogues.includes(this._current.id)) {
                 gameConfig.dismissedDialogues.push(this._current.id);
@@ -69,8 +78,14 @@ class InfoDialogueManager {
         }
         document.getElementById('info-dialogue-screen').style.display = 'none';
         this._current = null;
-        setUIState('MENU');
 
+        if (this._immediateReturnState) {
+            setUIState(this._immediateReturnState);
+            this._immediateReturnState = null;
+            return;
+        }
+
+        setUIState('MENU');
         if (this._queue.length > 0) {
             setTimeout(() => this._showNext(), 80);
         } else {

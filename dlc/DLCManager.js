@@ -125,7 +125,6 @@ class DLCManager {
             enabled = enabled.filter(e => e !== id);
         }
         this._saveEnabledDLCs(enabled);
-        alert(`DLC ${id} ${enable ? 'enabled' : 'disabled'}. Please restart the game.`);
     }
 
     async loadDLC(id) {

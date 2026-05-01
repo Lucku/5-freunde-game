@@ -4302,7 +4302,7 @@ input:checked+.slider:before {
 /* List container */
 #dlc-list {
     display: flex; flex-direction: column; gap: 12px;
-    width: 100%; max-width: 800px;
+    width: 100%; max-width: 800px; flex-shrink: 0;
 }
 
 /* Individual DLC card */

@@ -419,12 +419,12 @@ function handleGamepadMenu() {
 
     // --- INFO DIALOGUE ---
     if (uiState === 'INFO_DIALOGUE') {
-        if (a) {
+        if (a && !lastGamepadState.a) {
             const focused = getFocusables()[uiSelectionIndex];
             if (focused) focused.click();
             uiDebounce = 20;
         }
-        if (b) {
+        if (b && !lastGamepadState.b) {
             infoDialogueManager.close();
             uiDebounce = 20;
         }
@@ -514,6 +514,7 @@ function handleGamepadMenu() {
         else if (uiState === 'COLLECTION') closeCollection();
         else if (uiState === 'ALTAR') closeAltar();
         else if (uiState === 'COMPLETION') closeCompletion();
+        else if (uiState === 'DLC') closeDLCMenu();
         else if (uiState === 'BUGREPORT') closeBugReport();
         else if (uiState === 'TUTORIAL') Manual.close();
         else if (uiState === 'ONLINE_LOBBY') onlineLobby.close();
@@ -1154,8 +1155,14 @@ function renderDLCList() {
         `;
 
         card.onclick = () => {
-            window.dlcManager.toggleDLC(dlc.id, !dlc.active);
+            const enabling = !dlc.active;
+            window.dlcManager.toggleDLC(dlc.id, enabling);
             renderDLCList();
+            infoDialogueManager.showNow(
+                enabling ? '✦ DLC ENABLED ✦' : '✦ DLC DISABLED ✦',
+                `<strong>${dlc.title}</strong> has been ${enabling ? 'enabled' : 'disabled'}.<br><br>Please restart the game for the changes to take effect.`,
+                'DLC'
+            );
         };
 
         container.appendChild(card);
