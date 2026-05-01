@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Added
+- **Online 2-Player: pre-game mode selection**: After both players confirm their hero in the online lobby (or accept a Global Lobby challenge invite), a mode-selection screen is now shown before the match starts. The host chooses CO-OP or VERSUS (keyboard ◄►, gamepad D-Pad, or click); the guest sees the selection update in real time and a "Waiting for host…" message. The host presses START (Enter, A button, or click) to send `START_ONLINE_GAME` to the server, which broadcasts `GAME_START` with the chosen mode to both players. This works from both the regular invite-code lobby (`OnlineLobby.js` HTML panel) and the Global Lobby walk-around scene (canvas overlay). The server handles the new `pre_game` lobby phase, `MODE_SELECT`, and `START_ONLINE_GAME` message types.
+
+### Fixed
+- **Online Co-op: guest triggers local death timer on death**: When the guest's player died, the host snapshot set `player.isDead = true` before the local co-op revival branch (which requires `!player.isDead`) could run, causing the guest to start a 3-second death timer and call `gameOver()`. Fixed by adding `!isOnlineGuest` to the death-timer guard so guests never start the local death countdown. Additionally, when the host revives the guest (`isDead` transitions `true → false` in a snapshot), `isPlayerDying` and `playerDeathTimer` are now reset on the guest. Revival markers (`p1RevivalMarker`, `p2RevivalMarker`) are included in every snapshot with perspective-swapped keys so the guest sees the correct revival progress indicator.
+- **Global Lobby: gamepad controls**: `Museum.update()` was handling the Escape and B-button exit even when running inside the Global Lobby (`noInteraction: true`). This caused the B button to exit to the main menu immediately (bypassing the lobby-menu toggle) and left the museum canvas visible as a background when the HTML menu overlay appeared. Both handlers are now guarded with `!this.noInteraction` so `GlobalLobbyScene` manages its own exits, which also prevents the artifact of online-count and hero-selector button remnants persisting on screen.
+- **VersusMenu: controller focus swallowed**: `inputLoop()` did not update `this.inputLoopId` with each new `requestAnimationFrame` call, so `close()` always cancelled a stale handle. When the menu was closed and reopened, two loops ran simultaneously, causing controller input to be processed twice per frame (swallowed or erratic focus). `inputLoopId` is now updated every iteration, and `open()` / `open2PVersus()` cancel any existing RAF before starting a fresh loop.
+
+### Changed
+- **Global Lobby: removed hero-selector HUD button**: The flame-emoji / `[TAB]` button that appeared in the top-right corner of the Global Lobby has been removed. The hero-selector overlay is still accessible via the **Tab** key (keyboard) or **Y** button (gamepad) — only the visual indicator is gone, decluttering the HUD.
+
 ### Fixed
 - **Achievements menu: Echos of Eternity**: The 10 achievements for the Echos of Eternity DLC (`echo_` prefix) were falling into the "CORE" category because the `categoryFor()` function had no case for them. Added the missing prefix check and a new `DLC: ECHOS OF ETERNITY` section in the group order.
 

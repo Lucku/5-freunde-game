@@ -1364,7 +1364,7 @@ let pendingGameMode = null;
 // ── Online Co-op entry point ──────────────────────────────────────────────────
 // Called by OnlineLobby.js when the server fires GAME_START.
 function startOnlineGame(msg) {
-    // msg: { hostHero, guestHero, hostUsername, guestUsername }
+    // msg: { hostHero, guestHero, hostUsername, guestUsername, mode }
     const nm = window.networkManager;
 
     isOnlineMode  = true;
@@ -1379,9 +1379,16 @@ function startOnlineGame(msg) {
     window._onlineGuestName = msg.guestUsername || 'Guest';
     _onlineShowNameBar(true);
 
-    // Set co-op flags so all existing co-op rendering and revival logic applies
-    isCoopMode = true;
-    window.isCoopMode = true;
+    const isVersusOnline = msg.mode === 'VERSUS';
+
+    // Set co-op/versus flags
+    isCoopMode = !isVersusOnline;
+    window.isCoopMode = isCoopMode;
+    if (isVersusOnline) {
+        window.is2PlayerVersus = true;
+        isVersusMode = true;
+        window.isVersusMode = true;
+    }
 
     // Hero assignment: host=P1, guest=P2
     const myHero      = isOnlineHost ? msg.hostHero : msg.guestHero;
@@ -1428,7 +1435,7 @@ function startOnlineGame(msg) {
     nm.on('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
     nm.on('GAME_OVER', () => { if (isOnlineGuest) gameOver(false); });
 
-    startGame('NORMAL');
+    startGame(isVersusOnline ? 'VERSUS' : 'NORMAL');
 }
 window.startOnlineGame = startOnlineGame;
 
@@ -4063,6 +4070,8 @@ function _onlineSendSnapshot() {
             isEnemy: !!p.isEnemy, isExplosive: !!p.isExplosive, isCrit: !!p.isCrit,
         })),
         events: _onlineEvents.splice(0),
+        p1Marker: p1RevivalMarker ? { x: p1RevivalMarker.x, y: p1RevivalMarker.y, progress: p1RevivalMarker.progress, maxProgress: p1RevivalMarker.maxProgress } : null,
+        p2Marker: p2RevivalMarker ? { x: p2RevivalMarker.x, y: p2RevivalMarker.y, progress: p2RevivalMarker.progress, maxProgress: p2RevivalMarker.maxProgress } : null,
     };
 
     nm.relay(snapshot);
@@ -4086,6 +4095,7 @@ function _onlineApplySnapshot(s) {
 
     // Reconcile guest's own player (authoritative HP/level from host)
     if (player && s.p2) {
+        const prevDead = player.isDead;
         player.hp     = s.p2.hp;
         player.maxHp  = s.p2.maxHp;
         player.isDead = s.p2.isDead;
@@ -4096,7 +4106,17 @@ function _onlineApplySnapshot(s) {
         // Position correction only when significantly off (> 80px)
         const _dx = s.p2.x - player.x, _dy = s.p2.y - player.y;
         if (_dx * _dx + _dy * _dy > 6400) { player.x = s.p2.x; player.y = s.p2.y; }
+
+        // Revival: host revived us (isDead went true→false) — cancel any local death state
+        if (prevDead && !player.isDead) {
+            isPlayerDying   = false;
+            playerDeathTimer = 0;
+        }
     }
+
+    // Sync revival markers (host sends its perspective; guest swaps p1↔p2)
+    if (s.p2Marker !== undefined) p1RevivalMarker = s.p2Marker;
+    if (s.p1Marker !== undefined) p2RevivalMarker = s.p1Marker;
 
     // Rebuild ghost enemy array from snapshot
     const _now = Date.now();
@@ -6723,7 +6743,7 @@ function masterLoop(timestamp) {
                     p1RevivalMarker = { x: player.x, y: player.y, progress: 0, maxProgress: 240 };
                     createExplosion(player.x, player.y, '#ffffff');
                     showNotification(isAICompanionMode ? 'You\'re down! Ally is coming to revive you.' : 'P1 down! Stand on marker to revive.');
-                } else if (!isPlayerDying) {
+                } else if (!isPlayerDying && !isOnlineGuest) {
                     isPlayerDying = true;
                     playerDeathTimer = 180; // 3 seconds animation
                     createExplosion(player.x, player.y, '#c0392b');

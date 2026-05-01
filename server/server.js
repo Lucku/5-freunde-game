@@ -152,8 +152,8 @@ const wss = new WebSocket.Server({ server: httpServer, path: '/ws' });
 
 // ── Lobby state ───────────────────────────────────────────────────────────────
 
-// code → { code, phase, host, guest, hostHero, guestHero, hostConfirmed, guestConfirmed }
-// phase: 'waiting' | 'hero_select' | 'in_game' | 'finished'
+// code → { code, phase, host, guest, hostHero, guestHero, hostConfirmed, guestConfirmed, hostMode }
+// phase: 'waiting' | 'hero_select' | 'pre_game' | 'in_game' | 'finished'
 // host/guest: { ws, userId, username } | null
 const lobbies = new Map();
 
@@ -282,7 +282,7 @@ function handleMessage(ws, msg) {
 
         case 'HERO_SELECT': {
             const lobby = lobbies.get(ws.lobbyCode);
-            if (!lobby || lobby.phase !== 'hero_select') return;
+            if (!lobby || (lobby.phase !== 'hero_select' && lobby.phase !== 'pre_game')) return;
             const hero = msg.hero;
             if (ws.role === 'host') {
                 lobby.hostHero = hero;
@@ -305,22 +305,46 @@ function handleMessage(ws, msg) {
                 send(lobby.host.ws, { type: 'HERO_CONFIRMED', player: 'guest' });
             }
             if (lobby.hostConfirmed && lobby.guestConfirmed) {
-                lobby.phase = 'in_game';
-                const startMsg = {
-                    type: 'GAME_START',
+                lobby.phase = 'pre_game';
+                lobby.hostMode = 'NORMAL';
+                const preGameMsg = {
+                    type: 'PRE_GAME',
                     hostHero: lobby.hostHero, guestHero: lobby.guestHero,
                     hostUsername: lobby.host.username, guestUsername: lobby.guest.username,
                 };
-                send(lobby.host.ws, startMsg);
-                send(lobby.guest.ws, startMsg);
+                send(lobby.host.ws, preGameMsg);
+                send(lobby.guest.ws, preGameMsg);
             }
+            break;
+        }
+
+        case 'START_ONLINE_GAME': {
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby || lobby.phase !== 'pre_game' || ws.role !== 'host') return;
+            lobby.phase = 'in_game';
+            const startMsg = {
+                type: 'GAME_START',
+                hostHero: lobby.hostHero, guestHero: lobby.guestHero,
+                hostUsername: lobby.host.username, guestUsername: lobby.guest.username,
+                mode: msg.mode || lobby.hostMode || 'NORMAL',
+            };
+            send(lobby.host.ws, startMsg);
+            send(lobby.guest.ws, startMsg);
+            break;
+        }
+
+        case 'MODE_SELECT': {
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby || lobby.phase !== 'pre_game' || ws.role !== 'host') return;
+            lobby.hostMode = msg.mode || 'NORMAL';
+            if (lobby.guest) send(lobby.guest.ws, { type: 'MODE_UPDATE', mode: lobby.hostMode });
             break;
         }
 
         case 'RELAY': {
             // Generic relay — host sends game state, guest sends inputs
             const lobby = lobbies.get(ws.lobbyCode);
-            if (!lobby || lobby.phase !== 'in_game') return;
+            if (!lobby || (lobby.phase !== 'in_game' && lobby.phase !== 'pre_game')) return;
             const p = partner(lobby, ws.role);
             if (p) send(p.ws, { type: 'RELAY', from: ws.role, payload: msg.payload });
             break;
@@ -421,23 +445,23 @@ function handleMessage(ws, msg) {
             target.ws.inGlobalLobby = false;
             broadcastGlobal({ type: 'GLOBAL_PLAYER_LEFT', userId: invite.fromUserId }, null);
             broadcastGlobal({ type: 'GLOBAL_PLAYER_LEFT', userId: invite.targetUserId }, null);
-            // Create a private lobby and start the game immediately
+            // Create a private lobby in pre_game phase so both players can select mode
             const code = makeLobbyCode();
             const hostHero = inviter.hero;
             const guestHero = target.hero;
             lobbies.set(code, {
-                code, phase: 'in_game',
+                code, phase: 'pre_game',
                 host: { ws: inviter.ws, userId: inviter.userId, username: inviter.username },
                 guest: { ws: target.ws, userId: target.userId, username: target.username },
-                hostHero, guestHero, hostConfirmed: true, guestConfirmed: true,
+                hostHero, guestHero, hostConfirmed: true, guestConfirmed: true, hostMode: 'NORMAL',
             });
             inviter.ws.lobbyCode = code; inviter.ws.role = 'host';
             target.ws.lobbyCode = code; target.ws.role = 'guest';
             userLobby.set(inviter.userId, code);
             userLobby.set(target.userId, code);
-            const startMsg = { type: 'GAME_START', hostHero, guestHero, hostUsername: inviter.username, guestUsername: target.username };
-            send(inviter.ws, startMsg);
-            send(target.ws, startMsg);
+            const preGameMsg = { type: 'PRE_GAME', hostHero, guestHero, hostUsername: inviter.username, guestUsername: target.username };
+            send(inviter.ws, preGameMsg);
+            send(target.ws, preGameMsg);
             break;
         }
     }

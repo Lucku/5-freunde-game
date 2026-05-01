@@ -3958,6 +3958,17 @@ input:checked+.slider:before {
     color: rgba(255,255,255,0.5);
 }
 
+/* --- Online mode-selection buttons --- */
+.ol-mode-btn {
+    min-width: 100px;
+    opacity: 0.55;
+    transition: opacity 0.15s;
+}
+.ol-mode-btn.ol-mode-selected {
+    opacity: 1;
+    box-shadow: 0 0 0 2px #f1c40f;
+}
+
 /* --- Cloud Save UI --- */
 .cloud-form {
     width: 100%;

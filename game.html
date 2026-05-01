@@ -1005,6 +1005,42 @@
                 <div id="ol-status-msg" class="cloud-status" style="min-height:20px;"></div>
             </div>
 
+            <!-- Mode-selection panel (shown after both heroes confirmed) -->
+            <div id="ol-mode-panel" style="flex-direction:column; align-items:center; gap:20px; width:100%; display:none;">
+                <!-- Hero display row -->
+                <div style="display:flex; align-items:center; gap:20px;">
+                    <div style="text-align:center;">
+                        <div id="ol-mode-my-hero" style="font-size:40px;">?</div>
+                        <div id="ol-mode-my-name" style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:4px;">You</div>
+                    </div>
+                    <div style="font-size:22px; color:rgba(255,255,255,0.3);">VS</div>
+                    <div style="text-align:center;">
+                        <div id="ol-mode-partner-hero" style="font-size:40px;">?</div>
+                        <div id="ol-mode-partner-name" style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:4px;">Partner</div>
+                    </div>
+                </div>
+
+                <!-- Mode buttons (host only) -->
+                <div id="ol-mode-buttons" style="display:flex; gap:12px;">
+                    <button id="ol-mode-coop-btn" class="screen-action-btn ol-mode-btn ol-mode-selected"
+                        onclick="onlineLobby.selectMode('NORMAL')">CO-OP</button>
+                    <button id="ol-mode-versus-btn" class="screen-action-btn ol-mode-btn"
+                        onclick="onlineLobby.selectMode('VERSUS')">VERSUS</button>
+                </div>
+
+                <!-- Guest waiting label (hidden for host) -->
+                <div id="ol-mode-waiting" style="display:none; font-size:13px; color:rgba(255,255,255,0.45); letter-spacing:2px;">Waiting for host to choose mode…</div>
+
+                <!-- Selected mode display -->
+                <div id="ol-mode-label" style="font-size:16px; font-weight:700; color:#f1c40f; letter-spacing:3px;">CO-OP</div>
+
+                <!-- Start button (host) / waiting text (guest) -->
+                <button id="ol-start-btn" class="screen-action-btn" onclick="onlineLobby.startOnlineMatch()" style="display:none;">START</button>
+                <div id="ol-mode-guest-wait" style="display:none; font-size:13px; color:rgba(255,255,255,0.45); letter-spacing:2px;">Waiting for host to start…</div>
+
+                <div id="ol-mode-status" class="cloud-status" style="min-height:20px;"></div>
+            </div>
+
             <button class="screen-back-btn" onclick="onlineLobby.close()">← BACK</button>
             <div class="gamepad-hint">🎮 Navigate: D-Pad · Confirm: A · Back: B</div>
         </div>

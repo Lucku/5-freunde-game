@@ -202,6 +202,14 @@ class NetworkManager {
         this.send({ type: 'HERO_CONFIRM' });
     }
 
+    selectMode(mode) {
+        this.send({ type: 'MODE_SELECT', mode });
+    }
+
+    startOnlineMatch(mode) {
+        this.send({ type: 'START_ONLINE_GAME', mode });
+    }
+
     leaveLobby() {
         this.send({ type: 'LEAVE_LOBBY' });
         this.lobbyCode = null;

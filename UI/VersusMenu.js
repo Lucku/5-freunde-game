@@ -49,9 +49,9 @@ class VersusMenuUI {
         this.renderBiomes();
         this.updateFocus();
 
-        if (!this.inputLoopId) {
-            this.inputLoopId = requestAnimationFrame(() => this.inputLoop());
-        }
+        // Cancel any stale loop before starting fresh
+        if (this.inputLoopId) cancelAnimationFrame(this.inputLoopId);
+        this.inputLoopId = requestAnimationFrame(() => this.inputLoop());
     }
 
     renderOpponents() {
@@ -222,9 +222,9 @@ class VersusMenuUI {
         this.colIndex = 0;
         this.updateFocus();
 
-        if (!this.inputLoopId) {
-            this.inputLoopId = requestAnimationFrame(() => this.inputLoop());
-        }
+        // Cancel any stale loop before starting fresh
+        if (this.inputLoopId) cancelAnimationFrame(this.inputLoopId);
+        this.inputLoopId = requestAnimationFrame(() => this.inputLoop());
     }
 
     close() {
@@ -331,7 +331,7 @@ class VersusMenuUI {
             }
         }
 
-        requestAnimationFrame(() => this.inputLoop());
+        this.inputLoopId = requestAnimationFrame(() => this.inputLoop());
     }
 
     updateFocus() {

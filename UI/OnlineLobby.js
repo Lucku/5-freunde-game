@@ -14,6 +14,7 @@ class OnlineLobbyUI {
         this._partnerConfirmed = false;
         this._partnerName  = null;
         this._isHost       = false;
+        this._gameMode     = 'NORMAL';
     }
 
     // ── Open / close ──────────────────────────────────────────────────────────
@@ -105,6 +106,16 @@ class OnlineLobbyUI {
         this._updateWaitingMsg();
     }
 
+    selectMode(mode) {
+        this._gameMode = mode;
+        this._updateModeDisplay(mode);
+        if (this._isHost) window.networkManager?.selectMode(mode);
+    }
+
+    startOnlineMatch() {
+        window.networkManager?.startOnlineMatch(this._gameMode);
+    }
+
     // ── NetworkManager event handlers ─────────────────────────────────────────
 
     _registerHandlers() {
@@ -153,6 +164,46 @@ class OnlineLobbyUI {
             }
         });
 
+        add('PRE_GAME', msg => {
+            // Populate the mode panel hero display (perspective: my = this client's hero)
+            const myHero = this._isHost ? msg.hostHero : msg.guestHero;
+            const partnerHero = this._isHost ? msg.guestHero : msg.hostHero;
+            const myName = this._isHost ? msg.hostUsername : msg.guestUsername;
+            const partnerName = this._isHost ? msg.guestUsername : msg.hostUsername;
+
+            const setEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+            setEl('ol-mode-my-hero', _HERO_EMOJI[myHero] || '?');
+            setEl('ol-mode-my-name', myName || 'You');
+            setEl('ol-mode-partner-hero', _HERO_EMOJI[partnerHero] || '?');
+            setEl('ol-mode-partner-name', partnerName || 'Partner');
+
+            const modeButtons = document.getElementById('ol-mode-buttons');
+            const modeWaiting = document.getElementById('ol-mode-waiting');
+            const startBtn    = document.getElementById('ol-start-btn');
+            const guestWait   = document.getElementById('ol-mode-guest-wait');
+
+            if (this._isHost) {
+                if (modeButtons) modeButtons.style.display = 'flex';
+                if (modeWaiting) modeWaiting.style.display = 'none';
+                if (startBtn)    startBtn.style.display    = 'inline-block';
+                if (guestWait)   guestWait.style.display   = 'none';
+            } else {
+                if (modeButtons) modeButtons.style.display = 'none';
+                if (modeWaiting) modeWaiting.style.display = 'block';
+                if (startBtn)    startBtn.style.display    = 'none';
+                if (guestWait)   guestWait.style.display   = 'block';
+            }
+
+            this._gameMode = 'NORMAL';
+            this._updateModeDisplay('NORMAL');
+            this._showPanel('mode');
+        });
+
+        add('MODE_UPDATE', msg => {
+            this._gameMode = msg.mode || 'NORMAL';
+            this._updateModeDisplay(this._gameMode);
+        });
+
         add('GAME_START', msg => {
             this._removeHandlers();
             const screen = document.getElementById('online-lobby-screen');
@@ -193,6 +244,7 @@ class OnlineLobbyUI {
         this._partnerConfirmed = false;
         this._partnerName = null;
         this._isHost = false;
+        this._gameMode = 'NORMAL';
         // Reset slots
         this._renderSlot('my', 'fire', false);
         this._renderSlot('partner', null, false);
@@ -207,6 +259,17 @@ class OnlineLobbyUI {
     _showPanel(which) {
         document.getElementById('ol-connect-panel').style.display = which === 'connect' ? 'flex' : 'none';
         document.getElementById('ol-lobby-panel').style.display   = which === 'lobby'   ? 'flex' : 'none';
+        const modePanel = document.getElementById('ol-mode-panel');
+        if (modePanel) modePanel.style.display = which === 'mode' ? 'flex' : 'none';
+    }
+
+    _updateModeDisplay(mode) {
+        const label = document.getElementById('ol-mode-label');
+        if (label) label.textContent = mode === 'VERSUS' ? 'VERSUS' : 'CO-OP';
+        const coopBtn    = document.getElementById('ol-mode-coop-btn');
+        const versusBtn  = document.getElementById('ol-mode-versus-btn');
+        if (coopBtn)   coopBtn.classList.toggle('ol-mode-selected',   mode !== 'VERSUS');
+        if (versusBtn) versusBtn.classList.toggle('ol-mode-selected',  mode === 'VERSUS');
     }
 
     _setStatus(text, kind) {

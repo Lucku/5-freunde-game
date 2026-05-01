@@ -555,8 +555,8 @@ class Museum {
         if (keys['ArrowLeft'] || keys['a']) dx = -this.player.speed;
         if (keys['ArrowRight'] || keys['d']) dx = this.player.speed;
 
-        // Exit with Escape
-        if (keys['escape']) {
+        // Exit with Escape (standalone museum only; GlobalLobbyScene manages its own exit)
+        if (!this.noInteraction && keys['escape']) {
             if (window.initMenu) window.initMenu();
             else { setUIState('MENU'); document.getElementById('menu-overlay').style.display = 'flex'; }
         }
@@ -567,8 +567,8 @@ class Museum {
             if (Math.abs(gp.axes[0]) > 0.1) dx = gp.axes[0] * this.player.speed;
             if (Math.abs(gp.axes[1]) > 0.1) dy = gp.axes[1] * this.player.speed;
 
-            // Exit with B
-            if (gp.buttons[1].pressed) {
+            // Exit with B (standalone museum only; GlobalLobbyScene manages its own exit)
+            if (!this.noInteraction && gp.buttons[1].pressed) {
                 if (window.initMenu) window.initMenu();
                 else { setUIState('MENU'); document.getElementById('menu-overlay').style.display = 'flex'; }
             }
