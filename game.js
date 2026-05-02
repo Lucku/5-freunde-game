@@ -5403,8 +5403,8 @@ function masterLoop(timestamp) {
                     });
                 }
 
-                // Every 3 frames (~20fps) — send network data
-                if (_onlineFrame % 3 === 0) {
+                // Every 2 frames (~30fps) — send network data
+                if (_onlineFrame % 2 === 0) {
                     if (isOnlineHost)  _onlineSendSnapshot();
                     if (isOnlineGuest) window.networkManager?.flushInput();
                 }

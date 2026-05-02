@@ -270,6 +270,7 @@ function handleMessage(ws, msg) {
 
             leaveLobby(ws);
             lobby.guest = { ws, userId: ws.userId, username: ws.username };
+            lobby.guestHero = msg.hero || lobby.guestHero || 'water';
             lobby.phase = 'hero_select';
             ws.lobbyCode = code;
             ws.role = 'guest';
@@ -309,6 +310,7 @@ function handleMessage(ws, msg) {
                 lobby.hostMode = 'NORMAL';
                 const preGameMsg = {
                     type: 'PRE_GAME',
+                    lobbyCode: lobby.code,
                     hostHero: lobby.hostHero, guestHero: lobby.guestHero,
                     hostUsername: lobby.host.username, guestUsername: lobby.guest.username,
                 };
@@ -459,7 +461,7 @@ function handleMessage(ws, msg) {
             target.ws.lobbyCode = code; target.ws.role = 'guest';
             userLobby.set(inviter.userId, code);
             userLobby.set(target.userId, code);
-            const preGameMsg = { type: 'PRE_GAME', hostHero, guestHero, hostUsername: inviter.username, guestUsername: target.username };
+            const preGameMsg = { type: 'PRE_GAME', lobbyCode: code, hostHero, guestHero, hostUsername: inviter.username, guestUsername: target.username };
             send(inviter.ws, preGameMsg);
             send(target.ws, preGameMsg);
             break;
