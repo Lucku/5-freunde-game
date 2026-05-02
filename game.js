@@ -1390,6 +1390,10 @@ function startOnlineGame(msg) {
         window.isVersusMode = true;
     }
 
+    // Story mode flag (mirrors startStoryGame / startStandardGame)
+    if (!saveData.story) saveData.story = { unlockedChapters: [], enabled: false };
+    saveData.story.enabled = (msg.mode === 'STORY');
+
     // Hero assignment: host=P1, guest=P2
     const myHero      = isOnlineHost ? msg.hostHero : msg.guestHero;
     const partnerHero = isOnlineHost ? msg.guestHero : msg.hostHero;
@@ -1435,7 +1439,8 @@ function startOnlineGame(msg) {
     nm.on('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
     nm.on('GAME_OVER', () => { if (isOnlineGuest) gameOver(false); });
 
-    startGame(isVersusOnline ? 'VERSUS' : 'NORMAL');
+    const _gameMode = isVersusOnline ? 'VERSUS' : (msg.mode === 'SHUFFLE' ? 'SHUFFLE' : 'NORMAL');
+    startGame(_gameMode);
 }
 window.startOnlineGame = startOnlineGame;
 
@@ -4040,6 +4045,9 @@ function _onlineSendSnapshot() {
         gold: Math.round(pl.gold || 0),
         aimAngle: Math.round((pl.aimAngle || 0) * 100) / 100,
         isInvincible: !!pl.isInvincible,
+        // Movement vector for guest-side extrapolation of host character
+        mx: Math.round((pl.moveInput?.x || 0) * 100) / 100,
+        my: Math.round((pl.moveInput?.y || 0) * 100) / 100,
     } : null;
 
     const snapshot = {
@@ -4080,9 +4088,16 @@ function _onlineSendSnapshot() {
 /** GUEST: apply a state snapshot received from the host. */
 function _onlineApplySnapshot(s) {
     if (!s || !gameRunning) return;
+    const _snapTime = Date.now();
 
     // Update host ghost (rendered as player2 on guest's machine)
+    // Store snapshot position + movement so extrapolation loop can forward-predict it
     if (player2 && s.p1) {
+        player2._sx       = s.p1.x;
+        player2._sy       = s.p1.y;
+        player2._smx      = s.p1.mx || 0;  // normalised move input x
+        player2._smy      = s.p1.my || 0;
+        player2._snapshotAt = _snapTime;
         player2.x         = s.p1.x;
         player2.y         = s.p1.y;
         player2.hp        = s.p1.hp;
@@ -4151,6 +4166,8 @@ function _onlineApplySnapshot(s) {
         const p = Object.create(Projectile ? Projectile.prototype : Object.prototype);
         p._ghost = true;
         p._id = pd._id;
+        p._sx = pd.x; p._sy = pd.y;  // snapshot origin for extrapolation
+        p._snapshotAt = _snapTime;
         p.x = pd.x; p.y = pd.y;
         p.velocity = { x: pd.vx, y: pd.vy };
         p.color = pd.color; p.radius = pd.radius;
@@ -5382,6 +5399,11 @@ function masterLoop(timestamp) {
                             }
                             if (_sep > 1400) drawCoopDistanceWarning(ctx, player2, _sep);
                         }
+                    } else if (player2._snapshotAt) {
+                        // Forward-predict ghost P2 (host character) between snapshots
+                        const _p2dt = Math.min((Date.now() - player2._snapshotAt) / 1000 * 60, 8);
+                        player2.x = player2._sx + player2._smx * 4 * _p2dt;
+                        player2.y = player2._sy + player2._smy * 4 * _p2dt;
                     }
                 }
                 player2.draw();
@@ -5392,7 +5414,7 @@ function masterLoop(timestamp) {
             if (isOnlineMode && gameRunning && !gamePaused) {
                 _onlineFrame++;
 
-                // Guest: extrapolate ghost enemy positions between snapshots
+                // Guest: extrapolate ghost enemy and projectile positions between snapshots
                 if (isOnlineGuest) {
                     const _now = Date.now();
                     enemies.forEach(e => {
@@ -5401,13 +5423,19 @@ function masterLoop(timestamp) {
                         e.x = (e._sx || e.x) + (e.vx || 0) * _dt;
                         e.y = (e._sy || e.y) + (e.vy || 0) * _dt;
                     });
+                    projectiles.forEach(p => {
+                        if (!p._ghost || !p._snapshotAt) return;
+                        const _dt = Math.min((_now - p._snapshotAt) / 1000 * 60, 12);
+                        p.x = p._sx + (p.velocity?.x || 0) * _dt;
+                        p.y = p._sy + (p.velocity?.y || 0) * _dt;
+                    });
                 }
 
-                // Every 2 frames (~30fps) — send network data
-                if (_onlineFrame % 2 === 0) {
-                    if (isOnlineHost)  _onlineSendSnapshot();
-                    if (isOnlineGuest) window.networkManager?.flushInput();
-                }
+                // Guest: flush input every frame for minimum host-side input lag
+                if (isOnlineGuest) window.networkManager?.flushInput();
+
+                // Every 2 frames (~30fps) — host sends state snapshot
+                if (_onlineFrame % 2 === 0 && isOnlineHost) _onlineSendSnapshot();
             }
 
             // Update Companions

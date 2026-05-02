@@ -51,9 +51,6 @@ class GlobalLobbyScene {
         // Gamepad state tracking (edge detection)
         this._gpPrev = {};
 
-        // Pre-game mode-selection overlay (set when PRE_GAME event received)
-        this._preGameOverlay = null;
-
         this._unsubscribe = [];
         this._setupNetworking();
 
@@ -114,17 +111,12 @@ class GlobalLobbyScene {
         });
 
         add('PRE_GAME', msg => {
-            const myUsername = window.gameConfig?.account?.username || window.networkManager?.username;
-            const isHost = msg.hostUsername === myUsername;
-            const myHero      = isHost ? msg.hostHero : msg.guestHero;
-            const partnerHero = isHost ? msg.guestHero : msg.hostHero;
-            const myName      = isHost ? msg.hostUsername : msg.guestUsername;
-            const partnerName = isHost ? msg.guestUsername : msg.hostUsername;
-            this._preGameOverlay = { isHost, myHero, partnerHero, myName, partnerName, mode: 'NORMAL' };
-        });
-
-        add('MODE_UPDATE', msg => {
-            if (this._preGameOverlay) this._preGameOverlay.mode = msg.mode || 'NORMAL';
+            // Tear down the lobby scene so the game loop stops updating it
+            this._cleanup();
+            window.globalLobbyScene = null;
+            if (window.setUIState) window.setUIState('MENU');
+            // Hand off to the shared versus pre-game screen (hero pick + mode select)
+            if (typeof versusMenu !== 'undefined') versusMenu.openOnlinePreGame(msg);
         });
 
         add('GAME_START', msg => {
@@ -147,12 +139,6 @@ class GlobalLobbyScene {
 
         // ── Lobby menu blocks all player input ────────────────────────────────
         if (window.uiState === 'GLOBAL_LOBBY_MENU') return;
-
-        // ── Pre-game overlay (mode selection before match starts) ─────────────
-        if (this._preGameOverlay) {
-            this._handlePreGameOverlay(gp);
-            return;
-        }
 
         // ── Hero selector input ────────────────────────────────────────────────
         const tabPressed    = keys['tab'] && !this._gpPrev.tab;
@@ -312,123 +298,6 @@ class GlobalLobbyScene {
         };
     }
 
-    _handlePreGameOverlay(gp) {
-        const ov = this._preGameOverlay;
-        if (!ov || !ov.isHost) {
-            // Guest just waits — update edge state so we don't get double-fires
-            this._gpPrev = { gpA: gp?.buttons[0]?.pressed, gpB: gp?.buttons[1]?.pressed };
-            return;
-        }
-
-        const leftPressed  = (keys['ArrowLeft']  || keys['a']) && !this._gpPrev.left;
-        const rightPressed = (keys['ArrowRight'] || keys['d']) && !this._gpPrev.right;
-        const gpLeft  = gp && gp.buttons[14]?.pressed && !this._gpPrev.gpDLeft;
-        const gpRight = gp && gp.buttons[15]?.pressed && !this._gpPrev.gpDRight;
-        const confirm = (keys['enter'] || keys['e']) && !this._gpPrev.enter;
-        const gpA     = gp && gp.buttons[0]?.pressed && !this._gpPrev.gpA;
-
-        // Toggle mode with left/right
-        if (leftPressed || rightPressed || gpLeft || gpRight) {
-            ov.mode = ov.mode === 'VERSUS' ? 'NORMAL' : 'VERSUS';
-            window.networkManager?.selectMode(ov.mode);
-        }
-
-        // Start match
-        if (confirm || gpA) {
-            window.networkManager?.startOnlineMatch(ov.mode);
-            keys['enter'] = false; keys['e'] = false;
-        }
-
-        this._gpPrev = {
-            left:     keys['ArrowLeft']  || keys['a'],
-            right:    keys['ArrowRight'] || keys['d'],
-            gpDLeft:  gp?.buttons[14]?.pressed,
-            gpDRight: gp?.buttons[15]?.pressed,
-            enter:    keys['enter'] || keys['e'],
-            gpA:      gp?.buttons[0]?.pressed,
-            gpB:      gp?.buttons[1]?.pressed,
-        };
-    }
-
-    _drawPreGameOverlay(ctx) {
-        const ov  = this._preGameOverlay;
-        const W   = ctx.canvas.width;
-        const H   = ctx.canvas.height;
-        const cx  = W / 2;
-        const cy  = H / 2;
-
-        // Dim background
-        ctx.fillStyle = 'rgba(0,0,0,0.72)';
-        ctx.fillRect(0, 0, W, H);
-
-        // Panel
-        const pw = Math.min(400, W - 40);
-        const ph = 260;
-        const px = cx - pw / 2;
-        const py = cy - ph / 2;
-        ctx.fillStyle = 'rgba(20,20,35,0.97)';
-        ctx.beginPath();
-        ctx.roundRect(px, py, pw, ph, 16);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Title
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 15px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('CHOOSE MODE', cx, py + 32);
-
-        // Hero display
-        const myEmoji      = _HERO_EMOJI[ov.myHero]      || '?';
-        const partnerEmoji = _HERO_EMOJI[ov.partnerHero]  || '?';
-        ctx.font = '36px Arial';
-        ctx.fillText(myEmoji,      cx - 60, py + 90);
-        ctx.fillText(partnerEmoji, cx + 60, py + 90);
-
-        ctx.font = '10px Arial';
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.fillText(ov.myName || 'You',          cx - 60, py + 108);
-        ctx.fillText(ov.partnerName || 'Partner',  cx + 60, py + 108);
-
-        const isVersus = ov.mode === 'VERSUS';
-
-        if (ov.isHost) {
-            // CO-OP button
-            ctx.fillStyle = isVersus ? 'rgba(255,255,255,0.1)' : 'rgba(52,152,219,0.85)';
-            ctx.beginPath(); ctx.roundRect(cx - 110, py + 125, 90, 34, 8); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial';
-            ctx.fillText('CO-OP', cx - 65, py + 147);
-
-            // VERSUS button
-            ctx.fillStyle = isVersus ? 'rgba(231,76,60,0.85)' : 'rgba(255,255,255,0.1)';
-            ctx.beginPath(); ctx.roundRect(cx + 20, py + 125, 90, 34, 8); ctx.fill();
-            ctx.fillStyle = '#fff';
-            ctx.fillText('VERSUS', cx + 65, py + 147);
-
-            // START button
-            ctx.fillStyle = 'rgba(39,174,96,0.9)';
-            ctx.beginPath(); ctx.roundRect(cx - 55, py + 174, 110, 36, 8); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial';
-            ctx.fillText('START', cx, py + 197);
-
-            ctx.fillStyle = 'rgba(255,255,255,0.3)';
-            ctx.font = '10px Arial';
-            ctx.fillText('◄ ► to switch  ·  A / Enter to start', cx, py + 232);
-        } else {
-            // Guest view: show selected mode and wait message
-            ctx.fillStyle = isVersus ? 'rgba(231,76,60,0.85)' : 'rgba(52,152,219,0.85)';
-            ctx.beginPath(); ctx.roundRect(cx - 55, py + 125, 110, 34, 8); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial';
-            ctx.fillText(isVersus ? 'VERSUS' : 'CO-OP', cx, py + 147);
-
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
-            ctx.font = '11px Arial';
-            ctx.fillText('Waiting for host to start…', cx, py + 200);
-        }
-    }
-
     // ── Draw ──────────────────────────────────────────────────────────────────
 
     draw(ctx) {
@@ -457,7 +326,6 @@ class GlobalLobbyScene {
         if (this.pendingInvite) this._drawInvitePrompt(ctx);
         if (this.inviteFlash)   this._drawFlashMsg(ctx);
         if (this._heroSelectorOpen) this._drawHeroSelector(ctx);
-        if (this._preGameOverlay)   this._drawPreGameOverlay(ctx);
     }
 
     _drawRemotePlayers(ctx) {

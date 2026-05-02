@@ -61,12 +61,13 @@ class VersusMenuUI {
 
         const loveUnlocked  = typeof saveData !== 'undefined' && saveData['love'] && saveData['love'].unlocked;
         const evilUnlocked  = typeof saveData !== 'undefined' && saveData.global && saveData.global.evil_mode_beaten > 0;
-        this.heroIds = ['random', ...Object.keys(BASE_HERO_STATS).filter(h => {
+        const heroBase = Object.keys(BASE_HERO_STATS).filter(h => {
             if (h === 'black') return false;
             if (h === 'love' && !loveUnlocked) return false;
             if ((h === 'green_goblin' || h === 'makuta') && !evilUnlocked) return false;
             return true;
-        })];
+        });
+        this.heroIds = this._isOnline ? heroBase : ['random', ...heroBase];
 
         this.heroIds.forEach((h, index) => {
             const isRandom = (h === 'random');
@@ -179,6 +180,12 @@ class VersusMenuUI {
                 this.updateFocus();
             }
         }
+
+        // In online mode: sync hero change to server
+        if (this._isOnline && id !== 'random') {
+            this._onlineMyHero = id;
+            window.networkManager?.selectHero(id);
+        }
     }
 
     selectBiome(id, fromFocus = false) {
@@ -283,7 +290,7 @@ class VersusMenuUI {
         if (!this.isOpen) return;
 
         const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-        const gp = pads[0];
+        const gp = [...(pads || [])].find(g => window.isRealGamepad?.(g) ?? (g && g.connected)) || pads[0];
 
         if (gp) {
             const now = Date.now();
@@ -300,32 +307,37 @@ class VersusMenuUI {
 
                 if (moved) {
                     const maxCols = this.currentRow === 0 ? this.heroIds.length
-                                  : this.currentRow === 1 ? this.biomeIds.length : 1;
+                                  : this.currentRow === 1 ? (this._isOnline ? 4 : this.biomeIds.length) : 1;
                     if (this.colIndex < 0) this.colIndex = maxCols - 1;
                     if (this.colIndex >= maxCols) this.colIndex = 0;
                     this.updateFocus();
                     this.inputDebounce = now;
                 }
 
+                // In online mode: guests stay on row 0; only hosts can reach rows 1-2
+                const maxRow = (this._isOnline && !this._isOnlineHost) ? 0 : 2;
+
                 if (up || down) {
                     if (up)   this.currentRow--;
                     if (down) this.currentRow++;
-                    if (this.currentRow < 0) this.currentRow = 2;
-                    if (this.currentRow > 2) this.currentRow = 0;
+                    if (this.currentRow < 0) this.currentRow = maxRow;
+                    if (this.currentRow > maxRow) this.currentRow = 0;
 
                     const maxCols = this.currentRow === 0 ? this.heroIds.length
-                                  : this.currentRow === 1 ? this.biomeIds.length : 1;
+                                  : this.currentRow === 1 ? (this._isOnline ? 4 : this.biomeIds.length) : 1;
                     if (this.colIndex >= maxCols) this.colIndex = maxCols - 1;
                     this.updateFocus();
                     this.inputDebounce = now;
                 }
 
                 if (gp.buttons[0].pressed) {
-                    this.triggerSelection();
+                    if (this._isOnline) this._triggerOnlineSelection();
+                    else this.triggerSelection();
                     this.inputDebounce = now + 200;
                 }
                 if (gp.buttons[1].pressed) {
-                    this.close();
+                    // In online mode B doesn't cancel (can't leave pre-game via controller)
+                    if (!this._isOnline) this.close();
                     this.inputDebounce = now + 200;
                 }
             }
@@ -345,11 +357,17 @@ class VersusMenuUI {
                 if (id) this.selectOpponent(id, true);
             }
         } else if (this.currentRow === 1) {
-            const el = document.getElementById('bio-opt-' + this.colIndex);
-            if (el) {
-                el.classList.add('controller-focus');
-                const item = this.biomeIds[this.colIndex];
-                if (item) this.selectBiome(item.id, true);
+            if (this._isOnline) {
+                // Online mode: col 0=Standard, 1=Story, 2=Chaos, 3=Versus
+                const btnIds = ['vs-online-standard-btn', 'vs-online-story-btn', 'vs-online-chaos-btn', 'vs-online-versus-btn'];
+                document.getElementById(btnIds[this.colIndex] || btnIds[0])?.classList.add('controller-focus');
+            } else {
+                const el = document.getElementById('bio-opt-' + this.colIndex);
+                if (el) {
+                    el.classList.add('controller-focus');
+                    const item = this.biomeIds[this.colIndex];
+                    if (item) this.selectBiome(item.id, true);
+                }
             }
         } else if (this.currentRow === 2) {
             const startBtn = document.getElementById('versus-start-btn');
@@ -359,6 +377,177 @@ class VersusMenuUI {
 
     triggerSelection() {
         if (this.currentRow === 2) this.start();
+    }
+
+    _triggerOnlineSelection() {
+        if (this.currentRow === 1 && this._isOnlineHost) {
+            const modes = ['NORMAL', 'STORY', 'SHUFFLE', 'VERSUS'];
+            this.selectOnlineMode(modes[this.colIndex] || 'NORMAL');
+        } else if (this.currentRow === 2 && this._isOnlineHost) {
+            this.startOnlineGame();
+        }
+        // Row 0: hero is already selected on focus
+    }
+
+    // ── Online pre-game (hero pick + mode select) ─────────────────────────────
+
+    openOnlinePreGame(msg) {
+        const nm = window.networkManager;
+        this._isOnline       = true;
+        this._isOnlineHost   = nm.isHost();
+        this._onlineMode     = 'NORMAL';
+        this._onlineMyHero   = nm.isHost() ? msg.hostHero : msg.guestHero;
+        this._onlinePartnerHero = nm.isHost() ? msg.guestHero : msg.hostHero;
+        this._onlinePartnerName = nm.isHost() ? msg.guestUsername : msg.hostUsername;
+        this._onlineUnsubscribe = [];
+
+        const add = (type, fn) => {
+            const unsub = nm.on(type, fn.bind(this));
+            this._onlineUnsubscribe.push(unsub);
+        };
+        add('HERO_UPDATE', m => {
+            const isPartner = (this._isOnlineHost && m.player === 'guest') || (!this._isOnlineHost && m.player === 'host');
+            if (isPartner) { this._onlinePartnerHero = m.hero; this._updateOnlinePartnerDisplay(); }
+        });
+        add('MODE_UPDATE', m => { this._onlineMode = m.mode || 'NORMAL'; this._updateOnlineModeDisplay(); });
+        add('GAME_START', m => { this.closeOnline(); if (typeof window.startOnlineGame === 'function') window.startOnlineGame(m); });
+
+        // Configure screen
+        const screen = document.getElementById('versus-selection-screen');
+        if (screen) screen.style.display = 'flex';
+
+        const eyebrow  = screen?.querySelector('.vs-eyebrow');
+        const titleEl  = screen?.querySelector('.vs-title-text');
+        const subtitle = screen?.querySelector('.vs-subtitle-text');
+        if (eyebrow)  eyebrow.textContent  = '🌐 ONLINE 2-PLAYER';
+        if (titleEl)  titleEl.textContent  = 'HERO SELECT';
+        if (subtitle) subtitle.textContent = this._isOnlineHost
+            ? 'Choose your hero & mode, then start the match!'
+            : 'Choose your hero — host will start the match';
+
+        // Show hero section as "Your Hero", hide biome section
+        const sections = screen?.querySelectorAll('.vs-section');
+        if (sections?.[0]) {
+            sections[0].style.display = '';
+            const lbl = sections[0].querySelector('.vs-section-label');
+            if (lbl) lbl.textContent = 'Your Hero';
+            const disp = sections[0].querySelector('.vs-selection-display');
+            if (disp) disp.style.display = 'none';
+        }
+        if (sections?.[1]) sections[1].style.display = 'none';
+
+        // START button — host only
+        const startBtn = document.getElementById('versus-start-btn');
+        if (startBtn) {
+            startBtn.style.display = this._isOnlineHost ? 'inline-block' : 'none';
+            startBtn.textContent   = '▶ START';
+            startBtn.onclick       = () => this.startOnlineGame();
+        }
+
+        // Hide CANCEL button — no backing out of online pre-game
+        const cancelBtn = screen?.querySelector('.screen-back-btn');
+        if (cancelBtn) cancelBtn.style.display = 'none';
+
+        // Online info section
+        document.getElementById('vs-online-info').style.display = 'flex';
+        const modeBtns   = document.getElementById('vs-online-mode-btns');
+        const guestLabel = document.getElementById('vs-online-guest-mode-label');
+        if (this._isOnlineHost) {
+            if (modeBtns)   modeBtns.style.display   = 'flex';
+            if (guestLabel) guestLabel.style.display = 'none';
+        } else {
+            if (modeBtns)   modeBtns.style.display   = 'none';
+            if (guestLabel) guestLabel.style.display = 'block';
+        }
+
+        this._updateOnlinePartnerDisplay();
+        this._updateOnlineModeDisplay();
+
+        // Render hero grid pre-selected on my hero
+        this.opponent = this._onlineMyHero;
+        this.renderOpponents();
+
+        // Controller focus on my hero
+        this.currentRow = 0;
+        this.colIndex   = Math.max(0, this.heroIds.indexOf(this._onlineMyHero));
+        this.updateFocus();
+
+        this.isOpen = true;
+        if (this.inputLoopId) cancelAnimationFrame(this.inputLoopId);
+        this.inputLoopId = requestAnimationFrame(() => this.inputLoop());
+    }
+
+    selectOnlineMode(mode) {
+        if (!this._isOnlineHost) return;
+        this._onlineMode = mode;
+        this._updateOnlineModeDisplay();
+        window.networkManager?.selectMode(mode);
+        // Keep controller col in sync with the selected mode button
+        if (this.currentRow === 1) {
+            const modes = ['NORMAL', 'STORY', 'SHUFFLE', 'VERSUS'];
+            this.colIndex = Math.max(0, modes.indexOf(mode));
+        }
+    }
+
+    startOnlineGame() {
+        if (!this._isOnlineHost) return;
+        window.networkManager?.startOnlineMatch(this._onlineMode);
+    }
+
+    _updateOnlinePartnerDisplay() {
+        const emoji = (typeof _HERO_EMOJI !== 'undefined' ? _HERO_EMOJI[this._onlinePartnerHero] : null)
+            || BASE_HERO_STATS?.[this._onlinePartnerHero]?.icon || '?';
+        const emojiEl = document.getElementById('vs-online-partner-emoji');
+        const nameEl  = document.getElementById('vs-online-partner-name');
+        if (emojiEl) emojiEl.textContent = emoji;
+        if (nameEl)  nameEl.textContent  = this._onlinePartnerName || '—';
+    }
+
+    _updateOnlineModeDisplay() {
+        const m = this._onlineMode;
+        document.getElementById('vs-online-standard-btn')?.classList.toggle('ol-mode-selected', m === 'NORMAL');
+        document.getElementById('vs-online-story-btn')?.classList.toggle('ol-mode-selected',    m === 'STORY');
+        document.getElementById('vs-online-chaos-btn')?.classList.toggle('ol-mode-selected',    m === 'SHUFFLE');
+        document.getElementById('vs-online-versus-btn')?.classList.toggle('ol-mode-selected',   m === 'VERSUS');
+    }
+
+    closeOnline() {
+        if (this._onlineUnsubscribe) { this._onlineUnsubscribe.forEach(fn => fn()); this._onlineUnsubscribe = []; }
+
+        // Restore defaults
+        const screen = document.getElementById('versus-selection-screen');
+        const eyebrow  = screen?.querySelector('.vs-eyebrow');
+        const titleEl  = screen?.querySelector('.vs-title-text');
+        const subtitle = screen?.querySelector('.vs-subtitle-text');
+        if (eyebrow)  eyebrow.textContent  = '⚔ DUEL ARENA ⚔';
+        if (titleEl)  titleEl.textContent  = 'CHALLENGER SELECT';
+        if (subtitle) subtitle.textContent = 'Choose your opponent and step into the arena';
+
+        const sections = screen?.querySelectorAll('.vs-section');
+        if (sections?.[0]) {
+            const lbl = sections[0].querySelector('.vs-section-label');
+            if (lbl) lbl.textContent = 'Opponent';
+            const disp = sections[0].querySelector('.vs-selection-display');
+            if (disp) disp.style.display = '';
+        }
+        if (sections?.[1]) sections[1].style.display = '';
+
+        const startBtn = document.getElementById('versus-start-btn');
+        if (startBtn) { startBtn.textContent = '⚔ FIGHT'; startBtn.style.display = ''; startBtn.onclick = () => window.startVersusMatch?.(); }
+
+        document.getElementById('vs-online-info').style.display = 'none';
+
+        // Restore CANCEL button
+        const cancelBtn = document.querySelector('#versus-selection-screen .screen-back-btn');
+        if (cancelBtn) cancelBtn.style.display = '';
+
+        this._isOnline     = false;
+        this._isOnlineHost = false;
+        this._onlineMode   = 'NORMAL';
+
+        if (screen) screen.style.display = 'none';
+        this.isOpen = false;
+        if (this.inputLoopId) { cancelAnimationFrame(this.inputLoopId); this.inputLoopId = null; }
     }
 }
 
