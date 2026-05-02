@@ -143,7 +143,7 @@ class GlobalLobbyScene {
     update() {
         const nm  = window.networkManager;
         const p   = this.museum.player;
-        const gp  = navigator.getGamepads?.()[0] || null;
+        const gp  = [...(navigator.getGamepads?.() || [])].find(g => window.isRealGamepad(g)) || null;
 
         // ── Lobby menu blocks all player input ────────────────────────────────
         if (window.uiState === 'GLOBAL_LOBBY_MENU') return;

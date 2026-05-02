@@ -473,14 +473,14 @@ class Museum {
 
     update() {
         if (this.viewingRunHistory) {
-            const gp = navigator.getGamepads()[0];
+            const gp = [...(navigator.getGamepads?.() || [])].find(g => window.isRealGamepad(g)) || null;
             if (keys['escape']) { this.viewingRunHistory = false; keys['escape'] = false; return; }
             if (gp && gp.buttons[1].pressed) { this.viewingRunHistory = false; return; }
             return;
         }
 
         if (this.viewingLeaderboard) {
-            const gp = navigator.getGamepads()[0];
+            const gp = [...(navigator.getGamepads?.() || [])].find(g => window.isRealGamepad(g)) || null;
             if (keys['escape']) { this.viewingLeaderboard = false; keys['escape'] = false; return; }
             if (gp && gp.buttons[1].pressed) { this.viewingLeaderboard = false; return; }
             return;
@@ -496,7 +496,7 @@ class Museum {
                 }
             }
 
-            const gp = navigator.getGamepads()[0];
+            const gp = [...(navigator.getGamepads?.() || [])].find(g => window.isRealGamepad(g)) || null;
             if (gp && gp.buttons[1].pressed) {
                 this.viewingStory = null;
                 this.scrollY = 0;
@@ -562,7 +562,7 @@ class Museum {
         }
 
         // Gamepad
-        const gp = navigator.getGamepads()[0];
+        const gp = [...(navigator.getGamepads?.() || [])].find(g => window.isRealGamepad(g)) || null;
         if (gp) {
             if (Math.abs(gp.axes[0]) > 0.1) dx = gp.axes[0] * this.player.speed;
             if (Math.abs(gp.axes[1]) > 0.1) dy = gp.axes[1] * this.player.speed;
