@@ -1100,6 +1100,94 @@ const Manual = {
                     <div class="control-item"><b>Temporal Rift</b><span>Environmental hazard enemy — earns Rift immunity</span></div>
                 </div>
             `
+        },
+        online: {
+            title: "Online Multiplayer",
+            html: `
+                <h2>Online Multiplayer</h2>
+                <p>5 Freunde supports online play in two forms: a <b>Private Lobby</b> for 1v1 matches with a friend, and a <b>Global Lobby</b> — a persistent social hub where you can roam around as your hero, emote, and challenge other players in real time.</p>
+                <p>An account (username + password) is required to play online. Create one from the <b>Account</b> button in the main menu.</p>
+
+                <h3>Getting Started</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">Account & Login</div>
+                    <ul>
+                        <li>Open the <b>Account</b> panel in the main menu and register with a username and password.</li>
+                        <li>Once logged in, your username appears in the menu and your save data syncs to the server automatically.</li>
+                        <li>Your login token is valid for <b>90 days</b> — you won't be asked to log in again unless it expires.</li>
+                    </ul>
+                </div>
+
+                <h3>Private Lobby (1v1 Versus)</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">Creating or Joining a Match</div>
+                    <p>Open <b>Online 2-Player</b> from the main menu to enter the lobby screen.</p>
+                    <ul>
+                        <li><b>Create Lobby:</b> One player clicks "Create" — a 6-character lobby code is displayed. Share it with your opponent.</li>
+                        <li><b>Join Lobby:</b> Enter the code and click "Join" to connect to your partner's lobby.</li>
+                        <li>Both players then pick a hero from the grid. Once both press <b>Ready</b>, the host selects the game mode and the match starts.</li>
+                    </ul>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Online Versus Gameplay</div>
+                    <ul>
+                        <li>The <b>host</b> simulates the game. The guest sends inputs to the host and receives a live state snapshot every frame.</li>
+                        <li>All heroes, abilities, and upgrades work exactly as in local play.</li>
+                        <li>If your partner disconnects mid-game, a notification is shown. They can reconnect and continue the match seamlessly.</li>
+                        <li>The match ends when one player's HP hits zero. Return to the lobby after a match to play again.</li>
+                    </ul>
+                </div>
+
+                <h3>Global Lobby (Social Hub)</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">The Persistent Online World</div>
+                    <p>Click <b>Global Lobby</b> in the online menu to enter a shared museum space populated by all currently online players.</p>
+                    <ul>
+                        <li>All players walk around as their chosen hero in a 2400×2200 museum arena.</li>
+                        <li>Online player count is shown in the top-right corner.</li>
+                        <li>Your run history from online matches is recorded and visible in the museum display.</li>
+                    </ul>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Emotes</div>
+                    <p>Express yourself with 5 emotes, triggered by keyboard or gamepad:</p>
+                    <div class="control-grid">
+                        <div class="control-item"><b>1 / LB</b><span>Wave 👋</span></div>
+                        <div class="control-item"><b>2 / RB</b><span>Dance 💃</span></div>
+                        <div class="control-item"><b>3 / LT</b><span>Laugh 😂</span></div>
+                        <div class="control-item"><b>4 / RT</b><span>Cheer 🎉</span></div>
+                        <div class="control-item"><b>5 / X</b><span>Shrug 🤷</span></div>
+                    </div>
+                    <p>Emotes appear as floating text above your hero and are visible to all nearby players.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title">Challenging Other Players</div>
+                    <ul>
+                        <li>Walk within <b>80px</b> of another player and the prompt <b>"Press E / A to challenge [name]"</b> appears.</li>
+                        <li>The other player receives an invite popup — they can <b>Accept (Enter / A)</b> or <b>Decline (Esc / B)</b>.</li>
+                        <li>On accept, both players are taken directly into a private lobby to set up the match.</li>
+                    </ul>
+                </div>
+
+                <h3>Global Lobby Controls</h3>
+                <div class="control-grid">
+                    <div class="control-item"><b>WASD / Left Stick</b><span>Move your hero</span></div>
+                    <div class="control-item"><b>Tab / Y Button</b><span>Open hero selector (cycle your hero skin)</span></div>
+                    <div class="control-item"><b>1–5 / LB/RB/LT/RT/X</b><span>Emotes</span></div>
+                    <div class="control-item"><b>E / A Button</b><span>Challenge nearby player</span></div>
+                    <div class="control-item"><b>Enter / A Button</b><span>Accept incoming invite</span></div>
+                    <div class="control-item"><b>Esc / B Button</b><span>Decline invite / open lobby menu</span></div>
+                </div>
+
+                <h3>Connection & Reconnection</h3>
+                <div class="tut-card">
+                    <div class="tut-card-title">Auto-Reconnect</div>
+                    <p>If your connection drops, the client will automatically attempt to reconnect with exponential backoff (1s, 2s, 4s … up to 30s between attempts). Your lobby and in-progress match are preserved on the server for a short window — reconnecting within that window resumes exactly where you left off. A status indicator in the lobby UI shows <b>● Connected</b> or <b>○ Connecting…</b> at all times.</p>
+                </div>
+            `
         }
     },
 

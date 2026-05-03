@@ -64,7 +64,7 @@ class VersusMenuUI {
         const heroBase = Object.keys(BASE_HERO_STATS).filter(h => {
             if (h === 'black') return false;
             if (h === 'love' && !loveUnlocked) return false;
-            if ((h === 'green_goblin' || h === 'makuta') && !evilUnlocked) return false;
+            if ((h === 'green_goblin' || h === 'makuta') && (!evilUnlocked || this._isOnline)) return false;
             return true;
         });
         this.heroIds = this._isOnline ? heroBase : ['random', ...heroBase];
@@ -307,7 +307,7 @@ class VersusMenuUI {
 
                 if (moved) {
                     const maxCols = this.currentRow === 0 ? this.heroIds.length
-                                  : this.currentRow === 1 ? (this._isOnline ? 4 : this.biomeIds.length) : 1;
+                                  : this.currentRow === 1 ? (this._isOnline ? 3 : this.biomeIds.length) : 1;
                     if (this.colIndex < 0) this.colIndex = maxCols - 1;
                     if (this.colIndex >= maxCols) this.colIndex = 0;
                     this.updateFocus();
@@ -324,7 +324,7 @@ class VersusMenuUI {
                     if (this.currentRow > maxRow) this.currentRow = 0;
 
                     const maxCols = this.currentRow === 0 ? this.heroIds.length
-                                  : this.currentRow === 1 ? (this._isOnline ? 4 : this.biomeIds.length) : 1;
+                                  : this.currentRow === 1 ? (this._isOnline ? 3 : this.biomeIds.length) : 1;
                     if (this.colIndex >= maxCols) this.colIndex = maxCols - 1;
                     this.updateFocus();
                     this.inputDebounce = now;
@@ -358,8 +358,8 @@ class VersusMenuUI {
             }
         } else if (this.currentRow === 1) {
             if (this._isOnline) {
-                // Online mode: col 0=Standard, 1=Story, 2=Chaos, 3=Versus
-                const btnIds = ['vs-online-standard-btn', 'vs-online-story-btn', 'vs-online-chaos-btn', 'vs-online-versus-btn'];
+                // Online mode: col 0=Standard, 1=Story, 2=Versus (Chaos not supported in co-op)
+                const btnIds = ['vs-online-standard-btn', 'vs-online-story-btn', 'vs-online-versus-btn'];
                 document.getElementById(btnIds[this.colIndex] || btnIds[0])?.classList.add('controller-focus');
             } else {
                 const el = document.getElementById('bio-opt-' + this.colIndex);
@@ -381,7 +381,7 @@ class VersusMenuUI {
 
     _triggerOnlineSelection() {
         if (this.currentRow === 1 && this._isOnlineHost) {
-            const modes = ['NORMAL', 'STORY', 'SHUFFLE', 'VERSUS'];
+            const modes = ['NORMAL', 'STORY', 'VERSUS'];
             this.selectOnlineMode(modes[this.colIndex] || 'NORMAL');
         } else if (this.currentRow === 2 && this._isOnlineHost) {
             this.startOnlineGame();
@@ -452,6 +452,9 @@ class VersusMenuUI {
         document.getElementById('vs-online-info').style.display = 'flex';
         const modeBtns   = document.getElementById('vs-online-mode-btns');
         const guestLabel = document.getElementById('vs-online-guest-mode-label');
+        // Chaos mode is not supported in co-op — hide button in online pre-game
+        const chaosBtn = document.getElementById('vs-online-chaos-btn');
+        if (chaosBtn) chaosBtn.style.display = 'none';
         if (this._isOnlineHost) {
             if (modeBtns)   modeBtns.style.display   = 'flex';
             if (guestLabel) guestLabel.style.display = 'none';
@@ -484,7 +487,7 @@ class VersusMenuUI {
         window.networkManager?.selectMode(mode);
         // Keep controller col in sync with the selected mode button
         if (this.currentRow === 1) {
-            const modes = ['NORMAL', 'STORY', 'SHUFFLE', 'VERSUS'];
+            const modes = ['NORMAL', 'STORY', 'VERSUS'];
             this.colIndex = Math.max(0, modes.indexOf(mode));
         }
     }
@@ -536,6 +539,10 @@ class VersusMenuUI {
         if (startBtn) { startBtn.textContent = '⚔ FIGHT'; startBtn.style.display = ''; startBtn.onclick = () => window.startVersusMatch?.(); }
 
         document.getElementById('vs-online-info').style.display = 'none';
+
+        // Restore chaos button visibility (was hidden during online pre-game)
+        const chaosBtn = document.getElementById('vs-online-chaos-btn');
+        if (chaosBtn) chaosBtn.style.display = '';
 
         // Restore CANCEL button
         const cancelBtn = document.querySelector('#versus-selection-screen .screen-back-btn');

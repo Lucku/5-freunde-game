@@ -1377,6 +1377,9 @@ function startOnlineGame(msg) {
     // Store player names for HUD display
     window._onlineHostName  = msg.hostUsername  || 'Host';
     window._onlineGuestName = msg.guestUsername || 'Guest';
+
+    // Guest uses host's hero for story events so both see the same narrative
+    window._onlineStoryHero = msg.hostHero || null;
     _onlineShowNameBar(true);
 
     const isVersusOnline = msg.mode === 'VERSUS';
@@ -1453,6 +1456,7 @@ function _onlineCleanup() {
     window.isOnlineGuest = false;
     _onlineP2Controller  = null;
     _onlineEvents = [];
+    window._onlineStoryHero = null;
 }
 window._onlineCleanup = _onlineCleanup;
 
@@ -1557,6 +1561,18 @@ function closeConfirmDialog() {
 
 function quitGame() {
     clearSavedRun();
+    if (isOnlineMode) {
+        // Signal partner, clean up network state, then go to online lobby
+        window.networkManager?.signalGameOver();
+        _onlineCleanup();
+        ['online-reconnect-overlay', 'online-partner-leveling-overlay', 'online-wait-overlay', 'online-name-bar'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        _resetGameState();
+        if (typeof window.openOnlineLobby === 'function') window.openOnlineLobby();
+        return;
+    }
     _resetGameState();
     initMenu();
 }
@@ -2678,8 +2694,11 @@ function triggerStory(completedWave) {
         }
     }
 
-    // Pass player type (uppercase) to get specific story events
-    const heroType = player ? player.type.toUpperCase() : 'ALL';
+    // Pass player type (uppercase) to get specific story events.
+    // In online mode the guest runs the host's hero story so both see the same narrative.
+    const heroType = (isOnlineGuest && window._onlineStoryHero)
+        ? window._onlineStoryHero.toUpperCase()
+        : (player ? player.type.toUpperCase() : 'ALL');
     const nextWave = completedWave + 1;
     const story = storyManager.getEventForWave(nextWave, heroType);
 
@@ -3742,6 +3761,7 @@ function gameOver(isVictory = false) {
     // Capture before any resets so the Play Again button can reference it
     const wasEvilMode   = isEvilMode;
     const wasVersusMode = isVersusMode;
+    const wasOnlineMode = isOnlineMode;
 
     // Stop any active weather immediately
     _stopWeather();
@@ -4009,15 +4029,30 @@ function gameOver(isVictory = false) {
     // Update Play Again button based on mode
     const playAgainBtn = document.querySelector(`#${screenId} .game-over-play-btn`);
     if (playAgainBtn) {
-        if (isDailyMode) {
+        if (wasOnlineMode) {
+            // Online game over → return to online lobby to pick heroes and mode again
+            playAgainBtn.textContent = '🌐 PLAY AGAIN ONLINE';
+            playAgainBtn.onclick = function () {
+                document.getElementById('menu-overlay').style.display = 'none';
+                document.getElementById('game-over-screen').style.display = 'none';
+                document.getElementById('victory-screen').style.display = 'none';
+                if (typeof window.openOnlineLobby === 'function') window.openOnlineLobby();
+                else initMenu();
+            };
+        } else if (isDailyMode) {
+            playAgainBtn.textContent = '▶ PLAY AGAIN';
             playAgainBtn.onclick = function () { startGame('DAILY'); };
         } else if (isWeeklyMode) {
+            playAgainBtn.textContent = '▶ PLAY AGAIN';
             playAgainBtn.onclick = function () { startGame('WEEKLY'); };
         } else if (wasEvilMode) {
+            playAgainBtn.textContent = '▶ PLAY AGAIN';
             playAgainBtn.onclick = function () { startEvilGame(); };
         } else if (wasVersusMode) {
+            playAgainBtn.textContent = '▶ PLAY AGAIN';
             playAgainBtn.onclick = function () { startGame('VERSUS'); };
         } else {
+            playAgainBtn.textContent = '▶ PLAY AGAIN';
             playAgainBtn.onclick = function () { startGame('NORMAL'); };
         }
     }
@@ -5434,8 +5469,8 @@ function masterLoop(timestamp) {
                 // Guest: flush input every frame for minimum host-side input lag
                 if (isOnlineGuest) window.networkManager?.flushInput();
 
-                // Every 2 frames (~30fps) — host sends state snapshot
-                if (_onlineFrame % 2 === 0 && isOnlineHost) _onlineSendSnapshot();
+                // Every frame (60fps) — host sends state snapshot for minimum guest lag
+                if (isOnlineHost) _onlineSendSnapshot();
             }
 
             // Update Companions
@@ -6191,6 +6226,14 @@ function masterLoop(timestamp) {
                         const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
                         if (pDist - enemy.radius - proj.radius < 0) {
 
+                            // Ghost enemies on the guest side: consume the projectile for
+                            // visual feedback but skip all authoritative damage/flash logic.
+                            // The host decides damage; ghost state is overwritten by snapshots.
+                            if (enemy._ghost) {
+                                if (!proj.pierce || proj.pierce <= 0) projectiles.splice(pIndex, 1);
+                                return;
+                            }
+
                             // 1. PROJECTILE HOOK (For DLCs)
                             // If the projectile has a custom collision handler, let it handle interaction.
                             // If it returns 'STOP', we assume it handled damage/death and we stop default game logic.
@@ -6760,8 +6803,10 @@ function masterLoop(timestamp) {
             updateUI();
 
             // Player Death Logic
-            if (player.hp <= 0) {
-                if (!isVersusMode && (isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player.isDead) {
+            // Guard with !player.isDead: once the revival marker is placed we must not
+            // re-enter this block on subsequent frames (hp stays 0 while dead).
+            if (player.hp <= 0 && !player.isDead) {
+                if (!isVersusMode && (isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
                     // Co-op / AI companion: P1 dies but P2 is alive — drop revival marker
                     player.isDead = true;
                     player.hp = 0;
@@ -6789,6 +6834,23 @@ function masterLoop(timestamp) {
                         try { audioManager.play('death'); } catch (e) { }
                         audioManager.playHeroExclamation(player.type, 'failure');
                     }
+                }
+            }
+
+            // Co-op: both players dead → game over (separate check needed because the
+            // revival-marker path sets player.isDead=true, which blocks the block above).
+            if (!isPlayerDying && !isOnlineGuest &&
+                !isVersusMode && (isCoopMode || isAICompanionMode) &&
+                player.isDead && player2 && player2.isDead) {
+                isPlayerDying = true;
+                playerDeathTimer = 180;
+                createExplosion(player.x, player.y, '#c0392b');
+                triggerImpact(14, 30, 0.70, 1.0, 800);
+                player.isDashing = false;
+                player.moveInput = { x: 0, y: 0 };
+                if (typeof audioManager !== 'undefined') {
+                    try { audioManager.play('death'); } catch (e) { }
+                    audioManager.playHeroExclamation(player.type, 'failure');
                 }
             }
 

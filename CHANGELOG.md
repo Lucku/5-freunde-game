@@ -4,7 +4,20 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Fixed
+- **Online 2-Player: evil heroes (Green Goblin, Makuta) visible in online hero select**: These heroes are now always filtered out of the online pre-game hero grid, regardless of whether the player has unlocked Evil Mode.
+- **Online 2-Player: Story mode shows each player's own hero story**: Both host and guest were independently running story events based on their own hero type, causing out-of-sync narratives. The guest now uses the host's hero type for story event lookups (`window._onlineStoryHero` set in `startOnlineGame`), so both players see the host's hero story.
+- **Online Co-op: revive marker appears but game immediately ends**: After a revival marker was placed (setting `player.isDead = true` and `player.hp = 0`), the death check re-fired every frame because `hp` stayed at 0. On the second frame the co-op revival branch was skipped (`!player.isDead` was false) and the death-animation timer started, leading to game over 3 seconds later. Fixed by guarding the outer death check with `!player.isDead`; a separate "both players dead → game over" check now handles the case where both die simultaneously.
+- **Online Co-op: ghost enemies appear permanently white on guest side**: When the guest's local projectiles hit ghost enemies (server-synced via snapshot), `enemy.hitFlashTimer = 6` was set on the ghost. Because ghost enemies skip `enemy.update()`, the timer never decremented and the white-flash overlay rendered every frame. Fixed by short-circuiting the collision block for ghost enemies — the projectile is consumed for visual feedback but no damage, flash, or score is applied.
+- **Online 2-Player: Play Again after game over starts a new solo game**: Play Again now reopens the online lobby screen so players can rematch without re-entering lobby codes. The button label updates to "🌐 PLAY AGAIN ONLINE" when the session was online.
+- **Online 2-Player: Quit Run during online game does not notify partner**: Quitting during an online game now calls `signalGameOver()` first, informing the partner (who will see their own game-over screen), then opens the online lobby for the quitting player.
+- **Online 2-Player: Chaos mode available in online despite not being supported in co-op**: The "Chaos" mode button is now hidden in the online pre-game screen. Chaos Shuffle is not supported in any co-op mode (the local co-op gate at `startGame` already blocks it) and was silently broken online.
+
+### Changed
+- **Online Co-op: snapshot frequency doubled**: Host now sends a state snapshot every frame (60 fps) instead of every 2 frames (30 fps), halving the maximum guest-side entity latency.
+
 ### Added
+- **Game Guide: Online Multiplayer tab**: Added a dedicated "Online Multiplayer" tab to the in-game manual (Game Guide) covering account setup, private lobby creation/joining, online versus gameplay, the Global Lobby social hub, emotes, proximity challenges, and auto-reconnect behavior.
 - **Online 2-Player: pre-game hero & mode selection**: After both players confirm their hero in the invite-code lobby (or accept a Global Lobby challenge), the game no longer starts immediately. Instead, the shared **Versus/2-Player** hero-select screen opens (`versus-selection-screen`) in an online configuration: each player sees a hero grid where they can change **their own** hero (changes sync live to the partner via `HERO_SELECT`); a partner section shows the partner's current hero and name; the host picks one of four modes — **Standard**, **Story**, **Chaos**, or **Versus** (mode syncs live via `MODE_SELECT`/`MODE_UPDATE`); the host presses **START** to launch the match. Keyboard, mouse, and gamepad (D-Pad/A) are all supported. Guests are locked to row 0 (hero grid) on gamepad. The server handles the new `pre_game` lobby phase, `START_ONLINE_GAME`, and `MODE_SELECT` message types.
 
 ### Fixed
