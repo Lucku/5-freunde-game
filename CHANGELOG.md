@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Added
+- **Server-authoritative online multiplayer**: The dedicated server now runs the full game simulation at 20 Hz. Both clients send inputs and receive state snapshots from the server — neither player's machine acts as a host any more. This eliminates the host-advantage lag and makes the gameplay experience symmetric regardless of each player's upload speed or CPU.
+  - New `server/simulation/GameSession.js` — 20 Hz server-side tick loop (player movement, projectile physics, enemy AI, wave spawning, collision, XP/level-up, gold drops).
+  - New `server/simulation/WaveManager.js` — enemy spawning and wave progression logic.
+  - New `server/simulation/constants.js` — Node.js-compatible hero stats and game constants.
+  - `server/server.js` — creates a `GameSession` on `GAME_START`, routes `INPUT` messages directly to the session, and handles `LEVEL_UP_CHOICE` without relaying to a peer.
+  - `game.js` — both clients are now symmetric guests (`isOnlineHost` permanently `false`); both flush input every frame; both apply server snapshots via the existing `_onlineApplySnapshot` path. Removed all dead `isOnlineHost` branches and the now-unused `_onlineSendSnapshot` function.
+- **Client-side prediction (Phase 2)**: Own-player movement is now predicted locally every frame via the pre-existing `player.update()` path. Position reconciliation on each server snapshot uses a tiered strategy: drifts under 10 px are silently accepted, 10–80 px receive a smooth 30 % correction per snapshot to avoid visual teleports, and drifts over 80 px (knockback, revival) still hard-snap immediately.
+- **Bandwidth optimisation (Phase 3)**: Snapshot payload reduced ~45 %. Static entity fields (`maxHp`, `subType`, `color`, `sides`, `radius` for enemies; `color`, `radius`, `isEnemy`, `isExplosive`, `isCrit` for projectiles) are now sent only on first appearance — subsequent snapshots carry only the dynamic fields that change every tick. Client merges delta updates with cached state. Projectile ghost objects are now reused across snapshots instead of being recreated, reducing GC pressure.
+  - `Managers/NetworkManager.js` — `flushInput` now sends `INPUT` as a direct top-level message (no RELAY wrapper); server-pushed `SNAPSHOT`, `LEVEL_UP`, `PARTNER_LEVELING`, and `LEVEL_UP_DONE` are dispatched as first-class message types.
+  - `UI/LevelUp.js` — level-up choice is sent directly to the server (`LEVEL_UP_CHOICE`) instead of being relayed to the peer.
+
+### Changed
+- **Online 2-Player: snapshot now sent by server, not by host client**: Snapshot frequency is now controlled by the server tick rate (20 Hz), with client-side extrapolation bridging frames at 60 Hz.
+
 ### Fixed
 - **Online 2-Player: evil heroes (Green Goblin, Makuta) visible in online hero select**: These heroes are now always filtered out of the online pre-game hero grid, regardless of whether the player has unlocked Evil Mode.
 - **Online 2-Player: Story mode shows each player's own hero story**: Both host and guest were independently running story events based on their own hero type, causing out-of-sync narratives. The guest now uses the host's hero type for story event lookups (`window._onlineStoryHero` set in `startOnlineGame`), so both players see the host's hero story.

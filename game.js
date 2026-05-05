@@ -109,7 +109,6 @@ let isOnlineHost  = false;  // this client runs the authoritative simulation
 let isOnlineGuest = false;  // this client receives state snapshots
 let _onlineFrame  = 0;      // frame counter for throttling network sends
 let _onlineEvents = [];     // event queue flushed with each host snapshot
-let _onlineP2Controller = null; // NetworkInputController instance (host-side)
 let coopP2HeroType = null;
 let coopP1GamepadIndex = -1;
 let coopP2GamepadIndex = -1;
@@ -1367,12 +1366,13 @@ function startOnlineGame(msg) {
     // msg: { hostHero, guestHero, hostUsername, guestUsername, mode }
     const nm = window.networkManager;
 
+    // Both clients are now symmetric guests — the server runs the simulation.
     isOnlineMode  = true;
-    window.isOnlineMode = true;
-    isOnlineHost  = nm.isHost();
-    isOnlineGuest = nm.isGuest();
-    window.isOnlineHost  = isOnlineHost;
-    window.isOnlineGuest = isOnlineGuest;
+    isOnlineHost  = false;  // no client hosts the simulation any more
+    isOnlineGuest = true;   // both receive snapshots and send inputs
+    window.isOnlineMode  = true;
+    window.isOnlineHost  = false;
+    window.isOnlineGuest = true;
 
     // Store player names for HUD display
     window._onlineHostName  = msg.hostUsername  || 'Host';
@@ -1397,16 +1397,15 @@ function startOnlineGame(msg) {
     if (!saveData.story) saveData.story = { unlockedChapters: [], enabled: false };
     saveData.story.enabled = (msg.mode === 'STORY');
 
-    // Hero assignment: host=P1, guest=P2
-    const myHero      = isOnlineHost ? msg.hostHero : msg.guestHero;
-    const partnerHero = isOnlineHost ? msg.guestHero : msg.hostHero;
+    // Hero assignment: host=P1, guest=P2 (roles stay; server sends personalised snapshots)
+    const myHero      = nm.isHost() ? msg.hostHero : msg.guestHero;
+    const partnerHero = nm.isHost() ? msg.guestHero : msg.hostHero;
 
     coopP2HeroType = partnerHero;
     window.coopP2HeroType = partnerHero;
-    coopP1GamepadIndex = -1; // not using gamepad indices in online mode
+    coopP1GamepadIndex = -1;
     coopP2GamepadIndex = -1;
 
-    // Select our own hero in the hero-select state
     const _heroes = Object.keys(BASE_HERO_STATS);
     const myIdx = _heroes.indexOf(myHero);
     if (myIdx !== -1) window.selectedHeroIndex = myIdx;
@@ -1414,33 +1413,15 @@ function startOnlineGame(msg) {
     _onlineFrame  = 0;
     _onlineEvents = [];
 
-    // Wire up the relay handler before startGame so it's ready immediately
-    if (isOnlineHost) {
-        _onlineP2Controller = new NetworkInputController();
-        nm.on('RELAY', (msg) => {
-            if (!isOnlineMode || !isOnlineHost) return;
-            if (msg.payload?.type === 'INPUT') {
-                _onlineP2Controller.receive(msg.payload);
-            } else if (msg.payload?.type === 'LEVEL_UP_CHOICE') {
-                _onlineHandleLevelUpChoice(msg.payload.choice);
-            }
-        });
-    } else {
-        nm.on('RELAY', (msg) => {
-            if (!isOnlineMode || !isOnlineGuest) return;
-            const p = msg.payload;
-            if (!p) return;
-            if (p.type === 'SNAPSHOT') _onlineApplySnapshot(p);
-            else if (p.type === 'LEVEL_UP') _onlineShowLevelUpForGuest(p);
-            else if (p.type === 'PARTNER_LEVELING') _onlineShowPartnerLevelingOverlay(true);
-            else if (p.type === 'LEVEL_UP_DONE') _onlineShowPartnerLevelingOverlay(false);
-            else if (p.type === 'GAME_OVER') gameOver(p.victory || false);
-        });
-    }
+    // Both clients handle server-pushed messages directly (no RELAY wrapper in-game)
+    nm.on('SNAPSHOT',        (s)  => { if (isOnlineMode) _onlineApplySnapshot(s); });
+    nm.on('LEVEL_UP',        (ev) => { if (isOnlineMode) _onlineShowLevelUpForGuest(ev); });
+    nm.on('PARTNER_LEVELING',()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(true); });
+    nm.on('LEVEL_UP_DONE',   ()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
 
     nm.on('PARTNER_DISCONNECTED', () => _onlineShowReconnectOverlay(true));
     nm.on('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
-    nm.on('GAME_OVER', () => { if (isOnlineGuest) gameOver(false); });
+    nm.on('GAME_OVER', () => { if (isOnlineMode) gameOver(false); });
 
     const _gameMode = isVersusOnline ? 'VERSUS' : (msg.mode === 'SHUFFLE' ? 'SHUFFLE' : 'NORMAL');
     startGame(_gameMode);
@@ -1454,7 +1435,6 @@ function _onlineCleanup() {
     window.isOnlineMode  = false;
     window.isOnlineHost  = false;
     window.isOnlineGuest = false;
-    _onlineP2Controller  = null;
     _onlineEvents = [];
     window._onlineStoryHero = null;
 }
@@ -2591,20 +2571,9 @@ function chooseUpgrade(type) {
     isLevelingUp = false;
     document.getElementById('levelup-screen').style.display = 'none';
 
-    // Online host: tell guest P1's level-up is done
-    if (isOnlineMode && isOnlineHost) window.networkManager?.relay({ type: 'LEVEL_UP_DONE' });
-
     // Co-op / AI companion: dequeue P2 level-up if pending
     if ((isCoopMode || isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
         p2LevelUpPending = false;
-        // Online host: relay P2 level-up to guest instead of showing locally
-        if (isOnlineMode && isOnlineHost) {
-            window._onlineP2LevelUpOptions = p2LevelUpOptions;
-            window.networkManager?.relay({ type: 'LEVEL_UP', player: 'p2', options: p2LevelUpOptions });
-            isLevelingUp = true;
-            window.levelingUpPlayer = window.player2;
-            return;
-        }
         isLevelingUp = true;
         window.levelingUpPlayer = window.player2;
         window.levelUpUI.showLevelUp(window.player2, p2LevelUpOptions);
@@ -2618,18 +2587,8 @@ function chooseUpgrade(type) {
 // Called by LevelUpUI after any upgrade is chosen — handles P2 dequeue
 window._afterUpgradeChosen = function () {
     window.levelingUpPlayer = null;
-    // Online host: tell guest P1's level-up is done
-    if (isOnlineMode && isOnlineHost) window.networkManager?.relay({ type: 'LEVEL_UP_DONE' });
     if ((isCoopMode || isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
         p2LevelUpPending = false;
-        // Online host: relay P2 level-up to guest instead of showing locally
-        if (isOnlineMode && isOnlineHost) {
-            window._onlineP2LevelUpOptions = p2LevelUpOptions;
-            window.networkManager?.relay({ type: 'LEVEL_UP', player: 'p2', options: p2LevelUpOptions });
-            isLevelingUp = true;
-            window.levelingUpPlayer = window.player2;
-            return;
-        }
         isLevelingUp = true;
         window.levelingUpPlayer = window.player2;
         window.levelUpUI.showLevelUp(window.player2, p2LevelUpOptions);
@@ -3604,17 +3563,12 @@ function startGame(mode = 'NORMAL') {
         player2 = new Player(coopP2HeroType || 'water');
 
         if (isOnlineMode) {
-            if (isOnlineHost) {
-                // Host drives P2 via network inputs
-                player2.controller = _onlineP2Controller;
-            } else {
-                // Guest: P2 is a ghost — no controller, positions come from host snapshots
-                player2.controller = null;
-                player2._ghost = true;
-                // Wrap our own local controller to also forward inputs to host
-                if (player.controller) {
-                    player.controller = new RecordingInputController(player.controller);
-                }
+            // P2 is a ghost — no controller, positions come from server snapshots
+            player2.controller = null;
+            player2._ghost = true;
+            // Wrap local controller to forward inputs to server
+            if (player.controller) {
+                player.controller = new RecordingInputController(player.controller);
             }
         } else {
             player2.controller = new CoopGamepadController(coopP2GamepadIndex);
@@ -3793,7 +3747,7 @@ function gameOver(isVictory = false) {
     coopZoom = 1.0;
     p2LevelUpPending = false;
     if (isOnlineMode) {
-        if (isOnlineHost) window.networkManager?.signalGameOver();
+        window.networkManager?.signalGameOver();
         ['online-reconnect-overlay', 'online-partner-leveling-overlay', 'online-wait-overlay', 'online-name-bar'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
@@ -4065,60 +4019,6 @@ const frameDelay = 1000 / FPS;
 
 // ── Online Co-op sync ─────────────────────────────────────────────────────────
 
-/** HOST: serialize and relay a state snapshot to the guest every ~3 frames. */
-function _onlineSendSnapshot() {
-    const nm = window.networkManager;
-    if (!nm || !nm.isInGame()) return;
-
-    const _p = (pl) => pl ? {
-        x: Math.round(pl.x), y: Math.round(pl.y),
-        vx: Math.round((pl.vx || 0) * 10) / 10,
-        vy: Math.round((pl.vy || 0) * 10) / 10,
-        hp: Math.round(pl.hp), maxHp: pl.maxHp,
-        isDead: pl.isDead, level: pl.level,
-        xp: Math.round(pl.xp), maxXp: pl.maxXp,
-        gold: Math.round(pl.gold || 0),
-        aimAngle: Math.round((pl.aimAngle || 0) * 100) / 100,
-        isInvincible: !!pl.isInvincible,
-        // Movement vector for guest-side extrapolation of host character
-        mx: Math.round((pl.moveInput?.x || 0) * 100) / 100,
-        my: Math.round((pl.moveInput?.y || 0) * 100) / 100,
-    } : null;
-
-    const snapshot = {
-        type: 'SNAPSHOT',
-        t: Date.now(),
-        p1: _p(player),
-        p2: _p(player2),
-        wave, score, bossActive,
-        isLevelingUp, isShopping,
-        enemies: enemies.slice(0, 80).map(e => ({
-            _id: e._id,
-            x: Math.round(e.x), y: Math.round(e.y),
-            vx: Math.round((e.vx || 0) * 10) / 10,
-            vy: Math.round((e.vy || 0) * 10) / 10,
-            hp: Math.round(e.hp), maxHp: e.maxHp,
-            subType: e.subType, color: e.color,
-            sides: e.sides, radius: e.radius,
-            alpha: e.alpha !== 1 ? Math.round((e.alpha || 1) * 100) / 100 : 1,
-            frozenTimer: e.frozenTimer > 0 ? Math.round(e.frozenTimer) : 0,
-            slowTimer:   e.slowTimer   > 0 ? Math.round(e.slowTimer)   : 0,
-        })),
-        projectiles: projectiles.slice(0, 150).map(p => ({
-            _id: p._id || 0,
-            x: Math.round(p.x), y: Math.round(p.y),
-            vx: Math.round((p.velocity?.x || 0) * 10) / 10,
-            vy: Math.round((p.velocity?.y || 0) * 10) / 10,
-            color: p.color, radius: p.radius,
-            isEnemy: !!p.isEnemy, isExplosive: !!p.isExplosive, isCrit: !!p.isCrit,
-        })),
-        events: _onlineEvents.splice(0),
-        p1Marker: p1RevivalMarker ? { x: p1RevivalMarker.x, y: p1RevivalMarker.y, progress: p1RevivalMarker.progress, maxProgress: p1RevivalMarker.maxProgress } : null,
-        p2Marker: p2RevivalMarker ? { x: p2RevivalMarker.x, y: p2RevivalMarker.y, progress: p2RevivalMarker.progress, maxProgress: p2RevivalMarker.maxProgress } : null,
-    };
-
-    nm.relay(snapshot);
-}
 
 /** GUEST: apply a state snapshot received from the host. */
 function _onlineApplySnapshot(s) {
@@ -4153,9 +4053,18 @@ function _onlineApplySnapshot(s) {
         player.xp     = s.p2.xp;
         player.maxXp  = s.p2.maxXp;
         player.gold   = s.p2.gold;
-        // Position correction only when significantly off (> 80px)
+        // Phase 2 prediction reconciliation:
+        //   < 10 px  — ignore (timing noise within one local-prediction frame)
+        //   10–80 px — smooth 30 % blend toward server authority per snapshot
+        //   > 80 px  — hard snap (knockback, death/revival, extreme lag)
         const _dx = s.p2.x - player.x, _dy = s.p2.y - player.y;
-        if (_dx * _dx + _dy * _dy > 6400) { player.x = s.p2.x; player.y = s.p2.y; }
+        const _d2 = _dx * _dx + _dy * _dy;
+        if (_d2 > 6400) {
+            player.x = s.p2.x; player.y = s.p2.y;
+        } else if (_d2 > 100) {
+            player.x += _dx * 0.3;
+            player.y += _dy * 0.3;
+        }
 
         // Revival: host revived us (isDead went true→false) — cancel any local death state
         if (prevDead && !player.isDead) {
@@ -4186,29 +4095,41 @@ function _onlineApplySnapshot(s) {
         e._snapshotAt = _now;
         e.x = ed.x; e.y = ed.y;
         e.vx = ed.vx || 0; e.vy = ed.vy || 0;
-        e.hp = ed.hp; e.maxHp = ed.maxHp;
-        e.subType = ed.subType; e.color = ed.color;
-        e.sides = ed.sides; e.radius = ed.radius;
+        e.hp = ed.hp;
         e.alpha = ed.alpha !== undefined ? ed.alpha : 1;
         e.frozenTimer = ed.frozenTimer || 0;
-        e.slowTimer   = ed.slowTimer   || 0;
+        e.slowTimer   = 0;
+        // Static fields present only on first appearance (delta encoding)
+        if (ed.maxHp   !== undefined) e.maxHp   = ed.maxHp;
+        if (ed.subType !== undefined) e.subType = ed.subType;
+        if (ed.color   !== undefined) e.color   = ed.color;
+        if (ed.sides   !== undefined) e.sides   = ed.sides;
+        if (ed.radius  !== undefined) e.radius  = ed.radius;
         return e;
     });
     window.enemies = enemies;
 
-    // Rebuild ghost projectile array
+    // Rebuild ghost projectile array (reuse existing objects to reduce GC pressure)
+    const _prevProjMap = new Map(projectiles.filter(p => p._ghost).map(p => [p._id, p]));
     projectiles = s.projectiles.map(pd => {
-        const p = Object.create(Projectile ? Projectile.prototype : Object.prototype);
-        p._ghost = true;
+        let p = _prevProjMap.get(pd._id);
+        if (!p) {
+            p = Object.create(Projectile ? Projectile.prototype : Object.prototype);
+            p._ghost = true;
+            p.life = 1; p.dead = false; p.pierce = 0; p.owner = null;
+            p.damage = 0; p.knockback = 0; p.type = '';
+        }
         p._id = pd._id;
         p._sx = pd.x; p._sy = pd.y;  // snapshot origin for extrapolation
         p._snapshotAt = _snapTime;
         p.x = pd.x; p.y = pd.y;
         p.velocity = { x: pd.vx, y: pd.vy };
-        p.color = pd.color; p.radius = pd.radius;
-        p.isEnemy = pd.isEnemy; p.isExplosive = pd.isExplosive; p.isCrit = pd.isCrit;
-        p.life = 1; p.dead = false; p.pierce = 0; p.owner = null;
-        p.damage = 0; p.knockback = 0; p.type = '';
+        // Static fields present only on first appearance (delta encoding)
+        if (pd.color       !== undefined) p.color       = pd.color;
+        if (pd.radius      !== undefined) p.radius      = pd.radius;
+        if (pd.isEnemy     !== undefined) p.isEnemy     = pd.isEnemy;
+        if (pd.isExplosive !== undefined) p.isExplosive = pd.isExplosive;
+        if (pd.isCrit      !== undefined) p.isCrit      = pd.isCrit;
         return p;
     });
     window.projectiles = projectiles;
@@ -4242,26 +4163,12 @@ function _onlineProcessGuestEvent(ev) {
     }
 }
 
-/** HOST: push an event to be included in the next snapshot. */
-function _onlineQueueEvent(ev) {
-    if (isOnlineHost) _onlineEvents.push(ev);
-}
+/** @deprecated Server now manages the event queue — kept for compatibility. */
+function _onlineQueueEvent(_ev) {}
 window._onlineQueueEvent = _onlineQueueEvent;
 
-/** HOST: receives the guest's level-up choice and applies it to player2. */
-function _onlineHandleLevelUpChoice(choice) {
-    if (!player2 || !window._onlineP2LevelUpOptions) return;
-    const options = window._onlineP2LevelUpOptions;
-    const chosen = options.find(o => o.id === choice) || options[0];
-    if (chosen && player2.applyUpgrade) player2.applyUpgrade(chosen);
-    window._onlineP2LevelUpOptions = null;
-    window.levelingUpPlayer = null;
-    isLevelingUp = false;
-    p2LevelUpPending = false;
-    document.getElementById('levelup-screen').style.display = 'none';
-    _syncSoundBiomeMusic();
-    setUIState('GAME');
-}
+/** @deprecated Server now applies level-up choices — kept for compatibility. */
+function _onlineHandleLevelUpChoice(_choice) {}
 
 /** GUEST: display the level-up screen for their own character (choice relayed to host via LevelUp.js). */
 function _onlineShowLevelUpForGuest(ev) {
@@ -5445,32 +5352,27 @@ function masterLoop(timestamp) {
                 updateDrawRevivalMarkers(ctx);
             }
 
-            // Online: extrapolate ghost enemies, flush input (guest) or send snapshot (host)
+            // Online: extrapolate ghost entities between 20 Hz server snapshots; flush input
             if (isOnlineMode && gameRunning && !gamePaused) {
                 _onlineFrame++;
 
-                // Guest: extrapolate ghost enemy and projectile positions between snapshots
-                if (isOnlineGuest) {
-                    const _now = Date.now();
-                    enemies.forEach(e => {
-                        if (!e._ghost) return;
-                        const _dt = Math.min((_now - (e._snapshotAt || _now)) / 1000 * 60, 12);
-                        e.x = (e._sx || e.x) + (e.vx || 0) * _dt;
-                        e.y = (e._sy || e.y) + (e.vy || 0) * _dt;
-                    });
-                    projectiles.forEach(p => {
-                        if (!p._ghost || !p._snapshotAt) return;
-                        const _dt = Math.min((_now - p._snapshotAt) / 1000 * 60, 12);
-                        p.x = p._sx + (p.velocity?.x || 0) * _dt;
-                        p.y = p._sy + (p.velocity?.y || 0) * _dt;
-                    });
-                }
+                // Extrapolate ghost enemy and projectile positions between server ticks
+                const _now = Date.now();
+                enemies.forEach(e => {
+                    if (!e._ghost) return;
+                    const _dt = Math.min((_now - (e._snapshotAt || _now)) / 1000 * 60, 12);
+                    e.x = (e._sx || e.x) + (e.vx || 0) * _dt;
+                    e.y = (e._sy || e.y) + (e.vy || 0) * _dt;
+                });
+                projectiles.forEach(p => {
+                    if (!p._ghost || !p._snapshotAt) return;
+                    const _dt = Math.min((_now - p._snapshotAt) / 1000 * 60, 12);
+                    p.x = p._sx + (p.velocity?.x || 0) * _dt;
+                    p.y = p._sy + (p.velocity?.y || 0) * _dt;
+                });
 
-                // Guest: flush input every frame for minimum host-side input lag
-                if (isOnlineGuest) window.networkManager?.flushInput();
-
-                // Every frame (60fps) — host sends state snapshot for minimum guest lag
-                if (isOnlineHost) _onlineSendSnapshot();
+                // Both clients send input every frame so the server has up-to-date state
+                window.networkManager?.flushInput();
             }
 
             // Update Companions

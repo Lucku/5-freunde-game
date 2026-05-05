@@ -1,7 +1,7 @@
 {
-  "name": "5-freunde-cloud-save-server",
-  "version": "1.0.0",
-  "description": "Cloud save server for 5 Freunde Elemental Arena",
+  "name": "5-freunde-server",
+  "version": "1.0.0-dev",
+  "description": "Server for 5 Freunde Elemental Arena",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

@@ -159,6 +159,8 @@ class NetworkManager {
             this.lobbyCode = null;
             this.role      = null;
         }
+        // Server-pushed in-game messages arrive as direct (non-RELAY) messages;
+        // they are forwarded to registered handlers below without extra unwrapping.
         if (msg.type === 'GLOBAL_LOBBY_STATE') {
             this.remotePlayers = {};
             (msg.players || []).forEach(p => { this.remotePlayers[p.userId] = p; });
@@ -252,14 +254,15 @@ class NetworkManager {
         if (input.special) this.pendingInput.special  = true;
     }
 
-    /** Consume latched input and reset action flags, then send to host. */
+    /** Consume latched input and reset action flags, then send directly to server. */
     flushInput() {
         const inp = { ...this.pendingInput };
         this.pendingInput.shoot   = false;
         this.pendingInput.melee   = false;
         this.pendingInput.dash    = false;
         this.pendingInput.special = false;
-        this.relay({ type: 'INPUT', t: Date.now(), ...inp });
+        // Send as a first-class INPUT message — server reads it directly (no relay)
+        this.send({ type: 'INPUT', t: Date.now(), ...inp });
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────

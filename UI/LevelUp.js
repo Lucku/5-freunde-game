@@ -59,9 +59,9 @@ class LevelUpUI {
     }
 
     chooseUpgrade(type, player) {
-        // Online guest: relay choice to host so player2 ghost gets the same upgrade
-        if (typeof isOnlineGuest !== 'undefined' && isOnlineGuest && player === window.player) {
-            window.networkManager?.relay({ type: 'LEVEL_UP_CHOICE', choice: type });
+        // Online: send choice directly to server (server is now authoritative)
+        if (typeof isOnlineMode !== 'undefined' && isOnlineMode && player === window.player) {
+            window.networkManager?.send({ type: 'LEVEL_UP_CHOICE', choice: type });
         }
 
         // 1. Try Hero Specific Upgrade Logic

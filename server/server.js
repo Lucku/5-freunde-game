@@ -9,6 +9,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
+const GameSession = require('./simulation/GameSession');
 
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
@@ -332,6 +333,15 @@ function handleMessage(ws, msg) {
             };
             send(lobby.host.ws, startMsg);
             send(lobby.guest.ws, startMsg);
+
+            // Start server-authoritative simulation for this lobby
+            try {
+                const session = new GameSession(lobby, send);
+                session.init(lobby.hostHero, lobby.guestHero);
+                lobby.session = session;
+            } catch (err) {
+                console.error('[GameSession] Failed to start:', err);
+            }
             break;
         }
 
@@ -343,10 +353,29 @@ function handleMessage(ws, msg) {
             break;
         }
 
-        case 'RELAY': {
-            // Generic relay — host sends game state, guest sends inputs
+        case 'INPUT': {
+            // Both clients send inputs directly to the server (no relay)
             const lobby = lobbies.get(ws.lobbyCode);
-            if (!lobby || (lobby.phase !== 'in_game' && lobby.phase !== 'pre_game')) return;
+            if (!lobby || lobby.phase !== 'in_game' || !lobby.session) return;
+            lobby.session.applyInput(ws.role, msg);
+            break;
+        }
+
+        case 'LEVEL_UP_CHOICE': {
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby || !lobby.session) return;
+            lobby.session.applyLevelUpChoice(ws.role, msg.choice);
+            // Notify partner that level-up is done
+            const p = partner(lobby, ws.role);
+            if (p) send(p.ws, { type: 'LEVEL_UP_DONE' });
+            break;
+        }
+
+        case 'RELAY': {
+            // Legacy relay path — kept for pre_game phase messages only.
+            // In-game INPUT is now handled by the INPUT case above.
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby || lobby.phase !== 'pre_game') return;
             const p = partner(lobby, ws.role);
             if (p) send(p.ws, { type: 'RELAY', from: ws.role, payload: msg.payload });
             break;
@@ -355,6 +384,7 @@ function handleMessage(ws, msg) {
         case 'GAME_OVER': {
             const lobby = lobbies.get(ws.lobbyCode);
             if (!lobby) return;
+            if (lobby.session) { lobby.session.stop(); lobby.session = null; }
             lobby.phase = 'finished';
             const p = partner(lobby, ws.role);
             if (p) send(p.ws, { type: 'GAME_OVER' });
@@ -521,7 +551,8 @@ function leaveLobby(ws) {
 function cleanupLobby(code) {
     const lobby = lobbies.get(code);
     if (!lobby) return;
-    if (lobby.host) { userLobby.delete(lobby.host.userId); lobby.host.ws.lobbyCode = null; lobby.host.ws.role = null; }
+    if (lobby.session) { lobby.session.stop(); lobby.session = null; }
+    if (lobby.host)  { userLobby.delete(lobby.host.userId);  lobby.host.ws.lobbyCode  = null; lobby.host.ws.role  = null; }
     if (lobby.guest) { userLobby.delete(lobby.guest.userId); lobby.guest.ws.lobbyCode = null; lobby.guest.ws.role = null; }
     lobbies.delete(code);
 }

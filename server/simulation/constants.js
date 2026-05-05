@@ -1,0 +1,46 @@
+'use strict';
+
+// Core game constants — Node.js-compatible, no browser globals.
+// These mirror the relevant parts of the client's Constants.js.
+
+const BASE_HERO_STATS = {
+    fire:        { color: '#e74c3c', hp: 60,  speed: 4,   rangeDmg: 25,  meleeDmg: 100, rangeCd: 15,  meleeCd: 120, projectileSpeed: 12, projectileSize: 6,  knockback: 4  },
+    water:       { color: '#3498db', hp: 60,  speed: 4.5, rangeDmg: 12,  meleeDmg: 80,  rangeCd: 8,   meleeCd: 100, projectileSpeed: 10, projectileSize: 5,  knockback: 20 },
+    ice:         { color: '#ecf0f1', hp: 50,  speed: 4,   rangeDmg: 15,  meleeDmg: 90,  rangeCd: 25,  meleeCd: 130, projectileSpeed: 15, projectileSize: 4,  knockback: 2  },
+    plant:       { color: '#2ecc71', hp: 70,  speed: 3.5, rangeDmg: 22,  meleeDmg: 120, rangeCd: 30,  meleeCd: 140, projectileSpeed: 9,  projectileSize: 7,  knockback: 8  },
+    metal:       { color: '#95a5a6', hp: 100, speed: 3,   rangeDmg: 40,  meleeDmg: 150, rangeCd: 40,  meleeCd: 180, projectileSpeed: 18, projectileSize: 8,  knockback: 12 },
+    black:       { color: '#2c3e50', hp: 150, speed: 5,   rangeDmg: 50,  meleeDmg: 200, rangeCd: 10,  meleeCd: 80,  projectileSpeed: 20, projectileSize: 10, knockback: 25 },
+    green_goblin:{ color: '#1d8a2e', hp: 90,  speed: 5.5, rangeDmg: 35,  meleeDmg: 110, rangeCd: 12,  meleeCd: 100, projectileSpeed: 14, projectileSize: 6,  knockback: 10 },
+    makuta:      { color: '#000000', hp: 200, speed: 4.2, rangeDmg: 60,  meleeDmg: 180, rangeCd: 8,   meleeCd: 90,  projectileSpeed: 18, projectileSize: 9,  knockback: 18 },
+};
+
+const UPGRADE_POOL = [
+    { id: 'health',     title: 'Vitality',     desc: 'Increase Max HP by 25 and Heal 20%.',         icon: '❤️' },
+    { id: 'radius',     title: 'Blast Radius', desc: 'Increase Melee Area of Effect by 25%.',       icon: '💥' },
+    { id: 'projectile', title: 'Multishot',    desc: 'Fire +1 subsequent straight shot.',            icon: '🏹' },
+    { id: 'speed',      title: 'Swiftness',    desc: 'Increase Movement Speed by 10%.',              icon: '👟' },
+    { id: 'cooldown',   title: 'Haste',        desc: 'Reduce Blast Cooldown by 10%.',                icon: '⏳' },
+    { id: 'defense',    title: 'Iron Skin',    desc: 'Reduce incoming damage by 5%.',                icon: '🛡️' },
+    { id: 'damage',     title: 'Power',        desc: 'Increase all damage dealt by 10%.',            icon: '⚔️' },
+    { id: 'luck',       title: 'Fortune',      desc: 'Increase Holy Mask drop chance.',              icon: '🍀' },
+    { id: 'crit',       title: 'Lethality',    desc: '+5% Crit Chance & +20% Crit Damage.',          icon: '🎯' },
+];
+
+const ARENA_WIDTH  = 3000;
+const ARENA_HEIGHT = 3000;
+const PLAYER_RADIUS = 20;
+
+// Server runs at 20 Hz. Each tick represents TICK_FRAMES equivalent 60-fps frames,
+// so all frame-based timers from the client stay numerically compatible.
+const TICK_MS     = 50;          // 20 Hz
+const TICK_FRAMES = TICK_MS / (1000 / 60); // ≈ 3
+
+module.exports = {
+    BASE_HERO_STATS,
+    UPGRADE_POOL,
+    ARENA_WIDTH,
+    ARENA_HEIGHT,
+    PLAYER_RADIUS,
+    TICK_MS,
+    TICK_FRAMES,
+};
