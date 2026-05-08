@@ -7,6 +7,11 @@ All notable changes to this project will be documented in this file, starting wi
 ### Added
 - **Online: story chapter sync** — in online co-op story mode, the continue button now waits for both players to click before closing the story screen. Local player sees "Waiting for partner…"; if partner clicks first the button reads "CONTINUE → (partner ready)".
 
+### Fixed
+- **P2 HUD stuck on screen**: the bottom-right co-op HUD now hides immediately when a game ends (via `gameOver()` or `_resetGameState()`). Previously it remained visible after online co-op or local co-op games ended.
+- **Online hero selection**: changing hero in the online lobby/pre-game screen now correctly applies to the local player's own character in-game. Previously `selectedHeroType` was not updated before `startGame()`, so the client still spawned the main-menu hero.
+- **Online versus mode**: selecting versus mode now correctly suppresses enemy spawning and wave advancement on the server. Server simulation now handles PvP projectile and melee collision. First player to die loses; no enemy-wave revival between rounds.
+
 ### Changed
 - **Online: "Play Again Online"** — after a game ends, clicking "Play Again Online" sends both players back to the shared lobby screen (hero & mode selection) without disconnecting. Server resets the lobby to `hero_select` phase and broadcasts to both. If a partner quit mid-game the button falls back to opening a fresh lobby. Server auto-cleans finished lobbies after 5 minutes.
 - **Online lobby hero pre-selection** — the online lobby (both hosted games and global lobby) now pre-selects the hero chosen on the main menu instead of always defaulting to Fire.

@@ -97,12 +97,16 @@ class GameSession {
 
     // ─── Public API ─────────────────────────────────────────────────────────────
 
-    init(hostHero, guestHero) {
+    init(hostHero, guestHero, mode = 'NORMAL') {
+        this._isVersusMode = (mode === 'VERSUS');
+        this._world.isVersusMode = this._isVersusMode;
+        this._world.isCoopMode   = !this._isVersusMode;
+
         // Sync canvas dimensions so Player constructor gets correct spawn coords
         global.canvas = { width: ARENA_WIDTH, height: ARENA_HEIGHT };
 
-        const p1 = this._createPlayer(hostHero, ARENA_WIDTH / 2 - 120, ARENA_HEIGHT / 2);
-        const p2 = this._createPlayer(guestHero, ARENA_WIDTH / 2 + 120, ARENA_HEIGHT / 2);
+        const p1 = this._createPlayer(hostHero, ARENA_WIDTH / 2 - 300, ARENA_HEIGHT / 2);
+        const p2 = this._createPlayer(guestHero, ARENA_WIDTH / 2 + 300, ARENA_HEIGHT / 2);
 
         this._world.player  = p1;
         this._world.player2 = p2;
@@ -207,52 +211,54 @@ class GameSession {
         // 3. Move projectiles + collision vs enemies/players
         this._updateProjectiles();
 
-        // 4. Move enemies (full AI via Enemy.update()) + contact damage
-        const prevEnemyCount   = this.enemies.length;
-        const prevEnemyProjCount = this.projectiles.length;
+        if (!this._isVersusMode) {
+            // 4. Move enemies (full AI via Enemy.update()) + contact damage
+            const prevEnemyCount   = this.enemies.length;
+            const prevEnemyProjCount = this.projectiles.length;
 
-        if (this.players.some(p => p && !p.isDead)) {
-            this.enemies.forEach(enemy => {
-                if (enemy.hp <= 0) return;
-                enemy.update();
+            if (this.players.some(p => p && !p.isDead)) {
+                this.enemies.forEach(enemy => {
+                    if (enemy.hp <= 0) return;
+                    enemy.update();
+                });
+            }
+
+            // Assign IDs to projectiles spawned by enemy.update() (real Projectile objects)
+            for (let i = prevEnemyProjCount; i < this.projectiles.length; i++) {
+                const proj = this.projectiles[i];
+                if (!proj._id) proj._id = this._nextProjId++;
+            }
+
+            // Assign IDs to minions spawned by SUMMONER during update
+            for (let i = prevEnemyCount; i < this.enemies.length; i++) {
+                const e = this.enemies[i];
+                if (!e._id) e._id = this._nextEnemyId++;
+            }
+
+            // Contact damage — Enemy.update() handles movement only, not player collision
+            this._applyEnemyContactDamage();
+
+            // Prune dead enemies, awarding kill rewards exactly once per enemy
+            this.enemies = this.enemies.filter(e => {
+                if (e.hp > 0) return true;
+                if (!e._killProcessed) this._onEnemyKilled(e);
+                return false;
             });
-        }
-
-        // Assign IDs to projectiles spawned by enemy.update() (real Projectile objects)
-        for (let i = prevEnemyProjCount; i < this.projectiles.length; i++) {
-            const proj = this.projectiles[i];
-            if (!proj._id) proj._id = this._nextProjId++;
-        }
-
-        // Assign IDs to minions spawned by SUMMONER during update
-        for (let i = prevEnemyCount; i < this.enemies.length; i++) {
-            const e = this.enemies[i];
-            if (!e._id) e._id = this._nextEnemyId++;
-        }
-
-        // Contact damage — Enemy.update() handles movement only, not player collision
-        this._applyEnemyContactDamage();
-
-        // Prune dead enemies, awarding kill rewards exactly once per enemy
-        this.enemies = this.enemies.filter(e => {
-            if (e.hp > 0) return true;
-            if (!e._killProcessed) this._onEnemyKilled(e);
-            return false;
-        });
-        this._world.enemies = this.enemies;
-
-        // 5. Spawn enemies
-        const refP    = this.players.find(p => p && !p.isDead);
-        const spawned = this._waveManager.spawnIfReady(
-            this.wave, this.bossActive, this.enemies, refP, Date.now(), this._world
-        );
-        if (spawned.length) {
-            this.enemies.push(...spawned);
             this._world.enemies = this.enemies;
-        }
 
-        // 6. Wave advancement
-        this._checkWaveAdvance();
+            // 5. Spawn enemies
+            const refP    = this.players.find(p => p && !p.isDead);
+            const spawned = this._waveManager.spawnIfReady(
+                this.wave, this.bossActive, this.enemies, refP, Date.now(), this._world
+            );
+            if (spawned.length) {
+                this.enemies.push(...spawned);
+                this._world.enemies = this.enemies;
+            }
+
+            // 6. Wave advancement
+            this._checkWaveAdvance();
+        }
 
         // 7. Push snapshot to both clients
         this._sendSnapshot();
@@ -261,12 +267,14 @@ class GameSession {
     /** Keep the world object in sync with mutable session state every tick. */
     _syncWorld() {
         const w = this._world;
-        w.frame      = this._frame;
-        w.wave       = this.wave;
-        w.score      = this.score;
-        w.bossActive = this.bossActive;
-        w.enemies    = this.enemies;
-        w.projectiles = this.projectiles;
+        w.frame        = this._frame;
+        w.wave         = this.wave;
+        w.score        = this.score;
+        w.bossActive   = this.bossActive;
+        w.enemies      = this.enemies;
+        w.projectiles  = this.projectiles;
+        w.isVersusMode = this._isVersusMode;
+        w.isCoopMode   = !this._isVersusMode;
     }
 
     // ─── Melee ───────────────────────────────────────────────────────────────────
@@ -282,15 +290,29 @@ class GameSession {
         swipes.forEach(swipe => {
             swipe.update(); // reposition following owner
 
-            this.enemies.forEach(enemy => {
-                if (enemy.hp <= 0) return;
-                if (swipe.hitList && swipe.hitList.includes(enemy)) return;
-                const dist = Math.hypot(enemy.x - swipe.x, enemy.y - swipe.y);
-                if (dist < swipe.radius + enemy.radius) {
-                    if (swipe.hitList) swipe.hitList.push(enemy);
-                    this._damageEnemy(enemy, swipe.damage);
-                }
-            });
+            if (this._isVersusMode) {
+                // Versus: melee hits the opposing player
+                this.players.forEach((player, playerIdx) => {
+                    if (!player || player.isDead || player.isInvincible) return;
+                    if (swipe.owner === player) return;
+                    if (swipe.hitList && swipe.hitList.includes(player)) return;
+                    const dist = Math.hypot(player.x - swipe.x, player.y - swipe.y);
+                    if (dist < (swipe.radius || 60) + (player.radius || 20)) {
+                        if (swipe.hitList) swipe.hitList.push(player);
+                        this._damagePlayer(player, playerIdx, swipe.damage || 20);
+                    }
+                });
+            } else {
+                this.enemies.forEach(enemy => {
+                    if (enemy.hp <= 0) return;
+                    if (swipe.hitList && swipe.hitList.includes(enemy)) return;
+                    const dist = Math.hypot(enemy.x - swipe.x, enemy.y - swipe.y);
+                    if (dist < swipe.radius + enemy.radius) {
+                        if (swipe.hitList) swipe.hitList.push(enemy);
+                        this._damageEnemy(enemy, swipe.damage);
+                    }
+                });
+            }
         });
 
         // Prune expired swipes
@@ -323,16 +345,30 @@ class GameSession {
             }
 
             if (!proj.isEnemy) {
-                // Player projectile vs enemies
-                this.enemies.forEach(enemy => {
-                    if (remove.has(pi) || enemy.hp <= 0) return;
-                    const dist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
-                    if (dist < proj.radius + enemy.radius) {
-                        this._damageEnemy(enemy, proj.damage);
-                        if ((proj.pierce || 0) <= 0) remove.add(pi);
-                        else proj.pierce--;
-                    }
-                });
+                if (this._isVersusMode) {
+                    // Versus: player projectiles hit the opposing player
+                    this.players.forEach((player, playerIdx) => {
+                        if (remove.has(pi) || !player || player.isDead || player.isInvincible) return;
+                        if (proj.owner === player) return; // no self-damage
+                        const dist = Math.hypot(proj.x - player.x, proj.y - player.y);
+                        if (dist < (proj.radius || 10) + (player.radius || 20)) {
+                            this._damagePlayer(player, playerIdx, proj.damage || 10);
+                            if ((proj.pierce || 0) <= 0) remove.add(pi);
+                            else proj.pierce--;
+                        }
+                    });
+                } else {
+                    // Co-op: player projectile vs enemies
+                    this.enemies.forEach(enemy => {
+                        if (remove.has(pi) || enemy.hp <= 0) return;
+                        const dist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
+                        if (dist < proj.radius + enemy.radius) {
+                            this._damageEnemy(enemy, proj.damage);
+                            if ((proj.pierce || 0) <= 0) remove.add(pi);
+                            else proj.pierce--;
+                        }
+                    });
+                }
             } else {
                 // Enemy projectile vs players
                 this.players.forEach((player, playerIdx) => {
@@ -407,10 +443,16 @@ class GameSession {
             player.hp     = 0;
             player.isDead = true;
 
-            const allDead = this.players.every(p => !p || p.isDead);
-            if (allDead) {
-                this._events.push({ type: 'game_over', victory: false });
+            if (this._isVersusMode) {
+                // Versus: first to die loses; surviving player wins
+                this._events.push({ type: 'game_over', victory: false, loserIdx: playerIdx });
                 this.stop();
+            } else {
+                const allDead = this.players.every(p => !p || p.isDead);
+                if (allDead) {
+                    this._events.push({ type: 'game_over', victory: false });
+                    this.stop();
+                }
             }
         }
     }

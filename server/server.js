@@ -435,7 +435,7 @@ function handleMessage(ws, msg) {
             // Start server-authoritative simulation for this lobby
             try {
                 const session = new GameSession(lobby, send);
-                session.init(lobby.hostHero, lobby.guestHero);
+                session.init(lobby.hostHero, lobby.guestHero, msg.mode || lobby.hostMode || 'NORMAL');
                 lobby.session = session;
             } catch (err) {
                 console.error('[GameSession] Failed to start:', err);

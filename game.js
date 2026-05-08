@@ -1411,6 +1411,7 @@ function startOnlineGame(msg) {
     const _heroes = Object.keys(BASE_HERO_STATS);
     const myIdx = _heroes.indexOf(myHero);
     if (myIdx !== -1) window.selectedHeroIndex = myIdx;
+    window.selectedHeroType = myHero; // must match index so startGame() builds correct player
 
     _onlineFrame  = 0;
     _onlineEvents = [];
@@ -1635,6 +1636,8 @@ function _resetGameState() {
     document.getElementById('shop-screen').style.display = 'none';
     document.getElementById('game-over-screen').style.display = 'none';
     document.getElementById('victory-screen').style.display = 'none';
+    const _p2hud = document.getElementById('p2-hud');
+    if (_p2hud) _p2hud.style.display = 'none';
 }
 window.saveAndQuit = saveAndQuit;
 
@@ -3838,6 +3841,8 @@ function gameOver(isVictory = false) {
     p2RevivalMarker = null;
     coopZoom = 1.0;
     p2LevelUpPending = false;
+    const _p2hudEl = document.getElementById('p2-hud');
+    if (_p2hudEl) _p2hudEl.style.display = 'none';
     if (isOnlineMode) {
         // signal(false) = natural game end; lobby stays alive for RETURN_TO_LOBBY
         window.networkManager?.signalGameOver(false);
