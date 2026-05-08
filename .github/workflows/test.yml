@@ -23,5 +23,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint — no window.entity globals in logic files
+        run: |
+          HITS=$(grep -rn \
+            'window\.\(enemies\|projectiles\|particles\|floatingTexts\)[^A-Za-z]' \
+            --include="*.js" \
+            dlc/ Entities/ Player.js Enemy.js EvilHeroes.js \
+            | grep -v 'window\._world' \
+            | grep -v '//.*window\.' \
+          ) || true
+          if [ -n "$HITS" ]; then
+            echo "FAIL: window.entity globals found in logic files:"
+            echo "$HITS"
+            exit 1
+          fi
+          echo "OK: no window.entity globals in logic files"
+
       - name: Run parity tests
         run: npm test

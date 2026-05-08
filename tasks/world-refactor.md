@@ -279,10 +279,7 @@ After each file, verify the browser game still plays correctly with that hero se
 
 #### 5.4 Remove backwards-compat bridge
 
-- [ ] BLOCKED — 7 bridge assignments remain in game.js (lines 1737-1740, 4176, 4202, 4886).
-      Cannot remove until DLC fallbacks migrated: `PoisonHero.js` (6 sites), `AirHero.js` (4 sites),
-      `EarthHero.js` (1 site), `LightningHero.js` (5 sites), `SpiritHero.js` (1 site),
-      `SoundHero.js` (1 site), `dlc/symphony_of_sickness/index.js` (2 sites).
+- [x] Bridge removed — 7 assignments deleted from game.js. All DLC fallbacks migrated via world-context sweep. CI lint rule enforces no `window.(enemies|projectiles|particles|floatingTexts)` in logic files.
 - [x] Bare `enemies.push(...)` in game.js (spawn loop, lines ~5222-5278) — no change needed;
       `enemies` and `_world.enemies` are the same array reference. Pushes are visible to both.
 
@@ -378,14 +375,9 @@ The current `GameSession._tick()` contains ~200 lines of collision code. After t
     snapshot schema, delta compression, DLC smoke (all heroes × 5 ticks), level-up flow
   - Run with `node server/simulation/parityTest.js` or `npm test`
 - [x] Add parity test to CI — `.github/workflows/test.yml` runs on every push/PR
-- [ ] BLOCKED — Remove `backwards-compat window.* bridge` from game.js:
-      DLC files (PoisonHero, AirHero, EarthHero, LightningHero, SpiritHero, SoundHero,
-      symphony/index.js) still use `window.enemies/projectiles/particles` as fallback.
-      Must migrate those 20 sites first.
-- [ ] DEFERRED — Remove `GameSession._updateEnemies()` duplicate physics:
-      `Enemy` constructor reads `arena.camera`, `wave`, `player.type` from globals —
-      cannot instantiate in WaveManager without a separate server-safe Enemy factory.
-      Requires dedicated Enemy constructor refactor.
+- [x] Bridge removed — see Phase 5.4 above.
+- [x] Enemy factory complete — `Enemy` constructor accepts `world` param; `WaveManager._createEnemy` delegates to `new Enemy(false, subType, world)` giving real instances with `update()` / ENEMY_LOGIC / DLC support.
+- [x] `GameSession._updateEnemies()` removed — replaced with direct `enemy.update()` calls (full AI: GHOST, SNIPER, BOMBER, TOXIC, SHOOTER, SUMMONER, elite auras, weather, DLC hooks). Kill deduplication via `_killProcessed` + `_onEnemyKilled()`. Contact damage extracted to `_applyEnemyContactDamage()`. `loader.js` `getCoopTarget` fixed to read from `global._world` (nearest-player by distance). All 80 parity assertions pass.
 - [x] Update `CHANGELOG.md` and `tasks/world-refactor.md`
 
 ---

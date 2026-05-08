@@ -207,13 +207,44 @@ class GameSession {
         // 3. Move projectiles + collision vs enemies/players
         this._updateProjectiles();
 
-        // 4. Move enemies + contact damage
-        this._updateEnemies();
+        // 4. Move enemies (full AI via Enemy.update()) + contact damage
+        const prevEnemyCount   = this.enemies.length;
+        const prevEnemyProjCount = this.projectiles.length;
+
+        if (this.players.some(p => p && !p.isDead)) {
+            this.enemies.forEach(enemy => {
+                if (enemy.hp <= 0) return;
+                enemy.update();
+            });
+        }
+
+        // Assign IDs to projectiles spawned by enemy.update() (real Projectile objects)
+        for (let i = prevEnemyProjCount; i < this.projectiles.length; i++) {
+            const proj = this.projectiles[i];
+            if (!proj._id) proj._id = this._nextProjId++;
+        }
+
+        // Assign IDs to minions spawned by SUMMONER during update
+        for (let i = prevEnemyCount; i < this.enemies.length; i++) {
+            const e = this.enemies[i];
+            if (!e._id) e._id = this._nextEnemyId++;
+        }
+
+        // Contact damage — Enemy.update() handles movement only, not player collision
+        this._applyEnemyContactDamage();
+
+        // Prune dead enemies, awarding kill rewards exactly once per enemy
+        this.enemies = this.enemies.filter(e => {
+            if (e.hp > 0) return true;
+            if (!e._killProcessed) this._onEnemyKilled(e);
+            return false;
+        });
+        this._world.enemies = this.enemies;
 
         // 5. Spawn enemies
         const refP    = this.players.find(p => p && !p.isDead);
         const spawned = this._waveManager.spawnIfReady(
-            this.wave, this.bossActive, this.enemies, refP, Date.now()
+            this.wave, this.bossActive, this.enemies, refP, Date.now(), this._world
         );
         if (spawned.length) {
             this.enemies.push(...spawned);
@@ -321,80 +352,26 @@ class GameSession {
 
     // ─── Enemies ─────────────────────────────────────────────────────────────────
 
-    _updateEnemies() {
-        const TF = TICK_FRAMES;
-
+    _applyEnemyContactDamage() {
         this.enemies.forEach(enemy => {
             if (enemy.hp <= 0) return;
-
-            // Find nearest living player
-            let nearest = null, minDist = Infinity;
-            this.players.forEach(p => {
-                if (!p || p.isDead) return;
-                const d = Math.hypot(p.x - enemy.x, p.y - enemy.y);
-                if (d < minDist) { minDist = d; nearest = p; }
-            });
-            if (!nearest) return;
-
-            // Move toward nearest player (unless frozen)
-            if (enemy.frozenTimer > 0) {
-                enemy.frozenTimer -= TF;
-            } else {
-                const dx   = nearest.x - enemy.x;
-                const dy   = nearest.y - enemy.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                enemy.x += (dx / dist) * enemy.speed * TF;
-                enemy.y += (dy / dist) * enemy.speed * TF;
-                enemy.x  = Math.max(enemy.radius, Math.min(ARENA_WIDTH  - enemy.radius, enemy.x));
-                enemy.y  = Math.max(enemy.radius, Math.min(ARENA_HEIGHT - enemy.radius, enemy.y));
-            }
-
-            // Ranged subtypes fire projectiles
-            if (enemy.subType === 'SHOOTER' || enemy.subType === 'SNIPER') {
-                enemy.shootCooldown = Math.max(0, (enemy.shootCooldown || 0) - TF);
-                const range     = enemy.subType === 'SNIPER' ? 900 : 600;
-                const cd        = enemy.subType === 'SNIPER' ? 120 : 60;
-                const projSpeed = enemy.subType === 'SNIPER' ? 18  : 6;
-
-                if (enemy.shootCooldown <= 0 && minDist < range) {
-                    const angle = Math.atan2(nearest.y - enemy.y, nearest.x - enemy.x);
-                    this.projectiles.push({
-                        _id:      this._nextProjId++,
-                        x:        enemy.x, y: enemy.y,
-                        vx:       Math.cos(angle) * projSpeed,
-                        vy:       Math.sin(angle) * projSpeed,
-                        damage:   enemy.damage * 0.5,
-                        radius:   8, color: '#e74c3c',
-                        isEnemy:  true,
-                        life:     150, pierce: 0,
-                    });
-                    enemy.shootCooldown = cd;
-                }
-            }
-
-            // Contact damage
             this.players.forEach((player, pIdx) => {
                 if (!player || player.isDead || player.isInvincible) return;
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
                 if (dist < player.radius + enemy.radius) {
                     this._damagePlayer(player, pIdx, enemy.damage);
                     const ang = Math.atan2(player.y - enemy.y, player.x - enemy.x);
-                    player.x  = Math.max(player.radius, Math.min(ARENA_WIDTH  - player.radius, player.x + Math.cos(ang) * 8));
-                    player.y  = Math.max(player.radius, Math.min(ARENA_HEIGHT - player.radius, player.y + Math.sin(ang) * 8));
+                    player.x = Math.max(player.radius, Math.min(ARENA_WIDTH  - player.radius, player.x + Math.cos(ang) * 8));
+                    player.y = Math.max(player.radius, Math.min(ARENA_HEIGHT - player.radius, player.y + Math.sin(ang) * 8));
                 }
             });
         });
-
-        this.enemies = this.enemies.filter(e => e.hp > 0);
-        this._world.enemies = this.enemies;
     }
 
     // ─── Damage helpers ──────────────────────────────────────────────────────────
 
-    _damageEnemy(enemy, damage) {
-        enemy.hp -= damage;
-        if (enemy.hp > 0) return;
-
+    _onEnemyKilled(enemy) {
+        enemy._killProcessed = true;
         this.score += 10;
         this._enemiesKilledInWave++;
 
@@ -409,6 +386,12 @@ class GameSession {
         }
 
         this._events.push({ type: 'enemy_death', x: enemy.x, y: enemy.y, color: enemy.color });
+    }
+
+    _damageEnemy(enemy, damage) {
+        enemy.hp -= damage;
+        if (enemy.hp > 0) return;
+        if (!enemy._killProcessed) this._onEnemyKilled(enemy);
     }
 
     _damagePlayer(player, playerIdx, damage) {

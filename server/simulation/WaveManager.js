@@ -53,7 +53,7 @@ class WaveManager {
      * Return a list of new enemies to add this tick (may be empty).
      * Callers pass in the current enemy array and a reference player for spawn-edge positioning.
      */
-    spawnIfReady(wave, bossActive, enemies, refPlayer, nowMs) {
+    spawnIfReady(wave, bossActive, enemies, refPlayer, nowMs, world) {
         if (bossActive) return [];
         if (nowMs - this._lastSpawnMs < this.spawnIntervalMs(wave)) return [];
 
@@ -64,12 +64,12 @@ class WaveManager {
         const spawned = [];
 
         const subType = this.pickSubType(wave);
-        spawned.push(this._createEnemy(wave, subType, refPlayer));
+        spawned.push(this._createEnemy(wave, subType, refPlayer, world));
 
         // 10% chance of a swarm cluster
         if (wave > 2 && Math.random() < 0.1) {
             for (let i = 0; i < 4; i++) {
-                const swarm = this._createEnemy(wave, 'SWARM', refPlayer);
+                const swarm = this._createEnemy(wave, 'SWARM', refPlayer, world);
                 swarm.x += (Math.random() - 0.5) * 100;
                 swarm.y += (Math.random() - 0.5) * 100;
                 swarm.x = Math.max(swarm.radius, Math.min(ARENA_WIDTH  - swarm.radius, swarm.x));
@@ -81,7 +81,13 @@ class WaveManager {
         return spawned;
     }
 
-    _createEnemy(wave, subType, refPlayer) {
+    _createEnemy(wave, subType, refPlayer, world) {
+        // Use real Enemy class when available (server after loader.js) for full method support
+        if (typeof Enemy !== 'undefined' && world) {
+            const e = new Enemy(false, subType, world);
+            return e;
+        }
+
         const mods = SUBTYPE_MODS[subType] || SUBTYPE_MODS.BASIC;
         const difficultyMult = 1 + wave * 0.15;
 

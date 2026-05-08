@@ -124,14 +124,17 @@ const SymphonyDLC = {
             // Visual Flair
             if (type === 'sound') {
                 // Clear any nearby enemies with a shockwave?
-                window.enemies.forEach(e => {
-                    const dist = Math.hypot(e.x - window.player.x, e.y - window.player.y);
-                    if (dist < 800) e.pushbackX = (e.x - window.player.x) * 0.1;
+                const _soundEnemies = window._world?.enemies ?? window.enemies;
+                const _soundPlayer = window._world?.player ?? window.player;
+                if (_soundEnemies && _soundPlayer) _soundEnemies.forEach(e => {
+                    const dist = Math.hypot(e.x - _soundPlayer.x, e.y - _soundPlayer.y);
+                    if (dist < 800) e.pushbackX = (e.x - _soundPlayer.x) * 0.1;
                 });
             } else if (type === 'poison') {
                 // SCREEN CLEAR / MASS POISON
-                if (window.enemies) {
-                    window.enemies.forEach(e => {
+                const _poisonEnemies = window._world?.enemies ?? window.enemies;
+                if (_poisonEnemies) {
+                    _poisonEnemies.forEach(e => {
                         // Apply Heavy Poison to ALL enemies
                         if (!e.poisonStacks) e.poisonStacks = 0;
                         e.poisonStacks += 50; // Massive dose

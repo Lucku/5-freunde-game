@@ -230,7 +230,7 @@ class LightningHero {
         else {
             let nearest = null;
             let minDist = 400; // Search range
-            const targets = enemies ?? window.enemies ?? [];
+            const targets = enemies ?? [];
 
             for (let e of targets) {
                 if (e.hp <= 0) continue;

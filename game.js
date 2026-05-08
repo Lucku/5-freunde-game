@@ -1732,12 +1732,7 @@ var particles = [];
 var floatingTexts = [];
 var meleeAttacks = [];
 
-// Explicitly link to window to be 100% sure
 window.player = player;
-window.projectiles = projectiles;
-window.enemies = enemies;
-window.particles = particles;
-window.floatingTexts = floatingTexts;
 window.meleeAttacks = meleeAttacks;
 window.arena = arena; // Expose Arena to Window for DLCs
 let powerUps = [];
@@ -4173,7 +4168,6 @@ function _onlineApplySnapshot(s) {
         if (ed.radius  !== undefined) e.radius  = ed.radius;
         return e;
     });
-    window.enemies = enemies;
     if (window._world) window._world.enemies = enemies;
 
     // Rebuild ghost projectile array (reuse existing objects to reduce GC pressure)
@@ -4199,7 +4193,6 @@ function _onlineApplySnapshot(s) {
         if (pd.isCrit      !== undefined) p.isCrit      = pd.isCrit;
         return p;
     });
-    window.projectiles = projectiles;
     if (window._world) window._world.projectiles = projectiles;
 
     // Game state
@@ -4883,7 +4876,6 @@ function masterLoop(timestamp) {
                 window._world.bossActive       = bossActive;
                 window._world.enemies          = enemies;
             }
-            window.enemies = enemies; // backwards-compat bridge
 
             // ── Weather Logic ─────────────────────────────────────────────────
             if (currentWeather) {

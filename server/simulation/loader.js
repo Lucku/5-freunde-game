@@ -124,7 +124,16 @@ global.createExplosion   = () => {};
 global.showNotification  = () => {};
 global.getDecoyTarget    = () => null;
 global.getBiomeEnemyType = () => null;
-global.getCoopTarget     = () => global.player2 || global.player;
+global.getCoopTarget     = (x, y) => {
+    const p1 = global._world?.player  ?? global.player;
+    const p2 = global._world?.player2 ?? global.player2;
+    if (!p1 && !p2) return null;
+    if (!p1) return p2;
+    if (!p2) return p1;
+    const d1 = Math.hypot(p1.x - x, p1.y - y);
+    const d2 = Math.hypot(p2.x - x, p2.y - y);
+    return d1 <= d2 ? p1 : p2;
+};
 global.getCollectionBonuses = () => ({
     damageMult: 1, speedMult: 1, healthMult: 1, goldMult: 1, xpMult: 1,
     meleeDmg: 0, rangeDmg: 0, maxHp: 0, speed: 0, defense: 0, luck: 0,

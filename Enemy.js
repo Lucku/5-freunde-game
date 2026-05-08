@@ -1,20 +1,43 @@
 class Enemy {
-    constructor(isBossMinion = false, forcedType = null) {
+    constructor(isBossMinion = false, forcedType = null, world = null) {
+        const _w       = world;
+        const _arena   = _w?.arena   ?? (typeof arena    !== 'undefined' ? arena    : null);
+        const _player  = _w?.player  ?? (typeof player   !== 'undefined' ? player   : null);
+        const _wave    = _w?.wave    ?? (typeof wave      !== 'undefined' ? wave     : 1);
+        const _saveData = _w?.saveData ?? (typeof saveData !== 'undefined' ? saveData : {});
+
         let safe = false;
         while (!safe) {
-            const cam = arena.camera;
-            if (Math.random() < 0.5) {
-                this.x = Math.random() < 0.5 ? cam.x - 30 : cam.x + cam.width + 30;
-                this.y = cam.y + Math.random() * cam.height;
+            if (_arena?.camera?.width) {
+                // Browser: spawn just off-screen around camera viewport
+                const cam = _arena.camera;
+                if (Math.random() < 0.5) {
+                    this.x = Math.random() < 0.5 ? cam.x - 30 : cam.x + cam.width + 30;
+                    this.y = cam.y + Math.random() * cam.height;
+                } else {
+                    this.x = cam.x + Math.random() * cam.width;
+                    this.y = Math.random() < 0.5 ? cam.y - 30 : cam.y + cam.height + 30;
+                }
             } else {
-                this.x = cam.x + Math.random() * cam.width;
-                this.y = Math.random() < 0.5 ? cam.y - 30 : cam.y + cam.height + 30;
+                // Server: spawn just outside visible range around reference player
+                const cx = _player?.x ?? ((_arena?.width  ?? 3000) / 2);
+                const cy = _player?.y ?? ((_arena?.height ?? 3000) / 2);
+                const viewHalfW = 1000, viewHalfH = 580;
+                const side = Math.floor(Math.random() * 4);
+                if (side === 0)      { this.x = cx - viewHalfW - 40; this.y = cy + (Math.random() - 0.5) * viewHalfH * 2; }
+                else if (side === 1) { this.x = cx + viewHalfW + 40; this.y = cy + (Math.random() - 0.5) * viewHalfH * 2; }
+                else if (side === 2) { this.x = cx + (Math.random() - 0.5) * viewHalfW * 2; this.y = cy - viewHalfH - 40; }
+                else                 { this.x = cx + (Math.random() - 0.5) * viewHalfW * 2; this.y = cy + viewHalfH + 40; }
+                const aw = _arena?.width ?? 3000, ah = _arena?.height ?? 3000;
+                this.x = Math.max(20, Math.min(aw - 20, this.x));
+                this.y = Math.max(20, Math.min(ah - 20, this.y));
             }
-            if (!arena.checkCollision(this.x, this.y, 20)) safe = true;
+            if (!_arena?.checkCollision(this.x, this.y, 20)) safe = true;
+            else if (!_arena) { safe = true; }
         }
 
-        const prestige = saveData[player.type].prestige;
-        const difficultyMult = (1 + (wave * 0.15)) * (1 + (prestige * 0.5));
+        const prestige = _saveData[_player?.type]?.prestige ?? 0;
+        const difficultyMult = (1 + (_wave * 0.15)) * (1 + (prestige * 0.5));
 
         // Enemy Types: BASIC, SHOOTER, BRUTE, SPEEDSTER, SWARM, SUMMONER
         // NEW: GHOST, SNIPER, BOMBER, TOXIC, SHIELDER
@@ -32,22 +55,22 @@ class Enemy {
 
         if (!this.subType) {
             const rand = Math.random();
-            if (wave > 10 && rand < 0.05) this.subType = 'SNIPER';
-            else if (wave > 8 && rand < 0.1) this.subType = 'BOMBER';
-            else if (wave > 6 && rand < 0.15) this.subType = 'GHOST';
-            else if (wave > 5 && rand < 0.2) this.subType = 'BRUTE';
-            else if (wave > 4 && rand < 0.25) this.subType = 'TOXIC';
-            else if (wave > 3 && rand < 0.3) this.subType = 'SPEEDSTER';
-            else if (wave > 8 && rand < 0.35) this.subType = 'SUMMONER';
-            else if (wave > 12 && rand < 0.4) this.subType = 'SHIELDER';
-            else if (wave > 1 && rand < 0.45) this.subType = 'SHOOTER';
+            if (_wave > 10 && rand < 0.05) this.subType = 'SNIPER';
+            else if (_wave > 8 && rand < 0.1) this.subType = 'BOMBER';
+            else if (_wave > 6 && rand < 0.15) this.subType = 'GHOST';
+            else if (_wave > 5 && rand < 0.2) this.subType = 'BRUTE';
+            else if (_wave > 4 && rand < 0.25) this.subType = 'TOXIC';
+            else if (_wave > 3 && rand < 0.3) this.subType = 'SPEEDSTER';
+            else if (_wave > 8 && rand < 0.35) this.subType = 'SUMMONER';
+            else if (_wave > 12 && rand < 0.4) this.subType = 'SHIELDER';
+            else if (_wave > 1 && rand < 0.45) this.subType = 'SHOOTER';
             else this.subType = 'BASIC';
         }
 
         this.radius = 15 + Math.random() * 10;
         // Adjusted Scaling: More HP, Less Speed
-        this.hp = (25 + Math.random() * 25) * (1 + (wave * 0.38)) * (1 + (prestige * 0.5));
-        this.speed = (1 + Math.random() * 1.5) * (1 + (wave * 0.018));
+        this.hp = (25 + Math.random() * 25) * (1 + (_wave * 0.38)) * (1 + (prestige * 0.5));
+        this.speed = (1 + Math.random() * 1.5) * (1 + (_wave * 0.018));
 
         // Mutator: Fast Enemies
         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'FAST_ENEMIES')) {
@@ -62,7 +85,7 @@ class Enemy {
         this.isSummonedMinion = false;
         this.parentBoss = null;
 
-        if (wave > 15 && Math.random() < 0.03) { // 3% chance after wave 15
+        if (_wave > 15 && Math.random() < 0.03) { // 3% chance after wave 15
             this.isElite = true;
             this.eliteType = ELITE_TYPES[Math.floor(Math.random() * ELITE_TYPES.length)];
             this.hp *= 3;
@@ -116,7 +139,7 @@ class Enemy {
             this.radius = 30; this.hp *= 4; this.speed *= 0.5; this.color = '#5d4037'; this.damage *= 2; this.sides = 4;
         } else if (this.subType === 'SPEEDSTER') {
             this.radius = 12; this.hp *= 0.5; this.speed *= 1.8; this.color = '#e74c3c'; this.sides = 3;
-            if (saveData.collection.includes('SPEEDSTER_4')) this.speed *= 0.9;
+            if (_saveData?.collection?.includes('SPEEDSTER_4')) this.speed *= 0.9;
         } else if (this.subType === 'SWARM') {
             this.radius = 8; this.hp = 1; this.speed *= 1.2; this.color = '#8e44ad'; this.sides = 0;
         } else if (this.subType === 'SUMMONER') {
@@ -129,7 +152,7 @@ class Enemy {
             this.radius = 15; this.hp *= 0.6; this.speed *= 0.7; this.color = '#16a085'; this.sides = 3; this.shootCooldown = 180;
         } else if (this.subType === 'BOMBER') {
             this.radius = 22; this.hp *= 1.5; this.speed *= 0.6; this.color = '#2c3e50'; this.sides = 8;
-            if (saveData.collection.includes('BOMBER_4')) this.hp *= 0.5;
+            if (_saveData?.collection?.includes('BOMBER_4')) this.hp *= 0.5;
         } else if (this.subType === 'TOXIC') {
             this.radius = 18; this.color = '#27ae60'; this.sides = 6; this.shootCooldown = 20; // Trail timer
         } else if (this.subType === 'SHIELDER') {
@@ -154,14 +177,15 @@ class Enemy {
         }
 
         // DLC Hook: Init
-        if (window.ENEMY_LOGIC && window.ENEMY_LOGIC[this.subType]) {
-            window.ENEMY_LOGIC[this.subType].init(this);
+        const _enemyLogic = _w?.ENEMY_LOGIC ?? window.ENEMY_LOGIC;
+        if (_enemyLogic && _enemyLogic[this.subType]) {
+            _enemyLogic[this.subType].init(this);
         }
 
         this.maxHp = this.hp;
         this._id = ++Enemy._nextId;
         this._ghost = false;
-        this._world = null;
+        this._world = world;
     }
 
     update() {
@@ -321,8 +345,7 @@ class Enemy {
 
             if (this.summonCooldown <= 0) {
                 // Spawn a basic enemy
-                const minion = new Enemy(true, 'BASIC');
-                minion._world = _w;
+                const minion = new Enemy(true, 'BASIC', _w);
                 minion.x = this.x; minion.y = this.y;
                 enemies.push(minion);
                 createExplosion(this.x, this.y, '#2980b9');

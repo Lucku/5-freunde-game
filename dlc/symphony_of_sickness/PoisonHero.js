@@ -1116,9 +1116,9 @@ class PoisonHero {
             });
         };
         ctrl.draw=function(){
-            if (!window.ctx||!window.enemies) return;
+            if (!window.ctx) return;
             const ctx=window.ctx; ctx.save();
-            window.enemies.forEach(e=>{
+            (_w.enemies ?? []).forEach(e=>{
                 if (!e.isViralCarrier||e.hp<=0) return;
                 const pulse=0.5+0.5*Math.sin(Date.now()/300+e.x*0.01), t=Date.now()/600, pct=e.viralTimer/600;
                 const grad=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,35);
