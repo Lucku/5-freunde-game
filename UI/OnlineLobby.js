@@ -153,6 +153,30 @@ class OnlineLobbyUI {
             }
         });
 
+        add('RETURN_TO_LOBBY', msg => {
+            clearTimeout(this._returnTimer);
+            const nm = window.networkManager;
+            this._isHost = nm?.role === 'host';
+            const myHero = this._isHost ? msg.hostHero : msg.guestHero;
+            const partnerHero = this._isHost ? msg.guestHero : msg.hostHero;
+            const partnerName = this._isHost ? msg.guestUsername : msg.hostUsername;
+            this._myHero = myHero || this._myHero;
+            this._partnerHero = partnerHero || null;
+            this._myConfirmed = false;
+            this._partnerConfirmed = false;
+            this._partnerName = partnerName;
+            document.getElementById('ol-code-value').textContent = msg.code || '—';
+            document.getElementById('ol-partner-name').textContent = partnerName || '—';
+            document.getElementById('ol-my-name').textContent = window.gameConfig?.account?.username || 'You';
+            const btn = document.getElementById('ol-ready-btn');
+            if (btn) { btn.textContent = 'READY'; btn.className = 'screen-action-btn'; btn.style.background = ''; }
+            this._renderSlot('my', this._myHero, false);
+            this._renderSlot('partner', this._partnerHero, false);
+            this._refreshHeroGrid();
+            this._showPanel('lobby');
+            this._setStatus('Choose your hero and press READY.', 'info');
+        });
+
         add('PRE_GAME', msg => {
             // Hide the lobby screen and hand off to the shared versus pre-game screen
             this._removeHandlers();
@@ -193,14 +217,14 @@ class OnlineLobbyUI {
     // ── UI helpers ────────────────────────────────────────────────────────────
 
     _reset() {
-        this._myHero = 'fire';
+        this._myHero = window.selectedHeroType || 'fire';
         this._partnerHero = null;
         this._myConfirmed = false;
         this._partnerConfirmed = false;
         this._partnerName = null;
         this._isHost = false;
         // Reset slots
-        this._renderSlot('my', 'fire', false);
+        this._renderSlot('my', this._myHero, false);
         this._renderSlot('partner', null, false);
         document.getElementById('ol-my-name').textContent = window.gameConfig?.account?.username || 'You';
         document.getElementById('ol-partner-name').textContent = '—';
@@ -296,6 +320,27 @@ class OnlineLobbyUI {
     _showError(msg) {
         console.warn('[OnlineLobby]', msg);
         if (typeof CloudSaveManager !== 'undefined') CloudSaveManager.showLoginModal();
+    }
+
+    // Called after an online game ends — both players click "Play Again Online"
+    // Shows lobby screen and waits for server RETURN_TO_LOBBY broadcast
+    _awaitReturnToLobby() {
+        const nm = window.networkManager;
+        this._isHost = nm?.role === 'host';
+        const screen = document.getElementById('online-lobby-screen');
+        if (screen) screen.style.display = 'flex';
+        if (window.setUIState) window.setUIState('ONLINE_LOBBY');
+        if (window.audioManager) window.audioManager.playMenuMusic?.();
+        this._removeHandlers();
+        this._registerHandlers();
+        this._showPanel('connect');
+        this._setStatus('Returning to lobby…', 'info');
+        // Fallback: if RETURN_TO_LOBBY never arrives (e.g., partner quit), open fresh after 10s
+        // The RETURN_TO_LOBBY handler in _registerHandlers() clears this._returnTimer
+        this._returnTimer = setTimeout(() => {
+            this._removeHandlers();
+            this.open();
+        }, 10000);
     }
 }
 

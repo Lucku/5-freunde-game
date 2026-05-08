@@ -1,8 +1,2 @@
 # General
-- "Play Again Online" should take both players back to the shared lobby
 - Biome is different for both player
-- Wait for other player to continue on story chapter screen
-- take hero from main menu as initial hero selection in online lobby (hosted gamed)
-- Server um Webinterface erweitern, wo alle
-    - Online Spieler sichtbar sind
-    - Aktuellen Sessions und deren Stats sichtbar sind

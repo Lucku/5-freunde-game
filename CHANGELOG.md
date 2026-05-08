@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file, starting wi
 ## [Unreleased]
 
 ### Added
+- **Online: story chapter sync** — in online co-op story mode, the continue button now waits for both players to click before closing the story screen. Local player sees "Waiting for partner…"; if partner clicks first the button reads "CONTINUE → (partner ready)".
+
+### Changed
+- **Online: "Play Again Online"** — after a game ends, clicking "Play Again Online" sends both players back to the shared lobby screen (hero & mode selection) without disconnecting. Server resets the lobby to `hero_select` phase and broadcasts to both. If a partner quit mid-game the button falls back to opening a fresh lobby. Server auto-cleans finished lobbies after 5 minutes.
+- **Online lobby hero pre-selection** — the online lobby (both hosted games and global lobby) now pre-selects the hero chosen on the main menu instead of always defaulting to Fire.
+
 - **Admin dashboard** (`/admin`): password-protected single-page web UI served by the game server. Shows active and completed game sessions (with live player HP bars, wave/score, enemy count, duration), per-session detail view (run stats: enemies killed, damage dealt/taken, missiles fired, melee hits, gold), currently online players (museum vs in-game), all registered players, top-20 leaderboard with hero/mode/outcome, and cloud save status per player (size, last-saved timestamp). Auto-refreshes every 5 seconds. Completed sessions tracked in-memory (last 100) across the server's lifetime. Set `ADMIN_PASSWORD` in `.env` to secure the endpoint (defaults to `admin`).
 
 - **World-context refactor — Phase 8 (full enemy AI on server)**: `GameSession._updateEnemies()` replaced with direct `enemy.update()` calls. Server enemies now run the complete AI loop — GHOST alpha fading, SNIPER range-keeping, BOMBER self-destruct, TOXIC puddles, SHOOTER kiting, SUMMONER flanking + minion spawn, elite auras, weather modifiers, DLC ENEMY_LOGIC hooks. `loader.js` `getCoopTarget` fixed to be world-aware (`global._world?.player2 ?? global._world?.player`, with proper nearest-player selection by distance). SUMMONER minion spawn fixed to pass world (`new Enemy(true, 'BASIC', _w)`). Kill-reward deduplication added via `_killProcessed` flag + `_onEnemyKilled()` helper so BOMBER self-destructs and projectile hits cannot both award XP/gold. Contact damage and dead-enemy pruning extracted into `_applyEnemyContactDamage()` and the filter step in `_tick()`. All 80 parity assertions pass.

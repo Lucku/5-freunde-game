@@ -482,10 +482,42 @@ function handleMessage(ws, msg) {
         case 'GAME_OVER': {
             const lobby = lobbies.get(ws.lobbyCode);
             if (!lobby) return;
+            if (lobby.phase === 'finished') return; // already done, ignore duplicate
+            if (lobby.session) { recordCompletedSession(lobby); lobby.session.stop(); lobby.session = null; }
             lobby.phase = 'finished';
             const p = partner(lobby, ws.role);
             if (p) send(p.ws, { type: 'GAME_OVER' });
-            cleanupLobby(lobby.code); // records + stops session
+            // Keep lobby alive for 5 min so players can return-to-lobby; auto-cleanup after
+            clearTimeout(lobby._finishTimer);
+            lobby._finishTimer = setTimeout(() => cleanupLobby(lobby.code), 5 * 60 * 1000);
+            break;
+        }
+
+        case 'RETURN_TO_LOBBY': {
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby || lobby.phase !== 'finished') return;
+            clearTimeout(lobby._finishTimer);
+            lobby.phase = 'hero_select';
+            lobby.hostConfirmed = false;
+            lobby.guestConfirmed = false;
+            const retMsg = {
+                type: 'RETURN_TO_LOBBY',
+                code: lobby.code,
+                hostHero: lobby.hostHero,
+                guestHero: lobby.guestHero,
+                hostUsername: lobby.host?.username,
+                guestUsername: lobby.guest?.username,
+            };
+            send(lobby.host.ws, retMsg);
+            if (lobby.guest) send(lobby.guest.ws, retMsg);
+            break;
+        }
+
+        case 'STORY_CONTINUE': {
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby || lobby.phase !== 'in_game') return;
+            const p = partner(lobby, ws.role);
+            if (p) send(p.ws, { type: 'STORY_CONTINUE' });
             break;
         }
 

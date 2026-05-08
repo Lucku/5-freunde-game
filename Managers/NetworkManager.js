@@ -155,9 +155,11 @@ class NetworkManager {
             this.phase     = 'in_game';
         }
         if (msg.type === 'GAME_OVER') {
-            this.phase     = null;
-            this.lobbyCode = null;
-            this.role      = null;
+            // Keep lobbyCode and role so client can send RETURN_TO_LOBBY afterward
+            this.phase = 'finished';
+        }
+        if (msg.type === 'RETURN_TO_LOBBY') {
+            this.phase = 'hero_select';
         }
         // Server-pushed in-game messages arrive as direct (non-RELAY) messages;
         // they are forwarded to registered handlers below without extra unwrapping.
@@ -234,11 +236,23 @@ class NetworkManager {
         this.send({ type: 'RELAY', payload });
     }
 
-    signalGameOver() {
+    signalGameOver(quit = false) {
         this.send({ type: 'GAME_OVER' });
-        this.phase = null;
-        this.lobbyCode = null;
-        this.role = null;
+        this.phase = 'finished';
+        if (quit) {
+            // Quitting mid-game — server will cleanupLobby via LEAVE_LOBBY
+            this.lobbyCode = null;
+            this.role      = null;
+            this.phase     = null;
+        }
+    }
+
+    returnToLobby() {
+        this.send({ type: 'RETURN_TO_LOBBY' });
+    }
+
+    storyContinue() {
+        this.send({ type: 'STORY_CONTINUE' });
     }
 
     // ── Input accumulation (guest-side) ────────────────────────────────────────

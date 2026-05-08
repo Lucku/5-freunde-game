@@ -1421,9 +1421,10 @@ function startOnlineGame(msg) {
     nm.on('PARTNER_LEVELING',()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(true); });
     nm.on('LEVEL_UP_DONE',   ()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
 
-    nm.on('PARTNER_DISCONNECTED', () => _onlineShowReconnectOverlay(true));
+    nm.on('PARTNER_DISCONNECTED', () => { if (gameRunning) _onlineShowReconnectOverlay(true); });
     nm.on('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
     nm.on('GAME_OVER', () => { if (isOnlineMode) gameOver(false); });
+    nm.on('STORY_CONTINUE', () => { if (isOnlineMode && isStoryOpen) _onlinePartnerContinueStory(); });
 
     const _gameMode = isVersusOnline ? 'VERSUS' : (msg.mode === 'SHUFFLE' ? 'SHUFFLE' : 'NORMAL');
     startGame(_gameMode);
@@ -1439,6 +1440,8 @@ function _onlineCleanup() {
     window.isOnlineGuest = false;
     _onlineEvents = [];
     window._onlineStoryHero = null;
+    _onlineLocalContinuedStory  = false;
+    _onlinePartnerContinuedStory = false;
 }
 window._onlineCleanup = _onlineCleanup;
 
@@ -1544,8 +1547,9 @@ function closeConfirmDialog() {
 function quitGame() {
     clearSavedRun();
     if (isOnlineMode) {
-        // Signal partner, clean up network state, then go to online lobby
-        window.networkManager?.signalGameOver();
+        // quit=true: clears nm.lobbyCode so partner can't RETURN_TO_LOBBY to quitter
+        window.networkManager?.signalGameOver(true);
+        window.networkManager?.leaveLobby(); // clean up lobby on server immediately
         _onlineCleanup();
         ['online-reconnect-overlay', 'online-partner-leveling-overlay', 'online-wait-overlay', 'online-name-bar'].forEach(id => {
             const el = document.getElementById(id);
@@ -1748,6 +1752,8 @@ let companions = [];
 // Story Manager
 const storyManager = new StoryManager();
 var isStoryOpen = false;
+let _onlineLocalContinuedStory  = false;
+let _onlinePartnerContinuedStory = false;
 let currentStoryEvent = null;
 
 // Input
@@ -2723,6 +2729,8 @@ function _getStoryArcLabel(wave, hero) {
 
 function openStory(story) {
     isStoryOpen = true;
+    _onlineLocalContinuedStory  = false;
+    _onlinePartnerContinuedStory = false;
 
     // Apply hero theme
     const heroKey = (story.hero || 'ALL').toLowerCase();
@@ -2800,6 +2808,8 @@ function openStory(story) {
         });
     } else {
         continueBtn.style.display = 'block';
+        continueBtn.textContent = 'CONTINUE →';
+        continueBtn.onclick = isOnlineMode ? _onlineLocalStoryContinue : closeStory;
     }
 
     setUIState('STORY');
@@ -2871,6 +2881,27 @@ function closeStory() {
         openShop();
     } else {
         advanceWave();
+    }
+}
+
+// ── Online story continue sync ────────────────────────────────────────────────
+
+function _onlineLocalStoryContinue() {
+    if (_onlineLocalContinuedStory) return;
+    _onlineLocalContinuedStory = true;
+    window.networkManager?.storyContinue();
+    const btn = document.getElementById('story-continue-btn');
+    if (btn) btn.textContent = 'Waiting for partner…';
+    if (_onlinePartnerContinuedStory) closeStory();
+}
+
+function _onlinePartnerContinueStory() {
+    _onlinePartnerContinuedStory = true;
+    if (_onlineLocalContinuedStory) {
+        closeStory();
+    } else {
+        const btn = document.getElementById('story-continue-btn');
+        if (btn) btn.textContent = 'CONTINUE → (partner ready)';
     }
 }
 
@@ -3808,7 +3839,8 @@ function gameOver(isVictory = false) {
     coopZoom = 1.0;
     p2LevelUpPending = false;
     if (isOnlineMode) {
-        window.networkManager?.signalGameOver();
+        // signal(false) = natural game end; lobby stays alive for RETURN_TO_LOBBY
+        window.networkManager?.signalGameOver(false);
         ['online-reconnect-overlay', 'online-partner-leveling-overlay', 'online-wait-overlay', 'online-name-bar'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
@@ -4045,14 +4077,23 @@ function gameOver(isVictory = false) {
     const playAgainBtn = document.querySelector(`#${screenId} .game-over-play-btn`);
     if (playAgainBtn) {
         if (wasOnlineMode) {
-            // Online game over → return to online lobby to pick heroes and mode again
+            // Online game over → return both players to lobby to pick heroes/mode again
             playAgainBtn.textContent = '🌐 PLAY AGAIN ONLINE';
             playAgainBtn.onclick = function () {
                 document.getElementById('menu-overlay').style.display = 'none';
                 document.getElementById('game-over-screen').style.display = 'none';
                 document.getElementById('victory-screen').style.display = 'none';
-                if (typeof window.openOnlineLobby === 'function') window.openOnlineLobby();
-                else initMenu();
+                const nm = window.networkManager;
+                if (nm && nm.lobbyCode && nm.phase === 'finished') {
+                    // Lobby still alive — tell server to reset it for both players
+                    nm.returnToLobby();
+                    if (typeof onlineLobby !== 'undefined') onlineLobby._awaitReturnToLobby();
+                    else if (typeof window.openOnlineLobby === 'function') window.openOnlineLobby();
+                } else {
+                    // Lobby gone (partner quit) — open fresh
+                    if (typeof window.openOnlineLobby === 'function') window.openOnlineLobby();
+                    else initMenu();
+                }
             };
         } else if (isDailyMode) {
             playAgainBtn.textContent = '▶ PLAY AGAIN';
