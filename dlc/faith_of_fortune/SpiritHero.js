@@ -190,8 +190,8 @@ class SpiritHero {
 
         if (hasTranquility && !isMoving) {
             // Slow nearby enemies
-            if (enemies ?? window.enemies) {
-                (enemies ?? window.enemies).forEach(e => {
+            if (enemies) {
+                enemies.forEach(e => {
                     const d = Math.hypot(e.x - player.x, e.y - player.y);
                     if (d < 300) {
                         e.speedMultiplier = 0.5; // Slow down

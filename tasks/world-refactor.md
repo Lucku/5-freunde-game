@@ -272,13 +272,19 @@ After each file, verify the browser game still plays correctly with that hero se
 
 #### 5.3 `createExplosion` / `showNotification`
 
-- [ ] These are already defined in `game.js` — assign them into world: `_world.createExplosion = createExplosion;`
-- [ ] Inside both functions add `const world = window._world;` so they can access entity arrays via world instead of global (enables future use from server context)
+- [x] Assigned into world: `_w.createExplosion = createExplosion` and `_w.showNotification = showNotification`
+      at game.js lines 3694-3695 (done in Phase 5 implementation).
+- [x] Inner `const world = window._world` not needed: `showNotification` is pure DOM (no entity arrays);
+      `createExplosion` uses `particles` which IS `_world.particles` (aliased, same reference). No change required.
 
 #### 5.4 Remove backwards-compat bridge
 
-- [ ] Once Player.js, Enemy.js, all entities, and all DLC files are migrated, remove `window.enemies = _world.enemies` aliases
-- [ ] Grep for any remaining bare `enemies.push`, `projectiles.push`, etc. in game.js and prefix them with `_world.`
+- [ ] BLOCKED — 7 bridge assignments remain in game.js (lines 1737-1740, 4176, 4202, 4886).
+      Cannot remove until DLC fallbacks migrated: `PoisonHero.js` (6 sites), `AirHero.js` (4 sites),
+      `EarthHero.js` (1 site), `LightningHero.js` (5 sites), `SpiritHero.js` (1 site),
+      `SoundHero.js` (1 site), `dlc/symphony_of_sickness/index.js` (2 sites).
+- [x] Bare `enemies.push(...)` in game.js (spawn loop, lines ~5222-5278) — no change needed;
+      `enemies` and `_world.enemies` are the same array reference. Pushes are visible to both.
 
 ---
 
@@ -372,10 +378,14 @@ The current `GameSession._tick()` contains ~200 lines of collision code. After t
     snapshot schema, delta compression, DLC smoke (all heroes × 5 ticks), level-up flow
   - Run with `node server/simulation/parityTest.js` or `npm test`
 - [x] Add parity test to CI — `.github/workflows/test.yml` runs on every push/PR
-- [ ] Remove `backwards-compat window.* bridge` from game.js (if not done in Phase 5)
-- [ ] Remove `GameSession`'s internal duplicate physics — deferred: WaveManager creates
-      plain objects not `Enemy` instances; calling `enemy.update()` requires WaveManager
-      refactor first
+- [ ] BLOCKED — Remove `backwards-compat window.* bridge` from game.js:
+      DLC files (PoisonHero, AirHero, EarthHero, LightningHero, SpiritHero, SoundHero,
+      symphony/index.js) still use `window.enemies/projectiles/particles` as fallback.
+      Must migrate those 20 sites first.
+- [ ] DEFERRED — Remove `GameSession._updateEnemies()` duplicate physics:
+      `Enemy` constructor reads `arena.camera`, `wave`, `player.type` from globals —
+      cannot instantiate in WaveManager without a separate server-safe Enemy factory.
+      Requires dedicated Enemy constructor refactor.
 - [x] Update `CHANGELOG.md` and `tasks/world-refactor.md`
 
 ---

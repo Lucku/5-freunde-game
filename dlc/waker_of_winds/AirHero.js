@@ -16,8 +16,8 @@ class AirHero {
 
         // Hooks
         player.customUpdate = (dx, dy) => AirHero.update(player, dx, dy);
-        player.shoot = (dx, dy) => AirHero.shoot(player, dx, dy);
-        player.customSpecial = () => AirHero.useSpecial(player);
+        player.shoot = (dx, dy, world) => AirHero.shoot(player, dx, dy, world);
+        player.customSpecial = (world) => AirHero.useSpecial(player, world);
 
         // Ult Icon
         player.icon = "🌪️";
@@ -789,7 +789,9 @@ class AirHero {
         ctx.restore();
     }
 
-    static useSpecial(player) {
+    static useSpecial(player, world) {
+        const _w = world ?? window._world;
+        const { enemies, createExplosion: _createExplosion, showNotification: _showNotification } = _w ?? {};
         if (player.activeEffect || player.activeTornado) return;
 
         // --- SOUND ---
@@ -823,13 +825,12 @@ class AirHero {
             player.y += Math.sin(dAngle) * dist;
 
             // Trail Damage
-            if (window.enemies) {
-                window.enemies.forEach(e => {
-                    // Simple line collision check logic omitted for brevity, using large radius
+            if (enemies) {
+                enemies.forEach(e => {
                     const d = Math.hypot(e.x - oldX, e.y - oldY);
                     if (d < dist) {
                         e.hp -= 20 * player.damageMultiplier;
-                        createExplosion(e.x, e.y, '#f1c40f', 5);
+                        if (_createExplosion) _createExplosion(e.x, e.y, '#f1c40f', 5);
                     }
                 });
             }
@@ -862,7 +863,7 @@ class AirHero {
             if (type === 'HEALING') {
                 // HEALING: SOOTHING BREEZE
                 player.hp = Math.min(player.maxHp, player.hp + 15); // Heal 15 HP
-                if (window.showNotification) window.showNotification("SOOTHING BREEZE! +15 HP", '#a2f1c1');
+                if (_showNotification) _showNotification("SOOTHING BREEZE! +15 HP", '#a2f1c1');
 
                 // Active effect: Gentle Push + Minor Regen?
                 player.activeEffect = {
@@ -884,15 +885,17 @@ class AirHero {
         }
     }
 
-    static fireZephyrStorm(player) {
-        if (!window.projectiles) return;
+    static fireZephyrStorm(player, world) {
+        const _w = world ?? window._world;
+        const { projectiles } = _w ?? {};
+        if (!projectiles) return;
         const angle = player.aimAngle || 0;
         const speed = player.stats.projectileSpeed * 2.0;
         const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier;
         const baseRadius = player.stats.projectileSize * 1.5;
 
         const push = (props) => {
-            window.projectiles.push({
+            projectiles.push({
                 x: player.x, y: player.y,
                 vx: Math.cos(props.angle) * props.speed,
                 vy: Math.sin(props.angle) * props.speed,
@@ -948,15 +951,16 @@ class AirHero {
         push({ angle, speed: speed * 0.3, damage: dmg * 1.5, life: 150, radius: 15, color: '#00ced1', pierce: 999, windStyle: 'ORB' });
     }
 
-    static shoot(player, dx, dy) {
-        if (!gameRunning || gamePaused || isLevelingUp || isShopping) return;
+    static shoot(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { projectiles } = _w ?? {};
 
         if (player.transformActive && player.currentForm === 'ZEPHYR') {
             const now = Date.now();
             const stormCd = Math.max(60, (player.stats.rangeCd || 200) * player.cooldownMultiplier * 0.4);
             if (player.lastShotTime && (now - player.lastShotTime < stormCd)) return;
             player.lastShotTime = now;
-            AirHero.fireZephyrStorm(player);
+            AirHero.fireZephyrStorm(player, world);
             return;
         }
 
@@ -1179,7 +1183,7 @@ class AirHero {
                     ctx.restore();
                 }
             };
-            if (window.projectiles) window.projectiles.push(p);
+            if (projectiles) projectiles.push(p);
         };
 
         if (dir === 'NORTH') {

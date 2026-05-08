@@ -99,7 +99,7 @@ class LightningHero {
         const _w = world ?? window._world;
         const { enemies, createExplosion, floatingTexts, particles } = _w ?? {};
         // Find a valid target (random enemy on screen)
-        const targets = enemies ?? window.enemies ?? [];
+        const targets = enemies ?? [];
         const activeTargets = targets.filter(e =>
             e.hp > 0 &&
             Math.abs(e.x - player.x) < 500 && // Within screen range roughly
@@ -170,8 +170,6 @@ class LightningHero {
     static shoot(player, dx, dy, isAuto = false, world) {
         const _w = world ?? window._world;
         const { saveData, audioManager, enemies, projectiles, createExplosion } = _w ?? {};
-        if (!gameRunning || gamePaused || isLevelingUp || isShopping) return;
-
         // Input Sanitization for Mouse/Keyboard interaction
         if (dx === undefined || dy === undefined) {
             if (player.aimAngle !== undefined) {
@@ -283,8 +281,7 @@ class LightningHero {
                 hasRailgun
             );
             mainProj.owner = player;
-            if (typeof projectiles !== 'undefined') projectiles.push(mainProj);
-            else if (window.projectiles) window.projectiles.push(mainProj);
+            if (projectiles) projectiles.push(mainProj);
 
             // 2. Buff Multi-Shot (Powerup)
             if (player.buffs && player.buffs.multi > 0) {
@@ -304,8 +301,7 @@ class LightningHero {
                         hasRailgun
                     );
                     buffProj.owner = player;
-                    if (typeof projectiles !== 'undefined') projectiles.push(buffProj);
-                    else if (window.projectiles) window.projectiles.push(buffProj);
+                    if (projectiles) projectiles.push(buffProj);
                 });
             }
 
@@ -333,8 +329,7 @@ class LightningHero {
                         hasRailgun
                     );
                     extraProj.owner = player;
-                    if (typeof projectiles !== 'undefined') projectiles.push(extraProj);
-                    else if (window.projectiles) window.projectiles.push(extraProj);
+                    if (projectiles) projectiles.push(extraProj);
                 }
             }
 
@@ -433,14 +428,14 @@ class LightningHero {
     static fireFlashOmniBurst(player, world) {
         const _w = world ?? window._world;
         const { createExplosion, projectiles: worldProjectiles } = _w ?? {};
-        if (typeof LightningProjectile === 'undefined' || !(worldProjectiles ?? window.projectiles)) return;
+        if (typeof LightningProjectile === 'undefined' || !worldProjectiles) return;
         const speed = 12;
         for (let i = 0; i < 8; i++) {
             const a = (i / 8) * Math.PI * 2;
             const dmg = (player.stats.rangeDmg || 15) * 2.5 * (player.damageMultiplier || 1);
             const p = new LightningProjectile(player.x, player.y, Math.cos(a) * speed, Math.sin(a) * speed, dmg, 20, true, 5, 600, []);
             p.owner = player;
-            (worldProjectiles ?? window.projectiles).push(p);
+            worldProjectiles.push(p);
         }
         if (createExplosion) createExplosion(player.x, player.y, '#00ffff', 30);
     }
@@ -473,6 +468,7 @@ class LightningProjectile {
 
         this.life = 60;
         this.color = isSuper ? '#00ffff' : '#ffeb3b';
+        this._world = (typeof window !== 'undefined') ? window._world : null;
 
         // Visuals
         this.segments = [];
@@ -520,9 +516,7 @@ class LightningProjectile {
 
     checkCollisions() {
         // Robust Scope Access
-        let targets = [];
-        if (typeof enemies !== 'undefined') targets = enemies;
-        else if (window.enemies) targets = window.enemies;
+        const targets = this._world?.enemies ?? [];
 
         let closestDist = 9999;
         let closestEnemy = null;
@@ -649,8 +643,7 @@ class LightningProjectile {
             );
 
             // Robust Push
-            if (typeof projectiles !== 'undefined') projectiles.push(nextProj);
-            else if (window.projectiles) window.projectiles.push(nextProj);
+            this._world?.projectiles?.push(nextProj);
             if (typeof saveData !== 'undefined') {
                 saveData.global.lightning_chain_5_count = (saveData.global.lightning_chain_5_count || 0) + 1;
             }
@@ -661,7 +654,7 @@ class LightningProjectile {
     findNextTarget(excludeEnemy) {
         let best = null;
         let minDist = 350; // Chain Range
-        const targets = (typeof enemies !== 'undefined') ? enemies : (window.enemies || []);
+        const targets = this._world?.enemies ?? [];
 
         for (let e of targets) {
             if (e === excludeEnemy || e.hp <= 0 || this.ignored.includes(e)) continue;

@@ -335,8 +335,7 @@ class EarthHero {
                 proj.owner = player;
                 proj.pierce = 1;
                 proj.life = 25;
-                if (typeof projectiles !== 'undefined') projectiles.push(proj);
-                else if (window.projectiles) window.projectiles.push(proj);
+                if (projectiles) projectiles.push(proj);
             });
             if (typeof currentRunStats !== 'undefined') currentRunStats.missilesFired++;
         }

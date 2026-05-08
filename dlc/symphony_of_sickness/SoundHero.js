@@ -1004,7 +1004,7 @@ class SoundHero {
                 this.radius += (950 - 30) / 120;
                 this.life--;
                 if (this.life <= 0) { this.dead = true; return; }
-                const _enemies = (_w && _w.enemies) || window.enemies;
+                const _enemies = _w?.enemies;
                 if (!_enemies) return;
                 _enemies.forEach(e => {
                     if (e.hp <= 0 || this.hitEnemies.includes(e)) return;

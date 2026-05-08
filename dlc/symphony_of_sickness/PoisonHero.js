@@ -408,16 +408,16 @@ class PoisonHero {
 
         // Logic for Combinations
         switch (combo) {
-            case 'NONE':      PoisonHero.createMiasmaField(player, cx, cy);       break;
-            case 'RED':       PoisonHero.createSanguineLeech(player, cx, cy);     break;
-            case 'BLUE':      PoisonHero.createCryogenicBurst(player, cx, cy);    break;
-            case 'GREEN':     PoisonHero.createAcidRain(player, cx, cy);          break;
-            case 'RED_RED':   PoisonHero.createHemorrhageChain(player, cx, cy);   break;
-            case 'BLUE_BLUE': PoisonHero.createAbsoluteZero(player, cx, cy);      break;
-            case 'GREEN_GREEN': PoisonHero.createToxicTsunami(player, cx, cy);    break;
-            case 'BLUE_RED':  PoisonHero.createHallucinogenCloud(player, cx, cy); break;
-            case 'GREEN_RED': PoisonHero.createUnstableCompound(player, cx, cy);  break;
-            case 'BLUE_GREEN': PoisonHero.createViralMutation(player, cx, cy);    break;
+            case 'NONE':      PoisonHero.createMiasmaField(player, cx, cy, world);       break;
+            case 'RED':       PoisonHero.createSanguineLeech(player, cx, cy, world);     break;
+            case 'BLUE':      PoisonHero.createCryogenicBurst(player, cx, cy, world);    break;
+            case 'GREEN':     PoisonHero.createAcidRain(player, cx, cy, world);          break;
+            case 'RED_RED':   PoisonHero.createHemorrhageChain(player, cx, cy, world);   break;
+            case 'BLUE_BLUE': PoisonHero.createAbsoluteZero(player, cx, cy, world);      break;
+            case 'GREEN_GREEN': PoisonHero.createToxicTsunami(player, cx, cy, world);    break;
+            case 'BLUE_RED':  PoisonHero.createHallucinogenCloud(player, cx, cy, world); break;
+            case 'GREEN_RED': PoisonHero.createUnstableCompound(player, cx, cy, world);  break;
+            case 'BLUE_GREEN': PoisonHero.createViralMutation(player, cx, cy, world);    break;
         }
 
         // NO LONGER Reset Flasks - User Request
@@ -430,8 +430,10 @@ class PoisonHero {
     // --- ABILITIES & EFFECTS ---
 
     // NONE: Miasma Unleashed — rotating decay aura follows player
-    static createMiasmaField(player, cx, cy) {
-        if (!window.projectiles) return;
+    static createMiasmaField(player, cx, cy, world) {
+        const _w = world ?? window._world;
+        const { projectiles, showNotification } = _w ?? {};
+        if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("☠️ MIASMA UNLEASHED", "#76ff03");
         const p = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(30,80,30,0.4)', 180, 'MIASMA', 0, false);
         p.life = 480; p.pierce = 9999; p.onHit = () => 'STOP'; p._rot = 0;
@@ -440,8 +442,8 @@ class PoisonHero {
             this.x = player.x; this.y = player.y;
             this._rot += 0.03; this.life--;
             if (this.life <= 0) { this.dead = true; return; }
-            if (window.frame % 10 === 0 && window.enemies) {
-                window.enemies.forEach(e => {
+            if (_w.frame % 10 === 0 && _w.enemies) {
+                _w.enemies.forEach(e => {
                     if (e.hp > 0 && Math.hypot(e.x - this.x, e.y - this.y) < this.radius) {
                         const dmg = (player.damageMultiplier || 1) * (player.stats.dotMultiplier || 1);
                         if (typeof e.takeDamage === 'function') e.takeDamage(dmg); else e.hp -= dmg;
@@ -451,11 +453,11 @@ class PoisonHero {
                     }
                 });
             }
-            if (window.particles && typeof Particle !== 'undefined' && Math.random() < 0.35) {
+            if (_w.particles && typeof Particle !== 'undefined' && Math.random() < 0.35) {
                 const a = Math.random() * Math.PI * 2, r = Math.random() * this.radius;
                 const pp = new Particle(this.x + Math.cos(a)*r, this.y + Math.sin(a)*r, `rgba(60,${100+Math.random()*80|0},30,0.7)`);
                 pp.velocity = { x: (Math.random()-0.5)*0.5, y: -1-Math.random() }; pp.life = 40;
-                window.particles.push(pp);
+                _w.particles.push(pp);
             }
         };
         p.draw = function() {
@@ -484,37 +486,39 @@ class PoisonHero {
             ctx.restore();
         };
         p.owner = player;
-        window.projectiles.push(p);
+        projectiles.push(p);
     }
 
     // RED: Sanguine Leech — blood vortex pulls enemies, drains life
-    static createSanguineLeech(player, cx, cy) {
-        if (!window.projectiles) return;
+    static createSanguineLeech(player, cx, cy, world) {
+        const _w = world ?? window._world;
+        const { projectiles, showNotification } = _w ?? {};
+        if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("🩸 SANGUINE LEECH", "#e74c3c");
         const p = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(150,20,20,0.3)', 150, 'LEECH', 0, false);
         p.life = 180; p.pierce = 9999; p.onHit = () => 'STOP'; p._rot = 0; p._healAccum = 0;
         p.update = function() {
             this.life--; this._rot += 0.06;
             if (this.life <= 0) { this.dead = true; return; }
-            if (window.enemies) {
-                window.enemies.forEach(e => {
+            if (_w.enemies) {
+                _w.enemies.forEach(e => {
                     if (e.hp <= 0) return;
                     const d = Math.hypot(e.x - this.x, e.y - this.y);
                     if (d < this.radius) {
                         const pull = 1.5 * (1 - d / this.radius);
                         const ang = Math.atan2(this.y - e.y, this.x - e.x);
                         e.x += Math.cos(ang) * pull; e.y += Math.sin(ang) * pull;
-                        if (window.frame % 8 === 0) {
+                        if (_w.frame % 8 === 0) {
                             const drain = 3 * (player.damageMultiplier || 1);
                             const before = e.hp;
                             if (typeof e.takeDamage === 'function') e.takeDamage(drain); else e.hp -= drain;
                             this._healAccum += (before - Math.max(0, e.hp)) * 0.3;
                             e.poisonStacks = Math.min((e.poisonStacks || 0) + 2, 100);
-                            if (window.particles && typeof Particle !== 'undefined') {
+                            if (_w.particles && typeof Particle !== 'undefined') {
                                 const pp = new Particle(e.x, e.y, '#c0392b');
                                 const ta = Math.atan2(player.y - e.y, player.x - e.x);
                                 pp.velocity = { x: Math.cos(ta)*3, y: Math.sin(ta)*3 }; pp.life = 20;
-                                window.particles.push(pp);
+                                _w.particles.push(pp);
                             }
                         }
                     }
@@ -553,12 +557,14 @@ class PoisonHero {
             ctx.restore();
         };
         p.owner = player;
-        window.projectiles.push(p);
+        projectiles.push(p);
     }
 
     // BLUE: Cryogenic Burst — expanding ice shockwave + lingering frost zone
-    static createCryogenicBurst(player, cx, cy) {
-        if (!window.projectiles) return;
+    static createCryogenicBurst(player, cx, cy, world) {
+        const _w = world ?? window._world;
+        const { projectiles, showNotification } = _w ?? {};
+        if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("❄️ CRYOGENIC BURST", "#3498db");
         // Phase 1: expanding wave
         const wave = new Projectile(cx, cy, { x:0, y:0 }, 0, 'rgba(0,0,0,0)', 0, 'CRYO_WAVE', 0, false);
@@ -567,18 +573,18 @@ class PoisonHero {
         wave.update = function() {
             this.life--; this.radius = wave._maxR * (1 - this.life/50);
             if (this.life <= 0) { this.dead = true; return; }
-            if (window.enemies) {
-                window.enemies.forEach(e => {
+            if (_w.enemies) {
+                _w.enemies.forEach(e => {
                     if (e.hp <= 0 || this._hit.has(e)) return;
                     if (Math.hypot(e.x-cx, e.y-cy) < this.radius) {
                         this._hit.add(e); e.frozen = Math.max(e.frozen||0, 90);
                         e.poisonStacks = Math.min((e.poisonStacks||0)+5, 100);
                         if (typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y-10, '❄️', '#3498db');
-                        if (window.particles && typeof Particle !== 'undefined') {
+                        if (_w.particles && typeof Particle !== 'undefined') {
                             for (let i=0;i<5;i++) {
                                 const pp = new Particle(e.x,e.y,`rgba(${150+Math.random()*100|0},${200+Math.random()*55|0},255,0.9)`);
                                 const a=Math.random()*Math.PI*2; pp.velocity={x:Math.cos(a)*2,y:Math.sin(a)*2}; pp.life=25;
-                                window.particles.push(pp);
+                                _w.particles.push(pp);
                             }
                         }
                     }
@@ -602,16 +608,16 @@ class PoisonHero {
             ctx.restore();
         };
         wave.owner = player;
-        window.projectiles.push(wave);
+        projectiles.push(wave);
         // Phase 2: frost zone after 100ms
         setTimeout(() => {
-            if (!window.projectiles) return;
+            if (!_w.projectiles) return;
             const zone = new Projectile(cx, cy, {x:0,y:0}, 0, 'rgba(30,100,180,0.15)', 200, 'FROST_ZONE', 0, false);
             zone.life = 240; zone.pierce = 9999; zone.onHit = () => 'STOP'; zone.owner = player;
             zone.update = function() {
                 this.life--; if (this.life<=0){this.dead=true;return;}
-                if (window.enemies && window.frame%20===0) {
-                    window.enemies.forEach(e => {
+                if (_w.enemies && _w.frame%20===0) {
+                    _w.enemies.forEach(e => {
                         if (e.hp>0 && Math.hypot(e.x-this.x,e.y-this.y)<this.radius) {
                             e.frozen = Math.max(e.frozen||0,30); e.speedMultiplier=Math.min(e.speedMultiplier||1,0.4);
                         }
@@ -635,13 +641,15 @@ class PoisonHero {
                 }
                 ctx.restore();
             };
-            window.projectiles.push(zone);
+            _w.projectiles.push(zone);
         }, 100);
     }
 
     // GREEN: Acid Rain — corrosive droplets fall over wide area
-    static createAcidRain(player, cx, cy) {
-        if (!window.projectiles) return;
+    static createAcidRain(player, cx, cy, world) {
+        const _w = world ?? window._world;
+        const { projectiles, showNotification } = _w ?? {};
+        if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("🧪 ACID RAIN", "#76ff03");
         const rainR = 220, totalDrops = 18;
         let dropped = 0;
@@ -649,11 +657,11 @@ class PoisonHero {
         ctrl.life = 300; ctrl.pierce = 9999; ctrl.onHit = () => 'STOP'; ctrl._last = 0;
         ctrl.update = function() {
             this.life--; if (this.life<=0){this.dead=true;return;}
-            if (window.frame - this._last >= 16 && dropped < totalDrops) {
-                this._last = window.frame; dropped++;
+            if (_w.frame - this._last >= 16 && dropped < totalDrops) {
+                this._last = _w.frame; dropped++;
                 const a=Math.random()*Math.PI*2, d=Math.random()*rainR;
                 const tx=cx+Math.cos(a)*d, ty=cy+Math.sin(a)*d;
-                PoisonHero._spawnAcidDrop(player, tx, ty-200, ty);
+                PoisonHero._spawnAcidDrop(player, tx, ty-200, ty, _w);
             }
         };
         ctrl.draw = function() {
@@ -664,11 +672,13 @@ class PoisonHero {
             ctx.beginPath(); ctx.arc(cx,cy,rainR,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
         };
         ctrl.owner = player;
-        window.projectiles.push(ctrl);
+        projectiles.push(ctrl);
     }
 
-    static _spawnAcidDrop(player, sx, sy, ty) {
-        if (!window.projectiles) return;
+    static _spawnAcidDrop(player, sx, sy, ty, world) {
+        const _w = world ?? window._world;
+        const { projectiles } = _w ?? {};
+        if (!projectiles) return;
         const spd = 12;
         const p = new Projectile(sx, sy, {x:0,y:spd}, 0, '#6bff00', 7, 'ACID_DROP', 0, false);
         p.life = Math.ceil(Math.abs(ty-sy)/spd)+5; p.pierce=9999; p.onHit=()=>'STOP'; p._ty=ty; p._landed=false;
@@ -677,13 +687,13 @@ class PoisonHero {
             this.y += spd; this.life--;
             if (this.life<=0||this.y>=this._ty) {
                 this._landed=true; this.dead=true;
-                PoisonHero._spawnMiniAcidPool(player, this.x, this._ty, 55, 180);
-                if (window.particles && typeof Particle !== 'undefined') {
+                PoisonHero._spawnMiniAcidPool(player, this.x, this._ty, 55, 180, _w);
+                if (_w.particles && typeof Particle !== 'undefined') {
                     for (let i=0;i<6;i++) {
                         const pp=new Particle(this.x,this._ty,`rgba(${80+Math.random()*100|0},255,${30+Math.random()*50|0},0.9)`);
                         const a=-Math.PI/2+(Math.random()-0.5)*Math.PI;
                         pp.velocity={x:Math.cos(a)*(1+Math.random()*2),y:Math.sin(a)*(1+Math.random()*2)}; pp.life=20;
-                        window.particles.push(pp);
+                        _w.particles.push(pp);
                     }
                 }
             }
@@ -696,17 +706,19 @@ class PoisonHero {
             ctx.restore();
         };
         p.owner = player;
-        window.projectiles.push(p);
+        projectiles.push(p);
     }
 
-    static _spawnMiniAcidPool(player, x, y, r, life) {
-        if (!window.projectiles) return;
+    static _spawnMiniAcidPool(player, x, y, r, life, world) {
+        const _w = world ?? window._world;
+        const { projectiles } = _w ?? {};
+        if (!projectiles) return;
         const p = new Projectile(x, y, {x:0,y:0}, 0, 'rgba(80,200,20,0.25)', r, 'MINI_ACID', 0, false);
         p.life=life; p.pierce=9999; p.onHit=()=>'STOP';
         p.update = function() {
             this.life--; if (this.life<=0){this.dead=true;return;}
-            if (window.enemies && window.frame%15===0) {
-                window.enemies.forEach(e => {
+            if (_w.enemies && _w.frame%15===0) {
+                _w.enemies.forEach(e => {
                     if (e.hp>0 && Math.hypot(e.x-this.x,e.y-this.y)<this.radius) {
                         const dmg=2*(player.damageMultiplier||1);
                         if (typeof e.takeDamage==='function') e.takeDamage(dmg); else e.hp-=dmg;
@@ -731,17 +743,19 @@ class PoisonHero {
             ctx.restore();
         };
         p.owner = player;
-        window.projectiles.push(p);
+        projectiles.push(p);
     }
 
     // RED_RED: Hemorrhage Chain — blood nova with chain explosions
-    static createHemorrhageChain(player, cx, cy) {
+    static createHemorrhageChain(player, cx, cy, world) {
+        const _w = world ?? window._world;
+        const { enemies, showNotification, createExplosion } = _w ?? {};
         if (typeof showNotification === 'function') showNotification("💀 HEMORRHAGE CHAIN", "#c0392b");
         const firstR=200, chainR=120, baseDmg=25*(player.damageMultiplier||1);
-        PoisonHero._spawnRingShockwave(cx, cy, firstR, '#c0392b', player);
-        if (typeof createExplosion === 'function') createExplosion(cx, cy, '#c0392b', 80);
-        if (window.enemies) {
-            window.enemies.forEach(e => {
+        PoisonHero._spawnRingShockwave(cx, cy, firstR, '#c0392b', player, _w);
+        if (createExplosion) createExplosion(cx, cy, '#c0392b', 80);
+        if (enemies) {
+            enemies.forEach(e => {
                 if (e.hp>0 && Math.hypot(e.x-cx,e.y-cy)<firstR) {
                     if (typeof e.takeDamage==='function') e.takeDamage(baseDmg); else e.hp-=baseDmg;
                     e.bleedStacks=(e.bleedStacks||0)+15;
@@ -751,13 +765,13 @@ class PoisonHero {
             });
         }
         setTimeout(() => {
-            if (!window.enemies) return;
-            window.enemies.forEach(e => {
+            if (!_w.enemies) return;
+            _w.enemies.forEach(e => {
                 if (!e||e.hp<=0||!e.bleedStacks||e.bleedStacks<10) return;
-                if (typeof createExplosion==='function') createExplosion(e.x,e.y,'#8b0000',50);
-                PoisonHero._spawnRingShockwave(e.x, e.y, chainR, '#8b0000', player);
+                if (createExplosion) createExplosion(e.x,e.y,'#8b0000',50);
+                PoisonHero._spawnRingShockwave(e.x, e.y, chainR, '#8b0000', player, _w);
                 const ex=e.x, ey=e.y;
-                window.enemies.forEach(nb => {
+                _w.enemies.forEach(nb => {
                     if (nb!==e && nb.hp>0 && Math.hypot(nb.x-ex,nb.y-ey)<chainR) {
                         const cd=baseDmg*0.7;
                         if (typeof nb.takeDamage==='function') nb.takeDamage(cd); else nb.hp-=cd;
@@ -773,8 +787,10 @@ class PoisonHero {
         }, 500);
     }
 
-    static _spawnRingShockwave(cx, cy, maxR, color, owner) {
-        if (!window.projectiles) return;
+    static _spawnRingShockwave(cx, cy, maxR, color, owner, world) {
+        const _w = world ?? window._world;
+        const { projectiles } = _w ?? {};
+        if (!projectiles) return;
         const p = new Projectile(cx,cy,{x:0,y:0},0,'rgba(0,0,0,0)',maxR,'RING_WAVE',0,false);
         p.life=30; p.pierce=9999; p.onHit=()=>'STOP'; p._maxR=maxR; p._col=color; if (owner) p.owner=owner;
         p.update=function(){this.life--;if(this.life<=0)this.dead=true;};
@@ -787,29 +803,33 @@ class PoisonHero {
             ctx.lineWidth=2; ctx.globalAlpha=alpha*0.4; ctx.beginPath(); ctx.arc(cx,cy,r*0.7,0,Math.PI*2); ctx.stroke();
             ctx.restore();
         };
-        window.projectiles.push(p);
+        projectiles.push(p);
     }
 
     // BLUE_BLUE: Absolute Zero — three staggered ice waves with shattering
-    static createAbsoluteZero(player, cx, cy) {
+    static createAbsoluteZero(player, cx, cy, world) {
+        const _w = world ?? window._world;
+        const { showNotification, createExplosion } = _w ?? {};
         if (typeof showNotification === 'function') showNotification("🌨️ ABSOLUTE ZERO", "#00bfff");
         [0, 220, 460].forEach((delay, idx) => {
             setTimeout(() => {
-                if (typeof createExplosion==='function') createExplosion(cx,cy,'#3498db',40);
-                PoisonHero._spawnIceWave(player, cx, cy, 300+idx*70, idx);
+                if (createExplosion) createExplosion(cx,cy,'#3498db',40);
+                PoisonHero._spawnIceWave(player, cx, cy, 300+idx*70, idx, _w);
             }, delay);
         });
     }
 
-    static _spawnIceWave(player, cx, cy, maxR, waveIdx) {
-        if (!window.projectiles) return;
+    static _spawnIceWave(player, cx, cy, maxR, waveIdx, world) {
+        const _w = world ?? window._world;
+        const { projectiles } = _w ?? {};
+        if (!projectiles) return;
         const p = new Projectile(cx,cy,{x:0,y:0},0,'rgba(0,0,0,0)',maxR,'ICE_WAVE',0,false);
         p.life=40; p.pierce=9999; p.onHit=()=>'STOP'; p._maxR=maxR; p._hit=new Set(); p._wi=waveIdx;
         p.update=function(){
             this.life--; const prog=1-this.life/40, curR=this._maxR*prog;
             if (this.life<=0){this.dead=true;return;}
-            if (window.enemies) {
-                window.enemies.forEach(e=>{
+            if (_w.enemies) {
+                _w.enemies.forEach(e=>{
                     if (e.hp<=0||this._hit.has(e)) return;
                     if (Math.hypot(e.x-cx,e.y-cy)<curR) {
                         this._hit.add(e);
@@ -819,11 +839,11 @@ class PoisonHero {
                         if (typeof e.takeDamage==='function') e.takeDamage(dmg); else e.hp-=dmg;
                         e.poisonStacks=Math.min((e.poisonStacks||0)+5,100);
                         if (alreadyFrozen&&typeof createDamageNumber==='function') createDamageNumber(e.x,e.y-15,'SHATTERED!','#00bfff');
-                        if (window.particles&&typeof Particle!=='undefined') {
+                        if (_w.particles&&typeof Particle!=='undefined') {
                             for(let i=0;i<8;i++){
                                 const pp=new Particle(e.x,e.y,`rgba(${100+Math.random()*155|0},${210+Math.random()*45|0},255,1)`);
                                 const a=Math.random()*Math.PI*2; pp.velocity={x:Math.cos(a)*3,y:Math.sin(a)*3}; pp.life=30;
-                                window.particles.push(pp);
+                                _w.particles.push(pp);
                             }
                         }
                     }
@@ -849,12 +869,14 @@ class PoisonHero {
             ctx.restore();
         };
         p.owner = player;
-        window.projectiles.push(p);
+        projectiles.push(p);
     }
 
     // GREEN_GREEN: Toxic Tsunami — rolling wave in aim direction
-    static createToxicTsunami(player, cx, cy) {
-        if (!window.projectiles) return;
+    static createToxicTsunami(player, cx, cy, world) {
+        const _w = world ?? window._world;
+        const { projectiles, showNotification } = _w ?? {};
+        if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("🌊 TOXIC TSUNAMI", "#00e676");
         const angle=player.aimAngle||0, spd=6, ww=280;
         const p = new Projectile(cx,cy,{x:Math.cos(angle)*spd,y:Math.sin(angle)*spd},0,'rgba(0,200,60,0.4)',10,'TSUNAMI',0,false);
@@ -863,8 +885,8 @@ class PoisonHero {
         p.update=function(){
             this.life--; this.x+=this.velocity.x; this.y+=this.velocity.y;
             if (this.life<=0){this.dead=true;return;}
-            if (window.enemies) {
-                window.enemies.forEach(e=>{
+            if (_w.enemies) {
+                _w.enemies.forEach(e=>{
                     if (e.hp<=0||this._hit.has(e)) return;
                     const dx=e.x-this.x, dy=e.y-this.y;
                     const along=dx*Math.cos(this._ang)+dy*Math.sin(this._ang);
@@ -879,12 +901,12 @@ class PoisonHero {
                     }
                 });
             }
-            if (window.frame%8===0) PoisonHero._spawnMiniAcidPool(player,this.x-Math.cos(this._ang)*30,this.y-Math.sin(this._ang)*30,70,120);
-            if (window.particles&&typeof Particle!=='undefined'&&Math.random()<0.5) {
+            if (_w.frame%8===0) PoisonHero._spawnMiniAcidPool(player,this.x-Math.cos(this._ang)*30,this.y-Math.sin(this._ang)*30,70,120,_w);
+            if (_w.particles&&typeof Particle!=='undefined'&&Math.random()<0.5) {
                 const perp=this._ang+Math.PI/2, off=(Math.random()-0.5)*this._ww;
                 const pp=new Particle(this.x+Math.cos(perp)*off,this.y+Math.sin(perp)*off,`rgba(${100+Math.random()*100|0},255,${50+Math.random()*80|0},0.8)`);
                 pp.velocity={x:Math.cos(this._ang)*2+(Math.random()-0.5),y:Math.sin(this._ang)*2+(Math.random()-0.5)}; pp.life=25;
-                window.particles.push(pp);
+                _w.particles.push(pp);
             }
         };
         p.draw=function(){
@@ -908,28 +930,30 @@ class PoisonHero {
             ctx.restore();
         };
         p.owner = player;
-        window.projectiles.push(p);
+        projectiles.push(p);
     }
 
     // BLUE_RED: Hallucinogen — psychedelic cloud causing enemy infighting
-    static createHallucinogenCloud(player, cx, cy) {
-        if (!window.projectiles) return;
+    static createHallucinogenCloud(player, cx, cy, world) {
+        const _w = world ?? window._world;
+        const { projectiles, showNotification } = _w ?? {};
+        if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("🌀 HALLUCINOGEN", "#9b59b6");
         const p = new Projectile(cx,cy,{x:0,y:0},0,'rgba(100,20,150,0.3)',280,'HALLUCIN',0,false);
         p.life=360; p.pierce=9999; p.onHit=()=>'STOP'; p._rot=0;
         p.update=function(){
             this.life--; this._rot+=0.02;
             if (this.life<=0){this.dead=true;return;}
-            if (window.enemies&&window.frame%20===0) {
-                window.enemies.forEach(e=>{
+            if (_w.enemies&&_w.frame%20===0) {
+                _w.enemies.forEach(e=>{
                     if (e.hp<=0) return;
                     if (Math.hypot(e.x-this.x,e.y-this.y)<this.radius) {
                         e.confused=Math.max(e.confused||0,40);
                         e.poisonStacks=Math.min((e.poisonStacks||0)+4,100);
-                        if (window.frame%30===0) {
+                        if (_w.frame%30===0) {
                             const dmg=3*(player.damageMultiplier||1);
                             if (typeof e.takeDamage==='function') e.takeDamage(dmg); else e.hp-=dmg;
-                            const target=window.enemies.find(o=>o!==e&&o.hp>0&&Math.hypot(o.x-e.x,o.y-e.y)<100);
+                            const target=_w.enemies.find(o=>o!==e&&o.hp>0&&Math.hypot(o.x-e.x,o.y-e.y)<100);
                             if (target) {
                                 const fd=(e.damage||5)*0.8;
                                 if (typeof target.takeDamage==='function') target.takeDamage(fd); else target.hp-=fd;
@@ -939,12 +963,12 @@ class PoisonHero {
                     }
                 });
             }
-            if (window.particles&&typeof Particle!=='undefined'&&Math.random()<0.4) {
+            if (_w.particles&&typeof Particle!=='undefined'&&Math.random()<0.4) {
                 const a=Math.random()*Math.PI*2, r=Math.random()*this.radius;
                 const cols=['#9b59b6','#e74c3c','#3498db','#f39c12','#e91e63'];
                 const pp=new Particle(this.x+Math.cos(a)*r,this.y+Math.sin(a)*r,cols[Math.floor(Math.random()*cols.length)]);
                 pp.velocity={x:(Math.random()-0.5)*1.5,y:(Math.random()-0.5)*1.5}; pp.life=50;
-                window.particles.push(pp);
+                _w.particles.push(pp);
             }
         };
         p.draw=function(){
@@ -966,26 +990,28 @@ class PoisonHero {
             ctx.restore();
         };
         p.owner = player;
-        window.projectiles.push(p);
+        projectiles.push(p);
     }
 
     // GREEN_RED: Unstable Compound — pull vortex then massive detonation
-    static createUnstableCompound(player, cx, cy) {
-        if (!window.projectiles) return;
+    static createUnstableCompound(player, cx, cy, world) {
+        const _w = world ?? window._world;
+        const { projectiles, showNotification } = _w ?? {};
+        if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("⚗️ UNSTABLE COMPOUND", "#f39c12");
         const p = new Projectile(cx,cy,{x:0,y:0},0,'rgba(0,0,0,0)',250,'UC_PHASE1',0,false);
         p.life=180; p.pierce=9999; p.onHit=()=>'STOP'; p._rot=0;
         p.update=function(){
             this.life--; this._rot+=0.05;
-            if (this.life<=0){this.dead=true; PoisonHero._detonateUnstableCompound(player,cx,cy,400); return;}
-            if (window.enemies) {
-                window.enemies.forEach(e=>{
+            if (this.life<=0){this.dead=true; PoisonHero._detonateUnstableCompound(player,cx,cy,400,_w); return;}
+            if (_w.enemies) {
+                _w.enemies.forEach(e=>{
                     if (e.hp<=0) return;
                     const d=Math.hypot(e.x-cx,e.y-cy);
                     if (d<this.radius&&d>5) {
                         const pull=1.8*(1-d/this.radius), ang=Math.atan2(cy-e.y,cx-e.x);
                         e.x+=Math.cos(ang)*pull; e.y+=Math.sin(ang)*pull;
-                        if (window.frame%15===0) {
+                        if (_w.frame%15===0) {
                             const dmg=4*(player.damageMultiplier||1);
                             if (typeof e.takeDamage==='function') e.takeDamage(dmg); else e.hp-=dmg;
                             e.poisonStacks=Math.min((e.poisonStacks||0)+3,100);
@@ -1015,19 +1041,21 @@ class PoisonHero {
             ctx.restore();
         };
         p.owner = player;
-        window.projectiles.push(p);
+        projectiles.push(p);
     }
 
-    static _detonateUnstableCompound(player, cx, cy, blastR) {
-        if (typeof createExplosion==='function') {
+    static _detonateUnstableCompound(player, cx, cy, blastR, world) {
+        const _w = world ?? window._world;
+        const { enemies, createExplosion, showNotification, audioManager } = _w ?? {};
+        if (createExplosion) {
             createExplosion(cx,cy,'#ff6600',blastR*0.5);
             setTimeout(()=>createExplosion(cx,cy,'#ff0000',blastR*0.7),80);
             setTimeout(()=>createExplosion(cx,cy,'#ff9900',blastR),160);
         }
-        if (typeof audioManager!=='undefined') audioManager.play('explosion');
+        if (audioManager) audioManager.play('explosion');
         if (typeof showNotification==='function') showNotification("💥 DETONATION!", "#ff4400");
-        if (window.enemies) {
-            window.enemies.forEach(e=>{
+        if (enemies) {
+            enemies.forEach(e=>{
                 const d=Math.hypot(e.x-cx,e.y-cy);
                 if (d<blastR) {
                     const dmg=80*(player.damageMultiplier||1)+(e.poisonStacks||0)*1.5;
@@ -1038,17 +1066,19 @@ class PoisonHero {
                 }
             });
         }
-        PoisonHero._spawnRingShockwave(cx, cy, blastR, '#ff6600', player);
+        PoisonHero._spawnRingShockwave(cx, cy, blastR, '#ff6600', player, _w);
     }
 
     // BLUE_GREEN: Viral Mutation — infected enemies become spreading carriers
-    static createViralMutation(player, cx, cy) {
-        if (!window.projectiles) return;
+    static createViralMutation(player, cx, cy, world) {
+        const _w = world ?? window._world;
+        const { projectiles, enemies, createExplosion, showNotification } = _w ?? {};
+        if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("🧬 VIRAL MUTATION", "#00e676");
-        if (typeof createExplosion==='function') createExplosion(cx,cy,'#00e676',250*0.5);
+        if (createExplosion) createExplosion(cx,cy,'#00e676',250*0.5);
         let count=0;
-        if (window.enemies) {
-            window.enemies.forEach(e=>{
+        if (enemies) {
+            enemies.forEach(e=>{
                 if (e.hp>0&&Math.hypot(e.x-cx,e.y-cy)<250) {
                     e.isViralCarrier=true; e.viralTimer=600;
                     e.poisonStacks=Math.min((e.poisonStacks||0)+25,100); count++;
@@ -1062,26 +1092,26 @@ class PoisonHero {
         ctrl.life=600; ctrl.pierce=9999; ctrl.onHit=()=>'STOP';
         ctrl.update=function(){
             this.life--; if (this.life<=0){this.dead=true;return;}
-            if (!window.enemies) return;
-            window.enemies.forEach(e=>{
+            if (!_w.enemies) return;
+            _w.enemies.forEach(e=>{
                 if (!e.isViralCarrier||e.hp<=0) return;
                 e.viralTimer--; if (e.viralTimer<=0){e.isViralCarrier=false;return;}
-                if (window.frame%25===0) {
-                    window.enemies.forEach(o=>{
+                if (_w.frame%25===0) {
+                    _w.enemies.forEach(o=>{
                         if (o===e||o.hp<=0||o.isViralCarrier) return;
                         if (Math.hypot(o.x-e.x,o.y-e.y)<80) {
                             o.isViralCarrier=true; o.viralTimer=300;
                             o.poisonStacks=Math.min((o.poisonStacks||0)+15,100);
-                            if (typeof createExplosion==='function') createExplosion(o.x,o.y,'#00e676',20);
+                            if (createExplosion) createExplosion(o.x,o.y,'#00e676',20);
                             if (typeof createDamageNumber==='function') createDamageNumber(o.x,o.y-10,'INFECTED!','#00c853');
                         }
                     });
                 }
-                if (window.frame%20===0&&Math.random()<0.4) PoisonHero._spawnMiniAcidPool(player,e.x,e.y,40,90);
-                if (window.particles&&typeof Particle!=='undefined'&&Math.random()<0.2) {
+                if (_w.frame%20===0&&Math.random()<0.4) PoisonHero._spawnMiniAcidPool(player,e.x,e.y,40,90,_w);
+                if (_w.particles&&typeof Particle!=='undefined'&&Math.random()<0.2) {
                     const pp=new Particle(e.x+(Math.random()-0.5)*20,e.y+(Math.random()-0.5)*20,`rgba(0,${150+Math.random()*100|0},${50+Math.random()*100|0},0.8)`);
                     pp.velocity={x:(Math.random()-0.5)*1.5,y:-1-Math.random()}; pp.life=30;
-                    window.particles.push(pp);
+                    _w.particles.push(pp);
                 }
             });
         };
@@ -1104,7 +1134,7 @@ class PoisonHero {
             ctx.restore();
         };
         ctrl.owner = player;
-        window.projectiles.push(ctrl);
+        projectiles.push(ctrl);
     }
 
 
