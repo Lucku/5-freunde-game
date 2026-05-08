@@ -1,10 +1,11 @@
 # 5 Freunde — Game Server
 
-A lightweight Node.js server that provides three features over a single connection:
+A lightweight Node.js server that provides four features over a single connection:
 
 1. **Cloud saves** — sync player progress across devices
-2. **Online multiplayer** — 2-player co-op over LAN or the internet
+2. **Online multiplayer** — server-authoritative 2-player co-op over LAN or the internet
 3. **Global Lobby & Leaderboard** — persistent social hub and server-side high-score table
+4. **Admin Dashboard** — password-protected web UI for monitoring sessions, players, and saves
 
 One account is used for all three. The server runs well on a Raspberry Pi or any always-on machine on your network.
 
@@ -20,9 +21,9 @@ On game start the client compares the cloud save's timestamp against the last kn
 
 ### Online multiplayer
 
-The server acts as a **relay** between two players using WebSocket. One player creates a lobby and shares the 6-character join code; the other player enters it. After both players pick a hero and press Ready, the game starts.
+The server runs a **server-authoritative simulation**. One player creates a lobby and shares the 6-character join code; the other enters it. After both pick a hero and press Ready, the server starts a `GameSession` — a full 20 Hz game loop using the same real `Player` and `Enemy` classes as the client.
 
-The **host** runs the full game simulation and sends compact state snapshots (~20 fps) to the guest. The **guest** sends their inputs back to the host. Neither player needs to forward ports — both connect outward to the server. The server relays all messages without interpreting game state.
+Both players send `INPUT` messages to the server every frame and receive compact `SNAPSHOT` messages in return. Neither machine acts as a host; neither player needs to forward ports — both connect outward to the server.
 
 If a player disconnects mid-game, the lobby stays alive for 90 seconds to allow reconnect. After that the remaining player is returned to the menu.
 
@@ -37,12 +38,13 @@ Every run completed in Online 2-Player mode is automatically submitted to the se
 **Lobby lifecycle**
 
 ```
-waiting → hero_select → in_game → finished
+waiting → hero_select → pre_game → in_game → finished
 ```
 
 - `waiting`: host created lobby, no guest yet
 - `hero_select`: guest joined, both choose heroes and confirm ready
-- `in_game`: game is running, all messages relayed
+- `pre_game`: both confirmed ready, host selects game mode before starting
+- `in_game`: `GameSession` running, both clients send inputs, receive snapshots
 - `finished`: game ended normally or by disconnect timeout
 
 ---
@@ -74,11 +76,12 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` and set a strong `JWT_SECRET`:
+Edit `.env` and set a strong `JWT_SECRET` and `ADMIN_PASSWORD`:
 
 ```
 PORT=3001
 JWT_SECRET=some-long-random-string-here
+ADMIN_PASSWORD=some-strong-admin-password
 ```
 
 Start the server:
@@ -145,6 +148,24 @@ Find the Pi's IP with `hostname -I`. In the game, go to **Options → Server & A
 
 ---
 
+## Admin Dashboard
+
+Open `http://<host>:3001/admin` in a browser. Enter the `ADMIN_PASSWORD` (defaults to `admin` — change it in `.env`).
+
+The dashboard auto-refreshes every 5 seconds and has five tabs:
+
+| Tab | What it shows |
+|-----|---------------|
+| **Overview** | Online player count, active session count, total users, total runs; hero usage bar chart; outcome and mode breakdowns |
+| **Sessions** | Active sessions with live HP bars, wave/score/enemy count, duration; completed sessions (since last restart) with expandable detail view (run stats: kills, damage, missiles, gold) |
+| **Players** | Who is online right now (museum vs in-game); full registered-player list with join date and save/online status |
+| **Leaderboard** | Top 20 all-time scores with hero, mode, wave, outcome, duration |
+| **Cloud Saves** | Per-player save status, last-saved timestamp, file size |
+
+Sessions are recorded in memory (last 100) and cleared on server restart. The dashboard does not write any data.
+
+---
+
 ## API reference
 
 All endpoints accept and return JSON. Protected endpoints require `Authorization: Bearer <token>`.
@@ -156,10 +177,16 @@ All endpoints accept and return JSON. Protected endpoints require `Authorization
 | `GET`  | `/api/health` | — | Liveness check → `{"status":"ok"}` |
 | `POST` | `/api/register` | — | Create account → `{ token, username }` |
 | `POST` | `/api/login` | — | Authenticate → `{ token, username }` |
-| `GET`  | `/api/save` | required | Download save → `{ blob, savedAt }` |
-| `PUT`  | `/api/save` | required | Upload save (body: `{ blob }`) → `{ savedAt }` |
-| `POST` | `/api/leaderboard` | required | Submit a run score (body below) → `{ ok: true }` |
+| `GET`  | `/api/save` | Bearer (JWT) | Download save → `{ blob, savedAt }` |
+| `PUT`  | `/api/save` | Bearer (JWT) | Upload save (body: `{ blob }`) → `{ savedAt }` |
+| `POST` | `/api/leaderboard` | Bearer (JWT) | Submit a run score (body below) → `{ ok: true }` |
 | `GET`  | `/api/leaderboard` | — | Fetch top scores → `{ entries: [...] }` — optional `?limit=N` (max 50, default 10) |
+| `GET`  | `/admin` | — | Admin dashboard HTML (password entered in browser) |
+| `GET`  | `/api/admin/sessions` | Bearer (ADMIN_PASSWORD) | Active + completed sessions |
+| `GET`  | `/api/admin/online` | Bearer (ADMIN_PASSWORD) | Players in museum and in-game |
+| `GET`  | `/api/admin/players` | Bearer (ADMIN_PASSWORD) | All registered users |
+| `GET`  | `/api/admin/stats` | Bearer (ADMIN_PASSWORD) | Aggregated stats (leaderboard, hero/mode/outcome distribution) |
+| `GET`  | `/api/admin/saves` | Bearer (ADMIN_PASSWORD) | Cloud save status per player |
 
 **Submit score body**
 
@@ -209,12 +236,16 @@ Connect to `ws://<host>:3001/ws?token=<jwt>`. All messages are JSON.
 |--------|---------|-------------|
 | `CREATE_LOBBY` | `{ hero }` | Create a new lobby, become host |
 | `JOIN_LOBBY` | `{ code, hero }` | Join an existing lobby by 6-char code |
-| `HERO_SELECT` | `{ hero }` | Update selected hero in lobby |
-| `HERO_CONFIRM` | — | Mark yourself ready |
-| `RELAY` | `{ payload }` | Relay arbitrary payload to partner |
+| `HERO_SELECT` | `{ hero }` | Update selected hero during `hero_select` |
+| `HERO_CONFIRM` | — | Mark yourself ready; starts `pre_game` when both confirmed |
+| `MODE_SELECT` | `{ mode }` | Host sets game mode during `pre_game` |
+| `START_ONLINE_GAME` | `{ mode }` | Host starts the `GameSession`; transitions to `in_game` |
+| `INPUT` | `{ x, y, aimAngle, shoot, melee, dash, special }` | Per-frame input (sent every frame during `in_game`) |
+| `LEVEL_UP_CHOICE` | `{ choice }` | Player picks an upgrade after levelling up |
+| `RELAY` | `{ payload }` | Relay arbitrary payload to partner (pre_game phase only) |
 | `GAME_OVER` | — | Signal game ended normally |
 | `LEAVE_LOBBY` | — | Leave the current lobby |
-| `PING` | — | Keepalive |
+| `PING` | `{ t }` | Keepalive → server echoes `PONG` |
 
 **Client → Server — global lobby**
 
@@ -231,18 +262,46 @@ Connect to `ws://<host>:3001/ws?token=<jwt>`. All messages are JSON.
 
 | `type` | Description |
 |--------|-------------|
-| `CONNECTED` | Auth successful, connection ready |
-| `LOBBY_CREATED` | Lobby created → `{ code, hostHero }` |
+| `CONNECTED` | Auth successful → `{ username }` |
+| `LOBBY_CREATED` | Lobby created → `{ code }` |
 | `LOBBY_JOINED` | Joined partner's lobby → `{ code, hostUsername, hostHero }` |
 | `GUEST_JOINED` | Partner joined your lobby → `{ guestUsername, guestHero }` |
-| `HERO_UPDATE` | Partner changed hero → `{ side, hero }` |
-| `HERO_CONFIRMED` | Partner confirmed ready → `{ side }` |
-| `GAME_START` | Both confirmed (or challenge accepted) → `{ hostHero, guestHero, hostUsername, guestUsername }` |
-| `RELAY` | Forwarded payload from partner → `{ payload }` |
+| `HERO_UPDATE` | Partner changed hero → `{ player: 'host'|'guest', hero }` |
+| `HERO_CONFIRMED` | Partner confirmed ready → `{ player: 'host'|'guest' }` |
+| `PRE_GAME` | Both confirmed ready → `{ lobbyCode, hostHero, guestHero, hostUsername, guestUsername }` |
+| `MODE_UPDATE` | Host changed game mode (sent to guest) → `{ mode }` |
+| `GAME_START` | Session starting → `{ hostHero, guestHero, hostUsername, guestUsername, mode }` |
+| `SNAPSHOT` | 20 Hz game state → see snapshot schema below |
+| `LEVEL_UP` | Player levelled up → `{ role: 'host'|'guest', choices: [...] }` |
+| `PARTNER_LEVELING` | Other player is choosing an upgrade → `{ role }` |
+| `LEVEL_UP_DONE` | Partner finished choosing upgrade |
+| `REJOINED` | Reconnected to in-progress game → `{ code, role }` |
+| `RELAY` | Forwarded payload from partner (pre_game only) → `{ from, payload }` |
 | `PARTNER_DISCONNECTED` | Partner lost connection |
 | `PARTNER_RECONNECTED` | Partner reconnected |
-| `GAME_OVER` | Game ended (sent when other player signals GAME_OVER) |
-| `ERROR` | Error message → `{ error }` |
+| `GAME_OVER` | Game ended |
+| `PONG` | Keepalive response → `{ t }` |
+| `ERROR` | Error message → `{ message }` |
+
+**Snapshot schema** (sent server → both clients at 20 Hz)
+
+```json
+{
+  "type": "SNAPSHOT",
+  "t": 1714300000000,
+  "wave": 3,
+  "score": 12400,
+  "bossActive": false,
+  "isLevelingUp": false,
+  "enemies":     [{ "_id": 1, "x": 400, "y": 300, "vx": 0, "vy": 0, "hp": 80, "maxHp": 100, "subType": "BRUTE", "color": "#8b4513" }],
+  "projectiles": [{ "_id": 5, "x": 200, "y": 250, "vx": 8, "vy": 0, "color": "#ff4040", "radius": 5, "isEnemy": false }],
+  "p1": { "x": 1480, "y": 1520, "hp": 55, "maxHp": 60, "level": 2, "xp": 130, "maxXp": 200, "gold": 3, "aimAngle": 1.2, "isDead": false },
+  "p2": { "x": 1540, "y": 1480, "hp": 60, "maxHp": 60, "level": 2, "xp": 130, "maxXp": 200, "gold": 3, "aimAngle": -0.5, "isDead": false },
+  "events": [{ "type": "enemy_death", "x": 380, "y": 290, "color": "#8b4513" }]
+}
+```
+
+Static fields (`maxHp`, `subType`, `color`, `sides`, `radius`) are sent only on first appearance per entity and merged client-side — subsequent snapshots carry only dynamic fields.
 
 **Server → Client — global lobby**
 
@@ -264,3 +323,4 @@ Connect to `ws://<host>:3001/ws?token=<jwt>`. All messages are JSON.
 |----------|---------|-------------|
 | `PORT` | `3001` | TCP port the server listens on |
 | `JWT_SECRET` | *(insecure default)* | Secret used to sign auth tokens — **always change this** |
+| `ADMIN_PASSWORD` | `admin` | Password for the `/admin` dashboard — **always change this** |

@@ -13,8 +13,11 @@ const GameSession = require('./simulation/GameSession');
 
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 const DATA_DIR = path.join(__dirname, 'data');
 const SAVES_DIR = path.join(DATA_DIR, 'saves');
+
+const completedSessions = []; // in-memory ring buffer, last 100 finished sessions
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(SAVES_DIR, { recursive: true });
@@ -146,6 +149,98 @@ app.put('/api/save', requireAuth, (req, res) => {
     }
 });
 
+// ── Admin Dashboard ───────────────────────────────────────────────────────────
+
+function requireAdmin(req, res, next) {
+    const auth = req.headers.authorization;
+    if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+    if (auth.slice(7) !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Forbidden' });
+    next();
+}
+
+app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
+
+app.get('/api/admin/sessions', requireAdmin, (_req, res) => {
+    const active = [];
+    for (const lobby of lobbies.values()) {
+        const s = lobby.session;
+        active.push({
+            code: lobby.code,
+            phase: lobby.phase,
+            startedAt: s ? s._startedAt : null,
+            duration: s ? Date.now() - s._startedAt : null,
+            host:  { username: lobby.hostUsername  || lobby.host?.username,  hero: lobby.hostHero  },
+            guest: { username: lobby.guestUsername || lobby.guest?.username, hero: lobby.guestHero },
+            wave:        s ? s.wave          : null,
+            score:       s ? s.score         : null,
+            enemyCount:  s ? s.enemies.length : null,
+            players: s ? s.players.map(p => p ? {
+                hp: p.hp, maxHp: p.maxHp, level: p.level, type: p.type, isDead: p.isDead,
+            } : null) : null,
+            stats: s ? { ...s._world.currentRunStats } : null,
+        });
+    }
+    res.json({ active, completed: completedSessions });
+});
+
+app.get('/api/admin/online', requireAdmin, (_req, res) => {
+    const museum = Array.from(globalLobby.values()).map(
+        ({ userId, username, hero }) => ({ userId, username, hero })
+    );
+    const inGame = [];
+    for (const lobby of lobbies.values()) {
+        if (lobby.host)  inGame.push({ userId: lobby.host.userId,  username: lobby.host.username,  hero: lobby.hostHero,  lobbyCode: lobby.code });
+        if (lobby.guest) inGame.push({ userId: lobby.guest.userId, username: lobby.guest.username, hero: lobby.guestHero, lobbyCode: lobby.code });
+    }
+    res.json({ museum, inGame, total: museum.length + inGame.length });
+});
+
+app.get('/api/admin/players', requireAdmin, (_req, res) => {
+    const users = db.prepare('SELECT id, username, created_at AS createdAt FROM users ORDER BY id DESC').all();
+    res.json({ users, count: users.length });
+});
+
+app.get('/api/admin/stats', requireAdmin, (_req, res) => {
+    const totalUsers  = db.prepare('SELECT COUNT(*) AS c FROM users').get().c;
+    const totalScores = db.prepare('SELECT COUNT(*) AS c FROM scores').get().c;
+    const topScores   = db.prepare(`
+        SELECT username, hero, mode, wave, score, outcome,
+               time_sec AS timeSec, submitted_at AS submittedAt
+        FROM scores ORDER BY score DESC LIMIT 20
+    `).all();
+    const heroDistribution = db.prepare(
+        'SELECT hero, COUNT(*) AS count FROM scores GROUP BY hero ORDER BY count DESC'
+    ).all();
+    const modeDistribution = db.prepare(
+        'SELECT mode, COUNT(*) AS count FROM scores GROUP BY mode ORDER BY count DESC'
+    ).all();
+    const outcomeStats = db.prepare(
+        'SELECT outcome, COUNT(*) AS count FROM scores GROUP BY outcome'
+    ).all();
+    res.json({
+        totalUsers, totalScores, topScores,
+        heroDistribution, modeDistribution, outcomeStats,
+        activeSessions:     lobbies.size,
+        onlinePlayers:      globalLobby.size,
+        completedSessions:  completedSessions.length,
+    });
+});
+
+app.get('/api/admin/saves', requireAdmin, (_req, res) => {
+    const users = db.prepare('SELECT id, username FROM users ORDER BY id').all();
+    const saves = users.map(u => {
+        const savePath = path.join(SAVES_DIR, `${u.id}.save`);
+        const metaPath = savePath + '.meta';
+        if (!fs.existsSync(savePath)) return { userId: u.id, username: u.username, hasData: false };
+        const stat = fs.statSync(savePath);
+        const meta = fs.existsSync(metaPath)
+            ? JSON.parse(fs.readFileSync(metaPath, 'utf8'))
+            : { savedAt: null };
+        return { userId: u.id, username: u.username, hasData: true, savedAt: meta.savedAt, sizeBytes: stat.size };
+    });
+    res.json({ saves });
+});
+
 // ── HTTP server + WebSocket ───────────────────────────────────────────────────
 
 const httpServer = http.createServer(app);
@@ -253,6 +348,8 @@ function handleMessage(ws, msg) {
                 guestHero: 'water',
                 hostConfirmed: false,
                 guestConfirmed: false,
+                hostUsername: ws.username,
+                guestUsername: null,
             });
             ws.lobbyCode = code;
             ws.role = 'host';
@@ -272,6 +369,7 @@ function handleMessage(ws, msg) {
             leaveLobby(ws);
             lobby.guest = { ws, userId: ws.userId, username: ws.username };
             lobby.guestHero = msg.hero || lobby.guestHero || 'water';
+            lobby.guestUsername = ws.username;
             lobby.phase = 'hero_select';
             ws.lobbyCode = code;
             ws.role = 'guest';
@@ -384,11 +482,10 @@ function handleMessage(ws, msg) {
         case 'GAME_OVER': {
             const lobby = lobbies.get(ws.lobbyCode);
             if (!lobby) return;
-            if (lobby.session) { lobby.session.stop(); lobby.session = null; }
             lobby.phase = 'finished';
             const p = partner(lobby, ws.role);
             if (p) send(p.ws, { type: 'GAME_OVER' });
-            cleanupLobby(lobby.code);
+            cleanupLobby(lobby.code); // records + stops session
             break;
         }
 
@@ -486,6 +583,7 @@ function handleMessage(ws, msg) {
                 host: { ws: inviter.ws, userId: inviter.userId, username: inviter.username },
                 guest: { ws: target.ws, userId: target.userId, username: target.username },
                 hostHero, guestHero, hostConfirmed: true, guestConfirmed: true, hostMode: 'NORMAL',
+                hostUsername: inviter.username, guestUsername: target.username,
             });
             inviter.ws.lobbyCode = code; inviter.ws.role = 'host';
             target.ws.lobbyCode = code; target.ws.role = 'guest';
@@ -548,10 +646,28 @@ function leaveLobby(ws) {
     ws.role = null;
 }
 
+function recordCompletedSession(lobby) {
+    const s = lobby.session;
+    if (!s || !s._startedAt) return;
+    const entry = {
+        code:      lobby.code,
+        startedAt: s._startedAt,
+        endedAt:   Date.now(),
+        duration:  Math.round((Date.now() - s._startedAt) / 1000),
+        host:  { username: lobby.hostUsername  || lobby.host?.username,  hero: lobby.hostHero  },
+        guest: { username: lobby.guestUsername || lobby.guest?.username, hero: lobby.guestHero },
+        wave:  s.wave,
+        score: s.score,
+        stats: { ...s._world.currentRunStats },
+    };
+    if (completedSessions.length >= 100) completedSessions.shift();
+    completedSessions.push(entry);
+}
+
 function cleanupLobby(code) {
     const lobby = lobbies.get(code);
     if (!lobby) return;
-    if (lobby.session) { lobby.session.stop(); lobby.session = null; }
+    if (lobby.session) { recordCompletedSession(lobby); lobby.session.stop(); lobby.session = null; }
     if (lobby.host)  { userLobby.delete(lobby.host.userId);  lobby.host.ws.lobbyCode  = null; lobby.host.ws.role  = null; }
     if (lobby.guest) { userLobby.delete(lobby.guest.userId); lobby.guest.ws.lobbyCode = null; lobby.guest.ws.role = null; }
     lobbies.delete(code);

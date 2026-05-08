@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5 Freunde — Admin</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --border: #30363d;
+  --text: #c9d1d9; --dim: #8b949e;
+  --accent: #58a6ff; --green: #3fb950; --yellow: #d29922;
+  --red: #f85149; --purple: #bc8cff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+
+/* Login */
+#login { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2rem; width: 320px; }
+.login-card h1 { font-size: 1.1rem; margin-bottom: 0.25rem; }
+.login-card p  { color: var(--dim); font-size: 0.82rem; margin-bottom: 1.5rem; }
+.err { color: var(--red); font-size: 0.8rem; margin-top: 0.5rem; min-height: 1.1rem; }
+
+/* Controls */
+input { width: 100%; padding: 0.55rem 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem; outline: none; }
+input:focus { border-color: var(--accent); }
+button { cursor: pointer; border: none; border-radius: 6px; font-size: 0.82rem; padding: 0.55rem 1rem; }
+.btn-primary { background: var(--accent); color: #0d1117; font-weight: 700; width: 100%; margin-top: 0.75rem; }
+.btn-primary:hover { opacity: 0.85; }
+.btn-sm { background: var(--border); color: var(--text); padding: 0.25rem 0.6rem; font-size: 0.75rem; }
+.btn-sm:hover { background: #444c56; }
+
+/* Layout */
+#app { display: none; }
+.header { background: var(--surface); border-bottom: 1px solid var(--border); height: 52px; padding: 0 1.5rem; display: flex; align-items: center; gap: 1rem; }
+.header-title { font-size: 0.95rem; font-weight: 700; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; font-size: 0.78rem; color: var(--dim); }
+
+nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 1.5rem; display: flex; }
+.tab { padding: 0.7rem 1rem; font-size: 0.82rem; color: var(--dim); cursor: pointer; border-bottom: 2px solid transparent; user-select: none; transition: color 0.15s; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.content { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+.card .lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--dim); }
+.card .val { font-size: 1.8rem; font-weight: 700; margin-top: 0.2rem; }
+.green { color: var(--green); } .blue { color: var(--accent); } .yellow { color: var(--yellow); } .purple { color: var(--purple); } .red { color: var(--red); }
+
+/* Sections */
+.section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 1rem; }
+.sec-hd { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; }
+.badge { font-size: 0.68rem; font-weight: 700; padding: 0.12rem 0.42rem; border-radius: 10px; }
+.badge-blue { background: var(--accent); color: #0d1117; }
+.badge-green { background: var(--green); color: #0d1117; }
+.badge-dim { background: var(--border); color: var(--dim); }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 0.55rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.4px; color: var(--dim); border-bottom: 1px solid var(--border); }
+td { padding: 0.6rem 1rem; font-size: 0.82rem; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* Pills */
+.pill { display: inline-block; padding: 0.12rem 0.45rem; border-radius: 4px; font-size: 0.72rem; font-weight: 500; }
+.pill-green  { background: rgba(63,185,80,0.15);  color: var(--green); }
+.pill-red    { background: rgba(248,81,73,0.15);  color: var(--red); }
+.pill-blue   { background: rgba(88,166,255,0.15); color: var(--accent); }
+.pill-yellow { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.pill-dim    { background: var(--border);          color: var(--dim); }
+
+/* Misc */
+.empty { padding: 2rem; text-align: center; color: var(--dim); font-size: 0.82rem; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+.bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 3px; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+.detail-box { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; }
+.detail-box h4 { font-size: 0.72rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.5rem; }
+.kv { display: flex; justify-content: space-between; padding: 0.18rem 0; font-size: 0.8rem; }
+.kv .k { color: var(--dim); } .kv .v { font-weight: 500; }
+
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-live { background: var(--green); animation: pulse 2s infinite; }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-card">
+    <h1>⚔️ 5 Freunde</h1>
+    <p>Admin Dashboard — server password required</p>
+    <input type="password" id="pwd" placeholder="Password" autocomplete="current-password">
+    <button class="btn-primary" id="login-btn">Connect</button>
+    <div class="err" id="login-err"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="header">
+    <span class="header-title">⚔️ 5 Freunde Admin</span>
+    <div class="header-right">
+      <span class="dot dot-live"></span>
+      <span id="refresh-lbl">connecting…</span>
+      <button class="btn-sm" id="logout-btn">Logout</button>
+    </div>
+  </div>
+  <nav>
+    <div class="tab active" data-tab="overview">Overview</div>
+    <div class="tab" data-tab="sessions">Sessions</div>
+    <div class="tab" data-tab="players">Players</div>
+    <div class="tab" data-tab="leaderboard">Leaderboard</div>
+    <div class="tab" data-tab="saves">Cloud Saves</div>
+  </nav>
+  <div class="content">
+    <div id="tab-overview"></div>
+    <div id="tab-sessions"     style="display:none"></div>
+    <div id="tab-players"      style="display:none"></div>
+    <div id="tab-leaderboard"  style="display:none"></div>
+    <div id="tab-saves"        style="display:none"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────────────
+
+let token = sessionStorage.getItem('admin_token') || '';
+let D = {};  // fetched data
+let activeTab = 'overview';
+let expanded = new Set();
+let timer = null;
+
+// ── Auth ───────────────────────────────────────────────────────────────────────
+
+async function tryLogin() {
+  const pwd = document.getElementById('pwd').value.trim();
+  const err = document.getElementById('login-err');
+  err.textContent = '';
+  if (!pwd) { err.textContent = 'Password required'; return; }
+  const res = await fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${pwd}` } }).catch(() => null);
+  if (!res) { err.textContent = 'Cannot reach server'; return; }
+  if (res.ok) { token = pwd; sessionStorage.setItem('admin_token', token); showApp(); }
+  else if (res.status === 401 || res.status === 403) err.textContent = 'Incorrect password';
+  else err.textContent = 'Server error';
+}
+
+function logout() {
+  token = ''; sessionStorage.removeItem('admin_token');
+  clearInterval(timer);
+  document.getElementById('app').style.display   = 'none';
+  document.getElementById('login').style.display = 'flex';
+}
+
+// ── Fetch ──────────────────────────────────────────────────────────────────────
+
+async function fetchAll() {
+  const h = { Authorization: `Bearer ${token}` };
+  const fetch1 = url => fetch(url, { headers: h }).then(r => r.json()).catch(() => null);
+  const [sessions, online, players, stats, saves] = await Promise.all([
+    fetch1('/api/admin/sessions'),
+    fetch1('/api/admin/online'),
+    fetch1('/api/admin/players'),
+    fetch1('/api/admin/stats'),
+    fetch1('/api/admin/saves'),
+  ]);
+  if (sessions) D.sessions = sessions;
+  if (online)   D.online   = online;
+  if (players)  D.players  = players;
+  if (stats)    D.stats    = stats;
+  if (saves)    D.saves    = saves;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+const HERO_CLR = {
+  fire:'#e84040', water:'#4080ff', lightning:'#ffe040', poison:'#40c040',
+  air:'#80d0ff', spirit:'#c0a0ff', chance:'#ff8040', gravity:'#8080c0',
+  void:'#6040a0', time:'#40e0c0', love:'#ff80b0', earth:'#a07040', sound:'#80e080',
+};
+const hclr = h => HERO_CLR[h] || '#8b949e';
+const heroBadge = h => {
+  if (!h) return '<span style="color:var(--dim)">—</span>';
+  const c = hclr(h);
+  return `<span style="display:inline-block;padding:0.1rem 0.45rem;border-radius:4px;font-size:0.72rem;font-weight:600;background:${c}22;color:${c};border:1px solid ${c}44">${h}</span>`;
+};
+const fmtMs  = ms  => { if (!ms && ms !== 0) return '—'; const s=Math.floor(ms/1000); return s<60?`${s}s`:`${Math.floor(s/60)}m ${s%60}s`; };
+const fmtSec = s   => { if (!s && s !== 0) return '—'; return s<60?`${s}s`:`${Math.floor(s/60)}m ${s%60}s`; };
+const fmtDt  = ms  => ms ? new Date(ms).toLocaleString() : '—';
+const fmtSz  = b   => { if (!b) return '—'; if (b<1024) return `${b} B`; if (b<1048576) return `${(b/1024).toFixed(1)} KB`; return `${(b/1048576).toFixed(1)} MB`; };
+const esc    = s   => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const n      = v   => v != null ? v : '—';
+
+const phPill = p => {
+  const map = { waiting:'dim', hero_select:'yellow', pre_game:'blue', in_game:'green', finished:'dim' };
+  return `<span class="pill pill-${map[p]||'dim'}">${p}</span>`;
+};
+
+function kv(k, v) { return `<div class="kv"><span class="k">${k}</span><span class="v">${n(v)}</span></div>`; }
+
+// ── Overview ───────────────────────────────────────────────────────────────────
+
+function renderOverview() {
+  const s = D.stats || {}, o = D.online || {}, ses = D.sessions || {};
+  let h = `<div class="cards">
+    <div class="card"><div class="lbl">Online Players</div><div class="val green">${n(o.total)}</div></div>
+    <div class="card"><div class="lbl">Active Sessions</div><div class="val blue">${n(ses.active?.length)}</div></div>
+    <div class="card"><div class="lbl">Registered Users</div><div class="val purple">${n(s.totalUsers)}</div></div>
+    <div class="card"><div class="lbl">Total Runs</div><div class="val yellow">${n(s.totalScores)}</div></div>
+  </div>`;
+
+  if (s.heroDistribution?.length) {
+    const mx = s.heroDistribution[0].count;
+    h += `<div class="section"><div class="sec-hd">Hero Usage (all-time)</div>
+      <div style="padding:1rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:0.6rem">`;
+    for (const { hero, count } of s.heroDistribution) {
+      const pct = Math.round(count / mx * 100);
+      h += `<div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:2px">${heroBadge(hero)}<span style="color:var(--dim);font-size:0.78rem">${count}</span></div>
+        <div class="bar"><div class="bar-fill" style="width:${pct}%;background:${hclr(hero)}"></div></div>
+      </div>`;
+    }
+    h += '</div></div>';
+  }
+
+  if (s.outcomeStats?.length || s.modeDistribution?.length) {
+    h += '<div class="two-col">';
+    if (s.outcomeStats?.length) {
+      const tot = s.outcomeStats.reduce((a, b) => a + b.count, 0);
+      h += `<div class="section"><div class="sec-hd">Outcomes</div><div style="padding:1rem">`;
+      for (const { outcome, count } of s.outcomeStats) {
+        const pct = Math.round(count / tot * 100);
+        h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+          <span class="pill pill-${outcome==='victory'?'green':'red'}">${outcome}</span>
+          <span style="font-size:0.78rem;color:var(--dim)">${count} (${pct}%)</span>
+        </div>`;
+      }
+      h += '</div></div>';
+    }
+    if (s.modeDistribution?.length) {
+      h += `<div class="section"><div class="sec-hd">Game Modes</div><div style="padding:1rem">`;
+      for (const { mode, count } of s.modeDistribution) {
+        h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+          <span class="pill pill-blue">${esc(mode)}</span>
+          <span style="font-size:0.78rem;color:var(--dim)">${count}</span>
+        </div>`;
+      }
+      h += '</div></div>';
+    }
+    h += '</div>';
+  }
+
+  return h;
+}
+
+// ── Sessions ───────────────────────────────────────────────────────────────────
+
+function renderSessions() {
+  const { active = [], completed = [] } = D.sessions || {};
+  let h = '';
+
+  h += `<div class="section"><div class="sec-hd">Active Sessions <span class="badge badge-green">${active.length}</span></div>`;
+  if (!active.length) {
+    h += '<div class="empty">No active sessions</div>';
+  } else {
+    h += `<table><thead><tr>
+      <th>Code</th><th>Phase</th><th>Host</th><th>Guest</th><th>Wave</th><th>Score</th><th>Enemies</th><th>Duration</th>
+    </tr></thead><tbody>`;
+    for (const s of active) {
+      h += `<tr>
+        <td><code style="color:var(--accent);font-size:0.78rem">${esc(s.code)}</code></td>
+        <td>${phPill(s.phase)}</td>
+        <td>${heroBadge(s.host?.hero)} ${esc(s.host?.username || '—')}</td>
+        <td>${heroBadge(s.guest?.hero)} ${esc(s.guest?.username || '—')}</td>
+        <td>${n(s.wave)}</td>
+        <td>${s.score != null ? s.score.toLocaleString() : '—'}</td>
+        <td>${n(s.enemyCount)}</td>
+        <td>${fmtMs(s.duration)}</td>
+      </tr>`;
+      if (s.players?.some(Boolean)) {
+        h += `<tr><td colspan="8" style="padding:0.25rem 1rem 0.75rem;border-bottom:1px solid var(--border)">`;
+        s.players.forEach((p, i) => {
+          if (!p) return;
+          const pct = Math.round(p.hp / p.maxHp * 100);
+          const name = i === 0 ? (s.host?.username || 'Host') : (s.guest?.username || 'Guest');
+          const fill = pct > 40 ? 'var(--green)' : pct > 20 ? 'var(--yellow)' : 'var(--red)';
+          h += `<span style="font-size:0.75rem;color:var(--dim);margin-right:0.4rem">${esc(name)} Lv.${p.level}</span>
+            <span style="display:inline-block;width:72px;vertical-align:middle;margin-right:0.3rem">
+              <div class="bar"><div class="bar-fill" style="width:${pct}%;background:${fill}"></div></div>
+            </span>
+            <span style="font-size:0.7rem;color:var(--dim);margin-right:1.2rem">${p.hp}/${p.maxHp}</span>`;
+        });
+        h += '</td></tr>';
+      }
+    }
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+
+  h += `<div class="section"><div class="sec-hd">Completed Sessions <span class="badge badge-dim">${completed.length}</span></div>`;
+  if (!completed.length) {
+    h += '<div class="empty">No completed sessions since last server restart</div>';
+  } else {
+    h += `<table><thead><tr>
+      <th>Code</th><th>Host</th><th>Guest</th><th>Wave</th><th>Score</th><th>Duration</th><th>Ended</th><th></th>
+    </tr></thead><tbody>`;
+    for (const s of [...completed].reverse()) {
+      const open = expanded.has(s.code);
+      h += `<tr>
+        <td><code style="color:var(--dim);font-size:0.78rem">${esc(s.code)}</code></td>
+        <td>${heroBadge(s.host?.hero)} ${esc(s.host?.username || '—')}</td>
+        <td>${heroBadge(s.guest?.hero)} ${esc(s.guest?.username || '—')}</td>
+        <td>${n(s.wave)}</td>
+        <td>${s.score != null ? s.score.toLocaleString() : '—'}</td>
+        <td>${fmtSec(s.duration)}</td>
+        <td style="color:var(--dim);font-size:0.78rem">${fmtDt(s.endedAt)}</td>
+        <td><button class="btn-sm expand-btn" data-code="${esc(s.code)}">${open ? '▲ Hide' : '▼ Details'}</button></td>
+      </tr>`;
+      if (open) {
+        h += `<tr><td colspan="8" style="padding:0">
+          <div style="padding:1rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="detail-box">
+              <h4>Run Stats</h4>
+              ${kv('Enemies Killed', n(s.stats?.enemiesKilled))}
+              ${kv('Damage Dealt',   s.stats?.damageDealt?.toLocaleString())}
+              ${kv('Damage Taken',   s.stats?.damageTaken?.toLocaleString())}
+              ${kv('Missiles Fired', n(s.stats?.missilesFired))}
+              ${kv('Melee Hits',     n(s.stats?.meleeHits))}
+              ${kv('Gold Collected', n(s.stats?.goldCollected))}
+            </div>
+            <div class="detail-box">
+              <h4>Session Info</h4>
+              ${kv('Lobby Code', esc(s.code))}
+              ${kv('Started',    fmtDt(s.startedAt))}
+              ${kv('Duration',   fmtSec(s.duration))}
+              ${kv('Final Wave', n(s.wave))}
+              ${kv('Final Score', s.score?.toLocaleString())}
+            </div>
+          </div>
+        </td></tr>`;
+      }
+    }
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+  return h;
+}
+
+// ── Players ────────────────────────────────────────────────────────────────────
+
+function renderPlayers() {
+  const o = D.online || {}, p = D.players || {};
+  const museum = o.museum || [], inGame = o.inGame || [];
+  let h = '';
+
+  h += `<div class="section"><div class="sec-hd">Online Now <span class="badge badge-green">${n(o.total)}</span></div>`;
+  if (!o.total) {
+    h += '<div class="empty">No players online</div>';
+  } else {
+    h += `<table><thead><tr><th>Username</th><th>Hero</th><th>Location</th></tr></thead><tbody>`;
+    for (const pl of museum) {
+      h += `<tr><td>${esc(pl.username)}</td><td>${heroBadge(pl.hero)}</td><td><span class="pill pill-blue">Museum</span></td></tr>`;
+    }
+    for (const pl of inGame) {
+      h += `<tr><td>${esc(pl.username)}</td><td>${heroBadge(pl.hero)}</td>
+        <td><span class="pill pill-green">In Game</span> <code style="font-size:0.72rem;color:var(--dim)">${esc(pl.lobbyCode)}</code></td></tr>`;
+    }
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+
+  h += `<div class="section"><div class="sec-hd">All Registered Players <span class="badge badge-dim">${n(p.count)}</span></div>`;
+  if (!p.users?.length) {
+    h += '<div class="empty">No registered players</div>';
+  } else {
+    const onlineIds = new Set([...museum, ...inGame].map(x => x.userId));
+    const saveMap   = new Map((D.saves?.saves || []).map(s => [s.userId, s]));
+    h += `<table><thead><tr><th>#</th><th>Username</th><th>Joined</th><th>Status</th></tr></thead><tbody>`;
+    for (const u of p.users) {
+      const save = saveMap.get(u.id);
+      h += `<tr>
+        <td style="color:var(--dim)">${u.id}</td>
+        <td>${esc(u.username)}</td>
+        <td style="color:var(--dim);font-size:0.78rem">${fmtDt(u.createdAt)}</td>
+        <td>
+          ${onlineIds.has(u.id) ? '<span class="pill pill-green">Online</span> ' : ''}
+          ${save?.hasData       ? '<span class="pill pill-blue">Has Save</span>' : ''}
+        </td>
+      </tr>`;
+    }
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+  return h;
+}
+
+// ── Leaderboard ────────────────────────────────────────────────────────────────
+
+function renderLeaderboard() {
+  const s = D.stats || {};
+  let h = `<div class="section"><div class="sec-hd">Top 20 Scores</div>`;
+  if (!s.topScores?.length) {
+    h += '<div class="empty">No scores yet</div>';
+  } else {
+    h += `<table><thead><tr>
+      <th>#</th><th>Player</th><th>Hero</th><th>Mode</th><th>Wave</th><th>Score</th><th>Outcome</th><th>Time</th><th>Date</th>
+    </tr></thead><tbody>`;
+    s.topScores.forEach((e, i) => {
+      h += `<tr>
+        <td style="color:var(--dim)">${i + 1}</td>
+        <td><strong>${esc(e.username)}</strong></td>
+        <td>${heroBadge(e.hero)}</td>
+        <td><span class="pill pill-blue">${esc(e.mode)}</span></td>
+        <td>${e.wave}</td>
+        <td><strong>${e.score.toLocaleString()}</strong></td>
+        <td><span class="pill pill-${e.outcome==='victory'?'green':'red'}">${e.outcome}</span></td>
+        <td style="color:var(--dim)">${fmtSec(e.timeSec)}</td>
+        <td style="color:var(--dim);font-size:0.78rem">${fmtDt(e.submittedAt)}</td>
+      </tr>`;
+    });
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+  return h;
+}
+
+// ── Saves ──────────────────────────────────────────────────────────────────────
+
+function renderSaves() {
+  const saves = D.saves?.saves || [];
+  const synced = saves.filter(s => s.hasData).length;
+  let h = `<div class="section"><div class="sec-hd">Cloud Saves <span class="badge badge-dim">${synced} / ${saves.length} synced</span></div>`;
+  if (!saves.length) {
+    h += '<div class="empty">No registered players</div>';
+  } else {
+    h += `<table><thead><tr>
+      <th>Username</th><th>Status</th><th>Last Saved</th><th>Save Size</th>
+    </tr></thead><tbody>`;
+    for (const s of saves) {
+      h += `<tr>
+        <td>${esc(s.username)}</td>
+        <td>${s.hasData ? '<span class="pill pill-green">Synced</span>' : '<span class="pill pill-dim">No save</span>'}</td>
+        <td style="color:var(--dim)">${s.hasData ? fmtDt(s.savedAt) : '—'}</td>
+        <td style="color:var(--dim)">${s.hasData ? fmtSz(s.sizeBytes) : '—'}</td>
+      </tr>`;
+    }
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+  return h;
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────────
+
+function render() {
+  const tab = activeTab;
+  const el = document.getElementById(`tab-${tab}`);
+  if (!el) return;
+  const renderers = {
+    overview:    renderOverview,
+    sessions:    renderSessions,
+    players:     renderPlayers,
+    leaderboard: renderLeaderboard,
+    saves:       renderSaves,
+  };
+  el.innerHTML = (renderers[tab] || (() => ''))();
+  document.getElementById('refresh-lbl').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+
+  el.querySelectorAll('.expand-btn[data-code]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.dataset.code;
+      if (expanded.has(code)) expanded.delete(code); else expanded.add(code);
+      render();
+    });
+  });
+}
+
+// ── App lifecycle ──────────────────────────────────────────────────────────────
+
+async function refresh() {
+  await fetchAll();
+  render();
+}
+
+async function showApp() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display   = 'block';
+  await refresh();
+  timer = setInterval(refresh, 5000);
+}
+
+// ── Bootstrap ──────────────────────────────────────────────────────────────────
+
+document.getElementById('login-btn').addEventListener('click', tryLogin);
+document.getElementById('pwd').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+document.getElementById('logout-btn').addEventListener('click', logout);
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.content > div').forEach(d => d.style.display = 'none');
+    activeTab = tab.dataset.tab;
+    document.getElementById(`tab-${activeTab}`).style.display = 'block';
+    render();
+  });
+});
+
+if (token) showApp().catch(logout);
+</script>
+</body>
+</html>
