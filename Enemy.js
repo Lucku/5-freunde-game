@@ -417,6 +417,10 @@ class Enemy {
 
         ctx.save(); ctx.translate(this.x, this.y);
 
+        // Guard: ghost enemy may not have radius yet (delta snapshot not received) — skip to
+        // avoid createRadialGradient non-finite error that corrupts the canvas transform stack.
+        if (!isFinite(this.radius) || this.radius <= 0) { ctx.restore(); return; }
+
         // Elite Aura Visuals
         if (this.isElite) {
             ctx.beginPath();

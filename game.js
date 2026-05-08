@@ -4196,6 +4196,7 @@ function _onlineApplySnapshot(s) {
             e.frame = 0; e.targetAngle = 0; e.isAttacking = false;
             e.dead = false; e.isBoss = false; e.isElite = false;
             e.isSummonedMinion = false; e.eliteType = null;
+            e.radius = 20; e.color = '#888888'; e.sides = 0; // safe defaults until static fields arrive
         }
         e._id = ed._id;
         e._sx = ed.x; e._sy = ed.y;    // snapshot position for extrapolation
@@ -4211,7 +4212,7 @@ function _onlineApplySnapshot(s) {
         if (ed.subType !== undefined) e.subType = ed.subType;
         if (ed.color   !== undefined) e.color   = ed.color;
         if (ed.sides   !== undefined) e.sides   = ed.sides;
-        if (ed.radius  !== undefined) e.radius  = ed.radius;
+        if (ed.radius  !== undefined) { if (e.radius !== ed.radius) e._bodyGradient = null; e.radius = ed.radius; }
         return e;
     });
     if (window._world) window._world.enemies = enemies;
@@ -4807,6 +4808,7 @@ function masterLoop(timestamp) {
             }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any accumulated transform corruption
 
             // Apply Camera Transform
             ctx.save();
@@ -5479,8 +5481,8 @@ function masterLoop(timestamp) {
                 enemies.forEach(e => {
                     if (!e._ghost) return;
                     const _dt = Math.min((_now - (e._snapshotAt || _now)) / 1000 * 60, 12);
-                    e.x = (e._sx || e.x) + (e.vx || 0) * _dt;
-                    e.y = (e._sy || e.y) + (e.vy || 0) * _dt;
+                    e.x = (e._sx ?? e.x) + (e.vx || 0) * _dt;
+                    e.y = (e._sy ?? e.y) + (e.vy || 0) * _dt;
                 });
                 projectiles.forEach(p => {
                     if (!p._ghost || !p._snapshotAt) return;
