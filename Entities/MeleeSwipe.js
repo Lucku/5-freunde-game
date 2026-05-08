@@ -1,5 +1,5 @@
 class MeleeSwipe {
-    constructor(x, y, angle, damage, color, radius, isCrit = false, owner = null) {
+    constructor(x, y, angle, damage, color, radius, isCrit = false, owner = null, world = null) {
         this.x = x; this.y = y; this.angle = angle;
         this.damage = damage; this.color = color;
         this.life = 15; this.maxLife = 15;
@@ -7,14 +7,15 @@ class MeleeSwipe {
         this.hitList = [];
         this.isCrit = isCrit;
         this.owner = owner;
+        this._world = world ?? (typeof window !== 'undefined' ? window._world : null) ?? null;
     }
     update() {
         if (this.owner) {
             this.x = this.owner.x;
             this.y = this.owner.y;
-        } else if (typeof player !== 'undefined') {
-            this.x = player.x;
-            this.y = player.y;
+        } else {
+            const _p = this._world?.player ?? (typeof player !== 'undefined' ? player : null);
+            if (_p) { this.x = _p.x; this.y = _p.y; }
         }
         this.life--;
     }
@@ -28,3 +29,4 @@ class MeleeSwipe {
         ctx.restore();
     }
 }
+if (typeof module !== 'undefined' && module.exports) module.exports = MeleeSwipe;

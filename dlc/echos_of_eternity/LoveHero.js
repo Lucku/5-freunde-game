@@ -44,11 +44,11 @@ class LoveHero {
         player.stats.projectileSize = 10;
 
         // Hooks
-        player.customUpdate = (dx, dy) => LoveHero.update(player, dx, dy);
+        player.customUpdate = (dx, dy, world) => LoveHero.update(player, dx, dy, world);
         player.customDraw = (ctx) => LoveHero.draw(player, ctx);
-        player.customSpecial = () => LoveHero.useSpecial(player);
-        player.melee = () => LoveHero.melee(player);
-        player.shoot = () => LoveHero.shoot(player);
+        player.customSpecial = (world) => LoveHero.useSpecial(player, world);
+        player.melee = (world) => LoveHero.melee(player, world);
+        player.shoot = (dx, dy, world) => LoveHero.shoot(player, world);
         player.getAIInput = (p, c, t) => LoveHero.getAIInput(p, c, t);
 
         // Special UI
@@ -77,16 +77,18 @@ class LoveHero {
     }
 
     // ─── Update ──────────────────────────────────────────────────────────────
-    static update(player, dx, dy) {
+    static update(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { enemies, createExplosion, particles, floatingTexts } = _w ?? {};
         // 1. Companion tick
         player._loveCompSpawn--;
         if (player._loveCompSpawn <= 0) {
             if (!player._loveCompanion || player._loveCompanion.life <= 0) {
-                LoveHero._spawnCompanion(player);
+                LoveHero._spawnCompanion(player, _w);
             }
         }
         if (player._loveCompanion && player._loveCompanion.life > 0) {
-            LoveHero._updateCompanion(player);
+            LoveHero._updateCompanion(player, _w);
         }
 
         // 2. Tick charm timers (visual only — frozenTimer handles gameplay suppression)
@@ -196,7 +198,7 @@ class LoveHero {
         // — At 100: auto-trigger Heartburst, reset meter to 0
         if (player.affection >= 100 && !player._heartburstFired) {
             player._heartburstFired = true;
-            LoveHero._triggerHeartburst(player);
+            LoveHero._triggerHeartburst(player, _w);
         } else if (player.affection < 100) {
             player._heartburstFired = false;
         }
@@ -230,14 +232,16 @@ class LoveHero {
             }
 
             if (player._heartUnityTimer <= 0) {
-                LoveHero._endHeartUnity(player);
+                LoveHero._endHeartUnity(player, _w);
             }
         }
 
     }
 
     // ─── Companion ──────────────────────────────────────────────────────────
-    static _spawnCompanion(player) {
+    static _spawnCompanion(player, world) {
+        const _w = world ?? window._world;
+        const { floatingTexts } = _w ?? {};
         player._loveCompanion = {
             x: player.x + 60,
             y: player.y,
@@ -252,7 +256,9 @@ class LoveHero {
         }
     }
 
-    static _updateCompanion(player) {
+    static _updateCompanion(player, world) {
+        const _w = world ?? window._world;
+        const { enemies, projectiles, createExplosion, floatingTexts } = _w ?? {};
         const comp = player._loveCompanion;
         if (!comp || comp.life <= 0) return;
 
@@ -325,7 +331,9 @@ class LoveHero {
     }
 
     // ─── Shoot — Heart Arrow ─────────────────────────────────────────────────
-    static shoot(player) {
+    static shoot(player, world) {
+        const _w = world ?? window._world;
+        const { projectiles, audioManager } = _w ?? {};
         if (player.rangeCooldown > 0) return;
 
         const a = player.aimAngle;
@@ -384,7 +392,9 @@ class LoveHero {
     }
 
     // ─── Melee — Embrace ─────────────────────────────────────────────────────
-    static melee(player) {
+    static melee(player, world) {
+        const _w = world ?? window._world;
+        const { enemies, createExplosion, floatingTexts, audioManager } = _w ?? {};
         if (player.meleeCooldown > 0) return;
 
         const radius = player.meleeRadius || 130;
@@ -437,9 +447,11 @@ class LoveHero {
     }
 
     // ─── Special — Emotional Resonance ───────────────────────────────────────
-    static useSpecial(player) {
+    static useSpecial(player, world) {
+        const _w = world ?? window._world;
+        const { enemies, createExplosion, floatingTexts, audioManager } = _w ?? {};
         if (player.specialCooldown > 0) return;
-        if (typeof enemies === 'undefined') return;
+        if (!enemies) return;
 
         const nonBoss = enemies.filter(e => !e.isBoss);
         if (nonBoss.length === 0) return;
@@ -527,7 +539,9 @@ class LoveHero {
     // ─── Heartburst (auto-trigger at 100 affection) ──────────────────────────
     // Fires 12 piercing heart projectiles in all directions, heals the player,
     // then resets the affection meter to 0 to start the loop again.
-    static _triggerHeartburst(player) {
+    static _triggerHeartburst(player, world) {
+        const _w = world ?? window._world;
+        const { projectiles, createExplosion, floatingTexts, audioManager, saveData } = _w ?? {};
         const streak = player._heartburstStreak || 0;
 
         // Scale with streak: more projectiles, more damage, bigger heal
@@ -572,7 +586,9 @@ class LoveHero {
         player.affection = 0;
     }
 
-    static _endHeartUnity(player) {
+    static _endHeartUnity(player, world) {
+        const _w = world ?? window._world;
+        const { enemies } = _w ?? {};
         player._heartUnityActive = false;
         // Restore boss speeds
         if (typeof enemies !== 'undefined') {

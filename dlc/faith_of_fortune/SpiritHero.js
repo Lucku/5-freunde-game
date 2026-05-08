@@ -16,9 +16,9 @@ class SpiritHero {
         player.specialName = "TRANSCEND";
         player.specialCooldown = 0; // Uses Resource instead of time (mostly)
 
-        player.customUpdate = (dx, dy) => SpiritHero.update(player, dx, dy);
-        player.customSpecial = () => SpiritHero.useSpecial(player);
-        player.shoot = () => SpiritHero.shootMantra(player);
+        player.customUpdate = (dx, dy, world) => SpiritHero.update(player, dx, dy, world);
+        player.customSpecial = (world) => SpiritHero.useSpecial(player, world);
+        player.shoot = (dx, dy, world) => SpiritHero.shootMantra(player, world);
 
         // Override takeDamage to lose Inner Peace
         player._originalTakeDamage = player.takeDamage;
@@ -89,7 +89,9 @@ class SpiritHero {
     }
 
     // LEVEL UP: Per-Run Upgrades
-    static applyUpgrade(player, type) {
+    static applyUpgrade(player, type, world) {
+        const _w = world ?? window._world;
+        const { createExplosion, showNotification, projectiles } = _w ?? {};
         if (type === 'transform') {
             player.transformActive = true;
             player.currentForm = 'ENLIGHTENED';
@@ -147,7 +149,9 @@ class SpiritHero {
         return false; // Not handled
     }
 
-    static update(player, dx, dy) {
+    static update(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { frame, showNotification, createExplosion, audioManager, enemies, projectiles, floatingTexts } = _w ?? {};
         // Handle Instant Skill Triggers
         if (player.triggerRefillPeace) {
             player.triggerRefillPeace = false;
@@ -167,7 +171,7 @@ class SpiritHero {
         const hasKarma = SpiritHero.checkConvergence(player, 'cv_s_ch');
 
         // Apply Karma (Luck <-> Regen)
-        if (hasKarma && window.frame % 60 === 0) {
+        if (hasKarma && (frame ?? window.frame) % 60 === 0) {
             // (1 HP/s = 5 Luck)
             const luckBonus = (player.regen || 0) * 5;
             const regenBonus = (player.luck || 0) * 0.02; // 10 luck = 0.2 regen
@@ -186,8 +190,8 @@ class SpiritHero {
 
         if (hasTranquility && !isMoving) {
             // Slow nearby enemies
-            if (window.enemies) {
-                window.enemies.forEach(e => {
+            if (enemies ?? window.enemies) {
+                (enemies ?? window.enemies).forEach(e => {
                     const d = Math.hypot(e.x - player.x, e.y - player.y);
                     if (d < 300) {
                         e.speedMultiplier = 0.5; // Slow down
@@ -203,7 +207,7 @@ class SpiritHero {
         if (!isMoving) {
             player.meditationTimer++;
             // Show visual effect for meditation
-            if (player.meditationTimer > 60 && window.frame % 30 === 0) {
+            if (player.meditationTimer > 60 && (frame ?? window.frame) % 30 === 0) {
                 if (typeof createExplosion !== 'undefined')
                     createExplosion(player.x, player.y, "#F0D080", 3); // Gentle glow
             }
@@ -223,7 +227,7 @@ class SpiritHero {
             }
 
             // Passive Regen (Skill or Base low regen)
-            if (player.meditationTimer > 120 && window.frame % 60 === 0) {
+            if (player.meditationTimer > 120 && (frame ?? window.frame) % 60 === 0) {
                 // Base drip
                 if (player.hp < player.maxHp) player.hp += 1;
 
@@ -277,7 +281,7 @@ class SpiritHero {
             const auraDmg = player._divineRadiance ? 40 : 20;
             const auraRadius = player._divineRadiance ? 250 : 150;
 
-            if (window.frame % pulseInterval === 0) {
+            if ((frame ?? window.frame) % pulseInterval === 0) {
                 if (typeof enemies !== 'undefined') {
                     let hitsThisPulse = 0;
                     enemies.forEach(e => {
@@ -312,7 +316,9 @@ class SpiritHero {
         }
     }
 
-    static shootMantra(player) {
+    static shootMantra(player, world) {
+        const _w = world ?? window._world;
+        const { audioManager, projectiles, createExplosion, floatingTexts, enemies } = _w ?? {};
         if (player.rangeCooldown > 0) return;
 
         if (player._divineRadiance) {
@@ -482,7 +488,9 @@ class SpiritHero {
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
     }
 
-    static useSpecial(player) {
+    static useSpecial(player, world) {
+        const _w = world ?? window._world;
+        const { showNotification, audioManager, projectiles, saveData } = _w ?? {};
         if (player.transformActive) return; // Already active
 
         if (player.innerPeace < 30) {

@@ -1,6 +1,7 @@
 class Player {
     constructor(type, isCPU = false) {
         this.type = type;
+        this._world = null;
         this.isCPU = isCPU; // Flag for UI suppression
         this.stats = getHeroStats(type);
         this.x = canvas.width / 2;
@@ -141,6 +142,8 @@ class Player {
     }
 
     addCombo() {
+        const _w = this._world ?? window._world;
+        const { currentRunStats } = _w ?? {};
         this.combo++;
         if (this.combo > currentRunStats.maxCombo) currentRunStats.maxCombo = this.combo;
         this.comboTimer = 240; // 4 seconds
@@ -174,8 +177,9 @@ class Player {
         }
 
         // 60% chance to play a level-up exclamation (skips if another line is already playing)
-        if (Math.random() < 0.6 && typeof audioManager !== 'undefined') {
-            audioManager.playHeroExclamation(this.type, 'level_up');
+        if (Math.random() < 0.6) {
+            const _wLU = this._world ?? window._world;
+            _wLU?.audioManager?.playHeroExclamation(this.type, 'level_up');
         }
 
         let options = [];
@@ -259,6 +263,8 @@ class Player {
     }
 
     dash() {
+        const _w = this._world ?? window._world;
+        const { audioManager, createExplosion, particles } = _w ?? {};
         // Chaos Hook
         if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) checkChaosEvent('DASH');
 
@@ -288,10 +294,8 @@ class Player {
             this.isDashing = true;
             this.dashFrames = 10;
             this.dashCooldown = this.dashMaxCooldown;
-            if (typeof audioManager !== 'undefined') {
-                if (this.type === 'void') audioManager.play('dash_void');
-                else audioManager.play('dash');
-            }
+            if (this.type === 'void') audioManager?.play('dash_void');
+            else audioManager?.play('dash');
             createExplosion(this.x, this.y, '#fff');
             if (typeof isTutorialMode !== 'undefined' && isTutorialMode && window.TutorialMode) TutorialMode.onDash();
             // Dash — quick high-frequency buzz, no low rumble
@@ -391,6 +395,8 @@ class Player {
     }
 
     takeDamage(amount) {
+        const _w = this._world ?? window._world;
+        const { audioManager, floatingTexts } = _w ?? {};
         if (this.isInvincible) return;
 
         // Apply Defense
@@ -399,18 +405,14 @@ class Player {
 
         this.hp -= actualDamage;
 
-        // Audio Feedback
-        if (actualDamage > 0 && typeof audioManager !== 'undefined' && audioManager) {
-            audioManager.play('damage');
-        }
-
-        // Visual Feedback
-        if (typeof floatingTexts !== 'undefined') {
-            floatingTexts.push(new FloatingText(this.x, this.y - 40, actualDamage.toFixed(0), "#ff0000", 25));
-        }
+        if (actualDamage > 0) audioManager?.play('damage');
+        floatingTexts?.push(new FloatingText(this.x, this.y - 40, actualDamage.toFixed(0), "#ff0000", 25));
     }
 
     useSpecial() {
+        const _w = this._world ?? window._world;
+        const { enemies, projectiles, floatingTexts, particles, audioManager,
+                createExplosion, showNotification, saveData } = _w ?? {};
         if (this.specialCooldown > 0) return;
 
         // Chaos Hook
@@ -435,7 +437,7 @@ class Player {
         const has = (id) => active.includes(id);
 
         if (this.type === 'fire') {
-            if (typeof audioManager !== 'undefined') audioManager.play('special_fire');
+            audioManager?.play('special_fire');
             // Ring of explosions
             let radius = 150;
             if (has('f2')) radius *= 1.2; // +20% Radius
@@ -502,7 +504,7 @@ class Player {
                 }, i * 50);
             }
         } else if (this.type === 'water') {
-            if (typeof audioManager !== 'undefined') audioManager.play('special_water');
+            audioManager?.play('special_water');
             // Tidal burst: central explosion + 3 expanding ripple rings
             createExplosion(this.x, this.y, '#3498db');
             createExplosion(this.x, this.y, '#74b9ff');
@@ -579,7 +581,7 @@ class Player {
                 }
             });
         } else if (this.type === 'ice') {
-            if (typeof audioManager !== 'undefined') audioManager.play('special_ice');
+            audioManager?.play('special_ice');
             // Frost shockwave: central burst + two expanding rings + 8 crystal spikes
             createExplosion(this.x, this.y, '#aaddff');
             createExplosion(this.x, this.y, '#ffffff');
@@ -639,7 +641,7 @@ class Player {
                 }
             });
         } else if (this.type === 'plant') {
-            if (typeof audioManager !== 'undefined') audioManager.play('special_plant');
+            audioManager?.play('special_plant');
             // Heal + Turret
             let healAmount = this.maxHp * 0.3;
             if (has('p2')) healAmount *= 1.2; // +20% Heal
@@ -719,7 +721,7 @@ class Player {
                 projectiles.push(p);
             }
         } else if (this.type === 'metal') {
-            if (typeof audioManager !== 'undefined') audioManager.play('special_metal');
+            audioManager?.play('special_metal');
             // Invincible
             let duration = 300;
             if (has('m2')) duration *= 1.5; // +50% Duration
@@ -789,7 +791,7 @@ class Player {
         } else if (this.type === 'black') {
             // Massive Area Damage + Heal
             // Play Sound
-            if (typeof audioManager !== 'undefined') audioManager.play('special_black');
+            audioManager?.play('special_black');
 
             let radius = 300;
 
@@ -844,6 +846,8 @@ class Player {
     }
 
     onKill() {
+        const _w = this._world ?? window._world;
+        const { floatingTexts } = _w ?? {};
         if (this.type === 'black') {
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
                 // Buffed Healing: 3 HP per kill (was 1)
@@ -854,6 +858,9 @@ class Player {
     }
 
     update() {
+        const _w = this._world ?? window._world;
+        const { frame, wave, currentWeather, particles, enemies, floatingTexts,
+                arena, saveData, createExplosion, currentRunStats, keys } = _w ?? {};
         this.trapSpeedMod = 1; // Reset trap modifier
 
         if (this.buffs.speed > 0) this.buffs.speed--;
@@ -923,10 +930,12 @@ class Player {
         let dx = 0; let dy = 0;
 
         // Keyboard
-        if (keys['w'] || keys['arrowup']) dy = -1;
-        if (keys['s'] || keys['arrowdown']) dy = 1;
-        if (keys['a'] || keys['arrowleft']) dx = -1;
-        if (keys['d'] || keys['arrowright']) dx = 1;
+        if (keys) {
+            if (keys['w'] || keys['arrowup']) dy = -1;
+            if (keys['s'] || keys['arrowdown']) dy = 1;
+            if (keys['a'] || keys['arrowleft']) dx = -1;
+            if (keys['d'] || keys['arrowright']) dx = 1;
+        }
 
         // Controller Input
         if (this.controller) {
@@ -936,10 +945,10 @@ class Player {
             this.aimAngle = input.aimAngle;
             this.usingGamepad = input.usingGamepad;
 
-            if (input.shoot) this.shoot();
-            if (input.melee) this.melee();
-            if (input.dash && !this.isDashing) this.dash();
-            if (input.special) this.useSpecial();
+            if (input.shoot) this.shoot(Math.cos(this.aimAngle), Math.sin(this.aimAngle), _w);
+            if (input.melee) this.melee(_w);
+            if (input.dash && !this.isDashing) this.dash(_w);
+            if (input.special) this.useSpecial(_w);
 
             if (input.pause && this.pauseDebounce <= 0) {
                 // Track which gamepad triggered the pause so the pause menu routes to them
@@ -1029,7 +1038,7 @@ class Player {
         // --- DLC HOOK: Custom Update ---
         if (this.customUpdate) {
             // If customUpdate returns true, it handles movement/physics completely
-            if (this.customUpdate(dx, dy)) return;
+            if (this.customUpdate(dx, dy, _w)) return;
         }
 
         let currentSpeed = this.stats.speed * this.speedMultiplier * this.trapSpeedMod;
@@ -1224,13 +1233,15 @@ class Player {
     }
 
     shoot() {
+        const _w = this._world ?? window._world;
+        const { enemies, projectiles, currentRunStats, audioManager, HERO_LOGIC,
+                isEvilMode } = _w ?? {};
         if (this.rangeCooldown > 0) return;
 
         // Evil Mode villain heroes: delegate to HERO_LOGIC customShoot
-        if (typeof isEvilMode !== 'undefined' && isEvilMode &&
-            window.HERO_LOGIC && window.HERO_LOGIC[this.type] &&
-            typeof window.HERO_LOGIC[this.type].customShoot === 'function') {
-            window.HERO_LOGIC[this.type].customShoot(this);
+        if (isEvilMode && HERO_LOGIC && HERO_LOGIC[this.type] &&
+            typeof HERO_LOGIC[this.type].customShoot === 'function') {
+            HERO_LOGIC[this.type].customShoot(this);
             return;
         }
 
@@ -1243,7 +1254,7 @@ class Player {
         }
 
         // Play Attack Sound
-        if (typeof audioManager !== 'undefined') audioManager.playAttack(this.type);
+        audioManager?.playAttack(this.type);
 
         let angle = this.aimAngle; // Use stored aim angle
         let autoAimActive = this.buffs.autoaim > 0;
@@ -1361,14 +1372,13 @@ class Player {
     }
 
     melee() {
+        const _w = this._world ?? window._world;
+        const { meleeAttacks, audioManager } = _w ?? {};
         if (this.meleeCooldown > 0) return;
         if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode && typeof checkChaosEvent === 'function') checkChaosEvent('ATTACK');
 
-        // Play Melee Sound
-        if (typeof audioManager !== 'undefined') {
-            if (this.type === 'earth') audioManager.play('melee_earth');
-            else audioManager.play('melee_all');
-        }
+        if (this.type === 'earth') audioManager?.play('melee_earth');
+        else audioManager?.play('melee_all');
 
         const angle = this.aimAngle; // Use stored aim angle
 
@@ -1487,3 +1497,4 @@ window.getHeroStats = function (type) {
     base.hp = Math.floor(base.hp);
     return base;
 };
+if (typeof module !== 'undefined' && module.exports) module.exports = Player;

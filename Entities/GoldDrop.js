@@ -1,13 +1,13 @@
 class GoldDrop {
-    constructor(x, y) {
+    constructor(x, y, world = null) {
         this.x = x;
         this.y = y;
         this.radius = 10;
         this.value = Math.floor(Math.random() * 10) + 5;
-        this._angle = Math.random() * Math.PI * 2; // spin offset
+        this._angle = Math.random() * Math.PI * 2;
         this._bobOffset = Math.random() * Math.PI * 2;
-        // Coin tier: small/medium/large based on value
         this._tier = this.value >= 12 ? 2 : this.value >= 8 ? 1 : 0;
+        this._world = world ?? (typeof window !== 'undefined' ? window._world : null) ?? null;
     }
 
     draw() {
@@ -92,3 +92,4 @@ class GoldDrop {
         ctx.restore();
     }
 }
+if (typeof module !== 'undefined' && module.exports) module.exports = GoldDrop;

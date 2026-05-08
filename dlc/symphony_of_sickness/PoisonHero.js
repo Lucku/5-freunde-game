@@ -4,7 +4,9 @@
 // Weakness: Needs specific flask combos for situational power.
 
 class PoisonHero {
-    static init(player) {
+    static init(player, world) {
+        const _w = world ?? window._world;
+        const { saveData } = _w ?? {};
         // Base Stats
         player.speedMultiplier = 0.95; // Slower
         player.damageMultiplier = 0.8; // Low initial direct damage
@@ -22,9 +24,9 @@ class PoisonHero {
             if (iconEl) iconEl.innerText = "⚗️";
         }
 
-        player.customUpdate = (dx, dy) => PoisonHero.update(player, dx, dy);
-        player.customSpecial = () => PoisonHero.useSpecial(player);
-        player.shoot = (dx, dy) => PoisonHero.shootGas(player, dx, dy);
+        player.customUpdate = (dx, dy, w) => PoisonHero.update(player, dx, dy, w);
+        player.customSpecial = (w) => PoisonHero.useSpecial(player, w);
+        player.shoot = (dx, dy, w) => PoisonHero.shootGas(player, dx, dy, w);
 
         // Altar checks
         const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
@@ -74,7 +76,9 @@ class PoisonHero {
     }
 
     // Implement standard interface for Hero Logic upgrade handling
-    static applyUpgrade(player, type) {
+    static applyUpgrade(player, type, world) {
+        const _w = world ?? window._world;
+        const { enemies, createExplosion, showNotification } = _w ?? {};
         if (type === 'projectile') { // ID from LevelUp.js `projectile`
             if (typeof player.stats.dotMultiplier === 'undefined') player.stats.dotMultiplier = 1;
             player.stats.dotMultiplier += 0.15;
@@ -87,16 +91,16 @@ class PoisonHero {
             player.transformTimer = 900;
             // PANDEMIC PROTOCOL: instantly infect every living enemy to max stacks
             let count = 0;
-            if (window.enemies) {
-                window.enemies.forEach(e => {
+            if (enemies) {
+                enemies.forEach(e => {
                     if (e.hp > 0) {
                         e.poisonStacks = 100;
                         count++;
-                        if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, '#76ff03', 12);
+                        if (createExplosion) createExplosion(e.x, e.y, '#76ff03', 12);
                     }
                 });
             }
-            if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#76ff03', 60);
+            if (createExplosion) createExplosion(player.x, player.y, '#76ff03', 60);
             if (typeof showNotification === 'function') showNotification(`☠ PANDEMIC! ${count} INFECTED`, "#76ff03");
             return true;
         }
@@ -131,12 +135,14 @@ class PoisonHero {
 
     // --- GAME LOOP ---
 
-    static update(player, dx, dy) {
+    static update(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { wave, enemies, frame, particles, saveData, createExplosion, showNotification } = _w ?? {};
         // 1. Spawning Flasks logic is handled in PoisonBiome
 
         // Wave Reset logic
-        if (typeof window.wave !== 'undefined' && player.lastWave !== window.wave) {
-            player.lastWave = window.wave;
+        if (typeof wave !== 'undefined' && player.lastWave !== wave) {
+            player.lastWave = wave;
             player.poisonFlasks = [];
             // Optional notification
             // if (typeof showNotification === 'function') showNotification("New Wave - Flasks Cleared", "#76ff03");
@@ -150,8 +156,8 @@ class PoisonHero {
             player.transformTimer--;
 
             // TURBO FIELD: apply heavy stacks to all enemies in radius 400
-            if (window.frame % 10 === 0 && window.enemies) {
-                window.enemies.forEach(e => {
+            if (frame % 10 === 0 && enemies) {
+                enemies.forEach(e => {
                     if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < 400) {
                         e.poisonStacks = Math.min((e.poisonStacks || 0) + 10, 100);
                     }
@@ -159,9 +165,9 @@ class PoisonHero {
             }
 
             // TURBO DOT: tick every 10 frames (3× faster than the normal 30-frame loop)
-            if (window.frame % 10 === 0 && window.enemies) {
+            if (frame % 10 === 0 && enemies) {
                 const potency = (player.stats.dotMultiplier || 1);
-                window.enemies.forEach(e => {
+                enemies.forEach(e => {
                     if (e.poisonStacks > 0 && e.hp > 0) {
                         const dmg = Math.min(
                             Math.max(1, (e.maxHp * 0.001 + 0.1) * e.poisonStacks * player.damageMultiplier * potency),
@@ -174,9 +180,9 @@ class PoisonHero {
                         // Plague explosion on poison kill
                         if (hpBefore > 0 && e.hp <= 0) {
                             const ex = e.x, ey = e.y;
-                            if (typeof createExplosion !== 'undefined') createExplosion(ex, ey, '#76ff03', 40);
+                            if (createExplosion) createExplosion(ex, ey, '#76ff03', 40);
                             const blastDmg = 20 * (player.damageMultiplier || 1);
-                            window.enemies.forEach(nb => {
+                            enemies.forEach(nb => {
                                 if (nb !== e && nb.hp > 0 && Math.hypot(nb.x - ex, nb.y - ey) < 150) {
                                     if (typeof nb.takeDamage === 'function') nb.takeDamage(blastDmg); else nb.hp -= blastDmg;
                                     nb.poisonStacks = Math.min((nb.poisonStacks || 0) + 30, 100);
@@ -189,13 +195,13 @@ class PoisonHero {
             }
 
             // Particles: rising toxic cloud across field
-            if (window.particles && Math.random() < 0.4 && typeof Particle !== 'undefined') {
+            if (particles && Math.random() < 0.4 && typeof Particle !== 'undefined') {
                 const a = Math.random() * Math.PI * 2;
                 const r = Math.random() * 300;
                 const pp = new Particle(player.x + Math.cos(a) * r, player.y + Math.sin(a) * r, 'rgba(118,255,3,0.45)');
                 pp.velocity = { x: (Math.random() - 0.5) * 0.6, y: -1.2 - Math.random() };
                 pp.life = 55;
-                window.particles.push(pp);
+                particles.push(pp);
             }
 
             if (player.transformTimer <= 0) {
@@ -207,7 +213,7 @@ class PoisonHero {
         // --- GLOBAL POISON DOT LOGIC (INJECTED) ---
         // Since core game loop doesn't handle poisonStacks, we do it here.
         // Skipped during PANDEMIC PROTOCOL (transform active) — turbo DoT runs at 3× speed above.
-        if (window.enemies && window.frame % 30 === 0 && !player.transformActive) { // Tick every 0.5s
+        if (enemies && frame % 30 === 0 && !player.transformActive) { // Tick every 0.5s
             // Altar checks (read once per tick for performance)
             const dotActive = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
             const dotHas = (id) => dotActive.includes(id);
@@ -218,7 +224,7 @@ class PoisonHero {
             const hasVirulent      = dotHas('po3');
 
             let activePoisonTicks = 0;
-            window.enemies.forEach(e => {
+            enemies.forEach(e => {
                 if (e.poisonStacks > 0 && e.hp > 0) {
                     activePoisonTicks++;
 
@@ -264,19 +270,19 @@ class PoisonHero {
                     if (hasVirulent && hpBefore > 0 && e.hp <= 0 && !e.pandemicSpread) {
                         e.pandemicSpread = true;
                         const spreadStacks = Math.floor(e.poisonStacks * 0.5);
-                        if (spreadStacks > 0 && window.enemies) {
-                            window.enemies.forEach(other => {
+                        if (spreadStacks > 0 && enemies) {
+                            enemies.forEach(other => {
                                 if (other !== e && other.hp > 0 && Math.hypot(other.x - e.x, other.y - e.y) < 150) {
                                     other.poisonStacks = Math.min((other.poisonStacks || 0) + spreadStacks, 100);
-                                    if (typeof createExplosion !== 'undefined') createExplosion(other.x, other.y, '#76ff03', 15);
+                                    if (createExplosion) createExplosion(other.x, other.y, '#76ff03', 15);
                                 }
                             });
                         }
-                        if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, '#76ff03', 30);
+                        if (createExplosion) createExplosion(e.x, e.y, '#76ff03', 30);
                     }
 
                     // Visuals
-                    if (typeof createExplosion !== 'undefined') {
+                    if (createExplosion) {
                         createExplosion(e.x, e.y, '#76ff03', 10);
                     }
 
@@ -317,9 +323,9 @@ class PoisonHero {
         if (!isPoisonBiome && window.SYMPHONY_STATE) {
             // Count infected enemies
             let infectedCount = 0;
-            if (window.enemies) {
+            if (enemies) {
                 // Fix: Count any enemy with poison > 0
-                infectedCount = window.enemies.filter(e => e.poisonStacks > 0).length;
+                infectedCount = enemies.filter(e => e.poisonStacks > 0).length;
             }
 
             // Logic: Increase with every enemy that is infected. 
@@ -329,7 +335,7 @@ class PoisonHero {
             // Target scaling: Needs X infected enemies at once to trigger.
 
             // Scaling Target: Base 10 + (Wave * 0.5)
-            const targetInfections = 10 + Math.floor(window.wave * 1.5); // Harder each wave
+            const targetInfections = 10 + Math.floor(wave * 1.5); // Harder each wave
 
             if (typeof player.poisonMeter === 'undefined') player.poisonMeter = 0;
 
@@ -382,7 +388,9 @@ class PoisonHero {
         }
     }
 
-    static useSpecial(player) {
+    static useSpecial(player, world) {
+        const _w = world ?? window._world;
+        const { audioManager } = _w ?? {};
         const combo = PoisonHero.getFlaskCombination(player);
         console.log(`Using Special: ${combo}`);
 
@@ -390,7 +398,7 @@ class PoisonHero {
         const cy = player.y;
 
         // Play combo-tier sound
-        if (typeof audioManager !== 'undefined') {
+        if (audioManager) {
             const _sfxTier = (combo === 'NONE') ? 'special_poison_1'
                 : (combo === 'RED' || combo === 'BLUE' || combo === 'GREEN') ? 'special_poison_2'
                 : (combo === 'RED_RED' || combo === 'BLUE_BLUE' || combo === 'GREEN_GREEN') ? 'special_poison_3'
@@ -1100,7 +1108,9 @@ class PoisonHero {
     }
 
 
-    static shootGas(player, dx, dy) {
+    static shootGas(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { projectiles, audioManager } = _w ?? {};
         if (player.rangeCooldown > 0) return;
 
         // Visual: Short-Range Toxic Nova (8-way)
@@ -1110,7 +1120,7 @@ class PoisonHero {
         const count = 8; // Increased to 8
         const startAngle = (player.aimAngle || 0);
 
-        if (typeof window.projectiles !== 'undefined') {
+        if (projectiles) {
             for (let i = 0; i < count; i++) {
                 // Distribute 8 projectiles around the circle start from aim angle
                 const angle = startAngle + (i * (Math.PI * 2 / count));
@@ -1136,11 +1146,11 @@ class PoisonHero {
                 p.life = (player.stats.attackRange || 15);
                 p.hitEnemies = [];
                 p.owner = player;
-                window.projectiles.push(p);
+                projectiles.push(p);
             }
         }
 
-        if (typeof audioManager !== 'undefined') audioManager.play('attack_poison');
+        audioManager?.play('attack_poison');
 
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
     }

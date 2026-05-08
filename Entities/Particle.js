@@ -1,8 +1,9 @@
 class Particle {
-    constructor(x, y, color) {
+    constructor(x, y, color, world = null) {
         this.x = x; this.y = y; this.color = color;
         this.velocity = { x: (Math.random() - 0.5) * 5, y: (Math.random() - 0.5) * 5 };
         this.alpha = 1; this.life = Math.random() * 0.05 + 0.02;
+        this._world = world ?? (typeof window !== 'undefined' ? window._world : null) ?? null;
     }
     update() { this.x += this.velocity.x; this.y += this.velocity.y; this.alpha -= this.life; }
     draw() {
@@ -10,3 +11,4 @@ class Particle {
         ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     }
 }
+if (typeof module !== 'undefined' && module.exports) module.exports = Particle;

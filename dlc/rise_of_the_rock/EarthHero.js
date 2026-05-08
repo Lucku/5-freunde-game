@@ -22,12 +22,12 @@ class EarthHero {
         player.baseDefense = player.stats.defense; // Store for Steel Ball
 
         // Attach Hooks
-        player.customUpdate = (dx, dy) => EarthHero.update(player, dx, dy);
+        player.customUpdate = (dx, dy, world) => EarthHero.update(player, dx, dy, world);
         player.customDraw = (ctx) => EarthHero.draw(player, ctx);
-        player.customSpecial = () => EarthHero.useSpecial(player);
-        player.melee = () => EarthHero.melee(player); // Tremor Attack
-        player.shoot = () => EarthHero.shoot(player); // Rock Throw
-        player.customOnDamage = (dmg) => EarthHero.onDamage(player, dmg); // Shield Logic
+        player.customSpecial = (world) => EarthHero.useSpecial(player, world);
+        player.melee = (world) => EarthHero.melee(player, world); // Tremor Attack
+        player.shoot = (dx, dy, world) => EarthHero.shoot(player, world); // Rock Throw
+        player.customOnDamage = (dmg, world) => EarthHero.onDamage(player, dmg, world); // Shield Logic
         player.getAIInput = (p, c, t) => EarthHero.getAIInput(p, c, t); // Custom AI
         player.dash = () => EarthHero.toggleRoll(player); // Dash = toggle rolling
 
@@ -85,11 +85,13 @@ class EarthHero {
         if (node.type === 'MOMENTUM_DECAY') base.momentumDecayMult = (base.momentumDecayMult || 1) - node.value;
     }
 
-    static applyUpgrade(player, type) {
+    static applyUpgrade(player, type, world) {
+        const _w = world ?? window._world;
+        const { showNotification } = _w ?? {};
         if (type === 'projectile') {
             // Earth Hero: Increase Ram Damage instead of projectiles
             player.stats.ramDmgMult = (player.stats.ramDmgMult || 1) + 0.2; // +20% Ram Damage
-            if (window.showNotification) window.showNotification("RAM DAMAGE INCREASED!");
+            (showNotification ?? window.showNotification)?.("RAM DAMAGE INCREASED!");
             return true;
         }
         return false;
@@ -107,15 +109,15 @@ class EarthHero {
         objective.type = 'TECTONIC_SHIFT';
         objective.target = 5000; // Deal 5000 Ram Damage
         objective.current = 0;
-        showNotification("OBJECTIVE: CRUSH ENEMIES (RAM DAMAGE)!");
+        if (typeof showNotification === 'function') showNotification("OBJECTIVE: CRUSH ENEMIES (RAM DAMAGE)!");
     }
 
     static checkObjectiveCompletion(objective, wave) {
         if (objective.type === 'TECTONIC_SHIFT') {
             if (objective.current >= objective.target) {
                 objective.state = 'COMPLETED';
-                showNotification("CRUSHING VICTORY!");
-                triggerStory(wave);
+                if (typeof showNotification === 'function') showNotification("CRUSHING VICTORY!");
+                if (typeof triggerStory === 'function') triggerStory(wave);
                 return true;
             }
         }
@@ -132,7 +134,9 @@ class EarthHero {
         return false;
     }
 
-    static useSpecial(player) {
+    static useSpecial(player, world) {
+        const _w = world ?? window._world;
+        const { showNotification, createExplosion, particles, saveData } = _w ?? {};
         // TECTONIC SHIELD
         // Grants temporary rock armor based on Max HP
 
@@ -146,8 +150,8 @@ class EarthHero {
             timer: duration
         };
 
-        showNotification("TECTONIC SHIELD!");
-        createExplosion(player.x, player.y, '#8d6e63');
+        showNotification?.("TECTONIC SHIELD!");
+        createExplosion?.(player.x, player.y, '#8d6e63');
 
         // Visual debris
         if (typeof particles !== 'undefined') {
@@ -158,7 +162,8 @@ class EarthHero {
         }
 
         // Altar Checks - Synergy
-        const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const _saveData = saveData ?? (typeof window !== 'undefined' ? window.saveData : null);
+        const active = (_saveData?.altar && _saveData.altar.active) ? _saveData.altar.active : [];
         const has = (id) => active.includes(id);
 
         if (has('e2')) {
@@ -169,22 +174,24 @@ class EarthHero {
         return true;
     }
 
-    static onDamage(player, dmg) {
+    static onDamage(player, dmg, world) {
+        const _w = world ?? window._world;
+        const { floatingTexts, createExplosion, showNotification } = _w ?? {};
         if (player.rockShield && player.rockShield.active) {
 
             // Absorb damage (Fragile Shield: Takes 2x Damage)
             const damageToShield = dmg * 2;
             player.rockShield.hp -= damageToShield;
 
-            floatingTexts.push(new FloatingText(player.x, player.y - 40, "BLOCK", "#8d6e63", 20));
+            if (floatingTexts) floatingTexts.push(new FloatingText(player.x, player.y - 40, "BLOCK", "#8d6e63", 20));
 
             // Visual Effect
-            createExplosion(player.x, player.y, '#5d4037', 10);
+            createExplosion?.(player.x, player.y, '#5d4037', 10);
 
             if (player.rockShield.hp <= 0) {
                 player.rockShield.active = false;
-                showNotification("SHIELD BROKEN!");
-                createExplosion(player.x, player.y, '#8d6e63', 40); // Big break effect
+                showNotification?.("SHIELD BROKEN!");
+                createExplosion?.(player.x, player.y, '#8d6e63', 40); // Big break effect
             }
 
             return true; // Prevent default damage
@@ -192,7 +199,9 @@ class EarthHero {
         return false;
     }
 
-    static melee(player) {
+    static melee(player, world) {
+        const _w = world ?? window._world;
+        const { createExplosion, particles, enemies, projectiles, floatingTexts } = _w ?? {};
         if (player.meleeCooldown > 0) return;
 
         // Tremor: A localized earthquake
@@ -203,7 +212,7 @@ class EarthHero {
         const damage = player.stats.meleeDmg * player.damageMultiplier * (0.5 + momentumRatio); // 50% to 150%+ Damage
 
         // Visuals
-        createExplosion(player.x, player.y, '#5d4037'); // Dark Brown
+        createExplosion?.(player.x, player.y, '#5d4037'); // Dark Brown
 
         // Shockwave Effect
         if (typeof particles !== 'undefined') {
@@ -271,7 +280,7 @@ class EarthHero {
 
                     // Floating Text
                     if (typeof FloatingText !== 'undefined') {
-                        floatingTexts.push(new FloatingText(e.x, e.y - 20, Math.floor(damage), "#fff", 20));
+                        floatingTexts?.push(new FloatingText(e.x, e.y - 20, Math.floor(damage), "#fff", 20));
                     }
                 }
             });
@@ -280,7 +289,9 @@ class EarthHero {
         player.meleeCooldown = player.meleeMaxCooldown * player.cooldownMultiplier;
     }
 
-    static shoot(player) {
+    static shoot(player, world) {
+        const _w = world ?? window._world;
+        const { audioManager, projectiles } = _w ?? {};
         if (player.isRolling) return; // No shooting while rolling
         if (player.rangeCooldown > 0) return;
 
@@ -333,11 +344,14 @@ class EarthHero {
         player.rangeCooldown = cooldown;
     }
 
-    static update(player, dx, dy) {
+    static update(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { saveData, showNotification, createExplosion, enemies, audioManager, projectiles, floatingTexts, arena, currentObjective, frame } = _w ?? {};
         // Custom Movement Logic
         // Instead of direct velocity, we apply force to momentum
 
-        const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const _saveData2 = saveData ?? (typeof window !== 'undefined' ? window.saveData : null);
+        const active = (_saveData2?.altar && _saveData2.altar.active) ? _saveData2.altar.active : [];
         const has = (id) => active.includes(id);
 
         // --- SHIELD TIMER LOGIC ---
@@ -345,9 +359,9 @@ class EarthHero {
             player.rockShield.timer--;
             if (player.rockShield.timer <= 0) {
                 player.rockShield.active = false;
-                showNotification("SHIELD EXPIRED");
+                showNotification?.("SHIELD EXPIRED");
                 // Visual pop
-                if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#8d6e63', 20);
+                createExplosion?.(player.x, player.y, '#8d6e63', 20);
             }
 
             // --- PROJECTILE REFLECTION ---
@@ -549,7 +563,7 @@ class EarthHero {
                         // Ice Breaker (c13)
                         if (has('c13') && e.frozenTimer > 0) {
                             damage *= 3;
-                            floatingTexts.push(new FloatingText(e.x, e.y - 60, "SHATTER!", "#aaddff", 30));
+                            floatingTexts?.push(new FloatingText(e.x, e.y - 60, "SHATTER!", "#aaddff", 30));
                             e.frozenTimer = 0;
                         }
 
@@ -568,7 +582,7 @@ class EarthHero {
                         // Nature's Embrace (c14)
                         if (has('c14')) {
                             player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.01);
-                            floatingTexts.push(new FloatingText(player.x, player.y - 40, "+HP", "#2ecc71", 20));
+                            floatingTexts?.push(new FloatingText(player.x, player.y - 40, "+HP", "#2ecc71", 20));
                         }
 
                         // Objective Tracking

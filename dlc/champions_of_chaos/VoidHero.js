@@ -77,17 +77,19 @@ window.HERO_LOGIC['void'] = {
         }
     },
 
-    applyUpgrade: function (player, type) {
+    applyUpgrade: function (player, type, world) {
+        const _w = world ?? window._world;
+        const { enemies, createExplosion, showNotification } = _w ?? {};
         if (type === 'transform') {
             player.transformActive = true;
             player.currentForm = 'ENTROPY';
             player.entropyTimer = 600;
             player._corruptionRings = [];
             let count = 0;
-            if (window.enemies) {
-                window.enemies.forEach(e => { if (e.hp > 0) { e.glitched = true; count++; } });
+            if (enemies) {
+                enemies.forEach(e => { if (e.hp > 0) { e.glitched = true; count++; } });
             }
-            if (typeof createExplosion !== 'undefined') {
+            if (typeof createExplosion === 'function') {
                 createExplosion(player.x, player.y, '#000', 80);
                 createExplosion(player.x, player.y, '#00bcd4', 55);
                 createExplosion(player.x, player.y, '#fff', 30);
@@ -152,11 +154,13 @@ window.HERO_LOGIC['void'] = {
         };
     },
 
-    shootBolt: function (player) {
+    shootBolt: function (player, world) {
+        const _w = world ?? window._world;
+        const { audioManager, projectiles } = _w ?? {};
         // Fires a "Glitch Bolt" using Range Stats
         if (player.rangeCooldown > 0) return;
 
-        if (typeof audioManager !== 'undefined') audioManager.play('attack_void');
+        if (audioManager) audioManager.play('attack_void');
 
         // Use standard find nearest logic or random
         let angle = player.aimAngle;
@@ -214,7 +218,9 @@ window.HERO_LOGIC['void'] = {
         }
     },
 
-    meleeAttack: function (player) {
+    meleeAttack: function (player, world) {
+        const _w = world ?? window._world;
+        const { enemies, projectiles, floatingTexts, audioManager, saveData, createExplosion } = _w ?? {};
         // 1. Main Attack: Dimensional Slash
         // Visual: Dash forward slightly + Screen Cut effect
         const mx = player.lastMoveX || 1;
@@ -225,7 +231,7 @@ window.HERO_LOGIC['void'] = {
         player.x += Math.cos(angle) * 30;
         player.y += Math.sin(angle) * 30;
 
-        if (typeof audioManager !== 'undefined') audioManager.play('melee_void');
+        if (audioManager) audioManager.play('melee_void');
 
         // Altar Checks
         const active = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
@@ -315,7 +321,9 @@ window.HERO_LOGIC['void'] = {
         return true; // We handled melee
     },
 
-    spawnEcho: function (player, angle, index) {
+    spawnEcho: function (player, angle, index, world) {
+        const _w = world ?? window._world;
+        const { enemies, floatingTexts, createExplosion } = _w ?? {};
         // Visual: Ghostly slash at random offset
         const offsetX = (Math.random() - 0.5) * 100;
         const offsetY = (Math.random() - 0.5) * 100;
@@ -341,7 +349,9 @@ window.HERO_LOGIC['void'] = {
         }
     },
 
-    useSpecial: function (player) {
+    useSpecial: function (player, world) {
+        const _w = world ?? window._world;
+        const { audioManager, saveData, showNotification } = _w ?? {};
         if (player.inRealmShift) return false;
 
         player.inRealmShift = true;
@@ -349,7 +359,7 @@ window.HERO_LOGIC['void'] = {
         if (typeof saveData !== 'undefined') {
             saveData.global.gravity_realm_shifts = (saveData.global.gravity_realm_shifts || 0) + 1;
         }
-        if (typeof audioManager !== 'undefined') audioManager.play('special_void');
+        if (audioManager) audioManager.play('special_void');
         if (typeof showNotification === 'function') showNotification("REALM SHIFT ACTIVATED", "#00bcd4");
 
         // Buffs
@@ -362,7 +372,9 @@ window.HERO_LOGIC['void'] = {
         return true;
     },
 
-    update: function (player, dx, dy) {
+    update: function (player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { enemies, frame, createExplosion, showNotification } = _w ?? {};
         // 1. ENTROPY Form Logic (Level 10 Transformation)
         if (player.transformActive) {
             if (player.currentForm !== 'ENTROPY') player.currentForm = 'ENTROPY';
@@ -374,12 +386,12 @@ window.HERO_LOGIC['void'] = {
             }
 
             // Corruption wave ring every 2s
-            if (window.frame % 120 === 0) {
+            if ((frame ?? window.frame) % 120 === 0) {
                 player._corruptionRings = player._corruptionRings || [];
                 player._corruptionRings.push({ x: player.x, y: player.y, radius: 20, alpha: 1.0 });
-                if (window.enemies) {
+                if (enemies) {
                     const waveDmg = 40 * (player.damageMultiplier || 1);
-                    window.enemies.forEach(e => {
+                    enemies.forEach(e => {
                         if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < 300) {
                             e.hp -= waveDmg;
                             if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
@@ -404,7 +416,7 @@ window.HERO_LOGIC['void'] = {
             }
 
             // System Corruption AoE (boosted: every 8 frames, 20% instant-delete < 50% HP)
-            if (typeof enemies !== 'undefined' && window.frame % 8 === 0) {
+            if (enemies && (frame ?? window.frame) % 8 === 0) {
                 enemies.forEach(e => {
                     const dist = Math.hypot(e.x - player.x, e.y - player.y);
                     if (dist < 200) {
@@ -426,8 +438,8 @@ window.HERO_LOGIC['void'] = {
             if (player.entropyTimer <= 0) {
                 player.transformActive = false;
                 let killCount = 0;
-                if (window.enemies) {
-                    window.enemies.forEach(e => {
+                if (enemies) {
+                    enemies.forEach(e => {
                         if (e.glitched && e.hp > 0) {
                             e.hp -= 200 * (player.damageMultiplier || 1);
                             if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, '#fff', 25);
@@ -446,7 +458,7 @@ window.HERO_LOGIC['void'] = {
             player.realmShiftTimer--;
 
             // Effect: Phase Walk - Mark/Glitch Enemies
-            if (typeof enemies !== 'undefined') {
+            if (enemies) {
                 enemies.forEach(e => {
                     const dist = Math.hypot(e.x - player.x, e.y - player.y);
                     if (dist < 60) {
@@ -527,7 +539,7 @@ window.HERO_LOGIC['void'] = {
         }
 
         // Random Erratic Movement ("Glitch")
-        // Occasionally stop or teleport sideways? 
+        // Occasionally stop or teleport sideways?
         // No, keep it aggressive as requested.
 
         return { x: moveX, y: moveY, aimAngle, shoot, melee, dash, special, pause: false };

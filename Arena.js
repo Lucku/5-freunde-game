@@ -861,3 +861,4 @@ window.getHeroTheme = function (type) {
     if (type === 'poison') return { bg: '#dcedc8', grid: '#aed581' }; // Toxic Bog
     return { bg: '#1a1a1a', grid: '#333' };
 };
+if (typeof module !== 'undefined' && module.exports) module.exports = Arena;

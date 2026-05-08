@@ -1,11 +1,12 @@
 class FloatingText {
-    constructor(x, y, text, color, size) {
+    constructor(x, y, text, color, size, world = null) {
         this.x = x; this.y = y;
         this.text = text;
         this.color = color;
         this.size = size;
         this.life = 60;
         this.velocity = { x: (Math.random() - 0.5) * 2, y: -2 };
+        this._world = world ?? (typeof window !== 'undefined' ? window._world : null) ?? null;
     }
     update() {
         this.x += this.velocity.x;
@@ -27,3 +28,4 @@ class FloatingText {
         ctx.restore();
     }
 }
+if (typeof module !== 'undefined' && module.exports) module.exports = FloatingText;

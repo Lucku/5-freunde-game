@@ -93,7 +93,9 @@ class AirHero {
         if (node.type === 'DMG') base.damageMultiplier = (base.damageMultiplier || 1) + node.value;
     }
 
-    static applyWindShift(player) {
+    static applyWindShift(player, world) {
+        const _w = world ?? window._world;
+        const { showNotification, createExplosion } = _w ?? {};
         if (player.type === 'air' && player.weatherVane) {
             const dirs = ['NORTH', 'SOUTH', 'EAST', 'WEST'];
             const current = player.weatherVane.direction;
@@ -102,14 +104,16 @@ class AirHero {
                 next = dirs[Math.floor(Math.random() * dirs.length)];
             }
             player.weatherVane.direction = next;
-            if (window.showNotification) window.showNotification(`WINDS SHIFTED: ${next}`);
-            if (window.createExplosion) window.createExplosion(player.x, player.y, '#40e0d0');
+            if (showNotification) showNotification(`WINDS SHIFTED: ${next}`);
+            if (createExplosion) createExplosion(player.x, player.y, '#40e0d0');
         }
     }
 
-    static applyUpgrade(player, type) {
+    static applyUpgrade(player, type, world) {
+        const _w = world ?? window._world;
+        const { createExplosion, showNotification } = _w ?? {};
         if (type === 'wind_shift') {
-            AirHero.applyWindShift(player);
+            AirHero.applyWindShift(player, world);
             return true;
         }
         if (type === 'transform') {
@@ -119,16 +123,18 @@ class AirHero {
             player.zephyrTimer = 600;
             for (let i = 0; i < 5; i++) {
                 const a = (i / 5) * Math.PI * 2;
-                if (typeof createExplosion !== 'undefined') createExplosion(player.x + Math.cos(a) * 60, player.y + Math.sin(a) * 60, '#40e0d0', 20);
+                if (createExplosion) createExplosion(player.x + Math.cos(a) * 60, player.y + Math.sin(a) * 60, '#40e0d0', 20);
             }
-            if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#fff', 60);
-            if (typeof showNotification === 'function') showNotification("STORM INCARNATE!", "#40e0d0");
+            if (createExplosion) createExplosion(player.x, player.y, '#fff', 60);
+            if (showNotification) showNotification("STORM INCARNATE!", "#40e0d0");
             return true;
         }
         return false;
     }
 
-    static update(player, dx, dy) {
+    static update(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { enemies, frame, wave, saveData, showNotification, createExplosion, currentRunStats, gameRunning, gamePaused, isLevelingUp, isShopping } = _w ?? {};
         // 0. Story Mechanic: Weather Vane & Objectives
         const currentWave = typeof wave !== 'undefined' ? wave : 1;
 
@@ -142,7 +148,7 @@ class AirHero {
             player.weatherVane.direction = dirs[nextIdx];
 
             // 2. CHECK GAME MODE
-            const isStoryMode = (typeof saveData !== 'undefined' && saveData.story && saveData.story.enabled) &&
+            const isStoryMode = (saveData && saveData.story && saveData.story.enabled) &&
                 (typeof isDailyMode === 'undefined' || !isDailyMode) &&
                 (typeof isWeeklyMode === 'undefined' || !isWeeklyMode) &&
                 (typeof isVersusMode === 'undefined' || !isVersusMode) &&
@@ -151,7 +157,7 @@ class AirHero {
             // 3. GENERATE NEW OBJECTIVE (Story Only)
             if (isStoryMode) {
                 AirHero.generateWaveObjective(player, currentWave);
-                if (typeof showNotification === 'function') {
+                if (showNotification) {
                     setTimeout(() => showNotification(`GOAL: ${player.currentObjective.text}`), 500);
                 }
             } else {
@@ -164,7 +170,7 @@ class AirHero {
             player.weatherVane.hitsTakenThisWave = 0;
             player.weatherVane.waveStartTime = Date.now();
             player.weatherVane.ultimatesUsedThisWave = 0;
-            player.weatherVane.startKills = (typeof currentRunStats !== 'undefined' ? currentRunStats.enemiesKilled : 0);
+            player.weatherVane.startKills = (currentRunStats ? currentRunStats.enemiesKilled : 0);
             player.windArtifacts = []; // Clear old ones
 
             // Feedback
@@ -174,7 +180,7 @@ class AirHero {
         }
 
         // --- CHECK OBJECTIVE PROGRESS VS BOSS ---
-        AirHero.checkObjective(player);
+        AirHero.checkObjective(player, world);
 
         // BOSS BLOCKING MECHANIC
         // If objective NOT complete, prevent boss from appearing/acting
@@ -187,14 +193,14 @@ class AirHero {
 
             // 2. Hide/Block Boss (Deprecated, we now control spawn condition)
             // But if one exists anyway:
-            if (window.enemies) {
-                const boss = window.enemies.find(e => e.isBoss || e.constructor.name === 'Boss');
+            if (enemies) {
+                const boss = enemies.find(e => e.isBoss || e.constructor.name === 'Boss');
                 if (boss && !boss.hiddenByObjective) {
                     boss.hiddenByObjective = true;
                     boss.oldX = boss.x;
                     boss.x = -99999;
                     boss.active = false;
-                    if (typeof showNotification === 'function') showNotification("BOSS LOCKED UNTIL OBJECTIVE COMPLETE!", "#ff0000");
+                    if (showNotification) showNotification("BOSS LOCKED UNTIL OBJECTIVE COMPLETE!", "#ff0000");
                 }
             }
 
@@ -208,14 +214,14 @@ class AirHero {
             }
         } else {
             // Objective Completed: Release Boss
-            if (window.enemies) {
-                const boss = window.enemies.find(e => e.hiddenByObjective);
+            if (enemies) {
+                const boss = enemies.find(e => e.hiddenByObjective);
                 if (boss) {
                     boss.hiddenByObjective = false;
                     boss.x = boss.oldX || (window.innerWidth / 2); // Restore pos
                     boss.active = true;
-                    if (typeof showNotification === 'function') showNotification("BOSS UNLOCKED!", "#00ff00");
-                    createExplosion(boss.x, boss.y, '#40e0d0', 50);
+                    if (showNotification) showNotification("BOSS UNLOCKED!", "#00ff00");
+                    if (createExplosion) createExplosion(boss.x, boss.y, '#40e0d0', 50);
                 }
             }
         }
@@ -235,7 +241,7 @@ class AirHero {
             if (player.zephyrTimer <= 0) {
                 player.transformActive = false;
                 player.hurricaneActive = false;
-                if (typeof showNotification === 'function') showNotification("WINDS STILL...", "#40e0d0");
+                if (showNotification) showNotification("WINDS STILL...", "#40e0d0");
             }
         }
 
@@ -314,8 +320,8 @@ class AirHero {
         // (Handled partially in shoot, but let's override behavior here or add passive damage aura)
 
         // Passive Storm Damage to anything inside ring
-        if (player.hurricaneActive && frame % 10 === 0 && window.enemies) {
-            window.enemies.forEach(e => {
+        if (player.hurricaneActive && frame % 10 === 0 && enemies) {
+            enemies.forEach(e => {
                 if (Math.hypot(e.x - player.x, e.y - player.y) < 220) {
                     const hurricaneDmg = (player.transformActive && player.currentForm === 'ZEPHYR') ? 15 : 2;
                     e.hp -= hurricaneDmg * player.damageMultiplier;
@@ -337,8 +343,8 @@ class AirHero {
             t.timer--;
 
             // Suction & Damage
-            if (window.enemies) {
-                window.enemies.forEach(e => {
+            if (enemies) {
+                enemies.forEach(e => {
                     const dist = Math.hypot(e.x - t.x, e.y - t.y);
                     if (dist < 200) { // Suction range
                         const angle = Math.atan2(t.y - e.y, t.x - e.x);
@@ -350,7 +356,7 @@ class AirHero {
                             if (frame % 10 === 0) {
                                 const dmg = (player.stats.rangeDmg || 10) * 0.5 * player.damageMultiplier;
                                 e.hp -= dmg;
-                                createExplosion(e.x, e.y, '#40e0d0', 2);
+                                if (createExplosion) createExplosion(e.x, e.y, '#40e0d0', 2);
                                 if (typeof FloatingText !== 'undefined') new FloatingText(e.x, e.y - 20, Math.floor(dmg), '#40e0d0', 14);
                                 if (e.hp <= 0 && e.hp + dmg > 0) e.lastHitBy = 'PROJECTILE';
                             }
@@ -360,7 +366,7 @@ class AirHero {
             }
 
             // Visuals
-            if (frame % 3 === 0) {
+            if (frame % 3 === 0 && createExplosion) {
                 // Debris/Wind particles
                 createExplosion(t.x + (Math.random() - 0.5) * 100, t.y + (Math.random() - 0.5) * 100, '#fff', 5);
                 createExplosion(t.x + (Math.random() - 0.5) * 60, t.y + (Math.random() - 0.5) * 60, '#40e0d0', 8);
@@ -465,8 +471,8 @@ class AirHero {
                     }
 
                     // Logic: Gentle Push + Regen Tick
-                    if (window.enemies) {
-                        window.enemies.forEach(e => {
+                    if (enemies) {
+                        enemies.forEach(e => {
                             const d = Math.hypot(e.x - eff.x, e.y - eff.y);
                             if (d < 100) {
                                 const a = Math.atan2(e.y - eff.y, e.x - eff.x);
@@ -493,8 +499,8 @@ class AirHero {
                     ctx.fill();
 
                     // Logic: Push Enemies OUT
-                    if (window.enemies) {
-                        window.enemies.forEach(e => {
+                    if (enemies) {
+                        enemies.forEach(e => {
                             const d = Math.hypot(e.x - eff.x, e.y - eff.y);
                             if (d < 100) {
                                 const a = Math.atan2(e.y - eff.y, e.x - eff.x);
@@ -515,8 +521,8 @@ class AirHero {
                     ctx.fill();
 
                     // Logic: Suck Enemies IN
-                    if (window.enemies) {
-                        window.enemies.forEach(e => {
+                    if (enemies) {
+                        enemies.forEach(e => {
                             const d = Math.hypot(e.x - eff.x, e.y - eff.y);
                             if (d < 150) {
                                 const a = Math.atan2(eff.y - e.y, eff.x - e.x);
@@ -626,7 +632,9 @@ class AirHero {
         };
     }
 
-    static checkObjective(player) {
+    static checkObjective(player, world) {
+        const _w = world ?? window._world;
+        const { currentRunStats, showNotification, audioManager, enemies } = _w ?? {};
         const obj = player.currentObjective;
         if (!obj || obj.completed) return; // Already done
 
@@ -652,7 +660,7 @@ class AirHero {
             }
         }
         else if (obj.type === 'KILL') {
-            const kills = (typeof currentRunStats !== 'undefined' ? currentRunStats.enemiesKilled : 0) - (player.weatherVane.startKills || 0);
+            const kills = (currentRunStats ? currentRunStats.enemiesKilled : 0) - (player.weatherVane.startKills || 0);
             obj.current = kills;
         }
         else if (obj.type === 'COMBO') {
@@ -677,8 +685,8 @@ class AirHero {
             obj.completed = true;
             obj.state = 'COMPLETED'; // Unlock game loop spawn logic
 
-            if (typeof showNotification === 'function') showNotification("OBJECTIVE COMPLETE! BOSS PHASE!", '#40e0d0');
-            if (typeof audioManager !== 'undefined') audioManager.play('challenge_success');
+            if (showNotification) showNotification("OBJECTIVE COMPLETE! BOSS PHASE!", '#40e0d0');
+            if (audioManager) audioManager.play('challenge_success');
 
             // FORCE BOSS PHASE
             // Set global kill count to max to trigger standard game loop boss spawn
@@ -687,9 +695,9 @@ class AirHero {
                 window.enemiesKilledInWave = (window.ENEMIES_PER_WAVE * currentWave) + 100;
             }
             // Fallback: If variables aren't global, try to find boss in pool or spawn
-            if (window.enemies && !window.bossActive) {
+            if (enemies && !window.bossActive) {
                 // Check if boss already exists but hidden
-                const existingBoss = window.enemies.find(e => e.isBoss || e.constructor.name === 'Boss');
+                const existingBoss = enemies.find(e => e.isBoss || e.constructor.name === 'Boss');
                 if (existingBoss) {
                     existingBoss.hiddenByObjective = false;
                     existingBoss.x = existingBoss.oldX || (window.innerWidth / 2);
@@ -698,7 +706,7 @@ class AirHero {
                     // Spawn new if standard logic fails
                     if (typeof Boss !== 'undefined') {
                         window.bossActive = true;
-                        window.enemies.unshift(new Boss());
+                        enemies.unshift(new Boss());
                     }
                 }
             }

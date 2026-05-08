@@ -17,9 +17,9 @@ class ChanceHero {
         player.specialName = "SLOTS";
         player.specialMaxCooldown = 900; // 15s
 
-        player.customUpdate = (dx, dy) => ChanceHero.update(player, dx, dy);
-        player.customSpecial = () => ChanceHero.useSpecial(player);
-        player.shoot = (dx, dy) => ChanceHero.shootDice(player, dx, dy);
+        player.customUpdate = (dx, dy, world) => ChanceHero.update(player, dx, dy, world);
+        player.customSpecial = (world) => ChanceHero.useSpecial(player, world);
+        player.shoot = (dx, dy, world) => ChanceHero.shootDice(player, dx, dy, world);
 
         // Form Name
         player.getFormName = function () { return 'JACKPOT'; };
@@ -71,7 +71,9 @@ class ChanceHero {
     }
 
     // LEVEL UP: Per-Run Upgrades
-    static applyUpgrade(player, type) {
+    static applyUpgrade(player, type, world) {
+        const _w = world ?? window._world;
+        const { createExplosion, goldDrops, showNotification, saveData } = _w ?? {};
         if (type === 'transform') {
             player.transformActive = true;
             player.currentForm = 'JACKPOT';
@@ -133,7 +135,9 @@ class ChanceHero {
         return min + (val * (max - min));
     }
 
-    static update(player, dx, dy) {
+    static update(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { frame, wave, showNotification, createExplosion, audioManager, goldDrops } = _w ?? {};
         // Convergence Updates
 
         // Golden Magnet (cv_ch_m)
@@ -176,13 +180,13 @@ class ChanceHero {
 
         // Convergence: Money Tree (cv_ch_p)
         const hasMoneyTree = ChanceHero.checkConvergence(player, 'cv_ch_p');
-        if (hasMoneyTree && window.wave > (player.lastInterestWave || 0)) {
+        if (hasMoneyTree && (wave ?? window.wave) > (player.lastInterestWave || 0)) {
             const interest = Math.floor(player.gold * 0.01);
             if (interest > 0) {
                 player.gold += interest;
                 if (typeof showNotification === 'function') showNotification(`INTEREST: +${interest}G`, "#2ecc71");
             }
-            player.lastInterestWave = window.wave;
+            player.lastInterestWave = wave ?? window.wave;
         }
 
         // Form Logic: JACKPOT
@@ -191,7 +195,7 @@ class ChanceHero {
             player.jackpotTimer--;
 
             // Auto-trigger slot machine every 60 frames (guaranteed jackpot)
-            if (window.frame % 60 === 0 && !player.slotMachine.active) {
+            if ((frame ?? window.frame) % 60 === 0 && !player.slotMachine.active) {
                 player.slotMachine.active = true;
                 player.slotMachine.timer = 30;
                 player.slotMachine.outcome = 'JACKPOT';
@@ -208,14 +212,14 @@ class ChanceHero {
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = '#ff00ff';
                 for (let i = 0; i < 4; i++) {
-                    const a = (window.frame * 0.04) + (i * Math.PI / 2);
+                    const a = ((frame ?? window.frame) * 0.04) + (i * Math.PI / 2);
                     ctx.fillStyle = '#fff';
                     ctx.fillText(symbols[i], player.x + Math.cos(a) * 60, player.y + Math.sin(a) * 60);
                 }
                 ctx.restore();
             }
 
-            if (window.frame % 30 === 0 && typeof createExplosion !== 'undefined') {
+            if ((frame ?? window.frame) % 30 === 0 && typeof createExplosion !== 'undefined') {
                 createExplosion(player.x, player.y, "#ff00ff", 5);
             }
 
@@ -452,10 +456,12 @@ class ChanceHero {
         }
     }
 
-    static shootDice(player, dx, dy) {
+    static shootDice(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { audioManager, projectiles } = _w ?? {};
         if (player.rangeCooldown > 0) return;
 
-        if (typeof audioManager !== 'undefined') audioManager.play('attack_chance');
+        if (audioManager) audioManager.play('attack_chance');
 
         // RNG Damage logic
         const minDmg = 1;
@@ -620,7 +626,9 @@ class ChanceHero {
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
     }
 
-    static useSpecial(player) {
+    static useSpecial(player, world) {
+        const _w = world ?? window._world;
+        const { audioManager } = _w ?? {};
         if (player.slotMachine.active) return;
 
         player.slotMachine.active = true;

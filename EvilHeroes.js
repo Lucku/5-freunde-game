@@ -170,7 +170,9 @@ window.HERO_LOGIC['green_goblin'] = {
     },
 
     // Special: magnet pull — suck nearby enemies in, then scatter bombs around player
-    customSpecial(p) {
+    customSpecial(p, world) {
+        const _w = world ?? window._world;
+        const { enemies, arena, audioManager, showNotification } = _w ?? {};
         const pullRange = 500;
         const pullStrength = 240; // pixels pulled per activation
 
@@ -201,14 +203,16 @@ window.HERO_LOGIC['green_goblin'] = {
         p.invincibleTimer = 20;
 
         if (typeof triggerImpact    !== 'undefined') triggerImpact(3, 10, 0.3, 0.55, 300);
-        if (typeof audioManager     !== 'undefined') audioManager.play('boss_stomp');
-        if (typeof showNotification !== 'undefined') showNotification('TRICK OR TREAT!');
+        audioManager?.play('boss_stomp');
+        if (showNotification) showNotification('TRICK OR TREAT!');
         return true;
     },
 
     // Ultimate: magnet pull then bomb ring
-    customUltimate(p) {
-        if (typeof showNotification !== 'undefined') showNotification('MANIC BOMB STORM!');
+    customUltimate(p, world) {
+        const _w = world ?? window._world;
+        const { enemies, arena, audioManager, showNotification } = _w ?? {};
+        if (showNotification) showNotification('MANIC BOMB STORM!');
         if (typeof triggerImpact !== 'undefined') triggerImpact(5, 14, 0.4, 0.7, 400);
 
         // Step 1: pull enemies toward player
@@ -235,12 +239,14 @@ window.HERO_LOGIC['green_goblin'] = {
             p._goblinBombs.push({ x: bx, y: by, timer: 30, maxTimer: 30, radius: blastR, dmg });
         }
 
-        if (typeof audioManager !== 'undefined') audioManager.play('boss_stomp');
+        audioManager?.play('boss_stomp');
         return true;
     },
 
     // Called every frame by update() hook
-    update(p, dt) {
+    update(p, dt, world) {
+        const _w = world ?? window._world;
+        const { enemies, frame, floatingTexts, createExplosion, audioManager } = _w ?? {};
         // Tick pending bombs
         for (let i = p._goblinBombs.length - 1; i >= 0; i--) {
             const b = p._goblinBombs[i];
@@ -248,8 +254,8 @@ window.HERO_LOGIC['green_goblin'] = {
 
             if (b.timer <= 0) {
                 // Detonate
-                if (typeof createExplosion !== 'undefined') createExplosion(b.x, b.y, '#e67e22');
-                if (typeof audioManager !== 'undefined') audioManager.play('boss_stomp');
+                createExplosion?.(b.x, b.y, '#e67e22');
+                audioManager?.play('boss_stomp');
 
                 const _bombTargets = [...(enemies || []), ...(window.additionalPlayers || [])];
                 _bombTargets.forEach(e => {
@@ -258,7 +264,7 @@ window.HERO_LOGIC['green_goblin'] = {
                         const isCrit = Math.random() < p.critChance;
                         const dmg = b.dmg * (isCrit ? p.critMultiplier : 1) * (1 - (e.damageReduction || 0));
                         e.hp -= dmg;
-                        if (typeof floatingTexts !== 'undefined')
+                        if (floatingTexts)
                             floatingTexts.push(new FloatingText(e.x, e.y - 20, Math.ceil(dmg), isCrit ? '#ffd700' : '#e67e22', isCrit ? 26 : 20));
                     }
                 });
@@ -440,7 +446,9 @@ window.HERO_LOGIC['makuta'] = {
     },
 
     // Override shoot — shadow bolt with pierce
-    customShoot(p) {
+    customShoot(p, world) {
+        const _w = world ?? window._world;
+        const { projectiles, audioManager } = _w ?? {};
         const dmg    = p.stats.rangeDmg * p.damageMultiplier * 0.40;
         const speed  = p.stats.projectileSpeed;
         const size   = p.stats.projectileSize;
@@ -468,20 +476,22 @@ window.HERO_LOGIC['makuta'] = {
             projectiles.push(proj);
         });
 
-        if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_beam');
+        audioManager?.play('boss_makuta_shadow_beam');
 
         p.rangeCooldown = cd;
         return true;
     },
 
     // Special: shadow nova — ring of shadow projectiles + aimed beams toward nearest enemy
-    customSpecial(p) {
+    customSpecial(p, world) {
+        const _w = world ?? window._world;
+        const { enemies, projectiles, audioManager, showNotification } = _w ?? {};
         const baseDmg  = p.stats.rangeDmg * p.damageMultiplier;
         const speed    = p.stats.projectileSpeed;
         const size     = p.stats.projectileSize;
 
         // Outward ring of 16 shadow bolts
-        if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_nova');
+        audioManager?.play('boss_makuta_shadow_nova');
         const ringCount = 16;
         for (let i = 0; i < ringCount; i++) {
             const a = (Math.PI * 2 / ringCount) * i;
@@ -506,7 +516,7 @@ window.HERO_LOGIC['makuta'] = {
             ? Math.atan2(aimTarget.y - p.y, aimTarget.x - p.x)
             : p.aimAngle;
 
-        if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_beam');
+        audioManager?.play('boss_makuta_shadow_beam');
         for (let s = -1; s <= 1; s++) {
             const a = baseAngle + s * 0.2;
             const proj = new Projectile(
@@ -521,12 +531,14 @@ window.HERO_LOGIC['makuta'] = {
 
         p.invincibleTimer = 18;
         if (typeof triggerImpact    !== 'undefined') triggerImpact(4, 12, 0.4, 0.7, 350);
-        if (typeof showNotification !== 'undefined') showNotification('SHADOW NOVA!');
+        if (showNotification) showNotification('SHADOW NOVA!');
         return true;
     },
 
     // Ultimate: shadow sweep laser arc
-    customUltimate(p) {
+    customUltimate(p, world) {
+        const _w = world ?? window._world;
+        const { audioManager, showNotification } = _w ?? {};
         if (p._sweepActive) return false;   // already sweeping
 
         p._sweepActive   = true;
@@ -534,13 +546,15 @@ window.HERO_LOGIC['makuta'] = {
         p._sweepAngle    = p.aimAngle - ((p._sweepArcDeg + p._sweepExtraAngle) / 2) * (Math.PI / 180);
         p.invincibleTimer = p._sweepDuration;
 
-        if (typeof showNotification !== 'undefined') showNotification('SHADOW SWEEP!');
+        if (showNotification) showNotification('SHADOW SWEEP!');
         if (typeof triggerImpact !== 'undefined') triggerImpact(6, 18, 0.5, 0.85, 500);
-        if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_nova');
+        audioManager?.play('boss_makuta_shadow_nova');
         return true;
     },
 
-    update(p, dt) {
+    update(p, dt, world) {
+        const _w = world ?? window._world;
+        const { enemies, frame, floatingTexts, createExplosion } = _w ?? {};
         if (p._mkTeleportFlash > 0) p._mkTeleportFlash--;
 
         if (!p._sweepActive) return;
@@ -565,7 +579,7 @@ window.HERO_LOGIC['makuta'] = {
                 if ((e.isDead) || e.hp <= 0) return;
                 if (Math.hypot(e.x - lx, e.y - ly) < e.radius + 14) {
                     e.hp -= dmgPerFrame;
-                    if (typeof floatingTexts !== 'undefined' && Math.random() < 0.08)
+                    if (floatingTexts && Math.random() < 0.08)
                         floatingTexts.push(new FloatingText(e.x, e.y - 20, Math.ceil(dmgPerFrame), '#8e44ad', 18));
                 }
             });
@@ -574,7 +588,7 @@ window.HERO_LOGIC['makuta'] = {
         // Visual: draw handled in drawOverlay
         if (p._sweepTimer <= 0) {
             p._sweepActive = false;
-            if (typeof createExplosion !== 'undefined') createExplosion(p.x, p.y, '#8e44ad');
+            createExplosion?.(p.x, p.y, '#8e44ad');
         }
     },
 

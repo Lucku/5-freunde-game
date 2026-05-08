@@ -1,0 +1,204 @@
+'use strict';
+
+/**
+ * server/simulation/loader.js
+ *
+ * Loads real game-class files into the Node.js global scope.
+ * Must be require()'d exactly ONCE (at server startup, before any GameSession
+ * is created).  Subsequent require() calls are no-ops due to Node module cache.
+ *
+ * Strategy:
+ *   - Class files (Player, Enemy, Arena, entities) now have UMD footers and are
+ *     loaded with regular require(); their exports are assigned to globals.
+ *   - DLC registration files do window.HERO_LOGIC[type] = {...} — with
+ *     global.window = global these writes land in global.HERO_LOGIC.
+ *   - Constants come from server/simulation/constants.js (Node-safe), never
+ *     from the browser-only Constants.js.
+ */
+
+const path = require('path');
+const ROOT = path.resolve(__dirname, '../../');
+
+function g(relPath) {
+    return require(path.join(ROOT, relPath));
+}
+
+// ── 1. Window / browser shim ──────────────────────────────────────────────────
+global.window   = global;
+global.canvas   = { width: 3000, height: 3000, getContext: () => _noopCtx };
+// No-op canvas context: DLC heroes mix rendering into update(); swallow all canvas calls.
+const _noopCtx = new Proxy(function () {}, {
+    get:   ()  => _noopCtx,
+    apply: ()  => _noopCtx,
+    set:   ()  => true,
+});
+global.ctx = _noopCtx;
+global.document = {
+    getElementById: () => ({
+        innerText: '', style: {}, innerHTML: '', src: '',
+        addEventListener: () => {},
+        classList: { add: () => {}, remove: () => {} },
+    }),
+};
+global.Image = class { set src(_) {} };
+
+// ── 2. Game constants (Node-safe server constants, not browser Constants.js) ──
+const {
+    BASE_HERO_STATS, UPGRADE_POOL,
+    ARENA_WIDTH, ARENA_HEIGHT,
+} = require('./constants');
+
+global.BASE_HERO_STATS = BASE_HERO_STATS;
+global.UPGRADE_POOL    = UPGRADE_POOL;
+global.ARENA_WIDTH     = ARENA_WIDTH;
+global.ARENA_HEIGHT    = ARENA_HEIGHT;
+
+// Additional stubs Player constructor touches but aren't needed on server:
+global.CHAOS_EFFECTS   = [];
+global.ELITE_TYPES     = [];
+global.ACHIEVEMENTS    = [];
+
+// ── 3. Per-session game-state globals (stubs; synced from world each tick) ────
+// Player constructor reads these globals — they're overwritten before each
+// new Player() call via the global.canvas dimension fix above.
+
+// saveData: Proxy returns default hero save-data for unknown hero types so that
+// getHeroStats() never crashes on prestige/unlocked access.
+global.saveData = new Proxy({
+    metaUpgrades: { greed: 0, health: 0, power: 0, swift: 0, defense: 0, wisdom: 0 },
+    chaos: { active: [] },
+    global: { unlockedAchievements: [], totalDamage: 0 },
+    collection: [],
+    story: { enabled: false },
+    altar: { active: [] },
+}, {
+    get(target, prop) {
+        if (prop in target) return target[prop];
+        return { prestige: 0, unlocked: 0 }; // default hero data for any type
+    },
+});
+
+global.player           = null;
+global.player2          = null;
+global.wave             = 1;
+global.frame            = 0;
+global.arena            = { width: ARENA_WIDTH, height: ARENA_HEIGHT, camera: { x: 0, y: 0 }, checkCollision: () => false };
+global.enemies          = [];
+global.projectiles      = [];
+global.particles        = [];
+global.floatingTexts    = [];
+global.goldDrops        = [];
+global.companions       = [];
+global.memoryShards     = [];
+global.meleeAttacks     = [];
+global.powerUps         = [];
+global.keys             = null;
+global.mouse            = null;
+global.bossActive       = false;
+global.isLevelingUp     = false;
+global.isShopping       = false;
+global.gamePaused       = false;
+global.isCoopMode       = true;
+global.isAICompanionMode = false;
+global.isEvilMode       = false;
+global.isOnlineHost     = false;
+global.isChaosShuffleMode = false;
+global.isTutorialMode   = false;
+global.isPlayerDying    = false;
+global.isDailyMode      = false;
+global.isWeeklyMode     = false;
+global.isVersusMode     = false;
+global.activeMutators   = [];
+global.forcedEnemyType  = null;
+global.currentObjective = null;
+global.currentWeather   = null;
+global.currentRunStats  = {
+    missilesFired: 0, meleeHits: 0, damageDealt: 0,
+    damageTaken: 0, goldCollected: 0, enemiesKilled: 0,
+    maxCombo: 0, _noHitBaseline: 0,
+};
+global.audioManager     = undefined; // undefined → `typeof audioManager !== 'undefined'` is false
+
+// ── 4. Stub functions ─────────────────────────────────────────────────────────
+global.createExplosion   = () => {};
+global.showNotification  = () => {};
+global.getDecoyTarget    = () => null;
+global.getBiomeEnemyType = () => null;
+global.getCoopTarget     = () => global.player2 || global.player;
+global.getCollectionBonuses = () => ({
+    damageMult: 1, speedMult: 1, healthMult: 1, goldMult: 1, xpMult: 1,
+    meleeDmg: 0, rangeDmg: 0, maxHp: 0, speed: 0, defense: 0, luck: 0,
+});
+global.isChaosActive     = () => false;
+global.checkChaosEvent   = () => {};
+global.triggerImpact     = () => {};
+global.togglePause       = () => {};
+global.triggerStory      = () => {};
+global._stopWeather      = () => {};
+global.EvilMode          = { getXpMultiplier: () => 1 };
+global.TutorialMode      = null;
+global.HERO_LOGIC        = {};
+global.ENEMY_LOGIC       = {};
+global.BIOME_LOGIC       = {};
+// SoundHero reads window.SYMPHONY_STATE for its totem system
+global.SYMPHONY_STATE    = { _lastWave: null, totems: [], totemsConquered: 0, onBeat: false };
+
+// getHeroStats() calls this for skill-tree bonuses; return empty tree (unlocked=0 skips loop)
+global.generateHeroSkillTree = () => ({});
+
+// Stub level-up UI so Player.levelUp() doesn't crash on server
+global.levelUpUI         = null;
+global.spawnLevelUpAura  = () => {};
+
+// HumanController stub — Player constructor calls new HumanController(0) for non-CPU players.
+// Server always passes isCPU=true so this is only a safety net.
+global.HumanController = class {
+    constructor() { this.gamepadIndex = 0; }
+    getInput() {
+        return { x: 0, y: 0, aimAngle: 0, usingGamepad: false,
+                 shoot: false, melee: false, dash: false, special: false, pause: false };
+    }
+};
+
+// ── 5. Load shared World class ────────────────────────────────────────────────
+global.World = g('shared/world');
+
+// ── 6. Load entity classes ────────────────────────────────────────────────────
+global.Projectile   = g('Entities/Projectile');
+global.FloatingText = g('Entities/FloatingText');
+global.GoldDrop     = g('Entities/GoldDrop');
+global.Particle     = g('Entities/Particle');
+global.MeleeSwipe   = g('Entities/MeleeSwipe');
+
+// ── 7. Load core game classes ─────────────────────────────────────────────────
+// Player.js defines window.getHeroStats at the bottom — with global.window = global
+// this becomes global.getHeroStats, which is required by the Player constructor.
+global.Player = g('Player');
+global.Enemy  = g('Enemy');
+global.Arena  = g('Arena');
+
+// ── 8. Load DLC HERO_LOGIC registries ─────────────────────────────────────────
+// These files do:  window.HERO_LOGIC[type] = { ... }
+// With global.window = global, they write to global.HERO_LOGIC.
+// They also self-register BASE_HERO_STATS entries where needed (e.g. VoidHero.js).
+g('EvilHeroes');
+g('dlc/symphony_of_sickness/PoisonHero');
+g('dlc/symphony_of_sickness/SoundHero');
+g('dlc/waker_of_winds/AirHero');
+g('dlc/faith_of_fortune/ChanceHero');
+g('dlc/faith_of_fortune/SpiritHero');
+g('dlc/champions_of_chaos/VoidHero');
+g('dlc/champions_of_chaos/GravityHero');
+g('dlc/tournament_of_thunder/LightningHero');
+g('dlc/echos_of_eternity/LoveHero');
+g('dlc/rise_of_the_rock/EarthHero');
+g('dlc/echos_of_eternity/TimeHero');
+
+// Files that expose via window.XxxHero but don't self-register to HERO_LOGIC
+// (their DLC index.js does that in the browser — we do it here instead).
+if (global.LoveHero)      global.HERO_LOGIC['love']      = global.LoveHero;
+if (global.EarthHero)     global.HERO_LOGIC['earth']     = global.EarthHero;
+if (global.TimeHero)      global.HERO_LOGIC['time']      = global.TimeHero;
+// LightningHero.js sets window.LightningHero but then overwrites HERO_LOGIC['lightning']
+// with only { applyUpgrade }; restore the full class so Player.init() finds init().
+if (global.LightningHero) global.HERO_LOGIC['lightning'] = global.LightningHero;

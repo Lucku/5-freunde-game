@@ -19,7 +19,9 @@
 class TimeHero {
 
     // ─── Init ────────────────────────────────────────────────────────────────
-    static init(player) {
+    static init(player, world) {
+        const _w = world ?? window._world;
+        const { saveData } = _w ?? {};
         // Core resources
         player.chronoEnergy = 0;   // 0-100
         player.timelineBurden = 0;   // 0-100
@@ -46,11 +48,11 @@ class TimeHero {
         player.stats.meleeCd = 90;
 
         // Attach hooks
-        player.customUpdate = (dx, dy) => TimeHero.update(player, dx, dy);
+        player.customUpdate = (dx, dy, world) => TimeHero.update(player, dx, dy, world);
         player.customDraw = (ctx) => TimeHero.draw(player, ctx);
-        player.customSpecial = () => TimeHero.useSpecial(player);
-        player.melee = () => TimeHero.melee(player);
-        player.shoot = () => TimeHero.shoot(player);
+        player.customSpecial = (world) => TimeHero.useSpecial(player, world);
+        player.melee = (world) => TimeHero.melee(player, world);
+        player.shoot = (world) => TimeHero.shoot(player, world);
         player.getAIInput = (p, c, t) => TimeHero.getAIInput(p, c, t);
 
         // Special UI
@@ -81,7 +83,9 @@ class TimeHero {
     }
 
     // ─── Update ──────────────────────────────────────────────────────────────
-    static update(player, dx, dy) {
+    static update(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { enemies, projectiles, particles, floatingTexts, frame, saveData, createExplosion } = _w ?? {};
         const fl = Math.floor((player.timelineBurden || 0) / 20);  // fracture level 0-5
 
         // 1. Passive echo spawn
@@ -98,7 +102,7 @@ class TimeHero {
         player.activeEchoes = player.activeEchoes.filter(e => {
             e.life--;
             e.fireCd--;
-            if (e.fireCd <= 0 && typeof enemies !== 'undefined' && enemies.length > 0) {
+            if (e.fireCd <= 0 && enemies && enemies.length > 0) {
                 let nearest = null, bestDist = 320;
                 for (const en of enemies) {
                     const d = Math.hypot(en.x - e.x, en.y - e.y);
@@ -124,7 +128,7 @@ class TimeHero {
                         };
                     }
                     projectiles.push(echoProj);
-                    if (typeof saveData !== 'undefined') {
+                    if (saveData) {
                         saveData.global = saveData.global || {};
                         saveData.global.echo_shots = (saveData.global.echo_shots || 0) + 1;
                     }
@@ -136,7 +140,7 @@ class TimeHero {
         });
 
         // 3. Auto-spawn fracture shadows based on fracture level
-        if (fl > 0 && typeof enemies !== 'undefined' && enemies.length > 0) {
+        if (fl > 0 && enemies && enemies.length > 0) {
             player._fractureShadowTimer--;
             if (player._fractureShadowTimer <= 0) {
                 const interval = Math.max(120, 550 - fl * 85); // level 1→465f … level 5→125f
@@ -159,7 +163,7 @@ class TimeHero {
             if (shadow.hitCd > 0) shadow.hitCd--;
 
             // Projectile hits (player projectiles damage shadows)
-            if (typeof projectiles !== 'undefined') {
+            if (projectiles) {
                 for (const p of projectiles) {
                     if (p.team !== 'player') continue;
                     if (Math.hypot(p.x - shadow.x, p.y - shadow.y) < shadow.radius + (p.radius || 8)) {
@@ -182,7 +186,7 @@ class TimeHero {
                 const rawDmg = shadow.damage * (1 - (player.damageReduction || 0));
                 if (typeof player.takeDamage === 'function') player.takeDamage(rawDmg);
                 else player.hp = Math.max(0, player.hp - rawDmg);
-                if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined')
+                if (floatingTexts && typeof FloatingText !== 'undefined')
                     floatingTexts.push(new FloatingText(player.x, player.y - 25, Math.floor(rawDmg), '#c8aa6e', 18));
                 shadow.hitCd = 90;
             }
@@ -205,7 +209,7 @@ class TimeHero {
         }
 
         // 6. Melee slow ticks
-        if (typeof enemies !== 'undefined') {
+        if (enemies) {
             enemies.forEach(e => {
                 if (e._timeSlowTimer > 0) {
                     e._timeSlowTimer--;
@@ -226,12 +230,12 @@ class TimeHero {
                 dl.timer--;
                 if (dl.timer <= 0) {
                     const lightDmg = player.stats.rangeDmg * player.damageMultiplier * 0.65;
-                    if (typeof enemies !== 'undefined') {
+                    if (enemies) {
                         enemies.forEach(e => {
                             if (Math.hypot(e.x - dl.x, e.y - dl.y) < 130) e.hp -= lightDmg;
                         });
                     }
-                    if (typeof createExplosion === 'function') createExplosion(dl.x, dl.y, '#ffe066', 18);
+                    createExplosion?.(dl.x, dl.y, '#ffe066', 18);
                     player._delayedLightnings.splice(i, 1);
                 }
             }
@@ -241,7 +245,7 @@ class TimeHero {
             for (let i = player._gravWells.length - 1; i >= 0; i--) {
                 const gw = player._gravWells[i];
                 gw.timer--;
-                if (typeof enemies !== 'undefined') {
+                if (enemies) {
                     enemies.forEach(e => {
                         const d = Math.hypot(e.x - gw.x, e.y - gw.y);
                         if (d < 180 && d > 1) {

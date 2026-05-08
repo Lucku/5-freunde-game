@@ -80,7 +80,9 @@ window.HERO_LOGIC['gravity'] = {
         }
     },
 
-    applyUpgrade: function(player, type) {
+    applyUpgrade: function(player, type, world) {
+        const _w = world ?? window._world;
+        const { enemies, createExplosion, showNotification } = _w ?? {};
         if (type === 'radius') {
             player.gravityWellSize = (player.gravityWellSize || 100) * 1.25;
             return true;
@@ -89,7 +91,7 @@ window.HERO_LOGIC['gravity'] = {
             player.transformActive = true;
             player.currentForm = 'DARK STAR';
             // Activation burst: pull all enemies inward with a massive jolt
-            const targets = (typeof enemies !== 'undefined') ? enemies : (window.enemies || []);
+            const targets = enemies || [];
             targets.forEach(e => {
                 if (e.hp <= 0) return;
                 const dist = Math.hypot(e.x - player.x, e.y - player.y);
@@ -200,7 +202,7 @@ window.HERO_LOGIC['gravity'] = {
         player.customSpecial = () => this.useSpecial(player);
 
         // Hook Projectile creation to customize drawing
-        // Since projectiles are generic, we can't easily change their draw function without a custom class 
+        // Since projectiles are generic, we can't easily change their draw function without a custom class
         // or a property check. The simplest way is to overwrite the 'shoot' method or use the 'customUpdate'.
         // Let's hook 'shoot' to inject custom projectile visuals after creation.
         const originalShoot = player.shoot.bind(player);
@@ -256,7 +258,9 @@ window.HERO_LOGIC['gravity'] = {
         player.setupSpecial();
     },
 
-    useSpecial: function (player) {
+    useSpecial: function (player, world) {
+        const _w = world ?? window._world;
+        const { audioManager, saveData, showNotification } = _w ?? {};
         // Mode 1: Detonate existing Black Hole
         if (player.activeBlackHole) {
             player.activeBlackHole.collapse(player);
@@ -274,7 +278,7 @@ window.HERO_LOGIC['gravity'] = {
 
         if (player.gravityMass >= 50) {
             player.gravityMass -= 50;
-            if (typeof audioManager !== 'undefined') audioManager.startLoop('special_gravity');
+            if (audioManager) audioManager.startLoop('special_gravity');
 
             // Spawn Black Hole
             player.activeBlackHole = new BlackHole(player.x, player.y, player);
@@ -298,9 +302,11 @@ window.HERO_LOGIC['gravity'] = {
         }
     },
 
-    update: function (player, dx, dy) {
+    update: function (player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { enemies, frame, saveData, createExplosion } = _w ?? {};
         // Passive: Gravity Pull (Smaller, consistent)
-        if (typeof enemies !== 'undefined') {
+        if (enemies) {
             const range = player.gravityWellSize + (player.level * 2);
             enemies.forEach(e => {
                 const dist = Math.hypot(e.x - player.x, e.y - player.y);
@@ -327,7 +333,7 @@ window.HERO_LOGIC['gravity'] = {
             // while enemies are being pulled directly into the player
             player.invincibleTimer = 10;
 
-            const allEnemies = (typeof enemies !== 'undefined') ? enemies : (window.enemies || []);
+            const allEnemies = enemies || [];
             const ultRange = (player.gravityWellSize + (player.level * 2)) * 3;
 
             allEnemies.forEach(e => {
@@ -347,7 +353,7 @@ window.HERO_LOGIC['gravity'] = {
                         const dotDmg = 15 * (player.damageMultiplier || 1);
                         e.hp -= dotDmg;
                         if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
-                        if ((window.frame || 0) % 15 === 0 && typeof createExplosion === 'function') {
+                        if ((frame ?? window.frame ?? 0) % 15 === 0 && typeof createExplosion === 'function') {
                             createExplosion(e.x, e.y, '#8e44ad', 6);
                         }
                     }
@@ -359,7 +365,7 @@ window.HERO_LOGIC['gravity'] = {
                 const ctx = window.ctx;
                 ctx.save();
                 ctx.translate(player.x, player.y);
-                const rot = (window.frame || 0) * 0.04;
+                const rot = (frame ?? window.frame ?? 0) * 0.04;
                 for (let ring = 0; ring < 3; ring++) {
                     const r = 45 + ring * 22;
                     ctx.strokeStyle = `rgba(${142 - ring * 25}, 68, ${173 + ring * 15}, ${0.75 - ring * 0.2})`;

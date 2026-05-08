@@ -1,39 +1,75 @@
 'use strict';
 
+// Load real game classes into global scope (runs once; subsequent requires are cached).
+require('./loader');
+
+const World = global.World;
+const NetworkInputController = require('./NetworkInputController');
+const {
+    ARENA_WIDTH,
+    ARENA_HEIGHT,
+    TICK_MS,
+    TICK_FRAMES,
+    UPGRADE_POOL,
+} = require('./constants');
+const WaveManager = require('./WaveManager');
+
 /**
  * GameSession — authoritative server-side game simulation.
  *
  * One instance per active online match. The server calls:
- *   session.init(hostHero, guestHero)      → starts the 20 Hz tick loop
- *   session.applyInput(role, input)         → accept inputs from either client
- *   session.applyLevelUpChoice(role, id)    → resume after a level-up choice
- *   session.stop()                          → clear the interval and release state
+ *   session.init(hostHero, guestHero)    → starts the 20 Hz tick loop
+ *   session.applyInput(role, input)      → accept inputs from either client
+ *   session.applyLevelUpChoice(role, id) → resume after a level-up choice
+ *   session.stop()                       → clear the interval and release state
  *
- * Snapshots are pushed to both clients directly via their WebSocket handles.
- * The snapshot schema is identical to the existing _onlineSendSnapshot() format
- * so _onlineApplySnapshot() on the client works with zero changes.
+ * Phase 6 changes vs previous version:
+ *   - Each session owns a World.createServerWorld() instance.
+ *   - Players are real Player class instances (correct stats + DLC init hooks).
+ *   - Player.update() is called every tick — movement, DLC update hooks,
+ *     and combat actions (shoot/melee/dash/special) are dispatched via
+ *     NetworkInputController reading player.moveInput / _pendingXxx.
+ *   - Player.shoot() and Player.melee() create real Projectile/MeleeSwipe
+ *     objects; _updateProjectiles() and _processMeleeAttacks() handle them.
+ *   - Snapshot schema is unchanged — client-side _onlineApplySnapshot() works
+ *     with zero modifications.
  *
- * p1 = lobby host player,  p2 = lobby guest player.
- * Each client receives a personalised snapshot where p2 is always *their own*
- * character, so the client's existing reconciliation code works unchanged.
+ * p1 = lobby host player, p2 = lobby guest player.
  */
-
-const {
-    BASE_HERO_STATS,
-    UPGRADE_POOL,
-    ARENA_WIDTH,
-    ARENA_HEIGHT,
-    PLAYER_RADIUS,
-    TICK_MS,
-    TICK_FRAMES,
-} = require('./constants');
-const WaveManager = require('./WaveManager');
-
 class GameSession {
     constructor(lobby, sendFn) {
-        this._lobby   = lobby;   // { host: {ws, userId, …}, guest: {ws, userId, …} }
-        this._send    = sendFn;  // send(ws, msgObject)
+        this._lobby  = lobby;  // { host: {ws, userId, …}, guest: {ws, userId, …} }
+        this._send   = sendFn; // send(ws, msgObject)
 
+        // ── World instance ─────────────────────────────────────────────────────
+        this._world = World.createServerWorld();
+        this._world.isCoopMode = true;
+        this._world.HERO_LOGIC  = global.HERO_LOGIC;
+        this._world.ENEMY_LOGIC = global.ENEMY_LOGIC;
+        this._world.saveData    = global.saveData;
+        this._world.currentRunStats = {
+            missilesFired: 0, meleeHits: 0, damageDealt: 0,
+            damageTaken: 0, goldCollected: 0, enemiesKilled: 0,
+            maxCombo: 0, _noHitBaseline: 0,
+        };
+        // createExplosion pushes a visual event; server uses it for enemy-death particles
+        this._world.createExplosion = (x, y, color) => {
+            this._events.push({ type: 'enemy_death', x, y, color });
+        };
+        // No-op audioManager: DLC heroes guard with `typeof audioManager !== 'undefined'`,
+        // which passes for null (typeof null === 'object'). Stub avoids the crash.
+        this._world.audioManager = {
+            play: () => {}, playAttack: () => {}, stopLoop: () => {}, startLoop: () => {},
+        };
+        // Flat arena — no obstacles on the server (pure collision boundary)
+        this._world.arena = {
+            width:          ARENA_WIDTH,
+            height:         ARENA_HEIGHT,
+            camera:         { x: 0, y: 0 },
+            checkCollision: () => false,
+        };
+
+        // ── Session state ──────────────────────────────────────────────────────
         this.players      = [null, null]; // [hostPlayer, guestPlayer]
         this.enemies      = [];
         this.projectiles  = [];
@@ -42,31 +78,64 @@ class GameSession {
         this.bossActive   = false;
         this.isLevelingUp = false;
 
-        this._events          = [];  // flushed each snapshot
-        this._levelUpFor      = -1; // index of player currently choosing upgrade
+        this._events             = []; // flushed each snapshot
+        this._levelUpFor         = -1; // index of player currently choosing upgrade
         this._enemiesKilledInWave = 0;
-        this._nextProjId      = 1;
-        this._frame           = 0;  // virtual 60-fps frame counter
-        this._waveKillTarget  = 30; // increases each wave
+        this._nextEnemyId        = 1;
+        this._nextProjId         = 1;
+        this._frame              = 0;  // virtual 60-fps frame counter
+        this._waveKillTarget     = 30;
 
         // Phase 3 delta encoding: IDs sent at least once this session.
-        // Static fields (color, radius, subType, …) are omitted after first appearance.
         this._knownEnemyIds = new Set();
         this._knownProjIds  = new Set();
 
-        this._waveManager   = new WaveManager();
-        this._tickInterval  = null;
-        this._startedAt     = 0;
+        this._waveManager  = new WaveManager();
+        this._tickInterval = null;
+        this._startedAt    = 0;
     }
 
-    // ─── Public API ───────────────────────────────────────────────────────────
+    // ─── Public API ─────────────────────────────────────────────────────────────
 
     init(hostHero, guestHero) {
-        this.players[0] = this._createPlayer(hostHero, ARENA_WIDTH / 2 - 120, ARENA_HEIGHT / 2);
-        this.players[1] = this._createPlayer(guestHero, ARENA_WIDTH / 2 + 120, ARENA_HEIGHT / 2);
+        // Sync canvas dimensions so Player constructor gets correct spawn coords
+        global.canvas = { width: ARENA_WIDTH, height: ARENA_HEIGHT };
+
+        const p1 = this._createPlayer(hostHero, ARENA_WIDTH / 2 - 120, ARENA_HEIGHT / 2);
+        const p2 = this._createPlayer(guestHero, ARENA_WIDTH / 2 + 120, ARENA_HEIGHT / 2);
+
+        this._world.player  = p1;
+        this._world.player2 = p2;
+        this.players = [p1, p2];
+
+        // Wire world arrays (player.shoot() pushes to these)
+        this._world.enemies     = this.enemies;
+        this._world.projectiles = this.projectiles;
+
         this._startedAt = Date.now();
         this._waveManager._lastSpawnMs = this._startedAt;
         this._tickInterval = setInterval(() => this._tick(), TICK_MS);
+    }
+
+    /**
+     * Create a real Player instance for server-side simulation.
+     * isCPU = true suppresses DOM access in setupSpecial().
+     */
+    _createPlayer(heroType, x, y) {
+        // HERO_LOGIC.init() falls back to window._world when no world arg is passed;
+        // set global._world so that lookup resolves to this session's world.
+        global._world = this._world;
+        const p = new global.Player(heroType, true); // isCPU = true → no DOM writes
+        p._world    = this._world;
+        p.x         = x;
+        p.y         = y;
+        p.moveInput = { x: 0, y: 0 };
+        p._pendingShoot   = false;
+        p._pendingMelee   = false;
+        p._pendingDash    = false;
+        p._pendingSpecial = false;
+        p.controller = new NetworkInputController();
+        return p;
     }
 
     applyInput(role, input) {
@@ -81,8 +150,8 @@ class GameSession {
         // Latch one-shot actions so they aren't dropped between ticks
         if (input.shoot)   player._pendingShoot   = true;
         if (input.melee)   player._pendingMelee   = true;
-        if (input.dash)    player._pendingDash     = true;
-        if (input.special) player._pendingSpecial  = true;
+        if (input.dash)    player._pendingDash    = true;
+        if (input.special) player._pendingSpecial = true;
     }
 
     applyLevelUpChoice(role, choiceId) {
@@ -97,7 +166,6 @@ class GameSession {
         player._levelUpOptions = null;
         this._levelUpFor       = -1;
         this.isLevelingUp      = false;
-        // Game loop auto-resumes next tick (isLevelingUp guard lifted)
     }
 
     stop() {
@@ -107,233 +175,130 @@ class GameSession {
         }
     }
 
-    // ─── Internal tick ────────────────────────────────────────────────────────
+    // ─── Internal tick ───────────────────────────────────────────────────────────
 
     _tick() {
         if (this.isLevelingUp) return;
 
-        this._frame += TICK_FRAMES; // advance virtual frame counter
+        this._frame += TICK_FRAMES;
+        this._syncWorld();
 
-        // 1. Update players
-        this.players.forEach((p, i) => { if (p && !p.isDead) this._updatePlayer(p, i); });
+        // 1. Update players via real Player.update()
+        //    NetworkInputController feeds moveInput + _pendingXxx into Player's
+        //    controller path, which dispatches movement, DLC hooks, and actions.
+        const prevProjCount   = this.projectiles.length;
+        const prevMeleeCount  = (this._world.meleeAttacks || []).length;
 
-        // 2. Move projectiles + collision vs enemies/players
+        this.players.forEach(p => {
+            if (p && !p.isDead) p.update();
+        });
+
+        // Assign IDs to new projectiles spawned by Player.shoot() / DLC hooks
+        for (let i = prevProjCount; i < this._world.projectiles.length; i++) {
+            const proj = this._world.projectiles[i];
+            if (!proj._id) proj._id = this._nextProjId++;
+        }
+        // Keep session reference in sync (player.shoot pushed to world array)
+        this.projectiles        = this._world.projectiles;
+
+        // 2. Process MeleeSwipe objects created by Player.melee() / DLC melee hooks
+        this._processMeleeAttacks(prevMeleeCount);
+
+        // 3. Move projectiles + collision vs enemies/players
         this._updateProjectiles();
 
-        // 3. Move enemies + contact damage
+        // 4. Move enemies + contact damage
         this._updateEnemies();
 
-        // 4. Spawn enemies
-        const refP = this.players.find(p => p && !p.isDead);
+        // 5. Spawn enemies
+        const refP    = this.players.find(p => p && !p.isDead);
         const spawned = this._waveManager.spawnIfReady(
             this.wave, this.bossActive, this.enemies, refP, Date.now()
         );
-        this.enemies.push(...spawned);
+        if (spawned.length) {
+            this.enemies.push(...spawned);
+            this._world.enemies = this.enemies;
+        }
 
-        // 5. Wave advancement
+        // 6. Wave advancement
         this._checkWaveAdvance();
 
-        // 6. Push snapshot to both clients
+        // 7. Push snapshot to both clients
         this._sendSnapshot();
     }
 
-    // ─── Player logic ─────────────────────────────────────────────────────────
-
-    _createPlayer(hero, x, y) {
-        const rawStats = BASE_HERO_STATS[hero] || BASE_HERO_STATS.fire;
-        const stats    = { ...rawStats };
-        return {
-            hero,
-            x, y,
-            radius: PLAYER_RADIUS,
-            hp:     stats.hp,
-            maxHp:  stats.hp,
-            isDead: false,
-            level:  1,
-            xp:     0,
-            maxXp:  100,
-            gold:   0,
-            aimAngle:  0,
-            moveInput: { x: 0, y: 0 },
-            stats,
-
-            // Combat cooldowns — counted in virtual 60-fps frames
-            rangeCooldown:  0,
-            meleeCooldown:  0,
-            dashCooldown:   0,
-            dashFrames:     0,
-            isDashing:      false,
-            invincibleTimer: 0,
-            isInvincible:   false,
-
-            // Upgrade-derived multipliers
-            damageMultiplier:  1,
-            speedMultiplier:   1,
-            cooldownMultiplier:1,
-            damageReduction:   0,
-            extraProjectiles:  0,
-            critChance:        0.05,
-            critMultiplier:    1.5,
-            meleeRadius:       80,
-
-            // Pending one-shot actions from input
-            _pendingShoot:   false,
-            _pendingMelee:   false,
-            _pendingDash:    false,
-            _pendingSpecial: false,
-
-            // Level-up state
-            _levelUpOptions: null,
-        };
+    /** Keep the world object in sync with mutable session state every tick. */
+    _syncWorld() {
+        const w = this._world;
+        w.frame      = this._frame;
+        w.wave       = this.wave;
+        w.score      = this.score;
+        w.bossActive = this.bossActive;
+        w.enemies    = this.enemies;
+        w.projectiles = this.projectiles;
     }
 
-    _updatePlayer(player, idx) {
-        const TF = TICK_FRAMES;
+    // ─── Melee ───────────────────────────────────────────────────────────────────
 
-        // Decrement frame-based timers
-        player.rangeCooldown   = Math.max(0, player.rangeCooldown   - TF);
-        player.meleeCooldown   = Math.max(0, player.meleeCooldown   - TF);
-        player.dashCooldown    = Math.max(0, player.dashCooldown    - TF);
-        player.invincibleTimer = Math.max(0, player.invincibleTimer - TF);
-        player.isInvincible    = player.invincibleTimer > 0;
+    /**
+     * Process MeleeSwipe objects that were pushed by Player.melee() / DLC hooks.
+     * MeleeSwipe.update() only repositions the swipe — damage must be applied here.
+     */
+    _processMeleeAttacks(prevCount) {
+        if (!this._world.meleeAttacks) return;
+        const swipes = this._world.meleeAttacks;
 
-        const { x: dx, y: dy } = player.moveInput;
+        swipes.forEach(swipe => {
+            swipe.update(); // reposition following owner
 
-        // Dash trigger
-        if (player._pendingDash) {
-            player._pendingDash = false;
-            if (player.dashCooldown <= 0 && !player.isDashing) {
-                if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
-                    player.isDashing   = true;
-                    player.dashFrames  = 10;
-                    player.dashCooldown = 180;
+            this.enemies.forEach(enemy => {
+                if (enemy.hp <= 0) return;
+                if (swipe.hitList && swipe.hitList.includes(enemy)) return;
+                const dist = Math.hypot(enemy.x - swipe.x, enemy.y - swipe.y);
+                if (dist < swipe.radius + enemy.radius) {
+                    if (swipe.hitList) swipe.hitList.push(enemy);
+                    this._damageEnemy(enemy, swipe.damage);
                 }
-            }
-        }
-
-        // Shoot
-        if (player._pendingShoot) {
-            player._pendingShoot = false;
-            this._shootPlayer(player, idx);
-        }
-
-        // Melee
-        if (player._pendingMelee) {
-            player._pendingMelee = false;
-            this._meleePlayer(player, idx);
-        }
-
-        // Consume pending special (no server effect yet; just clear it)
-        player._pendingSpecial = false;
-
-        // Movement speed
-        let spd = player.stats.speed * player.speedMultiplier;
-        if (player.isDashing) {
-            spd *= 4;
-            player.dashFrames -= TF;
-            if (player.dashFrames <= 0) player.isDashing = false;
-        }
-
-        // Move — normalize diagonal, scale by speed × tick-frames
-        let moveX = 0, moveY = 0;
-        if (dx !== 0 || dy !== 0) {
-            const len   = Math.sqrt(dx * dx + dy * dy);
-            const scale = Math.min(1, len);
-            moveX = (dx / (len || 1)) * spd * scale * TF;
-            moveY = (dy / (len || 1)) * spd * scale * TF;
-        }
-
-        player.x = Math.max(player.radius, Math.min(ARENA_WIDTH  - player.radius, player.x + moveX));
-        player.y = Math.max(player.radius, Math.min(ARENA_HEIGHT - player.radius, player.y + moveY));
-    }
-
-    _shootPlayer(player, ownerIdx) {
-        if (player.rangeCooldown > 0) return;
-        const s = player.stats;
-
-        // Plant fires 3-way spread; everyone else fires single
-        const baseAngle = player.aimAngle;
-        const angles = (player.hero === 'plant')
-            ? [baseAngle - 0.2, baseAngle, baseAngle + 0.2]
-            : [baseAngle];
-
-        const dmg      = s.rangeDmg  * player.damageMultiplier;
-        const speed    = s.projectileSpeed;
-        const size     = s.projectileSize;
-        const cooldown = s.rangeCd   * player.cooldownMultiplier;
-
-        const fireAngle = (a) => {
-            const isCrit      = Math.random() < player.critChance;
-            const finalDmg    = dmg * (isCrit ? player.critMultiplier : 1);
-            const isExplosive = player.hero === 'fire' && Math.random() < 0.1;
-            this.projectiles.push({
-                _id:        this._nextProjId++,
-                x:          player.x,
-                y:          player.y,
-                vx:         Math.cos(a) * speed,
-                vy:         Math.sin(a) * speed,
-                damage:     finalDmg,
-                radius:     size,
-                color:      s.color,
-                isEnemy:    false,
-                ownerIdx,
-                isExplosive,
-                isCrit,
-                life:       180, // virtual 60-fps frames
-                pierce:     0,
             });
-        };
-
-        angles.forEach(fireAngle);
-
-        // Extra projectiles from upgrades
-        for (let i = 0; i < player.extraProjectiles; i++) {
-            fireAngle(baseAngle + (Math.random() - 0.5) * 0.25);
-        }
-
-        player.rangeCooldown = cooldown;
-    }
-
-    _meleePlayer(player, _ownerIdx) {
-        if (player.meleeCooldown > 0) return;
-        const dmg = player.stats.meleeDmg * player.damageMultiplier;
-
-        this.enemies.forEach(enemy => {
-            const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-            if (dist < player.meleeRadius + enemy.radius) {
-                this._damageEnemy(enemy, dmg);
-            }
         });
 
-        player.meleeCooldown = player.stats.meleeCd * player.cooldownMultiplier;
+        // Prune expired swipes
+        this._world.meleeAttacks = swipes.filter(s => s.life > 0);
     }
 
-    // ─── Projectiles ──────────────────────────────────────────────────────────
+    // ─── Projectiles ─────────────────────────────────────────────────────────────
 
     _updateProjectiles() {
         const TF     = TICK_FRAMES;
         const remove = new Set();
 
         this.projectiles.forEach((proj, pi) => {
-            proj.x    += proj.vx * TF;
-            proj.y    += proj.vy * TF;
-            proj.life -= TF;
+            // Support both real Projectile (velocity.x/y) and plain objects (vx/vy)
+            const vx = proj.vx ?? proj.velocity?.x ?? 0;
+            const vy = proj.vy ?? proj.velocity?.y ?? 0;
+            proj.x += vx * TF;
+            proj.y += vy * TF;
 
-            if (proj.life <= 0 ||
-                proj.x < -50 || proj.x > ARENA_WIDTH  + 50 ||
+            // life = null means infinite lifetime (real Projectile default)
+            if (proj.life !== null && proj.life !== undefined) {
+                proj.life -= TF;
+                if (proj.life <= 0) { remove.add(pi); return; }
+            }
+
+            // Boundary cull
+            if (proj.x < -50 || proj.x > ARENA_WIDTH  + 50 ||
                 proj.y < -50 || proj.y > ARENA_HEIGHT + 50) {
-                remove.add(pi);
-                return;
+                remove.add(pi); return;
             }
 
             if (!proj.isEnemy) {
                 // Player projectile vs enemies
                 this.enemies.forEach(enemy => {
-                    if (remove.has(pi)) return;
+                    if (remove.has(pi) || enemy.hp <= 0) return;
                     const dist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
                     if (dist < proj.radius + enemy.radius) {
                         this._damageEnemy(enemy, proj.damage);
-                        if (proj.pierce <= 0) remove.add(pi);
+                        if ((proj.pierce || 0) <= 0) remove.add(pi);
                         else proj.pierce--;
                     }
                 });
@@ -351,9 +316,10 @@ class GameSession {
         });
 
         this.projectiles = this.projectiles.filter((_, i) => !remove.has(i));
+        this._world.projectiles = this.projectiles;
     }
 
-    // ─── Enemies ─────────────────────────────────────────────────────────────
+    // ─── Enemies ─────────────────────────────────────────────────────────────────
 
     _updateEnemies() {
         const TF = TICK_FRAMES;
@@ -368,7 +334,6 @@ class GameSession {
                 const d = Math.hypot(p.x - enemy.x, p.y - enemy.y);
                 if (d < minDist) { minDist = d; nearest = p; }
             });
-
             if (!nearest) return;
 
             // Move toward nearest player (unless frozen)
@@ -384,7 +349,7 @@ class GameSession {
                 enemy.y  = Math.max(enemy.radius, Math.min(ARENA_HEIGHT - enemy.radius, enemy.y));
             }
 
-            // Ranged subtypes fire projectiles at the player
+            // Ranged subtypes fire projectiles
             if (enemy.subType === 'SHOOTER' || enemy.subType === 'SNIPER') {
                 enemy.shootCooldown = Math.max(0, (enemy.shootCooldown || 0) - TF);
                 const range     = enemy.subType === 'SNIPER' ? 900 : 600;
@@ -395,28 +360,24 @@ class GameSession {
                     const angle = Math.atan2(nearest.y - enemy.y, nearest.x - enemy.x);
                     this.projectiles.push({
                         _id:      this._nextProjId++,
-                        x:        enemy.x,
-                        y:        enemy.y,
+                        x:        enemy.x, y: enemy.y,
                         vx:       Math.cos(angle) * projSpeed,
                         vy:       Math.sin(angle) * projSpeed,
                         damage:   enemy.damage * 0.5,
-                        radius:   8,
-                        color:    '#e74c3c',
+                        radius:   8, color: '#e74c3c',
                         isEnemy:  true,
-                        life:     150,
-                        pierce:   0,
+                        life:     150, pierce: 0,
                     });
                     enemy.shootCooldown = cd;
                 }
             }
 
-            // Contact damage to players
+            // Contact damage
             this.players.forEach((player, pIdx) => {
                 if (!player || player.isDead || player.isInvincible) return;
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
                 if (dist < player.radius + enemy.radius) {
                     this._damagePlayer(player, pIdx, enemy.damage);
-                    // Knockback
                     const ang = Math.atan2(player.y - enemy.y, player.x - enemy.x);
                     player.x  = Math.max(player.radius, Math.min(ARENA_WIDTH  - player.radius, player.x + Math.cos(ang) * 8));
                     player.y  = Math.max(player.radius, Math.min(ARENA_HEIGHT - player.radius, player.y + Math.sin(ang) * 8));
@@ -424,27 +385,24 @@ class GameSession {
             });
         });
 
-        // Prune dead enemies (HP checked in damageEnemy before kill logic)
         this.enemies = this.enemies.filter(e => e.hp > 0);
+        this._world.enemies = this.enemies;
     }
 
-    // ─── Damage helpers ───────────────────────────────────────────────────────
+    // ─── Damage helpers ──────────────────────────────────────────────────────────
 
     _damageEnemy(enemy, damage) {
         enemy.hp -= damage;
         if (enemy.hp > 0) return;
 
-        // Enemy killed
-        this.score             += 10;
+        this.score += 10;
         this._enemiesKilledInWave++;
 
         const xpGain = 10;
-        // Award XP to both players, split
         this.players.forEach((p, i) => {
             if (p && !p.isDead) this._giveXP(p, i, xpGain);
         });
 
-        // Gold drop (event drives client particle; also credit both players)
         if (Math.random() < 0.3) {
             this._events.push({ type: 'gold_drop', x: enemy.x, y: enemy.y });
             this.players.forEach(p => { if (p) p.gold += 5; });
@@ -456,27 +414,25 @@ class GameSession {
     _damagePlayer(player, playerIdx, damage) {
         if (player.isInvincible) return;
 
-        const actual = Math.max(0, damage * (1 - player.damageReduction));
+        const actual = Math.max(0, damage * (1 - (player.damageReduction || 0)));
         player.hp -= actual;
 
-        // Short invincibility window after being hit (mirrors client logic)
         player.invincibleTimer = 30;
         player.isInvincible    = true;
 
         if (player.hp <= 0) {
-            player.hp    = 0;
+            player.hp     = 0;
             player.isDead = true;
 
             const allDead = this.players.every(p => !p || p.isDead);
             if (allDead) {
                 this._events.push({ type: 'game_over', victory: false });
-                // Stop ticking; server.js's GAME_OVER handler will clean up
                 this.stop();
             }
         }
     }
 
-    // ─── XP & level-up ───────────────────────────────────────────────────────
+    // ─── XP & level-up ───────────────────────────────────────────────────────────
 
     _giveXP(player, playerIdx, amount) {
         player.xp += amount;
@@ -486,12 +442,10 @@ class GameSession {
         player.level++;
         player.maxXp  = Math.round(player.maxXp * 1.2);
 
-        // Pause the simulation while this player chooses an upgrade
         this.isLevelingUp = true;
         this._levelUpFor  = playerIdx;
 
-        // Pick 3 random upgrades without replacement
-        const pool    = [...UPGRADE_POOL];
+        const pool    = [...(this._world.HERO_LOGIC[player.type]?.upgradePool || UPGRADE_POOL)];
         const options = [];
         while (options.length < 3 && pool.length > 0) {
             const i = Math.floor(Math.random() * pool.length);
@@ -499,7 +453,6 @@ class GameSession {
         }
         player._levelUpOptions = options;
 
-        // Send LEVEL_UP to the client who leveled up, PARTNER_LEVELING to the other
         const hostConn  = this._lobby.host;
         const guestConn = this._lobby.guest;
 
@@ -513,37 +466,45 @@ class GameSession {
     }
 
     _applyUpgrade(player, upgrade) {
+        // Delegate to DLC hero applyUpgrade hook if available
+        const hl = this._world.HERO_LOGIC[player.type];
+        if (hl && typeof hl.applyUpgrade === 'function') {
+            hl.applyUpgrade(player, upgrade.id, this._world);
+            return;
+        }
+
+        // Generic upgrade application for non-DLC heroes
         switch (upgrade.id) {
             case 'health':
                 player.maxHp += 25;
                 player.hp     = Math.min(player.maxHp, player.hp + player.maxHp * 0.2);
                 break;
             case 'radius':
-                player.meleeRadius *= 1.25;
+                player.meleeRadius = (player.meleeRadius || 80) * 1.25;
                 break;
             case 'projectile':
-                player.extraProjectiles++;
+                player.extraProjectiles = (player.extraProjectiles || 0) + 1;
                 break;
             case 'speed':
-                player.speedMultiplier *= 1.1;
+                player.speedMultiplier = (player.speedMultiplier || 1) * 1.1;
                 break;
             case 'cooldown':
-                player.cooldownMultiplier *= 0.9;
+                player.cooldownMultiplier = (player.cooldownMultiplier || 1) * 0.9;
                 break;
             case 'defense':
-                player.damageReduction = Math.min(0.8, player.damageReduction + 0.05);
+                player.damageReduction = Math.min(0.8, (player.damageReduction || 0) + 0.05);
                 break;
             case 'damage':
-                player.damageMultiplier *= 1.1;
+                player.damageMultiplier = (player.damageMultiplier || 1) * 1.1;
                 break;
             case 'crit':
-                player.critChance     = Math.min(0.75, player.critChance + 0.05);
-                player.critMultiplier += 0.2;
+                player.critChance     = Math.min(0.75, (player.critChance || 0.05) + 0.05);
+                player.critMultiplier = (player.critMultiplier || 1.5) + 0.2;
                 break;
         }
     }
 
-    // ─── Wave logic ───────────────────────────────────────────────────────────
+    // ─── Wave logic ───────────────────────────────────────────────────────────────
 
     _checkWaveAdvance() {
         if (this._enemiesKilledInWave < this._waveKillTarget) return;
@@ -552,41 +513,40 @@ class GameSession {
         this._enemiesKilledInWave = 0;
         this._waveKillTarget      = Math.round(30 * this.wave);
         this.enemies              = [];
+        this._world.enemies       = this.enemies;
 
-        // Revive dead players at wave start (mirrors co-op client logic)
         this.players.forEach(p => {
             if (!p || !p.isDead) return;
-            p.isDead        = false;
-            p.hp            = Math.floor(p.maxHp * 0.5);
-            p.isInvincible  = false;
+            p.isDead          = false;
+            p.hp              = Math.floor(p.maxHp * 0.5);
+            p.isInvincible    = false;
             p.invincibleTimer = 0;
         });
 
         this._events.push({ type: 'wave_start', wave: this.wave });
     }
 
-    // ─── Snapshot ─────────────────────────────────────────────────────────────
+    // ─── Snapshot ─────────────────────────────────────────────────────────────────
 
     _sendSnapshot() {
         const roundP = (pl) => pl ? {
-            x:           Math.round(pl.x),
-            y:           Math.round(pl.y),
-            vx:          0,
-            vy:          0,
-            hp:          Math.round(pl.hp),
-            maxHp:       pl.maxHp,
-            isDead:      pl.isDead,
-            level:       pl.level,
-            xp:          Math.round(pl.xp),
-            maxXp:       pl.maxXp,
-            gold:        Math.round(pl.gold),
-            aimAngle:    Math.round((pl.aimAngle || 0) * 100) / 100,
-            isInvincible:!!pl.isInvincible,
-            mx:          Math.round((pl.moveInput?.x || 0) * 100) / 100,
-            my:          Math.round((pl.moveInput?.y || 0) * 100) / 100,
+            x:            Math.round(pl.x),
+            y:            Math.round(pl.y),
+            vx:           0,
+            vy:           0,
+            hp:           Math.round(pl.hp),
+            maxHp:        pl.maxHp,
+            isDead:       pl.isDead,
+            level:        pl.level,
+            xp:           Math.round(pl.xp),
+            maxXp:        pl.maxXp,
+            gold:         Math.round(pl.gold),
+            aimAngle:     Math.round((pl.aimAngle || 0) * 100) / 100,
+            isInvincible: !!pl.isInvincible,
+            mx:           Math.round((pl.moveInput?.x || 0) * 100) / 100,
+            my:           Math.round((pl.moveInput?.y || 0) * 100) / 100,
         } : null;
 
-        // Enemy list — static fields only on first appearance (delta encoding)
         const nextKnownEnemyIds = new Set();
         const enemyList = this.enemies.slice(0, 80).map(e => {
             nextKnownEnemyIds.add(e._id);
@@ -601,26 +561,28 @@ class GameSession {
                 frozenTimer: e.frozenTimer > 0 ? Math.round(e.frozenTimer) : 0,
             };
             if (!this._knownEnemyIds.has(e._id)) {
-                entry.maxHp  = e.maxHp;
+                entry.maxHp   = e.maxHp;
                 entry.subType = e.subType;
-                entry.color  = e.color;
-                entry.sides  = e.sides;
-                entry.radius = e.radius;
+                entry.color   = e.color;
+                entry.sides   = e.sides;
+                entry.radius  = e.radius;
             }
             return entry;
         });
         this._knownEnemyIds = nextKnownEnemyIds;
 
-        // Projectile list — static fields only on first appearance
         const nextKnownProjIds = new Set();
         const projList = this.projectiles.slice(0, 150).map(p => {
             nextKnownProjIds.add(p._id);
+            // Support both real Projectile (velocity.x/y) and plain objects (vx/vy)
+            const vx = p.vx ?? p.velocity?.x ?? 0;
+            const vy = p.vy ?? p.velocity?.y ?? 0;
             const entry = {
                 _id: p._id,
                 x:   Math.round(p.x),
                 y:   Math.round(p.y),
-                vx:  Math.round((p.vx || 0) * 10) / 10,
-                vy:  Math.round((p.vy || 0) * 10) / 10,
+                vx:  Math.round(vx * 10) / 10,
+                vy:  Math.round(vy * 10) / 10,
             };
             if (!this._knownProjIds.has(p._id)) {
                 entry.color       = p.color;
@@ -633,7 +595,7 @@ class GameSession {
         });
         this._knownProjIds = nextKnownProjIds;
 
-        const events = this._events.splice(0); // flush event queue
+        const events = this._events.splice(0);
 
         const base = {
             type:         'SNAPSHOT',
@@ -647,8 +609,7 @@ class GameSession {
             events,
         };
 
-        // Send personalised snapshots so each client sees their own character in p2
-        // (the client's _onlineApplySnapshot always reconciles using s.p2 as "my player")
+        // Personalised: each client sees their own character as p2
         const hostSnap  = { ...base, p1: roundP(this.players[1]), p2: roundP(this.players[0]) };
         const guestSnap = { ...base, p1: roundP(this.players[0]), p2: roundP(this.players[1]) };
 

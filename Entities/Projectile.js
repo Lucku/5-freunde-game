@@ -1,17 +1,18 @@
 class Projectile {
-    constructor(x, y, velocity, damage, color, radius, type, knockback, isEnemy, isExplosive = false, isCrit = false) {
+    constructor(x, y, velocity, damage, color, radius, type, knockback, isEnemy, isExplosive = false, isCrit = false, world = null) {
         this.x = x; this.y = y; this.velocity = velocity;
         this.damage = damage; this.color = color; this.radius = radius;
         this.type = type; this.knockback = knockback; this.isEnemy = isEnemy;
         this.isExplosive = isExplosive;
-        this.isCrit = isCrit; // Store crit status
+        this.isCrit = isCrit;
         this.pierce = (type === 'ice' && !isEnemy) ? 2 : 0;
-        this.owner = null; // Reference to the entity that fired this
+        this.owner = null;
+        this._world = world ?? (typeof window !== 'undefined' ? window._world : null) ?? null;
 
         if (this.isCrit) {
-            this.radius *= 1.5; // Visual indicator
+            this.radius *= 1.5;
         }
-        this.life = null; // Optional lifetime
+        this.life = null;
     }
     update() {
         this.x += this.velocity.x;
@@ -239,3 +240,4 @@ class Projectile {
         ctx.restore();
     }
 }
+if (typeof module !== 'undefined' && module.exports) module.exports = Projectile;

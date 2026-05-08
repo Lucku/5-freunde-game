@@ -5,9 +5,9 @@ class LightningHero {
         player.maxStaticCharge = 100;
 
         // Hooks
-        player.customUpdate = (dx, dy) => LightningHero.update(player, dx, dy);
-        player.shoot = (dx, dy) => LightningHero.shoot(player, dx, dy);
-        player.customSpecial = () => LightningHero.useSpecial(player);
+        player.customUpdate = (dx, dy, world) => LightningHero.update(player, dx, dy, world);
+        player.shoot = (dx, dy, world) => LightningHero.shoot(player, dx, dy, false, world);
+        player.customSpecial = (world) => LightningHero.useSpecial(player, world);
 
         // Setup Special UI: STORM SURGE
         // This is the active spacebar ability.
@@ -27,7 +27,9 @@ class LightningHero {
         };
     }
 
-    static update(player, dx, dy) {
+    static update(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { showNotification, audioManager } = _w ?? {};
         // 1. Passive: Moving generates Static Charge
         if (dx !== 0 || dy !== 0) {
             // Charge faster if in Flash form?
@@ -45,12 +47,12 @@ class LightningHero {
             // Omni-burst when charge fills
             if (player.staticCharge >= 100) {
                 player.staticCharge = 0;
-                LightningHero.fireFlashOmniBurst(player);
+                LightningHero.fireFlashOmniBurst(player, _w);
             }
 
             // Auto-fire lightning sparks
             if (Math.random() < 0.15) {
-                LightningHero.shoot(player, 0, 0, true);
+                LightningHero.shoot(player, 0, 0, true, _w);
             }
 
             if (player.flashTimer <= 0) {
@@ -64,7 +66,7 @@ class LightningHero {
             player.thunderWrath--;
             // Frequency: Every 8 frames (approx 7 strikes per second)
             if (player.thunderWrath % 8 === 0) {
-                LightningHero.spawnThunderStrike(player);
+                LightningHero.spawnThunderStrike(player, _w);
             }
             // Stop loop when finished
             if (player.thunderWrath === 0) {
@@ -93,9 +95,11 @@ class LightningHero {
         }
     }
 
-    static spawnThunderStrike(player) {
+    static spawnThunderStrike(player, world) {
+        const _w = world ?? window._world;
+        const { enemies, createExplosion, floatingTexts, particles } = _w ?? {};
         // Find a valid target (random enemy on screen)
-        const targets = (typeof enemies !== 'undefined') ? enemies : (window.enemies || []);
+        const targets = enemies ?? window.enemies ?? [];
         const activeTargets = targets.filter(e =>
             e.hp > 0 &&
             Math.abs(e.x - player.x) < 500 && // Within screen range roughly
@@ -163,7 +167,9 @@ class LightningHero {
         }
     }
 
-    static shoot(player, dx, dy, isAuto = false) {
+    static shoot(player, dx, dy, isAuto = false, world) {
+        const _w = world ?? window._world;
+        const { saveData, audioManager, enemies, projectiles, createExplosion } = _w ?? {};
         if (!gameRunning || gamePaused || isLevelingUp || isShopping) return;
 
         // Input Sanitization for Mouse/Keyboard interaction
@@ -226,7 +232,7 @@ class LightningHero {
         else {
             let nearest = null;
             let minDist = 400; // Search range
-            const targets = (typeof enemies !== 'undefined') ? enemies : (window.enemies || []);
+            const targets = enemies ?? window.enemies ?? [];
 
             for (let e of targets) {
                 if (e.hp <= 0) continue;
@@ -347,7 +353,9 @@ class LightningHero {
         }
     }
 
-    static useSpecial(player) {
+    static useSpecial(player, world) {
+        const _w = world ?? window._world;
+        const { saveData, createExplosion, showNotification, audioManager, arena } = _w ?? {};
         // Special Ability: "THUNDER GOD'S WRATH"
         // Unleashes a storm of random lightning strikes for 5 seconds.
 
@@ -406,31 +414,35 @@ class LightningHero {
         }
     }
 
-    static applyUpgrade(player, type) {
+    static applyUpgrade(player, type, world) {
+        const _w = world ?? window._world;
+        const { createExplosion, showNotification } = _w ?? {};
         if (type === 'transform') {
             player.transformActive = true;
             player.currentForm = 'FLASH';
             player.flashTimer = 600;
             player.staticCharge = 100;
-            LightningHero.fireFlashOmniBurst(player);
-            if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#00ffff', 50);
-            if (typeof showNotification === 'function') showNotification("ABSOLUTE DISCHARGE!", "#00ffff");
+            LightningHero.fireFlashOmniBurst(player, _w);
+            if (createExplosion) createExplosion(player.x, player.y, '#00ffff', 50);
+            if (showNotification) showNotification("ABSOLUTE DISCHARGE!", "#00ffff");
             return true;
         }
         return false;
     }
 
-    static fireFlashOmniBurst(player) {
-        if (typeof LightningProjectile === 'undefined' || !window.projectiles) return;
+    static fireFlashOmniBurst(player, world) {
+        const _w = world ?? window._world;
+        const { createExplosion, projectiles: worldProjectiles } = _w ?? {};
+        if (typeof LightningProjectile === 'undefined' || !(worldProjectiles ?? window.projectiles)) return;
         const speed = 12;
         for (let i = 0; i < 8; i++) {
             const a = (i / 8) * Math.PI * 2;
             const dmg = (player.stats.rangeDmg || 15) * 2.5 * (player.damageMultiplier || 1);
             const p = new LightningProjectile(player.x, player.y, Math.cos(a) * speed, Math.sin(a) * speed, dmg, 20, true, 5, 600, []);
             p.owner = player;
-            window.projectiles.push(p);
+            (worldProjectiles ?? window.projectiles).push(p);
         }
-        if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#00ffff', 30);
+        if (createExplosion) createExplosion(player.x, player.y, '#00ffff', 30);
     }
 }
 

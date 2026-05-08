@@ -161,12 +161,18 @@ class Enemy {
         this.maxHp = this.hp;
         this._id = ++Enemy._nextId;
         this._ghost = false;
+        this._world = null;
     }
 
     update() {
+        const _w = this._world ?? window._world;
+        const { frame, wave, currentWeather, currentObjective, particles, enemies,
+                projectiles, floatingTexts, arena, player, saveData,
+                createExplosion, showNotification, audioManager,
+                ENEMY_LOGIC, getDecoyTarget } = _w ?? {};
         // DLC Hook: Update
-        if (window.ENEMY_LOGIC && window.ENEMY_LOGIC[this.subType]) {
-            if (window.ENEMY_LOGIC[this.subType].update(this)) return;
+        if (ENEMY_LOGIC && ENEMY_LOGIC[this.subType]) {
+            if (ENEMY_LOGIC[this.subType].update(this, _w)) return;
         }
 
         if (this.hitFlashTimer > 0) this.hitFlashTimer--;
@@ -183,8 +189,9 @@ class Enemy {
         let targetY = _ct.y;
 
         // Hook for Decoys (e.g., Void Hero Projectiles)
-        if (typeof window.getDecoyTarget === 'function') {
-            const decoy = window.getDecoyTarget(this.x, this.y);
+        const _decoyFn = getDecoyTarget ?? window.getDecoyTarget;
+        if (typeof _decoyFn === 'function') {
+            const decoy = _decoyFn(this.x, this.y);
             if (decoy) {
                 targetX = decoy.x;
                 targetY = decoy.y;
@@ -291,7 +298,7 @@ class Enemy {
             } else {
                 if (dist < 150) { moveX = -Math.cos(angle) * (currentSpeed * 0.5); moveY = -Math.sin(angle) * (currentSpeed * 0.5); }
                 if (this.shootCooldown <= 0) {
-                    if (typeof audioManager !== 'undefined') audioManager.play('attack_shooter');
+                    audioManager?.play('attack_shooter');
                     const vel = { x: Math.cos(angle) * 6, y: Math.sin(angle) * 6 };
                     const p = new Projectile(this.x, this.y, vel, this.damage, '#e74c3c', 5, 'enemy', 0, true);
                     p.shooterType = 'SHOOTER';
@@ -315,6 +322,7 @@ class Enemy {
             if (this.summonCooldown <= 0) {
                 // Spawn a basic enemy
                 const minion = new Enemy(true, 'BASIC');
+                minion._world = _w;
                 minion.x = this.x; minion.y = this.y;
                 enemies.push(minion);
                 createExplosion(this.x, this.y, '#2980b9');
@@ -541,4 +549,4 @@ class Enemy {
         ctx.restore();
     }
 }
-Enemy._nextId = 0;
+Enemy._nextId = 0;if (typeof module !== 'undefined' && module.exports) module.exports = Enemy;

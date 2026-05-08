@@ -7,7 +7,10 @@
 //   - CRESCENDO Special: omnidirectional wave burst + 10s AoE Performer form
 
 class SoundHero {
-    static init(player) {
+    static init(player, world) {
+        const _w = world ?? window._world;
+        const { saveData } = _w ?? {};
+
         // Base Stats
         player.speedMultiplier = 1.0;
         player.damageMultiplier = 1.0;
@@ -38,7 +41,7 @@ class SoundHero {
         player.shoot = (dx, dy) => SoundHero.shootNote(player, dx, dy);
 
         // Altar: cooldown reduction (so1)
-        const active = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const active = (saveData && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
         const has = (id) => active.includes(id);
         if (has('so1')) player.specialMaxCooldown = Math.floor(player.specialMaxCooldown * 0.9);
 
@@ -74,7 +77,10 @@ class SoundHero {
         if (node.type === 'DAMAGE') base.damageMultiplier = (base.damageMultiplier || 1) + 0.1;
     }
 
-    static applyUpgrade(player, type) {
+    static applyUpgrade(player, type, world) {
+        const _w = world ?? window._world;
+        const { createExplosion, showNotification } = _w ?? {};
+
         if (type === 'metronome') {
             player.autoSync = true;
             return true;
@@ -85,8 +91,8 @@ class SoundHero {
             player.grandFinaleTimer = 600;
             player._beatFired = false;
             SoundHero.spawnResonanceRing(player);
-            if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#00e5ff', 30);
-            if (typeof showNotification === 'function') showNotification("GRAND FINALE!", "#00e5ff");
+            if (createExplosion) createExplosion(player.x, player.y, '#00e5ff', 30);
+            if (showNotification) showNotification("GRAND FINALE!", "#00e5ff");
             return true;
         }
         return false;
@@ -104,13 +110,16 @@ class SoundHero {
     // MAIN UPDATE
     // ─────────────────────────────────────────────────────────────────────────
 
-    static update(player, dx, dy) {
+    static update(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { wave, enemies, frame, saveData, showNotification } = _w ?? {};
+
         const inSoundBiome = SoundHero.isInSoundBiome();
 
         // ── Totem system: only active when NOT already in Sound biome ──
         if (!inSoundBiome) {
             // Reset totems at the start of each new wave
-            const currentWave = window.wave || 1;
+            const currentWave = wave || 1;
             if (window.SYMPHONY_STATE._lastWave !== currentWave) {
                 window.SYMPHONY_STATE._lastWave = currentWave;
                 window.SYMPHONY_STATE.totems = [];
@@ -118,16 +127,16 @@ class SoundHero {
             }
 
             if (!window.SYMPHONY_STATE.totems || window.SYMPHONY_STATE.totems.length === 0) {
-                SoundHero.startTotems(player);
+                SoundHero.startTotems(player, _w);
             }
 
-            SoundHero.updateTotems(player);
+            SoundHero.updateTotems(player, _w);
         }
 
         // ── Sync meter: only active in Sound biome ──
         if (inSoundBiome) {
             // Decay when not in sync state
-            if (!player.syncStateActive && player.syncMeter > 0 && window.frame % 60 === 0) {
+            if (!player.syncStateActive && player.syncMeter > 0 && (frame || 0) % 60 === 0) {
                 player.syncMeter = Math.max(0, player.syncMeter - 2);
             }
 
@@ -137,7 +146,7 @@ class SoundHero {
                 if (player.syncStateDuration <= 0) {
                     player.syncStateActive = false;
                     player.syncMeter = 0;
-                    if (typeof showNotification === 'function') showNotification("SYNC FADED", "#90caf9");
+                    if (showNotification) showNotification("SYNC FADED", "#90caf9");
 
                     // cv_so_m: Steel Tempo — remove damage reduction bonus on exit
                     if (player.steelTempoApplied) {
@@ -151,10 +160,10 @@ class SoundHero {
             if (!player.syncStateActive && player.syncMeter >= player.maxSyncMeter) {
                 player.syncStateActive = true;
                 player.syncStateDuration = 600; // 10 seconds at 60fps
-                if (typeof showNotification === 'function') showNotification("IN SYNC!", "#00e5ff");
+                if (showNotification) showNotification("IN SYNC!", "#00e5ff");
 
                 // cv_so_m: Steel Tempo — gain 30% damage reduction on Sync State entry
-                const altActive = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+                const altActive = (saveData && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
                 if (altActive.includes('cv_so_m') && !player.steelTempoApplied) {
                     player.steelTempoApplied = true;
                     player.damageReduction = (player.damageReduction || 0) + 0.3;
@@ -178,14 +187,14 @@ class SoundHero {
             const onBeat = window.SYMPHONY_STATE && window.SYMPHONY_STATE.onBeat;
             if (onBeat && !player._beatFired) {
                 player._beatFired = true;
-                SoundHero.fireGrandFinaleOmni(player);
+                SoundHero.fireGrandFinaleOmni(player, _w);
             }
             if (!onBeat) player._beatFired = false;
 
             // Orbiting note damage ring every 30 frames
-            if (window.frame % 30 === 0 && window.enemies) {
+            if ((frame || 0) % 30 === 0 && enemies) {
                 const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier * 1.2;
-                window.enemies.forEach(e => {
+                enemies.forEach(e => {
                     if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < 100) {
                         if (typeof e.takeDamage === 'function') e.takeDamage(dmg); else e.hp -= dmg;
                         if (e.resonating > 0) {
@@ -198,21 +207,23 @@ class SoundHero {
 
             if (player.grandFinaleTimer <= 0) {
                 player.transformActive = false;
-                if (typeof showNotification === 'function') showNotification("FINAL NOTE...", "#90caf9");
+                if (showNotification) showNotification("FINAL NOTE...", "#90caf9");
             }
         }
 
         // ── Visuals, AoE, and UI ──
-        SoundHero.handlePassiveLogic(player);
+        SoundHero.handlePassiveLogic(player, _w);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // RITUAL OF RESONANCE – TOTEM SYSTEM
     // ─────────────────────────────────────────────────────────────────────────
 
-    static startTotems(player) {
-        const aw = (window.arena && window.arena.width) ? window.arena.width : 4000;
-        const ah = (window.arena && window.arena.height) ? window.arena.height : 4000;
+    static startTotems(player, world) {
+        const _w = world ?? window._world;
+        const { arena } = _w ?? {};
+        const aw = (arena && arena.width) ? arena.width : 4000;
+        const ah = (arena && arena.height) ? arena.height : 4000;
         const margin = 350;
         const minFromPlayer = 500;
         const minBetween = 600;
@@ -246,8 +257,10 @@ class SoundHero {
         window.SYMPHONY_STATE.totemsConquered = 0;
     }
 
-    static updateTotems(player) {
+    static updateTotems(player, world) {
         if (!window.SYMPHONY_STATE.totems) return;
+        const _w = world ?? window._world;
+        const { enemies, frame, showNotification } = _w ?? {};
 
         let conqueredCount = 0;
 
@@ -258,7 +271,7 @@ class SoundHero {
 
             if (playerInside) {
                 let enemyInside = false;
-                for (const enemy of window.enemies) {
+                for (const enemy of (enemies || [])) {
                     if (enemy.hp > 0 && Math.hypot(enemy.x - totem.x, enemy.y - totem.y) < totem.radius) {
                         enemyInside = true;
                         break;
@@ -274,13 +287,13 @@ class SoundHero {
                     totem.progress = Math.min(totem.max, totem.progress + 1);
                     if (totem.progress >= totem.max) {
                         totem.state = 'conquered';
-                        if (typeof showNotification === 'function') showNotification("TOTEM HARMONIZED!", "#4fc3f7");
+                        if (showNotification) showNotification("TOTEM HARMONIZED!", "#4fc3f7");
                     }
                 }
             } else {
                 // Player not inside: check for enemy-only presence
                 let enemyInside = false;
-                for (const enemy of window.enemies) {
+                for (const enemy of (enemies || [])) {
                     if (enemy.hp > 0 && Math.hypot(enemy.x - totem.x, enemy.y - totem.y) < totem.radius) {
                         enemyInside = true;
                         break;
@@ -294,7 +307,7 @@ class SoundHero {
                 } else if (totem.progress > 0) {
                     // Abandoned: very slow decay (1 per 10 frames → ~100s to fully empty)
                     totem.state = 'neutral';
-                    if ((window.frame || 0) % 10 === 0) {
+                    if ((frame || 0) % 10 === 0) {
                         totem.progress = Math.max(0, totem.progress - 1);
                     }
                 } else {
@@ -420,9 +433,12 @@ class SoundHero {
     // PASSIVE LOGIC (called each frame while camera transform IS active)
     // ─────────────────────────────────────────────────────────────────────────
 
-    static handlePassiveLogic(player) {
-        const isStoryMode = (typeof saveData !== 'undefined' && saveData.story && saveData.story.enabled);
-        if (isStoryMode && player.syncMeter > 80 && window.frame % 60 === 0) {
+    static handlePassiveLogic(player, world) {
+        const _w = world ?? window._world;
+        const { saveData, frame } = _w ?? {};
+
+        const isStoryMode = (saveData && saveData.story && saveData.story.enabled);
+        if (isStoryMode && player.syncMeter > 80 && (frame || 0) % 60 === 0) {
             window.SYMPHONY_STATE.biomeTransformation = Math.min(100, (window.SYMPHONY_STATE.biomeTransformation || 0) + 1);
         }
 
@@ -676,9 +692,12 @@ class SoundHero {
     // ATTACK: SHOOT NOTE (normal, beat-synced; fires waves in Sync State)
     // ─────────────────────────────────────────────────────────────────────────
 
-    static shootNote(player, dx, dy) {
+    static shootNote(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { enemies, projectiles, saveData, audioManager, showNotification } = _w ?? {};
+
         if (player.transformActive && player.currentForm === 'PERFORMER') {
-            SoundHero.fireGrandFinaleNote(player, dx, dy);
+            SoundHero.fireGrandFinaleNote(player, dx, dy, _w);
             return;
         }
         if (player.rangeCooldown > 0) return;
@@ -690,9 +709,9 @@ class SoundHero {
         }
 
         // ── Auto-aim: redirect toward nearest enemy when buff active ──
-        if (player.buffs && player.buffs.autoaim > 0 && window.enemies) {
+        if (player.buffs && player.buffs.autoaim > 0 && enemies) {
             let nearest = null, minDst = Infinity;
-            window.enemies.forEach(e => {
+            enemies.forEach(e => {
                 if (e.hp <= 0) return;
                 const d = Math.hypot(e.x - player.x, e.y - player.y);
                 if (d < minDst) { minDst = d; nearest = e; }
@@ -706,7 +725,7 @@ class SoundHero {
 
         // ── In Sync State: fire directional wave projectiles ──
         if (player.syncStateActive) {
-            SoundHero.fireSyncWave(player, dx, dy);
+            SoundHero.fireSyncWave(player, dx, dy, _w);
             return;
         }
 
@@ -720,7 +739,7 @@ class SoundHero {
 
         if (isOnBeat) {
             // Altar so2: On-Beat Bonus +25%
-            const altarActive = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+            const altarActive = (saveData && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
             const has = (id) => altarActive.includes(id);
             const beatMult = has('so2') ? 2.25 : 2.0;
             dmg *= beatMult;
@@ -733,12 +752,12 @@ class SoundHero {
                 player.syncMeter = Math.min(player.maxSyncMeter, player.syncMeter + syncGain);
                 player.beatStreak++;
             }
-            if (typeof showNotification === 'function' && Math.random() < 0.2) showNotification("PERFECT!", color);
-            if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_crit');
+            if (showNotification && Math.random() < 0.2) showNotification("PERFECT!", color);
+            audioManager?.play('attack_sound_crit');
         } else {
             dmg *= 0.5;
             if (inSoundBiome) player.beatStreak = 0;
-            if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_' + (Math.floor(Math.random() * 4) + 1));
+            audioManager?.play('attack_sound_' + (Math.floor(Math.random() * 4) + 1));
         }
 
         // Build shot angle list, respecting multi-projectile
@@ -751,7 +770,7 @@ class SoundHero {
             angles.push(baseAngle + offset);
         }
 
-        if (typeof projectiles !== 'undefined') {
+        if (projectiles) {
             angles.forEach(angle => {
                 projectiles.push({
                     x: player.x, y: player.y,
@@ -792,8 +811,11 @@ class SoundHero {
     // ATTACK: SYNC WAVE (fired during Sync State, directional fan)
     // ─────────────────────────────────────────────────────────────────────────
 
-    static fireSyncWave(player, dx, dy) {
-        if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_sync_' + (Math.floor(Math.random() * 4) + 1));
+    static fireSyncWave(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { projectiles, audioManager } = _w ?? {};
+
+        audioManager?.play('attack_sound_sync_' + (Math.floor(Math.random() * 4) + 1));
         const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier * 1.8;
         const baseAngle = Math.atan2(dy, dx);
 
@@ -804,7 +826,7 @@ class SoundHero {
             fanAngles.push(-0.28 * (i + 1), 0.28 * (i + 1));
         }
 
-        if (typeof projectiles !== 'undefined') {
+        if (projectiles) {
             fanAngles.forEach(offset => {
                 const angle = baseAngle + offset;
                 projectiles.push({
@@ -849,7 +871,10 @@ class SoundHero {
     // GRAND FINALE: 5-way directional fan (replaces normal shot in PERFORMER form)
     // ─────────────────────────────────────────────────────────────────────────
 
-    static fireGrandFinaleNote(player, dx, dy) {
+    static fireGrandFinaleNote(player, dx, dy, world) {
+        const _w = world ?? window._world;
+        const { projectiles, audioManager } = _w ?? {};
+
         if (player.rangeCooldown > 0) return;
 
         if (dx === undefined || dy === undefined) {
@@ -862,7 +887,7 @@ class SoundHero {
         const baseAngle = Math.atan2(dy, dx);
         const offsets = isOnBeat ? [-0.5, -0.25, 0, 0.25, 0.5, -0.75, 0.75] : [-0.4, -0.2, 0, 0.2, 0.4];
 
-        if (typeof projectiles !== 'undefined') {
+        if (projectiles) {
             offsets.forEach(offset => {
                 const angle = baseAngle + offset;
                 const note = isOnBeat ? '♫' : '♪';
@@ -895,15 +920,18 @@ class SoundHero {
         }
 
         if (isOnBeat) {
-            if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_crit');
+            audioManager?.play('attack_sound_crit');
         }
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier * 0.65;
     }
 
     // GRAND FINALE: automatic 8-way omnidirectional burst on each beat
-    static fireGrandFinaleOmni(player) {
+    static fireGrandFinaleOmni(player, world) {
+        const _w = world ?? window._world;
+        const { projectiles, audioManager } = _w ?? {};
+
         const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier * 2.0;
-        if (typeof projectiles !== 'undefined') {
+        if (projectiles) {
             for (let i = 0; i < 8; i++) {
                 const angle = (i / 8) * Math.PI * 2;
                 projectiles.push({
@@ -933,7 +961,7 @@ class SoundHero {
                 });
             }
         }
-        if (typeof audioManager !== 'undefined') audioManager.play('attack_sound_sync_' + (Math.floor(Math.random() * 4) + 1));
+        audioManager?.play('attack_sound_sync_' + (Math.floor(Math.random() * 4) + 1));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -944,12 +972,15 @@ class SoundHero {
     // echo notes toward the nearest enemy and resonating enemies pulse with damage.
     // ─────────────────────────────────────────────────────────────────────────
 
-    static spawnResonanceRing(player) {
-        if (typeof projectiles === 'undefined') return;
+    static spawnResonanceRing(player, world) {
+        const _w = world ?? window._world;
+        const { projectiles, saveData, createExplosion } = _w ?? {};
+
+        if (!projectiles) return;
         const dmg = 45 * player.damageMultiplier;
 
         // Altar checks (read once for the ring's lifetime via closure)
-        const altarActive = (saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const altarActive = (saveData && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
         const ringHas = (id) => altarActive.includes(id);
         const hasSurge   = ringHas('so3');
         const hasFlame   = ringHas('cv_so_f');
@@ -973,13 +1004,14 @@ class SoundHero {
                 this.radius += (950 - 30) / 120;
                 this.life--;
                 if (this.life <= 0) { this.dead = true; return; }
-                if (!window.enemies) return;
-                window.enemies.forEach(e => {
+                const _enemies = (_w && _w.enemies) || window.enemies;
+                if (!_enemies) return;
+                _enemies.forEach(e => {
                     if (e.hp <= 0 || this.hitEnemies.includes(e)) return;
                     const dist = Math.hypot(e.x - this.x, e.y - this.y);
                     if (Math.abs(dist - this.radius) < 28) {
                         this.hitEnemies.push(e);
-                        if (typeof saveData !== 'undefined') {
+                        if (saveData) {
                             saveData.global.sound_crescendo_hits = (saveData.global.sound_crescendo_hits || 0) + 1;
                         }
 
@@ -995,7 +1027,7 @@ class SoundHero {
                         e.x += Math.cos(a) * 80;
                         e.y += Math.sin(a) * 80;
                         if (typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y, Math.floor(hitDmg), '#00e5ff');
-                        if (typeof createExplosion !== 'undefined') createExplosion(e.x, e.y, '#4fc3f7', 20);
+                        if (createExplosion) createExplosion(e.x, e.y, '#4fc3f7', 20);
 
                         // cv_so_f: Resonant Flame — ignite hit enemies
                         if (hasFlame) e.burnTimer = Math.max(e.burnTimer || 0, 120);
