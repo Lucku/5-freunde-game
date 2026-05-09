@@ -565,8 +565,8 @@ class GameSession {
 
     _sendSnapshot() {
         const roundP = (pl) => pl ? {
-            x:            Math.round(pl.x),
-            y:            Math.round(pl.y),
+            x:            Math.round(pl.x * 10) / 10,
+            y:            Math.round(pl.y * 10) / 10,
             vx:           0,
             vy:           0,
             hp:           Math.round(pl.hp),
@@ -595,8 +595,8 @@ class GameSession {
             nextKnownEnemyIds.add(e._id);
             const entry = {
                 _id:         e._id,
-                x:           Math.round(e.x),
-                y:           Math.round(e.y),
+                x:           Math.round(e.x * 10) / 10,
+                y:           Math.round(e.y * 10) / 10,
                 vx:          Math.round((e.vx || 0) * 10) / 10,
                 vy:          Math.round((e.vy || 0) * 10) / 10,
                 hp:          Math.round(e.hp),
@@ -622,8 +622,8 @@ class GameSession {
             const vy = p.vy ?? p.velocity?.y ?? 0;
             const entry = {
                 _id: p._id,
-                x:   Math.round(p.x),
-                y:   Math.round(p.y),
+                x:   Math.round(p.x * 10) / 10,
+                y:   Math.round(p.y * 10) / 10,
                 vx:  Math.round(vx * 10) / 10,
                 vy:  Math.round(vy * 10) / 10,
             };

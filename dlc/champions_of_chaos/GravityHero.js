@@ -210,8 +210,14 @@ window.HERO_LOGIC['gravity'] = {
             // No shooting during DARK STAR ultimate (gravity pull form)
             if (player.transformActive && player.currentForm === 'DARK STAR') return;
 
-            // Play Attack Sound
-            if (typeof audioManager !== 'undefined') audioManager.play('attack_gravity');
+            // Play Attack Sound (throttled to prevent spam)
+            if (typeof audioManager !== 'undefined') {
+                const sfxNow = Date.now();
+                if (!player._lastGravityAttackSfx || sfxNow - player._lastGravityAttackSfx >= 250) {
+                    audioManager.play('attack_gravity');
+                    player._lastGravityAttackSfx = sfxNow;
+                }
+            }
 
             // We need to capture the newly added projectile.
             // Assuming shoot() adds to the end of projectiles array.

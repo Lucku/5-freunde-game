@@ -1694,6 +1694,8 @@ function _resetGameState() {
         audioManager.stopLoop('special_spirit_charging');
     }
     _stopWeather();
+    // Reset online interpolation state so a new session starts with a fresh clock-offset lock
+    _onlineClockOffset = null;
     gameRunning = false;
     isTutorialMode = false;
     isTestingMode = false;
@@ -4262,13 +4264,35 @@ const frameDelay = 1000 / FPS;
 
 // ── Online Co-op sync ─────────────────────────────────────────────────────────
 
-// Render remote entities this many ms behind current time so we always have two
-// buffered snapshots to interpolate between (one server tick = 50 ms).
-const _INTERP_DELAY_MS = 80;
+// Render remote entities this many ms behind the latest server time so we always
+// have two buffered snapshots to interpolate between, even with internet jitter.
+// Server tick is 33 ms, so 100 ms = ~3 ticks of history available for interpolation.
+const _INTERP_DELAY_MS = 100;
+const _SNAP_BUF_MAX    = 6;
+
+// Smoothed offset between client clock and server clock, derived from snapshot
+// timestamps. clientNow - _onlineClockOffset ≈ server time. Locks to minimum
+// observed offset (least-delayed packet) and slowly drifts to follow clock skew.
+let _onlineClockOffset = null;
+
+function _onlineUpdateClockOffset(serverT) {
+    const sample = Date.now() - serverT;
+    if (_onlineClockOffset === null || sample < _onlineClockOffset) {
+        _onlineClockOffset = sample;
+    } else {
+        // Slow drift to track gradual clock skew between machines
+        _onlineClockOffset = _onlineClockOffset * 0.995 + sample * 0.005;
+    }
+}
+
+function _onlineRenderTime() {
+    if (_onlineClockOffset === null) return Date.now() - _INTERP_DELAY_MS;
+    return Date.now() - _onlineClockOffset - _INTERP_DELAY_MS;
+}
 
 // Returns linearly-interpolated {x,y} from a ring-buffer of {x,y,t} snapshots
-// at the given render timestamp. Falls back to the latest snapshot when render
-// time is ahead of all buffered data.
+// at the given render timestamp (server time). Clamps to oldest/newest when out
+// of range so a brief packet loss still renders the last known position.
 function _onlineInterpBuf(buf, renderTime) {
     if (renderTime >= buf[buf.length - 1].t) return { x: buf[buf.length - 1].x, y: buf[buf.length - 1].y };
     for (let i = buf.length - 2; i >= 0; i--) {
@@ -4286,6 +4310,10 @@ function _onlineInterpBuf(buf, renderTime) {
 function _onlineApplySnapshot(s) {
     if (!s || !gameRunning) return;
     const _snapTime = Date.now();
+    // Server-side timestamp: use this for interpolation buffers so spacing reflects
+    // actual server tick cadence, not jittery packet receipt times.
+    const _serverT  = (typeof s.t === 'number') ? s.t : _snapTime;
+    _onlineUpdateClockOffset(_serverT);
 
     // Update host ghost (rendered as player2 on guest's machine)
     // Store snapshot position + movement so extrapolation loop can forward-predict it
@@ -4296,8 +4324,8 @@ function _onlineApplySnapshot(s) {
         player2._smy      = s.p1.my || 0;
         player2._snapshotAt = _snapTime;
         if (!player2._snapBuf) player2._snapBuf = [];
-        player2._snapBuf.push({ x: s.p1.x, y: s.p1.y, t: _snapTime });
-        if (player2._snapBuf.length > 4) player2._snapBuf.shift();
+        player2._snapBuf.push({ x: s.p1.x, y: s.p1.y, t: _serverT });
+        if (player2._snapBuf.length > _SNAP_BUF_MAX) player2._snapBuf.shift();
         if (player2._snapBuf.length === 1) { player2.x = s.p1.x; player2.y = s.p1.y; }
         player2.hp        = s.p1.hp;
         player2.maxHp     = s.p1.maxHp;
@@ -4317,18 +4345,11 @@ function _onlineApplySnapshot(s) {
         player.xp     = s.p2.xp;
         player.maxXp  = s.p2.maxXp;
         player.gold   = s.p2.gold;
-        // Prediction reconciliation:
-        //   < 25 px  — ignore (normal RTT drift; blending would cause visible wobble)
-        //   25–80 px — gentle 8 % blend toward server authority per snapshot
-        //   > 80 px  — hard snap (knockback, death/revival, extreme lag)
-        const _dx = s.p2.x - player.x, _dy = s.p2.y - player.y;
-        const _d2 = _dx * _dx + _dy * _dy;
-        if (_d2 > 6400) {
-            player.x = s.p2.x; player.y = s.p2.y;
-        } else if (_d2 > 625) {
-            player.x += _dx * 0.08;
-            player.y += _dy * 0.08;
-        }
+        // Server-authoritative target position; per-frame reconciliation loop
+        // pulls the local predicted position toward this each frame instead of
+        // applying a single per-snapshot jerk.
+        player._serverTargetX = s.p2.x;
+        player._serverTargetY = s.p2.y;
 
         // Revival: host revived us (isDead went true→false) — cancel any local death state
         if (prevDead && !player.isDead) {
@@ -4364,8 +4385,8 @@ function _onlineApplySnapshot(s) {
         e._sx = ed.x; e._sy = ed.y;
         e._snapshotAt = _now;
         e.vx = ed.vx || 0; e.vy = ed.vy || 0;
-        if (!e._snapBuf) { e._snapBuf = [{ x: ed.x, y: ed.y, t: _now }]; e.x = ed.x; e.y = ed.y; }
-        else { e._snapBuf.push({ x: ed.x, y: ed.y, t: _now }); if (e._snapBuf.length > 4) e._snapBuf.shift(); }
+        if (!e._snapBuf) { e._snapBuf = [{ x: ed.x, y: ed.y, t: _serverT }]; e.x = ed.x; e.y = ed.y; }
+        else { e._snapBuf.push({ x: ed.x, y: ed.y, t: _serverT }); if (e._snapBuf.length > _SNAP_BUF_MAX) e._snapBuf.shift(); }
         const _prevEHp = e.hp;
         e.hp = ed.hp;
         if (ed.hp < _prevEHp && _prevEHp > 0) e._hitFlash = 6;
@@ -4382,8 +4403,14 @@ function _onlineApplySnapshot(s) {
     });
     if (window._world) window._world.enemies = enemies;
 
-    // Rebuild ghost projectile array (reuse existing objects to reduce GC pressure)
+    // Rebuild ghost projectile array (reuse existing objects to reduce GC pressure).
+    // When the server removes a projectile (it hit an enemy or expired), the client
+    // renders ~100 ms behind via interpolation, so dropping the projectile object
+    // immediately makes it pop out of existence mid-flight before it visually reaches
+    // the target. We keep "orphan" projectiles around until renderTime catches up
+    // with their last buffered position, so they finish their visible flight path.
     const _prevProjMap = new Map(projectiles.filter(p => p._ghost).map(p => [p._id, p]));
+    const _newProjIds  = new Set(s.projectiles.map(pd => pd._id));
     projectiles = s.projectiles.map(pd => {
         let p = _prevProjMap.get(pd._id);
         if (!p) {
@@ -4396,8 +4423,8 @@ function _onlineApplySnapshot(s) {
         p._sx = pd.x; p._sy = pd.y;
         p._snapshotAt = _snapTime;
         p.velocity = { x: pd.vx, y: pd.vy };
-        if (!p._snapBuf) { p._snapBuf = [{ x: pd.x, y: pd.y, t: _snapTime }]; p.x = pd.x; p.y = pd.y; }
-        else { p._snapBuf.push({ x: pd.x, y: pd.y, t: _snapTime }); if (p._snapBuf.length > 4) p._snapBuf.shift(); }
+        if (!p._snapBuf) { p._snapBuf = [{ x: pd.x, y: pd.y, t: _serverT }]; p.x = pd.x; p.y = pd.y; }
+        else { p._snapBuf.push({ x: pd.x, y: pd.y, t: _serverT }); if (p._snapBuf.length > _SNAP_BUF_MAX) p._snapBuf.shift(); }
         // Static fields present only on first appearance (delta encoding)
         if (pd.color       !== undefined) p.color       = pd.color;
         if (pd.radius      !== undefined) p.radius      = pd.radius;
@@ -4406,6 +4433,13 @@ function _onlineApplySnapshot(s) {
         if (pd.isCrit      !== undefined) p.isCrit      = pd.isCrit;
         return p;
     });
+    // Carry forward orphans (in last frame's array, gone from this snapshot) so the
+    // render loop can interpolate them to their final position before they vanish.
+    for (const [id, p] of _prevProjMap) {
+        if (_newProjIds.has(id)) continue;
+        if (p._orphanAt === undefined) p._orphanAt = _serverT;
+        projectiles.push(p);
+    }
     if (window._world) window._world.projectiles = projectiles;
 
     // Game state
@@ -5632,7 +5666,7 @@ function masterLoop(timestamp) {
                         }
                     } else if (player2._snapshotAt) {
                         if (player2._snapBuf && player2._snapBuf.length >= 2) {
-                            const _p2pos = _onlineInterpBuf(player2._snapBuf, Date.now() - _INTERP_DELAY_MS);
+                            const _p2pos = _onlineInterpBuf(player2._snapBuf, _onlineRenderTime());
                             player2.x = _p2pos.x; player2.y = _p2pos.y;
                         } else {
                             // Fallback: extrapolate from single snapshot until buffer fills
@@ -5654,13 +5688,13 @@ function masterLoop(timestamp) {
                 updateDrawRevivalMarkers(ctx);
             }
 
-            // Online: extrapolate ghost entities between 20 Hz server snapshots; flush input
+            // Online: interpolate ghost entities between buffered snapshots; reconcile own player; flush input
             if (isOnlineMode && gameRunning && !gamePaused) {
                 _onlineFrame++;
 
                 // Interpolate ghost entities between buffered snapshots for smooth rendering
                 const _now = Date.now();
-                const _renderTime = _now - _INTERP_DELAY_MS;
+                const _renderTime = _onlineRenderTime();
                 enemies.forEach(e => {
                     if (!e._ghost) return;
                     if (e._snapBuf && e._snapBuf.length >= 2) {
@@ -5683,6 +5717,47 @@ function masterLoop(timestamp) {
                         p.y = p._sy + (p.velocity?.y || 0) * _dt;
                     }
                 });
+                // Drop orphan projectiles once render time has passed their last buffered
+                // server position — they've finished their visible flight to impact.
+                if (projectiles.some(p => p._orphanAt !== undefined)) {
+                    projectiles = projectiles.filter(p => {
+                        if (p._orphanAt === undefined) return true;
+                        const lastT = p._snapBuf && p._snapBuf.length ? p._snapBuf[p._snapBuf.length - 1].t : 0;
+                        return _renderTime <= lastT;
+                    });
+                    if (window._world) window._world.projectiles = projectiles;
+                }
+
+                // Own-player reconciliation. Server simulation runs at 30 Hz (one
+                // physics step per tick) while the client predicts at 60 fps, so the
+                // client's predicted position is almost always slightly ahead of the
+                // last server snapshot. Pulling the client backward each frame fights
+                // the player's intentional motion — this caused both the dash rubber-
+                // band and the constant "drag" while running.
+                //
+                // Strategy: trust client prediction whenever the player has active
+                // input (running, dashing, knockback recovery). Only converge toward
+                // the server position while the player is idle, OR snap hard when the
+                // divergence is so large it must be a knockback / teleport / lag spike.
+                if (player && player.isDashing) player._reconcileGrace = 18; // ~300 ms grace
+                else if (player && player._reconcileGrace > 0) player._reconcileGrace--;
+
+                if (player && !player.isDead && player._serverTargetX !== undefined) {
+                    const _rdx = player._serverTargetX - player.x;
+                    const _rdy = player._serverTargetY - player.y;
+                    const _rd2 = _rdx * _rdx + _rdy * _rdy;
+                    const _mi  = player.moveInput || { x: 0, y: 0 };
+                    const _isInputMoving = Math.abs(_mi.x) > 0.05 || Math.abs(_mi.y) > 0.05;
+                    if (_rd2 > 90000) {                    // > 300 px — teleport / death / extreme lag: hard snap
+                        player.x = player._serverTargetX;
+                        player.y = player._serverTargetY;
+                    } else if (!player.isDashing && !player._reconcileGrace && !_isInputMoving && _rd2 > 16) {
+                        // Idle: gently converge toward server authority
+                        player.x += _rdx * 0.1;
+                        player.y += _rdy * 0.1;
+                    }
+                    // Actively moving: trust client prediction; server will catch up
+                }
 
                 // Both clients send input every frame so the server has up-to-date state
                 window.networkManager?.flushInput();

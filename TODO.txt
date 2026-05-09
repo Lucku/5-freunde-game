@@ -1,2 +1,1 @@
 # General
-- Biome is different for both player

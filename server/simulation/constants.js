@@ -51,10 +51,11 @@ const ARENA_WIDTH  = 3000;
 const ARENA_HEIGHT = 3000;
 const PLAYER_RADIUS = 20;
 
-// Server runs at 20 Hz. Each tick represents TICK_FRAMES equivalent 60-fps frames,
+// Server runs at 30 Hz. Each tick represents TICK_FRAMES equivalent 60-fps frames,
 // so all frame-based timers from the client stay numerically compatible.
-const TICK_MS     = 50;          // 20 Hz
-const TICK_FRAMES = TICK_MS / (1000 / 60); // ≈ 3
+// Higher tick rate = smaller gaps between snapshots = smoother client-side interpolation.
+const TICK_MS     = 33;          // ~30 Hz
+const TICK_FRAMES = TICK_MS / (1000 / 60); // ≈ 1.98
 
 module.exports = {
     BASE_HERO_STATS,
