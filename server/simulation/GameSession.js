@@ -56,6 +56,10 @@ class GameSession {
         this._world.createExplosion = (x, y, color) => {
             this._events.push({ type: 'enemy_death', x, y, color });
         };
+        // showNotification relays UI messages to both clients via the event queue
+        this._world.showNotification = (msg, color) => {
+            this._events.push({ type: 'notification', msg, color });
+        };
         // No-op audioManager: DLC heroes guard with `typeof audioManager !== 'undefined'`,
         // which passes for null (typeof null === 'object'). Stub avoids the crash.
         this._world.audioManager = {
@@ -194,7 +198,12 @@ class GameSession {
         const prevMeleeCount  = (this._world.meleeAttacks || []).length;
 
         this.players.forEach(p => {
-            if (p && !p.isDead) p.update();
+            if (p && !p.isDead) {
+                p.update();
+                // invincibleTimer is decremented by Player.update() but only isInvincible is
+                // checked for hit prevention — clear it when the timer expires.
+                if ((p.invincibleTimer || 0) <= 0) p.isInvincible = false;
+            }
         });
 
         // Assign IDs to new projectiles spawned by Player.shoot() / DLC hooks
@@ -532,6 +541,7 @@ class GameSession {
     // ─── Wave logic ───────────────────────────────────────────────────────────────
 
     _checkWaveAdvance() {
+        if (this._world.objectiveLocked) return; // Air Hero objective not yet complete
         if (this._enemiesKilledInWave < this._waveKillTarget) return;
 
         this.wave++;
@@ -570,6 +580,14 @@ class GameSession {
             isInvincible: !!pl.isInvincible,
             mx:           Math.round((pl.moveInput?.x || 0) * 100) / 100,
             my:           Math.round((pl.moveInput?.y || 0) * 100) / 100,
+            objective:    pl.currentObjective ? {
+                type:      pl.currentObjective.type,
+                text:      pl.currentObjective.text,
+                current:   Math.round(pl.currentObjective.current || 0),
+                target:    pl.currentObjective.target,
+                completed: !!pl.currentObjective.completed,
+                failed:    !!pl.currentObjective.failed,
+            } : null,
         } : null;
 
         const nextKnownEnemyIds = new Set();

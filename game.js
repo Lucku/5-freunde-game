@@ -944,6 +944,75 @@ function startTestingGrounds() {
     startGame('TESTING');
 }
 
+async function startOnlineTestArena() {
+    document.getElementById('tg-mode-overlay').style.display = 'none';
+
+    const account = window.gameConfig?.account;
+    const serverUrl = (typeof CloudSaveManager !== 'undefined')
+        ? CloudSaveManager._baseUrl()
+        : (window.gameConfig?.serverUrl || 'http://localhost:3001');
+
+    if (!account?.token) {
+        showNotification('Online test requires login — sign in first.');
+        return;
+    }
+
+    showNotification('Connecting online test arena…');
+
+    const nm = window.networkManager;
+    const bot = window.onlineTestBot;
+    const _subs = [];
+    const sub = (type, fn) => _subs.push(nm.on(type, fn));
+    const cleanup = () => { _subs.forEach(u => u()); _subs.length = 0; };
+
+    try {
+        if (!nm.connected) {
+            nm.connect(serverUrl, account.token);
+            await new Promise((res, rej) => {
+                const u = nm.on('CONNECTED', () => { u(); res(); });
+                setTimeout(() => rej(new Error('Connection timeout')), 8000);
+            });
+        }
+
+        await bot.start(serverUrl);
+
+        const lobbyCode = await new Promise((res, rej) => {
+            const u = nm.on('LOBBY_CREATED', msg => { u(); res(msg.code); });
+            setTimeout(() => rej(new Error('Lobby timeout')), 5000);
+            nm.createLobby(selectedHeroType || 'fire');
+        });
+
+        await new Promise((res, rej) => {
+            const u = nm.on('GUEST_JOINED', () => { u(); res(); });
+            setTimeout(() => rej(new Error('Bot join timeout')), 5000);
+            bot.joinLobby(lobbyCode, 'water');
+        });
+
+        await new Promise((res, rej) => {
+            const u = nm.on('PRE_GAME', msg => { u(); res(msg); });
+            setTimeout(() => rej(new Error('PRE_GAME timeout')), 5000);
+            nm.confirmHero();
+            bot.confirmHero();
+        });
+
+        sub('GAME_START', msg => {
+            cleanup();
+            isTestingMode = true;
+            if (typeof window.startOnlineGame === 'function') window.startOnlineGame(msg);
+            setTimeout(() => showNotification('[TAB] Spawn Menu  [C] Clear All  — server simulation active'), 800);
+        });
+
+        nm.startOnlineMatch('NORMAL');
+        bot.beginInputLoop();
+
+    } catch (err) {
+        cleanup();
+        bot.stop();
+        console.error('[OnlineTest]', err);
+        showNotification('Online test failed: ' + (err.message || err));
+    }
+}
+
 function acceptTutorialPrompt() {
     document.getElementById('tutorial-welcome-overlay').style.display = 'none';
     saveData.tutorial.seen = true;
@@ -1416,6 +1485,18 @@ function startOnlineGame(msg) {
     _onlineFrame  = 0;
     _onlineEvents = [];
 
+    // Derive a shared numeric seed from the lobby code so both clients generate
+    // the same biome sequence and identical arena layouts (seeded Math.random wrap).
+    const _lobbyCode = nm?.lobbyCode || '';
+    window._onlineBiomeSeed = _lobbyCode.split('').reduce(
+        (h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 0
+    );
+    // Versus: pre-select a deterministic biome before startGame() picks one
+    if (isVersusOnline) {
+        const _vb = ['fire', 'water', 'ice', 'plant', 'metal', 'rock', 'cloud', 'chaos'];
+        window.selectedBiome = _vb[window._onlineBiomeSeed % _vb.length];
+    }
+
     // Both clients handle server-pushed messages directly (no RELAY wrapper in-game)
     nm.on('SNAPSHOT',        (s)  => { if (isOnlineMode) _onlineApplySnapshot(s); });
     nm.on('LEVEL_UP',        (ev) => { if (isOnlineMode) _onlineShowLevelUpForGuest(ev); });
@@ -1426,6 +1507,23 @@ function startOnlineGame(msg) {
     nm.on('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
     nm.on('GAME_OVER', () => { if (isOnlineMode) gameOver(false); });
     nm.on('STORY_CONTINUE', () => { if (isOnlineMode && isStoryOpen) _onlinePartnerContinueStory(); });
+    nm.on('MAZE_NODE_SELECTED', (msg) => {
+        if (!isOnlineMode) return;
+        // Close the read-only spectator maze UI
+        if (window.mazeIsOpen && window.mazeUI) window.mazeUI.close();
+        // Apply host's node selection so wave generation uses the correct enemy pool/modifiers
+        if (window.MazeOfTime && msg.nodeId) {
+            MazeOfTime.selectNode(msg.nodeId);
+            MazeOfTime.clearEnemyPool();
+        }
+        // Proceed with the same storyEvent the host built
+        if (msg.storyEvent && window.openStory) {
+            window.currentStoryEvent = msg.storyEvent;
+            window.openStory(msg.storyEvent);
+        } else if (typeof advanceWave === 'function') {
+            advanceWave();
+        }
+    });
 
     const _gameMode = isVersusOnline ? 'VERSUS' : (msg.mode === 'SHUFFLE' ? 'SHUFFLE' : 'NORMAL');
     startGame(_gameMode);
@@ -1919,8 +2017,14 @@ inputManager.onKeyDown = e => {
         if (e.code === 'KeyD' && uiState === 'MENU' && !gameRunning) {
             const menuOverlay = document.getElementById('menu-overlay');
             if (menuOverlay && menuOverlay.style.display !== 'none') {
-                startTestingGrounds();
+                document.getElementById('tg-mode-overlay').style.display = 'flex';
             }
+        }
+
+        // Close TG mode chooser on Escape
+        if (e.code === 'Escape') {
+            const tgOverlay = document.getElementById('tg-mode-overlay');
+            if (tgOverlay && tgOverlay.style.display !== 'none') tgOverlay.style.display = 'none';
         }
 
         // Testing Grounds controls
@@ -2640,29 +2744,36 @@ function triggerStory(completedWave) {
         return;
     }
 
-    // Maze of Time: intercept for Time/Love hero in story mode
-    if (player && (player.type === 'time' || player.type === 'love') &&
+    // Maze of Time: intercept for Time/Love hero in story mode.
+    // In online mode use the host hero (_onlineStoryHero) so both clients trigger together.
+    const _mazeTriggerHero = (isOnlineMode && window._onlineStoryHero)
+        ? window._onlineStoryHero : (player && player.type);
+    if ((_mazeTriggerHero === 'time' || _mazeTriggerHero === 'love') &&
         window.MazeUI && window.MazeOfTime) {
-        // wave === 0 means this is the intro trigger (new run start) — don't complete a node,
-        // just clear the active node from any previous run
+        // Only the host (or single-player) manages localStorage maze progress
+        const _mazeIsHost = !isOnlineMode || window.networkManager?.isHost();
         if (completedWave === 0) {
             window.mazeCurrentNode = null;
             window.mazeCurrentNodeId = null;
             MazeOfTime.clearEnemyPool();
-            MazeOfTime.initForRun();
+            if (_mazeIsHost) MazeOfTime.initForRun();
         } else if (window.mazeCurrentNodeId) {
-            // Mark the just-completed wave's node as done
-            MazeOfTime.completeNode(window.mazeCurrentNodeId);
+            if (_mazeIsHost) MazeOfTime.completeNode(window.mazeCurrentNodeId);
         }
-        // If no next nodes are available (terminal path), skip the map and fall
-        // through to normal wave generation so the game continues without looping.
+
+        // Online guest: open read-only map and wait for MAZE_NODE_SELECTED relay
+        if (isOnlineMode && !window.networkManager?.isHost()) {
+            window.mazeUI.open(_mazeTriggerHero, null, true);
+            return;
+        }
+
+        // Host / single-player: check for next available nodes
         const _mazeState = MazeOfTime.getState();
-        const _mazeNext = MazeOfTime.getNextNodes(_mazeState, player.type);
+        const _mazeNext = MazeOfTime.getNextNodes(_mazeState, _mazeTriggerHero);
         if (_mazeNext.length === 0 && _mazeState.runCompleted.length > 0) {
             // Path complete — let the normal story/wave flow handle the rest
         } else {
-            // Open the maze map — player picks their next node
-            window.mazeUI.open(player.type);
+            window.mazeUI.open(_mazeTriggerHero);
             return;
         }
     }
@@ -3168,7 +3279,9 @@ function resumeWaveGeneration() {
 
         // Wave 1 starts in home biome
         if (wave === 1 && player && player.type !== 'black') {
-            currentBiomeType = player.type;
+            // Online: use host hero so both clients agree regardless of their own hero
+            currentBiomeType = (isOnlineMode && window._onlineStoryHero)
+                ? window._onlineStoryHero : player.type;
         }
         // Narrative Override (e.g. Arc 2 forces Hero Biome)
         else if (currentStoryEvent && currentStoryEvent.data && currentStoryEvent.data.biome) {
@@ -3179,7 +3292,15 @@ function resumeWaveGeneration() {
             }
         }
         else {
-            currentBiomeType = types[Math.floor(Math.random() * types.length)];
+            if (isOnlineMode && window._onlineBiomeSeed !== undefined) {
+                // Deterministic biome selection — both clients derive the same result from
+                // their shared seed + wave number, with no client-specific randomness.
+                const _ob = ['fire', 'water', 'ice', 'plant', 'metal', 'rock', 'cloud', 'chaos'];
+                const _oh = ((wave * 2654435761) ^ (window._onlineBiomeSeed * 40503)) >>> 0;
+                currentBiomeType = _ob[_oh % _ob.length];
+            } else {
+                currentBiomeType = types[Math.floor(Math.random() * types.length)];
+            }
         }
 
         showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
@@ -3260,13 +3381,28 @@ function resumeWaveGeneration() {
         }
     }
 
+    // Online: temporarily replace Math.random with a seeded PRNG so both clients
+    // generate identical arena layouts for the same wave + lobby code.
+    let _savedRandom = null;
+    if (isOnlineMode && window._onlineBiomeSeed !== undefined) {
+        let _ms = ((wave * 2654435761) ^ (window._onlineBiomeSeed * 1664525)) >>> 0;
+        _savedRandom = Math.random;
+        Math.random = function() {
+            _ms = (_ms + 0x6D2B79F5) | 0;
+            let _t = Math.imul(_ms ^ (_ms >>> 15), 1 | _ms);
+            _t = (_t + Math.imul(_t ^ (_t >>> 7), 61 | _t)) ^ _t;
+            return ((_t ^ (_t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
     arena.generate(currentBiomeType, layoutOverride, trapOverride);
 
     // Versus Mode Override: Force 1v1 Layout if somehow called here
     if (isVersusMode) {
-        // We already generated it in startGame usually, but if wave advanced (e.g. rematch?), ensure layout
         arena.generate(currentBiomeType, 'VERSUS_1V1');
     }
+
+    if (_savedRandom) Math.random = _savedRandom;
 
     // Reset Player Position to Center
     if (player) {
@@ -4126,6 +4262,25 @@ const frameDelay = 1000 / FPS;
 
 // ── Online Co-op sync ─────────────────────────────────────────────────────────
 
+// Render remote entities this many ms behind current time so we always have two
+// buffered snapshots to interpolate between (one server tick = 50 ms).
+const _INTERP_DELAY_MS = 80;
+
+// Returns linearly-interpolated {x,y} from a ring-buffer of {x,y,t} snapshots
+// at the given render timestamp. Falls back to the latest snapshot when render
+// time is ahead of all buffered data.
+function _onlineInterpBuf(buf, renderTime) {
+    if (renderTime >= buf[buf.length - 1].t) return { x: buf[buf.length - 1].x, y: buf[buf.length - 1].y };
+    for (let i = buf.length - 2; i >= 0; i--) {
+        if (buf[i].t <= renderTime) {
+            const span = buf[i + 1].t - buf[i].t;
+            if (span <= 0) return { x: buf[i + 1].x, y: buf[i + 1].y };
+            const a = (renderTime - buf[i].t) / span;
+            return { x: buf[i].x + (buf[i + 1].x - buf[i].x) * a, y: buf[i].y + (buf[i + 1].y - buf[i].y) * a };
+        }
+    }
+    return { x: buf[0].x, y: buf[0].y };
+}
 
 /** GUEST: apply a state snapshot received from the host. */
 function _onlineApplySnapshot(s) {
@@ -4137,11 +4292,13 @@ function _onlineApplySnapshot(s) {
     if (player2 && s.p1) {
         player2._sx       = s.p1.x;
         player2._sy       = s.p1.y;
-        player2._smx      = s.p1.mx || 0;  // normalised move input x
+        player2._smx      = s.p1.mx || 0;
         player2._smy      = s.p1.my || 0;
         player2._snapshotAt = _snapTime;
-        player2.x         = s.p1.x;
-        player2.y         = s.p1.y;
+        if (!player2._snapBuf) player2._snapBuf = [];
+        player2._snapBuf.push({ x: s.p1.x, y: s.p1.y, t: _snapTime });
+        if (player2._snapBuf.length > 4) player2._snapBuf.shift();
+        if (player2._snapBuf.length === 1) { player2.x = s.p1.x; player2.y = s.p1.y; }
         player2.hp        = s.p1.hp;
         player2.maxHp     = s.p1.maxHp;
         player2.isDead    = s.p1.isDead;
@@ -4160,23 +4317,28 @@ function _onlineApplySnapshot(s) {
         player.xp     = s.p2.xp;
         player.maxXp  = s.p2.maxXp;
         player.gold   = s.p2.gold;
-        // Phase 2 prediction reconciliation:
-        //   < 10 px  — ignore (timing noise within one local-prediction frame)
-        //   10–80 px — smooth 30 % blend toward server authority per snapshot
+        // Prediction reconciliation:
+        //   < 25 px  — ignore (normal RTT drift; blending would cause visible wobble)
+        //   25–80 px — gentle 8 % blend toward server authority per snapshot
         //   > 80 px  — hard snap (knockback, death/revival, extreme lag)
         const _dx = s.p2.x - player.x, _dy = s.p2.y - player.y;
         const _d2 = _dx * _dx + _dy * _dy;
         if (_d2 > 6400) {
             player.x = s.p2.x; player.y = s.p2.y;
-        } else if (_d2 > 100) {
-            player.x += _dx * 0.3;
-            player.y += _dy * 0.3;
+        } else if (_d2 > 625) {
+            player.x += _dx * 0.08;
+            player.y += _dy * 0.08;
         }
 
         // Revival: host revived us (isDead went true→false) — cancel any local death state
         if (prevDead && !player.isDead) {
             isPlayerDying   = false;
             playerDeathTimer = 0;
+        }
+
+        // Sync Air Hero objective from server (authoritative) so HUD renders correctly
+        if (s.p2.objective !== undefined) {
+            player.currentObjective = s.p2.objective;
         }
     }
 
@@ -4199,11 +4361,14 @@ function _onlineApplySnapshot(s) {
             e.radius = 20; e.color = '#888888'; e.sides = 0; // safe defaults until static fields arrive
         }
         e._id = ed._id;
-        e._sx = ed.x; e._sy = ed.y;    // snapshot position for extrapolation
+        e._sx = ed.x; e._sy = ed.y;
         e._snapshotAt = _now;
-        e.x = ed.x; e.y = ed.y;
         e.vx = ed.vx || 0; e.vy = ed.vy || 0;
+        if (!e._snapBuf) { e._snapBuf = [{ x: ed.x, y: ed.y, t: _now }]; e.x = ed.x; e.y = ed.y; }
+        else { e._snapBuf.push({ x: ed.x, y: ed.y, t: _now }); if (e._snapBuf.length > 4) e._snapBuf.shift(); }
+        const _prevEHp = e.hp;
         e.hp = ed.hp;
+        if (ed.hp < _prevEHp && _prevEHp > 0) e._hitFlash = 6;
         e.alpha = ed.alpha !== undefined ? ed.alpha : 1;
         e.frozenTimer = ed.frozenTimer || 0;
         e.slowTimer   = 0;
@@ -4228,10 +4393,11 @@ function _onlineApplySnapshot(s) {
             p.damage = 0; p.knockback = 0; p.type = '';
         }
         p._id = pd._id;
-        p._sx = pd.x; p._sy = pd.y;  // snapshot origin for extrapolation
+        p._sx = pd.x; p._sy = pd.y;
         p._snapshotAt = _snapTime;
-        p.x = pd.x; p.y = pd.y;
         p.velocity = { x: pd.vx, y: pd.vy };
+        if (!p._snapBuf) { p._snapBuf = [{ x: pd.x, y: pd.y, t: _snapTime }]; p.x = pd.x; p.y = pd.y; }
+        else { p._snapBuf.push({ x: pd.x, y: pd.y, t: _snapTime }); if (p._snapBuf.length > 4) p._snapBuf.shift(); }
         // Static fields present only on first appearance (delta encoding)
         if (pd.color       !== undefined) p.color       = pd.color;
         if (pd.radius      !== undefined) p.radius      = pd.radius;
@@ -4264,6 +4430,9 @@ function _onlineProcessGuestEvent(ev) {
         case 'wave_start':
             wave = ev.wave;
             showNotification(`WAVE ${ev.wave}`);
+            break;
+        case 'notification':
+            showNotification(ev.msg, ev.color);
             break;
         case 'game_over':
             gameOver(ev.victory || false);
@@ -5462,10 +5631,23 @@ function masterLoop(timestamp) {
                             if (_sep > 1400) drawCoopDistanceWarning(ctx, player2, _sep);
                         }
                     } else if (player2._snapshotAt) {
-                        // Forward-predict ghost P2 (host character) between snapshots
-                        const _p2dt = Math.min((Date.now() - player2._snapshotAt) / 1000 * 60, 8);
-                        player2.x = player2._sx + player2._smx * 4 * _p2dt;
-                        player2.y = player2._sy + player2._smy * 4 * _p2dt;
+                        if (player2._snapBuf && player2._snapBuf.length >= 2) {
+                            const _p2pos = _onlineInterpBuf(player2._snapBuf, Date.now() - _INTERP_DELAY_MS);
+                            player2.x = _p2pos.x; player2.y = _p2pos.y;
+                        } else {
+                            // Fallback: extrapolate from single snapshot until buffer fills
+                            const _p2dt = Math.min((Date.now() - player2._snapshotAt) / 1000 * 60, 8);
+                            const _smx = player2._smx || 0, _smy = player2._smy || 0;
+                            const _moveLen = Math.hypot(_smx, _smy);
+                            const _speed = (player2.stats?.speed || 4) * (player2.speedMultiplier || 1);
+                            if (_moveLen > 0) {
+                                player2.x = player2._sx + (_smx / _moveLen) * _speed * _p2dt;
+                                player2.y = player2._sy + (_smy / _moveLen) * _speed * _p2dt;
+                            } else {
+                                player2.x = player2._sx;
+                                player2.y = player2._sy;
+                            }
+                        }
                     }
                 }
                 player2.draw();
@@ -5476,19 +5658,30 @@ function masterLoop(timestamp) {
             if (isOnlineMode && gameRunning && !gamePaused) {
                 _onlineFrame++;
 
-                // Extrapolate ghost enemy and projectile positions between server ticks
+                // Interpolate ghost entities between buffered snapshots for smooth rendering
                 const _now = Date.now();
+                const _renderTime = _now - _INTERP_DELAY_MS;
                 enemies.forEach(e => {
                     if (!e._ghost) return;
-                    const _dt = Math.min((_now - (e._snapshotAt || _now)) / 1000 * 60, 12);
-                    e.x = (e._sx ?? e.x) + (e.vx || 0) * _dt;
-                    e.y = (e._sy ?? e.y) + (e.vy || 0) * _dt;
+                    if (e._snapBuf && e._snapBuf.length >= 2) {
+                        const _ep = _onlineInterpBuf(e._snapBuf, _renderTime);
+                        e.x = _ep.x; e.y = _ep.y;
+                    } else {
+                        const _dt = Math.min((_now - (e._snapshotAt || _now)) / 1000 * 60, 12);
+                        e.x = (e._sx ?? e.x) + (e.vx || 0) * _dt;
+                        e.y = (e._sy ?? e.y) + (e.vy || 0) * _dt;
+                    }
                 });
                 projectiles.forEach(p => {
                     if (!p._ghost || !p._snapshotAt) return;
-                    const _dt = Math.min((_now - p._snapshotAt) / 1000 * 60, 12);
-                    p.x = p._sx + (p.velocity?.x || 0) * _dt;
-                    p.y = p._sy + (p.velocity?.y || 0) * _dt;
+                    if (p._snapBuf && p._snapBuf.length >= 2) {
+                        const _pp = _onlineInterpBuf(p._snapBuf, _renderTime);
+                        p.x = _pp.x; p.y = _pp.y;
+                    } else {
+                        const _dt = Math.min((_now - p._snapshotAt) / 1000 * 60, 12);
+                        p.x = p._sx + (p.velocity?.x || 0) * _dt;
+                        p.y = p._sy + (p.velocity?.y || 0) * _dt;
+                    }
                 });
 
                 // Both clients send input every frame so the server has up-to-date state
@@ -6065,6 +6258,16 @@ function masterLoop(timestamp) {
                 enemy.biomeSpeedMod = enemySpeedMod;
 
                 if (!_isHitStopped && !enemy._ghost) enemy.update(); enemy.draw();
+                if (enemy._ghost && enemy._hitFlash > 0) {
+                    enemy._hitFlash--;
+                    ctx.save();
+                    ctx.globalAlpha = (enemy._hitFlash / 6) * 0.55;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(enemy.x, enemy.y, (enemy.radius || 20) * 1.05, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
 
                 if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {

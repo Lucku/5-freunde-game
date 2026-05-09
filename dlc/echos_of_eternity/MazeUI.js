@@ -40,11 +40,12 @@ class MazeUI {
     }
 
     // ─── Public API ───────────────────────────────────────────────────────────
-    open(heroType, afterCb) {
+    open(heroType, afterCb, readOnly) {
         if (!this._overlay) this._buildDOM();
 
         this._afterCb  = afterCb;
         this._heroType = heroType || 'time';
+        this._readOnly = !!readOnly;
         // Use getState() — NOT initForRun(). initForRun() resets runCompleted and is
         // only called by game.js at wave 0 (new run start). Calling it here would wipe
         // the within-run progress every time the map opens.
@@ -99,12 +100,22 @@ class MazeUI {
         this._updateConfirmBtn();
         this._renderSidebar();
 
-        // Attach events
-        this._canvas.addEventListener('mousemove', this._boundMouseMove);
-        this._canvas.addEventListener('mousedown', this._boundMouseDown);
-        this._canvas.addEventListener('mouseup',   this._boundMouseUp);
-        this._canvas.addEventListener('click',     this._boundClick);
-        window.addEventListener('keydown', this._boundKeyDown);
+        // Read-only (online guest spectator): show waiting message, hide confirm button
+        const _hintEl = document.getElementById('maze-hint-text');
+        const _confirmBtn = document.getElementById('maze-confirm-btn');
+        if (this._readOnly) {
+            if (_hintEl) _hintEl.textContent = 'Waiting for host to choose path…';
+            if (_confirmBtn) _confirmBtn.style.display = 'none';
+        } else {
+            if (_hintEl) _hintEl.innerHTML = 'Drag to pan &nbsp;·&nbsp; Click a glowing node to select &nbsp;·&nbsp; Enter / A to confirm &nbsp;·&nbsp; D-pad / stick to navigate';
+            if (_confirmBtn) _confirmBtn.style.display = '';
+            // Attach interactive events only for the host / single-player
+            this._canvas.addEventListener('mousemove', this._boundMouseMove);
+            this._canvas.addEventListener('mousedown', this._boundMouseDown);
+            this._canvas.addEventListener('mouseup',   this._boundMouseUp);
+            this._canvas.addEventListener('click',     this._boundClick);
+            window.addEventListener('keydown', this._boundKeyDown);
+        }
 
         this._startLoop();
     }
@@ -124,11 +135,14 @@ class MazeUI {
         // Clear selection so any stray _handleGamepad() calls can't re-confirm
         this._selectedNode = null;
         if (this._overlay) this._overlay.style.display = 'none';
-        this._canvas.removeEventListener('mousemove', this._boundMouseMove);
-        this._canvas.removeEventListener('mousedown', this._boundMouseDown);
-        this._canvas.removeEventListener('mouseup',   this._boundMouseUp);
-        this._canvas.removeEventListener('click',     this._boundClick);
-        window.removeEventListener('keydown', this._boundKeyDown);
+        if (!this._readOnly) {
+            this._canvas.removeEventListener('mousemove', this._boundMouseMove);
+            this._canvas.removeEventListener('mousedown', this._boundMouseDown);
+            this._canvas.removeEventListener('mouseup',   this._boundMouseUp);
+            this._canvas.removeEventListener('click',     this._boundClick);
+            window.removeEventListener('keydown', this._boundKeyDown);
+        }
+        this._readOnly = false;
     }
 
     // ─── DOM Construction ─────────────────────────────────────────────────────
@@ -194,7 +208,7 @@ class MazeUI {
         footer.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:3px; flex:1;">
                 <div id="maze-node-info" style="font-size:12px; color:rgba(200,170,80,0.7); line-height:1.5;"></div>
-                <div style="font-size:9px; color:rgba(200,170,80,0.25); letter-spacing:0.06em;">
+                <div id="maze-hint-text" style="font-size:9px; color:rgba(200,170,80,0.25); letter-spacing:0.06em;">
                     Drag to pan &nbsp;·&nbsp; Click a glowing node to select &nbsp;·&nbsp; Enter / A to confirm &nbsp;·&nbsp; D-pad / stick to navigate
                 </div>
             </div>
@@ -825,6 +839,16 @@ class MazeUI {
                 mazeModifiers: node.modifiers,
             },
         };
+
+        // Online host: relay node selection to guest before proceeding
+        if (typeof isOnlineMode !== 'undefined' && isOnlineMode &&
+            window.networkManager && window.networkManager.isHost()) {
+            window.networkManager.send({
+                type: 'MAZE_NODE_SELECTED',
+                nodeId: node.id,
+                storyEvent,
+            });
+        }
 
         if (window.openStory) {
             window.currentStoryEvent = storyEvent;

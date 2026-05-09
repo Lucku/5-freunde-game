@@ -1181,6 +1181,7 @@
     <script src="Entities/FloatingText.js"></script>
 
     <script src="CoopGamepadController.js"></script>
+    <script src="OnlineTestBot.js"></script>
     <script src="game.js"></script>
     <script src="TutorialMode.js"></script>
     <script src="TestingGrounds.js"></script>
@@ -1201,6 +1202,28 @@
                     style="padding:12px 28px; font-size:16px; background:#333; color:#fff; border:2px solid #555; border-radius:8px; cursor:pointer;">Skip
                     for now</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Testing Grounds: Mode chooser (shown when pressing D in menu) -->
+    <div id="tg-mode-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.82); z-index:9100; justify-content:center; align-items:center;"
+        <div style="background:#12121e; border:2px solid #f1c40f; border-radius:14px; padding:36px 40px; text-align:center; color:#fff; font-family:monospace; min-width:340px;">
+            <div style="color:#f1c40f; font-size:22px; font-weight:bold; margin-bottom:8px;">Testing Grounds</div>
+            <div style="color:#888; font-size:13px; margin-bottom:28px;">Choose simulation mode</div>
+            <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap;">
+                <button onclick="document.getElementById('tg-mode-overlay').style.display='none'; startTestingGrounds();"
+                    style="background:#1e1e30; color:#fff; border:2px solid #f1c40f; border-radius:8px; padding:14px 28px; cursor:pointer; font-size:15px; font-family:monospace;">
+                    <div style="font-weight:bold;">Local</div>
+                    <div style="color:#888; font-size:11px; margin-top:4px;">Client-side physics</div>
+                </button>
+                <button onclick="startOnlineTestArena();"
+                    style="background:#1e1e30; color:#fff; border:2px solid #3d9bf0; border-radius:8px; padding:14px 28px; cursor:pointer; font-size:15px; font-family:monospace;">
+                    <div style="font-weight:bold; color:#3d9bf0;">Online Sim</div>
+                    <div style="color:#888; font-size:11px; margin-top:4px;">Server-authoritative</div>
+                </button>
+            </div>
+            <div style="color:#555; font-size:11px; margin-top:20px;">Esc to cancel</div>
         </div>
     </div>
 

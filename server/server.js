@@ -521,6 +521,15 @@ function handleMessage(ws, msg) {
             break;
         }
 
+        case 'MAZE_NODE_SELECTED': {
+            // Host relays their Maze of Time node pick to the guest
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby || lobby.phase !== 'in_game' || ws.role !== 'host') return;
+            const p = partner(lobby, ws.role);
+            if (p) send(p.ws, { type: 'MAZE_NODE_SELECTED', nodeId: msg.nodeId, storyEvent: msg.storyEvent });
+            break;
+        }
+
         case 'LEAVE_LOBBY': {
             leaveLobby(ws);
             break;

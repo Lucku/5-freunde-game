@@ -148,14 +148,20 @@ class AirHero {
             player.weatherVane.direction = dirs[nextIdx];
 
             // 2. CHECK GAME MODE
-            const isStoryMode = (saveData && saveData.story && saveData.story.enabled) &&
+            const isOnlineGuest   = !!(_w && _w.isOnlineGuest);
+            const isCoopSession   = !!(_w && _w.isCoopMode && !_w.isVersusMode);
+            const isStoryMode = isCoopSession || (
+                (saveData && saveData.story && saveData.story.enabled) &&
                 (typeof isDailyMode === 'undefined' || !isDailyMode) &&
                 (typeof isWeeklyMode === 'undefined' || !isWeeklyMode) &&
                 (typeof isVersusMode === 'undefined' || !isVersusMode) &&
-                (typeof isChaosShuffleMode === 'undefined' || !isChaosShuffleMode);
+                (typeof isChaosShuffleMode === 'undefined' || !isChaosShuffleMode)
+            );
 
-            // 3. GENERATE NEW OBJECTIVE (Story Only)
-            if (isStoryMode) {
+            // 3. GENERATE NEW OBJECTIVE (Story/Co-op only; guests receive objective via snapshot)
+            if (isOnlineGuest) {
+                // Objective state is authoritative from server snapshot — do not override.
+            } else if (isStoryMode) {
                 AirHero.generateWaveObjective(player, currentWave);
                 if (showNotification) {
                     setTimeout(() => showNotification(`GOAL: ${player.currentObjective.text}`), 500);
@@ -180,48 +186,49 @@ class AirHero {
         }
 
         // --- CHECK OBJECTIVE PROGRESS VS BOSS ---
-        AirHero.checkObjective(player, world);
+        const _isOnlineGuest = !!(_w && _w.isOnlineGuest);
+        if (!_isOnlineGuest) AirHero.checkObjective(player, world);
 
-        // BOSS BLOCKING MECHANIC
-        // If objective NOT complete, prevent boss from appearing/acting
-        // Scan enemies for Boss type
-        if (player.currentObjective.type !== 'NONE' && !player.currentObjective.completed) {
+        // BOSS BLOCKING MECHANIC — skip on online guest (server is authoritative)
+        if (!_isOnlineGuest) {
+            if (player.currentObjective.type !== 'NONE' && !player.currentObjective.completed) {
 
-            // 1. Keep Wave Going (Infinite Enemies)
-            // If kills reached max but objective not done, reset kills slightly to keep spawning?
-            // Or just rely on Boss Blocking logic if it's a boss wave.
+                // Signal server-side wave gating (read by GameSession._checkWaveAdvance)
+                if (_w) _w.objectiveLocked = true;
 
-            // 2. Hide/Block Boss (Deprecated, we now control spawn condition)
-            // But if one exists anyway:
-            if (enemies) {
-                const boss = enemies.find(e => e.isBoss || e.constructor.name === 'Boss');
-                if (boss && !boss.hiddenByObjective) {
-                    boss.hiddenByObjective = true;
-                    boss.oldX = boss.x;
-                    boss.x = -99999;
-                    boss.active = false;
-                    if (showNotification) showNotification("BOSS LOCKED UNTIL OBJECTIVE COMPLETE!", "#ff0000");
+                // Hide boss if one exists locally
+                if (enemies) {
+                    const boss = enemies.find(e => e.isBoss || e.constructor.name === 'Boss');
+                    if (boss && !boss.hiddenByObjective) {
+                        boss.hiddenByObjective = true;
+                        boss.oldX = boss.x;
+                        boss.x = -99999;
+                        boss.active = false;
+                        if (showNotification) showNotification("BOSS LOCKED UNTIL OBJECTIVE COMPLETE!", "#ff0000");
+                    }
                 }
-            }
 
-            // BOSS SPAWN CONTROL:
-            // Prevent spawn by capping kill count
-            if (typeof window.enemiesKilledInWave !== 'undefined' && typeof window.ENEMIES_PER_WAVE !== 'undefined') {
-                const maxKills = window.ENEMIES_PER_WAVE * currentWave;
-                if (window.enemiesKilledInWave >= maxKills - 1) {
-                    window.enemiesKilledInWave = maxKills - 1;
+                // Client-side: cap kill count to prevent local wave advance
+                if (typeof window.enemiesKilledInWave !== 'undefined' && typeof window.ENEMIES_PER_WAVE !== 'undefined') {
+                    const maxKills = window.ENEMIES_PER_WAVE * currentWave;
+                    if (window.enemiesKilledInWave >= maxKills - 1) {
+                        window.enemiesKilledInWave = maxKills - 1;
+                    }
                 }
-            }
-        } else {
-            // Objective Completed: Release Boss
-            if (enemies) {
-                const boss = enemies.find(e => e.hiddenByObjective);
-                if (boss) {
-                    boss.hiddenByObjective = false;
-                    boss.x = boss.oldX || (window.innerWidth / 2); // Restore pos
-                    boss.active = true;
-                    if (showNotification) showNotification("BOSS UNLOCKED!", "#00ff00");
-                    if (createExplosion) createExplosion(boss.x, boss.y, '#40e0d0', 50);
+            } else {
+                // Objective complete: release server lock
+                if (_w) _w.objectiveLocked = false;
+
+                // Restore boss if hidden
+                if (enemies) {
+                    const boss = enemies.find(e => e.hiddenByObjective);
+                    if (boss) {
+                        boss.hiddenByObjective = false;
+                        boss.x = boss.oldX || (window.innerWidth / 2);
+                        boss.active = true;
+                        if (showNotification) showNotification("BOSS UNLOCKED!", "#00ff00");
+                        if (createExplosion) createExplosion(boss.x, boss.y, '#40e0d0', 50);
+                    }
                 }
             }
         }
