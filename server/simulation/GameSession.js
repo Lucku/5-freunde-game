@@ -197,9 +197,20 @@ class GameSession {
         const prevProjCount   = this.projectiles.length;
         const prevMeleeCount  = (this._world.meleeAttacks || []).length;
 
+        // Sub-step Player.update() so server-simulated player advances at the same
+        // real-world speed as the 60-fps client. Without this, server runs one update
+        // per tick (30 Hz) while the client predicts at 60 fps — client position
+        // drifts ahead by ~120 px/sec, eventually triggering hard-snap reconciliation
+        // and yanking the player back. Action latches (_pendingShoot etc.) are
+        // cleared on the first sub-step's getInput() so abilities never double-fire;
+        // subsequent sub-steps only apply movement and cooldown decrements.
+        const _PLAYER_SUB_STEPS = Math.max(1, Math.round(TICK_FRAMES));
         this.players.forEach(p => {
             if (p && !p.isDead) {
-                p.update();
+                for (let _s = 0; _s < _PLAYER_SUB_STEPS; _s++) {
+                    if (p.isDead) break;
+                    p.update();
+                }
                 // invincibleTimer is decremented by Player.update() but only isInvincible is
                 // checked for hit prevention — clear it when the timer expires.
                 if ((p.invincibleTimer || 0) <= 0) p.isInvincible = false;

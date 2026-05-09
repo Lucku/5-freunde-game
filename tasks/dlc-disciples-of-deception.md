@@ -38,7 +38,7 @@ First character-only DLC. Three deception-themed heroes with full gameplay syste
 **Stat Profile:** Low HP (45), high speed (5.5), high range damage (35), short cooldown (10), small projectiles
 
 ### Core Mechanic: Hysteria
-Psycho has a **Hysteria Gauge** that fills as he takes damage and kills enemies. When full, he enters **Hysteria Mode** — movement speed +40%, all projectiles split into 3 erratic shots, and enemies near him randomly change direction (confused AI). Duration: 6 seconds.
+Psycho has a **Hysteria Gauge** that fills as he takes damage and kills enemies. When full, he enters **Hysteria Mode** — movement speed +40%, all projectiles split into 3 erratic shots, and enemies near him randomly change direction (confused AI). Confused enemies display a swirling teal icon above their head for the debuff duration. Hysteria Mode lasts 6 seconds.
 
 ### Special: Mind Fracture
 Fires a psychic bolt that bounces between up to 4 enemies, dealing damage and applying a 2s confusion debuff (enemies walk away from Psycho instead of toward him).
@@ -259,7 +259,7 @@ Vast, cold, geometric. The arena is lined with reflective panel obstacles that s
 **Stat Profile:** Medium HP (65), high speed (5), medium range damage (20), medium melee damage (100), medium cooldown (18)
 
 ### Core Mechanic: Smoke Trail
-Whenever Smoke **dashes**, it leaves a smoke cloud at the origin point (radius 60, lasts 4s). Enemies inside smoke clouds have their speed reduced by 40% and move semi-randomly (lose targeting accuracy). Max 3 simultaneous clouds.
+Whenever Smoke **dashes**, it leaves a smoke cloud at the origin point (radius 60, lasts 4s). Enemies inside smoke clouds have their speed reduced by 40% and move semi-randomly (lose targeting accuracy). Clouds are visible to all players in co-op and versus modes. Max 3 simultaneous clouds.
 
 ### Special: Blackout
 Releases a large burst cloud (radius 120) centered on player, dealing light damage to all enemies caught in it and applying a 3s blind debuff — blinded enemies cannot target Smoke (attack nearby empty space instead). 12s cooldown.
@@ -341,7 +341,7 @@ Industrial ruin. Visibility is reduced by a persistent gray haze that covers the
 ### update(arena, player, enemies)
 - Each frame: spawn 2–3 smoke wisp particles at random arena positions, drifting in wind direction, slow velocity, long life (400–600 frames), large radius (8–15), low alpha
 - Every 20s: wind direction shifts 90° clockwise — brief `showNotification("WIND SHIFT")` in gray
-- Visibility effect: draw a global semi-transparent gray overlay (`rgba(15,15,20,0.25)`) over entire arena — enemies beyond radius 500 from player are dimmed (alpha reduced further in draw)
+- Visibility effect: draw a global semi-transparent gray overlay (`rgba(15,15,20,0.25)`) over entire arena — applies regardless of which hero is playing. Enemies beyond radius 500 from player are dimmed further in draw pass.
 
 ### draw(ctx, arena)
 - Background: near-black fill + diffuse gray radial fog (large, low opacity, player-centered)
@@ -515,9 +515,12 @@ const DISCIPLES_OF_DECEPTION = {
 
 ---
 
-## Open Questions / To Decide
+## Resolved Design Decisions
 
-- [ ] Psycho's Hysteria — is the confused AI on enemies a UI-visible effect (e.g. swirling icon above enemy) or purely behavioral?
-- [ ] Smoke clouds — visible to both players in co-op/versus, or only Smoke's client?
-- [ ] Smog Quarter visibility reduction — apply globally or only when Smoke is the active hero in the biome?
-- [ ] DLC title screen jingle — unique short theme, or silence/base game music?
+| Topic | Decision |
+|-------|----------|
+| Hysteria confusion visual | Swirling teal icon above confused enemy for debuff duration |
+| Smoke clouds in multiplayer | Visible to all players (co-op and versus) |
+| Smog Quarter visibility reduction | Global — applies to all heroes, not just Smoke |
+| DLC music | No unique tracks — uses base game music |
+| Biome random pool | Added to standard DLC pool, appears for any hero in non-story runs |
