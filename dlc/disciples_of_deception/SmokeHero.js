@@ -193,12 +193,33 @@ window.HERO_LOGIC['smoke'] = {
         while (player.smokeClouds.length >= player.cloudMax) {
             player.smokeClouds.shift();
         }
+
+        const _alt = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+
+        // Toxic Smog: clouds last +1s and get poison flag
+        let life = player.cloudLifetime;
+        if (_alt.includes('cv_dod_smk_poison')) life += 60;
+
         player.smokeClouds.push({
             x, y,
             radius: player.cloudRadius,
-            life: player.cloudLifetime,
-            maxLife: player.cloudLifetime
+            life,
+            maxLife: life,
+            poison: _alt.includes('cv_dod_smk_poison')
         });
+
+        // Smoke Bomb: 60-damage fire burst at cloud origin
+        if (_alt.includes('cv_dod_smk_fire') && typeof enemies !== 'undefined') {
+            const burstDmg = 60 * (player.damageMultiplier || 1);
+            enemies.forEach(e => {
+                if (e.hp <= 0) return;
+                if (Math.hypot(e.x - x, e.y - y) < player.cloudRadius) {
+                    e.hp -= burstDmg;
+                    if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
+                }
+            });
+            if (typeof createExplosion === 'function') createExplosion(x, y, '#e67e22', player.cloudRadius * 0.6);
+        }
     },
 
     useSpecial: function (player, world) {
@@ -307,14 +328,31 @@ window.HERO_LOGIC['smoke'] = {
             }
         }
 
+        // Altar convergence checks (per-frame so mid-run unlock works)
+        const _altS = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const _hasSpore  = _altS.includes('cv_dod_smk_plant');
+        const _hasToxic  = _altS.includes('cv_dod_smk_poison');
+        const _hasDust   = _altS.includes('cv_dod_smk_earth');
+        const _hasTrioS  = _altS.includes('cv_dod_trio');
+
+        // Spore Cloud: heal player when standing inside own cloud
+        if (_hasSpore && (typeof frame !== 'undefined' ? frame : 0) % 30 === 0 && typeof player.hp === 'number') {
+            const inOwnCloud = player.smokeClouds.some(c => Math.hypot(player.x - c.x, player.y - c.y) < c.radius);
+            if (inOwnCloud && player.hp < (player.maxHp || player.hp)) {
+                player.hp = Math.min(player.maxHp || player.hp, player.hp + 1);
+            }
+        }
+
         // Apply cloud effects to enemies
         if (enemies) {
             enemies.forEach(e => {
                 if (e.hp <= 0) return;
                 let inCloud = false;
+                let cloudIsPoison = false;
                 for (const c of player.smokeClouds) {
                     if (Math.hypot(e.x - c.x, e.y - c.y) < c.radius) {
                         inCloud = true;
+                        if (c.poison) cloudIsPoison = true;
                         // Toxic Haze DPS upgrade
                         if (player.cloudDealsDot && (typeof frame !== 'undefined' ? frame : 0) % 30 === 0) {
                             e.hp -= 2 * (player.damageMultiplier || 1);
@@ -323,6 +361,15 @@ window.HERO_LOGIC['smoke'] = {
                         break;
                     }
                 }
+                // Toxic Smog convergence: 4 dmg/sec for enemies in poison clouds
+                if (_hasToxic && cloudIsPoison && (typeof frame !== 'undefined' ? frame : 0) % 15 === 0) {
+                    e.hp -= 1 * (player.damageMultiplier || 1);
+                    if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
+                }
+                // Dust Cloud convergence: enemies in clouds can't fire ranged
+                if (_hasDust && inCloud) e._smokeRangedLock = 5;
+                // Trio: blinded enemies get vulnerability tag
+                if (_hasTrioS && e._smokeBlind && e._smokeBlind > 0) e._dodVulnerable = 30;
                 if (inCloud) {
                     e._smokeSlowed = 5; // tag for several frames
                 }

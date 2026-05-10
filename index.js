@@ -103,6 +103,10 @@ function isNewer(latest, current) {
     return false;
 }
 
+let updateStatus = { available: false, version: null, url: null };
+
+ipcMain.handle('get-update-status', () => updateStatus);
+
 function checkForUpdates() {
     const options = {
         hostname: 'api.github.com',
@@ -119,6 +123,7 @@ function checkForUpdates() {
                 const currentVersion = app.getVersion();
                 if (latestTag && isNewer(latestTag, currentVersion)) {
                     const downloadUrl = release.html_url;
+                    updateStatus = { available: true, version: latestTag, url: downloadUrl };
                     const wins = BrowserWindow.getAllWindows();
                     if (wins.length > 0) {
                         // Wait for renderer to be ready before sending

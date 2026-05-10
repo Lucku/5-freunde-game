@@ -90,12 +90,19 @@ function drawHeroSprite(ctx, color, r) {
 }
 
 function shadeColor(color, percent) {
-    let R = parseInt(color.substring(1, 3), 16);
-    let G = parseInt(color.substring(3, 5), 16);
-    let B = parseInt(color.substring(5, 7), 16);
-    R = Math.min(255, Math.round(R * (100 + percent) / 100));
-    G = Math.min(255, Math.round(G * (100 + percent) / 100));
-    B = Math.min(255, Math.round(B * (100 + percent) / 100));
+    // Accept #RGB shorthand, #RRGGBB, or any other input (fall back to color unchanged
+    // so callers feeding it to addColorStop never get NaN-laden hex like "#8408NaN").
+    if (typeof color !== 'string' || color[0] !== '#') return color;
+    let hex = color.slice(1);
+    if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    if (hex.length !== 6) return color;
+    let R = parseInt(hex.substring(0, 2), 16);
+    let G = parseInt(hex.substring(2, 4), 16);
+    let B = parseInt(hex.substring(4, 6), 16);
+    if (Number.isNaN(R) || Number.isNaN(G) || Number.isNaN(B)) return color;
+    R = Math.min(255, Math.max(0, Math.round(R * (100 + percent) / 100)));
+    G = Math.min(255, Math.max(0, Math.round(G * (100 + percent) / 100)));
+    B = Math.min(255, Math.max(0, Math.round(B * (100 + percent) / 100)));
     const pad = (v) => v.toString(16).padStart(2, '0');
     return "#" + pad(R) + pad(G) + pad(B);
 }

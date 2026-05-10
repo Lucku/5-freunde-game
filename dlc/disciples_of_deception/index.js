@@ -71,27 +71,62 @@ const DISCIPLES_OF_DECEPTION = {
     },
 
     injectAltar: function () {
-        if (typeof ALTAR_TREE !== 'undefined') {
-            ALTAR_TREE['psycho'] = [
-                { id: 'p1', req: 1, type: 'stat', stat: 'cooldown',         val: 0.9,  desc: 'Cooldowns -10%' },
-                { id: 'p2', req: 3, type: 'stat', stat: 'hysteriaGainMult', val: 1.25, desc: 'Hysteria Gain +25%' },
-                { id: 'p3', req: 5, type: 'unique',                                    desc: 'Bleeding Edge: Hysteria Mode also pierces all projectiles' }
-            ];
+        if (typeof ALTAR_TREE === 'undefined') return;
 
-            ALTAR_TREE['mirror'] = [
-                { id: 'mr1', req: 1, type: 'stat', stat: 'cooldown',        val: 0.9,  desc: 'Cooldowns -10%' },
-                { id: 'mr2', req: 3, type: 'stat', stat: 'reflectDmgMult',  val: 0.25, desc: 'Reflect Damage +25%' },
-                { id: 'mr3', req: 5, type: 'unique',                                   desc: 'Glasshouse: Mirror Shield duration +50%' }
-            ];
+        ALTAR_TREE['psycho'] = [
+            { id: 'p1', req: 1, type: 'stat', stat: 'cooldown',         val: 0.9,  desc: 'Cooldowns -10%' },
+            { id: 'p2', req: 3, type: 'stat', stat: 'hysteriaGainMult', val: 1.25, desc: 'Hysteria Gain +25%' },
+            { id: 'p3', req: 5, type: 'unique',                                    desc: 'Bleeding Edge: Hysteria projectiles pierce all enemies' }
+        ];
 
-            ALTAR_TREE['smoke'] = [
-                { id: 'sm1', req: 1, type: 'stat', stat: 'cooldown',      val: 0.9,  desc: 'Cooldowns -10%' },
-                { id: 'sm2', req: 3, type: 'stat', stat: 'cloudRadius',   val: 1.25, desc: 'Smoke Cloud Radius +25%' },
-                { id: 'sm3', req: 5, type: 'unique',                                 desc: 'Suffocation: Enemies in clouds take +20% damage from all sources' }
-            ];
+        ALTAR_TREE['mirror'] = [
+            { id: 'mr1', req: 1, type: 'stat', stat: 'cooldown',        val: 0.9,  desc: 'Cooldowns -10%' },
+            { id: 'mr2', req: 3, type: 'stat', stat: 'reflectDmgMult',  val: 0.25, desc: 'Reflect Damage +25%' },
+            { id: 'mr3', req: 5, type: 'unique',                                   desc: 'Glasshouse: Mirror Shield duration +50%' }
+        ];
 
-            console.log("Disciples of Deception: Altar Skills Injected.");
+        ALTAR_TREE['smoke'] = [
+            { id: 'sm1', req: 1, type: 'stat', stat: 'cooldown',      val: 0.9,  desc: 'Cooldowns -10%' },
+            { id: 'sm2', req: 3, type: 'stat', stat: 'cloudRadius',   val: 1.25, desc: 'Smoke Cloud Radius +25%' },
+            { id: 'sm3', req: 5, type: 'unique',                                 desc: 'Suffocation: Enemies in clouds take +20% damage from all sources' }
+        ];
+
+        // ── CONVERGENCES ──────────────────────────────────────────────
+        // Cross-hero altar mutations. Naming: cv_dod_<hero>_<element> to avoid collisions
+        // with base game (c1–c10), Rock (c11–c15, c21, c27), Thunder (c16–c20, c21, c28),
+        // Wind (c22–c28), Chaos (c30–c34), Time/Love (ct*, cl*), and Symphony (cv_so_*, cv_po_*).
+        const deceptionMutations = [
+            // Psycho convergences
+            { id: 'cv_dod_psy_fire',      req: { psycho: 5, fire: 5 },      type: 'mutation', name: 'Burning Mind',     desc: 'Confused enemies take Fire DoT (3 dmg/sec) for the full debuff duration.' },
+            { id: 'cv_dod_psy_ice',       req: { psycho: 5, ice: 5 },       type: 'mutation', name: 'Frozen Synapse',   desc: 'Mind Fracture briefly freezes each bounce target for 0.5s.' },
+            { id: 'cv_dod_psy_lightning', req: { psycho: 5, lightning: 5 }, type: 'mutation', name: 'Synaptic Arc',     desc: 'Mind Fracture chains lightning between bounce targets for +50% damage.' },
+            { id: 'cv_dod_psy_time',      req: { psycho: 5, time: 5 },      type: 'mutation', name: 'Mental Loop',      desc: 'Hysteria Mode duration +50%; confused enemies move 30% slower.' },
+
+            // Mirror convergences
+            { id: 'cv_dod_mir_water',     req: { mirror: 5, water: 5 },     type: 'mutation', name: 'Hydroflect',       desc: 'Reflected projectiles also push their target back with full Water knockback.' },
+            { id: 'cv_dod_mir_metal',     req: { mirror: 5, metal: 5 },     type: 'mutation', name: 'Plate Glass',      desc: 'Mirror Shield grants +30% damage reduction for non-reflected hits.' },
+            { id: 'cv_dod_mir_lightning', req: { mirror: 5, lightning: 5 }, type: 'mutation', name: 'Capacitor',        desc: 'Reflected projectiles arc lightning to up to 2 nearby enemies.' },
+            { id: 'cv_dod_mir_air',       req: { mirror: 5, air: 5 },       type: 'mutation', name: 'Echo Chamber',     desc: 'Shatter fragments curve toward the nearest enemy for 30 frames after spawning.' },
+
+            // Smoke convergences
+            { id: 'cv_dod_smk_fire',      req: { smoke: 5, fire: 5 },       type: 'mutation', name: 'Smoke Bomb',       desc: 'Each new smoke cloud emits a 60-damage fire burst on spawn.' },
+            { id: 'cv_dod_smk_poison',   req: { smoke: 5, poison: 5 },      type: 'mutation', name: 'Toxic Smog',       desc: 'Smoke clouds apply Poison DoT (4 dmg/sec) and last +1s.' },
+            { id: 'cv_dod_smk_plant',    req: { smoke: 5, plant: 5 },       type: 'mutation', name: 'Spore Cloud',      desc: 'Player heals 2 HP/sec while standing in own smoke cloud.' },
+            { id: 'cv_dod_smk_earth',    req: { smoke: 5, earth: 5 },       type: 'mutation', name: 'Dust Cloud',       desc: 'Enemies inside smoke clouds cannot fire ranged attacks.' },
+
+            // Pack-wide trio
+            { id: 'cv_dod_trio',         req: { psycho: 5, mirror: 5, smoke: 5 }, type: 'mutation', name: 'Master of Deception', desc: 'Confused, blinded, or reflected enemies take +25% damage from all sources.' }
+        ];
+
+        if (ALTAR_TREE.convergence) {
+            deceptionMutations.forEach(m => {
+                if (!ALTAR_TREE.convergence.find(ex => ex.id === m.id)) {
+                    ALTAR_TREE.convergence.push(m);
+                }
+            });
         }
+
+        console.log(`Disciples of Deception: Altar Skills Injected (3 hero trees + ${deceptionMutations.length} convergences).`);
     },
 
     injectAchievements: function () {

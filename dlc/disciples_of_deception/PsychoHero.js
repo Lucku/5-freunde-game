@@ -107,12 +107,18 @@ window.HERO_LOGIC['psycho'] = {
     init: function (player) {
         const _self = this;
 
+        // Altar convergence helper
+        const altarActive = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const hasAltar = (id) => altarActive.includes(id);
+
         // Resource state
         player.hysteriaGauge       = 0;
         player.maxHysteria         = player.stats.maxHysteria || 100;
         player.hysteriaActive      = false;
         player.hysteriaDuration    = 0;
         player.hysteriaMaxDuration = 360; // 6 seconds @ 60fps
+        // Mental Loop convergence: +50% Hysteria duration
+        if (hasAltar('cv_dod_psy_time')) player.hysteriaMaxDuration = Math.floor(player.hysteriaMaxDuration * 1.5);
         player.hysteriaGainMult    = 1.0;
         player.mindFractureBounces = player.stats.mindFractureBounces || 4;
 
@@ -371,14 +377,28 @@ window.HERO_LOGIC['psycho'] = {
             }
         }
 
+        // Altar convergence flags (recomputed per frame to support mid-run unlock)
+        const _altActive = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+        const _hasBurningMind  = _altActive.includes('cv_dod_psy_fire');
+        const _hasMentalLoop   = _altActive.includes('cv_dod_psy_time');
+        const _hasTrio         = _altActive.includes('cv_dod_trio');
+
         // Apply confusion to enemies — push them away from player instead of toward
         if (enemies) {
             enemies.forEach(e => {
                 if (e._psychoConfused && e._psychoConfused > 0) {
                     e._psychoConfused--;
                     const ang = Math.atan2(e.y - player.y, e.x - player.x);
-                    e.x += Math.cos(ang) * 0.6;
-                    e.y += Math.sin(ang) * 0.6;
+                    const slowMult = _hasMentalLoop ? 0.7 : 1.0;
+                    e.x += Math.cos(ang) * 0.6 * slowMult;
+                    e.y += Math.sin(ang) * 0.6 * slowMult;
+                    // Burning Mind: 3 dmg/sec while confused
+                    if (_hasBurningMind && (typeof frame !== 'undefined' ? frame : 0) % 20 === 0) {
+                        e.hp -= 1 * (player.damageMultiplier || 1);
+                        if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
+                    }
+                    // Trio: tag for +25% damage taken (read by enemy.takeDamage hooks elsewhere; safe no-op when none read it)
+                    if (_hasTrio) e._dodVulnerable = 30;
                     // Draw swirling teal icon above enemy
                     if (window.ctx) {
                         const ctx = window.ctx;

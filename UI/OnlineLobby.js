@@ -18,7 +18,26 @@ class OnlineLobbyUI {
 
     // ── Open / close ──────────────────────────────────────────────────────────
 
-    open() {
+    async open() {
+        // Block online access if a newer version exists
+        try {
+            const { ipcRenderer } = require('electron');
+            const status = await ipcRenderer.invoke('get-update-status');
+            if (status.available) {
+                const text = document.getElementById('online-update-required-text');
+                if (text) {
+                    text.textContent = `Online mode requires version ${status.version}. You are running v${APP_VERSION}. Please download the latest patch to play online.`;
+                }
+                const btn = document.getElementById('online-update-download-btn');
+                if (btn) btn.onclick = () => ipcRenderer.send('open-url', status.url);
+                const dlg = document.getElementById('online-update-required-dialog');
+                if (dlg) dlg.style.display = 'flex';
+                return;
+            }
+        } catch (e) {
+            // Version check unavailable — allow entry
+        }
+
         const account = window.gameConfig?.account || {};
         if (!account.token) {
             this._showError('You need to log in first.\nUse the LOGIN button on the main menu.');

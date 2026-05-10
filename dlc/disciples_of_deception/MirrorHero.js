@@ -136,11 +136,17 @@ window.HERO_LOGIC['mirror'] = {
         player.getFormName = function () { return 'REFRACTION'; };
 
         // REFRACTION breaks if you take damage (consistent with "lasts until you take a hit")
+        // Plate Glass convergence (cv_dod_mir_metal): -30% damage taken while shield active.
         const origTakeDamage = player.takeDamage ? player.takeDamage.bind(player) : null;
         if (origTakeDamage) {
             player.takeDamage = function (amount, ...args) {
+                let amt = amount;
+                if (typeof amt === 'number' && player.shieldActive) {
+                    const _alt = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+                    if (_alt.includes('cv_dod_mir_metal')) amt = amt * 0.7;
+                }
                 const wasRefracting = player.transformActive && player.currentForm === 'REFRACTION';
-                const result = origTakeDamage(amount, ...args);
+                const result = origTakeDamage(amt, ...args);
                 if (wasRefracting && typeof amount === 'number' && amount > 0) {
                     player.transformActive = false;
                     player.currentForm = 'NONE';
@@ -268,6 +274,9 @@ window.HERO_LOGIC['mirror'] = {
                         p.damage = (p.damage || 10) * (player.reflectDmgMult || 1.5) * (player.damageMultiplier || 1);
                         p.color = '#aed6f1';
                         p.type = 'mirror';
+                        // Hydroflect convergence: reflected projectiles inherit Water's full knockback
+                        const _altR = (typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
+                        if (_altR.includes('cv_dod_mir_water')) p.knockback = 20;
 
                         // Heal small amount per reflect
                         if (typeof player.hp === 'number' && typeof player.maxHp === 'number') {

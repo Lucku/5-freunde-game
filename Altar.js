@@ -13,6 +13,9 @@ const ALTAR_HERO_META = {
     chance:    { icon: '🎲', name: 'Chance',    rgb: '255,100,180' },
     sound:     { icon: '🎵', name: 'Sound',     rgb: '100,180,255' },
     poison:    { icon: '☠️',  name: 'Poison',    rgb: '118,255,3'   },
+    psycho:    { icon: '🧠', name: 'Psycho',    rgb: '26,188,156'  },
+    mirror:    { icon: '🪞', name: 'Mirror',    rgb: '26,82,118'   },
+    smoke:     { icon: '🌫️',  name: 'Smoke',     rgb: '90,90,110'   },
 };
 
 const ALTAR_TIER_LABELS = { 1: 'RUNE I', 3: 'RUNE II', 5: 'RUNE III' };
