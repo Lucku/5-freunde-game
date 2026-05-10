@@ -9,16 +9,14 @@
 
 ## Overview
 
-First character-only DLC. Three deception-themed heroes with full gameplay systems, visuals, SFX, voice lines, unique biomes, and battle music — but no story campaign and no memory shards.
+First character-only DLC. Three deception-themed heroes with full gameplay systems, visuals, SFX, voice lines, and unique biomes — but no story campaign, no memory shards, and no new music.
 
 ### What's included
 - Hero JS files (stats, upgrade pool, perm upgrades, skill tree, HERO_LOGIC)
 - Biome JS files (one per hero — registered to `window.BIOME_LOGIC`)
-- Battle music (2 tracks per biome)
 - Visual assets: hero portrait images + `title.png`
 - SFX per hero: attack, melee, dash, special + biome ambient
 - Voice lines per hero: all standard exclamation triggers
-- Collector cards (bronze → platinum)
 - Altar skill trees
 - Achievements (gameplay-based, no story gates)
 - `index.js` manifest
@@ -28,6 +26,8 @@ First character-only DLC. Three deception-themed heroes with full gameplay syste
 - No `MEMORY_STORIES` / memory shards
 - No custom enemy files
 - No story arc labels
+- No collector cards (no custom enemy types to attach them to)
+- No new music (base game music plays in biomes)
 
 ---
 
@@ -44,26 +44,26 @@ Psycho has a **Hysteria Gauge** that fills as he takes damage and kills enemies.
 Fires a psychic bolt that bounces between up to 4 enemies, dealing damage and applying a 2s confusion debuff (enemies walk away from Psycho instead of toward him).
 
 ### Upgrade Pool
-| ID | Title | Description | Icon |
-|----|-------|-------------|------|
-| `health` | Manic Energy | +25 Max HP, heal 20% | 🧠 |
-| `cooldown` | Racing Thoughts | Cooldowns -10% | ⚡ |
-| `hysteria_gain` | Hypersensitive | Hysteria fills 25% faster | 🌀 |
-| `bounce` | Ricochet Mind | Mind Fracture bounces +1 target | 🔀 |
-| `speed` | Flight Response | Move speed +10% | 💨 |
-| `damage` | Unhinged | Damage +10% | 🔪 |
-| `crit` | Snap | +5% Crit Chance, +20% Crit Damage | 💥 |
-| `hysteria_duration` | Deep Break | Hysteria Mode lasts +2s | ⏳ |
+| ID                  | Title           | Description                       | Icon |
+| ------------------- | --------------- | --------------------------------- | ---- |
+| `health`            | Manic Energy    | +25 Max HP, heal 20%              | 🧠    |
+| `cooldown`          | Racing Thoughts | Cooldowns -10%                    | ⚡    |
+| `hysteria_gain`     | Hypersensitive  | Hysteria fills 25% faster         | 🌀    |
+| `bounce`            | Ricochet Mind   | Mind Fracture bounces +1 target   | 🔀    |
+| `speed`             | Flight Response | Move speed +10%                   | 💨    |
+| `damage`            | Unhinged        | Damage +10%                       | 🔪    |
+| `crit`              | Snap            | +5% Crit Chance, +20% Crit Damage | 💥    |
+| `hysteria_duration` | Deep Break      | Hysteria Mode lasts +2s           | ⏳    |
 
 ### Permanent Upgrades (Altar)
-| Key | Name | Desc |
-|-----|------|------|
-| `health` | Fractured Mind | +5 Starting HP |
-| `greed` | Magpie | +5% Gold Gain |
-| `power` | Raw Edge | +1% Damage |
-| `swift` | Live Wire | +1% Speed |
-| `defense` | Erratic Dodge | +1% Damage Reduction |
-| `wisdom` | Obsessive Focus | +2% XP Gain |
+| Key       | Name            | Desc                 |
+| --------- | --------------- | -------------------- |
+| `health`  | Fractured Mind  | +5 Starting HP       |
+| `greed`   | Magpie          | +5% Gold Gain        |
+| `power`   | Raw Edge        | +1% Damage           |
+| `swift`   | Live Wire       | +1% Speed            |
+| `defense` | Erratic Dodge   | +1% Damage Reduction |
+| `wisdom`  | Obsessive Focus | +2% XP Gain          |
 
 ### Skill Tree Weights
 `COOLDOWN: 0.20 / HYSTERIA_GAIN: 0.20 / DAMAGE: 0.15 / SPEED: 0.15 / HEALTH: 0.10 / BOUNCE: 0.10 / CRIT: 0.10`
@@ -76,30 +76,30 @@ Fires a psychic bolt that bounces between up to 4 enemies, dealing damage and ap
 - Hysteria Mode: aura turns white, movement trail glitches/stutters visually
 
 ### SFX
-| File | Description |
-|------|-------------|
-| `attack_psycho.wav` | Sharp crackle, slightly unhinged pitch |
-| `melee_psycho.wav` | Wild slap/thud with distorted echo |
-| `dash_psycho.wav` | Glitchy zap with pitch shift |
-| `special_psycho.wav` | Shimmering psychic resonance, multi-layered |
-| `hysteria_activate.wav` | High-pitched mental snap, reverb tail |
+| File                    | Description                                 |
+| ----------------------- | ------------------------------------------- |
+| `attack_psycho.wav`     | Sharp crackle, slightly unhinged pitch      |
+| `melee_psycho.wav`      | Wild slap/thud with distorted echo          |
+| `dash_psycho.wav`       | Glitchy zap with pitch shift                |
+| `special_psycho.wav`    | Shimmering psychic resonance, multi-layered |
+| `hysteria_activate.wav` | High-pitched mental snap, reverb tail       |
 
 ### Voice Lines
-| Trigger | Line |
-|---------|------|
-| `injured` | "Pain? Ha! Pain is interesting!" |
-| `failure_1` | "The voices go quiet. I hate the quiet." |
-| `failure_2` | "Too much... too fast... too—" |
-| `twin_event` | "Two of you! My mind is already racing!" |
+| Trigger         | Line                                                      |
+| --------------- | --------------------------------------------------------- |
+| `injured`       | "Pain? Ha! Pain is interesting!"                          |
+| `failure_1`     | "The voices go quiet. I hate the quiet."                  |
+| `failure_2`     | "Too much... too fast... too—"                            |
+| `twin_event`    | "Two of you! My mind is already racing!"                  |
 | `boss_moment_1` | "You think you're scary? I've been scared my whole life." |
-| `boss_moment_2` | "Let's see what breaks first. You or me." |
-| `boss_win_1` | "That was... beautiful. Chaotic and beautiful." |
-| `boss_win_2` | "Did you feel that? I felt everything." |
-| `found_1` | "Oh. OH. This changes the equation." |
-| `found_2` | "Yes. Yes yes yes. Take it." |
-| `level_up_1` | "Getting louder. I love it." |
-| `level_up_2` | "The noise in my head — it's singing!" |
-| `ultimate` | "HYSTERIA! Everything is beautiful and terrible!" |
+| `boss_moment_2` | "Let's see what breaks first. You or me."                 |
+| `boss_win_1`    | "That was... beautiful. Chaotic and beautiful."           |
+| `boss_win_2`    | "Did you feel that? I felt everything."                   |
+| `found_1`       | "Oh. OH. This changes the equation."                      |
+| `found_2`       | "Yes. Yes yes yes. Take it."                              |
+| `level_up_1`    | "Getting louder. I love it."                              |
+| `level_up_2`    | "The noise in my head — it's singing!"                    |
+| `ultimate`      | "HYSTERIA! Everything is beautiful and terrible!"         |
 
 ---
 
@@ -132,12 +132,6 @@ The arena feels unstable — pulsing teal energy lines crawl across the ground. 
 - Bevel: teal highlight top-left, black shadow bottom-right
 - Glitch state: white overlay flash when shifting, stutters to new position
 
-### Battle Music
-| File | Description |
-|------|-------------|
-| `battle_psycho_1.wav` | Unsettling, arrhythmic — syncopated percussion, dissonant teal synth |
-| `battle_psycho_2.wav` | Frantic and escalating — glitch beats, distorted vocal samples |
-
 ---
 
 ## Hero 2 — Mirror
@@ -153,26 +147,26 @@ Mirror's **special** creates a **Mirror Shield** (3s duration, fixed toggle) tha
 Fires a slow-moving mirror shard that splits into 6 fragments on contact with an enemy or wall, each fragment dealing 60% of base range damage. Fragments travel outward in a star pattern.
 
 ### Upgrade Pool
-| ID | Title | Description | Icon |
-|----|-------|-------------|------|
-| `health` | Tempered Glass | +25 Max HP, heal 20% | 🛡️ |
-| `reflect_dmg` | Perfect Reflection | Reflected projectile damage +20% | 🪞 |
-| `shield_duration` | Resilient Surface | Mirror Shield lasts +1s | ⏱️ |
-| `fragments` | Shatterpoint | Shatter fires +2 fragments | 💠 |
-| `speed` | Light Step | Move speed +10% | 🦶 |
-| `damage` | Sharp Edge | Damage +10% | 🔷 |
-| `cooldown` | Quick Polish | Cooldowns -10% | ✨ |
-| `crit` | Blind Spot | +5% Crit Chance, +20% Crit Damage | 🎯 |
+| ID                | Title              | Description                       | Icon |
+| ----------------- | ------------------ | --------------------------------- | ---- |
+| `health`          | Tempered Glass     | +25 Max HP, heal 20%              | 🛡️    |
+| `reflect_dmg`     | Perfect Reflection | Reflected projectile damage +20%  | 🪞    |
+| `shield_duration` | Resilient Surface  | Mirror Shield lasts +1s           | ⏱️    |
+| `fragments`       | Shatterpoint       | Shatter fires +2 fragments        | 💠    |
+| `speed`           | Light Step         | Move speed +10%                   | 🦶    |
+| `damage`          | Sharp Edge         | Damage +10%                       | 🔷    |
+| `cooldown`        | Quick Polish       | Cooldowns -10%                    | ✨    |
+| `crit`            | Blind Spot         | +5% Crit Chance, +20% Crit Damage | 🎯    |
 
 ### Permanent Upgrades (Altar)
-| Key | Name | Desc |
-|-----|------|------|
-| `health` | Reinforced Frame | +5 Starting HP |
-| `greed` | Glinting Eye | +5% Gold Gain |
-| `power` | Razor Surface | +1% Damage |
-| `swift` | Refraction | +1% Speed |
-| `defense` | Layered Glass | +1% Damage Reduction |
-| `wisdom` | Studied Reflection | +2% XP Gain |
+| Key       | Name               | Desc                 |
+| --------- | ------------------ | -------------------- |
+| `health`  | Reinforced Frame   | +5 Starting HP       |
+| `greed`   | Glinting Eye       | +5% Gold Gain        |
+| `power`   | Razor Surface      | +1% Damage           |
+| `swift`   | Refraction         | +1% Speed            |
+| `defense` | Layered Glass      | +1% Damage Reduction |
+| `wisdom`  | Studied Reflection | +2% XP Gain          |
 
 ### Skill Tree Weights
 `REFLECT_DMG: 0.25 / SHIELD_DURATION: 0.20 / HEALTH: 0.15 / DAMAGE: 0.15 / FRAGMENTS: 0.15 / SPEED: 0.05 / COOLDOWN: 0.05`
@@ -185,31 +179,31 @@ Fires a slow-moving mirror shard that splits into 6 fragments on contact with an
 - Shield: hexagonal mirror overlay around player, briefly reflects arena geometry behind it
 
 ### SFX
-| File | Description |
-|------|-------------|
-| `attack_mirror.wav` | Crystal chime with sharp trailing ring |
-| `melee_mirror.wav` | Heavy glass crack, deep impact |
-| `dash_mirror.wav` | Smooth glide with shimmer tail |
-| `special_mirror.wav` | Shattering glass burst, multi-hit cascade |
-| `shield_activate.wav` | Clean resonant ping, rising tone |
-| `shield_reflect.wav` | Sharp deflection chime, slightly reversed |
+| File                  | Description                               |
+| --------------------- | ----------------------------------------- |
+| `attack_mirror.wav`   | Crystal chime with sharp trailing ring    |
+| `melee_mirror.wav`    | Heavy glass crack, deep impact            |
+| `dash_mirror.wav`     | Smooth glide with shimmer tail            |
+| `special_mirror.wav`  | Shattering glass burst, multi-hit cascade |
+| `shield_activate.wav` | Clean resonant ping, rising tone          |
+| `shield_reflect.wav`  | Sharp deflection chime, slightly reversed |
 
 ### Voice Lines
-| Trigger | Line |
-|---------|------|
-| `injured` | "You cracked the surface. That was a mistake." |
-| `failure_1` | "I shattered. It happens to the best of us." |
-| `failure_2` | "The reflection fades." |
-| `twin_event` | "Two angles of attack. I see both." |
-| `boss_moment_1` | "Come. I want to see what you fear." |
-| `boss_moment_2` | "You'll see yourself in the end." |
-| `boss_win_1` | "What you sent at me, I returned." |
-| `boss_win_2` | "The image breaks. So do you." |
-| `found_1` | "Curious. This will change my shape." |
-| `found_2` | "I can use this." |
-| `level_up_1` | "Clearer now." |
-| `level_up_2` | "The reflection sharpens." |
-| `ultimate` | "SHATTER. Every piece is a weapon." |
+| Trigger         | Line                                           |
+| --------------- | ---------------------------------------------- |
+| `injured`       | "You cracked the surface. That was a mistake." |
+| `failure_1`     | "I shattered. It happens to the best of us."   |
+| `failure_2`     | "The reflection fades."                        |
+| `twin_event`    | "Two angles of attack. I see both."            |
+| `boss_moment_1` | "Come. I want to see what you fear."           |
+| `boss_moment_2` | "You'll see yourself in the end."              |
+| `boss_win_1`    | "What you sent at me, I returned."             |
+| `boss_win_2`    | "The image breaks. So do you."                 |
+| `found_1`       | "Curious. This will change my shape."          |
+| `found_2`       | "I can use this."                              |
+| `level_up_1`    | "Clearer now."                                 |
+| `level_up_2`    | "The reflection sharpens."                     |
+| `ultimate`      | "SHATTER. Every piece is a weapon."            |
 
 ---
 
@@ -244,12 +238,6 @@ Vast, cold, geometric. The arena is lined with reflective panel obstacles that s
 - Bevel: bright marine blue top-left, near-black bottom-right
 - Border: `#0d2840` stroke
 
-### Battle Music
-| File | Description |
-|------|-------------|
-| `battle_mirror_1.wav` | Cold, precise — glass percussion, sparse piano, deep sub-bass pulses |
-| `battle_mirror_2.wav` | Tense and reflective — reversed instrument layers, building tension |
-
 ---
 
 ## Hero 3 — Smoke
@@ -265,26 +253,26 @@ Whenever Smoke **dashes**, it leaves a smoke cloud at the origin point (radius 6
 Releases a large burst cloud (radius 120) centered on player, dealing light damage to all enemies caught in it and applying a 3s blind debuff — blinded enemies cannot target Smoke (attack nearby empty space instead). 12s cooldown.
 
 ### Upgrade Pool
-| ID | Title | Description | Icon |
-|----|-------|-------------|------|
-| `health` | Dense Vapor | +25 Max HP, heal 20% | 💨 |
-| `cloud_size` | Thick Cloud | Smoke cloud radius +20% | 🌫️ |
-| `cloud_duration` | Lingering | Smoke clouds last +1.5s | ⏳ |
-| `cooldown` | Flash Step | Cooldowns -10% | ⚡ |
-| `speed` | Drift | Move speed +10% | 🌀 |
-| `damage` | Toxic Haze | Damage +10%, clouds deal 2 DPS | ☠️ |
-| `cloud_count` | Smog Screen | +1 simultaneous cloud | ➕ |
-| `crit` | Blindside | +5% Crit Chance, +20% Crit Damage | 🎯 |
+| ID               | Title       | Description                       | Icon |
+| ---------------- | ----------- | --------------------------------- | ---- |
+| `health`         | Dense Vapor | +25 Max HP, heal 20%              | 💨    |
+| `cloud_size`     | Thick Cloud | Smoke cloud radius +20%           | 🌫️    |
+| `cloud_duration` | Lingering   | Smoke clouds last +1.5s           | ⏳    |
+| `cooldown`       | Flash Step  | Cooldowns -10%                    | ⚡    |
+| `speed`          | Drift       | Move speed +10%                   | 🌀    |
+| `damage`         | Toxic Haze  | Damage +10%, clouds deal 2 DPS    | ☠️    |
+| `cloud_count`    | Smog Screen | +1 simultaneous cloud             | ➕    |
+| `crit`           | Blindside   | +5% Crit Chance, +20% Crit Damage | 🎯    |
 
 ### Permanent Upgrades (Altar)
-| Key | Name | Desc |
-|-----|------|------|
-| `health` | Iron Lung | +5 Starting HP |
-| `greed` | Murky Profits | +5% Gold Gain |
-| `power` | Corrosive | +1% Damage |
-| `swift` | Vapor Trail | +1% Speed |
-| `defense` | Cloud Cover | +1% Damage Reduction |
-| `wisdom` | Unseen Study | +2% XP Gain |
+| Key       | Name          | Desc                 |
+| --------- | ------------- | -------------------- |
+| `health`  | Iron Lung     | +5 Starting HP       |
+| `greed`   | Murky Profits | +5% Gold Gain        |
+| `power`   | Corrosive     | +1% Damage           |
+| `swift`   | Vapor Trail   | +1% Speed            |
+| `defense` | Cloud Cover   | +1% Damage Reduction |
+| `wisdom`  | Unseen Study  | +2% XP Gain          |
 
 ### Skill Tree Weights
 `CLOUD_SIZE: 0.20 / CLOUD_DURATION: 0.20 / DAMAGE: 0.15 / COOLDOWN: 0.15 / SPEED: 0.15 / CLOUD_COUNT: 0.10 / HEALTH: 0.05`
@@ -298,29 +286,29 @@ Releases a large burst cloud (radius 120) centered on player, dealing light dama
 - Dash: leaves visible smoke ghost at origin (lingers 0.5s, then disperses)
 
 ### SFX
-| File | Description |
-|------|-------------|
-| `attack_smoke.wav` | Soft compressed air release, muffled impact |
-| `melee_smoke.wav` | Heavy whoosh with dull thud |
-| `dash_smoke.wav` | Fast exhale, short sharp hiss |
+| File                | Description                                 |
+| ------------------- | ------------------------------------------- |
+| `attack_smoke.wav`  | Soft compressed air release, muffled impact |
+| `melee_smoke.wav`   | Heavy whoosh with dull thud                 |
+| `dash_smoke.wav`    | Fast exhale, short sharp hiss               |
 | `special_smoke.wav` | Deep pressurized burst, expanding room-tone |
 
 ### Voice Lines
-| Trigger | Line |
-|---------|------|
-| `injured` | "You got lucky. That won't happen again." |
-| `failure_1` | "Fading. Just like smoke." |
-| `failure_2` | "Dissipate. That's all." |
-| `twin_event` | "Two targets. More cloud cover needed." |
-| `boss_moment_1` | "You can't hit what you can't see." |
-| `boss_moment_2` | "Breathe in. That was a mistake." |
-| `boss_win_1` | "You stood still too long." |
-| `boss_win_2` | "The haze clears. You don't." |
-| `found_1` | "That'll do nicely." |
-| `found_2` | "Useful. Keep moving." |
-| `level_up_1` | "Thicker. Darker. Better." |
-| `level_up_2` | "Getting harder to see me." |
-| `ultimate` | "BLACKOUT. Good luck finding me in here." |
+| Trigger         | Line                                      |
+| --------------- | ----------------------------------------- |
+| `injured`       | "You got lucky. That won't happen again." |
+| `failure_1`     | "Fading. Just like smoke."                |
+| `failure_2`     | "Dissipate. That's all."                  |
+| `twin_event`    | "Two targets. More cloud cover needed."   |
+| `boss_moment_1` | "You can't hit what you can't see."       |
+| `boss_moment_2` | "Breathe in. That was a mistake."         |
+| `boss_win_1`    | "You stood still too long."               |
+| `boss_win_2`    | "The haze clears. You don't."             |
+| `found_1`       | "That'll do nicely."                      |
+| `found_2`       | "Useful. Keep moving."                    |
+| `level_up_1`    | "Thicker. Darker. Better."                |
+| `level_up_2`    | "Getting harder to see me."               |
+| `ultimate`      | "BLACKOUT. Good luck finding me in here." |
 
 ---
 
@@ -354,51 +342,24 @@ Industrial ruin. Visibility is reduced by a persistent gray haze that covers the
 - Bevel: light gray top-left edge (faded), near-black bottom-right
 - Border: `#111118` stroke, slightly thicker than default
 
-### Battle Music
-| File | Description |
-|------|-------------|
-| `battle_smoke_1.wav` | Heavy, oppressive — low drones, muffled percussion, industrial noise |
-| `battle_smoke_2.wav` | Tense and murky — staccato bass hits, filtered high-end, slow build |
-
----
-
-## Collector Cards
-
-Each hero gets a Bronze → Platinum card set:
-
-| Card | Drop Chance | Bonus |
-|------|-------------|-------|
-| `psycho_1` — Psycho Bronze | 5% | Unlock Card |
-| `psycho_2` — Psycho Silver | 1% | +10% Def vs Psycho-type |
-| `psycho_3` — Psycho Gold | 0.1% | +20% XP from Psycho kills |
-| `psycho_4` — Psycho Platinum | 0.05% | Hysteria Gauge fills 15% faster |
-| `mirror_1` — Mirror Bronze | 5% | Unlock Card |
-| `mirror_2` — Mirror Silver | 1% | +10% Def vs Mirror-type |
-| `mirror_3` — Mirror Gold | 0.1% | +20% XP from Mirror kills |
-| `mirror_4` — Mirror Platinum | 0.05% | Shield reflects deal +25% damage |
-| `smoke_1` — Smoke Bronze | 5% | Unlock Card |
-| `smoke_2` — Smoke Silver | 1% | +10% Def vs Smoke-type |
-| `smoke_3` — Smoke Gold | 0.1% | +20% XP from Smoke kills |
-| `smoke_4` — Smoke Platinum | 0.05% | Smoke clouds slow enemies +15% extra |
-
 ---
 
 ## Achievements
 
 No story-gated achievements. All gameplay-based.
 
-| ID | Title | Description | Bonus |
-|----|-------|-------------|-------|
-| `dod_psycho_hysteria` | Feedback Loop | Activate Hysteria 50 times total | +5% Dmg |
-| `dod_psycho_reach30` | Unraveling | Reach Wave 30 with Psycho | +5% Speed |
-| `dod_psycho_biome` | Into the Fracture | Survive 10 waves in the Mindscape biome | +3% Dmg |
-| `dod_mirror_reflect100` | Hall of Mirrors | Reflect 100 projectiles total | +5% Def |
-| `dod_mirror_reach30` | Perfect Surface | Reach Wave 30 with Mirror | +5% Dmg |
-| `dod_mirror_biome` | Shining Labyrinth | Survive 10 waves in the Hall of Mirrors biome | +3% Def |
-| `dod_smoke_clouds` | Smog City | Have 3 simultaneous smoke clouds 25 times | +5% XP |
-| `dod_smoke_reach30` | Vanishing Act | Reach Wave 30 with Smoke | +5% Def |
-| `dod_smoke_biome` | Lost in the Haze | Survive 10 waves in the Smog Quarter biome | +3% Speed |
-| `dod_pack_all` | Disciples | Reach Wave 20 with all 3 DLC heroes | +3% all stats |
+| ID                      | Title             | Description                                   | Bonus         |
+| ----------------------- | ----------------- | --------------------------------------------- | ------------- |
+| `dod_psycho_hysteria`   | Feedback Loop     | Activate Hysteria 50 times total              | +5% Dmg       |
+| `dod_psycho_reach30`    | Unraveling        | Reach Wave 30 with Psycho                     | +5% Speed     |
+| `dod_psycho_biome`      | Into the Fracture | Survive 10 waves in the Mindscape biome       | +3% Dmg       |
+| `dod_mirror_reflect100` | Hall of Mirrors   | Reflect 100 projectiles total                 | +5% Def       |
+| `dod_mirror_reach30`    | Perfect Surface   | Reach Wave 30 with Mirror                     | +5% Dmg       |
+| `dod_mirror_biome`      | Shining Labyrinth | Survive 10 waves in the Hall of Mirrors biome | +3% Def       |
+| `dod_smoke_clouds`      | Smog City         | Have 3 simultaneous smoke clouds 25 times     | +5% XP        |
+| `dod_smoke_reach30`     | Vanishing Act     | Reach Wave 30 with Smoke                      | +5% Def       |
+| `dod_smoke_biome`       | Lost in the Haze  | Survive 10 waves in the Smog Quarter biome    | +3% Speed     |
+| `dod_pack_all`          | Disciples         | Reach Wave 20 with all 3 DLC heroes           | +3% all stats |
 
 ---
 
@@ -419,13 +380,6 @@ dlc/disciples_of_deception/
 │   ├── mirror.png
 │   └── smoke.png
 └── audio/
-    ├── music/
-    │   ├── battle_psycho_1.wav
-    │   ├── battle_psycho_2.wav
-    │   ├── battle_mirror_1.wav
-    │   ├── battle_mirror_2.wav
-    │   ├── battle_smoke_1.wav
-    │   └── battle_smoke_2.wav
     ├── sounds/
     │   ├── attack_psycho.wav
     │   ├── melee_psycho.wav
@@ -488,16 +442,9 @@ const DISCIPLES_OF_DECEPTION = {
         this.injectBiome();      // registers BIOME_LOGIC keys + dlcBiomes list entry
         this.injectAltar();      // × 3 heroes
         this.injectAchievements();
-        this.injectCards();
 
-        // Register battle music
+        // Register SFX
         audioManager.registerSounds({
-            'battle_psycho_1': { path: '...', loop: true, volume: 0.4 },
-            'battle_psycho_2': { path: '...', loop: true, volume: 0.4 },
-            'battle_mirror_1': { path: '...', loop: true, volume: 0.4 },
-            'battle_mirror_2': { path: '...', loop: true, volume: 0.4 },
-            'battle_smoke_1':  { path: '...', loop: true, volume: 0.4 },
-            'battle_smoke_2':  { path: '...', loop: true, volume: 0.4 },
             // SFX ...
         });
 
@@ -517,10 +464,10 @@ const DISCIPLES_OF_DECEPTION = {
 
 ## Resolved Design Decisions
 
-| Topic | Decision |
-|-------|----------|
-| Hysteria confusion visual | Swirling teal icon above confused enemy for debuff duration |
-| Smoke clouds in multiplayer | Visible to all players (co-op and versus) |
-| Smog Quarter visibility reduction | Global — applies to all heroes, not just Smoke |
-| DLC music | No unique tracks — uses base game music |
-| Biome random pool | Added to standard DLC pool, appears for any hero in non-story runs |
+| Topic                             | Decision                                                           |
+| --------------------------------- | ------------------------------------------------------------------ |
+| Hysteria confusion visual         | Swirling teal icon above confused enemy for debuff duration        |
+| Smoke clouds in multiplayer       | Visible to all players (co-op and versus)                          |
+| Smog Quarter visibility reduction | Global — applies to all heroes, not just Smoke                     |
+| DLC music | None — base game music plays in all biomes |
+| Biome random pool                 | Added to standard DLC pool, appears for any hero in non-story runs |

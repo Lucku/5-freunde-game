@@ -129,6 +129,7 @@ class MainMenuUI {
         if (!btn) return;
 
         let title = "Story Mode";
+        let routesToStandard = false;
         const hero = window.selectedHeroType || 'fire';
 
         if (typeof window.DLC_REGISTRY !== 'undefined' && window.DLC_REGISTRY) {
@@ -138,11 +139,23 @@ class MainMenuUI {
 
                 if (dlc && matchesHero && dlc.name) {
                     title = dlc.name;
+                    if (dlc.noStoryMode) {
+                        title = "Standard Mode";
+                        routesToStandard = true;
+                    }
                     break;
                 }
             }
         }
         btn.innerText = '▶ ' + title;
+        // Re-route the click target for character-only DLCs (no story content)
+        btn.setAttribute('onclick', routesToStandard ? "checkNewGame('STANDARD')" : "checkNewGame('STORY')");
+
+        // Hide redundant Standard Run button when the primary button already routes to Standard Mode
+        const standardBtn = document.getElementById('btn-standard-run');
+        if (standardBtn) {
+            standardBtn.style.display = routesToStandard ? 'none' : '';
+        }
     }
 }
 

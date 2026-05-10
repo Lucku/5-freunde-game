@@ -3269,7 +3269,7 @@ function resumeWaveGeneration() {
         const isStoryRun = (saveData.story && saveData.story.enabled !== false) && !isDailyMode && !isWeeklyMode;
 
         if (!isStoryRun && window.BIOME_LOGIC) {
-            const dlcBiomes = ['earth', 'lightning', 'air', 'gravity', 'void', 'spirit', 'chance', 'time', 'love'];
+            const dlcBiomes = ['earth', 'lightning', 'air', 'gravity', 'void', 'spirit', 'chance', 'time', 'love', 'psycho', 'mirror', 'smoke'];
             dlcBiomes.forEach(b => {
                 if (window.BIOME_LOGIC[b]) types.push(b);
             });
@@ -5728,37 +5728,53 @@ function masterLoop(timestamp) {
                     if (window._world) window._world.projectiles = projectiles;
                 }
 
-                // Own-player reconciliation. Server simulation runs at 30 Hz (one
-                // physics step per tick) while the client predicts at 60 fps, so the
-                // client's predicted position is almost always slightly ahead of the
-                // last server snapshot. Pulling the client backward each frame fights
-                // the player's intentional motion — this caused both the dash rubber-
-                // band and the constant "drag" while running.
+                // Own-player reconciliation. Trust client prediction whenever the
+                // player has active input (running, dashing). Server speed now matches
+                // client (sub-stepped Player.update) so drift during motion stays
+                // within RTT jitter and there's nothing to correct anyway.
                 //
-                // Strategy: trust client prediction whenever the player has active
-                // input (running, dashing, knockback recovery). Only converge toward
-                // the server position while the player is idle, OR snap hard when the
-                // divergence is so large it must be a knockback / teleport / lag spike.
-                if (player && player.isDashing) player._reconcileGrace = 18; // ~300 ms grace
-                else if (player && player._reconcileGrace > 0) player._reconcileGrace--;
+                // The remaining visible jerk happened the moment the player STOPPED
+                // moving: client stops at its predicted position, but the server keeps
+                // applying the last received "move" input for ~RTT until the "stop"
+                // arrives, so the next snapshot's server position is briefly overshot
+                // past the client. Reconciling against that snapshot pulled the player
+                // forward — perceived as a rubber-band on release of move keys.
+                //
+                // Solution: a post-move grace window that suspends reconciliation for
+                // ~600 ms after stopping. Server has time to apply the stop input and
+                // settle, so by the time we resume reconciliation the divergence is
+                // tiny. Combined with a 30 px idle dead-zone, the rubber-band on stop
+                // is invisible.
+                if (player) {
+                    if (player.isDashing) player._reconcileGrace = 18; // ~300 ms dash grace
+                    else if (player._reconcileGrace > 0) player._reconcileGrace--;
 
-                if (player && !player.isDead && player._serverTargetX !== undefined) {
-                    const _rdx = player._serverTargetX - player.x;
-                    const _rdy = player._serverTargetY - player.y;
-                    const _rd2 = _rdx * _rdx + _rdy * _rdy;
                     const _mi  = player.moveInput || { x: 0, y: 0 };
                     const _isInputMoving = Math.abs(_mi.x) > 0.05 || Math.abs(_mi.y) > 0.05;
-                    if (_rd2 > 90000) {                    // > 300 px — teleport / death / extreme lag: hard snap
-                        player.x = player._serverTargetX;
-                        player.y = player._serverTargetY;
-                    } else if (!player.isDashing && !player._reconcileGrace && !_isInputMoving && _rd2 > 16) {
-                        // Idle: gently converge toward server authority
-                        player.x += _rdx * 0.1;
-                        player.y += _rdy * 0.1;
+                    if (player._wasInputMoving && !_isInputMoving) {
+                        player._postMoveGrace = 36; // ~600 ms — covers any plausible RTT
+                    } else if (player._postMoveGrace > 0) {
+                        player._postMoveGrace--;
                     }
-                    // Actively moving: trust client prediction; server will catch up
-                }
+                    player._wasInputMoving = _isInputMoving;
 
+                    if (!player.isDead && player._serverTargetX !== undefined) {
+                        const _rdx = player._serverTargetX - player.x;
+                        const _rdy = player._serverTargetY - player.y;
+                        const _rd2 = _rdx * _rdx + _rdy * _rdy;
+                        if (_rd2 > 90000) {                       // > 300 px — teleport / death / extreme lag: hard snap
+                            player.x = player._serverTargetX;
+                            player.y = player._serverTargetY;
+                        } else if (!player.isDashing && !player._reconcileGrace
+                                && !player._postMoveGrace && !_isInputMoving
+                                && _rd2 > 900) {                  // > 30 px idle dead-zone (was 4 px)
+                            // Idle past grace, divergence beyond tolerance: gentle pull
+                            player.x += _rdx * 0.04;
+                            player.y += _rdy * 0.04;
+                        }
+                        // Otherwise: trust client prediction.
+                    }
+                }
                 // Both clients send input every frame so the server has up-to-date state
                 window.networkManager?.flushInput();
             }

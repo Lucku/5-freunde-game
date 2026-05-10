@@ -51,6 +51,11 @@ class DLCManager {
                 title: "Echos of Eternity",
                 desc: "Where all timelines converge. Introduces the Time Hero, the hidden Love Hero, and the Maze of Time.",
                 icon: "⌛"
+            },
+            'disciples_of_deception': {
+                title: "Disciples of Deception",
+                desc: "A character pack — three deception-themed heroes (Psycho, Mirror, Smoke) with their own biomes. No story mode.",
+                icon: "🎭"
             }
         };
     }

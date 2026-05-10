@@ -1101,6 +1101,96 @@ const Manual = {
                 </div>
             `
         },
+        deception: {
+            title: "Disciples of Deception",
+            html: `
+                <h2>DLC: Disciples of Deception</h2>
+                <p>The first <b>character-only</b> DLC. Three deception-themed heroes with their own biomes — but no story campaign. Selecting any of these heroes routes the green main-menu button straight into Standard Mode (no story chapters, no memory shards).</p>
+
+                <h3>New Hero: Psycho — Teal 🧠</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★★☆ &nbsp;<span style="color:#e67e22;"><b>4/5 — Hard</b></span></p>
+                <p>A glass cannon who feeds on chaos. Low HP (45) and high speed (5.5) — Psycho thrives when the arena is on fire and dies fast when caught. The more damage he takes, the stronger he gets.</p>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#1abc9c;">Hysteria Gauge</div>
+                    <p>Fills as Psycho takes damage and kills enemies. When full (100), he automatically enters <b>Hysteria Mode</b> for 6 seconds: <b>+40% movement speed</b>, all projectiles split into <b>3 erratic shots</b>, and any enemy within 350px is <b>confused</b> — they walk away from Psycho instead of toward him. Confused enemies show a <b>swirling teal icon</b> above their head.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#1abc9c;">Special: Mind Fracture</div>
+                    <p>Fires a psychic bolt that bounces between up to <b>4 enemies</b> (each chain-target taking 140% range damage), applying a 2-second confusion debuff. 10-second cooldown. Skill-tree and altar nodes raise the bounce count and confusion radius.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#ffffff;">Ultimate — DELIRIUM</div>
+                    <p>At level 10, transform into <b>DELIRIUM</b> for <b>10 seconds</b>: every projectile splits into <b>5 erratic shots</b>, all enemies on screen become permanently confused for the duration, and Psycho's outline pulses white. No damage cap.</p>
+                </div>
+
+                <h3>New Hero: Mirror — Marine Blue 🪞</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★☆☆ &nbsp;<span style="color:#f1c40f;"><b>3/5 — Medium</b></span></p>
+                <p>A reactive defender who punishes aggressive enemies. Slow base speed (3.5) and weak ranged damage (12), but devastating melee (140) and a special that turns enemy fire against them.</p>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#1a5276;">Special: Mirror Shield</div>
+                    <p>Activate to surround yourself with a hexagonal mirror shield for <b>3 seconds</b>. All enemy projectiles within 70px are <b>reflected back at 150% damage</b>, and each blocked projectile heals you for <b>5 HP</b>. Enemies in melee contact during the shield take an 80% melee-damage burst and are knocked back. The cast also fires a <b>Shatter shard</b> (slow projectile that explodes into 6 fragments). 12-second cooldown.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#1a5276;">Shatter Fragments</div>
+                    <p>The Shatter shard splits into <b>6 fragments</b> in a star pattern when it hits a wall or enemy. Each fragment deals 60% of the shard's damage. Skill tree adds +1 fragment per "Shatterpoint" node.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#ffffff;">Ultimate — REFRACTION</div>
+                    <p>At level 10, transform into <b>REFRACTION</b>: the Mirror Shield is <b>permanently active</b> until you take damage that breaks through. Four mirror panels rotate around you and continuously deflect ranged hits. Each reflected projectile heals 5 HP. Bring a tank build and you become unkillable to gunline waves.</p>
+                </div>
+
+                <h3>New Hero: Smoke — Slate Gray 🌫️</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★☆☆ &nbsp;<span style="color:#f1c40f;"><b>3/5 — Medium</b></span></p>
+                <p>A control specialist built around area denial. Average stats across the board, but every dash is a tactical play — Smoke leaves the arena in pieces.</p>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#5a5a6e;">Smoke Trail (Passive)</div>
+                    <p>Every dash drops a <b>smoke cloud</b> at the origin point — radius 60, lasts 4 seconds. Enemies inside lose <b>40% movement speed</b> and walk in semi-random directions (lose targeting). Up to <b>3 simultaneous</b> clouds; oldest is replaced when the cap is exceeded.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#5a5a6e;">Special: Blackout</div>
+                    <p>Releases a radius-120 burst centered on you. All caught enemies take ranged damage and are <b>blinded for 3 seconds</b> — they cannot target Smoke and shoot at empty space. Drops a large persistent cloud at the cast location. 12-second cooldown.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#ffffff;">Ultimate — INK STORM</div>
+                    <p>At level 10, transform into <b>INK STORM</b> for <b>10 seconds</b>: a radius-200 living cloud follows Smoke at all times, slowing every enemy that touches it and applying continuous Blind. All enemies in the arena are blinded for the full duration. Combine with the Toxic Haze upgrade and you out-DPS bosses simply by walking past them.</p>
+                </div>
+
+                <h3>New Biomes</h3>
+                <p>Three new biomes added to the standard random pool when the DLC is enabled — they appear for <b>any</b> hero in non-story runs.</p>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#1abc9c;">The Mindscape (Psycho biome)</div>
+                    <p>Unstable arena where 12–16 obstacles <b>shift position every 15 seconds</b> with a brief white glitch flash. Erratic teal sparks drift around the player; particle density quadruples during Hysteria Mode.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#1a5276;">The Hall of Mirrors (Mirror biome)</div>
+                    <p>Cold geometric maze with 8–12 tall mirror-panel obstacles in parallel rows. A <b>prismatic light streak</b> sweeps across the arena floor every 8 seconds (visual only). All obstacles pulse white when the Mirror Shield is active.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#5a5a6e;">The Smog Quarter (Smoke biome)</div>
+                    <p>Industrial ruin choked by gray haze. 14–18 dense concrete blocks create chokepoints. <b>3–4 Smog Pockets</b> apply an extra 15% slow on top of any of Smoke's clouds. Wind direction shifts 90° every 20 seconds (notification appears).</p>
+                </div>
+
+                <h3>What's NOT in this DLC</h3>
+                <ul>
+                    <li><b>No story mode</b> — there are no story chapters or memory shards. The green main-menu button reads "▶ Standard Mode" for these heroes.</li>
+                    <li><b>No new enemies</b> — these heroes face the same enemy roster as the base game.</li>
+                    <li><b>No collector cards</b> — without new enemy types there are no card drops to attach.</li>
+                    <li><b>No new music</b> — base-game biome music plays in all three new biomes.</li>
+                </ul>
+            `
+        },
         online: {
             title: "Online Multiplayer",
             html: `
@@ -1219,6 +1309,9 @@ const Manual = {
 
             const echos = list.find(d => d.id === 'echos_of_eternity');
             if (echos && echos.active) document.getElementById('btn-tutorial-echos').style.display = 'block';
+
+            const deception = list.find(d => d.id === 'disciples_of_deception');
+            if (deception && deception.active) document.getElementById('btn-tutorial-deception').style.display = 'block';
         }
 
         Manual.showTab('basics');
