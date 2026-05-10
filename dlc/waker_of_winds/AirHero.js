@@ -232,13 +232,12 @@ class AirHero {
                 }
             }
         }
-        // Global Buffs (The Storm)
-        // Regen
-        if (frame % 60 === 0 && player.hp < player.maxHp) player.hp += 0.5;
-        // Speed
-        player.speedMultiplier = Math.max(player.speedMultiplier, 1.5);
-        // Dmg
-        player.damageMultiplier = Math.max(player.damageMultiplier, 1.5);
+        // Global Buffs (The Storm) — only active during transform/hurricane
+        if (player.transformActive || player.hurricaneActive) {
+            if (frame % 60 === 0 && player.hp < player.maxHp) player.hp += 0.5;
+            player.speedMultiplier = Math.max(player.speedMultiplier, 1.5);
+            player.damageMultiplier = Math.max(player.damageMultiplier, 1.5);
+        }
 
         // Visuals: The Hurricane (Only if upgraded)
         // Sync transformation state

@@ -63,14 +63,23 @@ class AchievementsUI {
                 const isHidden = ach.hidden && !unlocked;
                 const div = document.createElement('div');
                 div.className = `achievement-row${unlocked ? ' unlocked' : ''}${isHidden ? ' hidden-ach' : ''}`;
-                div.innerHTML = `
-                    <div class="ach-icon">${unlocked ? '🏆' : '🔒'}</div>
-                    <div class="ach-info">
-                        <h3>${isHidden ? '???' : ach.title}</h3>
-                        <p>${isHidden ? 'Hidden Achievement' : ach.desc}</p>
-                    </div>
-                    <div class="ach-reward">${isHidden ? '???' : ach.bonus.text}</div>
-                `;
+                const iconEl = document.createElement('div');
+                iconEl.className = 'ach-icon';
+                iconEl.textContent = unlocked ? '🏆' : '🔒';
+                const infoEl = document.createElement('div');
+                infoEl.className = 'ach-info';
+                const titleEl = document.createElement('h3');
+                titleEl.textContent = isHidden ? '???' : ach.title;
+                const descEl = document.createElement('p');
+                descEl.textContent = isHidden ? 'Hidden Achievement' : ach.desc;
+                infoEl.appendChild(titleEl);
+                infoEl.appendChild(descEl);
+                const rewardEl = document.createElement('div');
+                rewardEl.className = 'ach-reward';
+                rewardEl.textContent = isHidden ? '???' : ach.bonus.text;
+                div.appendChild(iconEl);
+                div.appendChild(infoEl);
+                div.appendChild(rewardEl);
                 list.appendChild(div);
             });
         });

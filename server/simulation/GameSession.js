@@ -174,6 +174,15 @@ class GameSession {
         player._levelUpOptions = null;
         this._levelUpFor       = -1;
         this.isLevelingUp      = false;
+
+        // Clear queued action latches across both players so a held shoot/melee
+        // pressed during the level-up modal does not auto-fire on resume.
+        for (const p of [this.world.player, this.world.player2].filter(Boolean)) {
+            p._pendingShoot   = false;
+            p._pendingMelee   = false;
+            p._pendingDash    = false;
+            p._pendingSpecial = false;
+        }
     }
 
     stop() {
@@ -483,9 +492,15 @@ class GameSession {
         player.xp += amount;
         if (player.xp < player.maxXp) return;
 
-        player.xp    -= player.maxXp;
-        player.level++;
-        player.maxXp  = Math.round(player.maxXp * 1.2);
+        // Drain enough levels to consume queued XP — avoids losing a level on big XP gains
+        let levelsGained = 0;
+        while (player.xp >= player.maxXp) {
+            player.xp -= player.maxXp;
+            player.level++;
+            player.maxXp = Math.round(player.maxXp * 1.2);
+            levelsGained++;
+            if (levelsGained > 20) break; // Safety
+        }
 
         this.isLevelingUp = true;
         this._levelUpFor  = playerIdx;

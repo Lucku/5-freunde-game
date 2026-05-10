@@ -512,7 +512,7 @@ class LoveHero {
                     }
                 } else {
                     LoveHero._charmEnemy(player, e);
-                    e.frozenTimer = Math.max(e.frozenTimer, 600);  // Full 10s freeze
+                    e.frozenTimer = Math.max(e.frozenTimer || 0, 600);  // Full 10s freeze
                     e._loveCharmed = 600;
                 }
             });

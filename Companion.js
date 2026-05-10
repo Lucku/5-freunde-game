@@ -12,6 +12,8 @@ class Companion {
         this.attackMaxCooldown = 120; // Attacks every 2 seconds
         this.active = true;
         this.color = this.getColorByType(type);
+        this._lastTarget = null;
+        this._lastTargetTimer = 0;
     }
 
     getColorByType(type) {
@@ -49,38 +51,31 @@ class Companion {
             this.performSynergy();
             this.attackCooldown = this.attackMaxCooldown;
         }
+        if (this._lastTargetTimer > 0) this._lastTargetTimer--;
+        else this._lastTarget = null;
     }
 
     performSynergy() {
+        if (typeof enemies === 'undefined') return;
         // Find nearest enemy
         let nearest = null;
         let minDist = 400; // Range
 
-        enemies.forEach(e => {
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
             const d = Math.hypot(e.x - this.x, e.y - this.y);
             if (d < minDist) {
                 minDist = d;
                 nearest = e;
             }
-        });
+        }
 
         if (nearest) {
-            // Visual beam to enemy
-            ctx.save();
-            ctx.strokeStyle = this.color;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(this.x, this.y);
-            ctx.lineTo(nearest.x, nearest.y);
-            ctx.stroke();
-            ctx.restore();
-
-            // Apply Effect
+            this._lastTarget = nearest;
+            this._lastTargetTimer = 8; // beam visible for ~8 frames
             this.applyEffect(nearest);
         } else if (this.type === 'plant') {
-            // Plant heals player if no enemies nearby (or always?)
-            // User said: "Plant friend drops in, healing you while you tank the damage."
-            // Let's make Plant heal periodically regardless of enemies, or maybe target player.
+            // Plant heals player if no enemies nearby
             this.applyEffect(this.player);
         }
     }
@@ -122,6 +117,16 @@ class Companion {
 
         ctx.save();
         ctx.globalAlpha = 0.8; // Less ghostly, more solid
+
+        // Synergy beam to last target
+        if (this._lastTarget && this._lastTargetTimer > 0) {
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this._lastTarget.x, this._lastTarget.y);
+            ctx.stroke();
+        }
 
         // Tether to player
         ctx.beginPath();

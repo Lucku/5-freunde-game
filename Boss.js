@@ -22,7 +22,7 @@ class Boss {
 
         this.radius = 60;
 
-        const prestige = saveData[player.type].prestige;
+        const prestige = saveData[player.type]?.prestige ?? 0;
         const difficultyMult = (1 + (prestige * 0.5));
 
         this.maxHp = 1500 * wave * difficultyMult;

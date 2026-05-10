@@ -32,8 +32,8 @@ class Enemy {
                 this.x = Math.max(20, Math.min(aw - 20, this.x));
                 this.y = Math.max(20, Math.min(ah - 20, this.y));
             }
-            if (!_arena?.checkCollision(this.x, this.y, 20)) safe = true;
-            else if (!_arena) { safe = true; }
+            if (!_arena) { safe = true; }
+            else if (!_arena.checkCollision(this.x, this.y, 20)) safe = true;
         }
 
         const prestige = _saveData[_player?.type]?.prestige ?? 0;
@@ -50,7 +50,7 @@ class Enemy {
 
         // DLC/Biome Spawn Logic Hook
         if (!this.subType && typeof window.getBiomeEnemyType === 'function') {
-            this.subType = window.getBiomeEnemyType(wave, this);
+            this.subType = window.getBiomeEnemyType(_wave, this);
         }
 
         if (!this.subType) {
@@ -186,6 +186,7 @@ class Enemy {
         this._id = ++Enemy._nextId;
         this._ghost = false;
         this._world = world;
+        this.hitFlashTimer = 0;
     }
 
     update() {
@@ -250,7 +251,7 @@ class Enemy {
         if (this.subType === 'GHOST') {
             const dist = Math.hypot(targetX - this.x, targetY - this.y);
             // Become visible when close or taking damage
-            if (saveData.collection.includes('GHOST_4')) this.alpha = 1;
+            if (saveData?.collection?.includes('GHOST_4')) this.alpha = 1;
             else if (dist < 150 || this.hp < this.maxHp) this.alpha = Math.min(1, this.alpha + 0.05);
             else this.alpha = Math.max(0.1, this.alpha - 0.02);
             moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
@@ -351,7 +352,7 @@ class Enemy {
                 createExplosion(this.x, this.y, '#2980b9');
 
                 let cooldown = 300;
-                if (saveData.collection.includes('SUMMONER_4')) cooldown = 450; // 50% slower
+                if (saveData?.collection?.includes('SUMMONER_4')) cooldown = 450; // 50% slower
                 this.summonCooldown = cooldown;
             }
             if (this.summonCooldown > 0) this.summonCooldown--;
@@ -376,11 +377,11 @@ class Enemy {
                 // Heal nearby enemies
                 if (frame % 60 === 0) {
                     let healAmount = 10;
-                    if (saveData.collection.includes('ELITE_AURA_HEAL_4')) healAmount = 5; // Nerf
+                    if (saveData?.collection?.includes('ELITE_AURA_HEAL_4')) healAmount = 5; // Nerf
 
                     enemies.forEach(e => {
                         if (e !== this && Math.hypot(e.x - this.x, e.y - this.y) < 200) {
-                            e.hp = Math.min(e.maxHp || e.hp * 2, e.hp + healAmount);
+                            e.hp = Math.min(e.maxHp ?? e.hp, e.hp + healAmount);
                             // Visual heal
                             particles.push(new Particle(e.x, e.y, '#2ecc71'));
                         }

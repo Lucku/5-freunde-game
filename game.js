@@ -5786,7 +5786,8 @@ function masterLoop(timestamp) {
             });
 
             // Memory Shards
-            memoryShards.forEach((shard, index) => {
+            for (let index = memoryShards.length - 1; index >= 0; index--) {
+                const shard = memoryShards[index];
                 shard.update();
                 shard.draw(ctx);
                 const dist = Math.hypot(player.x - shard.x, player.y - shard.y);
@@ -5882,10 +5883,11 @@ function masterLoop(timestamp) {
                         saveGame();
                     }
                 }
-            });
+            }
 
             // Gold Drops
-            goldDrops.forEach((drop, index) => {
+            for (let index = goldDrops.length - 1; index >= 0; index--) {
+                const drop = goldDrops[index];
                 drop.draw();
                 // Golden Magnet (Chance Convergence)
                 const pickupRad = player.pickupRange || (player.radius + 20);
@@ -5902,10 +5904,11 @@ function masterLoop(timestamp) {
                     if (typeof audioManager !== 'undefined') audioManager.play('pickup_gold');
                     goldDrops.splice(index, 1);
                 }
-            });
+            }
 
             // Card Drops
-            cardDrops.forEach((drop, index) => {
+            for (let index = cardDrops.length - 1; index >= 0; index--) {
+                const drop = cardDrops[index];
                 drop.draw();
                 const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
                 if (dist < player.radius + 20) {
@@ -5969,10 +5972,11 @@ function masterLoop(timestamp) {
                         cardDrops.splice(index, 1);
                     }
                 }
-            });
+            }
 
             // Holy Masks
-            holyMasks.forEach((mask, index) => {
+            for (let index = holyMasks.length - 1; index >= 0; index--) {
+                const mask = holyMasks[index];
                 mask.draw();
                 const dist = Math.hypot(player.x - mask.x, player.y - mask.y);
                 if (dist < player.radius + 20) {
@@ -6031,9 +6035,10 @@ function masterLoop(timestamp) {
                         holyMasks.splice(index, 1);
                     }
                 }
-            });
+            }
 
-            powerUps.forEach((pup, index) => {
+            for (let index = powerUps.length - 1; index >= 0; index--) {
+                const pup = powerUps[index];
                 pup.update(); pup.draw();
                 const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
                 if (dist < player.radius + pup.radius) {
@@ -6084,13 +6089,14 @@ function masterLoop(timestamp) {
                         powerUps.splice(index, 1);
                     } else if (pup.timer <= 0) powerUps.splice(index, 1);
                 } else if (pup.timer <= 0) powerUps.splice(index, 1);
-            });
+            }
 
-            projectiles.forEach((proj, index) => {
+            for (let index = projectiles.length - 1; index >= 0; index--) {
+                const proj = projectiles[index];
                 if (!_isHitStopped && !proj._ghost) proj.update();
                 if (proj.life !== null && proj.life <= 0) {
                     projectiles.splice(index, 1);
-                    return;
+                    continue;
                 }
 
                 // --- PVP LOGIC ---
@@ -6147,7 +6153,7 @@ function masterLoop(timestamp) {
 
                     if (proj.dead) {
                         projectiles.splice(index, 1);
-                        return;
+                        continue;
                     }
                 }
 
@@ -6177,7 +6183,7 @@ function masterLoop(timestamp) {
                             createExplosion(proj.x, proj.y, proj.color);
                         }
                     }
-                    if (proj.dead) { projectiles.splice(index, 1); return; }
+                    if (proj.dead) { projectiles.splice(index, 1); continue; }
                 }
 
                 proj.draw();
@@ -6193,12 +6199,13 @@ function masterLoop(timestamp) {
                         createExplosion(proj.x, proj.y, '#e67e22');
                     }
                     projectiles.splice(index, 1);
-                    return;
+                    continue;
                 }
                 if (proj.x < 0 || proj.x > arena.width || proj.y < 0 || proj.y > arena.height) projectiles.splice(index, 1);
-            });
+            }
 
-            meleeAttacks.forEach((att, index) => {
+            for (let index = meleeAttacks.length - 1; index >= 0; index--) {
+                const att = meleeAttacks[index];
                 att.update(); att.draw();
 
                 // PvP Collision: P1 vs P2 (AI)
@@ -6290,19 +6297,21 @@ function masterLoop(timestamp) {
                 }
 
                 if (att.life <= 0) meleeAttacks.splice(index, 1);
-            });
+            }
 
-            particles.forEach((part, index) => {
+            for (let index = particles.length - 1; index >= 0; index--) {
+                const part = particles[index];
                 part.update(); part.draw();
                 if (part.alpha <= 0) particles.splice(index, 1);
-            });
+            }
 
             // Update and Draw Floating Texts (cap at 80 — drop oldest when full)
             if (floatingTexts.length > 80) floatingTexts.splice(0, floatingTexts.length - 80);
-            floatingTexts.forEach((ft, index) => {
+            for (let index = floatingTexts.length - 1; index >= 0; index--) {
+                const ft = floatingTexts[index];
                 ft.update(); ft.draw();
                 if (ft.life <= 0) floatingTexts.splice(index, 1);
-            });
+            }
 
             // Draw Additional Players (Versus / AI)
             if (typeof window.additionalPlayers !== 'undefined') {
@@ -6326,9 +6335,9 @@ function masterLoop(timestamp) {
                 });
             }
 
-            enemies.forEach((enemy, eIndex) => {
-                // Skip already-dead enemies left in array by forEach+splice skip on a previous frame
-                if (enemy.dead) { enemies.splice(eIndex, 1); return; }
+            for (let eIndex = enemies.length - 1; eIndex >= 0; eIndex--) {
+                const enemy = enemies[eIndex];
+                if (enemy.dead) { enemies.splice(eIndex, 1); continue; }
 
                 // Biome Effects on Enemy
                 let enemySpeedMod = 1;
@@ -6375,7 +6384,7 @@ function masterLoop(timestamp) {
                         createExplosion(player.x, player.y, '#95a5a6');
                         const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
                         enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20;
-                        return; // Skip damage
+                        continue; // Skip damage
                     }
 
                     // Earth Hero Max Momentum Invulnerability (Ramming)
@@ -6387,12 +6396,12 @@ function masterLoop(timestamp) {
                             enemy.y += Math.sin(angle) * 50;
                         }
                         createExplosion(player.x, player.y, '#8d6e63');
-                        return; // No damage taken
+                        continue; // No damage taken
                     }
 
                     // Void Hero Realm Shift (Phasing)
                     if (player.type === 'void' && player.inRealmShift) {
-                        return; // No collision damage
+                        continue; // No collision damage
                     }
 
                     let dmgTaken = 1 * (1 - player.damageReduction);
@@ -6881,7 +6890,7 @@ function masterLoop(timestamp) {
                         if (!bossActive) enemiesKilledInWave++;
                     }
                 }
-            });
+            }
 
             // Restore Camera Transform
             ctx.restore();

@@ -20,7 +20,7 @@
 
     function spawnProj(x, y, vx, vy, damage, color, size) {
         if (typeof projectiles !== 'undefined') {
-            projectiles.push(new Projectile(x, y, vx, vy, damage, color, false, size || 8, null, 'boss'));
+            projectiles.push(new Projectile(x, y, { x: vx, y: vy }, damage, color, size || 8, 'boss', 0, true));
         }
     }
 

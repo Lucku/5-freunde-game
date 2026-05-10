@@ -36,11 +36,13 @@ class MainMenuUI {
         container.style.margin = '0 auto';
         container.style.marginBottom = '50px';
 
+        let saveDirty = false;
         heroes.forEach(h => {
             // Ensure save data exists
             if (!window.saveData[h]) {
                 window.saveData[h] = { level: 0, unlocked: 0, highScore: 0, prestige: 0 };
                 if (h === 'earth') window.saveData[h].unlocked = 1;
+                saveDirty = true;
             }
 
             const data = window.saveData[h];
@@ -94,6 +96,7 @@ class MainMenuUI {
             container.appendChild(el);
         });
 
+        if (saveDirty && typeof window.saveGame === 'function') window.saveGame();
         this.updateStoryButton();
         this.updateSkillTreeBadge();
     }

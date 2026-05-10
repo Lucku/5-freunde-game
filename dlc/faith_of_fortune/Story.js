@@ -16,7 +16,7 @@ window.FORTUNE_STORY_CHAPTERS = [
     { id: "fortune_2", wave: 2, hero: "SPIRIT", title: "The Temple Awakening", type: "NARRATIVE", text: "(Spirit) You sense a disturbance. Someone has breached the sacred seals. You leave the Golden Temple to pursue the thief.", data: { biome: 'HERO' } },
 
     // Chunk 2: Chance (Waves 3-5)
-    { id: "fortune_3", wave: 3, hero: "CHANCE", title: "The Shortcut", type: "OBJECTIVE_WAVE", text: "(Chance) Why walk when you can warp? You open a rift to the Fields of Madness. It's dangerous, but it cuts travel time requires a wager.", data: { biome: 'HERO', objective: true } },
+    { id: "fortune_3", wave: 3, hero: "CHANCE", title: "The Shortcut", type: "OBJECTIVE_WAVE", text: "(Chance) Why walk when you can warp? You open a rift to the Fields of Madness. It's dangerous, but it cuts travel time — for a wager.", data: { biome: 'HERO', objective: true } },
     { id: "fortune_4", wave: 4, hero: "CHANCE", title: "Echoes of Madness", type: "NARRATIVE", text: "The Fields of Madness are unstable. Logic dissolves here. Gravity shifts. But Chance feels right at home among the chaos.", data: { biome: 'HERO' } },
     { id: "fortune_5", wave: 5, hero: "CHANCE", title: "Glitch Mob", type: "WAVE_OVERRIDE", text: "(Chance) 'Look at them glitch!' The enemies here are broken, stuttering in and out of existence. Perfect practice targets.", data: { biome: 'HERO', forcedEnemyType: 'SPEEDSTER', spawnRateMod: 1.5 } },
 
@@ -81,7 +81,7 @@ window.FORTUNE_STORY_CHAPTERS = [
     // Chunk 12: Chance (Waves 31-33)
     { id: "fortune_31", wave: 31, hero: "CHANCE", title: "The Floating Isle", type: "NARRATIVE", text: "(Chance) The destination is in sight. A floating island where the Mask rests. 'Jackpot!'", data: { biome: 'plant' } },
     { id: "fortune_32", wave: 32, hero: "CHANCE", title: "Opportunity", type: "NARRATIVE", text: "(Chance) While the Monk was distracted playing hero to his friends, you pushed forward. The lead is yours.", data: { biome: 'HERO' } },
-    { id: "fortune_33", wave: 33, hero: "CHANCE", title: "Shadows Remain", type: "WAVE_OVERRIDE", text: "(Chance) The Void creatures pursure. 'Persistent aren't they?' You run and gun.", data: { biome: 'HERO', forcedEnemyType: 'GHOST' } },
+    { id: "fortune_33", wave: 33, hero: "CHANCE", title: "Shadows Remain", type: "WAVE_OVERRIDE", text: "(Chance) The Void creatures pursue. 'Persistent aren't they?' You run and gun.", data: { biome: 'HERO', forcedEnemyType: 'GHOST' } },
 
     // Chunk 13: Spirit (Waves 34-36)
     { id: "fortune_34", wave: 34, hero: "SPIRIT", title: "Neck and Neck", type: "NARRATIVE", text: "(Spirit) You take the Bridge of Light, bypassing the twisted path Chance took. You land just as he does.", data: { biome: 'HERO' } },

@@ -256,11 +256,10 @@ class StoryManager {
         }
 
         if (event) {
-            // Dynamic Adjustments:
+            // Dynamic Adjustments (clone to avoid mutating shared STORY_EVENTS entry):
             // ARC 2 (Waves 11-20): Enforce Hero Biome
             if (wave >= 11 && wave <= 20) {
-                if (!event.data) event.data = {};
-                event.data.biome = 'HERO';
+                event = { ...event, data: { ...(event.data || {}), biome: 'HERO' } };
             }
             return event;
         }

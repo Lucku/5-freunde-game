@@ -237,7 +237,7 @@ window.HERO_LOGIC['smoke'] = {
             maxLife: 240,
             isBlackout: true
         });
-        while (player.smokeClouds.length > player.cloudMax + 1) player.smokeClouds.shift();
+        while (player.smokeClouds.length > player.cloudMax) player.smokeClouds.shift();
 
         player.specialCooldown = 720; // 12s
         player.setupSpecial();

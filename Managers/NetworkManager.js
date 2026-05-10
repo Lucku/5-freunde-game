@@ -122,9 +122,6 @@ class NetworkManager {
             this.latencyMs = Math.round((Date.now() - this._lastPingSent) / 2);
             return;
         }
-        if (msg.type === 'CONNECTED') {
-            // nothing extra needed
-        }
         if (msg.type === 'LOBBY_CREATED') {
             this.lobbyCode = msg.code;
             this.role      = 'host';

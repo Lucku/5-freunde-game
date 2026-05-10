@@ -137,6 +137,8 @@ const WAKER_OF_WINDS = {
 
     injectStory: function () {
         if (typeof STORY_EVENTS !== 'undefined' && window.WIND_STORY_CHAPTERS) {
+            const firstId = window.WIND_STORY_CHAPTERS[0]?.id;
+            if (firstId && window.STORY_EVENTS.some(e => e.id === firstId)) return; // already injected
             window.STORY_EVENTS = window.STORY_EVENTS.concat(window.WIND_STORY_CHAPTERS);
             console.log(`The Wind Waker: Injected ${window.WIND_STORY_CHAPTERS.length} story chapters.`);
         }

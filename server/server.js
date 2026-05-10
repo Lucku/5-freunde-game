@@ -283,7 +283,13 @@ function verifyToken(token) {
 }
 
 function send(ws, msg) {
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    try {
+        ws.send(JSON.stringify(msg));
+    } catch (err) {
+        // Treat send failure as soft-disconnect — caller can detect via the close handler.
+        try { ws.terminate(); } catch (_) { /* noop */ }
+    }
 }
 
 function partner(lobby, role) {

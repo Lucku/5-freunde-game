@@ -20,6 +20,7 @@ class Projectile {
         if (this.life !== null) this.life--;
     }
     draw() {
+        const NOW = Date.now();
         ctx.save();
         ctx.translate(this.x, this.y);
         // Calculate angle based on velocity
@@ -96,7 +97,7 @@ class Projectile {
 
         } else if (this.type === 'metal') {
             // SHURIKEN: Rotating star/gear
-            const spin = Date.now() / 50;
+            const spin = NOW / 50;
             ctx.rotate(spin);
             ctx.beginPath();
             const sides = 4;
@@ -114,7 +115,7 @@ class Projectile {
 
         } else if (this.type === 'black') {
             // DARK ENERGY: Pulsing orb
-            ctx.shadowBlur = 15 + Math.sin(Date.now() / 100) * 5;
+            ctx.shadowBlur = 15 + Math.sin(NOW / 100) * 5;
             ctx.shadowColor = '#8e44ad'; // Purple glow
             ctx.beginPath();
             ctx.arc(0, 0, this.radius * 1.3, 0, Math.PI * 2);
@@ -129,7 +130,7 @@ class Projectile {
 
         } else if (this.type === 'time') {
             // CHRONO ORB: layered pulsing rings + rotating energy wisps
-            const t = Date.now();
+            const t = NOW;
             const pulse = 0.75 + 0.25 * Math.sin(t * 0.007);
             const r = this.radius;
 
@@ -188,7 +189,7 @@ class Projectile {
 
         } else if (this.type === 'love') {
             // HEART ARROW: filled heart with glow + sparkle trail
-            const t   = Date.now();
+            const t   = NOW;
             const r   = this.radius;
             const pulse = 0.85 + 0.15 * Math.sin(t * 0.012);
 

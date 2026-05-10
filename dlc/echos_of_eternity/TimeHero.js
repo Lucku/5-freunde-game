@@ -260,7 +260,6 @@ class TimeHero {
         }
         // ct3 Burning Moment: slowed enemies take fire DOT every 45 frames
         if (player._mutCt3 && typeof enemies !== 'undefined') {
-            const burnTick = Math.floor(Date.now() / 750) % 1 === 0; // ~every 45 frames at 60fps
             if ((player._ct3Tick = ((player._ct3Tick || 0) + 1)) % 45 === 0) {
                 const burnDmg = player.stats.rangeDmg * player.damageMultiplier * 0.2;
                 enemies.forEach(e => {

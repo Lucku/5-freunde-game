@@ -178,7 +178,13 @@ window.generateHeroSkillTree = function (type) {
     }
     while (types.length < 100) types.push('DAMAGE');
 
-    let seed = type.length;
+    // Hash type string into seed so heroes with same name length get distinct trees
+    let seed = 0;
+    for (let i = 0; i < type.length; i++) {
+        seed = ((seed << 5) - seed) + type.charCodeAt(i);
+        seed |= 0;
+    }
+    seed = (seed >>> 0) || 1;
     const random = () => {
         const x = Math.sin(seed++) * 10000;
         return x - Math.floor(x);
@@ -218,7 +224,7 @@ window.generateHeroSkillTree = function (type) {
         if ((i + 1) % 10 === 0) {
             if (t === 'PIERCE' || t === 'SPLIT') val += 1;
             else val *= 5;
-            desc = "MAJOR: " + desc.replace('+', '+').replace('-', '-');
+            desc = "MAJOR: " + desc;
         }
         tree.push({ id: i, type: t, value: val, desc: desc });
     }

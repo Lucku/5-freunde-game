@@ -30,7 +30,7 @@ window.CHAOS_STORY_CHAPTERS = [
 
     // --- ARC 3: THE REVELATION (Weeks 21-30) ---
     // The Gem's message and the true enemy
-    { id: "chaos_21", wave: 21, hero: "GRAVITY", type: "NARRATIVE", title: " The Vision", text: "We touched the Gem together. It showed us... him. The Entropy Mage.", data: { biome: "HERO" } },
+    { id: "chaos_21", wave: 21, hero: "GRAVITY", type: "NARRATIVE", title: "The Vision", text: "We touched the Gem together. It showed us... him. The Entropy Mage.", data: { biome: "HERO" } },
     { id: "chaos_22", wave: 22, hero: "VOID", type: "NARRATIVE", title: "Data Download", text: "Data received. The Entropy Mage is rewriting reality. He seeks total zero." },
     { id: "chaos_23", wave: 23, hero: "GRAVITY", type: "OBJECTIVE_WAVE", title: "The Mission", text: "The Gem wasn't a prize. It was a warning. We have to stop him.", data: { objective: true, biome: "HERO" } },
     { id: "chaos_24", wave: 24, hero: "VOID", type: "OBJECTIVE_WAVE", title: "Calculated Risk", text: "Probability of success alone: 0%. Probability as a unit: 14%. Acceptable.", data: { objective: true, biome: "HERO" } },

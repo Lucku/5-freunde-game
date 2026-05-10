@@ -84,13 +84,6 @@ class OnlineTestBot {
 
     _onMessage(msg) {
         // Auto-pick first level-up upgrade
-        if (msg.type === 'SNAPSHOT' && Array.isArray(msg.events)) {
-            for (const e of msg.events) {
-                if (e.type === 'level_up' && e.role === 'guest') {
-                    this._send({ type: 'LEVEL_UP_CHOICE', choice: 0 });
-                }
-            }
-        }
         if (msg.type === 'LEVEL_UP') {
             this._send({ type: 'LEVEL_UP_CHOICE', choice: 0 });
         }

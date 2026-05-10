@@ -34,9 +34,7 @@ class ChanceHero {
 
         // Symbols: 0: Cherry, 1: Bell, 2: Bar, 3: 7, 4: Diamond, 5: Skull
 
-        // Upgrade Pool
-        if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
-        window.HERO_LOGIC['chance'] = ChanceHero;
+        // Registration happens once at module load; init() should not duplicate it.
     }
 
     static checkConvergence(player, id) {
@@ -148,28 +146,10 @@ class ChanceHero {
             player.pickupRange = undefined; // Reset if not valid (though convergences are perm per run)
         }
 
-        // Windfall Decay
+        // Windfall Decay (uses player.buffs.tempSpeed; multiplier applied by Player.js)
         if (player.windfallActive) {
             if (player.speedBuffTimer > 0) {
                 player.speedBuffTimer--;
-                player.speedMultiplier *= 1.5; // Apply boost
-                // Wait, if we multiply every frame it explodes. 
-                // We should SET it, but speedMultiplier is recalculated often or static?
-                // Player.js usually sets speedMultiplier = base * upgrades.
-                // We should modify 'runBuffs.speed' or similar?
-                // Let's just assume we add it to the movement vector in the Controller or here?
-                // player.speedMultiplier is used in update loop: movespeed = stats.speed * speedMultiplier.
-
-                // Hack: Since update is called BEFORE physics move usually?
-                // Actually CustomUpdate return value dictates if default move happens.
-                // If we return false, default move logic runs.
-                // We can just add a temporary modifier to the object that Player.js respects?
-                // Player.js doesn't respect custom props easily.
-                // Let's just modify dx/dy? No, update passes dx/dy but doesn't return them.
-
-                // Best bet: use the 'buffs' object if it exists and is used.
-                // Player.js: this.buffs = { speed: 0... }
-                // Let's see if Player.js uses buffs.speed.
                 if (!player.buffs) player.buffs = {};
                 player.buffs.tempSpeed = 0.5; // +50%
             } else {
@@ -367,8 +347,9 @@ class ChanceHero {
                 window.showNotification("HP REDUCED TO 1", "#ff0000");
             }
             // Debuff
+            const _prevSpeed = player.speedMultiplier;
             player.speedMultiplier *= 0.5;
-            setTimeout(() => player.speedMultiplier /= 0.5, 5000); // 5s slow
+            setTimeout(() => { if (player) player.speedMultiplier = _prevSpeed; }, 5000); // 5s slow
         }
         else if (outcome === 'GOOD') {
             // Heal Full + Gold
@@ -419,6 +400,7 @@ class ChanceHero {
             if (typeof enemies !== 'undefined') enemies.forEach(e => {
                 e.hp -= 7777;
                 createExplosion(e.x, e.y, "#ff00ff", 20);
+                if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
             });
             if (typeof saveData !== 'undefined') {
                 saveData.global.chance_jackpots = (saveData.global.chance_jackpots || 0) + 1;
@@ -444,8 +426,9 @@ class ChanceHero {
         else if (outcome === 'DIAMOND') {
             // Invincibility + Damage Buff
             player.invincibleTimer = 300; // 5s
+            const _prevDmg = player.damageMultiplier;
             player.damageMultiplier *= 2;
-            setTimeout(() => player.damageMultiplier /= 2, 5000);
+            setTimeout(() => { if (player) player.damageMultiplier = _prevDmg; }, 5000);
         }
         else {
             // MEH: Small explosion

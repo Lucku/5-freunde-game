@@ -45,7 +45,7 @@ class GoldDrop {
 
         // Coin face (gradient top-lit)
         const faceGrad = ctx.createRadialGradient(-coinR * scaleX * 0.25, -coinR * 0.3, 1, 0, 0, coinR);
-        faceGrad.addColorStop(0, shineColor.replace('rgba', 'rgba').replace(/[\d.]+\)$/, '0.9)'));
+        faceGrad.addColorStop(0, shineColor.replace(/[\d.]+\)$/, '0.9)'));
         faceGrad.addColorStop(0.35, faceColor);
         faceGrad.addColorStop(1, rimColor);
         ctx.fillStyle = faceGrad;

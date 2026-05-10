@@ -10,7 +10,6 @@ class UIManager {
         this.uiSelectionIndex = 0;
         this.uiDebounce = 20; // Delay to prevent instant input
         this.updateUIHighlight();
-        console.log("UI State:", this.uiState);
     }
 
     getFocusables() {

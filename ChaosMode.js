@@ -97,8 +97,8 @@ function openChaosGamble() {
             }
         },
         { id: 'HEAL', name: '-50% Healing', apply: (p) => { p.healMultiplier = (p.healMultiplier || 1) * 0.5; } },
-        { id: 'SPEED', name: '-10% Speed', apply: (p) => { p.speedMultiplier = (p.speedMultiplier || 0) - 0.1; } },
-        { id: 'DMG', name: '-10% Damage', apply: (p) => { p.damageMultiplier = (p.damageMultiplier || 0) * 0.9; } }
+        { id: 'SPEED', name: '-10% Speed', apply: (p) => { p.speedMultiplier = (p.speedMultiplier ?? 1) - 0.1; } },
+        { id: 'DMG', name: '-10% Damage', apply: (p) => { p.damageMultiplier = (p.damageMultiplier ?? 1) * 0.9; } }
     ];
     let penalty = penalties[Math.floor(Math.random() * penalties.length)];
 
@@ -486,8 +486,9 @@ function checkChaosEvent(eventType, val = 1) {
         if (obj.id === 'KILL_FAST' && eventType === 'KILL') match = true; // Generic Kill
         if (obj.counterType === 'GOLD' && eventType === 'GOLD') match = true;
         if (obj.counterType === 'DASH' && eventType === 'DASH') match = true;
-        if (obj.counterType === 'MELEE_KILL' && eventType === 'KILL' && val.isMelee) match = true; // val needs structure check
-        if (obj.counterType === 'PROJ_KILL' && eventType === 'KILL' && !val.isMelee) match = true;
+        const isMeleeKill = (val && typeof val === 'object' && val.isMelee);
+        if (obj.counterType === 'MELEE_KILL' && eventType === 'KILL' && isMeleeKill) match = true;
+        if (obj.counterType === 'PROJ_KILL' && eventType === 'KILL' && !isMeleeKill) match = true;
 
         if (match) {
             obj.progress += (typeof val === 'number' ? val : 1);

@@ -314,17 +314,21 @@ window.HERO_LOGIC['gravity'] = {
         // Passive: Gravity Pull (Smaller, consistent)
         if (enemies) {
             const range = player.gravityWellSize + (player.level * 2);
+            let pullsThisFrame = 0;
             enemies.forEach(e => {
                 const dist = Math.hypot(e.x - player.x, e.y - player.y);
                 if (dist < range) {
                     const angle = Math.atan2(player.y - e.y, player.x - e.x);
                     e.x += Math.cos(angle) * 0.5; // Gentle constant pull
                     e.y += Math.sin(angle) * 0.5;
-                    if (typeof saveData !== 'undefined') {
-                        saveData.global.gravity_pull_count = (saveData.global.gravity_pull_count || 0) + 1;
-                    }
+                    pullsThisFrame++;
                 }
             });
+            // Aggregate write — once per second, not per enemy per frame
+            const f = (typeof frame !== 'undefined') ? frame : (window.frame || 0);
+            if (pullsThisFrame > 0 && f % 60 === 0 && typeof saveData !== 'undefined') {
+                saveData.global.gravity_pull_count = (saveData.global.gravity_pull_count || 0) + pullsThisFrame;
+            }
         }
 
         // Update Active Black Hole
@@ -548,7 +552,9 @@ class BlackHole {
 
                     if (isQuasar) {
                         e.hp -= dmg * 0.2; // Extra burn
-                        if (Math.random() < 0.3) if (typeof FloatingText !== 'undefined') floatingTexts.push(new FloatingText(e.x, e.y - 40, "MELT", "#e74c3c", 20));
+                        if (Math.random() < 0.3 && typeof FloatingText !== 'undefined' && typeof floatingTexts !== 'undefined') {
+                            floatingTexts.push(new FloatingText(e.x, e.y - 40, "MELT", "#e74c3c", 20));
+                        }
                     }
 
                     if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);

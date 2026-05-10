@@ -61,9 +61,7 @@ class SpiritHero {
         // Form Name
         player.getFormName = function () { return 'ENLIGHTENED'; };
 
-        // Register in logic system
-        if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
-        window.HERO_LOGIC['spirit'] = SpiritHero;
+        // Registration happens once at module load; init() should not duplicate it.
     }
 
     static checkConvergence(player, id) {
@@ -189,18 +187,31 @@ class SpiritHero {
         }
 
         if (hasTranquility && !isMoving) {
-            // Slow nearby enemies
+            // Slow nearby enemies — frame-tagged so they restore once outside range
             if (enemies) {
                 enemies.forEach(e => {
                     const d = Math.hypot(e.x - player.x, e.y - player.y);
                     if (d < 300) {
-                        e.speedMultiplier = 0.5; // Slow down
-                        // Visual effect occasionally
+                        if (e._tranquilityBaseSpeed === undefined) e._tranquilityBaseSpeed = e.speedMultiplier ?? 1;
+                        e.speedMultiplier = e._tranquilityBaseSpeed * 0.5;
+                        e._tranquilityTagFrame = (frame ?? window.frame ?? 0);
                         if (Math.random() < 0.05 && typeof createExplosion !== 'undefined') {
                             createExplosion(e.x, e.y, "#aaddff", 2);
                         }
                     }
                 });
+            }
+        }
+        // Restore speed for enemies whose tag is stale (out of range or tranquility off)
+        if (enemies) {
+            const curFrame = (frame ?? window.frame ?? 0);
+            for (let i = 0; i < enemies.length; i++) {
+                const e = enemies[i];
+                if (e._tranquilityBaseSpeed !== undefined && (curFrame - (e._tranquilityTagFrame || 0)) > 2) {
+                    e.speedMultiplier = e._tranquilityBaseSpeed;
+                    delete e._tranquilityBaseSpeed;
+                    delete e._tranquilityTagFrame;
+                }
             }
         }
 
@@ -413,18 +424,18 @@ class SpiritHero {
 
                         // Convergence Effects
                         if (hasSacredFlame) {
-                            e.fireTicks = (e.fireTicks || 0) + 60; // Burn
-                            createExplosion(e.x, e.y, "#e74c3c", 8);
+                            enemy.fireTicks = (enemy.fireTicks || 0) + 60; // Burn
+                            createExplosion(enemy.x, enemy.y, "#e74c3c", 8);
                         }
                         if (hasHolyWater) {
-                            const angle = Math.atan2(e.y - player.y, e.x - player.x);
-                            e.vx += Math.cos(angle) * 5; // Extra Push
-                            e.vy += Math.sin(angle) * 5;
+                            const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                            enemy.vx = (enemy.vx || 0) + Math.cos(angle) * 5; // Extra Push
+                            enemy.vy = (enemy.vy || 0) + Math.sin(angle) * 5;
                         }
                         if (hasEnlightenment) {
                             // Chain Lightning
                             if (Math.random() < 0.3 && typeof enemies !== 'undefined') {
-                                const target = enemies.find(n => n !== e && Math.hypot(n.x - e.x, n.y - e.y) < 200);
+                                const target = enemies.find(n => n !== enemy && Math.hypot(n.x - enemy.x, n.y - enemy.y) < 200);
                                 if (target) {
                                     target.hp -= dmg * 0.5;
                                     // Draw line (needs global hook or temp)

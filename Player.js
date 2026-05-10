@@ -33,7 +33,7 @@ class Player {
         this.isInvincible = false;
 
         // Apply Meta Greed
-        this.goldMultiplier += (saveData.metaUpgrades.greed || 0) * 0.05;
+        this.goldMultiplier += (saveData?.metaUpgrades?.greed || 0) * 0.05;
 
         // Apply Chaos Gold Bonus
         if (saveData.chaos && saveData.chaos.active) {
@@ -145,13 +145,15 @@ class Player {
         const _w = this._world ?? window._world;
         const { currentRunStats } = _w ?? {};
         this.combo++;
-        if (this.combo > currentRunStats.maxCombo) currentRunStats.maxCombo = this.combo;
+        if (currentRunStats && this.combo > currentRunStats.maxCombo) currentRunStats.maxCombo = this.combo;
         this.comboTimer = 240; // 4 seconds
 
-        // Combo Buffs
-        if (this.combo > 50) this.goldMultiplier = 2;
-        else if (this.combo > 25) this.goldMultiplier = 1.5;
-        else this.goldMultiplier = 1;
+        // Combo Buffs (multiplicative on top of meta/achievement bonuses set in constructor)
+        if (this._goldMultBase === undefined) this._goldMultBase = this.goldMultiplier;
+        let comboMult = 1;
+        if (this.combo > 50) comboMult = 2;
+        else if (this.combo > 25) comboMult = 1.5;
+        this.goldMultiplier = this._goldMultBase * comboMult;
     }
 
     resetCombo() {
@@ -381,17 +383,17 @@ class Player {
             this.specialName = "SLOTS";
             this.specialMaxCooldown = 900; // 15s
             iconEl.innerText = "🎰";
-            const active = saveData.altar.active;
-            // Helper to check if node is active
-            const has = (id) => active.includes(id);
-
-            // Cooldown Reductions
-            if (this.type === 'fire' && has('f1')) this.specialMaxCooldown *= 0.9;
-            if (this.type === 'water' && has('w1')) this.specialMaxCooldown *= 0.9;
-            if (this.type === 'ice' && has('i1')) this.specialMaxCooldown *= 0.9;
-            if (this.type === 'plant' && has('p1')) this.specialMaxCooldown *= 0.9;
-            if (this.type === 'metal' && has('m1')) this.specialMaxCooldown *= 0.9;
         }
+
+        const active = saveData?.altar?.active ?? [];
+        const has = (id) => active.includes(id);
+
+        // Cooldown Reductions
+        if (this.type === 'fire' && has('f1')) this.specialMaxCooldown *= 0.9;
+        if (this.type === 'water' && has('w1')) this.specialMaxCooldown *= 0.9;
+        if (this.type === 'ice' && has('i1')) this.specialMaxCooldown *= 0.9;
+        if (this.type === 'plant' && has('p1')) this.specialMaxCooldown *= 0.9;
+        if (this.type === 'metal' && has('m1')) this.specialMaxCooldown *= 0.9;
     }
 
     takeDamage(amount) {
@@ -1391,7 +1393,9 @@ class Player {
 }
 
 window.getHeroStats = function (type) {
-    const base = JSON.parse(JSON.stringify(BASE_HERO_STATS[type]));
+    const base = (typeof structuredClone === 'function')
+        ? structuredClone(BASE_HERO_STATS[type])
+        : JSON.parse(JSON.stringify(BASE_HERO_STATS[type]));
     const heroData = saveData[type];
     const treeData = window.generateHeroSkillTree(type);
 

@@ -96,11 +96,11 @@ class StatisticsUI {
             }
             if (!hasRuns) maxHero = "None";
 
-            // Find Least Played (only among unlocked heroes)
-            const unlockedHeroes = heroKeys.filter(h => allStats[h].unlocked);
-            
-            if (unlockedHeroes.length > 0) {
-                for (let h of unlockedHeroes) {
+            // Find Least Played (only among unlocked heroes that have actually been played)
+            const playedHeroes = heroKeys.filter(h => allStats[h].unlocked && (runs[h] || 0) > 0);
+
+            if (playedHeroes.length > 0) {
+                for (let h of playedHeroes) {
                     const count = runs[h] || 0;
                     if (count < minVal) {
                         minVal = count;
