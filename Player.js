@@ -1401,11 +1401,30 @@ class Player {
     }
 }
 
+// Memoize the computed hero-stat block. The function is pure over
+// (type, saveData[type], saveData.metaUpgrades, saveData.global.unlockedAchievements) —
+// stringifying that tuple gives a cache key that auto-invalidates whenever any
+// of those mutate (skill-node unlock, prestige bump, meta-shop buy, achievement
+// claim). The cached object is the post-derivation `base`; every call returns a
+// fresh clone so callers can mutate freely without contaminating the cache.
+const _heroStatsCache = new Map();
+const _cloneStats = (s) => (typeof structuredClone === 'function')
+    ? structuredClone(s) : JSON.parse(JSON.stringify(s));
+
+window.invalidateHeroStatsCache = function () { _heroStatsCache.clear(); };
+
 window.getHeroStats = function (type) {
-    const base = (typeof structuredClone === 'function')
-        ? structuredClone(BASE_HERO_STATS[type])
-        : JSON.parse(JSON.stringify(BASE_HERO_STATS[type]));
     const heroData = saveData[type];
+    const meta = saveData.metaUpgrades || {};
+    const achList = (saveData.global && saveData.global.unlockedAchievements) || [];
+    const cacheKey = type
+        + '|' + (heroData ? `${heroData.prestige}:${heroData.unlocked}:${heroData.level}` : 'x')
+        + '|' + JSON.stringify(meta)
+        + '|' + achList.join(',');
+    const cached = _heroStatsCache.get(cacheKey);
+    if (cached) return _cloneStats(cached);
+
+    const base = _cloneStats(BASE_HERO_STATS[type]);
     const treeData = window.generateHeroSkillTree(type);
 
     base.ultModifiers = { damage: 1, speed: 1 };
@@ -1508,6 +1527,7 @@ window.getHeroStats = function (type) {
     }
 
     base.hp = Math.floor(base.hp);
+    _heroStatsCache.set(cacheKey, _cloneStats(base));
     return base;
 };
 // ESM exports — Node 24+ `require()` returns the namespace, server/loader.js

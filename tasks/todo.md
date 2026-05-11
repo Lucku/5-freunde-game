@@ -136,6 +136,27 @@ Future sessions: Phases 5–10 (the heavy ESM migration). Each opens its own PR.
 
 ## Review
 
+### 2026-05-11 (session 11) — #31 getHeroStats memoization
+
+**Shipped:**
+
+Added `_heroStatsCache` Map inside `Player.js`. The `window.getHeroStats(type)` function now derives a cache key from `(type, "<prestige>:<unlocked>:<level>", JSON.stringify(metaUpgrades), achievements.join(','))` and short-circuits to `structuredClone(cached)` on hit. Cache miss runs the original derivation path (clone BASE_HERO_STATS, apply meta + prestige + skill-tree nodes + achievement bonuses + DLC `applySkillNode` hooks) and stores a `structuredClone(base)` under the key before returning.
+
+**Why a clone on both sides:** callers (Player constructor + level-up math) mutate the returned object freely — if we returned the cached reference, the next call would see polluted state.
+
+**Auto-invalidation:** any mutation to `saveData[type].prestige` / `.unlocked` / `.level`, any `saveData.metaUpgrades.*` write, or any achievement claim produces a new key string, so the next call recomputes. Manual escape hatch: `window.invalidateHeroStatsCache()` — wire this in if a future DLC toggle / save import changes BASE_HERO_STATS mid-session.
+
+**What we skip on hit:** the skill-tree iteration (up to ~100 nodes for a maxed hero), the achievement-bonus loop, the per-node `HERO_LOGIC[type].applySkillNode` DLC dispatch, the meta-upgrade arithmetic, and the breakdown bookkeeping. Cost on hit is the cache-key build (~4 string ops) + one `structuredClone` of `base` (the same clone we'd do on miss).
+
+**Metrics:**
+- Vite bundle: 719.21 KB → 719.50 KB (~300 bytes for the cache infrastructure)
+- Tests: 80/80 parity + 48/48 Vitest (no regressions; parity exercises getHeroStats across all 19 heroes × 5 ticks)
+- Lint: 328 warnings, 0 errors
+
+**Profiling note:** dedicated cache-hit benchmark deferred. The win is largest at level-up time (every choice rerolls upgrades, each of which calls getHeroStats internally) and at run start (P1 + P2 + companion all spawn within a frame).
+
+---
+
 ### 2026-05-11 (session 10) — ESM Phase 10 step 2: Player.js + EvilMode.js imports
 
 **Shipped:**
