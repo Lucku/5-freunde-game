@@ -144,3 +144,7 @@ window.getCollectionBonuses = (t) => {
 };
 window.openCollection = () => collectionUI.openCollection();
 window.closeCollection = () => collectionUI.closeCollection();
+
+export { CollectionUI, collectionUI, parseBonusDesc };
+export default collectionUI;
+if (typeof window !== 'undefined') window.CollectionUI = CollectionUI;

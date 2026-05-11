@@ -55,3 +55,9 @@ class InputManager {
         window.addEventListener('contextmenu', e => e.preventDefault());
     }
 }
+
+// ESM exports + window shim. The `inputManager` singleton is still created in
+// game.js — only the class identifier needs exposing here.
+export { InputManager };
+export default InputManager;
+if (typeof window !== 'undefined') window.InputManager = InputManager;

@@ -334,3 +334,6 @@ const TutorialMode = {
 };
 
 window.TutorialMode = TutorialMode;
+
+export { TutorialMode };
+export default TutorialMode;

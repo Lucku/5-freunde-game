@@ -161,3 +161,11 @@ function toggleSetting(key) {
     return false;
 }
 window.toggleSetting = toggleSetting;
+
+// ESM exports — classic-script callers still resolve via window/global lookup.
+export { defaultConfig, gameConfig, loadConfig, saveConfig, applyConfig, toggleSetting };
+if (typeof window !== 'undefined') {
+    window.loadConfig  = loadConfig;
+    window.saveConfig  = saveConfig;
+    window.applyConfig = applyConfig;
+}

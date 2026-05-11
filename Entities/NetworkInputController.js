@@ -57,3 +57,7 @@ class RecordingInputController {
 
 window.NetworkInputController    = NetworkInputController;
 window.RecordingInputController  = RecordingInputController;
+
+// ESM exports — window shims above keep classic-script callers unchanged.
+export { NetworkInputController, RecordingInputController };
+export default NetworkInputController;

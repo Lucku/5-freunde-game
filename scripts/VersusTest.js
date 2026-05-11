@@ -31,3 +31,5 @@ window.spawnAIPlayer = function (heroType = 'fire') {
 
     console.log("AI Player Spawned. Access via window.additionalPlayers[0]");
 }
+
+export {};

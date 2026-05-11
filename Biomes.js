@@ -1328,3 +1328,13 @@ window.BIOME_LOGIC['ice']   = new IceBiome();
 window.BIOME_LOGIC['plant'] = new PlantBiome();
 window.BIOME_LOGIC['metal'] = new MetalBiome();
 window.BIOME_LOGIC['black'] = new BlackBiome();
+
+export { FireBiome, WaterBiome, IceBiome, PlantBiome, MetalBiome, BlackBiome };
+if (typeof window !== 'undefined') {
+    window.FireBiome  = FireBiome;
+    window.WaterBiome = WaterBiome;
+    window.IceBiome   = IceBiome;
+    window.PlantBiome = PlantBiome;
+    window.MetalBiome = MetalBiome;
+    window.BlackBiome = BlackBiome;
+}

@@ -37,7 +37,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 26. Particle batching. Sort by color/size; batch fills.
 - [ ] 27. Cull off-camera particles + floating text completely (currently update off-camera).
 - [ ] 28. Throttle non-essential per-frame work to 30 Hz (boss telegraph timers, weather alpha pulses, biome zone updates).
-- [x] 29. ★ Lazy-load DLC bundles. All 8 DLCs load at startup even if user only plays Fire. *(Phase 1: parallel `Promise.all` over enabled DLCs. True lazy-on-first-use needs bundler #2 first.)*
+- [x] 29. ★ Lazy-load DLC bundles. All 8 DLCs load at startup even if user only plays Fire. *(Phase 1: parallel `Promise.all`. Phase 9: DLCManager.loadScript switched from `<script>` injection to native dynamic `import()`. Each DLC file is now fetched on-demand via the module loader — modern browsers can prefetch/cache by URL, and Vite/Rolldown can code-split bundles per DLC if/when we mark them. Full lazy "load on first hero pick" wiring is the natural follow-up.)*
 - [ ] 30. WebGL/Pixi.js backend toggle. 5–10× perf at high entity counts.
 - [ ] 31. Memoize `getHeroStats` per `(type, altarHash, metaHash)`. Currently runs every level-up + spawn.
 - [ ] 32. Smarter snapshot diff: bitpack int16 position deltas to save bandwidth on internet links.

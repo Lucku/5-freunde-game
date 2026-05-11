@@ -136,7 +136,172 @@ Future sessions: Phases 5–10 (the heavy ESM migration). Each opens its own PR.
 
 ## Review
 
-### 2026-05-11 — Path 1 Foundation pass landed
+### 2026-05-11 (session 8) — ESM Phase 8b step 2: game.js migrated
+
+**Shipped:**
+- `game.js` (7469 lines, last classic-script file) → ESM. `<script defer>` → `<script type="module">` in `game.html`.
+- Module bridge prelude at the top of `game.js`: a single `const { ... } = window;` destructuring block pulls in every cross-module symbol the file uses as a bare identifier — classes (`Player`, `Enemy`, `Boss`, `Arena`, `Companion`, all `Entities/*`), manager singletons (`audioManager`, `introManager`, `infoDialogueManager`), manager classes (`SaveManager`, `CloudSaveManager`, `UIManager`, `InputManager`, `StoryManager`, `SpatialHash`), modes (`EvilMode`, `TutorialMode`, `TestingGrounds`, `CoopGamepadController`), scenes (`Altar`, `Manual`, `MenuBackground`), AI controllers (`AIController`, `CompanionAIController`, `RecordingInputController`), `onlineLobby`, `DLCManager`, `MEMORY_STORIES`, plus six chaos helpers (`openChaosGamble`, `updateChaosGambleUI`, `confirmChaosGamble`, `generateChaosObjective`, `updateChaosObjective`, `checkChaosEvent`), `mulberry32`, `gameConfig`.
+- Identifiers game.js only ever reads via `window.X.` (mutable registries `BIOME_LOGIC` / `HERO_LOGIC` / `ENEMY_LOGIC` / `DLC_REGISTRY` / `chaosState`, plus UI singletons like `levelUpUI`/`shopUI`/etc.) are intentionally NOT in the bridge — they stay as `window.X` at call site so DLC-time extension stays observable and the bridge stays lint-clean.
+- All 39 `window.X = X` shims at the bottom of game.js are kept for DLC consumers (DLCs use `import()` since Phase 9, but their files still expect globals).
+
+**The game.js → ESM migration is the milestone that unblocks Phase 10** (window-shim cleanup). Until now Phase 10 was infeasible because the biggest classic-script consumer still depended on every shim.
+
+**Metrics:**
+- Vite bundle: 602 KB → 722 KB (game.js is now a real ESM chunk inside `main-*.js`, no longer a raw classic-script asset copy)
+- Tests: 80/80 parity + 48/48 Vitest (no regressions)
+- Lint: 328 warnings, 0 errors (unchanged)
+- Build time: ~940ms cold
+
+**Phase 10 next** — repo-wide `window.X` shim audit. Each shim's classic-script consumers are now zero (all of them); only DLC-loaded files still expect globals. Strategy: keep shims for symbols DLC index.js / hero / biome / story files reference; drop shims whose only consumers are already-ESM modules.
+
+---
+
+### 2026-05-11 (session 7) — ESM Phase 8b step 1: ChaosMode migrated
+
+**Shipped:**
+- `ChaosMode.js` → ESM. 10 shared mutable `let`s consolidated into one `state` object, exposed as `window.chaosState`. Game.js (still classic) mutates the same object via `window.chaosState.X` → no state divergence.
+- 52 internal `state.X` references rewritten via Node-driven regex (BSD sed's lack of `\b` caught us first try; switched to JS for proper word-boundary matching).
+- 3 game.js call sites updated to use `window.chaosState`.
+- 10 top-level ChaosMode functions gained `window.X = X` shims.
+- `game.html` ChaosMode tag → `<script type="module">`.
+
+**The only remaining classic-script file: `game.js`.**
+
+**Metrics:**
+- Vite bundle: 589 KB → 602 KB
+- Tests: 80/80 parity + 48/48 Vitest (no regressions)
+- Lint: 338 → 328 warnings (10 dropped — module-recognized vars no longer flagged unused)
+- Build time: 1.08s
+
+**Phase 8b step 2 (next session)** — extract Camera state from game.js, then migrate game.js itself to ESM with `window.X` shims for the ~30 cross-file globals. After that, Phase 10 (shim cleanup) becomes tractable.
+
+---
+
+### 2026-05-11 (session 6) — ESM Phase 9: DLC loader
+
+**Shipped:**
+- `dlc/DLCManager.js` migrated to ES module (`export { DLCManager }; export default window.dlcManager;`).
+- `DLCManager.loadScript(src)` rewritten from classic `<script>` tag injection to native dynamic `import()`. Uses absolute paths and `/* @vite-ignore */` so Vite skips static analysis (runtime-resolved URLs).
+- `game.html` DLCManager script tag changed to `type="module"`.
+
+**Intentionally left alone:**
+- 8 DLC `index.js` files + ~45 sub-files (heroes, biomes, stories) — no edits needed. Each already does `window.X = X` for the bindings other modules depend on, so module-scoping their class declarations is harmless. Server-side `require()` still treats them as CommonJS (no `export` keyword) and runs their side effects via `global.window = global`.
+
+**Decision:** skipping export-marker churn on DLC files saves ~50 edits with no functional benefit. If a future DLC author needs named imports, adding `export {}` is one-line additive.
+
+**Metrics:**
+- Vite bundle: 584 KB → 589 KB (DLCManager rolled into the ESM graph)
+- Tests: 80/80 parity + 48/48 Vitest (no regressions)
+- Lint: 338 warnings, 0 errors
+- Build time: 888ms
+
+**Remaining classic-script files**: only `ChaosMode.js` + `game.js` now.
+
+**Phase 10 next** — repo-wide `window.X` shim cleanup, only safe once `game.js` (the biggest classic consumer) is split. Coupled with Phase 8b.
+
+---
+
+### 2026-05-11 (session 5) — ESM Phase 8a: EventBus scaffolding
+
+**Shipped:**
+- `Managers/EventBus.js` — pub/sub primitive for cross-module signalling, ~80 lines.
+- 10 Vitest cases (`tests/eventBus.test.js`) covering on/off/once/clear/throw-isolation/self-unsubscribe-during-emit.
+- Documented naming convention (`domain:event`) for the Phase 8b game.js split.
+
+**Why not the full game.js split this session:**
+
+Improvement #1 (split game.js into `GameLoop`/`Spawner`/`Wave`/`Camera`/`EventBus`/`RunState`) is the largest single item in the backlog. Honest scoping says it's a 2–4 day arc, not a session. Doing it half-way creates more bugs than working code.
+
+`ChaosMode.js` is intentionally still classic because its top-level `let`s are mutated from `game.js` via bare-identifier assignments. Module-scoping ChaosMode would break the shared state without a coordinated game.js refactor.
+
+**Phase 8b plan** (multi-session, future):
+
+1. **Carve `RunState`** out of game.js's ~539 module globals. One object, exported as a frozen singleton, mutated through methods (`startRun()`, `endRun()`, `bumpWave()`). Replace bare-identifier access in game.js with `runState.X`. Co-migrate ChaosMode at the same time.
+2. **Carve `Camera`** — viewport position, world-space ↔ screen-space transforms, screen shake state. Small, well-isolated.
+3. **Carve `Spawner`** — wave-spawn logic + the `spawnEnemy`/`spawnBoss` helpers. Wire to `EventBus.emit('spawner:enemy_spawned', ...)`.
+4. **Carve `WaveLogic`** — wave advancement + boss-wave detection. Subscribes to `spawner:enemy_killed`.
+5. **Carve `GameLoop`** — the `masterLoop()` orchestrator. Imports and ticks every other system.
+6. **Drain remaining game.js** into thin wiring; eventually delete the file.
+
+Each step ends with a working game. Each step opens its own PR.
+
+**Metrics this session:**
+- Vite bundle: 584 KB (unchanged — EventBus is tiny)
+- Tests: 80/80 parity + 48/48 Vitest (was 38)
+- Lint: 338 warnings, 0 errors
+- Build time: 486ms
+
+**Remaining classic-script files**: still `ChaosMode.js`, `game.js`, `dlc/DLCManager.js`.
+
+**Phases 9–10 still pending.**
+
+---
+
+### 2026-05-11 (session 4) — ESM Phase 7: UI + auxiliary game modules complete
+
+32 files migrated:
+
+**Auxiliary game modules** (16 files): `Config`, `AltarData`, `Biomes`, `Museum`, `Altar`, `GlobalLobbyScene`, `Tutorial`, `MemoryStories`, `MemoryShard`, `CompletionMenu`, `EvilHeroes`, `EvilMode`, `TutorialMode`, `TestingGrounds`, `CoopGamepadController`, `OnlineTestBot`, `shared/world.js`, `scripts/VersusTest.js`.
+
+**UI** (14 files): every file under `UI/`.
+
+**Server-side**: `shared/world.js` migrated to ESM, `server/simulation/loader.js` updated to unwrap the `World` namespace via `loadClass`.
+
+**Skipped intentionally**: `ChaosMode.js` — mutable top-level `let`s (`chaosShuffleOptions`, `chaosSelectionIndex`, `heroAffection`, `lostHeroes`, etc.) are assigned from game.js. Module-scoping these would diverge from window-property writes by callers. Will migrate alongside Phase 8 game.js split, when both files can be fixed together.
+
+**Metrics:**
+- Vite bundle: 208 KB → 584 KB (70 modules transformed, up from 35)
+- Tests: 80/80 parity + 38/38 Vitest (no regressions)
+- Lint: 356 → 338 warnings (more no-unused-vars false-positives cleared)
+- Build time: 450ms (still cold-build fast)
+
+**Bundle now exceeds 500 KB warning threshold** — flagged for code-splitting follow-up. Once `game.js` is split (Phase 8) the natural chunks will emerge.
+
+**Remaining classic-script files**: only `ChaosMode.js`, `game.js`, `dlc/DLCManager.js` (the 3 deferred for later phases).
+
+**Phases 8–10 still pending** (game.js split + ChaosMode, DLCs, window.X shim cleanup).
+
+---
+
+### 2026-05-11 (session 3) — ESM Phase 6: Entities + core game classes complete
+
+15 files migrated:
+- **Server + browser** (8 files): `Player.js`, `Enemy.js`, `Arena.js`, `Entities/Projectile.js`, `Entities/MeleeSwipe.js`, `Entities/Particle.js`, `Entities/FloatingText.js`, `Entities/GoldDrop.js`
+- **Browser-only** (7 files): `Boss.js`, `Companion.js`, `Entities/CardDrop.js`, `Entities/HolyMask.js`, `Entities/PowerUp.js`, `Entities/PlayerController.js` (incl. 3 sub-controllers), `Entities/NetworkInputController.js` (incl. RecordingInputController)
+- `Arena.js` also exports internal classes `BiomeZone`/`Obstacle`/`Trap` (used by DLC biome files).
+
+**Server-side change**: `server/simulation/loader.js` gains a `loadClass(path, name)` helper that unwraps `__esModule` namespaces from Node `require()` of ESM. All entity-require sites updated.
+
+**Metrics:**
+- Vite bundle: 98 KB → 208 KB (entities + Player + Enemy are big)
+- Tests: 80/80 parity + 38/38 Vitest (no regressions)
+- Lint: 364 → 356 warnings (more no-unused-vars false-positives cleared)
+- Build time: 430ms (faster than Phase 5 cold)
+
+**Phases 7–10 still pending** (UI/* + Museum/Altar/etc., game.js split, DLCs, window.X shim cleanup).
+
+---
+
+### 2026-05-11 (session 2) — ESM Phase 5: Managers complete
+
+All 9 files under `Managers/` migrated from classic `<script defer>` to `<script type="module">`:
+- `CrashReporter`, `StoryManager`, `IntroManager`, `InputManager`, `UIManager`, `AudioManager`, `CloudSaveManager`, `NetworkManager` (new)
+- `SaveManager`, `SpatialHash` (already migrated in Phase 1)
+
+Each file gained an `export` block + retained its `window.X = X` shim. No external consumers were touched — classic-script callers (game.js, DLC files, Entities, UI) see the same globals.
+
+**Metrics:**
+- Vite bundle: 24 KB → 98 KB (more code now in the ESM graph)
+- Tests: 80/80 parity + 38/38 Vitest (no regressions)
+- Lint: 369 → 364 warnings (some no-unused-vars false-positives cleared)
+- Build time: 1.15s (unchanged)
+- Files migrated: 8 new + 1 game.html edit (Manager script block)
+
+**Phases 6–10 still pending** (Entities, UI, game.js split, DLCs, shim cleanup).
+
+---
+
+### 2026-05-11 (session 1) — Path 1 Foundation pass landed
 
 All five planned phases shipped this session.
 

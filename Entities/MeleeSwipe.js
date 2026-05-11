@@ -29,4 +29,6 @@ class MeleeSwipe {
         ctx.restore();
     }
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = MeleeSwipe;
+export { MeleeSwipe };
+export default MeleeSwipe;
+if (typeof window !== 'undefined') window.MeleeSwipe = MeleeSwipe;

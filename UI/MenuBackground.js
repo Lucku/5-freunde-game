@@ -167,3 +167,7 @@ const MenuBackground = (() => {
 
     return { start, stop };
 })();
+
+export { MenuBackground };
+export default MenuBackground;
+if (typeof window !== 'undefined') window.MenuBackground = MenuBackground;

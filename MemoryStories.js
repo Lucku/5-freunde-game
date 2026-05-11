@@ -388,3 +388,6 @@ const MEMORY_STORIES = {
         "I began gathering those rejected by balance.",
     ]
 };
+
+export { MEMORY_STORIES };
+if (typeof window !== 'undefined') window.MEMORY_STORIES = MEMORY_STORIES;

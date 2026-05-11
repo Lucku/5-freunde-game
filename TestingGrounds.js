@@ -302,3 +302,6 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 window.TestingGrounds = TestingGrounds;
+
+export { TestingGrounds, roundRect };
+export default TestingGrounds;

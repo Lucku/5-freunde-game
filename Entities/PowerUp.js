@@ -24,3 +24,7 @@ class PowerUp {
         ctx.fillText(symbol, 0, 1); ctx.restore();
     }
 }
+
+export { PowerUp };
+export default PowerUp;
+if (typeof window !== 'undefined') window.PowerUp = PowerUp;

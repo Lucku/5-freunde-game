@@ -577,4 +577,9 @@ class Enemy {
         ctx.restore();
     }
 }
-Enemy._nextId = 0;if (typeof module !== 'undefined' && module.exports) module.exports = Enemy;
+Enemy._nextId = 0;
+
+// ESM exports — server/loader.js unwraps via `.default`.
+export { Enemy };
+export default Enemy;
+if (typeof window !== 'undefined') window.Enemy = Enemy;

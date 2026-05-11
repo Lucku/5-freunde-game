@@ -28,4 +28,6 @@ class FloatingText {
         ctx.restore();
     }
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = FloatingText;
+export { FloatingText };
+export default FloatingText;
+if (typeof window !== 'undefined') window.FloatingText = FloatingText;

@@ -129,3 +129,7 @@ window.closeStatistics = () => statisticsUI.closeStatistics();
 // Backward Compatibility
 window.openHighScores = () => statisticsUI.openStatistics();
 window.closeHighScores = () => statisticsUI.closeStatistics();
+
+export { StatisticsUI, statisticsUI };
+export default statisticsUI;
+if (typeof window !== 'undefined') window.StatisticsUI = StatisticsUI;

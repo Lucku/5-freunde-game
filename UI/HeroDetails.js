@@ -159,3 +159,7 @@ window.closeHeroDetails = () => heroDetailsUI.closeHeroDetails();
 window.openStats = () => heroDetailsUI.openHeroDetails();
 window.closeStats = () => heroDetailsUI.closeHeroDetails();
 
+export { HeroDetailsUI, heroDetailsUI };
+export default heroDetailsUI;
+if (typeof window !== 'undefined') window.HeroDetailsUI = HeroDetailsUI;
+

@@ -278,3 +278,11 @@ class StoryManager {
         };
     }
 }
+
+// ESM exports + window shims for classic-script callers.
+export { StoryManager, PROCEDURAL_TEMPLATES };
+export default StoryManager;
+if (typeof window !== 'undefined') {
+    window.StoryManager = StoryManager;
+    window.PROCEDURAL_TEMPLATES = PROCEDURAL_TEMPLATES;
+}

@@ -1508,4 +1508,9 @@ window.getHeroStats = function (type) {
     base.hp = Math.floor(base.hp);
     return base;
 };
-if (typeof module !== 'undefined' && module.exports) module.exports = Player;
+// ESM exports — Node 24+ `require()` returns the namespace, server/loader.js
+// unwraps via `.default`. The window shim keeps classic-script callers seeing
+// the bare `Player` identifier unchanged.
+export { Player };
+export default Player;
+if (typeof window !== 'undefined') window.Player = Player;

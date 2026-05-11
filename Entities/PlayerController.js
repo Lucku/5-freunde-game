@@ -314,3 +314,14 @@ class CompanionAIController extends PlayerController {
         return { x: mx, y: my, aimAngle, usingGamepad: true, shoot, melee, dash, special, pause: false };
     }
 }
+
+// ESM exports + window shims so server stub `global.HumanController` and
+// client `new AIController(...)` callers still resolve.
+export { PlayerController, HumanController, AIController, CompanionAIController };
+export default PlayerController;
+if (typeof window !== 'undefined') {
+    window.PlayerController       = PlayerController;
+    window.HumanController        = HumanController;
+    window.AIController           = AIController;
+    window.CompanionAIController  = CompanionAIController;
+}

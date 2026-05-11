@@ -95,3 +95,7 @@ class AchievementsUI {
 const achievementsUI = new AchievementsUI();
 window.openAchievements = () => achievementsUI.openAchievements();
 window.closeAchievements = () => achievementsUI.closeAchievements();
+
+export { AchievementsUI, achievementsUI };
+export default achievementsUI;
+if (typeof window !== 'undefined') window.AchievementsUI = AchievementsUI;

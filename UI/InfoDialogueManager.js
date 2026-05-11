@@ -186,3 +186,7 @@ infoDialogueManager.register({
     `,
     checkboxLabel: "Don't show this again"
 });
+
+export { InfoDialogueManager };
+export default window.infoDialogueManager;
+if (typeof window !== 'undefined') window.InfoDialogueManager = InfoDialogueManager;

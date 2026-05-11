@@ -23,6 +23,18 @@ function g(relPath) {
     return require(path.join(ROOT, relPath));
 }
 
+// `require()`-of-ESM (Node 22.12+, native in Node 24) returns the module
+// namespace object: `{ __esModule: true, default: Cls, Cls, ... }`. Entity
+// files (Player.js, Enemy.js, etc.) now export their class as both `default`
+// and a named export. This helper unwraps the class for `global.X` assignment.
+function loadClass(relPath, namedExport) {
+    const m = require(path.join(ROOT, relPath));
+    if (m && m.__esModule) {
+        return (namedExport && m[namedExport]) || m.default;
+    }
+    return m; // legacy CommonJS file (DLCs, shared/world.js)
+}
+
 // ── 1. Window / browser shim ──────────────────────────────────────────────────
 global.window   = global;
 global.canvas   = { width: 3000, height: 3000, getContext: () => _noopCtx };
@@ -180,21 +192,21 @@ global.HumanController = class {
 };
 
 // ── 5. Load shared World class ────────────────────────────────────────────────
-global.World = g('shared/world');
+global.World = loadClass('shared/world', 'World');
 
-// ── 6. Load entity classes ────────────────────────────────────────────────────
-global.Projectile   = g('Entities/Projectile');
-global.FloatingText = g('Entities/FloatingText');
-global.GoldDrop     = g('Entities/GoldDrop');
-global.Particle     = g('Entities/Particle');
-global.MeleeSwipe   = g('Entities/MeleeSwipe');
+// ── 6. Load entity classes (ESM since 2026-05-11; unwrap default export) ─────
+global.Projectile   = loadClass('Entities/Projectile',   'Projectile');
+global.FloatingText = loadClass('Entities/FloatingText', 'FloatingText');
+global.GoldDrop     = loadClass('Entities/GoldDrop',     'GoldDrop');
+global.Particle     = loadClass('Entities/Particle',     'Particle');
+global.MeleeSwipe   = loadClass('Entities/MeleeSwipe',   'MeleeSwipe');
 
 // ── 7. Load core game classes ─────────────────────────────────────────────────
 // Player.js defines window.getHeroStats at the bottom — with global.window = global
 // this becomes global.getHeroStats, which is required by the Player constructor.
-global.Player = g('Player');
-global.Enemy  = g('Enemy');
-global.Arena  = g('Arena');
+global.Player = loadClass('Player', 'Player');
+global.Enemy  = loadClass('Enemy',  'Enemy');
+global.Arena  = loadClass('Arena',  'Arena');
 
 // ── 8. Load DLC HERO_LOGIC registries ─────────────────────────────────────────
 // These files do:  window.HERO_LOGIC[type] = { ... }

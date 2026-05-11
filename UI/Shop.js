@@ -285,3 +285,10 @@ window.closeShop = () => shopUI.closeShop();
 window.buyPermUpgrade = (key, cost) => shopUI.buyPermUpgrade(key, cost);
 window.buyChaosEffect = (id, cost) => shopUI.buyChaosEffect(id, cost);
 window.toggleChaosEffect = (id) => shopUI.toggleChaosEffect(id);
+
+export { ShopUI, shopUI, SHOP_POOL };
+export default shopUI;
+if (typeof window !== 'undefined') {
+    window.ShopUI = ShopUI;
+    window.SHOP_POOL = SHOP_POOL;
+}

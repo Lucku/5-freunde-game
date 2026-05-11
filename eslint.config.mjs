@@ -133,6 +133,23 @@ export default [
         },
     },
     {
+        // Browser ESM script that lives under scripts/ — override the Node
+        // CommonJS rule above for this specific file.
+        files: ['scripts/VersusTest.js'],
+        languageOptions: {
+            ecmaVersion: 2024,
+            sourceType: 'module',
+            globals: {
+                window: 'readonly', document: 'readonly', console: 'readonly',
+                player: 'writable', waveTimer: 'writable',
+            },
+        },
+        rules: {
+            'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+            'no-undef': 'off',
+        },
+    },
+    {
         // Vitest test files
         files: ['tests/**/*.js', 'tests/**/*.mjs', '**/*.test.js', '**/*.test.mjs'],
         languageOptions: {

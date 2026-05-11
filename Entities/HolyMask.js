@@ -203,3 +203,7 @@ class HolyMask {
         ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.stroke();
     }
 }
+
+export { HolyMask };
+export default HolyMask;
+if (typeof window !== 'undefined') window.HolyMask = HolyMask;

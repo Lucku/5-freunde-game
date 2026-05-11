@@ -92,4 +92,6 @@ class GoldDrop {
         ctx.restore();
     }
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = GoldDrop;
+export { GoldDrop };
+export default GoldDrop;
+if (typeof window !== 'undefined') window.GoldDrop = GoldDrop;

@@ -153,9 +153,8 @@ class World {
     }
 }
 
-// UMD export — works as <script> tag in browser and require() in Node.js
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = World;
-} else {
-    window.World = World;
-}
+// ESM exports — server/loader.js's `loadClass` helper unwraps the namespace.
+// window shim keeps classic-script callers (game.js) seeing `World` unchanged.
+export { World };
+export default World;
+if (typeof window !== 'undefined') window.World = World;

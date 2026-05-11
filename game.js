@@ -1,3 +1,31 @@
+// game.js migrated to ESM 2026-05-11 (Phase 8b step 2). All other modules set
+// `window.X = X` shims at load time; we destructure here so the rest of this
+// file can keep its bare-identifier reads. Mutable registries (BIOME_LOGIC,
+// HERO_LOGIC, ENEMY_LOGIC, DLC_REGISTRY, chaosState) and UI singletons that
+// game.js only ever accesses via `window.X` are intentionally NOT pulled in.
+const {
+    // Utilities + config
+    mulberry32, gameConfig,
+    // Core game classes
+    Player, Enemy, Boss, Arena, Companion,
+    // Entity types
+    FloatingText, Particle, Projectile, GoldDrop, CardDrop, HolyMask, PowerUp,
+    // Managers (classes + singletons used bare)
+    SaveManager, CloudSaveManager, UIManager, InputManager, StoryManager,
+    SpatialHash, audioManager, introManager, infoDialogueManager,
+    // Modes / scenes
+    EvilMode, TutorialMode, TestingGrounds, CoopGamepadController,
+    Altar, Manual, MenuBackground,
+    // Controllers
+    AIController, CompanionAIController, RecordingInputController,
+    // Lobby singleton (online co-op)
+    onlineLobby,
+    // DLC + memory + chaos helpers actually invoked bare
+    DLCManager, MEMORY_STORIES,
+    openChaosGamble, updateChaosGambleUI, confirmChaosGamble,
+    generateChaosObjective, updateChaosObjective, checkChaosEvent,
+} = window;
+
 const isElectron = typeof process !== 'undefined' && process.versions && process.versions.electron;
 // lastInputType moved to InputManager
 let fs, path, saveFilePath;
@@ -434,19 +462,23 @@ function handleGamepadMenu() {
 
     // --- CHAOS GAMBLE ---
     if (uiState === 'CHAOS_GAMBLE') {
-        if (left) {
-            chaosSelectionIndex = Math.max(0, chaosSelectionIndex - 1);
-            updateChaosGambleUI();
-            uiDebounce = 10;
-        }
-        if (right) {
-            chaosSelectionIndex = Math.min(chaosShuffleOptions.length - 1, chaosSelectionIndex + 1);
-            updateChaosGambleUI();
-            uiDebounce = 10;
-        }
-        if (a) {
-            confirmChaosGamble(chaosSelectionIndex);
-            uiDebounce = 20;
+        // ChaosMode is now ESM — its mutable state lives on `window.chaosState`.
+        const cs = window.chaosState;
+        if (cs) {
+            if (left) {
+                cs.chaosSelectionIndex = Math.max(0, cs.chaosSelectionIndex - 1);
+                updateChaosGambleUI();
+                uiDebounce = 10;
+            }
+            if (right) {
+                cs.chaosSelectionIndex = Math.min(cs.chaosShuffleOptions.length - 1, cs.chaosSelectionIndex + 1);
+                updateChaosGambleUI();
+                uiDebounce = 10;
+            }
+            if (a) {
+                confirmChaosGamble(cs.chaosSelectionIndex);
+                uiDebounce = 20;
+            }
         }
         return;
     }
@@ -1328,10 +1360,10 @@ function saveRunState() {
         mode: currentMode,
         wave: wave,
         score: score,
-        chaos: (currentMode === 'SHUFFLE') ? {
-            heroAffection: (typeof heroAffection !== 'undefined') ? heroAffection : {},
-            chaosObjectiveStreak: (typeof chaosObjectiveStreak !== 'undefined') ? chaosObjectiveStreak : 0,
-            lostHeroes: (typeof lostHeroes !== 'undefined') ? lostHeroes : []
+        chaos: (currentMode === 'SHUFFLE' && window.chaosState) ? {
+            heroAffection: window.chaosState.heroAffection || {},
+            chaosObjectiveStreak: window.chaosState.chaosObjectiveStreak || 0,
+            lostHeroes: window.chaosState.lostHeroes || [],
         } : null,
         player: {
             type: player.type,
@@ -1419,17 +1451,13 @@ function continueRun() {
     // Initialize Game Base
     startGame(state.mode); // This resets everything, so we overwrite after
 
-    // Restore Chaos State if applicable
-    if (state.mode === 'SHUFFLE' && state.chaos) {
-        if (typeof heroAffection !== 'undefined') {
-            // We need to carefully assign properties to avoid reference breaking if using let/const in other file
-            Object.assign(heroAffection, state.chaos.heroAffection);
-        }
-        if (typeof chaosObjectiveStreak !== 'undefined') chaosObjectiveStreak = state.chaos.chaosObjectiveStreak;
-        if (typeof lostHeroes !== 'undefined') {
-            lostHeroes.length = 0; // Clear array
-            state.chaos.lostHeroes.forEach(h => lostHeroes.push(h));
-        }
+    // Restore Chaos State if applicable — ChaosMode is now ESM with
+    // shared state on window.chaosState.
+    if (state.mode === 'SHUFFLE' && state.chaos && window.chaosState) {
+        Object.assign(window.chaosState.heroAffection, state.chaos.heroAffection);
+        window.chaosState.chaosObjectiveStreak = state.chaos.chaosObjectiveStreak || 0;
+        window.chaosState.lostHeroes.length = 0;
+        (state.chaos.lostHeroes || []).forEach(h => window.chaosState.lostHeroes.push(h));
     }
 
     // Restore Wave & Score
@@ -3408,10 +3436,10 @@ function resumeWaveGeneration() {
     // --- INSTANT BOSS SPAWN CHECK ---
     let storyBossId = null;
 
-    // Check Chaos Nemesis
-    if (typeof nextWaveIsNemesis !== 'undefined' && nextWaveIsNemesis) {
-        storyBossId = nextWaveIsNemesis;
-        nextWaveIsNemesis = null;
+    // Check Chaos Nemesis — chaosState lives on window now (ESM-migrated).
+    if (window.chaosState && window.chaosState.nextWaveIsNemesis) {
+        storyBossId = window.chaosState.nextWaveIsNemesis;
+        window.chaosState.nextWaveIsNemesis = null;
     }
 
     // Check Story Duel (1v1) - or other custom spawns handled by DLCs

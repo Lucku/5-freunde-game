@@ -155,7 +155,7 @@ class Companion {
         // Draw Visor
         ctx.beginPath();
         // Visor is a smaller rectangle or arc on the "face"
-        // Assuming they face the player or movement direction? 
+        // Assuming they face the player or movement direction?
         // Let's just put it in the center for now, maybe a horizontal slit
         ctx.fillStyle = '#000'; // Black visor
         ctx.fillRect(this.x - 10, this.y - 4, 20, 8);
@@ -163,3 +163,8 @@ class Companion {
         ctx.restore();
     }
 }
+
+// ESM exports + window shim.
+export { Companion };
+export default Companion;
+if (typeof window !== 'undefined') window.Companion = Companion;

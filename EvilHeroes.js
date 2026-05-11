@@ -655,3 +655,7 @@ window.HERO_LOGIC['makuta'] = {
 
     getFormName() { return 'SHADOW GOD'; },
 };
+
+// File is side-effect-only (writes to window.HERO_LOGIC). Empty export marks
+// it as ESM so `<script type="module">` is consistent with siblings.
+export {};

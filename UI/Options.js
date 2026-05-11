@@ -129,3 +129,7 @@ window.hideQuitWarning = function () {
     const el = document.getElementById('quit-run-warning');
     if (el) el.style.opacity = 0;
 };
+
+export { OptionsUI, optionsUI };
+export default optionsUI;
+if (typeof window !== 'undefined') window.OptionsUI = OptionsUI;

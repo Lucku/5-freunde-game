@@ -247,3 +247,12 @@ window.closeAltar = function () {
     document.getElementById('altar-screen').style.display = 'none';
     if (window.initMenu) window.initMenu();
 };
+
+export { Altar, ALTAR_HERO_META, ALTAR_TIER_LABELS };
+export default Altar;
+if (typeof window !== 'undefined') {
+    window.Altar = Altar;
+    window.altarUI = altarUI;
+    window.ALTAR_HERO_META = ALTAR_HERO_META;
+    window.ALTAR_TIER_LABELS = ALTAR_TIER_LABELS;
+}

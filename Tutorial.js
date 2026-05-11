@@ -1375,3 +1375,6 @@ const Manual = {
 
 window.Manual = Manual;
 window.Tutorial = Manual; // Backward-compatibility alias
+
+export { Manual };
+export default Manual;

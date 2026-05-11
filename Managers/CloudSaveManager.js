@@ -256,3 +256,7 @@ class CloudSaveManager {
 }
 
 window.CloudSaveManager = CloudSaveManager;
+
+// ESM exports — window shim above keeps classic-script callers unchanged.
+export { CloudSaveManager };
+export default CloudSaveManager;

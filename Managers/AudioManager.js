@@ -105,7 +105,7 @@ class AudioManager {
 
         // SFX config
         this.tracks.level_up.volume = 0.8;
-        ['fire','water','ice','plant','metal','black','air','void','spirit','chance','sound','poison','gravity','earth','lightning','time','love','green_goblin','makuta'].forEach(h => {
+        ['fire','water','ice','plant','metal','black','air','void','spirit','chance','sound','poison','gravity','earth','lightning','time','love','green_goblin','makuta','psycho','mirror','smoke'].forEach(h => {
             if (this.tracks[`level_up_${h}`]) this.tracks[`level_up_${h}`].volume = 0.85;
         });
         this.tracks.pickup_card.volume    = 0.5;
@@ -764,3 +764,12 @@ AudioManager._exclamationTexts = {
 };
 
 const audioManager = new AudioManager();
+
+// ESM exports + window shims so classic-script callers see the singleton
+// and the class identifier unchanged.
+export { AudioManager, audioManager };
+export default audioManager;
+if (typeof window !== 'undefined') {
+    window.AudioManager = AudioManager;
+    window.audioManager = audioManager;
+}

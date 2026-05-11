@@ -864,4 +864,14 @@ window.getHeroTheme = function (type) {
     if (type === 'poison') return { bg: '#dcedc8', grid: '#aed581' }; // Toxic Bog
     return { bg: '#1a1a1a', grid: '#333' };
 };
-if (typeof module !== 'undefined' && module.exports) module.exports = Arena;
+// ESM exports — server/loader.js unwraps via `.default`. window shims keep
+// BiomeZone / Obstacle / Trap reachable for DLC files (RockBiome, TimeBiome,
+// LoveBiome, etc.) that instantiate them from classic-script context.
+export { Arena, BiomeZone, Obstacle, Trap };
+export default Arena;
+if (typeof window !== 'undefined') {
+    window.Arena = Arena;
+    window.BiomeZone = BiomeZone;
+    window.Obstacle = Obstacle;
+    window.Trap = Trap;
+}

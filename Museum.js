@@ -2303,3 +2303,11 @@ window.openGlobalLobby = function (heroType) {
     window.globalLobbyScene = new GlobalLobbyScene(heroType);
     if (window.setUIState) window.setUIState('GLOBAL_LOBBY');
 };
+
+export { Museum, MuseumEntity, MUSEUM_DIALOGUES };
+export default Museum;
+if (typeof window !== 'undefined') {
+    window.Museum = Museum;
+    window.MuseumEntity = MuseumEntity;
+    window.MUSEUM_DIALOGUES = MUSEUM_DIALOGUES;
+}

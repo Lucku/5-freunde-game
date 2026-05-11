@@ -685,3 +685,7 @@ class CompletionMenu {
         container.appendChild(listContainer);
     }
 }
+
+export { CompletionMenu };
+export default CompletionMenu;
+if (typeof window !== 'undefined') window.CompletionMenu = CompletionMenu;

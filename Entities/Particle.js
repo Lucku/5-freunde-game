@@ -11,4 +11,6 @@ class Particle {
         ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     }
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = Particle;
+export { Particle };
+export default Particle;
+if (typeof window !== 'undefined') window.Particle = Particle;

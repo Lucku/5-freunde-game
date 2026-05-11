@@ -166,14 +166,22 @@ class DLCManager {
         }
     }
 
-    loadScript(src) {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
+    /**
+     * Dynamically load a DLC file as an ES module.
+     *
+     * Was: `document.createElement('script')` classic-tag injection.
+     * Now: native `import()` with absolute path. Vite serves DLC files as
+     * modules in dev (port 5173) and from /dist/dlc/ in built mode (the Vite
+     * config's closeBundle plugin mirrors dlc/ verbatim — no bundling).
+     *
+     * The `/* @vite-ignore *\/` hint tells Vite not to statically analyze the
+     * import path (runtime-resolved strings can't be).
+     */
+    async loadScript(src) {
+        // Normalize to project-root-absolute. Browsers resolve relative to the
+        // module that called import(), which would yield dlc/dlc/... here.
+        const url = src.startsWith('/') ? src : '/' + src.replace(/^\.\/+/, '');
+        await import(/* @vite-ignore */ url);
     }
 
     isDLCActive(id) {
@@ -183,3 +191,8 @@ class DLCManager {
 
 window.dlcManager = new DLCManager();
 window.DLC_REGISTRY = {};
+window.DLCManager  = DLCManager;
+
+// ESM exports — window shims above keep classic-script callers unchanged.
+export { DLCManager };
+export default window.dlcManager;

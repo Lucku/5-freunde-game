@@ -37,3 +37,7 @@ class CardDrop {
         ctx.restore();
     }
 }
+
+export { CardDrop };
+export default CardDrop;
+if (typeof window !== 'undefined') window.CardDrop = CardDrop;

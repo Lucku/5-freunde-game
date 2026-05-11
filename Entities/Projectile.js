@@ -241,4 +241,6 @@ class Projectile {
         ctx.restore();
     }
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = Projectile;
+export { Projectile };
+export default Projectile;
+if (typeof window !== 'undefined') window.Projectile = Projectile;

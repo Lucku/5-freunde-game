@@ -1434,3 +1434,9 @@ class Boss {
         ctx.restore();
     }
 }
+
+// ESM exports + window shim. Boss is browser-only (server simulation does not
+// instantiate bosses today — DLC bosses are still handled client-side).
+export { Boss };
+export default Boss;
+if (typeof window !== 'undefined') window.Boss = Boss;

@@ -100,3 +100,7 @@ class OnlineTestBot {
 }
 
 window.onlineTestBot = new OnlineTestBot();
+
+export { OnlineTestBot };
+export default window.onlineTestBot;
+if (typeof window !== 'undefined') window.OnlineTestBot = OnlineTestBot;

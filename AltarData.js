@@ -38,3 +38,6 @@ const ALTAR_TREE = {
         { id: 'c10', req: { plant: 5, metal: 5 }, type: 'mutation', desc: 'Ironbark: Overgrowth grants damage reduction' }
     ]
 };
+
+export { ALTAR_TREE };
+if (typeof window !== 'undefined') window.ALTAR_TREE = ALTAR_TREE;

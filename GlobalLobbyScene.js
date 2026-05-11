@@ -568,3 +568,12 @@ class GlobalLobbyScene {
         ctx.restore();
     }
 }
+
+export { GlobalLobbyScene, GLOBAL_EMOTES, HERO_COLORS, getHeroColor };
+export default GlobalLobbyScene;
+if (typeof window !== 'undefined') {
+    window.GlobalLobbyScene = GlobalLobbyScene;
+    window.GLOBAL_EMOTES = GLOBAL_EMOTES;
+    window.HERO_COLORS = HERO_COLORS;
+    window.getHeroColor = getHeroColor;
+}
