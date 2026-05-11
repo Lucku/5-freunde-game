@@ -37,6 +37,42 @@ jobs:
           fi
           echo "OK: no window.entity globals in logic files"
 
+      - name: Lint — // Exposed for DLC vars have window binding (ESM safety)
+        run: |
+          # Every `var X = ... // Exposed for DLC` (or similar) must have a corresponding
+          # window.X = X or an Object.defineProperty/defineProperties(window, ...) entry
+          # in game.js. ESM module-level vars do NOT auto-attach to window like classic
+          # scripts, so the binding has to be explicit. This guard exists because the
+          # gray-enemies / DLC write-back class of bug came from this exact mismatch.
+          EXPOSED=$(grep -E '(let|var|const)[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*.*//.*Exposed for' game.js \
+            | sed -E 's/^[[:space:]]*(let|var|const)[[:space:]]+([a-zA-Z_][a-zA-Z0-9_]*).*/\2/' \
+            | sort -u)
+          MISSING=""
+          echo "$EXPOSED" | while read var; do
+            [ -z "$var" ] && continue
+            # Match: `window.X = ...`, `defineProperty(window, 'X' ...)`, or `X: { get:` (defineProperties block style)
+            if grep -Eq "window\.${var}[^A-Za-z0-9_]|defineProperty\(window,[[:space:]]*['\"]${var}['\"]|^[[:space:]]+${var}:[[:space:]]*\{[[:space:]]*get" game.js; then
+              echo "  OK:   $var"
+            else
+              echo "  MISS: $var"
+              MISSING="${MISSING}${var} "
+            fi
+          done
+          # Re-derive MISSING outside the subshell (while-read pipe creates one)
+          MISSING=""
+          for var in $EXPOSED; do
+            if ! grep -Eq "window\.${var}[^A-Za-z0-9_]|defineProperty\(window,[[:space:]]*['\"]${var}['\"]|^[[:space:]]+${var}:[[:space:]]*\{[[:space:]]*get" game.js; then
+              MISSING="${MISSING}${var} "
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo ""
+            echo "FAIL: // Exposed for DLC vars without window binding in game.js: $MISSING"
+            echo "Fix: add window.<var> = <var> or include in the Object.defineProperties block."
+            exit 1
+          fi
+          echo "OK: all // Exposed for DLC vars have window bindings"
+
       - name: ESLint (warnings allowed; fail only on errors or unexpected rule failures)
         run: npm run lint
 

@@ -2095,7 +2095,7 @@ inputManager.onKeyDown = e => {
                     player.hurricaneActive = true;
                 }
                 showNotification(`DEBUG: ${player.currentForm} FORM ACTIVATED!`);
-                if (window.createExplosion) createExplosion(player.x, player.y, '#fff');
+                createExplosion(player.x, player.y, '#fff');
             } else {
                 showNotification("DEBUG: NO ULTIMATE FORM AVAILABLE");
             }
@@ -2169,10 +2169,10 @@ inputManager.onKeyDown = e => {
         if (isTestingMode && gameRunning && !isLevelingUp) {
             if (e.code === 'Tab') {
                 e.preventDefault();
-                if (window.TestingGrounds) TestingGrounds.toggleSpawnMenu();
+                TestingGrounds.toggleSpawnMenu();
             }
             if (e.code === 'KeyC' && !gamePaused) {
-                if (window.TestingGrounds) TestingGrounds.clearAll();
+                TestingGrounds.clearAll();
             }
         }
 
@@ -3194,7 +3194,7 @@ function changeHeroInGame(newType) {
     player.hp = player.maxHp * oldHpRatio;
 
     // Notify
-    if (window.createExplosion) createExplosion(player.x, player.y, '#fff');
+    createExplosion(player.x, player.y, '#fff');
 }
 
 let currentObjective = null;
@@ -3215,6 +3215,7 @@ Object.defineProperties(window, {
     floatingTexts:       { get: () => floatingTexts,       set: v => { floatingTexts       = v; }, configurable: true, enumerable: true },
     holyMasks:           { get: () => holyMasks,           set: v => { holyMasks           = v; }, configurable: true, enumerable: true },
     goldDrops:           { get: () => goldDrops,           set: v => { goldDrops           = v; }, configurable: true, enumerable: true },
+    waveTimer:           { get: () => waveTimer,           set: v => { waveTimer           = v; }, configurable: true, enumerable: true },
 });
 
 function startObjective() {
@@ -3398,7 +3399,7 @@ function advanceWave() {
         }
     }
 
-    if (isTutorialMode && TutorialMode) TutorialMode.startObjective();
+    if (isTutorialMode) TutorialMode.startObjective();
 
     // CHAOS GAMBLE
     if (isChaosShuffleMode && wave > 1) {
@@ -4096,7 +4097,7 @@ function startGame(mode = 'NORMAL') {
         player.x = arena.width / 2;
         player.y = arena.height / 2;
         setUIState('GAME');
-        if (window.TestingGrounds) TestingGrounds.init();
+        TestingGrounds.init();
         return;
     }
     // Daily/Weekly mode is set in startDailyChallenge/startWeeklyChallenge
@@ -4842,7 +4843,7 @@ function masterLoop(timestamp) {
         // --- BIG GAMBLE STATE (FROZEN CONTEXT) ---
         if (typeof window.isBigGambleActive !== 'undefined' && window.isBigGambleActive) {
             if (window.HERO_LOGIC && window.HERO_LOGIC['chance']) {
-                window.HERO_LOGIC['chance'].updateBigGamble(window.player);
+                window.HERO_LOGIC['chance'].updateBigGamble(player);
                 window.HERO_LOGIC['chance'].drawBigGamble(ctx);
             }
             return; // Skip normal update/draw
@@ -6163,7 +6164,7 @@ function masterLoop(timestamp) {
                     else player.gold += amount; // Fallback
 
                     if (isChaosShuffleMode) checkChaosEvent('GOLD', amount);
-                    if (isTutorialMode && TutorialMode) TutorialMode.onGold();
+                    if (isTutorialMode) TutorialMode.onGold();
                     currentRunStats.moneyGained += amount; // Track Gold
                     saveData.global.totalGold += drop.value; // Track for achievement
                     if (typeof audioManager !== 'undefined') audioManager.play('pickup_gold');
@@ -6407,8 +6408,8 @@ function masterLoop(timestamp) {
                     });
 
                     // Also check collision against Main Player (Player 1) if owner is not Player 1
-                    if (proj.owner && proj.owner !== window.player) {
-                        const p1 = window.player;
+                    if (proj.owner && proj.owner !== player) {
+                        const p1 = player;
                         if (Math.hypot(p1.x - proj.x, p1.y - proj.y) < p1.radius + proj.radius) {
                             p1.takeDamage(proj.damage); // Use standard take damage
                             proj.dead = true;
@@ -6978,7 +6979,7 @@ function masterLoop(timestamp) {
                                 enemy.lastHitBy = 'MELEE';
                                 enemy.killer = att.owner || player;
                             }
-                            if (isTutorialMode && TutorialMode) TutorialMode.onMelee();
+                            if (isTutorialMode) TutorialMode.onMelee();
 
                             // Melee impact — heavier thud
                             const isCrit = att.isCrit;
@@ -7007,7 +7008,7 @@ function masterLoop(timestamp) {
                     enemy.dead = true; // Prevent double-processing if forEach+splice skips this enemy
                     if (!(enemy instanceof Boss)) createDeathBurst(enemy.x, enemy.y, enemy.color || '#e74c3c');
                     if (isChaosShuffleMode) checkChaosEvent('KILL', { isMelee: (enemy.lastHitBy === 'MELEE') });
-                    if (isTutorialMode && TutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
+                    if (isTutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
                     // Boss Minion Logic
                     if (enemy.isSummonedMinion && enemy.parentBoss) {
                         enemy.parentBoss.minionsToKill--;
@@ -7200,10 +7201,10 @@ function masterLoop(timestamp) {
             }
 
             // Tutorial HUD
-            if (isTutorialMode && TutorialMode) TutorialMode.drawHUD(ctx);
+            if (isTutorialMode) TutorialMode.drawHUD(ctx);
 
             // Testing Grounds HUD
-            if (isTestingMode && window.TestingGrounds) TestingGrounds.drawHUD(ctx);
+            if (isTestingMode) TestingGrounds.drawHUD(ctx);
 
             // Boss Off-Screen Direction Indicator
             if (bossActive && enemies.length > 0 && enemies[0] instanceof Boss) {
@@ -7584,3 +7585,87 @@ window.checkAchievements   = checkAchievements;
 window.saveGame            = saveGame;
 window.gameOver            = gameOver;
 window.getCoopTarget       = getCoopTarget;
+window._syncSoundBiomeMusic = _syncSoundBiomeMusic;
+
+// ── window.GAME_API — Formal DLC integration contract ──────────────────────
+// Stable, documented entry point for DLC code. Existing DLCs read bare globals
+// or window.X directly; new DLCs should prefer GAME_API for forward compatibility.
+//
+// Getters return live module variables; setters write through to the module
+// variable so DLC mutations propagate. Function references are bound to game.js
+// scope and safe to call from any module.
+//
+// Versioning: GAME_API.version matches APP_VERSION. When breaking changes ship,
+// bump the major and surface a deprecation log here. DLCs can guard against
+// missing keys with `GAME_API?.X ?? fallback`.
+window.GAME_API = {
+    version: APP_VERSION,
+
+    // ── Live game state ──
+    get wave()                  { return wave; },
+    set wave(v)                 { wave = v; },
+    get bossActive()            { return bossActive; },
+    set bossActive(v)           { bossActive = v; },
+    get enemiesKilledInWave()   { return enemiesKilledInWave; },
+    set enemiesKilledInWave(v)  { enemiesKilledInWave = v; },
+    get isPlayerDying()         { return isPlayerDying; },
+    set isPlayerDying(v)        { isPlayerDying = v; },
+    get currentObjective()      { return currentObjective; },
+    set currentObjective(v)     { currentObjective = v; },
+    get currentWeather()        { return currentWeather; },
+    set currentWeather(v)       { currentWeather = v; },
+    get activeMutators()        { return activeMutators; },
+    set activeMutators(v)       { activeMutators = v; },
+
+    // ── Mode flags ──
+    get isCoopMode()            { return isCoopMode; },
+    get isAICompanionMode()     { return isAICompanionMode; },
+    get isOnlineMode()          { return isOnlineMode; },
+    get isOnlineGuest()         { return isOnlineGuest; },
+    get isOnlineHost()          { return isOnlineHost; },
+    get isVersusMode()          { return isVersusMode; },
+    get isDailyMode()           { return isDailyMode; },
+    set isDailyMode(v)          { isDailyMode = v; },
+    get isWeeklyMode()          { return isWeeklyMode; },
+    set isWeeklyMode(v)         { isWeeklyMode = v; },
+    get isChaosShuffleMode()    { return isChaosShuffleMode; },
+    set isChaosShuffleMode(v)   { isChaosShuffleMode = v; },
+    get isEvilMode()            { return isEvilMode; },
+    get isTutorialMode()        { return isTutorialMode; },
+    get isTestingMode()         { return isTestingMode; },
+
+    // ── Entity arrays (live references) ──
+    get enemies()               { return enemies; },
+    get projectiles()           { return projectiles; },
+    get particles()             { return particles; },
+    get floatingTexts()         { return floatingTexts; },
+    get holyMasks()             { return holyMasks; },
+    get goldDrops()             { return goldDrops; },
+    get companions()            { return companions; },
+
+    // ── Core actors ──
+    get player()                { return player; },
+    get player2()               { return player2; },
+    get arena()                 { return arena; },
+
+    // ── Helpers (bound to game.js) ──
+    showNotification,
+    createExplosion,
+    advanceWave,
+    triggerImpact,
+    spawnLevelUpAura,
+    getCoopTarget,
+    openStory,
+    gameOver,
+    saveGame,
+    checkAchievements,
+    showAchievementNotif,
+
+    // ── DLC registries (mutable; DLCs add entries on init) ──
+    get HERO_LOGIC()            { return window.HERO_LOGIC; },
+    get ENEMY_LOGIC()           { return window.ENEMY_LOGIC; },
+    get BIOME_LOGIC()           { return window.BIOME_LOGIC; },
+
+    // ── World context (shared with server simulation) ──
+    get world()                 { return window._world; },
+};

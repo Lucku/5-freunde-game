@@ -1,4 +1,5 @@
 import { MeleeSwipe } from './Entities/MeleeSwipe.js';
+import { TutorialMode } from './TutorialMode.js';
 
 class Player {
     constructor(type, isCPU = false) {
@@ -307,7 +308,7 @@ class Player {
             if (this.type === 'void') audioManager?.play('dash_void');
             else audioManager?.play('dash');
             createExplosion(this.x, this.y, '#fff');
-            if (typeof isTutorialMode !== 'undefined' && isTutorialMode && window.TutorialMode) TutorialMode.onDash();
+            if (typeof isTutorialMode !== 'undefined' && isTutorialMode) TutorialMode.onDash();
             // Dash — quick high-frequency buzz, no low rumble
             if (typeof triggerImpact !== 'undefined') triggerImpact(1.5, 4, 0.25, 0.0, 65);
         }
@@ -427,7 +428,7 @@ class Player {
 
         // Chaos Hook
         if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) checkChaosEvent('SPECIAL');
-        if (typeof isTutorialMode !== 'undefined' && isTutorialMode && window.TutorialMode) TutorialMode.onAbility();
+        if (typeof isTutorialMode !== 'undefined' && isTutorialMode) TutorialMode.onAbility();
         // Special activation — medium build-up pulse
         if (typeof triggerImpact !== 'undefined') triggerImpact(2.5, 7, 0.12, 0.30, 130);
 
