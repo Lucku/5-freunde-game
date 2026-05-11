@@ -4452,3 +4452,78 @@ input:checked+.slider:before {
     background: rgba(231,76,60,0.06); border-color: rgba(231,76,60,0.22);
     color: rgba(231,76,60,0.65);
 }
+
+/* ---- Accessibility (#135, #136, #137) ---- */
+
+:root { --ui-font-scale: 1; }
+
+/* Font scaling — applies to HUD + screen labels. Set on :root by Config.js. */
+#score-board,
+.hud-lbl,
+#gold-display,
+#wave-display,
+.options-label,
+.options-section-label,
+.options-title,
+.options-subtitle,
+.opt-toggle-btn,
+.screen-title,
+.screen-subtitle,
+#level-text,
+#xp-text,
+#wave-info {
+    font-size: calc(1em * var(--ui-font-scale));
+}
+
+/* High-contrast UI override — flattens transparency, forces high-contrast palette
+ * on every floating screen + options panel. Canvas/game world unaffected. */
+body.high-contrast .options-panel,
+body.high-contrast .modal-panel,
+body.high-contrast #pause-screen,
+body.high-contrast #game-over-screen,
+body.high-contrast #levelup-screen,
+body.high-contrast #shop-screen,
+body.high-contrast #options-screen,
+body.high-contrast #remap-modal {
+    background: #000 !important;
+    color: #fff !important;
+}
+
+body.high-contrast .options-row,
+body.high-contrast .opt-toggle-btn,
+body.high-contrast .upgrade-card,
+body.high-contrast .shop-item,
+body.high-contrast .hero-card {
+    background: #000 !important;
+    border: 2px solid #fff !important;
+    color: #fff !important;
+}
+
+body.high-contrast .opt-toggle-btn.active {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #fff !important;
+}
+
+body.high-contrast .options-label,
+body.high-contrast .options-section-label,
+body.high-contrast .options-title,
+body.high-contrast .options-subtitle,
+body.high-contrast .hud-lbl {
+    color: #fff !important;
+    opacity: 1 !important;
+}
+
+body.high-contrast .selected {
+    outline: 3px solid #ff0 !important;
+    outline-offset: 2px;
+}
+
+/* Screen-reader-only helper kept off-screen but readable by assistive tech. */
+#a11y-live-region {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}

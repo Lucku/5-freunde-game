@@ -1997,20 +1997,24 @@ let currentStoryEvent = null;
 
 // Input
 const inputManager = new InputManager(); // Handles keys, mouse, and lastInputType
+window.inputManager = inputManager;
 
 // Context menu blocked by InputManager
 
 inputManager.onKeyDown = e => {
-    if (e.code === 'Escape' && gameRunning && !isLevelingUp && !isShopping) {
+    // #131 routed via remappable key bindings; legacy keyCodes left as fallbacks
+    // so the old defaults keep working even if config didn't load yet.
+    const im = inputManager;
+    if ((im.eventMatches('pause', e) || e.code === 'Escape') && gameRunning && !isLevelingUp && !isShopping) {
         togglePause();
     }
-    if (e.code === 'Space' && gameRunning && !gamePaused && !isLevelingUp && !isShopping) {
+    if ((im.eventMatches('melee', e) || e.code === 'Space') && gameRunning && !gamePaused && !isLevelingUp && !isShopping) {
         player.melee();
     }
-    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && gameRunning && !gamePaused && !isShopping) {
+    if ((im.eventMatches('dash', e) || e.code === 'ShiftLeft' || e.code === 'ShiftRight') && gameRunning && !gamePaused && !isShopping) {
         player.dash();
     }
-    if (e.code === 'KeyE' && gameRunning && !gamePaused && !isShopping) {
+    if ((im.eventMatches('special', e) || e.code === 'KeyE') && gameRunning && !gamePaused && !isShopping) {
         player.useSpecial();
     }
 

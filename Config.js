@@ -42,6 +42,25 @@ const defaultConfig = {
     subtitlesEnabled: false,
     reducedMotion:    false, // disables screen shake, hit flashes, weather overlays
     colorblindMode:   'off', // 'off' | 'deuteranopia' | 'protanopia' | 'tritanopia'
+    highContrast:     false, // forces high-contrast palette on UI
+    fontScale:        1.0,   // 0.8 | 1.0 | 1.25 | 1.5 — HUD + damage-number font scaling
+    screenReaderHints: false, // ARIA live announcements on UI state changes
+    holdToFireToggle: false, // when true, mouse click toggles auto-fire (#132)
+    aimAssist:        0,     // 0..1 — strength of aim snap toward nearest enemy (#133)
+    oneHandedScheme:  'off', // 'off' | 'leftHand' | 'rightHand' (#138)
+    pauseOnFocusLoss: true,  // pause when window loses focus (#139)
+    pauseOnGamepadDisconnect: true, // pause when an in-use gamepad disconnects (#139)
+    keyBindings: {           // #131 remappable keys (lowercase event.key)
+        moveUp:    ['w', 'arrowup'],
+        moveDown:  ['s', 'arrowdown'],
+        moveLeft:  ['a', 'arrowleft'],
+        moveRight: ['d', 'arrowright'],
+        shoot:     [' ', 'enter'],
+        melee:     ['shift'],
+        dash:      ['control'],
+        special:   ['q'],
+        pause:     ['escape', 'p']
+    },
 
     // Telemetry — opt-in crash reports to the configured server. No PII.
     crashReportsEnabled: true,
@@ -96,8 +115,9 @@ function loadConfig() {
             // Use Object.assign to mutate the existing gameConfig object in place —
             // reassigning would leave window.gameConfig pointing to the old object.
             Object.assign(gameConfig, defaultConfig, data, {
-                account:   { ...defaultConfig.account,   ...(data.account   || {}) },
-                cloudSave: { ...defaultConfig.cloudSave, ...(data.cloudSave || {}) }
+                account:     { ...defaultConfig.account,     ...(data.account     || {}) },
+                cloudSave:   { ...defaultConfig.cloudSave,   ...(data.cloudSave   || {}) },
+                keyBindings: { ...defaultConfig.keyBindings, ...(data.keyBindings || {}) }
             });
             console.log("Config loaded:", gameConfig);
         } catch (e) {
@@ -146,7 +166,58 @@ function applyConfig() {
     if (canvasEl) {
         canvasEl.style.filter = (cb === 'off') ? '' : `url(#cb-${cb})`;
     }
+
+    // High-contrast mode — toggles body class consumed by main.css overrides.
+    if (typeof document !== 'undefined' && document.body) {
+        document.body.classList.toggle('high-contrast', !!gameConfig.highContrast);
+    }
+
+    // Font scaling — exposes --ui-font-scale CSS variable for HUD + UI.
+    if (typeof document !== 'undefined' && document.documentElement) {
+        const scale = Number(gameConfig.fontScale) || 1.0;
+        document.documentElement.style.setProperty('--ui-font-scale', String(scale));
+    }
 }
+
+// One-handed control presets (#138). Selected preset is applied as the active
+// keyBindings; the user can still customise on top via the remap UI.
+const ONE_HANDED_PRESETS = {
+    off: null, // use defaultConfig.keyBindings
+    leftHand: {
+        moveUp:    ['w', 'arrowup'],
+        moveDown:  ['s', 'arrowdown'],
+        moveLeft:  ['a', 'arrowleft'],
+        moveRight: ['d', 'arrowright'],
+        shoot:     [' '],
+        melee:     ['shift'],
+        dash:      ['control'],
+        special:   ['q'],
+        pause:     ['escape']
+    },
+    rightHand: {
+        moveUp:    ['arrowup', 'i'],
+        moveDown:  ['arrowdown', 'k'],
+        moveLeft:  ['arrowleft', 'j'],
+        moveRight: ['arrowright', 'l'],
+        shoot:     ['enter'],
+        melee:     ['/', 'm'],
+        dash:      ['.', ','],
+        special:   ['p'],
+        pause:     ['escape']
+    }
+};
+
+function applyOneHandedScheme(scheme) {
+    const preset = ONE_HANDED_PRESETS[scheme];
+    if (!preset) {
+        gameConfig.keyBindings = JSON.parse(JSON.stringify(defaultConfig.keyBindings));
+    } else {
+        gameConfig.keyBindings = JSON.parse(JSON.stringify(preset));
+    }
+    gameConfig.oneHandedScheme = scheme;
+    saveConfig();
+}
+if (typeof window !== 'undefined') window.applyOneHandedScheme = applyOneHandedScheme;
 
 // Initial Load
 loadConfig();

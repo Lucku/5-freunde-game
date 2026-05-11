@@ -37,15 +37,21 @@ class HumanController extends PlayerController {
         let usingGamepad = player.usingGamepad;
         let aimAngle = player.aimAngle;
 
-        // 1. Keyboard Input
-        // Note: We access the global 'keys' object from InputManager logic
-        if (typeof keys !== 'undefined') {
+        // 1. Keyboard Input — routed via remappable keyBindings (#131).
+        const im = (typeof window !== 'undefined') ? window.inputManager : null;
+        if (im) {
+            if (im.isAction('moveUp'))    dy = -1;
+            if (im.isAction('moveDown'))  dy = 1;
+            if (im.isAction('moveLeft'))  dx = -1;
+            if (im.isAction('moveRight')) dx = 1;
+            if (im.isAction('shoot'))     shoot = true;
+        } else if (typeof keys !== 'undefined') {
+            // Fallback before InputManager construction.
             if (keys['w'] || keys['arrowup']) dy = -1;
             if (keys['s'] || keys['arrowdown']) dy = 1;
             if (keys['a'] || keys['arrowleft']) dx = -1;
             if (keys['d'] || keys['arrowright']) dx = 1;
-
-            if (keys[' '] || keys['enter']) shoot = true; // Fallback shoot key? Usually auto or mouse.
+            if (keys[' '] || keys['enter']) shoot = true;
         }
 
         // 2. Gamepad Input

@@ -20,7 +20,8 @@ class FloatingText {
         ctx.save();
         ctx.globalAlpha = Math.max(0, this.life / 60);
         ctx.fillStyle = this.color;
-        ctx.font = `bold ${this.size}px Arial`;
+        const scale = (typeof gameConfig !== 'undefined' && Number(gameConfig.fontScale)) || 1;
+        ctx.font = `bold ${this.size * scale}px Arial`;
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 3;
         ctx.strokeText(this.text, this.x, this.y);

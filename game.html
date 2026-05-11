@@ -904,6 +904,78 @@
             </div>
 
             <div class="options-section">
+                <div class="options-section-label">Accessibility</div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">◧</span>
+                        <span class="options-label">High Contrast UI</span>
+                    </div>
+                    <button id="opt-highcontrast-btn" class="opt-toggle-btn"
+                        onclick="toggleOption('highContrast')">OFF</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">A</span>
+                        <span class="options-label">UI Font Size</span>
+                    </div>
+                    <button id="opt-fontscale-btn" class="opt-toggle-btn" onclick="cycleFontScale()">NORMAL</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">◉</span>
+                        <span class="options-label">Aim Assist</span>
+                    </div>
+                    <button id="opt-aimassist-btn" class="opt-toggle-btn" onclick="cycleAimAssist()">OFF</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">⌖</span>
+                        <span class="options-label">Hold-to-Fire Toggle</span>
+                    </div>
+                    <button id="opt-holdtofire-btn" class="opt-toggle-btn"
+                        onclick="toggleOption('holdToFireToggle')">OFF</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">✋</span>
+                        <span class="options-label">One-Handed Scheme</span>
+                    </div>
+                    <button id="opt-onehand-btn" class="opt-toggle-btn" onclick="cycleOneHandedScheme()">OFF</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">⌨</span>
+                        <span class="options-label">Customize Keys</span>
+                    </div>
+                    <button class="opt-toggle-btn" onclick="openRemap()">REMAP</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">⏸</span>
+                        <span class="options-label">Pause on Focus Loss</span>
+                    </div>
+                    <button id="opt-pausefocus-btn" class="opt-toggle-btn active"
+                        onclick="toggleOption('pauseOnFocusLoss')">ON</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">🎮</span>
+                        <span class="options-label">Pause on Controller Disconnect</span>
+                    </div>
+                    <button id="opt-pausegamepad-btn" class="opt-toggle-btn active"
+                        onclick="toggleOption('pauseOnGamepadDisconnect')">ON</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">📢</span>
+                        <span class="options-label">Screen Reader Hints</span>
+                    </div>
+                    <button id="opt-screenreader-btn" class="opt-toggle-btn"
+                        onclick="toggleOption('screenReaderHints')">OFF</button>
+                </div>
+            </div>
+
+            <div class="options-section">
                 <div class="options-section-label">Server &amp; Account</div>
                 <div class="options-row">
                     <div class="options-row-left">
@@ -937,6 +1009,23 @@
             <button class="opt-back-btn" onclick="closeOptions()">← BACK</button>
         </div>
     </div>
+
+    <!-- Key Remap Modal -->
+    <div id="remap-modal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,10,15,0.97); z-index:2600; flex-direction:column; align-items:center; justify-content:center; color:white;">
+        <div class="options-panel">
+            <div class="options-header">
+                <div class="options-title">CUSTOMIZE KEYS</div>
+                <div class="options-subtitle">Click a row, then press the new key. Esc cancels.</div>
+            </div>
+            <div class="options-section" id="remap-list"></div>
+            <button class="opt-back-btn" onclick="closeRemap()">← BACK</button>
+        </div>
+    </div>
+
+    <!-- ARIA live region for screen reader announcements (#137) -->
+    <div id="a11y-live-region" aria-live="polite" aria-atomic="true"
+        style="position:absolute; left:-10000px; width:1px; height:1px; overflow:hidden;"></div>
 
     <!-- Account Login Modal -->
     <div id="cloud-login-modal"

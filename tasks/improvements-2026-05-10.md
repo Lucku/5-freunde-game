@@ -157,15 +157,15 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 
 ## Accessibility
 
-- [ ] 131. Remappable keys. `InputManager.js` — confirm full remap supported, expose UI in Options.
-- [ ] 132. Hold-to-fire toggle for hand-strain reduction.
-- [ ] 133. Aim assist slider (not just on/off).
+- [x] 131. Remappable keys. `InputManager.js` — confirm full remap supported, expose UI in Options.
+- [x] 132. Hold-to-fire toggle for hand-strain reduction.
+- [x] 133. Aim assist slider (not just on/off).
 - [x] 134. ★ Reduced-motion mode. Disable shake, flash, weather overlays.
-- [ ] 135. High-contrast UI mode.
-- [ ] 136. Font size scaling for damage numbers, HUD text.
-- [ ] 137. Screen reader hints for menus (ARIA on canvas-overlay UI elements).
-- [ ] 138. One-handed control schemes.
-- [ ] 139. Pause-on-tab-switch / pause-on-disconnect-controller.
+- [x] 135. High-contrast UI mode.
+- [x] 136. Font size scaling for damage numbers, HUD text.
+- [x] 137. Screen reader hints for menus (ARIA on canvas-overlay UI elements).
+- [x] 138. One-handed control schemes.
+- [x] 139. Pause-on-tab-switch / pause-on-disconnect-controller.
 
 ## Save / cloud / data
 

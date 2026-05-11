@@ -10,6 +10,18 @@ class UIManager {
         this.uiSelectionIndex = 0;
         this.uiDebounce = 20; // Delay to prevent instant input
         this.updateUIHighlight();
+        // #137 announce state changes for screen readers (silent when disabled).
+        if (typeof window !== 'undefined' && typeof window.a11yAnnounce === 'function') {
+            const labels = {
+                MENU: 'Main menu', PAUSE: 'Paused', GAME: 'In game',
+                LEVELUP: 'Level up — choose an upgrade', SHOP: 'Shop',
+                OPTIONS: 'Options', GAMEOVER: 'Game over', VICTORY: 'Victory',
+                SKILLTREE: 'Skill tree', ACHIEVEMENTS: 'Achievements',
+                STATS: 'Statistics', COLLECTION: 'Collection', ALTAR: 'Altar'
+            };
+            const msg = labels[newState];
+            if (msg) window.a11yAnnounce(msg);
+        }
     }
 
     getFocusables() {

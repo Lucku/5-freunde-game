@@ -941,8 +941,14 @@ class Player {
         // --- Input Handling (Keyboard & Controller) ---
         let dx = 0; let dy = 0;
 
-        // Keyboard
-        if (keys) {
+        // Keyboard — #131 remappable bindings
+        const _im = (typeof window !== 'undefined') ? window.inputManager : null;
+        if (_im) {
+            if (_im.isAction('moveUp'))    dy = -1;
+            if (_im.isAction('moveDown'))  dy = 1;
+            if (_im.isAction('moveLeft'))  dx = -1;
+            if (_im.isAction('moveRight')) dx = 1;
+        } else if (keys) {
             if (keys['w'] || keys['arrowup']) dy = -1;
             if (keys['s'] || keys['arrowdown']) dy = 1;
             if (keys['a'] || keys['arrowleft']) dx = -1;
@@ -1029,10 +1035,14 @@ class Player {
             dy = -dy;
         }
 
-        // Auto-aim: override aimAngle toward nearest enemy when buff is active.
-        // Doing this here (after all input sources set aimAngle) ensures every
-        // DLC hero that reads player.aimAngle in their shoot() gets auto-aim too.
-        if (this.buffs.autoaim > 0 && typeof enemies !== 'undefined') {
+        // Auto-aim: override aimAngle toward nearest enemy when buff is active,
+        // or when accessibility aim-assist (#133) is dialled up. Aim-assist blends
+        // current aim toward nearest target by slider weight (0..1) so a partial
+        // value still feels mouse-driven but pulls toward enemies.
+        const _cfg = (typeof window !== 'undefined') ? window.gameConfig : null;
+        const aimAssist = Math.max(0, Math.min(1, Number(_cfg?.aimAssist) || 0));
+        const autoOn = (this.buffs.autoaim > 0);
+        if ((autoOn || aimAssist > 0) && typeof enemies !== 'undefined') {
             let nearest = null, minDst = Infinity;
             enemies.forEach(e => {
                 if (e.hp <= 0) return;
@@ -1040,7 +1050,15 @@ class Player {
                 if (d < minDst) { minDst = d; nearest = e; }
             });
             if (nearest) {
-                this.aimAngle = Math.atan2(nearest.y - this.y, nearest.x - this.x);
+                const target = Math.atan2(nearest.y - this.y, nearest.x - this.x);
+                if (autoOn) {
+                    this.aimAngle = target;
+                } else {
+                    // Shortest-arc lerp from current aimAngle toward target.
+                    const TWO_PI = Math.PI * 2;
+                    let diff = ((target - this.aimAngle + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI;
+                    this.aimAngle += diff * aimAssist;
+                }
             }
         }
 

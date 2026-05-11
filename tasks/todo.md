@@ -136,6 +136,56 @@ Future sessions: Phases 5–10 (the heavy ESM migration). Each opens its own PR.
 
 ## Review
 
+### 2026-05-11 (session 12) — ESM migration bug-fix sweep + GAME_API contract
+
+The ESM migration that landed in sessions 1–10 (Phases 0–10) shipped functionally working code but left a class of *silent failure* bugs that only surfaced through gameplay. This session is the cleanup pass for those, plus a forward-looking API contract.
+
+**Bug classes closed:**
+
+1. **HTML `onclick` ReferenceErrors** — 26 game.js functions called from `<button onclick="X()">` attributes were module-scoped after Phase 8b and unreachable as globals. First wave hit `skipTutorialPrompt`; sweep covered all 26 plus the compound-handler edge case (`onclick="a(); b()"` where `b` was missed by initial grep) and the singleton instance `versusMenu` used as `versusMenu.selectOnlineMode(...)`.
+
+2. **Stale `window.X` references after reassignment** — `window.player = player` ran once at init when `player` was `undefined`, then `startGame`, the chaos-shuffle hero swap, and the hero-change path each reassigned the module-level variable without re-syncing the window pointer. Same pattern hit `meleeAttacks`. Manifested as `TypeError: Cannot read properties of undefined (reading 'y')` in `Enemy.draw` on every run.
+
+3. **ESM bare-global pattern broken** — module-level `var X` in `game.js` does NOT auto-attach to `window` (unlike classic scripts). Code in other ESM modules reading bare `X` resolved to `undefined`, breaking conditional behavior in Enemy.js (gray enemies — wave fallback to 1 → always BASIC subtype), Companion.js (no AI targeting), AudioManager.js (no Makuta/Goblin music triggers), WindBosses.js (no projectile firing), and several DLC heroes.
+
+4. **DLC write-back silently dropped** — DLC code like `window.bossActive = true` (AirHero) and `window.enemiesKilledInWave = max - 1` (TutorialMode/AirHero) updated `window.X` data properties, but game.js read its local module variable — writes never reached the game state.
+
+5. **Dead-guard bugs** — `if (window.X) X.method()` guards where `window.X` was *never assigned anywhere*, so the guarded path never ran. Found in Player.js (`window.TutorialMode` → tutorial dash/ability hooks broken; `window._syncSoundBiomeMusic` → Sound hero music sync on level-up broken).
+
+6. **Missing function window exports** — `showNotification`, `openStory`, `advanceWave`, `checkAchievements`, `saveGame`, `gameOver`, `getCoopTarget`, `_syncSoundBiomeMusic` defined in game.js but never assigned to `window`. Callers (TutorialMode, EvilMode, Boss, TestingGrounds, Museum, MazeUI) guarded by `typeof` and silently skipped.
+
+**Fix strategy — `Object.defineProperty` getter/setter pairs.** Single mechanism solves both directions: game.js declares `var wave = 1` (module-scoped); `Object.defineProperties(window, { wave: { get: () => wave, set: v => { wave = v; }, ... } })` makes `window.wave` a live view onto the module variable. Bare `wave` reads in any other ESM module find the getter via global-scope fallback; DLC writes to `window.wave` reach the setter and update the module variable. Replaces 15+ manual `window.X = X` sync lines that the first-attempt fix sprinkled at every mutation site.
+
+**Variables covered by defineProperty:** `wave`, `bossActive`, `enemiesKilledInWave`, `isPlayerDying`, `isChaosShuffleMode`, `isDailyMode`, `isWeeklyMode`, `currentWeather`, `currentObjective`, `activeMutators`, `companions`, `projectiles`, `particles`, `enemies`, `floatingTexts`, `holyMasks`, `goldDrops`, `waveTimer` (18 total, in two grouped blocks at game.js declaration sites).
+
+**ESM Phase 10 step 3 — redundant guards pruned in game.js:** 2× `if (window.createExplosion)`, 4× `if (window.TestingGrounds)`, 5× `&& TutorialMode` (truthy check on imported identifier). All dead code since the identifiers are statically imported.
+
+**Player.js — explicit import for TutorialMode.** Follows the Phase 10 step 2 pattern (MeleeSwipe import). Replaces the `window.TutorialMode` dead-guard. Server-side: TutorialMode.js top-level is just an object literal (no DOM access), safe to require under loader.js.
+
+**`window.GAME_API` formal contract:** new namespace at the bottom of game.js groups all DLC-consumable state, mode flags, entity arrays, helpers, and registries behind a single stable entry point. Uses getter/setter pairs for live state. Carries `GAME_API.version` matching `APP_VERSION` for future deprecation surfacing. Existing DLCs continue using bare globals; new DLCs should prefer `GAME_API.X`.
+
+**CI regression-prevention:** new `test.yml` step extracts every `let|var|const` in game.js tagged `// Exposed for ...` and verifies each has a window binding (`window.X =`, `defineProperty`, or `X: { get:` block-style). Fails the build if any tagged var has no binding. Catches the exact ESM regression class that caused the gray-enemies bug.
+
+**Metrics:**
+- Vite bundle: 719 KB → 730 KB (+11 KB for defineProperty blocks + GAME_API namespace + new window exports)
+- Tests: 80/80 parity + 48/48 Vitest
+- Lint: 314 warnings, 0 errors (was 328 — net –14 from the guard cleanup)
+- Build time: 776ms
+
+**Remaining work (deferred — not bug fixes):**
+
+| Item | Effort | Why deferred |
+|------|--------|--------------|
+| DLC file audit — same dead-guard sweep across `dlc/echos_of_eternity/`, `dlc/faith_of_fortune/`, `dlc/waker_of_winds/` | Medium | DLC code currently works for active features; would need feature-by-feature playtest to find regressions. |
+| `GAME_API` documentation (CLAUDE.md note or `DLC_API.md`) | Small | API works; onboarding doc is QoL not bugfix. |
+| Migrate one existing DLC to `GAME_API.X` as proof-of-concept | Medium | Validates the contract but breaks no existing flow. |
+| Bundle size optimization (730 KB → split chunks) | Large | Load time concern, not correctness. |
+| Remaining game.js `window.X` reads cleanup (~80 lower-priority candidates) | Medium | Diminishing returns past today's pass. |
+
+**The ESM bug class is closed.** Every bug that surfaced via gameplay error or silent feature failure has been addressed, and CI lint prevents recurrence of the most common pattern (`// Exposed for DLC` without window binding). Deferred items are quality-of-life, not correctness.
+
+---
+
 ### 2026-05-11 (session 11) — #31 getHeroStats memoization
 
 **Shipped:**
