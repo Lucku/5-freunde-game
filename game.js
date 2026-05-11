@@ -1923,7 +1923,7 @@ var isShopping = false;
 var isStatsOpen = false;
 
 let score = 0;
-var wave = 1; // Exposed for DLC
+var wave = 1; // Exposed for DLC — window getter/setter below keeps DLC writes in sync
 let frame = 0;
 let _shakeIntensity = 0;
 let _shakeDuration = 0;
@@ -1931,6 +1931,8 @@ let _hitStopFrames = 0;
 let _comboMilestoneTimer = 0;
 let _prevCombo = 0;
 var enemiesKilledInWave = 0; // Exposed for DLC
+let masksDroppedInWave = 0;  // Cap holy-mask drops per wave
+let waveTimer = 0;           // Sentinel used by versus mode to disable wave timer
 var bossActive = false;      // Exposed for DLC
 let bossDeathTimer = 0; // Timer for slow-mo effect
 let _bossChoiceScreen = false;  // Choice screen active after cinematic ends
@@ -1940,6 +1942,15 @@ let _bossChoiceFocus = 0;       // 0 = Continue focused, 1 = Save & Quit focused
 let _bossChoiceGpPrev = {};     // Edge-detection state for D-pad navigation
 var isPlayerDying = false; // Player death animation flag - Exposed for Player.js
 let playerDeathTimer = 0; // Timer for player death animation
+
+// Bidirectional window bindings for DLC-exposed vars.
+// Getters return the live module variable; setters update it so DLC writes propagate back.
+Object.defineProperties(window, {
+    wave:                { get: () => wave,                set: v => { wave                = v; }, configurable: true, enumerable: true },
+    bossActive:          { get: () => bossActive,          set: v => { bossActive          = v; }, configurable: true, enumerable: true },
+    enemiesKilledInWave: { get: () => enemiesKilledInWave, set: v => { enemiesKilledInWave = v; }, configurable: true, enumerable: true },
+    isPlayerDying:       { get: () => isPlayerDying,       set: v => { isPlayerDying       = v; }, configurable: true, enumerable: true },
+});
 
 // Weather
 let currentWeather = null;
@@ -3174,6 +3185,7 @@ function changeHeroInGame(newType) {
     const oldBuffs = player.buffs;
 
     player = new Player(newType);
+    window.player = player;
     if (window._world) { player._world = window._world; window._world.player = player; }
     player.x = arena.width / 2;
     player.y = arena.height / 2;
@@ -3318,6 +3330,7 @@ function shuffleHero(targetHeroType = null) {
 
     // 8. Swap
     player = newPlayer;
+    window.player = player;
 
     showNotification(`CHAOS SHUFFLE: ${nextHero.toUpperCase()}!`);
     createExplosion(player.x, player.y, '#fff', 20);
@@ -3824,6 +3837,7 @@ function startGame(mode = 'NORMAL') {
 
     if (isEvilMode) heroType = 'green_goblin';
     player = new Player(heroType);
+    window.player = player;
     // Center Player in Arena
     player.x = arena.width / 2;
     player.y = arena.height / 2;
@@ -3921,6 +3935,7 @@ function startGame(mode = 'NORMAL') {
     enemiesKilledInWave = 0;
     masksDroppedInWave = 0; // Cap mask drops
     bossActive = false;
+    isPlayerDying = false;
     bossDeathTimer = 0;
     _bossChoiceScreen = false;
     _bossChoiceFrame = 0;
@@ -3929,6 +3944,7 @@ function startGame(mode = 'NORMAL') {
     particles = [];
     floatingTexts = [];
     meleeAttacks = [];
+    window.meleeAttacks = meleeAttacks;
     powerUps = [];
     holyMasks = [];
     goldDrops = [];
@@ -7514,3 +7530,38 @@ setInterval(() => {
         saveGame();
     }
 }, 30000);
+
+// Expose module-scoped functions as globals so HTML onclick handlers can reach them.
+window.skipTutorialPrompt  = skipTutorialPrompt;
+window.acceptTutorialPrompt = acceptTutorialPrompt;
+window.initMenu            = initMenu;
+window.startGame           = startGame;
+window.continueRun         = continueRun;
+window.checkNewGame        = checkNewGame;
+window.confirmNewGame      = confirmNewGame;
+window.closeConfirmDialog  = closeConfirmDialog;
+window.quitGame            = quitGame;
+window.exitToDesktop       = exitToDesktop;
+window.closeGame           = closeGame;
+window.togglePause         = togglePause;
+window.toggleCoopMode      = toggleCoopMode;
+window.toggleLobbyMenu     = toggleLobbyMenu;
+window.openDLCMenu         = openDLCMenu;
+window.closeDLCMenu        = closeDLCMenu;
+window.startDailyChallenge = startDailyChallenge;
+window.startWeeklyChallenge = startWeeklyChallenge;
+window.confirmDailyStart   = confirmDailyStart;
+window.closeDailyInfo      = closeDailyInfo;
+window.closeStory          = closeStory;
+window.quitGlobalLobby     = quitGlobalLobby;
+window.startOnlineTestArena = startOnlineTestArena;
+window.exportSave          = exportSave;
+window.importSave          = importSave;
+window.startTestingGrounds = startTestingGrounds;
+// Functions called as bare globals from TutorialMode.js, EvilMode.js, DLC files
+window.showNotification    = showNotification;
+window.openStory           = openStory;
+window.advanceWave         = advanceWave;
+window.checkAchievements   = checkAchievements;
+window.saveGame            = saveGame;
+window.gameOver            = gameOver;

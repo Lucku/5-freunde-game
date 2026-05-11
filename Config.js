@@ -92,17 +92,17 @@ function loadConfig() {
     if (raw) {
         try {
             const data = JSON.parse(raw);
-            // Deep-merge nested objects so new keys from defaultConfig always exist
-            gameConfig = {
-                ...defaultConfig,
-                ...data,
+            // Deep-merge nested objects so new keys from defaultConfig always exist.
+            // Use Object.assign to mutate the existing gameConfig object in place —
+            // reassigning would leave window.gameConfig pointing to the old object.
+            Object.assign(gameConfig, defaultConfig, data, {
                 account:   { ...defaultConfig.account,   ...(data.account   || {}) },
                 cloudSave: { ...defaultConfig.cloudSave, ...(data.cloudSave || {}) }
-            };
+            });
             console.log("Config loaded:", gameConfig);
         } catch (e) {
             console.error("Failed to parse config:", e);
-            gameConfig = JSON.parse(JSON.stringify(defaultConfig));
+            Object.assign(gameConfig, JSON.parse(JSON.stringify(defaultConfig)));
         }
     } else {
         console.log("No config found, using defaults.");

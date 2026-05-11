@@ -559,9 +559,10 @@ class VersusMenuUI {
 }
 
 const versusMenu = new VersusMenuUI();
-window.openVersusMenu = () => versusMenu.open();
+window.versusMenu       = versusMenu;
+window.openVersusMenu   = () => versusMenu.open();
 window.open2PVersusMenu = () => versusMenu.open2PVersus();
-window.closeVersusMenu = () => versusMenu.close();
+window.closeVersusMenu  = () => versusMenu.close();
 window.startVersusMatch = () => versusMenu.start();
 
 export { VersusMenuUI, versusMenu, BIOME_META };
