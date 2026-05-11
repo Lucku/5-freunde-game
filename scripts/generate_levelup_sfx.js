@@ -176,6 +176,29 @@ const SOUNDS = [
         promptInfluence: 0.5,
         description: 'Makuta villain level-up — ancient dark power awakening, deep ominous booming chord resonating from shadow, massive low-frequency drone with shadow energy pulsing, dark and overwhelming, a god of darkness growing stronger, ends with a terrifying sustained bass roar',
     },
+
+    // ── Disciples of Deception (character pack) ─────────────────────────────────
+    {
+        id: 'level_up_psycho',
+        filename: 'level_up_psycho.wav',
+        duration: 2.0,
+        promptInfluence: 0.5,
+        description: 'Psycho hero level-up — fractured mental energy rising, glitching teal synapse crackles building into a shrill rising chorus of dissonant tones, erratic pitch-bent harmonics with sudden bursts of bright psychic resonance, unhinged but triumphant, ends on a wild reverberant snap',
+    },
+    {
+        id: 'level_up_mirror',
+        filename: 'level_up_mirror.wav',
+        duration: 2.0,
+        promptInfluence: 0.45,
+        description: 'Mirror hero level-up — pristine crystalline ascension, polished glass chimes refracting into a prismatic cascade, deep marine-blue resonance underlying high faceted harmonics, cold and precise, ends with a clean ringing chord like a struck mirror sustaining',
+    },
+    {
+        id: 'level_up_smoke',
+        filename: 'level_up_smoke.wav',
+        duration: 2.0,
+        promptInfluence: 0.45,
+        description: 'Smoke hero level-up — low industrial drone swelling through thick haze, breathy bass with muffled rumble building into a deep resonant pulse, dark and threatening but controlled, smoky synthesized tones layering with a final low boom that fades into a hiss',
+    },
 ];
 
 // ---------------------------------------------------------------------------

@@ -1185,79 +1185,84 @@
     </div>
 
 
-    <script src="shared/world.js"></script>
-    <script src="Constants.js"></script>
-    <script src="Config.js"></script>
-    <script src="dlc/DLCManager.js"></script>
-    <script src="AltarData.js"></script>
-    <script src="Arena.js"></script>
-    <script src="Biomes.js"></script>
-    <script src="Museum.js"></script>
-    <script src="GlobalLobbyScene.js"></script>
-    <script src="Altar.js"></script>
-    <script src="Tutorial.js"></script>
-    <script src="Managers/StoryManager.js"></script>
-    <script src="Player.js"></script>
-    <script src="Enemy.js"></script>
-    <script src="Boss.js"></script>
-    <script src="Companion.js"></script>
-    <script src="MemoryStories.js"></script>
-    <script src="MemoryShard.js"></script>
-    <script src="CompletionMenu.js"></script>
+    <!-- All scripts use `defer` so they execute in document order AFTER the
+         HTML parser has finished. `type="module"` files (ESM-migrated) and
+         `defer` files (classic) interleave correctly in this mode. Inline
+         scripts that read deferred symbols (e.g. APP_VERSION) are wrapped in
+         DOMContentLoaded below to wait for the same fence. -->
+    <script defer src="shared/world.js"></script>
+    <script type="module" src="Constants.js"></script>
+    <script defer src="Config.js"></script>
+    <script defer src="dlc/DLCManager.js"></script>
+    <script defer src="AltarData.js"></script>
+    <script defer src="Arena.js"></script>
+    <script defer src="Biomes.js"></script>
+    <script defer src="Museum.js"></script>
+    <script defer src="GlobalLobbyScene.js"></script>
+    <script defer src="Altar.js"></script>
+    <script defer src="Tutorial.js"></script>
+    <script defer src="Managers/StoryManager.js"></script>
+    <script defer src="Player.js"></script>
+    <script defer src="Enemy.js"></script>
+    <script defer src="Boss.js"></script>
+    <script defer src="Companion.js"></script>
+    <script defer src="MemoryStories.js"></script>
+    <script defer src="MemoryShard.js"></script>
+    <script defer src="CompletionMenu.js"></script>
 
     <!-- Managers -->
-    <script src="Managers/IntroManager.js"></script>
-    <script src="Managers/AudioManager.js"></script>
-    <script src="Managers/InputManager.js"></script>
-    <script src="Managers/SaveManager.js"></script>
-    <script src="Managers/CloudSaveManager.js"></script>
-    <script src="Managers/NetworkManager.js"></script>
-    <script src="Managers/CrashReporter.js"></script>
-    <script src="Managers/SpatialHash.js"></script>
-    <script src="Managers/UIManager.js"></script>
+    <script defer src="Managers/IntroManager.js"></script>
+    <script defer src="Managers/AudioManager.js"></script>
+    <script defer src="Managers/InputManager.js"></script>
+    <script type="module" src="Managers/SaveManager.js"></script>
+    <script defer src="Managers/CloudSaveManager.js"></script>
+    <script defer src="Managers/NetworkManager.js"></script>
+    <script defer src="Managers/CrashReporter.js"></script>
+    <script type="module" src="Managers/SpatialHash.js"></script>
+    <script defer src="Managers/UIManager.js"></script>
 
     <!-- Controllers -->
-    <script src="Entities/PlayerController.js"></script>
-    <script src="Entities/NetworkInputController.js"></script>
+    <script defer src="Entities/PlayerController.js"></script>
+    <script defer src="Entities/NetworkInputController.js"></script>
 
     <!-- UI Modules -->
-    <script src="UI/HeroDetails.js"></script>
-    <script src="UI/Completion.js"></script>
-    <script src="UI/Collection.js"></script>
-    <script src="UI/SkillTree.js"></script>
-    <script src="UI/Achievements.js"></script>
-    <script src="UI/Statistics.js"></script>
-    <script src="UI/Shop.js"></script>
-    <script src="UI/LevelUp.js"></script>
-    <script src="UI/Options.js"></script>
-    <script src="UI/OnlineLobby.js"></script>
-    <script src="UI/VersusMenu.js"></script>
-    <script src="UI/InfoDialogueManager.js"></script>
-    <script src="UI/MainMenu.js"></script>
-    <script src="UI/MenuBackground.js"></script>
-    <script src="ChaosMode.js"></script>
-    <script src="EvilHeroes.js"></script>
-    <script src="EvilMode.js"></script>
+    <script defer src="UI/HeroDetails.js"></script>
+    <script defer src="UI/Completion.js"></script>
+    <script defer src="UI/Collection.js"></script>
+    <script defer src="UI/SkillTree.js"></script>
+    <script defer src="UI/Achievements.js"></script>
+    <script defer src="UI/Statistics.js"></script>
+    <script defer src="UI/Shop.js"></script>
+    <script defer src="UI/LevelUp.js"></script>
+    <script defer src="UI/Options.js"></script>
+    <script defer src="UI/OnlineLobby.js"></script>
+    <script defer src="UI/VersusMenu.js"></script>
+    <script defer src="UI/InfoDialogueManager.js"></script>
+    <script defer src="UI/MainMenu.js"></script>
+    <script defer src="UI/MenuBackground.js"></script>
+    <script defer src="ChaosMode.js"></script>
+    <script defer src="EvilHeroes.js"></script>
+    <script defer src="EvilMode.js"></script>
 
     <!-- Experimental Scripts -->
-    <script src="scripts/VersusTest.js"></script>
+    <script defer src="scripts/VersusTest.js"></script>
 
     <!-- Entities and Utils -->
-    <script src="Utils.js"></script>
-    <script src="Entities/Projectile.js"></script>
-    <script src="Entities/MeleeSwipe.js"></script>
-    <script src="Entities/GoldDrop.js"></script>
-    <script src="Entities/CardDrop.js"></script>
-    <script src="Entities/HolyMask.js"></script>
-    <script src="Entities/PowerUp.js"></script>
-    <script src="Entities/Particle.js"></script>
-    <script src="Entities/FloatingText.js"></script>
+    <script type="module" src="Utils.js"></script>
+    <script defer src="Entities/Projectile.js"></script>
+    <script defer src="Entities/MeleeSwipe.js"></script>
+    <script defer src="Entities/GoldDrop.js"></script>
+    <script defer src="Entities/CardDrop.js"></script>
+    <script defer src="Entities/HolyMask.js"></script>
+    <script defer src="Entities/PowerUp.js"></script>
+    <script defer src="Entities/Particle.js"></script>
+    <script defer src="Entities/FloatingText.js"></script>
 
-    <script src="CoopGamepadController.js"></script>
-    <script src="OnlineTestBot.js"></script>
-    <script src="game.js"></script>
-    <script src="TutorialMode.js"></script>
-    <script src="TestingGrounds.js"></script>
+    <script defer src="CoopGamepadController.js"></script>
+    <script defer src="OnlineTestBot.js"></script>
+    <script defer src="game.js"></script>
+    <script defer src="TutorialMode.js"></script>
+    <script defer src="TestingGrounds.js"></script>
 
     <!-- Tutorial Welcome Overlay (first launch) -->
     <div id="tutorial-welcome-overlay"
@@ -1280,7 +1285,7 @@
 
     <!-- Testing Grounds: Mode chooser (shown when pressing D in menu) -->
     <div id="tg-mode-overlay"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.82); z-index:9100; justify-content:center; align-items:center;"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.82); z-index:9100; justify-content:center; align-items:center;">
         <div style="background:#12121e; border:2px solid #f1c40f; border-radius:14px; padding:36px 40px; text-align:center; color:#fff; font-family:monospace; min-width:340px;">
             <div style="color:#f1c40f; font-size:22px; font-weight:bold; margin-bottom:8px;">Testing Grounds</div>
             <div style="color:#888; font-size:13px; margin-bottom:28px;">Choose simulation mode</div>
@@ -1465,20 +1470,24 @@
         </div>
     </div>
 
+    <!-- Wait for deferred + module scripts to execute before reading
+         APP_VERSION (defined in Constants.js, now loaded as a deferred module). -->
     <script>
-        document.getElementById('version-label').textContent = 'v' + APP_VERSION;
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('version-label').textContent = 'v' + (window.APP_VERSION || '');
+        });
     </script>
     <script>
-        (function () {
+        document.addEventListener('DOMContentLoaded', () => {
             const { ipcRenderer } = require('electron');
             ipcRenderer.on('update-available', (event, { version, url }) => {
                 document.getElementById('update-dialog-text').textContent =
-                    `Version ${version} is now available. You are running v${APP_VERSION}.`;
+                    `Version ${version} is now available. You are running v${window.APP_VERSION || ''}.`;
                 const btn = document.getElementById('update-download-btn');
                 btn.onclick = () => ipcRenderer.send('open-url', url);
                 document.getElementById('update-dialog').style.display = 'flex';
             });
-        })();
+        });
     </script>
 </body>
 

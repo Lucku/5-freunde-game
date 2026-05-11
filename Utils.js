@@ -125,3 +125,14 @@ function shadeColor(color, percent) {
     const pad = (v) => v.toString(16).padStart(2, '0');
     return "#" + pad(R) + pad(G) + pad(B);
 }
+
+// ESM exports — file is loaded via `<script type="module">`. The window shims
+// below keep classic-script callers (not yet ESM-migrated) working unchanged.
+export { drawHeroSprite, shadeColor, mulberry32 };
+if (typeof window !== 'undefined') {
+    window.drawHeroSprite = drawHeroSprite;
+    window.shadeColor     = shadeColor;
+    // mulberry32 already exported via window above; this line keeps the
+    // assignment grouped with the others when callers grep for the shim block.
+    window.mulberry32     = mulberry32;
+}

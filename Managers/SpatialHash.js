@@ -84,5 +84,8 @@ class SpatialHash {
     }
 }
 
+// ESM export — loaded via `<script type="module">` and consumed by Vitest tests.
+// window shim retained so classic-script callers (game.js, etc.) still see it.
+export { SpatialHash };
+export default SpatialHash;
 if (typeof window !== 'undefined') window.SpatialHash = SpatialHash;
-if (typeof module !== 'undefined') module.exports = SpatialHash;

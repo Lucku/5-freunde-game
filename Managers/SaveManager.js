@@ -266,3 +266,10 @@ class SaveManager {
         reader.readAsText(file);
     }
 }
+
+// ESM exports — file loads via `<script type="module">`. The window shim keeps
+// classic-script callers (game.js, CloudSaveManager.js, save-editor.html)
+// working unchanged.
+export { SaveManager };
+export default SaveManager;
+if (typeof window !== 'undefined') window.SaveManager = SaveManager;

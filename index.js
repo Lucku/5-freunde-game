@@ -30,7 +30,31 @@ function createWindow() {
         icon: path.join(__dirname, 'icon.png')
     });
 
-    win.loadFile('game.html');
+    // Three load modes:
+    //   1. VITE_DEV=1 → Vite dev server at http://localhost:5173 (hot reload).
+    //   2. dist/game.html exists → packaged or pre-built bundle.
+    //   3. Fallback → load source game.html directly (legacy path; works because
+    //      every <script src> resolves relative to the project root in dev).
+    const viteDev = process.env.VITE_DEV === '1';
+    const distHtml = path.join(__dirname, 'dist', 'game.html');
+    if (viteDev) {
+        win.loadURL('http://localhost:5173/game.html');
+    } else if (fs.existsSync(distHtml)) {
+        win.loadFile(distHtml);
+    } else {
+        win.loadFile('game.html');
+    }
+
+    // Hot reload (dev only) — watch dist/game.html for rebuild touch.
+    if (process.env.HOT_RELOAD === '1' && !viteDev && fs.existsSync(distHtml)) {
+        let debounce;
+        fs.watch(path.join(__dirname, 'dist'), { recursive: true }, () => {
+            clearTimeout(debounce);
+            debounce = setTimeout(() => {
+                if (!win.isDestroyed()) win.webContents.reload();
+            }, 200);
+        });
+    }
 
     // Capture all renderer console output
     win.webContents.on('console-message', (event, level, message, line, sourceId) => {

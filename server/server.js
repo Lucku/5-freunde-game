@@ -82,10 +82,10 @@ app.use(express.json({ limit: '10mb' }));
 // when direct-exposed.
 app.set('trust proxy', 1);
 
-// ── Rate limiting ─────────────────────────────────────────────────────────────
-// Lightweight in-process token bucket per IP+route. No external dep; suitable
-// for single-process deploys. Behind a load balancer, scale horizontally with
-// Redis-backed limiter instead.
+// ── Rate limiting + plausibility (extracted to server/anticheat.js so unit
+//    tests can import them without booting the WS server). ────────────────────
+
+const { plausibilityReject, makeRateLimiter } = require('./anticheat');
 
 const _rateBuckets = new Map(); // key → { tokens, last }
 const RATE_SWEEP_MS = 5 * 60 * 1000;
@@ -97,24 +97,14 @@ setInterval(() => {
 }, RATE_SWEEP_MS).unref?.();
 
 function rateLimit({ key, capacity, refillPerSec }) {
+    const limiter = makeRateLimiter({ capacity, refillPerSec, buckets: _rateBuckets });
     return (req, res, next) => {
         const ip = req.ip || req.headers['x-forwarded-for']?.split(',')[0].trim() || req.connection?.remoteAddress || 'unknown';
-        const bucketKey = `${key}:${ip}`;
-        const now = Date.now();
-        let b = _rateBuckets.get(bucketKey);
-        if (!b) {
-            b = { tokens: capacity, last: now };
-            _rateBuckets.set(bucketKey, b);
+        const result = limiter(`${key}:${ip}`);
+        if (!result.allowed) {
+            res.set('Retry-After', String(result.retryAfterSec));
+            return res.status(429).json({ error: 'Too many requests', retryAfterSec: result.retryAfterSec });
         }
-        const elapsedSec = (now - b.last) / 1000;
-        b.tokens = Math.min(capacity, b.tokens + elapsedSec * refillPerSec);
-        b.last   = now;
-        if (b.tokens < 1) {
-            const retryAfterSec = Math.ceil((1 - b.tokens) / refillPerSec);
-            res.set('Retry-After', String(retryAfterSec));
-            return res.status(429).json({ error: 'Too many requests', retryAfterSec });
-        }
-        b.tokens -= 1;
         next();
     };
 }
@@ -134,26 +124,6 @@ function verifySessionToken(token) {
         if (payload.kind !== 'gs') return null;
         return payload;
     } catch { return null; }
-}
-
-// Heuristic plausibility caps for unverified (offline) submissions. Generous —
-// purpose is to reject obvious garbage, not gate legitimate runs.
-const MAX_WAVE = 500;
-const MAX_SCORE = 5_000_000;
-const MIN_SEC_PER_WAVE = 8; // sub-8s/wave consistently → almost certainly fake
-
-function plausibilityReject(wave, score, timeSec) {
-    if (wave < 0 || wave > MAX_WAVE)         return `wave out of range (0..${MAX_WAVE})`;
-    if (score < 0 || score > MAX_SCORE)      return `score out of range (0..${MAX_SCORE})`;
-    if (timeSec < 0)                         return 'negative time';
-    if (wave >= 5 && timeSec < wave * MIN_SEC_PER_WAVE) {
-        return `time/wave ratio impossible (${timeSec}s for wave ${wave})`;
-    }
-    // Score-per-wave sanity: ~50k/wave is already extreme for most heroes.
-    if (wave > 0 && score / wave > 200_000) {
-        return `score/wave ratio impossible (${score}/${wave})`;
-    }
-    return null;
 }
 
 // Stash for resolving session tokens against live/completed sessions.

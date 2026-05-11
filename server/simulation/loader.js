@@ -26,9 +26,19 @@ function g(relPath) {
 // ── 1. Window / browser shim ──────────────────────────────────────────────────
 global.window   = global;
 global.canvas   = { width: 3000, height: 3000, getContext: () => _noopCtx };
-// No-op canvas context: DLC heroes mix rendering into update(); swallow all canvas calls.
+// No-op canvas context: DLC heroes mix rendering into update(); swallow all
+// canvas calls. The Proxy returns itself for every property access so chained
+// dereferences (ctx.canvas.width) and method calls (ctx.save()) keep working.
+// Symbol.toPrimitive is special-cased so arithmetic (`screenW / 2`) coerces to
+// a number; without this, divisions on accidentally-fetched stub objects throw
+// `Cannot convert object to primitive value`.
 const _noopCtx = new Proxy(function () {}, {
-    get:   ()  => _noopCtx,
+    get(_target, prop) {
+        if (prop === Symbol.toPrimitive) return (hint) => (hint === 'string' ? '' : 0);
+        if (prop === 'valueOf')          return () => 0;
+        if (prop === 'toString')         return () => '';
+        return _noopCtx;
+    },
     apply: ()  => _noopCtx,
     set:   ()  => true,
 });

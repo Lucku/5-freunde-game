@@ -1,10 +1,13 @@
-name: Server Simulation Tests
+name: CI
 
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  parity-test:
+  ci:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint — no window.entity globals in logic files
+      - name: Lint — no window.entity globals in logic files (legacy check)
         run: |
           HITS=$(grep -rn \
             'window\.\(enemies\|projectiles\|particles\|floatingTexts\)[^A-Za-z]' \
@@ -36,5 +39,11 @@ jobs:
           fi
           echo "OK: no window.entity globals in logic files"
 
-      - name: Run parity tests
+      - name: ESLint (warnings allowed; fail only on errors or unexpected rule failures)
+        run: npm run lint
+
+      - name: Vite production build
+        run: npm run build
+
+      - name: Run tests (Vitest + parity)
         run: npm test

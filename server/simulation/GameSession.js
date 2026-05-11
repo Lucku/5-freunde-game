@@ -208,7 +208,7 @@ class GameSession {
 
         // Clear queued action latches across both players so a held shoot/melee
         // pressed during the level-up modal does not auto-fire on resume.
-        for (const p of [this.world.player, this.world.player2].filter(Boolean)) {
+        for (const p of [this._world.player, this._world.player2].filter(Boolean)) {
             p._pendingShoot   = false;
             p._pendingMelee   = false;
             p._pendingDash    = false;

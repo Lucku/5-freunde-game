@@ -7,7 +7,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 ## Code structure / architecture
 
 - [ ] 1. ★ Split `game.js` (7257 lines) into modules: `GameLoop.js`, `Spawner.js`, `Wave.js`, `Camera.js`, `EventBus.js`, `RunState.js`. Use ES modules + `<script type=module>` or move to a bundler.
-- [ ] 2. ★ Adopt bundler + tree-shaking (esbuild or Vite). Replace ~60 `<script src>` tags in `game.html`. Gives minification, source maps, dev HMR.
+- [x] 2. ★ Adopt bundler + tree-shaking (esbuild or Vite). Replace ~60 `<script src>` tags in `game.html`. Gives minification, source maps, dev HMR. *(Phase 1: Vite 8 wired, dev server + production build working. 4 leaf files in ESM bundle; remaining files still classic + `defer` for compatibility. ESM migration of Managers/Entities/UI/game.js/DLCs is the multi-session follow-up.)*
 - [ ] 3. ★ TypeScript or JSDoc `@type`. Save data schema, hero stats, world object — all undocumented. Prevents recent-style `saveData[player.type].prestige` regressions.
 - [ ] 4. Kill `window.*` globals (~15 cross-cutting: `canvas`, `ctx`, `wave`, `arena`, `enemies`, `projectiles`, `saveData`, `ENEMIES_PER_WAVE`, `BIOME_LOGIC`, `HERO_LOGIC`, `ENEMY_LOGIC`, `BIOME_OBSTACLE_DENSITY`, `_world`, `_defaultSaveData`, `gameConfig`). Replace with `GameContext` singleton or DI.
 - [ ] 5. ECS / component-based entities. `Player.js` constructor has 130+ fields mixing stats / runtime / DLC hooks / chaos / achievement bonuses. Split into Stats / Movement / Combat / Buffs / DLCState components.
@@ -17,9 +17,9 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 9. Reduce `index.js`/`Config.js` Electron-detection duplication. Push into `Platform.js`.
 - [x] 10. ★ Save schema versioning + migrations. No version field on `saveData`; every new DLC patches `defaultSaveData`. One bad save = silent broken state.
 - [ ] 11. Replace 539 module-scope globals in `game.js` with explicit `RunState` object. Server simulation has to monkey-patch globals to reuse code.
-- [ ] 12. ★ Test suite (Jest/Vitest). Single `parityTest.js` exists. Cover damage calc, level-up, save migration, network input encoding, projectile physics, boss phase transitions.
-- [ ] 13. ESLint custom rule banning `forEach + arr.splice(index)` index-skip pattern (regression class hit 11 hot loops in `game.js`).
-- [ ] 14. ESLint + Prettier config. CI lint job.
+- [x] 12. ★ Test suite (Jest/Vitest). Single `parityTest.js` exists. Cover damage calc, level-up, save migration, network input encoding, projectile physics, boss phase transitions. *(Vitest harness + 38 tests across 6 files: SaveManager migration, mulberry32, SpatialHash, Hermite interp, plausibility caps, rate limiter. Existing parityTest now passes 80/80 after typo + AirHero stub fix.)*
+- [x] 13. ESLint custom rule banning `forEach + arr.splice(index)` index-skip pattern (regression class hit 11 hot loops in `game.js`). *(`eslint-plugin-5freunde/no-foreach-splice` — found 8 more instances on first run.)*
+- [x] 14. ESLint + Prettier config. CI lint job. *(Flat config, warnings-only, 0 errors + 369 baseline warnings catalogued. CI runs lint + build + tests on every push/PR.)*
 - [ ] 15. Asset manifest + lazy load. `AudioManager.js` instantiates 50+ `new Audio()` at startup. Lazy-init or `<link rel=preload>` + `Promise.all`.
 - [ ] 16. Constants for magic numbers: `meleeRadius = 80`, `_INTERP_DELAY_MS = 100`, `dashMaxCooldown = 180`, `viewHalfW = 1000`.
 - [ ] 17. Remove `JSON.parse(JSON.stringify(...))` deep clones. `getHeroStats` already on `structuredClone` — extend to save load, default config.
@@ -177,7 +177,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 
 ## Tooling / DevX
 
-- [ ] 145. ★ Hot reload. esbuild + watch mode + Electron `BrowserWindow.reload()`. Saves hours per session.
+- [x] 145. ★ Hot reload. esbuild + watch mode + Electron `BrowserWindow.reload()`. Saves hours per session. *(Vite dev server gives full-page reload on JS/HTML save + CSS HMR for `main.css` for free. Electron `index.js` handles `VITE_DEV=1` to attach to dev server, or `HOT_RELOAD=1` to watch built `dist/`.)*
 - [ ] 146. Headless test harness. Extend `test-arena.js` + bots into nightly CI: 100 simulated runs, assert no crashes, log perf.
 - [ ] 147. Replay-driven regression tests. Record input traces, replay against new code, diff outputs.
 - [ ] 148. In-game debug overlay (F1): all entities, hitboxes, paths, AI state, collision quadrants.
@@ -185,7 +185,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 150. Visual save editor live-reload. `save-editor.html` exists — wire to running game via WS so changes apply without restart.
 - [ ] 151. Asset pipeline. Source assets (Aseprite, Audacity sources) under `/assets-src` + Makefile / npm script that builds final wav/png.
 - [ ] 152. Audio normalization pass. SFX volumes inconsistent — run through ffmpeg loudnorm.
-- [ ] 153. Dependency audit. `package-lock.json` 280k lines; `install` package in devDeps looks accidental.
+- [x] 153. Dependency audit. `package-lock.json` 280k lines; `install` package in devDeps looks accidental. *(Dropped accidental `install` devDep during Path 1 npm install pass. Larger audit still pending.)*
 - [ ] 154. Docs / contributor guide. README minimal. Add CONTRIBUTING.md + ARCHITECTURE.md.
 
 ## Networking polish

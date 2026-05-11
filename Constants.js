@@ -273,3 +273,27 @@ const PERM_UPGRADES = {
     defense: { name: "Void Shell", desc: "+1% Damage Reduction", baseCost: 4000, costMult: 1.5 },
     wisdom: { name: "Void Mind", desc: "+2% XP Gain", baseCost: 2500, costMult: 1.3 }
 };
+
+// ESM exports — Constants.js loads via `<script type="module">`. The window
+// shims keep classic-script callers working unchanged until they migrate too.
+export {
+    APP_VERSION, BASE_HERO_STATS,
+    POWERUP_TYPES, BOSS_TYPES, ENEMY_TYPES,
+    ENEMIES_PER_WAVE, SKILL_TREE_SIZE,
+    ACHIEVEMENTS, WEATHER_TYPES, ELITE_TYPES,
+    COLLECTOR_CARDS, MUTATORS,
+    CHAOS_EFFECTS, CHAOS_OBJECTIVES, CHAOS_REWARDS,
+    UPGRADE_POOL, PERM_UPGRADES,
+};
+if (typeof window !== 'undefined') {
+    Object.assign(window, {
+        APP_VERSION, BASE_HERO_STATS,
+        POWERUP_TYPES, BOSS_TYPES, ENEMY_TYPES,
+        ENEMIES_PER_WAVE, SKILL_TREE_SIZE,
+        WEATHER_TYPES, ELITE_TYPES,
+        COLLECTOR_CARDS, MUTATORS,
+        CHAOS_EFFECTS, CHAOS_OBJECTIVES, CHAOS_REWARDS,
+        UPGRADE_POOL, PERM_UPGRADES,
+    });
+    // ACHIEVEMENTS already comes from window.ACHIEVEMENTS — don't overwrite.
+}

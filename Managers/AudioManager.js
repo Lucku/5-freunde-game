@@ -74,6 +74,9 @@ class AudioManager {
             level_up_love:         new Audio('audio/sounds/level_up_love.wav'),
             level_up_green_goblin: new Audio('audio/sounds/level_up_green_goblin.wav'),
             level_up_makuta:       new Audio('audio/sounds/level_up_makuta.wav'),
+            level_up_psycho:       new Audio('audio/sounds/level_up_psycho.wav'),
+            level_up_mirror:       new Audio('audio/sounds/level_up_mirror.wav'),
+            level_up_smoke:        new Audio('audio/sounds/level_up_smoke.wav'),
 
             // Weather ambience (looped)
             weather_blizzard:     new Audio('audio/sounds/weather_blizzard.wav'),
