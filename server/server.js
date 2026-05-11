@@ -6,6 +6,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const Database = require('better-sqlite3');
 const http = require('http');
+const https = require('https');
 const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
@@ -16,6 +17,12 @@ const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 const DATA_DIR = path.join(__dirname, 'data');
 const SAVES_DIR = path.join(DATA_DIR, 'saves');
+
+// TLS — production deploys should set TLS_CERT_PATH + TLS_KEY_PATH to enable
+// https + wss. Falls back to plain http + ws when unset (local dev).
+const TLS_CERT_PATH = process.env.TLS_CERT_PATH;
+const TLS_KEY_PATH  = process.env.TLS_KEY_PATH;
+const TLS_CA_PATH   = process.env.TLS_CA_PATH; // optional intermediate chain
 
 const completedSessions = []; // in-memory ring buffer, last 100 finished sessions
 
@@ -46,11 +53,111 @@ db.exec(`
     )
 `);
 
+// Schema upgrade: add `verified` + `daily_seed` columns to existing scores tables.
+// verified  — 0 = client-asserted (offline run), 1 = server-confirmed (online session).
+// daily_seed — null for ordinary runs; YYYYMMDD for daily-challenge runs,
+//              YYYYWW for weekly runs. Used for per-seed leaderboard filtering.
+try {
+    const cols = db.prepare("PRAGMA table_info(scores)").all();
+    if (!cols.some(c => c.name === 'verified')) {
+        db.exec('ALTER TABLE scores ADD COLUMN verified INTEGER NOT NULL DEFAULT 0');
+        console.log('Scores table upgraded: added `verified` column');
+    }
+    if (!cols.some(c => c.name === 'daily_seed')) {
+        db.exec('ALTER TABLE scores ADD COLUMN daily_seed INTEGER DEFAULT NULL');
+        console.log('Scores table upgraded: added `daily_seed` column');
+    }
+} catch (e) {
+    console.error('Failed to migrate scores table:', e);
+}
+
 // ── Express ───────────────────────────────────────────────────────────────────
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+// Trust the first proxy hop so req.ip reads the X-Forwarded-For client IP
+// when running behind a reverse proxy (Cloudflare / nginx / Fly). Safe no-op
+// when direct-exposed.
+app.set('trust proxy', 1);
+
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+// Lightweight in-process token bucket per IP+route. No external dep; suitable
+// for single-process deploys. Behind a load balancer, scale horizontally with
+// Redis-backed limiter instead.
+
+const _rateBuckets = new Map(); // key → { tokens, last }
+const RATE_SWEEP_MS = 5 * 60 * 1000;
+setInterval(() => {
+    const cutoff = Date.now() - 30 * 60 * 1000;
+    for (const [k, b] of _rateBuckets) {
+        if (b.last < cutoff) _rateBuckets.delete(k);
+    }
+}, RATE_SWEEP_MS).unref?.();
+
+function rateLimit({ key, capacity, refillPerSec }) {
+    return (req, res, next) => {
+        const ip = req.ip || req.headers['x-forwarded-for']?.split(',')[0].trim() || req.connection?.remoteAddress || 'unknown';
+        const bucketKey = `${key}:${ip}`;
+        const now = Date.now();
+        let b = _rateBuckets.get(bucketKey);
+        if (!b) {
+            b = { tokens: capacity, last: now };
+            _rateBuckets.set(bucketKey, b);
+        }
+        const elapsedSec = (now - b.last) / 1000;
+        b.tokens = Math.min(capacity, b.tokens + elapsedSec * refillPerSec);
+        b.last   = now;
+        if (b.tokens < 1) {
+            const retryAfterSec = Math.ceil((1 - b.tokens) / refillPerSec);
+            res.set('Retry-After', String(retryAfterSec));
+            return res.status(429).json({ error: 'Too many requests', retryAfterSec });
+        }
+        b.tokens -= 1;
+        next();
+    };
+}
+
+// ── Anti-cheat: session tokens for verified leaderboard submissions ───────────
+// Server signs a short-lived token at GameSession start. Client returns it on
+// /api/leaderboard; server overrides client-claimed score with its own state
+// and marks the entry as verified.
+
+const SESSION_TOKEN_TTL_SEC = 60 * 60 * 2; // 2 hours covers a long run + post-game submission
+function signSessionToken(sessionId, userId) {
+    return jwt.sign({ kind: 'gs', sid: sessionId, uid: userId }, JWT_SECRET, { expiresIn: SESSION_TOKEN_TTL_SEC });
+}
+function verifySessionToken(token) {
+    try {
+        const payload = jwt.verify(token, JWT_SECRET);
+        if (payload.kind !== 'gs') return null;
+        return payload;
+    } catch { return null; }
+}
+
+// Heuristic plausibility caps for unverified (offline) submissions. Generous —
+// purpose is to reject obvious garbage, not gate legitimate runs.
+const MAX_WAVE = 500;
+const MAX_SCORE = 5_000_000;
+const MIN_SEC_PER_WAVE = 8; // sub-8s/wave consistently → almost certainly fake
+
+function plausibilityReject(wave, score, timeSec) {
+    if (wave < 0 || wave > MAX_WAVE)         return `wave out of range (0..${MAX_WAVE})`;
+    if (score < 0 || score > MAX_SCORE)      return `score out of range (0..${MAX_SCORE})`;
+    if (timeSec < 0)                         return 'negative time';
+    if (wave >= 5 && timeSec < wave * MIN_SEC_PER_WAVE) {
+        return `time/wave ratio impossible (${timeSec}s for wave ${wave})`;
+    }
+    // Score-per-wave sanity: ~50k/wave is already extreme for most heroes.
+    if (wave > 0 && score / wave > 200_000) {
+        return `score/wave ratio impossible (${score}/${wave})`;
+    }
+    return null;
+}
+
+// Stash for resolving session tokens against live/completed sessions.
+const _sessionScores = new Map(); // sessionId → { wave, score, timeSec, hero, mode, userIds: [] }
 
 function requireAuth(req, res, next) {
     const auth = req.headers.authorization;
@@ -65,33 +172,127 @@ function requireAuth(req, res, next) {
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
+// ── Crash reports ─────────────────────────────────────────────────────────────
+// Append-only JSONL log of client crashes. Unauthenticated (errors fire before
+// login can complete) but rate-limited by IP and capped per payload.
+const CRASH_LOG_PATH = path.join(DATA_DIR, 'crashes.jsonl');
+const CRASH_MAX_BYTES = 32 * 1024;
+app.post('/api/crash',
+    rateLimit({ key: 'crash', capacity: 20, refillPerSec: 20 / 600 }), // 20/10min burst
+    (req, res) => {
+        const body = req.body || {};
+        if (typeof body.message !== 'string') return res.status(400).json({ error: 'message required' });
+        const raw = JSON.stringify(body);
+        if (raw.length > CRASH_MAX_BYTES) return res.status(413).json({ error: 'payload too large' });
+        const ip = req.ip || 'unknown';
+        const line = JSON.stringify({
+            t:       Date.now(),
+            ipHash:  Buffer.from(ip).toString('base64').slice(0, 10), // pseudonymise
+            kind:    body.kind || 'manual',
+            message: body.message.slice(0, 1000),
+            stack:   (body.stack || '').slice(0, 4000),
+            source:  body.source || null,
+            lineno:  body.lineno || null,
+            colno:   body.colno  || null,
+            breadcrumbs: Array.isArray(body.breadcrumbs) ? body.breadcrumbs.slice(-20) : [],
+            context: body.context && typeof body.context === 'object' ? body.context : {},
+        }) + '\n';
+        try {
+            fs.appendFileSync(CRASH_LOG_PATH, line);
+        } catch (e) {
+            console.error('[Crash] failed to append:', e);
+            return res.status(500).json({ error: 'log write failed' });
+        }
+        res.json({ ok: true });
+    }
+);
+
+app.get('/api/admin/crashes', requireAdmin, (_req, res) => {
+    if (!fs.existsSync(CRASH_LOG_PATH)) return res.json({ crashes: [] });
+    try {
+        const raw = fs.readFileSync(CRASH_LOG_PATH, 'utf8');
+        const lines = raw.split('\n').filter(Boolean).slice(-200);
+        const crashes = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean).reverse();
+        res.json({ crashes });
+    } catch (e) {
+        res.status(500).json({ error: 'read failed' });
+    }
+});
+
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 
-app.post('/api/leaderboard', requireAuth, (req, res) => {
-    const { hero, mode, wave, score, outcome, timeSec } = req.body || {};
-    if (typeof score !== 'number' || score < 0) return res.status(400).json({ error: 'Invalid score' });
-    db.prepare(`
-        INSERT INTO scores (user_id, username, hero, mode, wave, score, outcome, time_sec, submitted_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, hero || 'fire', mode || 'standard',
-        Math.max(0, wave | 0), score | 0, outcome || 'death', Math.max(0, timeSec | 0), Date.now());
-    // Keep at most 1000 rows total — prune oldest beyond that
-    db.prepare(`DELETE FROM scores WHERE id NOT IN (SELECT id FROM scores ORDER BY score DESC LIMIT 1000)`).run();
-    res.json({ ok: true });
-});
+app.post('/api/leaderboard',
+    rateLimit({ key: 'lb_post', capacity: 10, refillPerSec: 10 / 3600 }), // ~10 submissions per hour, burst 10
+    requireAuth,
+    (req, res) => {
+        const { hero, mode, wave, score, outcome, timeSec, sessionToken, dailySeed } = req.body || {};
+        if (typeof score !== 'number' || score < 0) return res.status(400).json({ error: 'Invalid score' });
+
+        let finalWave    = Math.max(0, wave | 0);
+        let finalScore   = score | 0;
+        let finalTimeSec = Math.max(0, timeSec | 0);
+        let verified     = 0;
+
+        if (typeof sessionToken === 'string' && sessionToken.length > 0) {
+            const payload = verifySessionToken(sessionToken);
+            if (payload && payload.uid === req.user.id) {
+                const auth = _sessionScores.get(payload.sid);
+                if (auth) {
+                    // Trust server-known state over client claim — clamp downward only.
+                    finalWave    = Math.min(finalWave,    auth.wave);
+                    finalScore   = Math.min(finalScore,   auth.score);
+                    finalTimeSec = Math.min(finalTimeSec, auth.timeSec || finalTimeSec);
+                    verified = 1;
+                }
+            }
+        }
+
+        if (!verified) {
+            const reason = plausibilityReject(finalWave, finalScore, finalTimeSec);
+            if (reason) {
+                console.warn(`[Leaderboard] rejected from ${req.user.username}: ${reason}`);
+                return res.status(400).json({ error: 'Score failed plausibility check', reason });
+            }
+        }
+
+        const dailySeedVal = (typeof dailySeed === 'number' && dailySeed > 0) ? (dailySeed | 0) : null;
+
+        db.prepare(`
+            INSERT INTO scores (user_id, username, hero, mode, wave, score, outcome, time_sec, submitted_at, verified, daily_seed)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(req.user.id, req.user.username, hero || 'fire', mode || 'standard',
+            finalWave, finalScore, outcome || 'death', finalTimeSec, Date.now(), verified, dailySeedVal);
+        // Keep at most 1000 rows total — prune oldest beyond that
+        db.prepare(`DELETE FROM scores WHERE id NOT IN (SELECT id FROM scores ORDER BY score DESC LIMIT 1000)`).run();
+        res.json({ ok: true, verified: !!verified });
+    }
+);
 
 app.get('/api/leaderboard', (req, res) => {
     const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 50);
+    const verifiedOnly = req.query.verified === '1' || req.query.verified === 'true';
+    const dailySeed    = req.query.dailySeed ? parseInt(req.query.dailySeed, 10) : null;
+    const where = [];
+    const params = [];
+    if (verifiedOnly)         where.push('verified = 1');
+    if (dailySeed && dailySeed > 0) { where.push('daily_seed = ?'); params.push(dailySeed); }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    params.push(limit);
     const rows = db.prepare(`
-        SELECT username, hero, mode, wave, score, outcome, time_sec AS timeSec, submitted_at AS submittedAt
+        SELECT username, hero, mode, wave, score, outcome,
+               time_sec AS timeSec, submitted_at AS submittedAt,
+               verified, daily_seed AS dailySeed
         FROM scores
+        ${whereSql}
         ORDER BY score DESC
         LIMIT ?
-    `).all(limit);
+    `).all(...params);
     res.json({ entries: rows });
 });
 
-app.post('/api/register', async (req, res) => {
+app.post('/api/register',
+    rateLimit({ key: 'register', capacity: 5, refillPerSec: 5 / 3600 }), // 5/hr burst, then trickle
+    async (req, res) => {
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
     if (username.length < 3 || username.length > 32) return res.status(400).json({ error: 'Username must be 3–32 characters' });
@@ -109,16 +310,19 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-app.post('/api/login', async (req, res) => {
-    const { username, password } = req.body || {};
-    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-    const user = db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').get(username);
-    if (!user) return res.status(401).json({ error: 'Invalid username or password' });
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Invalid username or password' });
-    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '90d' });
-    res.json({ token, username: user.username });
-});
+app.post('/api/login',
+    rateLimit({ key: 'login', capacity: 10, refillPerSec: 10 / 60 }), // 10/min burst, then 1/6s
+    async (req, res) => {
+        const { username, password } = req.body || {};
+        if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+        const user = db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').get(username);
+        if (!user) return res.status(401).json({ error: 'Invalid username or password' });
+        const valid = await bcrypt.compare(password, user.password_hash);
+        if (!valid) return res.status(401).json({ error: 'Invalid username or password' });
+        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '90d' });
+        res.json({ token, username: user.username });
+    }
+);
 
 app.get('/api/save', requireAuth, (req, res) => {
     const savePath = path.join(SAVES_DIR, `${req.user.id}.save`);
@@ -241,10 +445,44 @@ app.get('/api/admin/saves', requireAdmin, (_req, res) => {
     res.json({ saves });
 });
 
-// ── HTTP server + WebSocket ───────────────────────────────────────────────────
+// ── HTTP(S) server + WebSocket ────────────────────────────────────────────────
 
-const httpServer = http.createServer(app);
-const wss = new WebSocket.Server({ server: httpServer, path: '/ws' });
+let httpServer;
+let serverProtocol = 'http';
+if (TLS_CERT_PATH && TLS_KEY_PATH) {
+    try {
+        const tlsOpts = {
+            cert: fs.readFileSync(TLS_CERT_PATH),
+            key:  fs.readFileSync(TLS_KEY_PATH),
+        };
+        if (TLS_CA_PATH) tlsOpts.ca = fs.readFileSync(TLS_CA_PATH);
+        httpServer = https.createServer(tlsOpts, app);
+        serverProtocol = 'https';
+        console.log('[TLS] HTTPS + WSS enabled');
+    } catch (e) {
+        console.error('[TLS] Failed to read cert/key — falling back to plain HTTP:', e.message);
+        httpServer = http.createServer(app);
+    }
+} else {
+    httpServer = http.createServer(app);
+    console.log('[TLS] No TLS_CERT_PATH/TLS_KEY_PATH set — running plain HTTP (development only)');
+}
+
+// permessage-deflate cuts ~50–70% off JSON snapshot bandwidth on internet links.
+// Per the `ws` docs: zlib options must be conservative to avoid CPU spikes
+// under load. concurrencyLimit caps parallel inflate operations per connection.
+const wss = new WebSocket.Server({
+    server: httpServer,
+    path:   '/ws',
+    perMessageDeflate: {
+        zlibDeflateOptions: { level: 3, memLevel: 7, chunkSize: 1024 },
+        zlibInflateOptions: { chunkSize: 10 * 1024 },
+        clientNoContextTakeover: true,
+        serverNoContextTakeover: true,
+        concurrencyLimit: 10,
+        threshold: 256, // skip compression for tiny messages (PING/PONG, INPUT)
+    },
+});
 
 // ── Lobby state ───────────────────────────────────────────────────────────────
 
@@ -429,18 +667,37 @@ function handleMessage(ws, msg) {
             const lobby = lobbies.get(ws.lobbyCode);
             if (!lobby || lobby.phase !== 'pre_game' || ws.role !== 'host') return;
             lobby.phase = 'in_game';
-            const startMsg = {
+
+            // Issue per-user session tokens for anti-cheat verification at submit time.
+            const sessionId = `${lobby.code}-${Date.now()}`;
+            const hostToken  = lobby.host  ? signSessionToken(sessionId, lobby.host.userId)  : null;
+            const guestToken = lobby.guest ? signSessionToken(sessionId, lobby.guest.userId) : null;
+            lobby._sessionId = sessionId;
+            _sessionScores.set(sessionId, {
+                wave: 1, score: 0, timeSec: 0,
+                hero: lobby.hostHero, mode: msg.mode || lobby.hostMode || 'NORMAL',
+                userIds: [lobby.host?.userId, lobby.guest?.userId].filter(Boolean),
+            });
+
+            const baseStart = {
                 type: 'GAME_START',
                 hostHero: lobby.hostHero, guestHero: lobby.guestHero,
                 hostUsername: lobby.host.username, guestUsername: lobby.guest.username,
                 mode: msg.mode || lobby.hostMode || 'NORMAL',
             };
-            send(lobby.host.ws, startMsg);
-            send(lobby.guest.ws, startMsg);
+            send(lobby.host.ws,  { ...baseStart, sessionToken: hostToken });
+            send(lobby.guest.ws, { ...baseStart, sessionToken: guestToken });
 
             // Start server-authoritative simulation for this lobby
             try {
-                const session = new GameSession(lobby, send);
+                const session = new GameSession(lobby, send, {
+                    // Keep authoritative wave/score fresh so /api/leaderboard
+                    // can clamp client claims even before GAME_OVER lands.
+                    onTickStats: (wave, score, timeSec) => {
+                        const entry = _sessionScores.get(sessionId);
+                        if (entry) { entry.wave = wave; entry.score = score; entry.timeSec = timeSec; }
+                    },
+                });
                 session.init(lobby.hostHero, lobby.guestHero, msg.mode || lobby.hostMode || 'NORMAL');
                 lobby.session = session;
             } catch (err) {
@@ -696,11 +953,12 @@ function leaveLobby(ws) {
 function recordCompletedSession(lobby) {
     const s = lobby.session;
     if (!s || !s._startedAt) return;
+    const duration = Math.round((Date.now() - s._startedAt) / 1000);
     const entry = {
         code:      lobby.code,
         startedAt: s._startedAt,
         endedAt:   Date.now(),
-        duration:  Math.round((Date.now() - s._startedAt) / 1000),
+        duration,
         host:  { username: lobby.hostUsername  || lobby.host?.username,  hero: lobby.hostHero  },
         guest: { username: lobby.guestUsername || lobby.guest?.username, hero: lobby.guestHero },
         wave:  s.wave,
@@ -709,7 +967,26 @@ function recordCompletedSession(lobby) {
     };
     if (completedSessions.length >= 100) completedSessions.shift();
     completedSessions.push(entry);
+
+    // Stamp final score for leaderboard verification. Token TTL keeps the entry
+    // alive long enough for late submissions; sweep below caps overall size.
+    if (lobby._sessionId && _sessionScores.has(lobby._sessionId)) {
+        const auth = _sessionScores.get(lobby._sessionId);
+        auth.wave    = s.wave;
+        auth.score   = s.score;
+        auth.timeSec = duration;
+        auth.endedAt = Date.now();
+    }
 }
+
+// Sweep stale session-score entries — runs hourly, evicts anything older than
+// twice the token TTL (covers any late submissions, then drops).
+setInterval(() => {
+    const cutoff = Date.now() - (SESSION_TOKEN_TTL_SEC * 2) * 1000;
+    for (const [sid, e] of _sessionScores) {
+        if ((e.endedAt || 0) > 0 && e.endedAt < cutoff) _sessionScores.delete(sid);
+    }
+}, 60 * 60 * 1000).unref?.();
 
 function cleanupLobby(code) {
     const lobby = lobbies.get(code);
@@ -722,4 +999,4 @@ function cleanupLobby(code) {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
-httpServer.listen(PORT, () => console.log(`5 Freunde server running on port ${PORT} (HTTP + WebSocket)`));
+httpServer.listen(PORT, () => console.log(`5 Freunde server running on port ${PORT} (${serverProtocol.toUpperCase()} + WebSocket${serverProtocol === 'https' ? ' over TLS' : ''})`));

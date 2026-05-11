@@ -39,6 +39,8 @@ class OptionsUI {
             'controllerVibration': 'opt-vibration-btn',
             'showIntroScreens':    'opt-intro-btn',
             'subtitlesEnabled':    'opt-subtitles-btn',
+            'reducedMotion':       'opt-reduced-motion-btn',
+            'crashReportsEnabled': 'opt-crash-btn',
             'cloudSaveEnabled':    'opt-cloud-btn'
         };
 
@@ -51,7 +53,26 @@ class OptionsUI {
             }
         }
 
+        // Colorblind cycles through 4 modes — render label rather than ON/OFF
+        const cbBtn = document.getElementById('opt-colorblind-btn');
+        if (cbBtn) {
+            const mode = window.gameConfig.colorblindMode || 'off';
+            const labels = { off: 'OFF', deuteranopia: 'DEUTAN', protanopia: 'PROTAN', tritanopia: 'TRITAN' };
+            cbBtn.innerText = labels[mode] || 'OFF';
+            cbBtn.className = (mode === 'off') ? 'opt-toggle-btn' : 'opt-toggle-btn active';
+        }
+
         this._updateCloudAccountRow();
+    }
+
+    cycleColorblindMode() {
+        if (typeof window.gameConfig === 'undefined') return;
+        const order = ['off', 'deuteranopia', 'protanopia', 'tritanopia'];
+        const cur = window.gameConfig.colorblindMode || 'off';
+        const next = order[(order.indexOf(cur) + 1) % order.length];
+        window.gameConfig.colorblindMode = next;
+        if (typeof saveConfig === 'function') saveConfig();
+        this.updateOptionButtons();
     }
 
     _updateCloudAccountRow() {
@@ -97,6 +118,7 @@ window.openOptions = () => optionsUI.openOptions();
 window.closeOptions = () => optionsUI.closeOptions();
 window.toggleOption = (key) => optionsUI.toggleOption(key);
 window.updateOptionButtons = () => optionsUI.updateOptionButtons();
+window.cycleColorblindMode = () => optionsUI.cycleColorblindMode();
 
 window.showQuitWarning = function () {
     const el = document.getElementById('quit-run-warning');

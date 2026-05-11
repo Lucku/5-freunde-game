@@ -7,6 +7,24 @@ class SaveManager {
     // Cached CryptoKey so we only import once per session.
     static _keyPromise = null;
 
+    // Schema version. Bump when adding a migration that changes structure.
+    // Saves without a `version` field are treated as v0 (pre-migration era).
+    static SCHEMA_VERSION = 1;
+
+    // Sequential migrations applied on load when stored version < SCHEMA_VERSION.
+    // Each entry: { from, to, fn(data) -> data }. Pure transforms only; do not
+    // touch disk / network. Backup blob is written before any migration runs.
+    static MIGRATIONS = [
+        {
+            from: 0, to: 1, fn(data) {
+                // v0 → v1: stamp version field on legacy saves. Defensive merge in
+                // loadGame backfills missing top-level keys (story, altar, weekly),
+                // so no structural changes are needed here.
+                return data;
+            }
+        }
+    ];
+
     static _getKey() {
         if (!this._keyPromise) {
             this._keyPromise = crypto.subtle.importKey(
@@ -95,6 +113,10 @@ class SaveManager {
     static async saveGame(data) {
         if (!data) return null;
 
+        // Always stamp current schema version before encoding so out-of-date
+        // saves get fixed on the next write without an explicit migration step.
+        data.version = SaveManager.SCHEMA_VERSION;
+
         const encoded = await this.encodeSaveData(data);
         if (!encoded) return null;
 
@@ -110,6 +132,51 @@ class SaveManager {
 
         console.log('Game Saved Successfully');
         return encoded;
+    }
+
+    // Write a one-shot backup of the current encoded blob before a migration runs.
+    // Single slot (not a ring buffer) — overwrites on each migration boundary.
+    static _writePreMigrationBackup(encoded, fromVersion) {
+        if (!encoded) return;
+        const tag = `pre_v${fromVersion}_to_v${SaveManager.SCHEMA_VERSION}`;
+        try {
+            if (typeof isElectron !== 'undefined' && isElectron && typeof fs !== 'undefined' && typeof saveFilePath !== 'undefined') {
+                fs.writeFileSync(saveFilePath + `.${tag}.bak`, encoded);
+            } else {
+                localStorage.setItem(`5FreundeSave.${tag}.bak`, encoded);
+            }
+            console.log(`Save: pre-migration backup written (${tag})`);
+        } catch (e) {
+            console.error('Save: failed to write pre-migration backup:', e);
+        }
+    }
+
+    // Run all applicable migrations in order. Returns the migrated object.
+    static _migrate(data) {
+        const stored = (typeof data.version === 'number' && data.version >= 0) ? data.version : 0;
+        if (stored >= SaveManager.SCHEMA_VERSION) {
+            // Same or newer (newer = forward-compat scenario; leave as-is)
+            data.version = SaveManager.SCHEMA_VERSION;
+            return data;
+        }
+        let cur = stored;
+        for (const m of SaveManager.MIGRATIONS) {
+            if (m.from < cur) continue;
+            if (m.from !== cur) {
+                console.warn(`Save: migration gap — no path from v${cur} to v${m.from}, aborting`);
+                break;
+            }
+            try {
+                data = m.fn(data) || data;
+                cur = m.to;
+                console.log(`Save: migrated v${m.from} → v${m.to}`);
+            } catch (e) {
+                console.error(`Save: migration v${m.from}→v${m.to} threw:`, e);
+                break;
+            }
+        }
+        data.version = cur;
+        return data;
     }
 
     // Returns the raw encoded save blob from disk/localStorage without decoding.
@@ -128,37 +195,48 @@ class SaveManager {
 
     static async loadGame(defaultSaveData) {
         let data = null;
+        let rawBlob = null;
 
         try {
             if (typeof isElectron !== 'undefined' && isElectron && typeof fs !== 'undefined') {
                 if (fs.existsSync(saveFilePath)) {
-                    const raw = fs.readFileSync(saveFilePath, 'utf8');
-                    data = await this.decodeSaveData(raw);
+                    rawBlob = fs.readFileSync(saveFilePath, 'utf8');
+                    data = await this.decodeSaveData(rawBlob);
                 }
             } else {
-                const raw = localStorage.getItem('5FreundeSave');
-                if (raw) data = await this.decodeSaveData(raw);
+                rawBlob = localStorage.getItem('5FreundeSave');
+                if (rawBlob) data = await this.decodeSaveData(rawBlob);
             }
         } catch (e) {
             console.error('Failed to load save file:', e);
         }
 
         if (data) {
+            const storedVersion = (typeof data.version === 'number') ? data.version : 0;
+            if (storedVersion < SaveManager.SCHEMA_VERSION) {
+                this._writePreMigrationBackup(rawBlob, storedVersion);
+                data = this._migrate(data);
+            }
+
             const merged = {
                 ...defaultSaveData, ...data,
                 global: { ...defaultSaveData.global, ...data.global }
             };
 
-            // Migrations
+            // Defensive merge for new top-level keys (idempotent — also covers
+            // partial migrations / hand-edited saves).
             if (!merged.story) merged.story = { unlockedChapters: [], enabled: true };
             else if (merged.story.enabled === undefined) merged.story.enabled = true;
             if (!merged.altar)  merged.altar  = { active: [] };
             if (!merged.weekly) merged.weekly = { lastCompleted: null };
 
+            merged.version = SaveManager.SCHEMA_VERSION;
             return merged;
         }
 
-        return JSON.parse(JSON.stringify(defaultSaveData));
+        const fresh = JSON.parse(JSON.stringify(defaultSaveData));
+        fresh.version = SaveManager.SCHEMA_VERSION;
+        return fresh;
     }
 
     static exportSave(data) {

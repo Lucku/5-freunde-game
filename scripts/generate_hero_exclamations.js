@@ -335,6 +335,56 @@ const LINES = {
         level_up_2: "More love, more power.",
     },
 
+    // ── Disciples of Deception (character pack DLC) ────────────────────────────
+
+    psycho: {
+        injured:       "Pain? Ha! Pain is interesting!",
+        failure_1:     "The voices go quiet. I hate the quiet.",
+        failure_2:     "Too much... too fast... too—",
+        twin_event:    "Two of you! My mind is already racing!",
+        boss_moment_1: "You think you're scary? I've been scared my whole life.",
+        boss_moment_2: "Let's see what breaks first. You or me.",
+        boss_win_1:    "That was... beautiful. Chaotic and beautiful.",
+        boss_win_2:    "Did you feel that? I felt everything.",
+        found_1:       "Oh. OH. This changes the equation.",
+        found_2:       "Yes. Yes yes yes. Take it.",
+        level_up_1:    "Getting louder. I love it.",
+        level_up_2:    "The noise in my head — it's singing!",
+        ultimate:      "DELIRIUM! The world becomes me!",
+    },
+
+    mirror: {
+        injured:       "You cracked the surface. That was a mistake.",
+        failure_1:     "I shattered. It happens to the best of us.",
+        failure_2:     "The reflection fades.",
+        twin_event:    "Two angles of attack. I see both.",
+        boss_moment_1: "Come. I want to see what you fear.",
+        boss_moment_2: "You'll see yourself in the end.",
+        boss_win_1:    "What you sent at me, I returned.",
+        boss_win_2:    "The image breaks. So do you.",
+        found_1:       "Curious. This will change my shape.",
+        found_2:       "I can use this.",
+        level_up_1:    "Clearer now.",
+        level_up_2:    "The reflection sharpens.",
+        ultimate:      "REFRACTION! I am all sides at once!",
+    },
+
+    smoke: {
+        injured:       "You got lucky. That won't happen again.",
+        failure_1:     "Fading. Just like smoke.",
+        failure_2:     "Dissipate. That's all.",
+        twin_event:    "Two targets. More cloud cover needed.",
+        boss_moment_1: "You can't hit what you can't see.",
+        boss_moment_2: "Breathe in. That was a mistake.",
+        boss_win_1:    "You stood still too long.",
+        boss_win_2:    "The haze clears. You don't.",
+        found_1:       "That'll do nicely.",
+        found_2:       "Useful. Keep moving.",
+        level_up_1:    "Thicker. Darker. Better.",
+        level_up_2:    "Getting harder to see me.",
+        ultimate:      "INK STORM! You'll never find me in here.",
+    },
+
     // ── Villains (Evil Mode + boss encounters) ─────────────────────────────────
     // Only the situations that make narrative sense for villain characters.
 
@@ -363,6 +413,10 @@ const LINES = {
 const VOICE_SETTINGS_OVERRIDES = {
     green_goblin: { stability: 0.42, similarity_boost: 0.78, style: 0.35, use_speaker_boost: true },
     makuta:       { stability: 0.55, similarity_boost: 0.72, style: 0.30, use_speaker_boost: true },
+    // Disciples of Deception — distinct emotional tunings per archetype
+    psycho:       { stability: 0.22, similarity_boost: 0.70, style: 0.60, use_speaker_boost: true }, // unhinged, expressive
+    mirror:       { stability: 0.55, similarity_boost: 0.78, style: 0.25, use_speaker_boost: true }, // cold, controlled
+    smoke:        { stability: 0.48, similarity_boost: 0.75, style: 0.30, use_speaker_boost: true }, // calm, threatening
 };
 
 // DLC heroes output to their own DLC directory to stay separate from base game audio
@@ -379,6 +433,10 @@ const DLC_OUTPUT_DIRS = {
     // echos_of_eternity heroes (add voice IDs to voice_ids.txt to enable):
     time: path.join(__dirname, '../dlc/echos_of_eternity/audio/voices/time'),
     love: path.join(__dirname, '../dlc/echos_of_eternity/audio/voices/love'),
+    // disciples_of_deception heroes (add voice IDs to voice_ids.txt to enable):
+    psycho: path.join(__dirname, '../dlc/disciples_of_deception/audio/voices/psycho'),
+    mirror: path.join(__dirname, '../dlc/disciples_of_deception/audio/voices/mirror'),
+    smoke:  path.join(__dirname, '../dlc/disciples_of_deception/audio/voices/smoke'),
 };
 
 // ── Main ────────────────────────────────────────────────────────────────────────

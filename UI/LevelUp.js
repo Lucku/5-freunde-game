@@ -64,6 +64,17 @@ class LevelUpUI {
             window.networkManager?.send({ type: 'LEVEL_UP_CHOICE', choice: type });
         }
 
+        // Track for the end-of-run breakdown — only log P1 picks (P2/AI/host
+        // companion picks come through different paths and aren't part of the
+        // local player's narrative).
+        if (player === window.player && typeof currentRunStats !== 'undefined') {
+            const _wave = (typeof wave !== 'undefined') ? wave : 0;
+            const _t = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
+            const _title = this._upgradeTitle(type, player);
+            if (!currentRunStats.upgradesPicked) currentRunStats.upgradesPicked = [];
+            currentRunStats.upgradesPicked.push({ wave: _wave, timeSec: _t, id: type, title: _title });
+        }
+
         // 1. Try Hero Specific Upgrade Logic
         // Defined in Hero Class (e.g. SpiritHero.applyUpgrade)
         if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && typeof window.HERO_LOGIC[player.type].applyUpgrade === 'function') {
@@ -114,6 +125,24 @@ class LevelUpUI {
         else if (window.setUIState) window.setUIState('GAME');
     }
 }
+
+// Resolve a friendly title for an upgrade id — preferred over showing the raw
+// 'cooldown' / 'radius' tokens on the end-of-run breakdown.
+LevelUpUI.prototype._upgradeTitle = function (id, player) {
+    const builtIn = {
+        health: 'Vitality', radius: 'Blast Radius', projectile: 'Multishot',
+        speed: 'Swiftness', cooldown: 'Haste', defense: 'Iron Skin',
+        damage: 'Power', luck: 'Fortune', crit: 'Lethality', transform: 'Ultimate Form',
+    };
+    if (builtIn[id]) return builtIn[id];
+    // Hero-specific upgrade pools (e.g. SpiritHero) expose an upgradePool array
+    const hl = window.HERO_LOGIC && window.HERO_LOGIC[player && player.type];
+    if (hl && Array.isArray(hl.upgradePool)) {
+        const found = hl.upgradePool.find(u => u.id === id);
+        if (found && found.title) return found.title;
+    }
+    return id;
+};
 
 const levelUpUI = new LevelUpUI();
 window.levelUpUI = levelUpUI;

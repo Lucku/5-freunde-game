@@ -69,6 +69,9 @@ window.addEventListener('resize', resize);
 resize();
 
 const defaultSaveData = {
+    // Schema version — bumped only when SaveManager.MIGRATIONS gains an entry.
+    // Saves loaded without a version field are treated as v0 and migrated.
+    version: 1,
     fire: { level: 0, unlocked: 1, highScore: 0, prestige: 0, maxWinPrestige: -1 },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 },
     ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 },
@@ -153,6 +156,81 @@ window.saveData = {
     chaos: { shards: 0, unlocked: [], active: [] }, // Chaos Shop Data
     savedRun: null
 };
+
+// Bucket damage dealt by source for the end-of-run breakdown. Called from each
+// damage site (projectile / melee / dot / special) alongside the existing
+// currentRunStats.damageDealt accumulator. Safe to call before stats are
+// initialised — early returns if the map is missing.
+function bumpDamageSource(src, n) {
+    if (!currentRunStats || !currentRunStats.damageBySource || !(n > 0)) return;
+    currentRunStats.damageBySource[src] = (currentRunStats.damageBySource[src] || 0) + n;
+}
+if (typeof window !== 'undefined') window.bumpDamageSource = bumpDamageSource;
+
+// Build the end-of-run breakdown UI (Slay the Spire style). `pfx` is 'go' or
+// 'vc' matching the screen id prefix. Renders three columns: damage-by-source
+// bars, upgrade pick timeline, key-moment list.
+function _renderRunBreakdown(pfx) {
+    const host = document.getElementById(`${pfx}-breakdown`);
+    if (!host) return;
+    const fmtTime = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+    // --- Damage by source ---------------------------------------------------
+    const dmg = currentRunStats.damageBySource || {};
+    const dmgEntries = Object.entries(dmg).sort((a, b) => b[1] - a[1]);
+    const dmgTotal = dmgEntries.reduce((acc, [, v]) => acc + v, 0);
+    const dmgLabels = { projectile: 'Projectile', melee: 'Melee', special: 'Special', dot: 'DoT' };
+    const dmgHtml = dmgEntries.length
+        ? dmgEntries.map(([src, n]) => {
+            const pct = dmgTotal > 0 ? Math.round((n / dmgTotal) * 100) : 0;
+            return `<div class="dmg-bar-row">
+                <span class="dmg-label">${dmgLabels[src] || src}</span>
+                <span class="dmg-bar"><span class="dmg-bar-fill" style="width:${pct}%"></span></span>
+                <span class="dmg-val">${Math.floor(n).toLocaleString()}</span>
+            </div>`;
+        }).join('')
+        : '<div class="go-breakdown-empty">No damage recorded</div>';
+
+    // --- Upgrade picks ------------------------------------------------------
+    const picks = currentRunStats.upgradesPicked || [];
+    const pickHtml = picks.length
+        ? picks.map(p => `<div class="upgrade-pick-row">
+            <span class="pick-wave">W${p.wave}</span>
+            <span class="pick-title">${p.title}</span>
+            <span class="pick-time">${fmtTime(p.timeSec)}</span>
+        </div>`).join('')
+        : '<div class="go-breakdown-empty">No upgrades picked</div>';
+
+    // --- Key moments --------------------------------------------------------
+    const moments = currentRunStats.keyMoments || [];
+    const momentHtml = moments.length
+        ? moments.map(m => `<div class="moment-row ${m.kind}">
+            <span class="moment-wave">W${m.wave}</span>
+            <span class="moment-label">${m.label}</span>
+            <span class="moment-time">${fmtTime(m.timeSec)}</span>
+        </div>`).join('')
+        : '<div class="go-breakdown-empty">No notable moments</div>';
+
+    host.innerHTML = `
+        <div class="go-breakdown-col">
+            <h4>Damage by Source</h4>
+            ${dmgHtml}
+        </div>
+        <div class="go-breakdown-col">
+            <h4>Upgrades Picked (${picks.length})</h4>
+            ${pickHtml}
+        </div>
+        <div class="go-breakdown-col">
+            <h4>Key Moments</h4>
+            ${momentHtml}
+        </div>
+    `;
+}
+
+// Module-level broad-phase enemy index. Rebuilt once per frame in the main
+// update path; queried by AOE-radius scans (explosive projectiles, area hits)
+// to avoid the O(N) linear walk that was hot at wave 30+ entity counts.
+const _enemySpatialHash = (typeof SpatialHash !== 'undefined') ? new SpatialHash(128) : null;
 
 // Runtime stats tracker
 let currentRunStats = {
@@ -1498,7 +1576,7 @@ function startOnlineGame(msg) {
     }
 
     // Both clients handle server-pushed messages directly (no RELAY wrapper in-game)
-    nm.on('SNAPSHOT',        (s)  => { if (isOnlineMode) _onlineApplySnapshot(s); });
+    nm.on('SNAPSHOT',        (s)  => { if (isOnlineMode) _onlineHandleSnapshot(s); });
     nm.on('LEVEL_UP',        (ev) => { if (isOnlineMode) _onlineShowLevelUpForGuest(ev); });
     nm.on('PARTNER_LEVELING',()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(true); });
     nm.on('LEVEL_UP_DONE',   ()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
@@ -2177,27 +2255,32 @@ function getDailySeed() {
 
 function getDailyMutators() {
     const seed = getDailySeed();
-    // Simple seeded random
-    const random = (seed) => {
-        let x = Math.sin(seed++) * 10000;
-        return x - Math.floor(x);
-    };
-
-    let currentSeed = seed;
-    const count = 2; // Always 2 mutators for Daily
-    currentSeed++;
-
+    // mulberry32 is uniform — replaces the previous Math.sin-based PRNG which
+    // skewed enough that some mutator combinations were rare globally.
+    const rng = mulberry32(seed);
+    const count = 2;
     const selected = [];
     const pool = [...MUTATORS];
-
     for (let i = 0; i < count; i++) {
         if (pool.length === 0) break;
-        const index = Math.floor(random(currentSeed) * pool.length);
+        const index = Math.floor(rng() * pool.length);
         selected.push(pool[index]);
         pool.splice(index, 1);
-        currentSeed++;
     }
     return selected;
+}
+
+// Shared seeded RNG for daily/weekly modes. Generation sites that opt in (drops,
+// arena, mutator-specific rolls) call this so every player on the same seed
+// sees identical results. Returns null when not in a seeded mode.
+let _seededRng = null;
+function getSeededRng() { return _seededRng; }
+function initSeededRng(seed) { _seededRng = mulberry32(seed); }
+function clearSeededRng() { _seededRng = null; }
+if (typeof window !== 'undefined') {
+    window.getSeededRng   = getSeededRng;
+    window.initSeededRng  = initSeededRng;
+    window.clearSeededRng = clearSeededRng;
 }
 
 let isWeeklyMode = false;
@@ -2343,12 +2426,19 @@ function createExplosion(x, y, color, count = 10) {
  * @param {number} duration   Number of frames the shake lasts.
  */
 function triggerScreenShake(intensity, duration) {
-    if (typeof gameConfig !== 'undefined' && !gameConfig.screenShake) return;
+    if (typeof gameConfig !== 'undefined' && (!gameConfig.screenShake || gameConfig.reducedMotion)) return;
     // Max-stack: take whichever is stronger
     _shakeIntensity = Math.max(_shakeIntensity, intensity);
     _shakeDuration  = Math.max(_shakeDuration,  duration);
 }
 window.triggerScreenShake = triggerScreenShake;
+
+// True when the user has opted into reduced-motion / vestibular-safe mode.
+// Renderers (weather overlays, vignette pulses) check this to skip animated effects.
+function isReducedMotion() {
+    return typeof gameConfig !== 'undefined' && !!gameConfig.reducedMotion;
+}
+window.isReducedMotion = isReducedMotion;
 
 /**
  * Vibrate all connected gamepads.
@@ -3638,6 +3728,13 @@ function startGame(mode = 'NORMAL') {
     isVersusMode = (mode === 'VERSUS');
     isTutorialMode = (mode === 'TUTORIAL');
     isEvilMode = (mode === 'EVIL');
+
+    // Seeded RNG for daily/weekly so opt-in callers (mutator-specific rolls,
+    // future arena/drop wiring) yield identical results for every player on the
+    // same seed. Cleared in gameOver() / new run start.
+    if (mode === 'DAILY')      initSeededRng(getDailySeed());
+    else if (mode === 'WEEKLY') initSeededRng(getWeeklySeed());
+    else                        clearSeededRng();
     if (isEvilMode && typeof EvilMode !== 'undefined') EvilMode.start();
 
     // Always reset the chaos HUD so "CHALLENGE FAILED" text from a previous run never bleeds in
@@ -3813,7 +3910,13 @@ function startGame(mode = 'NORMAL') {
         enemiesKilled: 0,
         bossesKilled: 0,
         maxCombo: 0,
-        itemsBought: 0
+        itemsBought: 0,
+        // End-of-run breakdown: each upgrade pick + key moment is logged with
+        // (wave, time-since-start, label). Damage sources are accumulated by
+        // bucket so we can build a Slay-the-Spire-style "where your damage went".
+        upgradesPicked: [],   // [{ wave, timeSec, id, title }, ...]
+        keyMoments:     [],   // [{ wave, timeSec, kind, label }, ...]
+        damageBySource: {},   // 'melee'|'projectile'|'special'|'dot' → number
     };
 
     // ── World context (Phase 1 bridge) ────────────────────────────────────────
@@ -4100,6 +4203,12 @@ function gameOver(isVictory = false) {
         const _lbToken = window.gameConfig?.account?.token;
         const _lbUrl   = (typeof CloudSaveManager !== 'undefined') ? CloudSaveManager._baseUrl() : null;
         if (_lbToken && _lbUrl) {
+            const _sessionToken = window.networkManager?._gameSessionToken || null;
+            // Tag daily/weekly runs with their seed so the server can build
+            // per-seed leaderboards (same-day scoreboard).
+            const _seed = isDailyMode ? getDailySeed()
+                : isWeeklyMode ? getWeeklySeed()
+                    : null;
             fetch(`${_lbUrl}/api/leaderboard`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_lbToken}` },
@@ -4107,6 +4216,8 @@ function gameOver(isVictory = false) {
                     hero: player.type, mode: _rhMode, wave: Math.max(0, wave - 1),
                     score, outcome: isVictory ? 'victory' : 'death',
                     timeSec: _rhTimeSec,
+                    sessionToken: _sessionToken, // anti-cheat: server clamps to authoritative state
+                    dailySeed: _seed,            // null for non-seeded modes
                 }),
             }).catch(() => {}); // fire-and-forget
         }
@@ -4213,6 +4324,9 @@ function gameOver(isVictory = false) {
         listContainer.appendChild(row);
     });
 
+    // 5. Render Breakdown (damage by source, upgrades picked, key moments)
+    _renderRunBreakdown(pfx);
+
     saveGame();
     setUIState(isVictory ? 'VICTORY' : 'GAMEOVER');
 
@@ -4290,20 +4404,90 @@ function _onlineRenderTime() {
     return Date.now() - _onlineClockOffset - _INTERP_DELAY_MS;
 }
 
-// Returns linearly-interpolated {x,y} from a ring-buffer of {x,y,t} snapshots
-// at the given render timestamp (server time). Clamps to oldest/newest when out
-// of range so a brief packet loss still renders the last known position.
+// Cubic Hermite interpolation across a ring-buffer of {x,y,t} snapshots.
+// Tangents are Catmull-Rom style — derived from neighboring snapshot positions
+// — so motion stays smooth across dash starts/stops without storing velocities.
+// Falls back to linear at the boundaries (no left/right neighbor available).
+// Clamps to oldest/newest when out of range so a brief packet loss still
+// renders the last known position.
 function _onlineInterpBuf(buf, renderTime) {
-    if (renderTime >= buf[buf.length - 1].t) return { x: buf[buf.length - 1].x, y: buf[buf.length - 1].y };
-    for (let i = buf.length - 2; i >= 0; i--) {
-        if (buf[i].t <= renderTime) {
-            const span = buf[i + 1].t - buf[i].t;
-            if (span <= 0) return { x: buf[i + 1].x, y: buf[i + 1].y };
-            const a = (renderTime - buf[i].t) / span;
-            return { x: buf[i].x + (buf[i + 1].x - buf[i].x) * a, y: buf[i].y + (buf[i + 1].y - buf[i].y) * a };
+    const n = buf.length;
+    if (n === 0) return { x: 0, y: 0 };
+    if (n === 1 || renderTime >= buf[n - 1].t) return { x: buf[n - 1].x, y: buf[n - 1].y };
+    if (renderTime <= buf[0].t) return { x: buf[0].x, y: buf[0].y };
+
+    for (let i = n - 2; i >= 0; i--) {
+        if (buf[i].t > renderTime) continue;
+        const p0 = buf[i], p1 = buf[i + 1];
+        const dt = p1.t - p0.t;
+        if (dt <= 0) return { x: p1.x, y: p1.y };
+        const s = (renderTime - p0.t) / dt;
+
+        // Tangents from neighbors (Catmull-Rom). Time-normalised so output
+        // units are distance/time, then scaled by dt in the Hermite basis.
+        const left  = (i - 1 >= 0) ? buf[i - 1] : null;
+        const right = (i + 2 < n)  ? buf[i + 2] : null;
+
+        // Linear fallback at both edges
+        if (!left && !right) {
+            return { x: p0.x + (p1.x - p0.x) * s, y: p0.y + (p1.y - p0.y) * s };
         }
+
+        const m0x = left  ? (p1.x - left.x)  / (p1.t - left.t)  : (p1.x - p0.x) / dt;
+        const m0y = left  ? (p1.y - left.y)  / (p1.t - left.t)  : (p1.y - p0.y) / dt;
+        const m1x = right ? (right.x - p0.x) / (right.t - p0.t) : (p1.x - p0.x) / dt;
+        const m1y = right ? (right.y - p0.y) / (right.t - p0.t) : (p1.y - p0.y) / dt;
+
+        const s2 = s * s, s3 = s2 * s;
+        const h00 =  2 * s3 - 3 * s2 + 1;
+        const h10 =      s3 - 2 * s2 + s;
+        const h01 = -2 * s3 + 3 * s2;
+        const h11 =      s3 -     s2;
+
+        return {
+            x: h00 * p0.x + h10 * dt * m0x + h01 * p1.x + h11 * dt * m1x,
+            y: h00 * p0.y + h10 * dt * m0y + h01 * p1.y + h11 * dt * m1y,
+        };
     }
     return { x: buf[0].x, y: buf[0].y };
+}
+
+// Buffer for chunked snapshots — server splits large snapshots across
+// multiple messages tagged with `chunk: { seq, idx, of }`. We merge when all
+// parts arrive; stale partial sets are evicted after EVICT_MS.
+const _SNAPSHOT_CHUNK_BUF = new Map(); // seq → { head, enemies, projectiles, parts, of, firstSeenAt }
+const _SNAPSHOT_CHUNK_EVICT_MS = 500;
+
+function _onlineHandleSnapshot(s) {
+    if (!s) return;
+    if (!s.chunk) {
+        _onlineApplySnapshot(s);
+        return;
+    }
+    const { seq, idx, of } = s.chunk;
+    let entry = _SNAPSHOT_CHUNK_BUF.get(seq);
+    const now = Date.now();
+    if (!entry) {
+        // Sweep stale partials so a packet-loss event doesn't grow the map unbounded
+        for (const [k, e] of _SNAPSHOT_CHUNK_BUF) {
+            if (now - e.firstSeenAt > _SNAPSHOT_CHUNK_EVICT_MS) _SNAPSHOT_CHUNK_BUF.delete(k);
+        }
+        entry = { head: null, enemies: [], projectiles: [], parts: 0, of, firstSeenAt: now };
+        _SNAPSHOT_CHUNK_BUF.set(seq, entry);
+    }
+    if (idx === 0) {
+        // Header chunk carries player/score/events. Strip chunk meta and merged arrays — we'll fill those below.
+        const { chunk: _c, enemies: _e, projectiles: _p, ...rest } = s;
+        entry.head = rest;
+    }
+    if (Array.isArray(s.enemies))     entry.enemies.push(...s.enemies);
+    if (Array.isArray(s.projectiles)) entry.projectiles.push(...s.projectiles);
+    entry.parts++;
+    if (entry.parts >= entry.of && entry.head) {
+        const merged = { ...entry.head, enemies: entry.enemies, projectiles: entry.projectiles };
+        _SNAPSHOT_CHUNK_BUF.delete(seq);
+        _onlineApplySnapshot(merged);
+    }
 }
 
 /** GUEST: apply a state snapshot received from the host. */
@@ -6189,13 +6373,18 @@ function masterLoop(timestamp) {
                 proj.draw();
                 if (arena.checkCollision(proj.x, proj.y, proj.radius)) {
                     if (proj.isExplosive) {
-                        enemies.forEach(e => {
+                        const _cands = _enemySpatialHash
+                            ? _enemySpatialHash.query(proj.x, proj.y, 100)
+                            : enemies;
+                        for (let _ci = 0; _ci < _cands.length; _ci++) {
+                            const e = _cands[_ci];
                             if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) {
                                 e.hp -= proj.damage;
                                 currentRunStats.damageDealt += proj.damage; // Track Damage
                                 saveData.global.totalDamage += proj.damage;
+                                bumpDamageSource('projectile', proj.damage);
                             }
-                        });
+                        }
                         createExplosion(proj.x, proj.y, '#e67e22');
                     }
                     projectiles.splice(index, 1);
@@ -6334,6 +6523,11 @@ function masterLoop(timestamp) {
                     ctx.restore();
                 });
             }
+
+            // Build broad-phase enemy index for this frame so AOE radius scans
+            // below (explosive projectiles + radius effects) can skip the linear
+            // walk over the full enemies array.
+            if (_enemySpatialHash) _enemySpatialHash.rebuild(enemies);
 
             for (let eIndex = enemies.length - 1; eIndex >= 0; eIndex--) {
                 const enemy = enemies[eIndex];
@@ -6651,11 +6845,16 @@ function masterLoop(timestamp) {
 
                             currentRunStats.damageDealt += finalDamage; // Track Damage
                             saveData.global.totalDamage += finalDamage;
+                            bumpDamageSource('projectile', finalDamage);
                             createExplosion(enemy.x, enemy.y, proj.color);
                             if (proj.isExplosive) {
                                 // Explosion — bigger rumble on top of base hit
                                 triggerImpact(4.5, 12, 0.22, 0.55, 220);
-                                enemies.forEach(nearby => {
+                                const _splashCands = _enemySpatialHash
+                                    ? _enemySpatialHash.query(proj.x, proj.y, 100)
+                                    : enemies;
+                                for (let _si = 0; _si < _splashCands.length; _si++) {
+                                    const nearby = _splashCands[_si];
                                     if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
                                         nearby.hp -= proj.damage;
                                         if (nearby.hp <= 0 && nearby.hp + proj.damage > 0) {
@@ -6668,8 +6867,9 @@ function masterLoop(timestamp) {
 
                                         currentRunStats.damageDealt += proj.damage; // Track Damage
                                         saveData.global.totalDamage += proj.damage;
+                                        bumpDamageSource('projectile', proj.damage);
                                     }
-                                });
+                                }
                                 projectiles.splice(pIndex, 1);
                             } else {
                                 if (proj.pierce > 0) { proj.pierce--; } else { projectiles.splice(pIndex, 1); }
@@ -6715,6 +6915,7 @@ function masterLoop(timestamp) {
 
                             currentRunStats.damageDealt += att.damage; // Track Damage
                             saveData.global.totalDamage += att.damage;
+                            bumpDamageSource('melee', att.damage);
                             createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(eIndex);
                             if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
                         }
@@ -6763,6 +6964,10 @@ function masterLoop(timestamp) {
 
                         currentRunStats.bossesKilled++; // Track Boss Kill
                         saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
+                        if (currentRunStats.keyMoments) {
+                            const _km_t = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
+                            currentRunStats.keyMoments.push({ wave, timeSec: _km_t, kind: 'boss_kill', label: enemy.bossType || 'Boss' });
+                        }
                         score += 1000; player.gainXp(500);
                         if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) player2.gainXp(500);
                         createExplosion(enemy.x, enemy.y, '#c0392b');
@@ -6817,12 +7022,16 @@ function masterLoop(timestamp) {
                         // Swarm Explosion (Tier 4)
                         if (enemy.subType === 'SWARM' && saveData.collection.includes('SWARM_4')) {
                             createExplosion(enemy.x, enemy.y, '#8e44ad');
-                            enemies.forEach(nearby => {
+                            const _swarmCands = _enemySpatialHash
+                                ? _enemySpatialHash.query(enemy.x, enemy.y, 100)
+                                : enemies;
+                            for (let _wi = 0; _wi < _swarmCands.length; _wi++) {
+                                const nearby = _swarmCands[_wi];
                                 if (nearby !== enemy && Math.hypot(nearby.x - enemy.x, nearby.y - enemy.y) < 100) {
                                     nearby.hp -= 20;
                                     floatingTexts.push(new FloatingText(nearby.x, nearby.y - 20, "20", "#8e44ad", 16));
                                 }
-                            });
+                            }
                         }
 
                         currentRunStats.enemiesKilled++; // Track Kill
@@ -7031,16 +7240,19 @@ function masterLoop(timestamp) {
                 _vg.addColorStop(1, `rgba(255, 0, 0, ${0.45 * _vigIntensity})`);
                 ctx.fillStyle = _vg;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                // Pulse speed increases as HP drops (0.06 at 25%, 0.18 at 0%)
-                const _pulseSpeed = 0.06 + _vigIntensity * 0.12;
-                const _pulse = (Math.sin(frame * _pulseSpeed) + 1) / 2;
-                ctx.fillStyle = `rgba(255, 0, 0, ${_pulse * 0.2 * _vigIntensity})`;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                // Pulse overlay — reduced-motion mode keeps the static vignette
+                // above but skips the time-varying alpha pass entirely.
+                if (!isReducedMotion()) {
+                    const _pulseSpeed = 0.06 + _vigIntensity * 0.12;
+                    const _pulse = (Math.sin(frame * _pulseSpeed) + 1) / 2;
+                    ctx.fillStyle = `rgba(255, 0, 0, ${_pulse * 0.2 * _vigIntensity})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
                 ctx.restore();
             }
 
             // ── Weather Particle Render (screen-space) ─────────────────────────
-            if (weatherParticles.length > 0) {
+            if (weatherParticles.length > 0 && !isReducedMotion()) {
                 ctx.save();
                 const wid = currentWeather?.id;
                 for (const p of weatherParticles) {

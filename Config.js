@@ -40,6 +40,11 @@ const defaultConfig = {
 
     // Accessibility
     subtitlesEnabled: false,
+    reducedMotion:    false, // disables screen shake, hit flashes, weather overlays
+    colorblindMode:   'off', // 'off' | 'deuteranopia' | 'protanopia' | 'tritanopia'
+
+    // Telemetry — opt-in crash reports to the configured server. No PII.
+    crashReportsEnabled: true,
 
     // Dismissed info dialogues (array of dialogue IDs)
     dismissedDialogues: [],
@@ -132,6 +137,14 @@ function applyConfig() {
     const fpsDisplay = document.getElementById('fps-display');
     if (fpsDisplay) {
         fpsDisplay.style.display = gameConfig.showFPS ? 'block' : 'none';
+    }
+
+    // Colorblind correction — SVG color-matrix filter on the canvas element.
+    // Mode values: 'off' | 'deuteranopia' | 'protanopia' | 'tritanopia'.
+    const cb = (gameConfig.colorblindMode || 'off');
+    const canvasEl = document.getElementById('gameCanvas');
+    if (canvasEl) {
+        canvasEl.style.filter = (cb === 'off') ? '' : `url(#cb-${cb})`;
     }
 }
 

@@ -12,6 +12,34 @@
 
     <canvas id="gameCanvas"></canvas>
 
+    <!-- Colorblind correction filters (daltonization matrices, not simulation).
+         Applied via canvas.style.filter when gameConfig.colorblindMode is set. -->
+    <svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+        <defs>
+            <filter id="cb-deuteranopia">
+                <feColorMatrix type="matrix" values="
+                     0.8  0.2  0    0 0
+                     0.26 0.74 0    0 0
+                     0    0.14 0.86 0 0
+                     0    0    0    1 0"/>
+            </filter>
+            <filter id="cb-protanopia">
+                <feColorMatrix type="matrix" values="
+                     0.567 0.433 0     0 0
+                     0.558 0.442 0     0 0
+                     0     0.242 0.758 0 0
+                     0     0     0     1 0"/>
+            </filter>
+            <filter id="cb-tritanopia">
+                <feColorMatrix type="matrix" values="
+                     0.95  0.05  0     0 0
+                     0     0.433 0.567 0 0
+                     0     0.475 0.525 0 0
+                     0     0     0     1 0"/>
+            </filter>
+        </defs>
+    </svg>
+
     <!-- Loading Screen -->
     <div id="loading-screen"
         style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white;">
@@ -732,6 +760,7 @@
                     <div id="vc-build-list" class="go-list"></div>
                 </div>
             </div>
+            <div id="vc-breakdown" class="go-breakdown"></div>
         </div>
 
         <!-- GAME OVER SCREEN -->
@@ -767,6 +796,7 @@
                     </div>
                 </div>
             </div>
+            <div id="go-breakdown" class="go-breakdown"></div>
         </div>
     </div>
 
@@ -844,6 +874,30 @@
                     </div>
                     <button id="opt-subtitles-btn" class="opt-toggle-btn"
                         onclick="toggleOption('subtitlesEnabled')">OFF</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">◐</span>
+                        <span class="options-label">Reduced Motion</span>
+                    </div>
+                    <button id="opt-reduced-motion-btn" class="opt-toggle-btn"
+                        onclick="toggleOption('reducedMotion')">OFF</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">◑</span>
+                        <span class="options-label">Colorblind Mode</span>
+                    </div>
+                    <button id="opt-colorblind-btn" class="opt-toggle-btn"
+                        onclick="cycleColorblindMode()">OFF</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">⚠</span>
+                        <span class="options-label">Crash Reports</span>
+                    </div>
+                    <button id="opt-crash-btn" class="opt-toggle-btn active"
+                        onclick="toggleOption('crashReportsEnabled')">ON</button>
                 </div>
             </div>
 
@@ -1158,6 +1212,8 @@
     <script src="Managers/SaveManager.js"></script>
     <script src="Managers/CloudSaveManager.js"></script>
     <script src="Managers/NetworkManager.js"></script>
+    <script src="Managers/CrashReporter.js"></script>
+    <script src="Managers/SpatialHash.js"></script>
     <script src="Managers/UIManager.js"></script>
 
     <!-- Controllers -->

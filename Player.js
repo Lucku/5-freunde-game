@@ -169,6 +169,12 @@ class Player {
         this.maxXp = Math.floor(this.maxXp * 1.2);
         const wasAlreadyLeveling = isLevelingUp;
         isLevelingUp = true;
+
+        // End-of-run breakdown — note the level-up moment for the local player.
+        if (this === window.player && typeof currentRunStats !== 'undefined' && currentRunStats.keyMoments) {
+            const _t = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
+            currentRunStats.keyMoments.push({ wave: (typeof wave !== 'undefined') ? wave : 0, timeSec: _t, kind: 'level_up', label: `Lv ${this.level}` });
+        }
         // Level-up — soft upward pulse
         if (typeof triggerImpact !== 'undefined') triggerImpact(2, 8, 0.05, 0.22, 280);
 
@@ -922,6 +928,7 @@ class Player {
                         e.hp -= 2;
                         currentRunStats.damageDealt += 2; // Track Damage
                         saveData.global.totalDamage += 2;
+                        if (typeof bumpDamageSource === 'function') bumpDamageSource('special', 2);
                         if (frame % 10 === 0) createExplosion(e.x, e.y, '#aaa');
                     }
                 });

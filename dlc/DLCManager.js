@@ -114,12 +114,17 @@ class DLCManager {
 
     async init() {
         console.log("Initializing DLC Manager...");
-        const enabledDLCs = this._loadEnabledDLCs();
-        for (const id of enabledDLCs) {
-            if (this.availableDLCs.hasOwnProperty(id)) {
-                await this.loadDLC(id);
-            }
-        }
+        const enabledDLCs = this._loadEnabledDLCs().filter(id => this.availableDLCs.hasOwnProperty(id));
+        // Parallel script load — was sequential before, costing ~80ms × N DLCs
+        // of round-trip per dynamic <script>. Order independence is fine: each
+        // DLC self-registers via window.DLC_REGISTRY and its hero/biome inject
+        // hooks read from the same global registries.
+        const t0 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+        await Promise.all(enabledDLCs.map(id => this.loadDLC(id).catch(e => {
+            console.error(`DLC ${id} load failed:`, e);
+        })));
+        const t1 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+        console.log(`DLCs loaded in ${(t1 - t0).toFixed(0)}ms (${enabledDLCs.length} parallel)`);
     }
 
     toggleDLC(id, enable) {

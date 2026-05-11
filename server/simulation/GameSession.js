@@ -37,9 +37,10 @@ const WaveManager = require('./WaveManager');
  * p1 = lobby host player, p2 = lobby guest player.
  */
 class GameSession {
-    constructor(lobby, sendFn) {
+    constructor(lobby, sendFn, opts = {}) {
         this._lobby  = lobby;  // { host: {ws, userId, …}, guest: {ws, userId, …} }
         this._send   = sendFn; // send(ws, msgObject)
+        this._onTickStats = opts.onTickStats || null; // (wave, score, timeSec) => void
 
         // ── World instance ─────────────────────────────────────────────────────
         this._world = World.createServerWorld();
@@ -97,6 +98,29 @@ class GameSession {
         this._waveManager  = new WaveManager();
         this._tickInterval = null;
         this._startedAt    = 0;
+
+        // Variable tick rate — runs at 30 Hz nominally, drops to 20 Hz when
+        // entity count exceeds the threshold (CPU pressure proxy). TICK_FRAMES
+        // scales with tick duration so simulated game speed stays constant.
+        this._currentTickMs     = TICK_MS;
+        this._currentTickFrames = TICK_FRAMES;
+        // Hysteresis to prevent flapping at the boundary
+        this._HIGH_LOAD_ENTER = 180; // enemies + projectiles
+        this._HIGH_LOAD_EXIT  = 140;
+        this._SLOW_TICK_MS    = 50; // 20 Hz
+    }
+
+    _adjustTickRate() {
+        const load = this.enemies.length + this.projectiles.length;
+        const wasSlow = this._currentTickMs !== TICK_MS;
+        let nextTickMs = this._currentTickMs;
+        if (!wasSlow && load >= this._HIGH_LOAD_ENTER) nextTickMs = this._SLOW_TICK_MS;
+        else if (wasSlow && load <= this._HIGH_LOAD_EXIT) nextTickMs = TICK_MS;
+        if (nextTickMs !== this._currentTickMs) {
+            this._currentTickMs     = nextTickMs;
+            this._currentTickFrames = nextTickMs / (1000 / 60);
+            console.log(`[GameSession ${this._lobby.code}] tick rate → ${Math.round(1000 / nextTickMs)} Hz (load=${load})`);
+        }
     }
 
     // ─── Public API ─────────────────────────────────────────────────────────────
@@ -122,7 +146,14 @@ class GameSession {
 
         this._startedAt = Date.now();
         this._waveManager._lastSpawnMs = this._startedAt;
-        this._tickInterval = setInterval(() => this._tick(), TICK_MS);
+        // Self-rescheduling tick — interval adjusts per-iteration via _adjustTickRate
+        const scheduleNext = () => {
+            this._tickInterval = setTimeout(() => {
+                this._tick();
+                if (this._tickInterval !== null) scheduleNext();
+            }, this._currentTickMs);
+        };
+        scheduleNext();
     }
 
     /**
@@ -187,7 +218,7 @@ class GameSession {
 
     stop() {
         if (this._tickInterval) {
-            clearInterval(this._tickInterval);
+            clearTimeout(this._tickInterval);
             this._tickInterval = null;
         }
     }
@@ -197,7 +228,7 @@ class GameSession {
     _tick() {
         if (this.isLevelingUp) return;
 
-        this._frame += TICK_FRAMES;
+        this._frame += this._currentTickFrames;
         this._syncWorld();
 
         // 1. Update players via real Player.update()
@@ -213,7 +244,7 @@ class GameSession {
         // and yanking the player back. Action latches (_pendingShoot etc.) are
         // cleared on the first sub-step's getInput() so abilities never double-fire;
         // subsequent sub-steps only apply movement and cooldown decrements.
-        const _PLAYER_SUB_STEPS = Math.max(1, Math.round(TICK_FRAMES));
+        const _PLAYER_SUB_STEPS = Math.max(1, Math.round(this._currentTickFrames));
         this.players.forEach(p => {
             if (p && !p.isDead) {
                 for (let _s = 0; _s < _PLAYER_SUB_STEPS; _s++) {
@@ -291,6 +322,16 @@ class GameSession {
 
         // 7. Push snapshot to both clients
         this._sendSnapshot();
+
+        // 8. Re-evaluate tick rate for the next iteration (entity-count proxy
+        //    for CPU pressure). The self-rescheduler reads _currentTickMs.
+        this._adjustTickRate();
+
+        // 9. Hand authoritative wave/score back to server.js for anti-cheat use.
+        if (this._onTickStats) {
+            const elapsedSec = Math.round((Date.now() - this._startedAt) / 1000);
+            this._onTickStats(this.wave, this.score, elapsedSec);
+        }
     }
 
     /** Keep the world object in sync with mutable session state every tick. */
@@ -666,25 +707,57 @@ class GameSession {
 
         const events = this._events.splice(0);
 
-        const base = {
+        const baseHeader = {
             type:         'SNAPSHOT',
             t:            Date.now(),
             wave:         this.wave,
             score:        this.score,
             bossActive:   this.bossActive,
             isLevelingUp: this.isLevelingUp,
-            enemies:      enemyList,
-            projectiles:  projList,
             events,
         };
 
-        // Personalised: each client sees their own character as p2
-        const hostSnap  = { ...base, p1: roundP(this.players[1]), p2: roundP(this.players[0]) };
-        const guestSnap = { ...base, p1: roundP(this.players[0]), p2: roundP(this.players[1]) };
+        // Personalised player views — each client sees their own character as p2
+        const hostHeader  = { ...baseHeader, p1: roundP(this.players[1]), p2: roundP(this.players[0]) };
+        const guestHeader = { ...baseHeader, p1: roundP(this.players[0]), p2: roundP(this.players[1]) };
 
         const { host, guest } = this._lobby;
-        if (host  && host.ws)  this._send(host.ws,  hostSnap);
-        if (guest && guest.ws) this._send(guest.ws, guestSnap);
+        if (host  && host.ws)  this._emitSnapshot(host.ws,  hostHeader,  enemyList, projList);
+        if (guest && guest.ws) this._emitSnapshot(guest.ws, guestHeader, enemyList, projList);
+    }
+
+    // Emit a snapshot, chunking entity arrays across multiple messages when the
+    // payload would otherwise blow past typical buffer/MTU-friendly sizes. Each
+    // chunk repeats the same `t` and a shared `chunk.seq` so the client can
+    // reassemble. Header fields (players, score, events) appear only on idx 0.
+    _emitSnapshot(ws, header, enemies, projectiles) {
+        const totalEntities = enemies.length + projectiles.length;
+        // Below ~100 entities the message is small enough that chunking adds
+        // pure overhead. Tune threshold against perMessageDeflate ratio.
+        if (totalEntities <= 100) {
+            this._send(ws, { ...header, enemies, projectiles });
+            return;
+        }
+
+        const numChunks = totalEntities > 200 ? 3 : 2;
+        const seq = this._nextSnapSeq = (this._nextSnapSeq || 0) + 1;
+        const ePer = Math.ceil(enemies.length / numChunks);
+        const pPer = Math.ceil(projectiles.length / numChunks);
+
+        for (let i = 0; i < numChunks; i++) {
+            const ePart = enemies.slice(i * ePer, (i + 1) * ePer);
+            const pPart = projectiles.slice(i * pPer, (i + 1) * pPer);
+            const msg = (i === 0)
+                ? { ...header, chunk: { seq, idx: i, of: numChunks }, enemies: ePart, projectiles: pPart }
+                : {
+                    type: 'SNAPSHOT',
+                    t: header.t,
+                    chunk: { seq, idx: i, of: numChunks },
+                    enemies: ePart,
+                    projectiles: pPart,
+                };
+            this._send(ws, msg);
+        }
     }
 }
 

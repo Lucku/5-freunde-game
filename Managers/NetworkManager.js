@@ -34,6 +34,9 @@ class NetworkManager {
         // In-game input latch — host reads this for P2; guest writes from local controller
         this.pendingInput   = { x: 0, y: 0, aimAngle: 0, shoot: false, melee: false, dash: false, special: false };
 
+        // Server-issued anti-cheat token for the current online match (set on GAME_START).
+        this._gameSessionToken = null;
+
         // Global lobby — remote player state (userId → { x, y, angle, hero, username })
         this.remotePlayers  = {};
         this._lastMoveSent  = 0;
@@ -145,6 +148,9 @@ class NetworkManager {
         }
         if (msg.type === 'GAME_START') {
             this.phase = 'in_game';
+            // Server-issued anti-cheat token — included on leaderboard POST so
+            // the server can clamp client-claimed score against authoritative state.
+            if (msg.sessionToken) this._gameSessionToken = msg.sessionToken;
         }
         if (msg.type === 'REJOINED') {
             this.lobbyCode = msg.code;

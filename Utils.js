@@ -89,6 +89,25 @@ function drawHeroSprite(ctx, color, r) {
     ctx.fillRect(r * 0.82, -r * 0.08, r * 0.26, r * 0.07);
 }
 
+/**
+ * mulberry32 — fast, well-distributed seeded PRNG (32-bit state). Returns a
+ * function that yields a float in [0, 1) on each call. Used for daily/weekly
+ * challenge mode so every player on the same calendar day sees identical
+ * mutators, drop rolls, and (where wired up) arena layouts. Stateless across
+ * calls except for the returned closure's `s` variable — safe for parallel
+ * instances.
+ */
+function mulberry32(seed) {
+    let s = seed >>> 0;
+    return function () {
+        s |= 0; s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+if (typeof window !== 'undefined') window.mulberry32 = mulberry32;
+
 function shadeColor(color, percent) {
     // Accept #RGB shorthand, #RRGGBB, or any other input (fall back to color unchanged
     // so callers feeding it to addColorStop never get NaN-laden hex like "#8408NaN").
