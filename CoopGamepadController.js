@@ -34,7 +34,5 @@ class CoopGamepadController {
     }
 }
 
-window.CoopGamepadController = CoopGamepadController;
-
 export { CoopGamepadController };
 export default CoopGamepadController;

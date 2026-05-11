@@ -233,4 +233,3 @@ window.generateHeroSkillTree = function (type) {
 
 export { SkillTreeUI, skillTreeUI };
 export default skillTreeUI;
-if (typeof window !== 'undefined') window.SkillTreeUI = SkillTreeUI;

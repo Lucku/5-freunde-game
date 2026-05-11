@@ -82,6 +82,5 @@ const eventBus = new EventBus();
 export { EventBus, eventBus };
 export default eventBus;
 if (typeof window !== 'undefined') {
-    window.EventBus = EventBus;
     window.eventBus = eventBus;
 }

@@ -150,4 +150,3 @@ window.chooseUpgrade = (type) => levelUpUI.chooseUpgrade(type, window.player);
 
 export { LevelUpUI, levelUpUI };
 export default levelUpUI;
-if (typeof window !== 'undefined') window.LevelUpUI = LevelUpUI;

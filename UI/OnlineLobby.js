@@ -368,4 +368,3 @@ window.openOnlineLobby = () => window.onlineLobby.open();
 
 export { OnlineLobbyUI };
 export default window.onlineLobby;
-if (typeof window !== 'undefined') window.OnlineLobbyUI = OnlineLobbyUI;

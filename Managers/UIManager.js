@@ -93,8 +93,5 @@ class UIManager {
     }
 }
 
-// ESM exports + window shim. The `uiManager` singleton is still created in
-// game.js — only the class identifier needs exposing here.
 export { UIManager };
 export default UIManager;
-if (typeof window !== 'undefined') window.UIManager = UIManager;

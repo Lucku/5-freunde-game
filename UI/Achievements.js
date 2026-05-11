@@ -98,4 +98,3 @@ window.closeAchievements = () => achievementsUI.closeAchievements();
 
 export { AchievementsUI, achievementsUI };
 export default achievementsUI;
-if (typeof window !== 'undefined') window.AchievementsUI = AchievementsUI;

@@ -1,30 +1,49 @@
-// game.js migrated to ESM 2026-05-11 (Phase 8b step 2). All other modules set
-// `window.X = X` shims at load time; we destructure here so the rest of this
-// file can keep its bare-identifier reads. Mutable registries (BIOME_LOGIC,
-// HERO_LOGIC, ENEMY_LOGIC, DLC_REGISTRY, chaosState) and UI singletons that
-// game.js only ever accesses via `window.X` are intentionally NOT pulled in.
-const {
-    // Utilities + config
-    mulberry32, gameConfig,
-    // Core game classes
-    Player, Enemy, Boss, Arena, Companion,
-    // Entity types
-    FloatingText, Particle, Projectile, GoldDrop, CardDrop, HolyMask, PowerUp,
-    // Managers (classes + singletons used bare)
-    SaveManager, CloudSaveManager, UIManager, InputManager, StoryManager,
-    SpatialHash, audioManager, introManager, infoDialogueManager,
-    // Modes / scenes
-    EvilMode, TutorialMode, TestingGrounds, CoopGamepadController,
-    Altar, Manual, MenuBackground,
-    // Controllers
-    AIController, CompanionAIController, RecordingInputController,
-    // Lobby singleton (online co-op)
-    onlineLobby,
-    // DLC + memory + chaos helpers actually invoked bare
-    DLCManager, MEMORY_STORIES,
+// game.js migrated to ESM 2026-05-11 (Phase 8b step 2; explicit-import pass 8b/3).
+// Mutable registries (BIOME_LOGIC, HERO_LOGIC, ENEMY_LOGIC, DLC_REGISTRY,
+// chaosState) and UI singletons whose call sites already use `window.X` are
+// intentionally NOT imported — they keep their `window.` prefix below so DLC-
+// time extension stays observable.
+import { mulberry32 } from './Utils.js';
+import { gameConfig } from './Config.js';
+import { Player } from './Player.js';
+import { Enemy } from './Enemy.js';
+import { Boss } from './Boss.js';
+import { Arena } from './Arena.js';
+import { Companion } from './Companion.js';
+import { FloatingText } from './Entities/FloatingText.js';
+import { Particle } from './Entities/Particle.js';
+import { Projectile } from './Entities/Projectile.js';
+import { GoldDrop } from './Entities/GoldDrop.js';
+import { CardDrop } from './Entities/CardDrop.js';
+import { HolyMask } from './Entities/HolyMask.js';
+import { PowerUp } from './Entities/PowerUp.js';
+import { SaveManager } from './Managers/SaveManager.js';
+import { CloudSaveManager } from './Managers/CloudSaveManager.js';
+import { UIManager } from './Managers/UIManager.js';
+import { InputManager } from './Managers/InputManager.js';
+import { StoryManager } from './Managers/StoryManager.js';
+import { SpatialHash } from './Managers/SpatialHash.js';
+import { audioManager } from './Managers/AudioManager.js';
+import { introManager } from './Managers/IntroManager.js';
+import { EvilMode } from './EvilMode.js';
+import { TutorialMode } from './TutorialMode.js';
+import { TestingGrounds } from './TestingGrounds.js';
+import { CoopGamepadController } from './CoopGamepadController.js';
+import { Altar } from './Altar.js';
+import { Manual } from './Tutorial.js';
+import { MenuBackground } from './UI/MenuBackground.js';
+import { AIController, CompanionAIController } from './Entities/PlayerController.js';
+import { RecordingInputController } from './Entities/NetworkInputController.js';
+import { DLCManager } from './dlc/DLCManager.js';
+import { MEMORY_STORIES } from './MemoryStories.js';
+import {
     openChaosGamble, updateChaosGambleUI, confirmChaosGamble,
     generateChaosObjective, updateChaosObjective, checkChaosEvent,
-} = window;
+} from './ChaosMode.js';
+// Singletons whose only consumer in game.js is bare-identifier access (HTML
+// onclick handlers and DLC files reach them through `window.X` directly).
+import infoDialogueManager from './UI/InfoDialogueManager.js';
+import onlineLobby from './UI/OnlineLobby.js';
 
 const isElectron = typeof process !== 'undefined' && process.versions && process.versions.electron;
 // lastInputType moved to InputManager
@@ -3348,7 +3367,7 @@ function advanceWave() {
         }
     }
 
-    if (isTutorialMode && window.TutorialMode) TutorialMode.startObjective();
+    if (isTutorialMode && TutorialMode) TutorialMode.startObjective();
 
     // CHAOS GAMBLE
     if (isChaosShuffleMode && wave > 1) {
@@ -3857,7 +3876,7 @@ function startGame(mode = 'NORMAL') {
         }
     }
 
-    if (isCoopMode && (window.CoopGamepadController || isOnlineMode)) {
+    if (isCoopMode && (CoopGamepadController || isOnlineMode)) {
         if (!isOnlineMode) {
             // Local co-op: P1 uses dedicated gamepad
             player.controller = new CoopGamepadController(coopP1GamepadIndex);
@@ -6110,7 +6129,7 @@ function masterLoop(timestamp) {
                     else player.gold += amount; // Fallback
 
                     if (isChaosShuffleMode) checkChaosEvent('GOLD', amount);
-                    if (isTutorialMode && window.TutorialMode) TutorialMode.onGold();
+                    if (isTutorialMode && TutorialMode) TutorialMode.onGold();
                     currentRunStats.moneyGained += amount; // Track Gold
                     saveData.global.totalGold += drop.value; // Track for achievement
                     if (typeof audioManager !== 'undefined') audioManager.play('pickup_gold');
@@ -6925,7 +6944,7 @@ function masterLoop(timestamp) {
                                 enemy.lastHitBy = 'MELEE';
                                 enemy.killer = att.owner || player;
                             }
-                            if (isTutorialMode && window.TutorialMode) TutorialMode.onMelee();
+                            if (isTutorialMode && TutorialMode) TutorialMode.onMelee();
 
                             // Melee impact — heavier thud
                             const isCrit = att.isCrit;
@@ -6954,7 +6973,7 @@ function masterLoop(timestamp) {
                     enemy.dead = true; // Prevent double-processing if forEach+splice skips this enemy
                     if (!(enemy instanceof Boss)) createDeathBurst(enemy.x, enemy.y, enemy.color || '#e74c3c');
                     if (isChaosShuffleMode) checkChaosEvent('KILL', { isMelee: (enemy.lastHitBy === 'MELEE') });
-                    if (isTutorialMode && window.TutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
+                    if (isTutorialMode && TutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
                     // Boss Minion Logic
                     if (enemy.isSummonedMinion && enemy.parentBoss) {
                         enemy.parentBoss.minionsToKill--;
@@ -7147,7 +7166,7 @@ function masterLoop(timestamp) {
             }
 
             // Tutorial HUD
-            if (isTutorialMode && window.TutorialMode) TutorialMode.drawHUD(ctx);
+            if (isTutorialMode && TutorialMode) TutorialMode.drawHUD(ctx);
 
             // Testing Grounds HUD
             if (isTestingMode && window.TestingGrounds) TestingGrounds.drawHUD(ctx);

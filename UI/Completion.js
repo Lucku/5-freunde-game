@@ -26,4 +26,3 @@ window.closeCompletion = () => completionUI.close();
 
 export { CompletionUI, completionUI };
 export default completionUI;
-if (typeof window !== 'undefined') window.CompletionUI = CompletionUI;

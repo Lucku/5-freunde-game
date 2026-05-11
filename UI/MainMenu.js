@@ -168,4 +168,3 @@ window.updateStoryButton = () => mainMenuUI.updateStoryButton();
 
 export { MainMenuUI, mainMenuUI };
 export default mainMenuUI;
-if (typeof window !== 'undefined') window.MainMenuUI = MainMenuUI;

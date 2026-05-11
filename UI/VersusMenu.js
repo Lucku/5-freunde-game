@@ -566,7 +566,3 @@ window.startVersusMatch = () => versusMenu.start();
 
 export { VersusMenuUI, versusMenu, BIOME_META };
 export default versusMenu;
-if (typeof window !== 'undefined') {
-    window.VersusMenuUI = VersusMenuUI;
-    window.BIOME_META = BIOME_META;
-}

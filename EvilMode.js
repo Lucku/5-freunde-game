@@ -401,7 +401,5 @@ const EvilMode = (() => {
     };
 })();
 
-window.EvilMode = EvilMode;
-
 export { EvilMode };
 export default EvilMode;

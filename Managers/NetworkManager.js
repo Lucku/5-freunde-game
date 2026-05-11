@@ -341,8 +341,5 @@ class NetworkManager {
 
 window.networkManager = new NetworkManager();
 
-// ESM exports + class window shim so classic-script callers see the
-// constructor identifier alongside the existing window.networkManager singleton.
 export { NetworkManager };
 export default window.networkManager;
-if (typeof window !== 'undefined') window.NetworkManager = NetworkManager;

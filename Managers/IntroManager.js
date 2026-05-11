@@ -193,11 +193,8 @@ class IntroManager {
 
 const introManager = new IntroManager();
 
-// ESM exports + window shims so classic-script callers see the singleton
-// and the class identifier unchanged.
 export { IntroManager, introManager };
 export default introManager;
 if (typeof window !== 'undefined') {
-    window.IntroManager = IntroManager;
     window.introManager = introManager;
 }

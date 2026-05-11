@@ -27,4 +27,3 @@ class PowerUp {
 
 export { PowerUp };
 export default PowerUp;
-if (typeof window !== 'undefined') window.PowerUp = PowerUp;

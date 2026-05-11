@@ -765,11 +765,8 @@ AudioManager._exclamationTexts = {
 
 const audioManager = new AudioManager();
 
-// ESM exports + window shims so classic-script callers see the singleton
-// and the class identifier unchanged.
 export { AudioManager, audioManager };
 export default audioManager;
 if (typeof window !== 'undefined') {
-    window.AudioManager = AudioManager;
     window.audioManager = audioManager;
 }

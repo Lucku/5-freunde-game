@@ -136,6 +136,28 @@ Future sessions: Phases 5–10 (the heavy ESM migration). Each opens its own PR.
 
 ## Review
 
+### 2026-05-11 (session 9) — ESM Phase 10 step 1: window-shim cleanup pass
+
+**Shipped:**
+
+**Stage A — game.js bridge → explicit imports.** Replaced the `const { ... } = window;` destructuring block at the top of `game.js` with 30 explicit `import` statements: `Player`/`Enemy`/`Boss`/`Arena`/`Companion`, every `Entities/*`, manager classes + singletons (`UIManager`/`InputManager`/`SaveManager`/`CloudSaveManager`/`StoryManager`/`SpatialHash`/`audioManager`/`introManager`), modes (`EvilMode`/`TutorialMode`/`TestingGrounds`/`CoopGamepadController`), scenes (`Altar`/`Manual`/`MenuBackground`), AI controllers (`AIController`/`CompanionAIController`/`RecordingInputController`), `onlineLobby` + `infoDialogueManager` singletons, `DLCManager`, `MEMORY_STORIES`, plus 6 chaos helpers. Mutable registries (`BIOME_LOGIC`/`HERO_LOGIC`/`ENEMY_LOGIC`/`DLC_REGISTRY`/`chaosState`) and the always-`window.X`-accessed UI singletons stay as bare-`window` reads.
+
+**Stage B — dropped 30 redundant `window.X` shims:** UIManager, InputManager, SaveManager, SpatialHash, EventBus (class), CrashReporter, StoryManager, PROCEDURAL_TEMPLATES, AudioManager (class), IntroManager (class), NetworkManager (class), CardDrop, PowerUp, NetworkInputController, RecordingInputController, PlayerController, CompanionAIController, LevelUpUI, MainMenuUI, OptionsUI, HeroDetailsUI, ShopUI (class), SHOP_POOL, CompletionUI, StatisticsUI, AchievementsUI, CollectionUI, SkillTreeUI, OnlineLobbyUI, VersusMenuUI, BIOME_META, EvilMode, TutorialMode, CoopGamepadController. Also rewrote the two `if (isTutorialMode && window.TutorialMode)` and `if (... window.CoopGamepadController)` truthy-guards in game.js to plain identifier checks (always defined via import now).
+
+**Kept on purpose** — shims whose only consumers are non-importing modules: `MeleeSwipe` (Player.js bare-reads `new MeleeSwipe`), `HolyMask` (EvilMode.js bare-reads `new HolyMask`), `HumanController` (Player.js bare-reads `new HumanController(0)`), `AIController` (Faith of Fortune DLC bare-reads `new AIController(...)`), plus every shim DLC files touch as bare globals (`Projectile`, `FloatingText`, `Particle`, `Boss`, `Altar`, `Player`, `MEMORY_STORIES`, `Enemy`, `MemoryShard`, `DLCManager`, `Arena`, `Companion`, `GoldDrop`, `Manual`, `CompletionMenu`, `MenuBackground`, `STORY_EVENTS`, `TestingGrounds`, `CloudSaveManager`). HTML `onclick` handlers (~79 unique names) all point at lowercase singletons or class-static methods that still ship as `window.X`.
+
+**The audit method:** for each candidate shim, grep all `.js` (excluding `node_modules`/`dist`/`server`/`tests`) for bare references not preceded by `window.` and not in a same-file declaration. Whenever a non-importing module had a bare `new X(...)` or `typeof X !==` check, the shim stays. This caught two false-positive drops (MeleeSwipe, HolyMask) before they hit the build.
+
+**Metrics:**
+- Vite bundle: 722 KB → 719 KB (3 KB shaved from inlined shim assignments + dead `if (typeof window)` blocks)
+- Tests: 80/80 parity + 48/48 Vitest (no regressions)
+- Lint: 328 warnings, 0 errors (unchanged)
+- Build time: 733ms
+
+**Phase 10 step 2 (future):** drive shim count to zero by adding explicit imports inside the four remaining non-importing modules — Player.js, EvilMode.js, plus any DLC file willing to opt in. Each migration is independent and cheap, but the DLC ones must respect the "DLC files run server-side via `require()`" CommonJS interop path that loader.js relies on. The lowest-hanging fruit is Player.js (one `import { HumanController, MeleeSwipe } from ...`) — that alone deletes two more shims.
+
+---
+
 ### 2026-05-11 (session 8) — ESM Phase 8b step 2: game.js migrated
 
 **Shipped:**

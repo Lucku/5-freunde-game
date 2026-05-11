@@ -315,13 +315,11 @@ class CompanionAIController extends PlayerController {
     }
 }
 
-// ESM exports + window shims so server stub `global.HumanController` and
-// client `new AIController(...)` callers still resolve.
 export { PlayerController, HumanController, AIController, CompanionAIController };
 export default PlayerController;
 if (typeof window !== 'undefined') {
-    window.PlayerController       = PlayerController;
-    window.HumanController        = HumanController;
-    window.AIController           = AIController;
-    window.CompanionAIController  = CompanionAIController;
+    // HumanController: bare-read by Player.js (`new HumanController(0)`).
+    // AIController: bare-read by Faith of Fortune DLC (`new AIController(...)`).
+    window.HumanController = HumanController;
+    window.AIController    = AIController;
 }

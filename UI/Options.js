@@ -132,4 +132,3 @@ window.hideQuitWarning = function () {
 
 export { OptionsUI, optionsUI };
 export default optionsUI;
-if (typeof window !== 'undefined') window.OptionsUI = OptionsUI;

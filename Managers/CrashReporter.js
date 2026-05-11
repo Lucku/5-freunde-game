@@ -142,13 +142,10 @@ class CrashReporter {
     }
 }
 
+// Install on module load so we capture errors from later boot stages too.
 if (typeof window !== 'undefined') {
-    window.CrashReporter = CrashReporter;
-    // Install on script load so we capture errors from later boot stages too.
     try { CrashReporter.install(); } catch (_) {}
 }
 
-// ESM exports — file loads via `<script type="module">`. Window shim above
-// keeps classic-script callers seeing CrashReporter unchanged.
 export { CrashReporter };
 export default CrashReporter;
