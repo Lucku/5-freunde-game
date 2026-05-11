@@ -136,6 +136,28 @@ Future sessions: Phases 5–10 (the heavy ESM migration). Each opens its own PR.
 
 ## Review
 
+### 2026-05-11 (session 10) — ESM Phase 10 step 2: Player.js + EvilMode.js imports
+
+**Shipped:**
+- `Player.js` gains `import { MeleeSwipe } from './Entities/MeleeSwipe.js';` — the bare `new MeleeSwipe(...)` call at line 1397 now resolves via the import binding instead of `window.MeleeSwipe` fallback. `window.MeleeSwipe` shim deleted.
+- `EvilMode.js` gains `import { HolyMask } from './Entities/HolyMask.js';` — bare `new HolyMask(...)` (lines 279–280, 343) resolves via import. `window.HolyMask` shim deleted.
+
+**Intentionally left as window shim:** `HumanController`. Player.js still calls `new HumanController(0)` bare. Adding `import { HumanController } from './Entities/PlayerController.js';` would pull the real browser-only class into the server simulation's `require()` graph (PlayerController.js touches `navigator.getGamepads`, `keys`, `mouse` at construction time inside the methods, not at module load — but importing means Node loads it, and the parityTest's stub `global.HumanController = class { ... }` is bypassed). Deferred to a later pass that splits Real vs Stub-friendly portions of PlayerController.
+
+**Metrics:**
+- Vite bundle: 719.31 KB → 719.21 KB (two shim lines + two `if (typeof window)` dead-code branches gone)
+- Tests: 80/80 parity + 48/48 Vitest (no regressions)
+- Build time: ~1.5s
+
+**Remaining `window.X = X` shims fall into three buckets**:
+1. DLC-loaded files reference them bare (Projectile, FloatingText, Particle, Boss, Altar, Player, MEMORY_STORIES, Enemy, MemoryShard, DLCManager, Arena, Companion, GoldDrop, Manual, CompletionMenu, MenuBackground, STORY_EVENTS, AIController, AudioManager).
+2. HTML `onclick` handlers call them (TestingGrounds, CloudSaveManager, Manual, every UI singleton like `levelUpUI`/`shopUI`/etc., plus the ~50 `window.openX`/`window.closeX` callback shims).
+3. Player.js / EvilMode.js bare-read AND can't be `import`-replaced today (HumanController).
+
+Phase 10 is effectively done for the in-repo ESM modules. Further reduction needs either: (a) DLC files getting explicit imports (low priority — they work and modifying every DLC `index.js` is cross-cutting churn), or (b) replacing inline `onclick="openX()"` with `addEventListener` registrations (large HTML refactor).
+
+---
+
 ### 2026-05-11 (session 9) — ESM Phase 10 step 1: window-shim cleanup pass
 
 **Shipped:**

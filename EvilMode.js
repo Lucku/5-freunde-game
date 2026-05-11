@@ -1,3 +1,5 @@
+import { HolyMask } from './Entities/HolyMask.js';
+
 // EvilMode.js
 // Manages Evil Mode wave sequencing, enemy hero spawning, biome routing,
 // mid-run hero swap (Green Goblin → Makuta at wave 6), story narration,

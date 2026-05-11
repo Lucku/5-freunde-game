@@ -206,4 +206,3 @@ class HolyMask {
 
 export { HolyMask };
 export default HolyMask;
-if (typeof window !== 'undefined') window.HolyMask = HolyMask;

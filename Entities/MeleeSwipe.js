@@ -31,4 +31,3 @@ class MeleeSwipe {
 }
 export { MeleeSwipe };
 export default MeleeSwipe;
-if (typeof window !== 'undefined') window.MeleeSwipe = MeleeSwipe;

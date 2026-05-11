@@ -1,3 +1,5 @@
+import { MeleeSwipe } from './Entities/MeleeSwipe.js';
+
 class Player {
     constructor(type, isCPU = false) {
         this.type = type;
