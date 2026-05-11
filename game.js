@@ -3211,6 +3211,10 @@ Object.defineProperties(window, {
     companions:          { get: () => companions,          set: v => { companions          = v; }, configurable: true, enumerable: true },
     projectiles:         { get: () => projectiles,         set: v => { projectiles         = v; }, configurable: true, enumerable: true },
     particles:           { get: () => particles,           set: v => { particles           = v; }, configurable: true, enumerable: true },
+    enemies:             { get: () => enemies,             set: v => { enemies             = v; }, configurable: true, enumerable: true },
+    floatingTexts:       { get: () => floatingTexts,       set: v => { floatingTexts       = v; }, configurable: true, enumerable: true },
+    holyMasks:           { get: () => holyMasks,           set: v => { holyMasks           = v; }, configurable: true, enumerable: true },
+    goldDrops:           { get: () => goldDrops,           set: v => { goldDrops           = v; }, configurable: true, enumerable: true },
 });
 
 function startObjective() {
