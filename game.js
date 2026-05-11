@@ -3199,6 +3199,20 @@ function changeHeroInGame(newType) {
 
 let currentObjective = null;
 
+// Second batch of bidirectional window bindings — declared after the first block.
+// Same getter/setter pattern: DLC reads see live values; DLC writes propagate back.
+Object.defineProperties(window, {
+    isChaosShuffleMode:  { get: () => isChaosShuffleMode,  set: v => { isChaosShuffleMode  = v; }, configurable: true, enumerable: true },
+    isDailyMode:         { get: () => isDailyMode,         set: v => { isDailyMode         = v; }, configurable: true, enumerable: true },
+    isWeeklyMode:        { get: () => isWeeklyMode,        set: v => { isWeeklyMode        = v; }, configurable: true, enumerable: true },
+    currentWeather:      { get: () => currentWeather,      set: v => { currentWeather      = v; }, configurable: true, enumerable: true },
+    currentObjective:    { get: () => currentObjective,    set: v => { currentObjective    = v; }, configurable: true, enumerable: true },
+    activeMutators:      { get: () => activeMutators,      set: v => { activeMutators      = v; }, configurable: true, enumerable: true },
+    companions:          { get: () => companions,          set: v => { companions          = v; }, configurable: true, enumerable: true },
+    projectiles:         { get: () => projectiles,         set: v => { projectiles         = v; }, configurable: true, enumerable: true },
+    particles:           { get: () => particles,           set: v => { particles           = v; }, configurable: true, enumerable: true },
+});
+
 function startObjective() {
     currentObjective = {
         type: 'NONE',
@@ -7565,3 +7579,4 @@ window.advanceWave         = advanceWave;
 window.checkAchievements   = checkAchievements;
 window.saveGame            = saveGame;
 window.gameOver            = gameOver;
+window.getCoopTarget       = getCoopTarget;
