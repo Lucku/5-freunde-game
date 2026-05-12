@@ -287,10 +287,46 @@ function _renderRunBreakdown(pfx) {
     `;
 }
 
-// Module-level broad-phase enemy index. Rebuilt once per frame in the main
-// update path; queried by AOE-radius scans (explosive projectiles, area hits)
-// to avoid the O(N) linear walk that was hot at wave 30+ entity counts.
+// Module-level broad-phase indices. Rebuilt once per frame in the main update
+// path; queried by AOE-radius scans (explosive projectiles, area hits) and the
+// per-enemy projectile collision sweep to avoid the O(N×M) linear walk that
+// was hot at wave 30+ entity counts.
+//   _enemySpatialHash   — enemies indexed at 128 px cells
+//   _projectileSpatialHash — projectiles indexed at 128 px cells (P2: enemy
+//                            collision loop queries by enemy.x/y instead of
+//                            iterating the full projectiles array per enemy)
+// Both honour a small-N bypass: when entity counts are low the rebuild cost
+// outweighs the savings, so the hash is left empty and call sites fall back
+// to linear iteration. See _SPATIAL_HASH_MIN.
+const _SPATIAL_HASH_MIN = 30; // skip rebuild + use linear scan when below this
 const _enemySpatialHash = (typeof SpatialHash !== 'undefined') ? new SpatialHash(128) : null;
+const _projectileSpatialHash = (typeof SpatialHash !== 'undefined') ? new SpatialHash(128) : null;
+
+// Per-frame flags set in the masterLoop rebuild block. When false, queries
+// fall back to a linear iteration of the underlying array.
+let _enemyHashActive = false;
+let _projectileHashActive = false;
+
+// Helper: returns enemies near (x,y,r). Uses the broad-phase hash when active,
+// falls back to the full enemies array otherwise. Callers MUST still do an
+// exact distance test — the spatial hash is loose.
+function queryEnemiesNear(x, y, r) {
+    if (_enemyHashActive && _enemySpatialHash) return _enemySpatialHash.query(x, y, r);
+    return (typeof enemies !== 'undefined') ? enemies : [];
+}
+// Helper: same for projectiles. Used by the inverted per-enemy collision sweep
+// + future melee-vs-projectile reflect/telekinesis paths.
+function queryProjectilesNear(x, y, r) {
+    if (_projectileHashActive && _projectileSpatialHash) return _projectileSpatialHash.query(x, y, r);
+    return (typeof projectiles !== 'undefined') ? projectiles : [];
+}
+
+if (typeof window !== 'undefined') {
+    window._enemySpatialHash = _enemySpatialHash;
+    window._projectileSpatialHash = _projectileSpatialHash;
+    window.queryEnemiesNear = queryEnemiesNear;
+    window.queryProjectilesNear = queryProjectilesNear;
+}
 
 // Runtime stats tracker — shape defined in RunState.js.
 let currentRunStats = createRunStats({ startTime: 0 });
@@ -5279,7 +5315,10 @@ function _updateDebugOverlay(frameMs) {
     const ftN      = (typeof floatingTexts !== 'undefined') ? floatingTexts.length : 0;
     const px       = (typeof player !== 'undefined' && player) ? Math.round(player.x) : 0;
     const py       = (typeof player !== 'undefined' && player) ? Math.round(player.y) : 0;
-    const cells    = (window._spatialHash && window._spatialHash.cellCount) ? window._spatialHash.cellCount() : '–';
+    const _eh = window._enemySpatialHash;
+    const _ph = window._projectileSpatialHash;
+    const _ehStats = _eh && _eh.stats ? _eh.stats() : { buckets: 0, maxBucket: 0 };
+    const _phStats = _ph && _ph.stats ? _ph.stats() : { buckets: 0, maxBucket: 0 };
     const hitStop  = _hitStopFrames;
     const wv       = (typeof wave !== 'undefined') ? wave : 0;
     el.textContent =
@@ -5290,7 +5329,8 @@ function _updateDebugOverlay(frameMs) {
         `Projectiles: ${projN}\n` +
         `Particles:   ${partN}\n` +
         `FloatingText: ${ftN}\n` +
-        `SpatialHash cells: ${cells}\n` +
+        `EnemyHash:   ${_ehStats.buckets} cells, max ${_ehStats.maxBucket}\n` +
+        `ProjHash:    ${_phStats.buckets} cells, max ${_phStats.maxBucket}\n` +
         `HitStop: ${hitStop}\n` +
         `F1 to hide`;
 }
@@ -6931,9 +6971,7 @@ function masterFrame(deltaTime, timestamp) {
                 proj.draw();
                 if (arena.checkCollision(proj.x, proj.y, proj.radius)) {
                     if (proj.isExplosive) {
-                        const _cands = _enemySpatialHash
-                            ? _enemySpatialHash.query(proj.x, proj.y, 100)
-                            : enemies;
+                        const _cands = queryEnemiesNear(proj.x, proj.y, 100);
                         for (let _ci = 0; _ci < _cands.length; _ci++) {
                             const e = _cands[_ci];
                             if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) {
@@ -7125,10 +7163,85 @@ function masterFrame(deltaTime, timestamp) {
                 });
             }
 
-            // Build broad-phase enemy index for this frame so AOE radius scans
-            // below (explosive projectiles + radius effects) can skip the linear
-            // walk over the full enemies array.
-            if (_enemySpatialHash) _enemySpatialHash.rebuild(enemies);
+            // #19 P2 — Lift enemy-projectile vs player(s) collision OUT of the
+            // per-enemy inner sweep. Each enemy projectile collides with the
+            // player exactly once regardless of how many enemies are on screen,
+            // so this branch is independent of the enemies array. Running it
+            // here trims the inner sweep's responsibilities to friendly
+            // projectile → enemy hits, which CAN exploit spatial locality.
+            for (let _pi = projectiles.length - 1; _pi >= 0; _pi--) {
+                const _proj = projectiles[_pi];
+                if (!_proj.isEnemy) continue;
+                const _pDist = Math.hypot(_proj.x - player.x, _proj.y - player.y);
+                if (_pDist < player.radius + _proj.radius) {
+                    const _bonuses = getCollectionBonuses(_proj.shooterType);
+
+                    if (_proj.shooterType === 'SHOOTER' && _bonuses.specials.includes('SHOOTER_DODGE') && Math.random() < 0.15) {
+                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "DODGE", "#f1c40f", 20));
+                        projectiles.splice(_pi, 1);
+                        continue;
+                    }
+
+                    if (_proj.shooterType === 'TOXIC' && _bonuses.specials.includes('TOXIC_IMMUNE')) {
+                        continue;
+                    }
+
+                    const _finalDmg = _proj.damage * _bonuses.defenseMult;
+                    const _dmgTaken = _finalDmg * (1 - player.damageReduction);
+
+                    if (!player.isInvincible) {
+                        player.hp -= _dmgTaken;
+                        recordPlayerDamage(player, _proj.shooterType || 'PROJECTILE', _dmgTaken); // #168
+                        audioManager.play('damage');
+                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(_dmgTaken), '#e74c3c', 20));
+                        currentRunStats.damageTaken += _dmgTaken;
+                        player.resetCombo();
+                        triggerImpact(3.5, 10, 0.28, 0.55, 180);
+
+                        if (player.heroType === 'EARTH' && player.momentum > 0) {
+                            player.momentum = Math.max(0, player.momentum - 30);
+                        }
+                    }
+
+                    createExplosion(player.x, player.y, _proj.color);
+                    projectiles.splice(_pi, 1);
+
+                    if (player.transformActive) {
+                        player.transformActive = false;
+                        player.currentForm = 'NONE';
+                        showNotification("FORM BROKEN!");
+                    }
+                } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
+                    const _pDistP2 = Math.hypot(_proj.x - player2.x, _proj.y - player2.y);
+                    if (_pDistP2 < player2.radius + _proj.radius) {
+                        const _p2Dmg = _proj.damage * (1 - player2.damageReduction);
+                        player2.hp -= _p2Dmg;
+                        floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 20, Math.ceil(_p2Dmg), '#e74c3c', 20));
+                        createExplosion(player2.x, player2.y, _proj.color);
+                        projectiles.splice(_pi, 1);
+                        if (player2.hp <= 0 && !player2.isDead) {
+                            player2.isDead = true; player2.hp = 0; player2.isInvincible = true;
+                            player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
+                            p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
+                            createExplosion(player2.x, player2.y, '#3b82f6');
+                            if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'failure');
+                            showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
+                        }
+                    }
+                }
+            }
+
+            // #19 P2 — Build broad-phase indices for this frame. Enemies hash
+            // serves AOE-radius scans + per-enemy projectile queries below;
+            // projectiles hash serves the per-enemy collision sweep that was
+            // O(N×M) before inversion. Both honour _SPATIAL_HASH_MIN: when
+            // entity counts are low, the rebuild + map overhead exceeds the
+            // savings, so the per-frame _*HashActive flag flips off and the
+            // queryEnemiesNear / queryProjectilesNear helpers linear-scan.
+            _enemyHashActive = !!_enemySpatialHash && enemies.length >= _SPATIAL_HASH_MIN;
+            _projectileHashActive = !!_projectileSpatialHash && projectiles.length >= _SPATIAL_HASH_MIN;
+            if (_enemyHashActive) _enemySpatialHash.rebuild(enemies);
+            if (_projectileHashActive) _projectileSpatialHash.rebuild(projectiles);
 
             for (let eIndex = enemies.length - 1; eIndex >= 0; eIndex--) {
                 const enemy = enemies[eIndex];
@@ -7281,216 +7394,144 @@ function masterFrame(deltaTime, timestamp) {
                     }
                 }
 
-                projectiles.forEach((proj, pIndex) => {
-                    // Update: Additional Players Collision Logic (inserted here for performance to check against Enemy loop logic context?)
-                    // Actually, PVP Logic shouldn't be inside the Enemy loop. It should be outside.
-                    // But if this forEach iterates ALL projectiles, we can handle PVP here too if careful.
-                    // But wait, this `projectiles.forEach` is inside `enemies.forEach((enemy) => ...`
-                    // Line 3016: enemies.forEach((enemy) => { ...
-                    // So this loop runs ProjectilesCount * EnemyCount times. O(M*N).
-                    // This is for checking Projectile vs Current Enemy.
+                // #19 P2 — Per-enemy projectile collision. Iterates only the
+                // spatial-hash candidates near this enemy (~3–10 at wave 30+)
+                // instead of the full projectiles array (N×M → N×k). Enemy
+                // projectiles vs player were lifted into the pre-pass above
+                // and are skipped here. pIndex is resolved lazily via
+                // projectiles.indexOf only when a splice is needed.
+                const _qR = (enemy.radius || 30) + 60;
+                const _projCands = queryProjectilesNear(enemy.x, enemy.y, _qR);
+                for (let _ci = 0; _ci < _projCands.length; _ci++) {
+                    const proj = _projCands[_ci];
+                    if (!proj || proj.isEnemy) continue;
 
-                    if (proj.isEnemy) {
-                        const pDist = Math.hypot(proj.x - player.x, proj.y - player.y);
-                        if (pDist < player.radius + proj.radius) {
-                            // Card Dodge/Reduction Logic
-                            const bonuses = getCollectionBonuses(proj.shooterType);
+                    const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
+                    if (pDist - enemy.radius - proj.radius >= 0) continue;
 
-                            if (proj.shooterType === 'SHOOTER' && bonuses.specials.includes('SHOOTER_DODGE') && Math.random() < 0.15) {
-                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "DODGE", "#f1c40f", 20));
-                                projectiles.splice(pIndex, 1);
-                                return;
-                            }
-
-                            if (proj.shooterType === 'TOXIC' && bonuses.specials.includes('TOXIC_IMMUNE')) {
-                                return; // Immune
-                            }
-
-                            let finalDmg = proj.damage * bonuses.defenseMult;
-
-                            const dmgTaken = finalDmg * (1 - player.damageReduction);
-
-                            if (!player.isInvincible) {
-                                player.hp -= dmgTaken;
-                                recordPlayerDamage(player, proj.shooterType || 'PROJECTILE', dmgTaken); // #168
-                                audioManager.play('damage');
-                                // Player takes damage number
-                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
-                                currentRunStats.damageTaken += dmgTaken; // Track Damage
-                                player.resetCombo(); // Reset Combo on Damage
-                                // Player hit by enemy projectile — sharp jolt
-                                triggerImpact(3.5, 10, 0.28, 0.55, 180);
-
-                                // Earth Hero Momentum Loss on Projectile Hit
-                                if (player.heroType === 'EARTH' && player.momentum > 0) {
-                                    player.momentum = Math.max(0, player.momentum - 30);
-                                }
-                            }
-
-                            createExplosion(player.x, player.y, proj.color); projectiles.splice(pIndex, 1);
-
-                            if (player.transformActive) {
-                                player.transformActive = false;
-                                player.currentForm = 'NONE';
-                                showNotification("FORM BROKEN!");
-                            }
-                        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
-                            // Co-op: check P2 projectile hit
-                            const pDistP2 = Math.hypot(proj.x - player2.x, proj.y - player2.y);
-                            if (pDistP2 < player2.radius + proj.radius) {
-                                const p2ProjDmg = proj.damage * (1 - player2.damageReduction);
-                                player2.hp -= p2ProjDmg;
-                                floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 20, Math.ceil(p2ProjDmg), '#e74c3c', 20));
-                                createExplosion(player2.x, player2.y, proj.color);
-                                projectiles.splice(pIndex, 1);
-                                if (player2.hp <= 0 && !player2.isDead) {
-                                    player2.isDead = true; player2.hp = 0; player2.isInvincible = true;
-                                    player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
-                                    p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
-                                    createExplosion(player2.x, player2.y, '#3b82f6');
-                                    if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'failure');
-                                    showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
-                                }
-                            }
+                    // Ghost enemies on the guest side: consume the projectile
+                    // for visual feedback but skip authoritative damage/flash.
+                    if (enemy._ghost) {
+                        if (!proj.pierce || proj.pierce <= 0) {
+                            const _gIdx = projectiles.indexOf(proj);
+                            if (_gIdx >= 0) projectiles.splice(_gIdx, 1);
                         }
-                    } else {
-                        const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
-                        if (pDist - enemy.radius - proj.radius < 0) {
+                        continue;
+                    }
 
-                            // Ghost enemies on the guest side: consume the projectile for
-                            // visual feedback but skip all authoritative damage/flash logic.
-                            // The host decides damage; ghost state is overwritten by snapshots.
-                            if (enemy._ghost) {
-                                if (!proj.pierce || proj.pierce <= 0) projectiles.splice(pIndex, 1);
-                                return;
+                    // DLC projectile hook — STOP suppresses default damage.
+                    if (proj.onHit) {
+                        const result = proj.onHit(enemy);
+                        if (result === 'STOP') {
+                            if (proj.life <= 0) {
+                                const _hIdx = projectiles.indexOf(proj);
+                                if (_hIdx >= 0) projectiles.splice(_hIdx, 1);
                             }
-
-                            // 1. PROJECTILE HOOK (For DLCs)
-                            // If the projectile has a custom collision handler, let it handle interaction.
-                            // If it returns 'STOP', we assume it handled damage/death and we stop default game logic.
-                            if (proj.onHit) {
-                                const result = proj.onHit(enemy);
-                                if (result === 'STOP') {
-                                    // Remove from array if the handler asks, or handler did it.
-                                    // Usually handler might chain and then ask to be removed.
-                                    // If handler returns STOP, we assume it managed the lifecycle.
-                                    // We should check if it's still in the array?
-                                    // Safest: Let handler kill itself or return STOP to suppress default splicing.
-                                    if (proj.life <= 0) projectiles.splice(pIndex, 1);
-                                    return;
-                                }
-                            }
-
-                            // Boss Immunity Check
-                            if (enemy instanceof Boss && enemy.immune) {
-                                floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "IMMUNE", "#fff", 20));
-                                projectiles.splice(pIndex, 1);
-                                return;
-                            }
-
-                            let finalDamage = proj.damage;
-
-                            // Card Bonuses
-                            const bonuses = getCollectionBonuses(enemy.subType);
-                            if (enemy instanceof Boss) {
-                                const bossBonuses = getCollectionBonuses('BOSS');
-                                bonuses.damageMult += (bossBonuses.damageMult - 1);
-
-                                // Tank Boss Phase 2 Vulnerability
-                                if (enemy.type === 'TANK' && enemy.phase === 2) {
-                                    bonuses.damageMult *= 1.5; // Takes 50% more damage
-                                }
-                            }
-
-                            finalDamage *= bonuses.damageMult;
-
-                            // Crit Check with Card Bonus
-                            let isCrit = proj.isCrit;
-                            if (!isCrit && Math.random() < (player.critChance + bonuses.critChance)) {
-                                isCrit = true;
-                                finalDamage *= player.critMultiplier;
-                            }
-
-                            // Special: Shield Pierce
-                            if (enemy.subType === 'SHIELDER' && bonuses.specials.includes('SHIELD_PIERCE')) {
-                                finalDamage *= 1.5;
-                            }
-
-                            // Altar: Wildfire (c4) - Apply Burn
-                            if (proj.isWildfire) {
-                                // Simple burn implementation: instant extra damage for now, or add status effect logic to Enemy class
-                                // Let's do instant bonus damage + visual
-                                finalDamage += 10;
-                                createExplosion(enemy.x, enemy.y, '#e67e22');
-                            }
-
-                            // Altar: Cryo-Flora (c9) - Apply Freeze
-                            if (proj.isCryo) {
-                                enemy.frozenTimer = 60; // 1s
-                                floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
-                            }
-
-                            enemy.hp -= finalDamage;
-                            enemy.hitFlashTimer = 6;
-                            audioManager.play('enemy_damage');
-                            if (enemy.hp <= 0 && enemy.hp + finalDamage > 0) {
-                                enemy.lastHitBy = 'PROJECTILE';
-                                enemy.killer = proj.owner || player;
-                            }
-
-                            // Projectile impact — small snappy jolt
-                            triggerImpact(isCrit ? 3.5 : 2, isCrit ? 8 : 5,
-                                          isCrit ? 0.15 : 0.08, isCrit ? 0.25 : 0.12,
-                                          isCrit ? 120 : 80);
-                            if (isCrit) triggerHitStop(GAMEPLAY.HITSTOP_CRIT_SHOT);
-
-                            // Enemy takes damage number
-                            floatingTexts.push(FloatingText.acquire(
-                                enemy.x,
-                                enemy.y - 20,
-                                Math.floor(finalDamage) + (isCrit ? '!' : ''),
-                                isCrit ? '#f1c40f' : '#fff',
-                                isCrit ? 30 : 16
-                            ));
-
-                            currentRunStats.damageDealt += finalDamage; // Track Damage
-                            saveData.global.totalDamage += finalDamage;
-                            bumpDamageSource('projectile', finalDamage);
-                            createExplosion(enemy.x, enemy.y, proj.color);
-                            if (proj.isExplosive) {
-                                // Explosion — bigger rumble on top of base hit
-                                triggerImpact(4.5, 12, 0.22, 0.55, 220);
-                                const _splashCands = _enemySpatialHash
-                                    ? _enemySpatialHash.query(proj.x, proj.y, 100)
-                                    : enemies;
-                                for (let _si = 0; _si < _splashCands.length; _si++) {
-                                    const nearby = _splashCands[_si];
-                                    if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
-                                        nearby.hp -= proj.damage;
-                                        if (nearby.hp <= 0 && nearby.hp + proj.damage > 0) {
-                                            nearby.lastHitBy = 'PROJECTILE';
-                                            nearby.killer = proj.owner || player;
-                                        }
-
-                                        // Explosion damage number
-                                        floatingTexts.push(FloatingText.acquire(nearby.x, nearby.y - 20, Math.floor(proj.damage), '#e67e22', 16));
-
-                                        currentRunStats.damageDealt += proj.damage; // Track Damage
-                                        saveData.global.totalDamage += proj.damage;
-                                        bumpDamageSource('projectile', proj.damage);
-                                    }
-                                }
-                                projectiles.splice(pIndex, 1);
-                            } else {
-                                if (proj.pierce > 0) { proj.pierce--; } else { projectiles.splice(pIndex, 1); }
-                            }
-                            if (!(enemy instanceof Boss)) {
-                                const angle = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);
-                                enemy.x += Math.cos(angle) * proj.knockback; enemy.y += Math.sin(angle) * proj.knockback;
-                            }
+                            continue;
                         }
                     }
-                });
+
+                    // Boss immunity check
+                    if (enemy instanceof Boss && enemy.immune) {
+                        floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "IMMUNE", "#fff", 20));
+                        const _bIdx = projectiles.indexOf(proj);
+                        if (_bIdx >= 0) projectiles.splice(_bIdx, 1);
+                        continue;
+                    }
+
+                    let finalDamage = proj.damage;
+
+                    const bonuses = getCollectionBonuses(enemy.subType);
+                    if (enemy instanceof Boss) {
+                        const bossBonuses = getCollectionBonuses('BOSS');
+                        bonuses.damageMult += (bossBonuses.damageMult - 1);
+
+                        if (enemy.type === 'TANK' && enemy.phase === 2) {
+                            bonuses.damageMult *= 1.5;
+                        }
+                    }
+
+                    finalDamage *= bonuses.damageMult;
+
+                    let isCrit = proj.isCrit;
+                    if (!isCrit && Math.random() < (player.critChance + bonuses.critChance)) {
+                        isCrit = true;
+                        finalDamage *= player.critMultiplier;
+                    }
+
+                    if (enemy.subType === 'SHIELDER' && bonuses.specials.includes('SHIELD_PIERCE')) {
+                        finalDamage *= 1.5;
+                    }
+
+                    if (proj.isWildfire) {
+                        finalDamage += 10;
+                        createExplosion(enemy.x, enemy.y, '#e67e22');
+                    }
+
+                    if (proj.isCryo) {
+                        enemy.frozenTimer = 60;
+                        floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
+                    }
+
+                    enemy.hp -= finalDamage;
+                    enemy.hitFlashTimer = 6;
+                    audioManager.play('enemy_damage');
+                    if (enemy.hp <= 0 && enemy.hp + finalDamage > 0) {
+                        enemy.lastHitBy = 'PROJECTILE';
+                        enemy.killer = proj.owner || player;
+                    }
+
+                    triggerImpact(isCrit ? 3.5 : 2, isCrit ? 8 : 5,
+                                  isCrit ? 0.15 : 0.08, isCrit ? 0.25 : 0.12,
+                                  isCrit ? 120 : 80);
+                    if (isCrit) triggerHitStop(GAMEPLAY.HITSTOP_CRIT_SHOT);
+
+                    floatingTexts.push(FloatingText.acquire(
+                        enemy.x,
+                        enemy.y - 20,
+                        Math.floor(finalDamage) + (isCrit ? '!' : ''),
+                        isCrit ? '#f1c40f' : '#fff',
+                        isCrit ? 30 : 16
+                    ));
+
+                    currentRunStats.damageDealt += finalDamage;
+                    saveData.global.totalDamage += finalDamage;
+                    bumpDamageSource('projectile', finalDamage);
+                    createExplosion(enemy.x, enemy.y, proj.color);
+                    if (proj.isExplosive) {
+                        triggerImpact(4.5, 12, 0.22, 0.55, 220);
+                        const _splashCands = queryEnemiesNear(proj.x, proj.y, 100);
+                        for (let _si = 0; _si < _splashCands.length; _si++) {
+                            const nearby = _splashCands[_si];
+                            if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
+                                nearby.hp -= proj.damage;
+                                if (nearby.hp <= 0 && nearby.hp + proj.damage > 0) {
+                                    nearby.lastHitBy = 'PROJECTILE';
+                                    nearby.killer = proj.owner || player;
+                                }
+
+                                floatingTexts.push(FloatingText.acquire(nearby.x, nearby.y - 20, Math.floor(proj.damage), '#e67e22', 16));
+
+                                currentRunStats.damageDealt += proj.damage;
+                                saveData.global.totalDamage += proj.damage;
+                                bumpDamageSource('projectile', proj.damage);
+                            }
+                        }
+                        const _eIdx = projectiles.indexOf(proj);
+                        if (_eIdx >= 0) projectiles.splice(_eIdx, 1);
+                    } else {
+                        if (proj.pierce > 0) {
+                            proj.pierce--;
+                        } else {
+                            const _nIdx = projectiles.indexOf(proj);
+                            if (_nIdx >= 0) projectiles.splice(_nIdx, 1);
+                        }
+                    }
+                    if (!(enemy instanceof Boss)) {
+                        const angle = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);
+                        enemy.x += Math.cos(angle) * proj.knockback; enemy.y += Math.sin(angle) * proj.knockback;
+                    }
+                }
 
                 meleeAttacks.forEach(att => {
                     if (att.hitList.includes(eIndex)) return;
@@ -7629,9 +7670,7 @@ function masterFrame(deltaTime, timestamp) {
                         // Swarm Explosion (Tier 4)
                         if (enemy.subType === 'SWARM' && saveData.collection.includes('SWARM_4')) {
                             createExplosion(enemy.x, enemy.y, '#8e44ad');
-                            const _swarmCands = _enemySpatialHash
-                                ? _enemySpatialHash.query(enemy.x, enemy.y, 100)
-                                : enemies;
+                            const _swarmCands = queryEnemiesNear(enemy.x, enemy.y, 100);
                             for (let _wi = 0; _wi < _swarmCands.length; _wi++) {
                                 const nearby = _swarmCands[_wi];
                                 if (nearby !== enemy && Math.hypot(nearby.x - enemy.x, nearby.y - enemy.y) < 100) {

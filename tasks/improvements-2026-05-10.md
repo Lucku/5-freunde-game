@@ -27,7 +27,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 
 ## Performance
 
-- [x] 19. ★ Spatial hash / quadtree for collisions. `enemies × projectiles × meleeAttacks × players` is O(n²) every frame; ~10k checks/frame at wave 30+. *(Phase 1: SpatialHash infra + 3 AOE-radius scans migrated; full projectile-vs-enemy inversion deferred.)*
+- [x] 19. ★ Spatial hash / quadtree for collisions. `enemies × projectiles × meleeAttacks × players` is O(n²) every frame; ~10k checks/frame at wave 30+. *(Phase 1 — SpatialHash infra + 3 AOE-radius scans. Phase 2 (P2) — full projectile-vs-enemy inversion: enemy-projectile → player(s) lifted out of inner loop; new `_projectileSpatialHash` queried per enemy; `_SPATIAL_HASH_MIN = 30` small-N bypass; `queryEnemiesNear` / `queryProjectilesNear` helpers; F1 overlay per-hash stats. Melee-vs-projectile reflect/telekinesis paths not yet using the projectile hash — open follow-up if profiling shows it.)*
 - [x] 20. Object pools for `Projectile`, `Particle`, `FloatingText`, `MeleeSwipe`, `GoldDrop`. GC churn visible on long runs. *(Pass A: `Particle` + `FloatingText` pools landed with acquire/release API; every call site across base + DLCs converted; masterLoop releases dead instances before splice. `Projectile`/`MeleeSwipe`/`GoldDrop` deferred — non-trivial reset state.)*
 - [ ] 21. Offscreen canvas for static layers. Bake arena obstacles + biome zones to `OffscreenCanvas`, blit once.
 - [x] 22. Cache gradients. Many enemies/bosses recreate `createRadialGradient` every draw. *(Pass A: `Utils.cachedRadial(ctx, key, r0, r1, stops)` helper + 3 hot projectile sites converted. ~107 remaining sites are incremental — helper is in place for opportunistic conversion.)*
