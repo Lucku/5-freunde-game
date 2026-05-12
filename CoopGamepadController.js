@@ -20,16 +20,21 @@ class CoopGamepadController {
             ? Math.atan2(aimY, aimX)
             : (player ? player.aimAngle : 0);
 
+        const im = (typeof window !== 'undefined') ? window.inputManager : null;
+        const act = (a, fallback) => (im && typeof im.isGamepadAction === 'function')
+            ? im.isGamepadAction(gp, a)
+            : fallback();
+
         return {
             x: moveX,
             y: moveY,
             aimAngle,
             usingGamepad: true,
-            shoot:   gp.buttons[7]?.value > 0.15,  // R2 / RT
-            melee:   gp.buttons[5]?.pressed,         // R1 / RB
-            dash:    gp.buttons[4]?.pressed,          // L1 / LB
-            special: gp.buttons[1]?.pressed,          // B  / Circle
-            pause:   gp.buttons[9]?.pressed,          // Start / Options
+            shoot:   act('shoot',   () => gp.buttons[7]?.value > 0.15 || gp.buttons[5]?.pressed),
+            melee:   act('melee',   () => gp.buttons[6]?.pressed || gp.buttons[2]?.pressed),
+            dash:    act('dash',    () => gp.buttons[4]?.pressed || gp.buttons[1]?.pressed || gp.buttons[0]?.pressed),
+            special: act('special', () => gp.buttons[3]?.pressed || gp.buttons[1]?.pressed),
+            pause:   act('pause',   () => gp.buttons[9]?.pressed),
         };
     }
 }

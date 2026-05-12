@@ -976,6 +976,13 @@
                 </div>
                 <div class="options-row">
                     <div class="options-row-left">
+                        <span class="options-icon">🎮</span>
+                        <span class="options-label">Customize Buttons</span>
+                    </div>
+                    <button class="opt-toggle-btn" onclick="openGamepadRemap()">REMAP</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
                         <span class="options-icon">⏸</span>
                         <span class="options-label">Pause on Focus Loss</span>
                     </div>
@@ -1046,6 +1053,19 @@
             </div>
             <div class="options-section" id="remap-list"></div>
             <button class="opt-back-btn" onclick="closeRemap()">← BACK</button>
+        </div>
+    </div>
+
+    <!-- Gamepad Button Remap Modal -->
+    <div id="gamepad-remap-modal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,10,15,0.97); z-index:2600; flex-direction:column; align-items:center; justify-content:center; color:white;">
+        <div class="options-panel">
+            <div class="options-header">
+                <div class="options-title">CUSTOMIZE BUTTONS</div>
+                <div class="options-subtitle">Click a row, then press the new controller button. Esc cancels.</div>
+            </div>
+            <div class="options-section" id="gamepad-remap-list"></div>
+            <button class="opt-back-btn" onclick="closeGamepadRemap()">← BACK</button>
         </div>
     </div>
 

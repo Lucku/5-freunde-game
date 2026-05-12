@@ -82,21 +82,21 @@ class HumanController extends PlayerController {
                 usingGamepad = true;
             }
 
-            // Actions
-            // Shoot: RT (Button 7) or R1 (Button 5)
-            if (gp.buttons[7]?.pressed || gp.buttons[5]?.pressed) shoot = true;
-
-            // Melee: LT (Button 6) or X (Button 2)
-            if (gp.buttons[6]?.pressed || gp.buttons[2]?.pressed) melee = true;
-
-            // Dash: B (Button 1) or LB (Button 4) or A (Button 0)
-            if (gp.buttons[1]?.pressed || gp.buttons[4]?.pressed || gp.buttons[0]?.pressed) dash = true;
-
-            // Special: Y (Button 3)
-            if (gp.buttons[3]?.pressed) special = true;
-
-            // Pause: Start (Button 9)
-            if (gp.buttons[9]?.pressed) pause = true;
+            // Actions — routed through gamepadBindings (#131 gamepad parity).
+            const im = (typeof window !== 'undefined') ? window.inputManager : null;
+            if (im && typeof im.isGamepadAction === 'function') {
+                if (im.isGamepadAction(gp, 'shoot'))   shoot = true;
+                if (im.isGamepadAction(gp, 'melee'))   melee = true;
+                if (im.isGamepadAction(gp, 'dash'))    dash = true;
+                if (im.isGamepadAction(gp, 'special')) special = true;
+                if (im.isGamepadAction(gp, 'pause'))   pause = true;
+            } else {
+                if (gp.buttons[7]?.pressed || gp.buttons[5]?.pressed) shoot = true;
+                if (gp.buttons[6]?.pressed || gp.buttons[2]?.pressed) melee = true;
+                if (gp.buttons[1]?.pressed || gp.buttons[4]?.pressed || gp.buttons[0]?.pressed) dash = true;
+                if (gp.buttons[3]?.pressed) special = true;
+                if (gp.buttons[9]?.pressed) pause = true;
+            }
         }
 
         // 3. Mouse Input (Only for Player 1 / Default Controller)

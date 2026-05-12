@@ -63,6 +63,16 @@ const defaultConfig = {
         special:   ['q'],
         pause:     ['escape', 'p']
     },
+    // Remappable XInput button indices per action (#131 gamepad parity).
+    // 0=A 1=B 2=X 3=Y 4=LB 5=RB 6=LT 7=RT 8=Back 9=Start 10=LS 11=RS
+    // 12-15=DPad U/D/L/R. Triggers (6/7) also trip via analog value > 0.15.
+    gamepadBindings: {
+        shoot:   [7, 5],
+        melee:   [6, 2],
+        dash:    [1, 4, 0],
+        special: [3],
+        pause:   [9]
+    },
 
     // Telemetry — opt-in crash reports to the configured server. No PII.
     crashReportsEnabled: true,
@@ -120,9 +130,10 @@ function loadConfig() {
             // Use Object.assign to mutate the existing gameConfig object in place —
             // reassigning would leave window.gameConfig pointing to the old object.
             Object.assign(gameConfig, defaultConfig, data, {
-                account:     { ...defaultConfig.account,     ...(data.account     || {}) },
-                cloudSave:   { ...defaultConfig.cloudSave,   ...(data.cloudSave   || {}) },
-                keyBindings: { ...defaultConfig.keyBindings, ...(data.keyBindings || {}) }
+                account:         { ...defaultConfig.account,         ...(data.account         || {}) },
+                cloudSave:       { ...defaultConfig.cloudSave,       ...(data.cloudSave       || {}) },
+                keyBindings:     { ...defaultConfig.keyBindings,     ...(data.keyBindings     || {}) },
+                gamepadBindings: { ...defaultConfig.gamepadBindings, ...(data.gamepadBindings || {}) }
             });
             console.log("Config loaded:", gameConfig);
         } catch (e) {

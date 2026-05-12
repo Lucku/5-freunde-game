@@ -998,21 +998,17 @@ class Player {
                 this.usingGamepad = true;
             }
 
-            // Actions
-            // Shoot: RT (Button 7) or R1 (Button 5)
-            if (gp.buttons[7].pressed || gp.buttons[5].pressed) this.shoot();
+            // Actions — routed through gamepadBindings (#131 gamepad parity).
+            const im = (typeof window !== 'undefined') ? window.inputManager : null;
+            const act = (a, fallback) => (im && typeof im.isGamepadAction === 'function')
+                ? im.isGamepadAction(gp, a)
+                : fallback();
 
-            // Melee: LT (Button 6) or X (Button 2)
-            if (gp.buttons[6].pressed || gp.buttons[2].pressed) this.melee();
-
-            // Dash: B (Button 1) or LB (Button 4) or A (Button 0)
-            if ((gp.buttons[1].pressed || gp.buttons[4].pressed || gp.buttons[0].pressed) && !this.isDashing) this.dash();
-
-            // Special: Y (Button 3)
-            if (gp.buttons[3].pressed) this.useSpecial();
-
-            // Pause: Start (Button 9)
-            if (gp.buttons[9].pressed && this.pauseDebounce <= 0) {
+            if (act('shoot', () => gp.buttons[7].pressed || gp.buttons[5].pressed)) this.shoot();
+            if (act('melee', () => gp.buttons[6].pressed || gp.buttons[2].pressed)) this.melee();
+            if (act('dash',  () => gp.buttons[1].pressed || gp.buttons[4].pressed || gp.buttons[0].pressed) && !this.isDashing) this.dash();
+            if (act('special', () => gp.buttons[3].pressed)) this.useSpecial();
+            if (act('pause',   () => gp.buttons[9].pressed) && this.pauseDebounce <= 0) {
                 togglePause();
                 this.pauseDebounce = 30;
             }

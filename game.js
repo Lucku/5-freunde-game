@@ -543,6 +543,12 @@ function handleGamepadMenu() {
     const gp = gpIndex !== -1 ? gamepads[gpIndex] : null;
     if (!gp) return;
 
+    // Suppress menu nav while a gamepad-remap capture is in flight — the next
+    // button press belongs to the remap UI, not the surrounding menu.
+    if (typeof inputManager !== 'undefined' && inputManager && inputManager._gpRemapAction) {
+        return;
+    }
+
     if (uiDebounce > 0) {
         uiDebounce--;
         return;

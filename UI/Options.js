@@ -190,6 +190,21 @@ class OptionsUI {
         }
     }
 
+    openGamepadRemap() {
+        const modal = document.getElementById('gamepad-remap-modal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        this.renderGamepadRemapRows();
+    }
+
+    closeGamepadRemap() {
+        const modal = document.getElementById('gamepad-remap-modal');
+        if (modal) modal.style.display = 'none';
+        if (window.inputManager && window.inputManager._gpRemapAction) {
+            window.inputManager.cancelGamepadRemap();
+        }
+    }
+
     renderRemapRows() {
         const list = document.getElementById('remap-list');
         if (!list) return;
@@ -224,6 +239,50 @@ class OptionsUI {
                 btn.classList.add('active');
                 window.inputManager.beginRemap(a.id, () => {
                     this.renderRemapRows();
+                });
+            });
+            list.appendChild(row);
+        }
+    }
+
+    renderGamepadRemapRows() {
+        const list = document.getElementById('gamepad-remap-list');
+        if (!list) return;
+        const cfg = window.gameConfig || {};
+        const bindings = cfg.gamepadBindings || {};
+        const ACTIONS = [
+            { id: 'shoot',   label: 'Shoot' },
+            { id: 'melee',   label: 'Melee' },
+            { id: 'dash',    label: 'Dash' },
+            { id: 'special', label: 'Special' },
+            { id: 'pause',   label: 'Pause' }
+        ];
+        const BUTTON_NAMES = {
+            0: 'A', 1: 'B', 2: 'X', 3: 'Y',
+            4: 'LB', 5: 'RB', 6: 'LT', 7: 'RT',
+            8: 'Back', 9: 'Start', 10: 'LS', 11: 'RS',
+            12: 'DPad↑', 13: 'DPad↓', 14: 'DPad←', 15: 'DPad→'
+        };
+        const labelFor = (idx) => BUTTON_NAMES[idx] !== undefined ? BUTTON_NAMES[idx] : `Btn ${idx}`;
+        list.innerHTML = '';
+        for (const a of ACTIONS) {
+            const row = document.createElement('div');
+            row.className = 'options-row';
+            const ids = bindings[a.id] || [];
+            const labelBtns = ids.length ? ids.map(labelFor).join(' / ') : '—';
+            row.innerHTML = `
+                <div class="options-row-left">
+                    <span class="options-icon">🎮</span>
+                    <span class="options-label">${a.label}</span>
+                </div>
+                <button class="opt-toggle-btn" data-action="${a.id}">${labelBtns}</button>
+            `;
+            const btn = row.querySelector('button');
+            btn.addEventListener('click', () => {
+                btn.innerText = 'PRESS BUTTON...';
+                btn.classList.add('active');
+                window.inputManager.beginGamepadRemap(a.id, () => {
+                    this.renderGamepadRemapRows();
                 });
             });
             list.appendChild(row);
@@ -297,6 +356,8 @@ window.cycleAimAssist = () => optionsUI.cycleAimAssist();
 window.cycleOneHandedScheme = () => optionsUI.cycleOneHandedScheme();
 window.openRemap = () => optionsUI.openRemap();
 window.closeRemap = () => optionsUI.closeRemap();
+window.openGamepadRemap = () => optionsUI.openGamepadRemap();
+window.closeGamepadRemap = () => optionsUI.closeGamepadRemap();
 window.a11yAnnounce = (msg) => optionsUI.announce(msg);
 
 window.showQuitWarning = function () {

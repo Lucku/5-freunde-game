@@ -8,6 +8,12 @@ class InputManager {
         this._remapAction = null;
         this._remapCallback = null;
 
+        // Gamepad remap state — polled in a rAF loop while active.
+        this._gpRemapAction = null;
+        this._gpRemapCallback = null;
+        this._gpRemapPrev = null;
+        this._gpRemapLoop = null;
+
         // Expose to window for backward compatibility with Player.js and game.js
         window.keys = this.keys;
         window.mouse = this.mouse;
@@ -68,6 +74,99 @@ class InputManager {
         if (cb) cb(key);
     }
 
+    // Gamepad button bindings — single button index per action (array stored).
+    _getGamepadBindings() {
+        const cfg = (typeof window !== 'undefined' && window.gameConfig) || null;
+        if (cfg && cfg.gamepadBindings) return cfg.gamepadBindings;
+        return null;
+    }
+
+    // True if any bound button is currently pressed for `action` on `gp`.
+    // Triggers (digital `pressed` or analog `value > 0.15`) both count.
+    isGamepadAction(gp, action) {
+        if (!gp) return false;
+        const b = this._getGamepadBindings();
+        const list = b && b[action];
+        if (!list || !list.length) return false;
+        for (const idx of list) {
+            const btn = gp.buttons[idx];
+            if (!btn) continue;
+            if (btn.pressed) return true;
+            if (typeof btn.value === 'number' && btn.value > 0.15) return true;
+        }
+        return false;
+    }
+
+    beginGamepadRemap(action, onDone) {
+        this.cancelGamepadRemap();
+        this._gpRemapAction = action;
+        this._gpRemapCallback = onDone || null;
+        this._gpRemapPrev = this._snapshotGamepadButtons();
+        this._gpRemapLoop = requestAnimationFrame(() => this._pollGamepadRemap());
+    }
+
+    cancelGamepadRemap() {
+        if (this._gpRemapLoop) cancelAnimationFrame(this._gpRemapLoop);
+        this._gpRemapLoop = null;
+        const cb = this._gpRemapCallback;
+        const wasActive = !!this._gpRemapAction;
+        this._gpRemapAction = null;
+        this._gpRemapCallback = null;
+        this._gpRemapPrev = null;
+        if (wasActive && cb) cb(null);
+    }
+
+    _snapshotGamepadButtons() {
+        const set = new Set();
+        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (const gp of pads) {
+            if (!gp || !gp.connected) continue;
+            for (let i = 0; i < gp.buttons.length; i++) {
+                const b = gp.buttons[i];
+                if (b && (b.pressed || (typeof b.value === 'number' && b.value > 0.5))) {
+                    set.add(i);
+                }
+            }
+        }
+        return set;
+    }
+
+    _pollGamepadRemap() {
+        if (!this._gpRemapAction) return;
+        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (const gp of pads) {
+            if (!gp || !gp.connected) continue;
+            for (let i = 0; i < gp.buttons.length; i++) {
+                const b = gp.buttons[i];
+                if (!b) continue;
+                const pressed = b.pressed || (typeof b.value === 'number' && b.value > 0.5);
+                if (pressed && !this._gpRemapPrev.has(i)) {
+                    this._completeGamepadRemap(i);
+                    return;
+                }
+                if (!pressed) this._gpRemapPrev.delete(i);
+            }
+        }
+        this._gpRemapLoop = requestAnimationFrame(() => this._pollGamepadRemap());
+    }
+
+    _completeGamepadRemap(idx) {
+        if (this._gpRemapLoop) cancelAnimationFrame(this._gpRemapLoop);
+        this._gpRemapLoop = null;
+        const action = this._gpRemapAction;
+        const cb = this._gpRemapCallback;
+        this._gpRemapAction = null;
+        this._gpRemapCallback = null;
+        this._gpRemapPrev = null;
+        if (!action) return;
+        const cfg = window.gameConfig;
+        if (cfg && cfg.gamepadBindings) {
+            cfg.gamepadBindings[action] = [idx];
+            if (typeof window.saveConfig === 'function') window.saveConfig();
+        }
+        if (cb) cb(idx);
+    }
+
     initListeners() {
         window.addEventListener('keydown', e => {
             const k = e.key.toLowerCase();
@@ -79,6 +178,13 @@ class InputManager {
                 } else {
                     this._completeRemap(k);
                 }
+                e.preventDefault();
+                return;
+            }
+
+            // Esc also cancels an in-flight gamepad remap.
+            if (this._gpRemapAction && k === 'escape') {
+                this.cancelGamepadRemap();
                 e.preventDefault();
                 return;
             }
