@@ -16,48 +16,108 @@ if (_isElectronDLC) {
 class DLCManager {
     constructor() {
         this.activeDLCs = [];
+        // #29 P3 — `heroes` lists every hero type the DLC ships so consumers
+        // can reverse-map hero → owning DLC without loading the full module.
+        // Eager `init()` parallel-loads everything that's enabled today; the
+        // memoized `loadDLC` + `ensureDLCLoaded` below give callers a clean
+        // path to lazy-load on first hero pick once the surrounding UI
+        // (Achievements / Collection / Story menus) is hardened against
+        // partially-registered DLC content.
         this.availableDLCs = {
             'rise_of_the_rock': {
                 title: "Rise of the Rock",
                 desc: "Unleash the power of the Earth! Adds a new Earth Hero, Rock Biome, new enemies, and powerful mutations.",
-                icon: "⛰️"
+                icon: "⛰️",
+                heroes: ['earth']
             },
             'tournament_of_thunder': {
                 title: "The Tournament of Thunder",
                 desc: "Enter the Cloud Kingdom! Introduces the Lightning Hero, Cloud Biome, and the legendary Tournament.",
-                icon: "⚡"
+                icon: "⚡",
+                heroes: ['lightning']
             },
             'champions_of_chaos': {
                 title: "Champions of Chaos",
                 desc: "Defy gravity! Introduces the new Purple Hero 'Gravity', a chaotic playstyle, a distorted dimension, and a story of entropy.",
-                icon: "🌌"
+                icon: "🌌",
+                heroes: ['gravity', 'void']
             },
             'waker_of_winds': {
                 title: "Waker of Winds",
                 desc: "Soar through the skies! Introduces the Turquoise Hero 'Air', the Sky Palace biome, and a tale of freedom.",
-                icon: "🌪️"
+                icon: "🌪️",
+                heroes: ['air', 'wind']
             },
             'faith_of_fortune': {
                 title: "Faith of Fortune",
                 desc: "Balance vs Chaos! Introduces 'Spirit' and 'Chance'. Temples, madness, and the search for the Mask.",
-                icon: "🎰"
+                icon: "🎰",
+                heroes: ['spirit', 'chance']
             },
             'symphony_of_sickness': {
                 title: "Symphony of Sickness",
                 desc: "Rhythm vs Decay! Introduces 'Sound' and 'Poison' Heroes. Master the beat or spread the plague.",
-                icon: "🎵"
+                icon: "🎵",
+                heroes: ['sound', 'poison']
             },
             'echos_of_eternity': {
                 title: "Echos of Eternity",
                 desc: "Where all timelines converge. Introduces the Time Hero, the hidden Love Hero, and the Maze of Time.",
-                icon: "⌛"
+                icon: "⌛",
+                heroes: ['time', 'love']
             },
             'disciples_of_deception': {
                 title: "Disciples of Deception",
                 desc: "A character pack — three deception-themed heroes (Psycho, Mirror, Smoke) with their own biomes. No story mode.",
-                icon: "🎭"
+                icon: "🎭",
+                heroes: ['psycho', 'mirror', 'smoke']
             }
         };
+        // #29 P3 — memoize in-flight loads so concurrent ensureDLCLoaded calls
+        // share the same promise; resolved promises stay cached so subsequent
+        // calls are O(1).
+        this._loadPromises = new Map();
+        // #29 P3 — reverse index built lazily from availableDLCs.
+        this._heroOwnerIndex = null;
+    }
+
+    // #29 P3 — Build (and cache) a heroType → dlcId reverse map.
+    _buildHeroOwnerIndex() {
+        const idx = {};
+        for (const id in this.availableDLCs) {
+            const heroes = this.availableDLCs[id].heroes || [];
+            for (let i = 0; i < heroes.length; i++) idx[heroes[i]] = id;
+        }
+        this._heroOwnerIndex = idx;
+    }
+
+    /**
+     * Reverse-lookup the DLC that owns a hero type. Returns null for base
+     * heroes (fire/water/ice/plant/metal/black) which aren't shipped by a DLC.
+     */
+    getHeroOwnerDLC(heroType) {
+        if (!this._heroOwnerIndex) this._buildHeroOwnerIndex();
+        return this._heroOwnerIndex[heroType] || null;
+    }
+
+    /**
+     * Idempotent + memoized DLC load. Repeated calls return the same in-flight
+     * (or already-resolved) promise — safer than the old `loadDLC` which
+     * double-imported when called concurrently. Use this from any code path
+     * that needs DLC content registered before proceeding (hero pick, story
+     * mode entry, achievement screen open, etc.).
+     */
+    ensureDLCLoaded(id) {
+        if (this.activeDLCs.includes(id)) return Promise.resolve();
+        let p = this._loadPromises.get(id);
+        if (p) return p;
+        p = this.loadDLC(id).catch(e => {
+            // Allow re-attempt on next call after a failure.
+            this._loadPromises.delete(id);
+            throw e;
+        });
+        this._loadPromises.set(id, p);
+        return p;
     }
 
     _loadEnabledDLCs() {
@@ -119,8 +179,11 @@ class DLCManager {
         // of round-trip per dynamic <script>. Order independence is fine: each
         // DLC self-registers via window.DLC_REGISTRY and its hero/biome inject
         // hooks read from the same global registries.
+        // #29 P3 — go through ensureDLCLoaded so concurrent init calls share
+        // the same promise + the memoization is uniform between eager init
+        // and on-demand load paths (hero pick, story menu, etc.).
         const t0 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
-        await Promise.all(enabledDLCs.map(id => this.loadDLC(id).catch(e => {
+        await Promise.all(enabledDLCs.map(id => this.ensureDLCLoaded(id).catch(e => {
             console.error(`DLC ${id} load failed:`, e);
         })));
         const t1 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
