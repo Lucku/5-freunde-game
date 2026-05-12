@@ -4527,63 +4527,184 @@ input:checked+.slider:before {
 
 :root { --ui-font-scale: 1; }
 
-/* Font scaling — applies to HUD + screen labels. Set on :root by Config.js. */
-#score-board,
-.hud-lbl,
-#gold-display,
-#wave-display,
-.options-label,
-.options-section-label,
-.options-title,
-.options-subtitle,
-.opt-toggle-btn,
-.screen-title,
-.screen-subtitle,
-#level-text,
-#xp-text,
-#wave-info {
-    font-size: calc(1em * var(--ui-font-scale));
+/* ── Font scaling (#136) ──────────────────────────────────────────────────────
+ * `zoom` scales every descendant — font sizes, padding, button hit-boxes —
+ * proportionally without rewriting each rule. Applied to every menu / modal /
+ * overlay panel container so the entire in-game UI tracks the slider.
+ *
+ * HUD elements (canvas-anchored) keep using per-rule `calc()` scaling so they
+ * remain positioned correctly when the game canvas is the layout root.
+ */
+
+/* HUD — `zoom` on each anchored wrapper. Each HUD element is independently
+ * fixed / absolute positioned, so zooming the wrapper scales its text + icons
+ * + padding without affecting siblings. Debug overlay + cheat console are
+ * intentionally excluded so dev tools stay fixed-size. */
+#hud-top-left,
+#combo-display,
+#chaos-challenge-hud,
+#online-name-bar,
+#notification-area,
+#weather-display,
+#weather-bar-wrap,
+#objective-display,
+#hero-subtitle,
+#event-text,
+#bottom-ui,
+#p2-hud,
+#tg-mode-overlay,
+#special-cooldown-overlay,
+#p2-special-cooldown-overlay {
+    zoom: var(--ui-font-scale);
 }
 
-/* High-contrast UI override — flattens transparency, forces high-contrast palette
- * on every floating screen + options panel. Canvas/game world unaffected. */
+/* Menu / modal / overlay panels — whole-panel zoom catches every label, button,
+ * card, and chip inside without per-class rules. */
+#start-screen, #menu-overlay,
+#pause-screen, #game-over-screen, #victory-screen,
+#levelup-screen, #shop-screen, #perm-shop-screen,
+#options-screen, #remap-modal, #gamepad-remap-modal,
+#achievements-screen, #highscore-screen, #skill-tree-screen,
+#stats-screen, #collection-screen, #story-screen,
+#altar-screen, #chaos-shop-screen, #chaos-selection-screen,
+#tutorial-screen, #completion-screen, #dlc-screen,
+#info-dialogue-screen, #online-lobby-screen, #versus-selection-screen,
+#cloud-login-modal, #cloud-conflict-modal, #server-config-modal,
+#daily-info-modal, #save-backups-modal, #whatsnew-modal,
+#testing-spawn-menu, #global-lobby-menu, #bug-report-overlay,
+#tutorial-welcome-overlay, #story-intro-screen {
+    zoom: var(--ui-font-scale);
+}
+
+/* ── High-contrast UI (#135) ──────────────────────────────────────────────────
+ * Forces black-on-white panels + thick borders across every UI screen. Canvas /
+ * world geometry untouched. Uses broad descendant selectors so newly-added
+ * screens inherit the override automatically. */
+
+/* Panel + screen backgrounds */
 body.high-contrast .options-panel,
 body.high-contrast .modal-panel,
+body.high-contrast #start-screen,
+body.high-contrast #menu-overlay,
 body.high-contrast #pause-screen,
 body.high-contrast #game-over-screen,
+body.high-contrast #victory-screen,
 body.high-contrast #levelup-screen,
 body.high-contrast #shop-screen,
+body.high-contrast #perm-shop-screen,
 body.high-contrast #options-screen,
-body.high-contrast #remap-modal {
+body.high-contrast #remap-modal,
+body.high-contrast #gamepad-remap-modal,
+body.high-contrast #achievements-screen,
+body.high-contrast #highscore-screen,
+body.high-contrast #skill-tree-screen,
+body.high-contrast #stats-screen,
+body.high-contrast #collection-screen,
+body.high-contrast #story-screen,
+body.high-contrast #altar-screen,
+body.high-contrast #chaos-shop-screen,
+body.high-contrast #chaos-selection-screen,
+body.high-contrast #tutorial-screen,
+body.high-contrast #completion-screen,
+body.high-contrast #dlc-screen,
+body.high-contrast #info-dialogue-screen,
+body.high-contrast #online-lobby-screen,
+body.high-contrast #versus-selection-screen,
+body.high-contrast #cloud-login-modal,
+body.high-contrast #cloud-conflict-modal,
+body.high-contrast #server-config-modal,
+body.high-contrast #daily-info-modal,
+body.high-contrast #save-backups-modal,
+body.high-contrast #whatsnew-modal,
+body.high-contrast #testing-spawn-menu,
+body.high-contrast #global-lobby-menu,
+body.high-contrast #bug-report-overlay,
+body.high-contrast #tutorial-welcome-overlay,
+body.high-contrast #story-intro-screen {
     background: #000 !important;
     color: #fff !important;
 }
 
+/* Cards / rows / buttons — generic high-contrast styling */
 body.high-contrast .options-row,
 body.high-contrast .opt-toggle-btn,
 body.high-contrast .upgrade-card,
 body.high-contrast .shop-item,
-body.high-contrast .hero-card {
+body.high-contrast .hero-card,
+body.high-contrast .dlc-card,
+body.high-contrast .skill-node,
+body.high-contrast .coll-set,
+body.high-contrast .collection-card,
+body.high-contrast .altar-pill,
+body.high-contrast .altar-node,
+body.high-contrast .altar-rune,
+body.high-contrast .altar-conv-item,
+body.high-contrast .achievement-row,
+body.high-contrast .stat-row,
+body.high-contrast .summary-card,
+body.high-contrast .menu-btn,
+body.high-contrast .menu-sys-btn,
+body.high-contrast .menu-lib-btn,
+body.high-contrast .pause-resume-btn,
+body.high-contrast .pause-quit-btn,
+body.high-contrast .game-over-play-btn,
+body.high-contrast .opt-back-btn,
+body.high-contrast .screen-action-btn,
+body.high-contrast .screen-back-btn,
+body.high-contrast .pause-stat-cell,
+body.high-contrast .pu-chip,
+body.high-contrast .pc-chip,
+body.high-contrast .btn {
     background: #000 !important;
     border: 2px solid #fff !important;
     color: #fff !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 
-body.high-contrast .opt-toggle-btn.active {
+/* Active / selected states stand out as inverted swatches */
+body.high-contrast .opt-toggle-btn.active,
+body.high-contrast .pu-chip,
+body.high-contrast .pc-chip {
     background: #fff !important;
     color: #000 !important;
     border-color: #fff !important;
 }
 
+/* Text classes — flatten translucent labels */
 body.high-contrast .options-label,
 body.high-contrast .options-section-label,
 body.high-contrast .options-title,
 body.high-contrast .options-subtitle,
-body.high-contrast .hud-lbl {
+body.high-contrast .options-gamepad-hint,
+body.high-contrast .screen-title,
+body.high-contrast .screen-subtitle,
+body.high-contrast .hud-lbl,
+body.high-contrast .tut-card-title,
+body.high-contrast .tut-section-title,
+body.high-contrast .ps-label,
+body.high-contrast .ps-value,
+body.high-contrast .pause-section-title,
+body.high-contrast .cloud-label,
+body.high-contrast .cloud-status,
+body.high-contrast .gamepad-hint {
     color: #fff !important;
     opacity: 1 !important;
+    -webkit-text-fill-color: #fff !important;  /* override gradient titles */
 }
 
+/* Inputs */
+body.high-contrast input.cloud-input,
+body.high-contrast input[type="text"],
+body.high-contrast input[type="password"],
+body.high-contrast input[type="url"],
+body.high-contrast input[type="number"] {
+    background: #000 !important;
+    color: #fff !important;
+    border: 2px solid #fff !important;
+}
+
+/* Selected focus ring */
 body.high-contrast .selected {
     outline: 3px solid #ff0 !important;
     outline-offset: 2px;

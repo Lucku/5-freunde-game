@@ -862,6 +862,8 @@ window.getHeroTheme = function (type) {
     if (type === 'chance') return { bg: '#1a0b1a', grid: '#4a004a' }; // Casino Neon
     if (type === 'sound') return { bg: '#b3e5fc', grid: '#b8d4e1' }; // Harmonic Plains
     if (type === 'poison') return { bg: '#dcedc8', grid: '#aed581' }; // Toxic Bog
+    if (type === 'smoke')  return { bg: '#14140f', grid: '#3a3a32' }; // Smog Quarter
+    if (type === 'mirror') return { bg: '#050d18', grid: '#1a5276' }; // Hall of Mirrors
     return { bg: '#1a1a1a', grid: '#333' };
 };
 // ESM exports — server/loader.js unwraps via `.default`. window shims keep
