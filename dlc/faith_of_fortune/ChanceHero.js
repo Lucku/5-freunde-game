@@ -768,7 +768,7 @@ window.HERO_LOGIC['chance'].onGainGold = function (player, amount) {
     if (hasLiquid) {
         if (Math.random() < 0.1) {
             player.hp = Math.min(player.maxHp, player.hp + 1);
-            if (typeof floatingTexts !== 'undefined') floatingTexts.push(new FloatingText(player.x, player.y - 20, "+1 HP", "#2ecc71", 15));
+            if (typeof floatingTexts !== 'undefined') floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "+1 HP", "#2ecc71", 15));
         }
     }
 

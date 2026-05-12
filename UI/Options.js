@@ -32,8 +32,6 @@ class OptionsUI {
         if (typeof window.gameConfig === 'undefined') return;
 
         const map = {
-            'musicEnabled':            'opt-music-btn',
-            'sfxEnabled':              'opt-sfx-btn',
             'damageNumbers':           'opt-dmg-btn',
             'screenShake':             'opt-shake-btn',
             'controllerVibration':     'opt-vibration-btn',
@@ -56,6 +54,21 @@ class OptionsUI {
                 btn.innerText = isActive ? "ON" : "OFF";
                 btn.className = isActive ? "opt-toggle-btn active" : "opt-toggle-btn";
             }
+        }
+
+        // #127 — volume sliders rendered as percent buttons.
+        const volMap = {
+            'musicVolume': 'opt-musicvol-btn',
+            'sfxVolume':   'opt-sfxvol-btn',
+            'voiceVolume': 'opt-voicevol-btn',
+            'uiVolume':    'opt-uivol-btn'
+        };
+        for (const key in volMap) {
+            const btn = document.getElementById(volMap[key]);
+            if (!btn) continue;
+            const pct = Math.round((Number(window.gameConfig[key]) || 0) * 100);
+            btn.innerText = pct === 0 ? 'MUTE' : `${pct}%`;
+            btn.className = (pct === 0) ? 'opt-toggle-btn' : 'opt-toggle-btn active';
         }
 
         // Colorblind cycles through 4 modes — render label rather than ON/OFF
@@ -109,6 +122,18 @@ class OptionsUI {
         const next = order[(order.indexOf(cur) + 1) % order.length];
         window.gameConfig.colorblindMode = next;
         if (typeof saveConfig === 'function') saveConfig();
+        this.updateOptionButtons();
+    }
+
+    cycleVolume(key) {
+        if (typeof window.gameConfig === 'undefined') return;
+        const order = [0, 0.25, 0.5, 0.75, 1.0];
+        const cur = Number(window.gameConfig[key]);
+        let idx = order.findIndex(v => Math.abs(v - cur) < 0.01);
+        if (idx < 0) idx = order.length - 1;
+        window.gameConfig[key] = order[(idx + 1) % order.length];
+        if (typeof saveConfig === 'function') saveConfig();
+        if (typeof window.audioManager !== 'undefined') window.audioManager.updateSettings();
         this.updateOptionButtons();
     }
 
@@ -266,6 +291,7 @@ window.closeOptions = () => optionsUI.closeOptions();
 window.toggleOption = (key) => optionsUI.toggleOption(key);
 window.updateOptionButtons = () => optionsUI.updateOptionButtons();
 window.cycleColorblindMode = () => optionsUI.cycleColorblindMode();
+window.cycleVolume = (key) => optionsUI.cycleVolume(key);
 window.cycleFontScale = () => optionsUI.cycleFontScale();
 window.cycleAimAssist = () => optionsUI.cycleAimAssist();
 window.cycleOneHandedScheme = () => optionsUI.cycleOneHandedScheme();

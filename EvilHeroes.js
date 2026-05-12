@@ -265,7 +265,7 @@ window.HERO_LOGIC['green_goblin'] = {
                         const dmg = b.dmg * (isCrit ? p.critMultiplier : 1) * (1 - (e.damageReduction || 0));
                         e.hp -= dmg;
                         if (floatingTexts)
-                            floatingTexts.push(new FloatingText(e.x, e.y - 20, Math.ceil(dmg), isCrit ? '#ffd700' : '#e67e22', isCrit ? 26 : 20));
+                            floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, Math.ceil(dmg), isCrit ? '#ffd700' : '#e67e22', isCrit ? 26 : 20));
                     }
                 });
 
@@ -580,7 +580,7 @@ window.HERO_LOGIC['makuta'] = {
                 if (Math.hypot(e.x - lx, e.y - ly) < e.radius + 14) {
                     e.hp -= dmgPerFrame;
                     if (floatingTexts && Math.random() < 0.08)
-                        floatingTexts.push(new FloatingText(e.x, e.y - 20, Math.ceil(dmgPerFrame), '#8e44ad', 18));
+                        floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, Math.ceil(dmgPerFrame), '#8e44ad', 18));
                 }
             });
         }

@@ -3720,13 +3720,27 @@ input:checked+.slider:before {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 16px;
-    padding: 32px;
+    padding: 24px 32px;
     width: 100%;
-    max-width: 440px;
+    max-width: 520px;
+    max-height: 88vh;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 18px;
     box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+.options-panel::-webkit-scrollbar { width: 6px; }
+.options-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 3px; }
+.options-gamepad-hint {
+    font-size: 10px;
+    text-align: center;
+    color: rgba(255,255,255,0.40);
+    letter-spacing: 1.2px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.06);
 }
 
 .options-header {

@@ -187,7 +187,7 @@ class TimeHero {
                 if (typeof player.takeDamage === 'function') player.takeDamage(rawDmg);
                 else player.hp = Math.max(0, player.hp - rawDmg);
                 if (floatingTexts && typeof FloatingText !== 'undefined')
-                    floatingTexts.push(new FloatingText(player.x, player.y - 25, Math.floor(rawDmg), '#c8aa6e', 18));
+                    floatingTexts.push(FloatingText.acquire(player.x, player.y - 25, Math.floor(rawDmg), '#c8aa6e', 18));
                 shadow.hitCd = 90;
             }
 
@@ -266,7 +266,7 @@ class TimeHero {
                     if (e._timeSlowed) {
                         e.hp -= burnDmg;
                         if (typeof particles !== 'undefined' && typeof Particle !== 'undefined' && Math.random() < 0.5) {
-                            particles.push(new Particle(e.x, e.y - e.radius, '#ff4500', { x: (Math.random() - 0.5) * 1.5, y: -2 }));
+                            particles.push(Particle.acquire(e.x, e.y - e.radius, '#ff4500', { x: (Math.random() - 0.5) * 1.5, y: -2 }));
                         }
                     }
                 });
@@ -353,7 +353,7 @@ class TimeHero {
             if (typeof particles !== 'undefined' && typeof Particle !== 'undefined') {
                 for (let i = 0; i < 6; i++) {
                     const a = Math.random() * Math.PI * 2;
-                    particles.push(new Particle(shadow.x, shadow.y, '#c8aa6e', { x: Math.cos(a) * 2, y: Math.sin(a) * 2 }));
+                    particles.push(Particle.acquire(shadow.x, shadow.y, '#c8aa6e', { x: Math.cos(a) * 2, y: Math.sin(a) * 2 }));
                 }
             }
         }
@@ -518,7 +518,7 @@ class TimeHero {
         if (typeof particles !== 'undefined' && typeof Particle !== 'undefined') {
             for (let i = 0; i < 24; i++) {
                 const a = (Math.PI * 2 / 24) * i;
-                particles.push(new Particle(player.x, player.y, '#d4af37',
+                particles.push(Particle.acquire(player.x, player.y, '#d4af37',
                     { x: Math.cos(a) * 4.5, y: Math.sin(a) * 4.5 }));
             }
         }
@@ -558,7 +558,7 @@ class TimeHero {
                 }
             }
             if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined')
-                floatingTexts.push(new FloatingText(player.x, player.y - 50,
+                floatingTexts.push(FloatingText.acquire(player.x, player.y - 50,
                     `${shadowCount} ECHOES COLLAPSE!`, '#ffd700', 90));
         }
 
@@ -685,7 +685,7 @@ class TimeHero {
             if (typeof particles !== 'undefined' && typeof Particle !== 'undefined') {
                 for (let i = 0; i < 14; i++) {
                     const a = (Math.PI * 2 / 14) * i;
-                    particles.push(new Particle(player.x, player.y, '#c8aa6e',
+                    particles.push(Particle.acquire(player.x, player.y, '#c8aa6e',
                         { x: Math.cos(a) * 3, y: Math.sin(a) * 3 }));
                 }
             }

@@ -151,10 +151,34 @@ class AudioManager {
         this.musicEnabled = true;
         this.sfxEnabled   = true;
 
+        // #127 — snapshot per-track base volume so category multipliers can
+        // recompute live volumes without losing the per-track mix.
+        for (const k in this.tracks) {
+            const t = this.tracks[k];
+            if (t && typeof t.volume === 'number') t._baseVolume = t.volume;
+        }
+
         this.updateSettings();
 
         // Loop Tracking
         this.activeLoops = {};
+    }
+
+    // #127 — category lookup. UI category falls back to SFX if not separately
+    // categorised (only level_up / pickup_card / achievement_unlocked tagged).
+    _categoryOf(key) {
+        if (this.isMusic(key)) return 'music';
+        if (/^(level_up|pickup_|achievement|wave_completed|challenge_)/.test(key)) return 'ui';
+        return 'sfx';
+    }
+
+    _categoryMultiplier(category) {
+        const cfg = (typeof gameConfig !== 'undefined') ? gameConfig : null;
+        if (!cfg) return 1;
+        if (category === 'music') return Number(cfg.musicVolume ?? 1);
+        if (category === 'voice') return Number(cfg.voiceVolume ?? 1);
+        if (category === 'ui')    return Number(cfg.uiVolume ?? 1);
+        return Number(cfg.sfxVolume ?? 1);
     }
 
     // ── DLC Registration API ──────────────────────────────────────────────────
@@ -273,7 +297,7 @@ class AudioManager {
         }
 
         this.voice = new Audio(path);
-        this.voice.volume = 0.8;
+        this.voice.volume = 0.8 * this._categoryMultiplier('voice');
         this.voice.play().catch(e => console.warn(`Audio memory not found: ${path}`, e));
         if (this.tracks.museum) this.tracks.museum.volume = 0.2;
         this.voice.onended = () => {
@@ -303,7 +327,7 @@ class AudioManager {
         }
 
         const audio = new Audio(path);
-        audio.volume = 1.0;
+        audio.volume = 1.0 * this._categoryMultiplier('voice');
         this._exclamationPlaying = true;
 
         // Duck music while the exclamation plays, restore after
@@ -354,6 +378,10 @@ class AudioManager {
             el.classList.add('hero-sub-hidden');
             el.classList.remove('hero-sub-visible');
         }, duration);
+        // #137 mirror into ARIA live region so screen readers announce voice lines.
+        if (typeof window !== 'undefined' && typeof window.a11yAnnounce === 'function') {
+            window.a11yAnnounce(`${heroName}: ${text}`);
+        }
     }
 
     toggleMute() {
@@ -364,17 +392,32 @@ class AudioManager {
 
     updateSettings() {
         if (typeof gameConfig !== 'undefined') {
-            if (this.musicEnabled !== gameConfig.musicEnabled) {
-                this.musicEnabled = gameConfig.musicEnabled;
-                if (!this.musicEnabled) this.stopAllMusic();
+            // Per-channel volume sliders are the source of truth. Old
+            // `musicEnabled` / `sfxEnabled` keys are derived: 0% = disabled.
+            const musicOn = (Number(gameConfig.musicVolume) || 0) > 0;
+            const sfxOn   = (Number(gameConfig.sfxVolume)   || 0) > 0;
+            gameConfig.musicEnabled = musicOn;
+            gameConfig.sfxEnabled   = sfxOn;
+            if (this.musicEnabled !== musicOn) {
+                this.musicEnabled = musicOn;
+                if (!musicOn) this.stopAllMusic();
             }
-            this.sfxEnabled = gameConfig.sfxEnabled;
-            // Stop any looping SFX tracks that are playing when SFX is disabled
-            if (!this.sfxEnabled) {
+            this.sfxEnabled = sfxOn;
+            // Stop any looping SFX tracks that are playing when SFX is muted
+            if (!sfxOn) {
                 for (const key in this.tracks) {
                     const t = this.tracks[key];
                     if (t && t.loop && !this.isMusic(key) && !t.paused) t.pause();
                 }
+            }
+
+            // #127 — re-apply per-category volume multipliers to every track.
+            for (const key in this.tracks) {
+                const t = this.tracks[key];
+                if (!t) continue;
+                const base = (typeof t._baseVolume === 'number') ? t._baseVolume : 1;
+                const mult = this._categoryMultiplier(this._categoryOf(key));
+                t.volume = Math.max(0, Math.min(1, base * mult));
             }
         }
     }

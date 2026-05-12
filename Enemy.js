@@ -204,7 +204,7 @@ class Enemy {
 
         if (this.frozenTimer > 0) {
             this.frozenTimer--;
-            if (frame % 10 === 0) particles.push(new Particle(this.x, this.y, '#aaddff'));
+            if (frame % 10 === 0) particles.push(Particle.acquire(this.x, this.y, '#aaddff'));
             return;
         }
 
@@ -285,7 +285,7 @@ class Enemy {
                 if (Math.hypot(player.x - this.x, player.y - this.y) < 100) {
                     if (!player.isInvincible) {
                         player.hp -= 40 * (1 - player.damageReduction);
-                        floatingTexts.push(new FloatingText(player.x, player.y - 20, "40", "#e74c3c", 20));
+                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "40", "#e74c3c", 20));
                     }
                     // Track hits for Untouchable objective
                     if (currentObjective && currentObjective.type === 'UNTOUCHABLE') {
@@ -383,7 +383,7 @@ class Enemy {
                         if (e !== this && Math.hypot(e.x - this.x, e.y - this.y) < 200) {
                             e.hp = Math.min(e.maxHp ?? e.hp, e.hp + healAmount);
                             // Visual heal
-                            particles.push(new Particle(e.x, e.y, '#2ecc71'));
+                            particles.push(Particle.acquire(e.x, e.y, '#2ecc71'));
                         }
                     });
                 }

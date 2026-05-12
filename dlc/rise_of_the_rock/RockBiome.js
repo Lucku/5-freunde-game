@@ -312,7 +312,7 @@ class RockBiome {
                         if (!player.isInvincible) {
                             const dmg = 30 * (1 - player.damageReduction);
                             player.hp -= dmg;
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.floor(dmg), "#795548", 20));
+                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.floor(dmg), "#795548", 20));
                         }
                     }
 
@@ -320,7 +320,7 @@ class RockBiome {
                     enemies.forEach(e => {
                         if (Math.hypot(e.x - h.x, e.y - h.y) < h.radius) {
                             e.hp -= 100;
-                            floatingTexts.push(new FloatingText(e.x, e.y - 20, "100", "#795548", 20));
+                            floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, "100", "#795548", 20));
                         }
                     });
 

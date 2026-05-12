@@ -126,13 +126,40 @@ function shadeColor(color, percent) {
     return "#" + pad(R) + pad(G) + pad(B);
 }
 
+// #22 — radial-gradient cache. Gradients bound to a canvas context can be
+// reused across frames as long as the local-coordinate geometry stays
+// constant. Callers should `ctx.translate(x, y)` first and request a gradient
+// centred at (0,0). Cache is keyed by an opaque string supplied by the caller
+// (typically `<callsite>:<color>:<radius>`). Bounded to LRU-ish soft cap so a
+// runaway DLC can't grow it unbounded.
+const _GRAD_CACHE = new Map();
+const _GRAD_CACHE_MAX = 512;
+function cachedRadial(ctx, key, r0, r1, stops) {
+    let g = _GRAD_CACHE.get(key);
+    if (g) return g;
+    g = ctx.createRadialGradient(0, 0, r0, 0, 0, r1);
+    for (let i = 0; i < stops.length; i++) {
+        g.addColorStop(stops[i][0], stops[i][1]);
+    }
+    if (_GRAD_CACHE.size >= _GRAD_CACHE_MAX) {
+        // Drop oldest entry. Map iteration order is insertion order.
+        const firstKey = _GRAD_CACHE.keys().next().value;
+        if (firstKey !== undefined) _GRAD_CACHE.delete(firstKey);
+    }
+    _GRAD_CACHE.set(key, g);
+    return g;
+}
+function clearGradientCache() { _GRAD_CACHE.clear(); }
+
 // ESM exports — file is loaded via `<script type="module">`. The window shims
 // below keep classic-script callers (not yet ESM-migrated) working unchanged.
-export { drawHeroSprite, shadeColor, mulberry32 };
+export { drawHeroSprite, shadeColor, mulberry32, cachedRadial, clearGradientCache };
 if (typeof window !== 'undefined') {
     window.drawHeroSprite = drawHeroSprite;
     window.shadeColor     = shadeColor;
     // mulberry32 already exported via window above; this line keeps the
     // assignment grouped with the others when callers grep for the shim block.
     window.mulberry32     = mulberry32;
+    window.cachedRadial   = cachedRadial;
+    window.clearGradientCache = clearGradientCache;
 }

@@ -86,11 +86,11 @@ class Companion {
         if (this.type === 'fire' && this.player.type === 'ice') {
             // Thermal Shock: High Damage to frozen enemies
             if (target.frozenTimer > 0) {
-                floatingTexts.push(new FloatingText(target.x, target.y, 50, '#e74c3c', 20));
+                floatingTexts.push(FloatingText.acquire(target.x, target.y, 50, '#e74c3c', 20));
                 target.hp -= 50;
                 target.frozenTimer = 0; // Melt
             } else {
-                floatingTexts.push(new FloatingText(target.x, target.y, 10, '#e74c3c', 15));
+                floatingTexts.push(FloatingText.acquire(target.x, target.y, 10, '#e74c3c', 15));
                 target.hp -= 10;
             }
         }
@@ -99,7 +99,7 @@ class Companion {
             if (target === this.player) {
                 if (this.player.hp < this.player.maxHp) {
                     this.player.hp = Math.min(this.player.hp + 5, this.player.maxHp);
-                    floatingTexts.push(new FloatingText(this.player.x, this.player.y, "+5", '#2ecc71', 15)); // Green number for heal
+                    floatingTexts.push(FloatingText.acquire(this.player.x, this.player.y, "+5", '#2ecc71', 15)); // Green number for heal
                 }
             }
         }
@@ -107,7 +107,7 @@ class Companion {
         else {
             if (target !== this.player) {
                 target.hp -= 15;
-                floatingTexts.push(new FloatingText(target.x, target.y, 15, this.color, 15));
+                floatingTexts.push(FloatingText.acquire(target.x, target.y, 15, this.color, 15));
             }
         }
     }

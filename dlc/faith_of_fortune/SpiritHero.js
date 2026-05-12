@@ -245,7 +245,7 @@ class SpiritHero {
                 // Skill: Regeneration
                 if (player.meditationRegen && player.hp < player.maxHp) {
                     player.hp += 5;
-                    if (typeof FloatingText !== 'undefined') new FloatingText(player.x, player.y - 20, "+5", "#ff69b4", 12);
+                    if (typeof FloatingText !== 'undefined') FloatingText.acquire(player.x, player.y - 20, "+5", "#ff69b4", 12);
                 }
 
                 else if (hasLotus) {
@@ -418,7 +418,7 @@ class SpiritHero {
                             player.innerPeace = Math.max(0, player.innerPeace - 5);
                             // Visual Float Text if possible
                             if (typeof floatingTexts !== 'undefined' && Math.random() < 0.3) {
-                                floatingTexts.push(new FloatingText(player.x, player.y - 40, "-Peace", "#cfcfcf", 15));
+                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "-Peace", "#cfcfcf", 15));
                             }
                         }
 

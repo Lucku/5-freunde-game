@@ -26,7 +26,7 @@ class ChaosEnemies {
     static updateVoidWalker(enemy) {
         // Void trail particles
         if (Math.random() < 0.12 && typeof particles !== 'undefined') {
-            particles.push(new Particle(enemy.x, enemy.y, '#4a235a'));
+            particles.push(Particle.acquire(enemy.x, enemy.y, '#4a235a'));
         }
 
         // Phase cycle — immune + near-invisible for 2s every 8s

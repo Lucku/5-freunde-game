@@ -37,7 +37,7 @@
 
     function floatText(x, y, txt, color) {
         if (typeof floatingTexts !== 'undefined') {
-            floatingTexts.push(new FloatingText(x, y - 60, txt, color || '#fff', 2.5));
+            floatingTexts.push(FloatingText.acquire(x, y - 60, txt, color || '#fff', 2.5));
         }
     }
 

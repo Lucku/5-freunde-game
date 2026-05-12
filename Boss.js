@@ -172,7 +172,7 @@ class Boss {
         // Phase Transition Logic (GREEN_GOBLIN and MAKUTA handle their own phases)
         if (this.phase === 1 && this.hp <= this.maxHp * 0.5 && this.type !== 'GREEN_GOBLIN' && this.type !== 'MAKUTA') {
             this.phase = 2;
-            floatingTexts.push(new FloatingText(this.x, this.y - 60, "PHASE 2!", "#e74c3c", 30));
+            floatingTexts.push(FloatingText.acquire(this.x, this.y - 60, "PHASE 2!", "#e74c3c", 30));
             createExplosion(this.x, this.y, this.color);
 
             if (this.type === 'TANK') {
@@ -225,7 +225,7 @@ class Boss {
             if (this.minionsToKill <= 0) {
                 if (this.immune) {
                     this.immune = false;
-                    floatingTexts.push(new FloatingText(this.x, this.y - 60, "SHIELD BROKEN!", "#fff", 30));
+                    floatingTexts.push(FloatingText.acquire(this.x, this.y - 60, "SHIELD BROKEN!", "#fff", 30));
                     createExplosion(this.x, this.y, '#fff');
                     if (typeof audioManager !== 'undefined') audioManager.play('boss_summoner_shield_break');
                 }
@@ -244,7 +244,7 @@ class Boss {
                 this.speed *= 1.3;
                 this.bombCooldown = Math.min(this.bombCooldown, 60);
                 createExplosion(this.x, this.y, '#e67e22');
-                floatingTexts.push(new FloatingText(this.x, this.y - 80, "GOING MAD!", "#e67e22", 28));
+                floatingTexts.push(FloatingText.acquire(this.x, this.y - 80, "GOING MAD!", "#e67e22", 28));
                 if (typeof showNotification === 'function') showNotification("GOING MAD!", "#e67e22");
             }
             if (this.phase === 2 && this.hp <= this.maxHp * 0.3) {
@@ -253,7 +253,7 @@ class Boss {
                 this.magnetStrength = 2.2;
                 this.bombCooldown = Math.min(this.bombCooldown, 42);
                 createExplosion(this.x, this.y, '#e74c3c');
-                floatingTexts.push(new FloatingText(this.x, this.y - 80, "MANIC MODE!", "#e74c3c", 32));
+                floatingTexts.push(FloatingText.acquire(this.x, this.y - 80, "MANIC MODE!", "#e74c3c", 32));
                 if (typeof showNotification === 'function') showNotification("MANIC MODE!", "#e74c3c");
             }
 
@@ -272,7 +272,7 @@ class Boss {
                             if (!_t.isInvincible && (_t.invincibleTimer || 0) <= 0) {
                                 const _dmg = this.damage * 1.6 * (1 - (_t.damageReduction || 0));
                                 _t.hp -= _dmg;
-                                floatingTexts.push(new FloatingText(_t.x, _t.y - 20, Math.ceil(_dmg), "#e74c3c", 20));
+                                floatingTexts.push(FloatingText.acquire(_t.x, _t.y - 20, Math.ceil(_dmg), "#e74c3c", 20));
                                 if (typeof audioManager !== 'undefined') audioManager.play('damage');
                             }
                         }
@@ -666,7 +666,7 @@ class Boss {
                         const dist = Math.hypot(player.x - this.telegraphData.x, player.y - this.telegraphData.y);
                         if (dist < this.telegraphData.radius) {
                             player.hp -= this.damage * 2;
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(this.damage * 2), "#e74c3c", 20));
+                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(this.damage * 2), "#e74c3c", 20));
                         }
                     }
                     this.telegraphData = null;

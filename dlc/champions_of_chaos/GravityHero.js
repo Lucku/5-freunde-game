@@ -553,7 +553,7 @@ class BlackHole {
                     if (isQuasar) {
                         e.hp -= dmg * 0.2; // Extra burn
                         if (Math.random() < 0.3 && typeof FloatingText !== 'undefined' && typeof floatingTexts !== 'undefined') {
-                            floatingTexts.push(new FloatingText(e.x, e.y - 40, "MELT", "#e74c3c", 20));
+                            floatingTexts.push(FloatingText.acquire(e.x, e.y - 40, "MELT", "#e74c3c", 20));
                         }
                     }
 

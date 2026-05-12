@@ -265,7 +265,7 @@ window.HERO_LOGIC['void'] = {
                             if (typeof saveData !== 'undefined') {
                                 saveData.global.void_execute_count = (saveData.global.void_execute_count || 0) + 1;
                             }
-                            if (typeof FloatingText !== 'undefined') floatingTexts.push(new FloatingText(e.x, e.y - 60, "DELETE", "#ff0000", 30));
+                            if (typeof FloatingText !== 'undefined') floatingTexts.push(FloatingText.acquire(e.x, e.y - 60, "DELETE", "#ff0000", 30));
                         } else {
                             e.hp -= dmg;
                         }
@@ -288,7 +288,7 @@ window.HERO_LOGIC['void'] = {
                         if (Math.random() < 0.3) e.frozenTimer = 30;
 
                         if (typeof floatingTexts !== 'undefined' && !executed) {
-                            floatingTexts.push(new FloatingText(e.x, e.y - 40, dmg.toFixed(0), "#00bcd4", 25));
+                            floatingTexts.push(FloatingText.acquire(e.x, e.y - 40, dmg.toFixed(0), "#00bcd4", 25));
                         }
 
                         if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
@@ -342,7 +342,7 @@ window.HERO_LOGIC['void'] = {
                     e.hp -= dmg;
                     if (e.hp <= 0 && typeof player.onKill === 'function') player.onKill(e);
                     if (typeof floatingTexts !== 'undefined') {
-                        floatingTexts.push(new FloatingText(e.x, e.y - 40, "ECHO " + dmg.toFixed(0), "#ccc", 20));
+                        floatingTexts.push(FloatingText.acquire(e.x, e.y - 40, "ECHO " + dmg.toFixed(0), "#ccc", 20));
                     }
                 }
             });
@@ -423,7 +423,7 @@ window.HERO_LOGIC['void'] = {
                         const dmg = 20 * (player.damageMultiplier || 1);
                         e.hp -= dmg;
                         if (typeof FloatingText !== 'undefined' && Math.random() < 0.3) {
-                            floatingTexts.push(new FloatingText(e.x, e.y - 30, "CORRUPT", "#ff0000", 16));
+                            floatingTexts.push(FloatingText.acquire(e.x, e.y - 30, "CORRUPT", "#ff0000", 16));
                         }
                         if (!e.isBoss && e.hp < e.maxHp * 0.5 && Math.random() < 0.2) {
                             e.hp = -999;

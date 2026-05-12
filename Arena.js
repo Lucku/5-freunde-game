@@ -322,7 +322,7 @@ class Arena {
                     if (frame % 60 === 0) {
                         if (!player.isInvincible) {
                             player.hp -= 10; // Damage every second if active
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "10", "#e74c3c", 20));
+                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "10", "#e74c3c", 20));
                         }
                     }
                 } else if (trap.type === 'SLOW') {
@@ -370,7 +370,7 @@ class Arena {
                         if (!player.isInvincible) {
                             player.hp -= 2;
                             createExplosion(player.x, player.y, '#e74c3c');
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, "2", "#e74c3c", 20));
+                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "2", "#e74c3c", 20));
                         }
                     }
                 }
@@ -389,11 +389,11 @@ class Arena {
                         if (frame % 60 === 0 && player.hp < player.maxHp) {
                             player.hp += 1;
                             zone.healthYielded += 1;
-                            floatingTexts.push(new FloatingText(player.x, player.y - 30, "+1", "#9b59b6", 14));
+                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 30, "+1", "#9b59b6", 14));
 
                             if (zone.healthYielded >= zone.maxHealthYield) {
                                 zone.depleted = true;
-                                floatingTexts.push(new FloatingText(zone.x + zone.w / 2, zone.y + zone.h / 2, "DEPLETED", "#555", 20));
+                                floatingTexts.push(FloatingText.acquire(zone.x + zone.w / 2, zone.y + zone.h / 2, "DEPLETED", "#555", 20));
                             }
                         }
                     } else {
@@ -402,7 +402,7 @@ class Arena {
                             if (!player.isInvincible) {
                                 player.hp -= 5 * (1 - player.damageReduction);
                                 createExplosion(player.x, player.y, '#8e44ad');
-                                floatingTexts.push(new FloatingText(player.x, player.y - 20, "5", "#8e44ad", 16));
+                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "5", "#8e44ad", 16));
                             }
                         }
                     }
@@ -417,7 +417,7 @@ class Arena {
                             // Heal Makuta
                             if (frame % 60 === 0 && e.hp < e.maxHp) {
                                 e.hp += 50; // Significant healing
-                                floatingTexts.push(new FloatingText(e.x, e.y - 50, "+50", "#9b59b6", 20));
+                                floatingTexts.push(FloatingText.acquire(e.x, e.y - 50, "+50", "#9b59b6", 20));
                             }
                         } else {
                             // Damage regular enemies

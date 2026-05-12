@@ -1,4 +1,4 @@
-Freunde: Elemental Arena
+5 Freunde: Elemental Arena
 =========================
 
 Local multiplayer / single-player arena game. Pick an elemental hero, fight waves of enemies and bosses, collect cards, unlock DLC heroes and biomes. Built with vanilla JavaScript + HTML5 Canvas, packaged via Electron.

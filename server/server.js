@@ -74,7 +74,19 @@ try {
 // ── Express ───────────────────────────────────────────────────────────────────
 
 const app = express();
-app.use(cors());
+// #89 — restrict CORS to the same allowlist when ALLOWED_WS_ORIGINS is set;
+// otherwise (dev mode) allow all. Origin-less requests (curl, native clients)
+// always pass through; the JWT in the Authorization header is the authn proof.
+const _ALLOWED_HTTP_ORIGINS = (process.env.ALLOWED_WS_ORIGINS || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+app.use(cors({
+    origin(origin, cb) {
+        if (!origin) return cb(null, true);
+        if (!_ALLOWED_HTTP_ORIGINS.length) return cb(null, true);
+        if (_ALLOWED_HTTP_ORIGINS.includes(origin)) return cb(null, true);
+        return cb(new Error(`CORS: origin "${origin}" not allowed`));
+    }
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // Trust the first proxy hop so req.ip reads the X-Forwarded-For client IP
@@ -438,12 +450,30 @@ if (TLS_CERT_PATH && TLS_KEY_PATH) {
     console.log('[TLS] No TLS_CERT_PATH/TLS_KEY_PATH set — running plain HTTP (development only)');
 }
 
+// #89 — Origin allowlist for WebSocket upgrades (CSRF defense). Browsers
+// always send an Origin header; native clients (Electron, Steam, dev tools)
+// don't, so we accept missing Origin too (the JWT token in the query string
+// is the authn proof). ALLOWED_WS_ORIGINS env var is a comma-separated list
+// of accepted origins (no trailing slash). Empty list = wildcard (dev mode).
+const ALLOWED_WS_ORIGINS = (process.env.ALLOWED_WS_ORIGINS || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+
+function _wsVerifyClient(info, cb) {
+    const origin = info.origin || info.req.headers.origin || '';
+    if (!origin) return cb(true); // native / Electron — no Origin header sent
+    if (!ALLOWED_WS_ORIGINS.length) return cb(true); // dev mode wildcard
+    if (ALLOWED_WS_ORIGINS.includes(origin)) return cb(true);
+    console.warn(`WS: rejected origin "${origin}" (not in allowlist)`);
+    cb(false, 403, 'Origin not allowed');
+}
+
 // permessage-deflate cuts ~50–70% off JSON snapshot bandwidth on internet links.
 // Per the `ws` docs: zlib options must be conservative to avoid CPU spikes
 // under load. concurrencyLimit caps parallel inflate operations per connection.
 const wss = new WebSocket.Server({
     server: httpServer,
     path:   '/ws',
+    verifyClient: _wsVerifyClient,
     perMessageDeflate: {
         zlibDeflateOptions: { level: 3, memLevel: 7, chunkSize: 1024 },
         zlibInflateOptions: { chunkSize: 10 * 1024 },

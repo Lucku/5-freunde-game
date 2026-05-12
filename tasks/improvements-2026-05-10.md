@@ -28,9 +28,9 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 ## Performance
 
 - [x] 19. ★ Spatial hash / quadtree for collisions. `enemies × projectiles × meleeAttacks × players` is O(n²) every frame; ~10k checks/frame at wave 30+. *(Phase 1: SpatialHash infra + 3 AOE-radius scans migrated; full projectile-vs-enemy inversion deferred.)*
-- [ ] 20. Object pools for `Projectile`, `Particle`, `FloatingText`, `MeleeSwipe`, `GoldDrop`. GC churn visible on long runs.
+- [x] 20. Object pools for `Projectile`, `Particle`, `FloatingText`, `MeleeSwipe`, `GoldDrop`. GC churn visible on long runs. *(Pass A: `Particle` + `FloatingText` pools landed with acquire/release API; every call site across base + DLCs converted; masterLoop releases dead instances before splice. `Projectile`/`MeleeSwipe`/`GoldDrop` deferred — non-trivial reset state.)*
 - [ ] 21. Offscreen canvas for static layers. Bake arena obstacles + biome zones to `OffscreenCanvas`, blit once.
-- [ ] 22. Cache gradients. Many enemies/bosses recreate `createRadialGradient` every draw. Extend `Date.now()` cache pattern from `Projectile.js`.
+- [x] 22. Cache gradients. Many enemies/bosses recreate `createRadialGradient` every draw. *(Pass A: `Utils.cachedRadial(ctx, key, r0, r1, stops)` helper + 3 hot projectile sites converted. ~107 remaining sites are incremental — helper is in place for opportunistic conversion.)*
 - [ ] 23. `requestAnimationFrame` budget tracker. p99 frame-time HUD next to FPS.
 - [ ] 24. Web Worker for AI batches. 200+ enemy steering in worker via `SharedArrayBuffer`.
 - [ ] 25. Texture atlas for sprites. Replace per-frame `arc/fill/stroke` with `drawImage` from atlas.
@@ -50,7 +50,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 36. 2D normal-map lighting. Cheap radial lights on Fire hero / boss explosions affecting nearby sprites.
 - [ ] 37. Hero animations. Replace procedural-circle look with walk-cycle / attack frames.
 - [ ] 38. Camera shake taxonomy. Different shake types per event (heavy boss stomp vs small hit) using Perlin-noise offsets.
-- [ ] 39. Hit-stop / freeze-frames. 50 ms freeze on critical hits and boss kill.
+- [x] 39. Hit-stop / freeze-frames. 50 ms freeze on critical hits and boss kill. *(Pass A: `triggerHitStop(frames)` + `_isHitStopped` masterLoop skip already existed for crits; extended to boss-death init at all 4 production sites. 12-frame freeze on boss kill.)*
 - [ ] 40. Damage number animations: crit numbers arc + scale + color-shift.
 - [ ] 41. Death animations per enemy type: BOMBER fizzle, GHOST dissolve, SHIELDER shatter.
 - [ ] 42. Animated arena edges / parallax background.
@@ -106,7 +106,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 86. Cross-progression cloud save conflict UI (last-write-wins is dangerous).
 - [x] 87. ★ Anti-cheat for leaderboard. `POST /api/leaderboard` accepts any wave/score from authenticated client. Add server-side validation: minimum time per wave, hero-specific damage caps, replay token signed by `GameSession`.
 - [x] 88. ★ Rate limiting on register/login/leaderboard. `bcrypt.hash(password, 10)` is CPU-expensive — easy DoS vector.
-- [ ] 89. CSRF / origin check on WS upgrade.
+- [x] 89. CSRF / origin check on WS upgrade. *(Pass A: `ALLOWED_WS_ORIGINS` env-driven allowlist; `verifyClient` rejects mismatched browser Origin, native clients with no Origin pass through. Same allowlist also gates Express CORS.)*
 - [x] 90. ★ HTTPS / WSS by default. `Config.js` defaults to `http://localhost:3001`. Production should be `wss://`. *(Env-driven: TLS_CERT_PATH + TLS_KEY_PATH enables HTTPS/WSS automatically; plain HTTP fallback for local dev.)*
 - [ ] 91. Lag compensation / rollback. Current is delay-based interp (100 ms). Small rollback for hit confirmation reduces "I hit them but no damage" feel.
 - [ ] 92. Server-side stat tracking + meta unlocks. Move some meta progression server-side (counter to `save-editor.html` — flag online-mode runs).
@@ -150,8 +150,8 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 124. Voice line bank rotation per hero. Diversify per situation: low HP, high combo, elite encounter, partner-revive.
 - [ ] 125. Spatial audio. `Web Audio API` `PannerNode` for off-screen enemies.
 - [ ] 126. Ducking + side-chain compression so SFX cut through music.
-- [ ] 127. Audio settings per-channel: music / SFX / voice / UI sliders.
-- [ ] 128. Subtitles + closed-caption events. `Config.js:42` `subtitlesEnabled` exists — wire it across all voice events.
+- [x] 127. Audio settings per-channel: music / SFX / voice / UI sliders. *(Pass A: 4 sliders cycle 0/25/50/75/100%, `AudioManager` applies category multipliers per-track + on per-shot voice plays.)*
+- [x] 128. Subtitles + closed-caption events. *(Pass A: audit confirmed all `playHeroExclamation` sites route through `_showSubtitle` already; extended to also push to ARIA live region for screen-reader users.)*
 - [ ] 129. Boss leitmotifs. Each boss has signature instrument that recurs.
 - [ ] 130. Death-screen replay audio. Last 5 s of input audio loops on respawn.
 
@@ -169,7 +169,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 
 ## Save / cloud / data
 
-- [ ] 140. ★ Save file backups. Auto-keep last 5 saves, restore from menu. Critical given ongoing DLC additions to schema.
+- [x] 140. ★ Save file backups. *(Pass A: 5-slot ring buffer auto-rotated before every save write; "Restore Backup" menu lists each slot with timestamp + size and restores via HMAC-verified swap.)*
 - [ ] 141. Save export to JSON-Schema for support diffs.
 - [ ] 142. Per-hero independent run-saves. Multiple paused runs simultaneously.
 - [ ] 143. Account merging UI. Combine local + cloud progress without conflicts.
@@ -180,7 +180,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [x] 145. ★ Hot reload. esbuild + watch mode + Electron `BrowserWindow.reload()`. Saves hours per session. *(Vite dev server gives full-page reload on JS/HTML save + CSS HMR for `main.css` for free. Electron `index.js` handles `VITE_DEV=1` to attach to dev server, or `HOT_RELOAD=1` to watch built `dist/`.)*
 - [ ] 146. Headless test harness. Extend `test-arena.js` + bots into nightly CI: 100 simulated runs, assert no crashes, log perf.
 - [ ] 147. Replay-driven regression tests. Record input traces, replay against new code, diff outputs.
-- [ ] 148. In-game debug overlay (F1): all entities, hitboxes, paths, AI state, collision quadrants.
+- [x] 148. In-game debug overlay (F1): all entities, hitboxes, paths, AI state, collision quadrants. *(Pass A: F1 toggles overlay showing FPS / p50+p99 frame time / wave / player pos / entity counts / spatial-hash cell count / hit-stop frames. Hitbox/AI-state overlay deferred.)*
 - [ ] 149. Cheat console (`~`): `give gold 1000`, `set wave 50`, `spawn boss MAKUTA`.
 - [ ] 150. Visual save editor live-reload. `save-editor.html` exists — wire to running game via WS so changes apply without restart.
 - [ ] 151. Asset pipeline. Source assets (Aseprite, Audacity sources) under `/assets-src` + Makefile / npm script that builds final wav/png.
@@ -203,7 +203,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 162. Player skill rating (online matchmaking).
 - [ ] 163. Tutorial replay accessible from main menu.
 - [ ] 164. Onboarding flow first launch: name pick, hero recommendation quiz.
-- [ ] 165. ★ In-game changelog. Pipe latest `CHANGELOG.md` entries into "what's new" modal on first launch after update.
+- [x] 165. ★ In-game changelog. *(Pass A: Vite bundles CHANGELOG.md into dist/; on launch, if `gameConfig.lastSeenVersion !== APP_VERSION`, modal fetches + parses + renders newer `## [...]` sections. Closing stamps the version.)*
 - [ ] 166. Crash recovery. On unexpected exit, offer to restore last autosave run.
 - [ ] 167. Background music continues during pause with low-pass filter.
 - [ ] 168. Better death feedback. "You were killed by SHOOTER (200 damage)" with replay of last 3 seconds.

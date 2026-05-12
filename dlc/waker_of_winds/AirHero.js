@@ -181,7 +181,7 @@ class AirHero {
 
             // Feedback
             if (typeof FloatingText !== 'undefined') {
-                new FloatingText(player.x, player.y - 80, `Wind Shifts ${player.weatherVane.direction}!`, '#40e0d0', 120);
+                FloatingText.acquire(player.x, player.y - 80, `Wind Shifts ${player.weatherVane.direction}!`, '#40e0d0', 120);
             }
         }
 
@@ -363,7 +363,7 @@ class AirHero {
                                 const dmg = (player.stats.rangeDmg || 10) * 0.5 * player.damageMultiplier;
                                 e.hp -= dmg;
                                 if (createExplosion) createExplosion(e.x, e.y, '#40e0d0', 2);
-                                if (typeof FloatingText !== 'undefined') new FloatingText(e.x, e.y - 20, Math.floor(dmg), '#40e0d0', 14);
+                                if (typeof FloatingText !== 'undefined') FloatingText.acquire(e.x, e.y - 20, Math.floor(dmg), '#40e0d0', 14);
                                 if (e.hp <= 0 && e.hp + dmg > 0) e.lastHitBy = 'PROJECTILE';
                             }
                         }
@@ -491,7 +491,7 @@ class AirHero {
                     eff.interval++;
                     if (eff.interval % 60 === 0 && player.hp < player.maxHp) {
                         player.hp += 1;
-                        if (typeof FloatingText !== 'undefined') new FloatingText(player.x, player.y - 40, "+1", '#a2f1c1', 60);
+                        if (typeof FloatingText !== 'undefined') FloatingText.acquire(player.x, player.y - 40, "+1", '#a2f1c1', 60);
                     }
 
                 } else if (eff.type === 'BARRIER') {
@@ -1046,12 +1046,12 @@ class AirHero {
                     if (has('c24') && enemy.frozenTimer > 0) {
                         enemy.hp -= 25;
                         if (typeof createExplosion !== 'undefined') createExplosion(enemy.x, enemy.y, '#aaddff', 5);
-                        if (typeof FloatingText !== 'undefined') new FloatingText(enemy.x, enemy.y - 30, "SHATTER!", '#fff', 14);
+                        if (typeof FloatingText !== 'undefined') FloatingText.acquire(enemy.x, enemy.y - 30, "SHATTER!", '#fff', 14);
                     }
                     // C25: Pollen (Heal)
                     if (has('c25') && Math.random() < 0.2) {
                         player.hp = Math.min(player.hp + 1, player.maxHp);
-                        if (typeof FloatingText !== 'undefined') new FloatingText(player.x, player.y - 40, "+1", '#2ecc71', 14);
+                        if (typeof FloatingText !== 'undefined') FloatingText.acquire(player.x, player.y - 40, "+1", '#2ecc71', 14);
                     }
                     // C26: Shrapnel (Bleed)
                     if (has('c26')) {
@@ -1061,7 +1061,7 @@ class AirHero {
                     // C27: Sandstorm (Blind/Stun)
                     if (has('c27') && Math.random() < 0.3) {
                         enemy.frozenTimer = 30; // 0.5s stun
-                        if (typeof FloatingText !== 'undefined') new FloatingText(enemy.x, enemy.y - 25, "BLIND", '#e67e22', 12);
+                        if (typeof FloatingText !== 'undefined') FloatingText.acquire(enemy.x, enemy.y - 25, "BLIND", '#e67e22', 12);
                     }
                     // C28: Thunderhead (Sparks)
                     if (has('c28')) {

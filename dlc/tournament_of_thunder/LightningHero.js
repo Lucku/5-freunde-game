@@ -130,7 +130,7 @@ class LightningHero {
             // Visuals
             if (typeof createExplosion !== 'undefined') createExplosion(tx, ty, '#00ffff', 10);
             if (typeof FloatingText !== 'undefined' && typeof floatingTexts !== 'undefined') {
-                floatingTexts.push(new FloatingText(tx, ty - 20, Math.floor(damage), "#00ffff", 24));
+                floatingTexts.push(FloatingText.acquire(tx, ty - 20, Math.floor(damage), "#00ffff", 24));
             }
         } else {
             // AOE Check (if ground strike hit anyone)
@@ -566,7 +566,7 @@ class LightningProjectile {
         // CHECK SUPERCONDUCTOR (c17)
         if (target.frozenTimer > 0 && typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active && saveData.altar.active.includes('c17')) {
             dmg *= 2;
-            if (typeof FloatingText !== 'undefined' && typeof floatingTexts !== 'undefined') floatingTexts.push(new FloatingText(target.x, target.y - 60, "CONDUCT", "#00ffff", 16));
+            if (typeof FloatingText !== 'undefined' && typeof floatingTexts !== 'undefined') floatingTexts.push(FloatingText.acquire(target.x, target.y - 60, "CONDUCT", "#00ffff", 16));
         }
 
         let isCrit = false;
@@ -591,7 +591,7 @@ class LightningProjectile {
             let color = isCrit ? '#ff0000' : '#fff';
             let txt = Math.floor(dmg);
             if (isCrit) txt += "!";
-            floatingTexts.push(new FloatingText(target.x, target.y - 20, txt, color, isCrit ? 20 : 14));
+            floatingTexts.push(FloatingText.acquire(target.x, target.y - 20, txt, color, isCrit ? 20 : 14));
         }
 
         // 3. Status Effects (Stun)
@@ -599,7 +599,7 @@ class LightningProjectile {
         if (this.isSuper || Math.random() < 0.3) {
             target.frozenTimer = 45; // 0.75s stun
             if (typeof FloatingText !== 'undefined' && typeof floatingTexts !== 'undefined') {
-                floatingTexts.push(new FloatingText(target.x, target.y - 40, "SHOCK", "#ffff00", 16));
+                floatingTexts.push(FloatingText.acquire(target.x, target.y - 40, "SHOCK", "#ffff00", 16));
             }
         }
 

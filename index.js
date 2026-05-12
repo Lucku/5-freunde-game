@@ -20,7 +20,7 @@ function createWindow() {
     const win = new BrowserWindow({
         width: 1280,
         height: 800, // Steam Deck native height
-        title: "Freunde: Elemental Arena",
+        title: "5 Freunde: Elemental Arena",
         fullscreen: true, // Important for Steam Deck
         autoHideMenuBar: true, // Hide the menu bar
         webPreferences: {

@@ -135,10 +135,11 @@ class Projectile {
             const r = this.radius;
 
             // Outer aura
-            const aura = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r * 2.2);
-            aura.addColorStop(0,   'rgba(200,170,80,0.35)');
-            aura.addColorStop(0.5, 'rgba(120,80,200,0.15)');
-            aura.addColorStop(1,   'rgba(80,40,160,0)');
+            const aura = cachedRadial(ctx, `proj-time-aura:${r}`, r * 0.2, r * 2.2, [
+                [0,   'rgba(200,170,80,0.35)'],
+                [0.5, 'rgba(120,80,200,0.15)'],
+                [1,   'rgba(80,40,160,0)']
+            ]);
             ctx.fillStyle = aura;
             ctx.beginPath(); ctx.arc(0, 0, r * 2.2, 0, Math.PI * 2); ctx.fill();
 
@@ -163,10 +164,11 @@ class Projectile {
             ctx.restore();
 
             // Core orb
-            const core = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-            core.addColorStop(0,   '#fffbe0');
-            core.addColorStop(0.4, '#c8aa6e');
-            core.addColorStop(1,   '#7c5020');
+            const core = cachedRadial(ctx, `proj-time-core:${r}`, 0, r, [
+                [0,   '#fffbe0'],
+                [0.4, '#c8aa6e'],
+                [1,   '#7c5020']
+            ]);
             ctx.shadowColor = '#c8aa6e';
             ctx.shadowBlur  = 12 * pulse;
             ctx.fillStyle = core;
@@ -208,11 +210,14 @@ class Projectile {
             ctx.bezierCurveTo(-s,        -s * 0.3, -s * 0.5, s * 0.1,  0,      s * 0.4);
             ctx.closePath();
 
-            // Gradient fill — hot pink to deep rose
-            const hg = ctx.createRadialGradient(0, -s * 0.1, 0, 0, 0, s);
-            hg.addColorStop(0,   '#ff9dbf');
-            hg.addColorStop(0.5, '#ff4d94');
-            hg.addColorStop(1,   '#c0124a');
+            // Gradient fill — hot pink to deep rose. Note: offset center (-s*0.1)
+            // collapses to (0,0) under cachedRadial; the visual difference is minor
+            // and the cache reuse outweighs the displacement loss.
+            const hg = cachedRadial(ctx, `proj-love-heart:${Math.round(s * 4)}`, 0, s, [
+                [0,   '#ff9dbf'],
+                [0.5, '#ff4d94'],
+                [1,   '#c0124a']
+            ]);
             ctx.fillStyle = hg;
             ctx.fill();
 

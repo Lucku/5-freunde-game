@@ -104,7 +104,7 @@ class LoveHero {
                     e._loveCharmed--;
                     // Emit hearts while charmed
                     if (e._loveCharmed % 18 === 0 && typeof particles !== 'undefined' && typeof Particle !== 'undefined') {
-                        particles.push(new Particle(
+                        particles.push(Particle.acquire(
                             e.x + (Math.random() - 0.5) * e.radius,
                             e.y - e.radius,
                             '#ff6b9d',
@@ -188,7 +188,7 @@ class LoveHero {
                 player._heartburstFired = false;
                 player._affectionFull = false;
                 if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
-                    floatingTexts.push(new FloatingText(player.x, player.y - 55, 'COMBO BROKEN', '#aaaaaa', 1.6));
+                    floatingTexts.push(FloatingText.acquire(player.x, player.y - 55, 'COMBO BROKEN', '#aaaaaa', 1.6));
                 }
             }
         }
@@ -206,7 +206,7 @@ class LoveHero {
         if (player.affection >= 80 && !player._affectionFull) {
             player._affectionFull = true;
             if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
-                floatingTexts.push(new FloatingText(player.x, player.y - 60, 'HEART SURGE', '#ff6b9d', 2.0));
+                floatingTexts.push(FloatingText.acquire(player.x, player.y - 60, 'HEART SURGE', '#ff6b9d', 2.0));
             }
         } else if (player.affection < 80) {
             player._affectionFull = false;
@@ -225,7 +225,7 @@ class LoveHero {
                 enemies.forEach(e => {
                     e.hp -= unityDmg;
                     if (typeof particles !== 'undefined' && typeof Particle !== 'undefined' && Math.random() < 0.4) {
-                        particles.push(new Particle(e.x, e.y - e.radius, '#ff6b9d', { x: 0, y: -2 }));
+                        particles.push(Particle.acquire(e.x, e.y - e.radius, '#ff6b9d', { x: 0, y: -2 }));
                     }
                 });
                 player.hp = Math.min(player.maxHp, player.hp + 1.5);
@@ -252,7 +252,7 @@ class LoveHero {
         };
         player._loveCompSpawn = 300;  // respawn check in 5s if companion dies
         if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
-            floatingTexts.push(new FloatingText(player.x, player.y - 50, '💖 COMPANION', '#ff9dbf', 1.8));
+            floatingTexts.push(FloatingText.acquire(player.x, player.y - 50, '💖 COMPANION', '#ff9dbf', 1.8));
         }
     }
 
@@ -309,7 +309,7 @@ class LoveHero {
             player.hp = Math.min(player.maxHp, player.hp + 8);
             if (typeof createExplosion === 'function') createExplosion(comp.x, comp.y, '#90ee90', 12);
             if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
-                floatingTexts.push(new FloatingText(comp.x, comp.y - 24, '+8', '#90ee90', 1.4));
+                floatingTexts.push(FloatingText.acquire(comp.x, comp.y - 24, '+8', '#90ee90', 1.4));
             }
         }
     }
@@ -435,7 +435,7 @@ class LoveHero {
         if (hitCount > 0) {
             if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#ff6b9d', 12);
             if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
-                floatingTexts.push(new FloatingText(player.x, player.y - 50, 'EMBRACE', '#ff9dbf', 2.0));
+                floatingTexts.push(FloatingText.acquire(player.x, player.y - 50, 'EMBRACE', '#ff9dbf', 2.0));
             }
             if (typeof audioManager !== 'undefined') audioManager.play('melee_love');
         }
@@ -484,7 +484,7 @@ class LoveHero {
             createExplosion(player.x, player.y, '#ff6b9d', 18);
         }
         if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
-            floatingTexts.push(new FloatingText(player.x, player.y - 65, 'EMOTIONAL RESONANCE', '#ff6b9d', 2.5));
+            floatingTexts.push(FloatingText.acquire(player.x, player.y - 65, 'EMOTIONAL RESONANCE', '#ff6b9d', 2.5));
         }
 
         player.affection = Math.min(100, player.affection + 25);
@@ -525,7 +525,7 @@ class LoveHero {
         // Big explosion + text
         if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#ff1a6b', 30);
         if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
-            floatingTexts.push(new FloatingText(player.x, player.y - 80, '💖 HEART OF UNITY', '#ff1a6b', 3.0));
+            floatingTexts.push(FloatingText.acquire(player.x, player.y - 80, '💖 HEART OF UNITY', '#ff1a6b', 3.0));
         }
         if (typeof audioManager !== 'undefined') audioManager.play('unity_love');
 
@@ -575,7 +575,7 @@ class LoveHero {
         if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#ff1a6b', 16 + streak * 4);
         if (typeof floatingTexts !== 'undefined' && typeof FloatingText !== 'undefined') {
             const label = streak > 0 ? `💗 HEARTBURST x${streak + 1}` : '💗 HEARTBURST';
-            floatingTexts.push(new FloatingText(player.x, player.y - 70, label, '#ff1a6b', 2.8));
+            floatingTexts.push(FloatingText.acquire(player.x, player.y - 70, label, '#ff1a6b', 2.8));
         }
         if (typeof audioManager !== 'undefined') audioManager.play('heartburst_love');
 

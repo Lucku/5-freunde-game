@@ -29,6 +29,9 @@ class SpatialHash {
         this._cells.clear();
     }
 
+    // #148 — debug stat. Returns current populated cell count.
+    cellCount() { return this._cells.size; }
+
     _key(cx, cy) { return cx + ',' + cy; }
 
     _cellCoords(x, y) {

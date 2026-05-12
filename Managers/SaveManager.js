@@ -110,6 +110,107 @@ class SaveManager {
         }
     }
 
+    // Ring-buffer backup count (#140). Bumping is non-breaking — older slots
+    // beyond the new cap remain on disk until overwritten in their turn.
+    static BACKUP_COUNT = 5;
+
+    // Rotate the previous encoded blob into a numbered backup slot before
+    // overwriting. Single-slot rotation: oldest slot wins next write.
+    static _rotateBackup(prevEncoded) {
+        if (!prevEncoded) return;
+        // Pick the slot whose mtime is oldest (or empty); deterministic fallback
+        // is slot 1 → 2 → … → N round-robin if mtime unavailable.
+        try {
+            if (typeof isElectron !== 'undefined' && isElectron && typeof fs !== 'undefined' && typeof saveFilePath !== 'undefined') {
+                let pickSlot = 1;
+                let oldest = Infinity;
+                for (let i = 1; i <= SaveManager.BACKUP_COUNT; i++) {
+                    const p = `${saveFilePath}.bak${i}`;
+                    if (!fs.existsSync(p)) { pickSlot = i; break; }
+                    const mt = fs.statSync(p).mtimeMs;
+                    if (mt < oldest) { oldest = mt; pickSlot = i; }
+                }
+                fs.writeFileSync(`${saveFilePath}.bak${pickSlot}`, prevEncoded);
+            } else {
+                let pickSlot = 1;
+                let oldest = Infinity;
+                for (let i = 1; i <= SaveManager.BACKUP_COUNT; i++) {
+                    const k = `5FreundeSave.bak${i}`;
+                    const v = localStorage.getItem(k);
+                    if (!v) { pickSlot = i; break; }
+                    const tsKey = `${k}.ts`;
+                    const ts = Number(localStorage.getItem(tsKey)) || 0;
+                    if (ts < oldest) { oldest = ts; pickSlot = i; }
+                }
+                const k = `5FreundeSave.bak${pickSlot}`;
+                localStorage.setItem(k, prevEncoded);
+                localStorage.setItem(`${k}.ts`, String(Date.now()));
+            }
+        } catch (e) {
+            console.error('Save: failed to rotate backup:', e);
+        }
+    }
+
+    // List existing backups newest-first. Each entry: { slot, ts, size, source }.
+    static listBackups() {
+        const out = [];
+        try {
+            if (typeof isElectron !== 'undefined' && isElectron && typeof fs !== 'undefined' && typeof saveFilePath !== 'undefined') {
+                for (let i = 1; i <= SaveManager.BACKUP_COUNT; i++) {
+                    const p = `${saveFilePath}.bak${i}`;
+                    if (!fs.existsSync(p)) continue;
+                    const st = fs.statSync(p);
+                    out.push({ slot: i, ts: st.mtimeMs, size: st.size, source: 'disk', path: p });
+                }
+            } else {
+                for (let i = 1; i <= SaveManager.BACKUP_COUNT; i++) {
+                    const k = `5FreundeSave.bak${i}`;
+                    const v = localStorage.getItem(k);
+                    if (!v) continue;
+                    const ts = Number(localStorage.getItem(`${k}.ts`)) || 0;
+                    out.push({ slot: i, ts, size: v.length, source: 'localStorage', path: k });
+                }
+            }
+        } catch (e) {
+            console.error('Save: failed to list backups:', e);
+        }
+        out.sort((a, b) => b.ts - a.ts);
+        return out;
+    }
+
+    // Restore a backup slot to the main save path. Returns true on success.
+    static async restoreBackup(slot) {
+        try {
+            let encoded = null;
+            if (typeof isElectron !== 'undefined' && isElectron && typeof fs !== 'undefined' && typeof saveFilePath !== 'undefined') {
+                const p = `${saveFilePath}.bak${slot}`;
+                if (!fs.existsSync(p)) return false;
+                encoded = fs.readFileSync(p, 'utf8');
+                // Rotate current save into a fresh backup slot before clobbering.
+                const cur = fs.existsSync(saveFilePath) ? fs.readFileSync(saveFilePath, 'utf8') : null;
+                if (cur) this._rotateBackup(cur);
+                fs.writeFileSync(saveFilePath, encoded);
+            } else {
+                const k = `5FreundeSave.bak${slot}`;
+                encoded = localStorage.getItem(k);
+                if (!encoded) return false;
+                const cur = localStorage.getItem('5FreundeSave');
+                if (cur) this._rotateBackup(cur);
+                localStorage.setItem('5FreundeSave', encoded);
+            }
+            // Decode to verify integrity. If HMAC fails, decodeSaveData returns null.
+            const data = await this.decodeSaveData(encoded);
+            if (!data) {
+                console.error('Save: restored blob failed HMAC verification');
+                return false;
+            }
+            return true;
+        } catch (e) {
+            console.error('Save: failed to restore backup:', e);
+            return false;
+        }
+    }
+
     static async saveGame(data) {
         if (!data) return null;
 
@@ -119,6 +220,10 @@ class SaveManager {
 
         const encoded = await this.encodeSaveData(data);
         if (!encoded) return null;
+
+        // #140 — ring-buffer the previous blob before overwriting.
+        const prev = this.getRawBlob();
+        if (prev && prev !== encoded) this._rotateBackup(prev);
 
         if (typeof isElectron !== 'undefined' && isElectron && typeof fs !== 'undefined') {
             try {

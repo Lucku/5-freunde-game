@@ -24,6 +24,8 @@ const defaultConfig = {
     musicVolume: 0.5,
     sfxEnabled: true,
     sfxVolume: 1.0,
+    voiceVolume: 1.0,
+    uiVolume:    1.0,
 
     // Visuals
     damageNumbers: true,
@@ -64,6 +66,9 @@ const defaultConfig = {
 
     // Telemetry — opt-in crash reports to the configured server. No PII.
     crashReportsEnabled: true,
+
+    // Last APP_VERSION the user has seen the "What's New" modal for (#165).
+    lastSeenVersion: null,
 
     // Dismissed info dialogues (array of dialogue IDs)
     dismissedDialogues: [],

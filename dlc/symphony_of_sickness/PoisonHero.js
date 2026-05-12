@@ -198,7 +198,7 @@ class PoisonHero {
             if (particles && Math.random() < 0.4 && typeof Particle !== 'undefined') {
                 const a = Math.random() * Math.PI * 2;
                 const r = Math.random() * 300;
-                const pp = new Particle(player.x + Math.cos(a) * r, player.y + Math.sin(a) * r, 'rgba(118,255,3,0.45)');
+                const pp = Particle.acquire(player.x + Math.cos(a) * r, player.y + Math.sin(a) * r, 'rgba(118,255,3,0.45)');
                 pp.velocity = { x: (Math.random() - 0.5) * 0.6, y: -1.2 - Math.random() };
                 pp.life = 55;
                 particles.push(pp);
@@ -455,7 +455,7 @@ class PoisonHero {
             }
             if (_w.particles && typeof Particle !== 'undefined' && Math.random() < 0.35) {
                 const a = Math.random() * Math.PI * 2, r = Math.random() * this.radius;
-                const pp = new Particle(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, `rgba(60,${100 + Math.random() * 80 | 0},30,0.7)`);
+                const pp = Particle.acquire(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, `rgba(60,${100 + Math.random() * 80 | 0},30,0.7)`);
                 pp.velocity = { x: (Math.random() - 0.5) * 0.5, y: -1 - Math.random() }; pp.life = 40;
                 _w.particles.push(pp);
             }
@@ -515,7 +515,7 @@ class PoisonHero {
                             this._healAccum += (before - Math.max(0, e.hp)) * 0.3;
                             e.poisonStacks = Math.min((e.poisonStacks || 0) + 2, 100);
                             if (_w.particles && typeof Particle !== 'undefined') {
-                                const pp = new Particle(e.x, e.y, '#c0392b');
+                                const pp = Particle.acquire(e.x, e.y, '#c0392b');
                                 const ta = Math.atan2(player.y - e.y, player.x - e.x);
                                 pp.velocity = { x: Math.cos(ta) * 3, y: Math.sin(ta) * 3 }; pp.life = 20;
                                 _w.particles.push(pp);
@@ -582,7 +582,7 @@ class PoisonHero {
                         if (typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y - 10, '❄️', '#3498db');
                         if (_w.particles && typeof Particle !== 'undefined') {
                             for (let i = 0; i < 5; i++) {
-                                const pp = new Particle(e.x, e.y, `rgba(${150 + Math.random() * 100 | 0},${200 + Math.random() * 55 | 0},255,0.9)`);
+                                const pp = Particle.acquire(e.x, e.y, `rgba(${150 + Math.random() * 100 | 0},${200 + Math.random() * 55 | 0},255,0.9)`);
                                 const a = Math.random() * Math.PI * 2; pp.velocity = { x: Math.cos(a) * 2, y: Math.sin(a) * 2 }; pp.life = 25;
                                 _w.particles.push(pp);
                             }
@@ -690,7 +690,7 @@ class PoisonHero {
                 PoisonHero._spawnMiniAcidPool(player, this.x, this._ty, 55, 180, _w);
                 if (_w.particles && typeof Particle !== 'undefined') {
                     for (let i = 0; i < 6; i++) {
-                        const pp = new Particle(this.x, this._ty, `rgba(${80 + Math.random() * 100 | 0},255,${30 + Math.random() * 50 | 0},0.9)`);
+                        const pp = Particle.acquire(this.x, this._ty, `rgba(${80 + Math.random() * 100 | 0},255,${30 + Math.random() * 50 | 0},0.9)`);
                         const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI;
                         pp.velocity = { x: Math.cos(a) * (1 + Math.random() * 2), y: Math.sin(a) * (1 + Math.random() * 2) }; pp.life = 20;
                         _w.particles.push(pp);
@@ -841,7 +841,7 @@ class PoisonHero {
                         if (alreadyFrozen && typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y - 15, 'SHATTERED!', '#00bfff');
                         if (_w.particles && typeof Particle !== 'undefined') {
                             for (let i = 0; i < 8; i++) {
-                                const pp = new Particle(e.x, e.y, `rgba(${100 + Math.random() * 155 | 0},${210 + Math.random() * 45 | 0},255,1)`);
+                                const pp = Particle.acquire(e.x, e.y, `rgba(${100 + Math.random() * 155 | 0},${210 + Math.random() * 45 | 0},255,1)`);
                                 const a = Math.random() * Math.PI * 2; pp.velocity = { x: Math.cos(a) * 3, y: Math.sin(a) * 3 }; pp.life = 30;
                                 _w.particles.push(pp);
                             }
@@ -904,7 +904,7 @@ class PoisonHero {
             if (_w.frame % 8 === 0) PoisonHero._spawnMiniAcidPool(player, this.x - Math.cos(this._ang) * 30, this.y - Math.sin(this._ang) * 30, 70, 120, _w);
             if (_w.particles && typeof Particle !== 'undefined' && Math.random() < 0.5) {
                 const perp = this._ang + Math.PI / 2, off = (Math.random() - 0.5) * this._ww;
-                const pp = new Particle(this.x + Math.cos(perp) * off, this.y + Math.sin(perp) * off, `rgba(${100 + Math.random() * 100 | 0},255,${50 + Math.random() * 80 | 0},0.8)`);
+                const pp = Particle.acquire(this.x + Math.cos(perp) * off, this.y + Math.sin(perp) * off, `rgba(${100 + Math.random() * 100 | 0},255,${50 + Math.random() * 80 | 0},0.8)`);
                 pp.velocity = { x: Math.cos(this._ang) * 2 + (Math.random() - 0.5), y: Math.sin(this._ang) * 2 + (Math.random() - 0.5) }; pp.life = 25;
                 _w.particles.push(pp);
             }
@@ -966,7 +966,7 @@ class PoisonHero {
             if (_w.particles && typeof Particle !== 'undefined' && Math.random() < 0.4) {
                 const a = Math.random() * Math.PI * 2, r = Math.random() * this.radius;
                 const cols = ['#9b59b6', '#e74c3c', '#3498db', '#f39c12', '#e91e63'];
-                const pp = new Particle(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, cols[Math.floor(Math.random() * cols.length)]);
+                const pp = Particle.acquire(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, cols[Math.floor(Math.random() * cols.length)]);
                 pp.velocity = { x: (Math.random() - 0.5) * 1.5, y: (Math.random() - 0.5) * 1.5 }; pp.life = 50;
                 _w.particles.push(pp);
             }
@@ -1109,7 +1109,7 @@ class PoisonHero {
                 }
                 if (_w.frame % 20 === 0 && Math.random() < 0.4) PoisonHero._spawnMiniAcidPool(player, e.x, e.y, 40, 90, _w);
                 if (_w.particles && typeof Particle !== 'undefined' && Math.random() < 0.2) {
-                    const pp = new Particle(e.x + (Math.random() - 0.5) * 20, e.y + (Math.random() - 0.5) * 20, `rgba(0,${150 + Math.random() * 100 | 0},${50 + Math.random() * 100 | 0},0.8)`);
+                    const pp = Particle.acquire(e.x + (Math.random() - 0.5) * 20, e.y + (Math.random() - 0.5) * 20, `rgba(0,${150 + Math.random() * 100 | 0},${50 + Math.random() * 100 | 0},0.8)`);
                     pp.velocity = { x: (Math.random() - 0.5) * 1.5, y: -1 - Math.random() }; pp.life = 30;
                     _w.particles.push(pp);
                 }

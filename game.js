@@ -338,6 +338,100 @@ function importSave(input) {
     }
 }
 
+// #165 — In-game changelog ("What's New") modal
+async function _maybeShowWhatsNew() {
+    try {
+        if (!gameConfig) return;
+        if (gameConfig.lastSeenVersion === APP_VERSION) return;
+
+        const res = await fetch('CHANGELOG.md');
+        if (!res.ok) return;
+        const raw = await res.text();
+
+        // Extract the most recent section: first '## [...]' block.
+        // If user has seen a prior version, show every section newer than it
+        // by concatenating all '## [...]' blocks until we hit lastSeenVersion.
+        const sections = raw.split(/^## /m).slice(1); // first slice is preamble
+        if (!sections.length) return;
+
+        const lastSeen = gameConfig.lastSeenVersion;
+        let shown = [];
+        for (const s of sections) {
+            const head = s.split('\n', 1)[0]; // e.g. "[Unreleased]" or "[1.2.0] - 2026-…"
+            const verMatch = head.match(/\[([^\]]+)\]/);
+            const ver = verMatch ? verMatch[1] : null;
+            if (lastSeen && ver && ver === lastSeen) break;
+            shown.push('## ' + s.trimEnd());
+            if (shown.length >= 5) break; // safety cap
+        }
+        if (!shown.length) return;
+
+        const body = document.getElementById('whatsnew-body');
+        const ver  = document.getElementById('whatsnew-version');
+        const modal = document.getElementById('whatsnew-modal');
+        if (!body || !modal) return;
+        ver.textContent = `Now on ${APP_VERSION}`;
+        body.textContent = shown.join('\n\n');
+        modal.style.display = 'flex';
+    } catch (e) {
+        console.warn('Whats-new modal failed:', e);
+    }
+}
+function closeWhatsNew() {
+    const modal = document.getElementById('whatsnew-modal');
+    if (modal) modal.style.display = 'none';
+    if (gameConfig) {
+        gameConfig.lastSeenVersion = APP_VERSION;
+        if (typeof saveConfig === 'function') saveConfig();
+    }
+}
+
+// #140 — Save backup browser
+function openSaveBackups() {
+    const modal = document.getElementById('save-backups-modal');
+    const list  = document.getElementById('save-backups-list');
+    if (!modal || !list) return;
+    list.innerHTML = '';
+
+    const entries = (typeof SaveManager !== 'undefined') ? SaveManager.listBackups() : [];
+    if (!entries.length) {
+        const row = document.createElement('div');
+        row.className = 'options-row';
+        row.innerHTML = '<div class="options-row-left"><span class="options-label">No backups yet. Backups are created automatically each time the game saves.</span></div>';
+        list.appendChild(row);
+    } else {
+        for (const e of entries) {
+            const when = new Date(e.ts).toLocaleString();
+            const kb = (e.size / 1024).toFixed(1);
+            const row = document.createElement('div');
+            row.className = 'options-row';
+            row.innerHTML = `
+                <div class="options-row-left">
+                    <span class="options-icon">💾</span>
+                    <span class="options-label">Slot ${e.slot} — ${when} (${kb} KB)</span>
+                </div>
+                <button class="opt-toggle-btn" data-slot="${e.slot}">RESTORE</button>
+            `;
+            row.querySelector('button').addEventListener('click', async () => {
+                if (!confirm(`Restore backup slot ${e.slot} from ${when}? Current save will be backed up first.`)) return;
+                const ok = await SaveManager.restoreBackup(e.slot);
+                if (ok) {
+                    alert('Backup restored. Reloading...');
+                    location.reload();
+                } else {
+                    alert('Restore failed — backup may be corrupt.');
+                }
+            });
+            list.appendChild(row);
+        }
+    }
+    modal.style.display = 'flex';
+}
+function closeSaveBackups() {
+    const modal = document.getElementById('save-backups-modal');
+    if (modal) modal.style.display = 'none';
+}
+
 function closeGame() {
     if (isElectron) {
         window.close();
@@ -382,6 +476,8 @@ Object.defineProperty(window, 'uiDebounce', {
 });
 
 let lastGamepadState = { a: false, b: false, y: false };
+let _lastOptLB = false;
+let _lastOptRB = false;
 
 // Make this global so Player.js can use it
 window.setUIState = function (newState) {
@@ -627,6 +723,68 @@ function handleGamepadMenu() {
     if (uiState === 'GLOBAL_LOBBY') {
         lastGamepadState = { a, b };
         return;
+    }
+
+    // --- OPTIONS — cycle-button shortcuts + section jump (#options gamepad UX) ---
+    if (uiState === 'OPTIONS') {
+        const lb = gp.buttons[4] && gp.buttons[4].pressed;
+        const rb = gp.buttons[5] && gp.buttons[5].pressed;
+        const focusablesNow = getFocusables();
+        const focused = focusablesNow[uiSelectionIndex];
+
+        // Cycle buttons: a defined set of IDs that advance on click. Use Left/Right
+        // to cycle backward/forward. Forward = click; backward = click N-1 times for
+        // N-option cycles (cheap, since N is small for every cycle type).
+        const CYCLE_BTN_FWD = {
+            'opt-colorblind-btn':  { cycle: 'cycleColorblindMode', steps: 4 },
+            'opt-fontscale-btn':   { cycle: 'cycleFontScale',      steps: 4 },
+            'opt-aimassist-btn':   { cycle: 'cycleAimAssist',      steps: 5 },
+            'opt-onehand-btn':     { cycle: 'cycleOneHandedScheme',steps: 3 },
+            'opt-musicvol-btn':    { cycle: () => cycleVolume('musicVolume'),  steps: 5 },
+            'opt-sfxvol-btn':      { cycle: () => cycleVolume('sfxVolume'),    steps: 5 },
+            'opt-voicevol-btn':    { cycle: () => cycleVolume('voiceVolume'),  steps: 5 },
+            'opt-uivol-btn':       { cycle: () => cycleVolume('uiVolume'),     steps: 5 },
+        };
+        if (focused && (left || right) && CYCLE_BTN_FWD[focused.id]) {
+            const cfg = CYCLE_BTN_FWD[focused.id];
+            const fn = typeof cfg.cycle === 'string' ? window[cfg.cycle] : cfg.cycle;
+            if (typeof fn === 'function') {
+                const reps = right ? 1 : (cfg.steps - 1);
+                for (let r = 0; r < reps; r++) fn();
+            }
+            uiDebounce = 12;
+            lastGamepadState = { a, b, y };
+            return;
+        }
+
+        // LB / RB jump to previous / next section by focusing the first focusable
+        // descendant of the adjacent .options-section.
+        if ((lb || rb) && !_lastOptLB && !_lastOptRB) {
+            const sections = Array.from(document.querySelectorAll('#options-screen .options-section'));
+            if (sections.length && focused) {
+                const curSection = sections.findIndex(s => s.contains(focused));
+                let nextIdx = curSection + (rb ? 1 : -1);
+                nextIdx = Math.max(0, Math.min(sections.length - 1, nextIdx));
+                if (nextIdx !== curSection) {
+                    const firstBtn = sections[nextIdx].querySelector('button, input');
+                    if (firstBtn) {
+                        const idx = focusablesNow.indexOf(firstBtn);
+                        if (idx !== -1) {
+                            uiSelectionIndex = idx;
+                            updateUIHighlight();
+                            firstBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }
+                }
+                uiDebounce = 14;
+                _lastOptLB = lb; _lastOptRB = rb;
+                lastGamepadState = { a, b, y };
+                return;
+            }
+        }
+        _lastOptLB = lb; _lastOptRB = rb;
+    } else {
+        _lastOptLB = false; _lastOptRB = false;
     }
 
     // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
@@ -1950,6 +2108,8 @@ Object.defineProperties(window, {
     bossActive:          { get: () => bossActive,          set: v => { bossActive          = v; }, configurable: true, enumerable: true },
     enemiesKilledInWave: { get: () => enemiesKilledInWave, set: v => { enemiesKilledInWave = v; }, configurable: true, enumerable: true },
     isPlayerDying:       { get: () => isPlayerDying,       set: v => { isPlayerDying       = v; }, configurable: true, enumerable: true },
+    isLevelingUp:        { get: () => isLevelingUp,        set: v => { isLevelingUp        = v; }, configurable: true, enumerable: true },
+    isShopping:          { get: () => isShopping,          set: v => { isShopping          = v; }, configurable: true, enumerable: true },
 });
 
 // Weather
@@ -2479,7 +2639,7 @@ window.createExplosion = createExplosion; // Ensure function is visible
 const MAX_PARTICLES = 300;
 function createExplosion(x, y, color, count = 10) {
     if (particles.length >= MAX_PARTICLES) return;
-    for (let i = 0; i < 8; i++) { particles.push(new Particle(x, y, color)); }
+    for (let i = 0; i < 8; i++) { particles.push(Particle.acquire(x, y, color)); } // #20
 }
 
 /**
@@ -2546,15 +2706,17 @@ window.triggerImpact = triggerImpact;
 function triggerHitStop(frames) {
     _hitStopFrames = Math.max(_hitStopFrames, frames);
 }
+window.triggerHitStop = triggerHitStop;
 
 function createDeathBurst(x, y, color) {
     if (particles.length >= MAX_PARTICLES) return;
     const count = 8;
     for (let i = 0; i < count; i++) {
-        const p = new Particle(x, y, color);
+        const p = Particle.acquire(x, y, color); // #20
         const speed = 1.5 + Math.random() * 2.5;
         const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-        p.velocity = { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
+        p.velocity.x = Math.cos(angle) * speed;
+        p.velocity.y = Math.sin(angle) * speed;
         p.life = 0.015 + Math.random() * 0.02;
         particles.push(p);
     }
@@ -2567,7 +2729,7 @@ function spawnLevelUpAura(x, y, color) {
             if (!particles) return;
             const ox = (Math.random() - 0.5) * 28; // spread around player
             const oy = (Math.random() - 0.5) * 10;
-            const p = new Particle(x + ox, y + oy, color);
+            const p = Particle.acquire(x + ox, y + oy, color); // #20
             p.velocity.x = (Math.random() - 0.5) * 1.8;
             p.velocity.y = -(Math.random() * 3.2 + 1.2); // drift upward
             p.life = Math.random() * 0.008 + 0.005;  // slow fade (~120-200 frames)
@@ -2579,7 +2741,7 @@ function spawnLevelUpAura(x, y, color) {
     for (let i = 0; i < ringCount; i++) {
         const angle = (i / ringCount) * Math.PI * 2;
         const speed = Math.random() * 1.5 + 1.5;
-        const p = new Particle(x, y, color);
+        const p = Particle.acquire(x, y, color); // #20
         p.velocity.x = Math.cos(angle) * speed;
         p.velocity.y = Math.sin(angle) * speed;
         p.life = 0.025;
@@ -4808,6 +4970,54 @@ function _onlineShowReconnectOverlay(show) {
     }
 }
 
+// #148 — Debug overlay (F1)
+let _debugOverlayOn = false;
+const _frameTimes = new Array(120).fill(0);
+let _frameIdx = 0;
+let _lastDebugUpdateMs = 0;
+function _toggleDebugOverlay() {
+    _debugOverlayOn = !_debugOverlayOn;
+    const el = document.getElementById('debug-overlay');
+    if (el) el.style.display = _debugOverlayOn ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+    if (e.key === 'F1') { e.preventDefault(); _toggleDebugOverlay(); }
+});
+function _updateDebugOverlay(frameMs) {
+    _frameTimes[_frameIdx] = frameMs;
+    _frameIdx = (_frameIdx + 1) % _frameTimes.length;
+    if (!_debugOverlayOn) return;
+    const now = performance.now();
+    if (now - _lastDebugUpdateMs < 200) return; // throttle DOM writes
+    _lastDebugUpdateMs = now;
+    const el = document.getElementById('debug-overlay');
+    if (!el) return;
+    const samples = _frameTimes.filter(v => v > 0).sort((a, b) => a - b);
+    const p50 = samples[Math.floor(samples.length * 0.5)] || 0;
+    const p99 = samples[Math.floor(samples.length * 0.99)] || 0;
+    const fps = p50 > 0 ? (1000 / p50).toFixed(1) : '–';
+    const enemiesN = (typeof enemies !== 'undefined') ? enemies.length : 0;
+    const projN    = (typeof projectiles !== 'undefined') ? projectiles.length : 0;
+    const partN    = (typeof particles !== 'undefined') ? particles.length : 0;
+    const ftN      = (typeof floatingTexts !== 'undefined') ? floatingTexts.length : 0;
+    const px       = (typeof player !== 'undefined' && player) ? Math.round(player.x) : 0;
+    const py       = (typeof player !== 'undefined' && player) ? Math.round(player.y) : 0;
+    const cells    = (window._spatialHash && window._spatialHash.cellCount) ? window._spatialHash.cellCount() : '–';
+    const hitStop  = _hitStopFrames;
+    const wv       = (typeof wave !== 'undefined') ? wave : 0;
+    el.textContent =
+        `FPS:    ${fps} (p50 ${p50.toFixed(1)}ms / p99 ${p99.toFixed(1)}ms)\n` +
+        `Wave:   ${wv}\n` +
+        `Player: ${px}, ${py}\n` +
+        `Enemies:    ${enemiesN}\n` +
+        `Projectiles: ${projN}\n` +
+        `Particles:   ${partN}\n` +
+        `FloatingText: ${ftN}\n` +
+        `SpatialHash cells: ${cells}\n` +
+        `HitStop: ${hitStop}\n` +
+        `F1 to hide`;
+}
+
 function masterLoop(timestamp) {
     if (typeof audioManager !== 'undefined') {
         audioManager.update();
@@ -4823,6 +5033,7 @@ function masterLoop(timestamp) {
 
     // Only run logic if enough time has passed (cap at 60 FPS)
     if (deltaTime >= frameDelay) {
+        _updateDebugOverlay(deltaTime); // #148
         // Adjust lastTime to account for the extra time (smooths out the jitter)
         lastTime = timestamp - (deltaTime % frameDelay);
 
@@ -4865,6 +5076,7 @@ function masterLoop(timestamp) {
                     if (player) audioManager.playHeroExclamation(player.type, 'boss_win');
                 }
                 bossDeathTimer = 180;
+                triggerHitStop(12); // #39 boss-kill freeze
             }
 
             if (isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
@@ -4938,7 +5150,7 @@ function masterLoop(timestamp) {
                                 player.hp -= 5;
                                 try { audioManager.play('damage'); } catch (e) { }
                                 currentRunStats.damageTaken += 5;
-                                floatingTexts.push(new FloatingText(player.x, player.y - 20, "STORM!", "#3498db", 20));
+                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "STORM!", "#3498db", 20));
                             }
                             if (player.hp <= 0) gameOver();
                         }
@@ -5552,7 +5764,7 @@ function masterLoop(timestamp) {
                         if (frame % 240 === 0 && wFadeIn >= 1 && !player.isInvincible) {
                             const acidDmg = Math.ceil(player.maxHp * 0.01);
                             player.hp -= acidDmg * (1 - player.damageReduction);
-                            floatingTexts.push(new FloatingText(player.x, player.y - 30, `☠${acidDmg}`, '#2ecc71', 16));
+                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 30, `☠${acidDmg}`, '#2ecc71', 16));
                         }
 
                     } else if (currentWeather.id === 'GALE') {
@@ -5689,7 +5901,7 @@ function masterLoop(timestamp) {
                         if (frame % 240 === 0 && _wFI2 >= 1 && !player.isInvincible) {
                             const _ad2 = Math.ceil(player.maxHp * 0.01);
                             player.hp -= _ad2 * (1 - player.damageReduction);
-                            floatingTexts.push(new FloatingText(player.x, player.y - 30, `☠${_ad2}`, '#2ecc71', 16));
+                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 30, `☠${_ad2}`, '#2ecc71', 16));
                         }
                     }
                     void _wProg2; // suppress unused warning
@@ -5864,7 +6076,7 @@ function masterLoop(timestamp) {
                             if (!player.isInvincible) {
                                 player.hp -= lavaDmg;
                                 audioManager.play('damage');
-                                floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.floor(lavaDmg), "#e74c3c", 20));
+                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.floor(lavaDmg), "#e74c3c", 20));
                                 currentRunStats.damageTaken += 5;
                             }
                             createExplosion(player.x, player.y, '#e74c3c');
@@ -6378,7 +6590,7 @@ function masterLoop(timestamp) {
 
                         if (Math.hypot(p2.x - proj.x, p2.y - proj.y) < p2.radius + proj.radius) {
                             p2.hp -= proj.damage;
-                            floatingTexts.push(new FloatingText(p2.x, p2.y - 40, proj.damage.toFixed(0), "#ff0000", 25));
+                            floatingTexts.push(FloatingText.acquire(p2.x, p2.y - 40, proj.damage.toFixed(0), "#ff0000", 25));
                             proj.dead = true; // Mark dead
                             createExplosion(proj.x, proj.y, proj.color);
                             if (p2.hp <= 0) {
@@ -6399,6 +6611,7 @@ function masterLoop(timestamp) {
                                         // Story Mode Duel Victory
                                         bossActive = false;
                                         bossDeathTimer = 180; // 3 seconds for dramatic effect
+                                        triggerHitStop(12); // #39 boss-kill freeze
 
                                         // Clear any remaining enemies/projectiles
                                         enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
@@ -6434,7 +6647,7 @@ function masterLoop(timestamp) {
                         if (Math.hypot(player2.x - proj.x, player2.y - proj.y) < player2.radius + proj.radius) {
                             const dmg = proj.damage * (1 - player2.damageReduction);
                             player2.hp -= dmg;
-                            floatingTexts.push(new FloatingText(player2.x, player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
+                            floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
                             proj.dead = true;
                             createExplosion(proj.x, proj.y, proj.color);
                             if (player2.hp <= 0 && !player2.isDead) {
@@ -6498,7 +6711,7 @@ function masterLoop(timestamp) {
                                     p2.hp -= att.damage;
                                     att.hitList.push(pid);
                                     createExplosion(p2.x, p2.y, att.color);
-                                    floatingTexts.push(new FloatingText(p2.x, p2.y - 40, att.damage.toFixed(0), "#ff0000", 25));
+                                    floatingTexts.push(FloatingText.acquire(p2.x, p2.y - 40, att.damage.toFixed(0), "#ff0000", 25));
                                     if (p2.hp <= 0) {
                                         if (typeof isEvilMode !== 'undefined' && isEvilMode) {
                                             // Evil Mode: mark dead so checkWaveEnd() sees it — don't splice yet
@@ -6516,6 +6729,7 @@ function masterLoop(timestamp) {
                                             } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
                                                 bossActive = false;
                                                 bossDeathTimer = 180;
+                                                triggerHitStop(12); // #39 boss-kill freeze
                                                 enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
                                                 enemies = [];
                                                 projectiles = [];
@@ -6542,7 +6756,7 @@ function masterLoop(timestamp) {
                             player2.hp -= dmg;
                             att.hitList.push(pid);
                             createExplosion(player2.x, player2.y, att.color);
-                            floatingTexts.push(new FloatingText(player2.x, player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
+                            floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
                             if (player2.hp <= 0 && !player2.isDead) {
                                 player2.isDead = true; player2.hp = 0;
                                 createExplosion(player2.x, player2.y, '#fff');
@@ -6577,15 +6791,25 @@ function masterLoop(timestamp) {
             for (let index = particles.length - 1; index >= 0; index--) {
                 const part = particles[index];
                 part.update(); part.draw();
-                if (part.alpha <= 0) particles.splice(index, 1);
+                if (part.alpha <= 0) {
+                    Particle.release(part); // #20 return to pool before splice
+                    particles.splice(index, 1);
+                }
             }
 
             // Update and Draw Floating Texts (cap at 80 — drop oldest when full)
-            if (floatingTexts.length > 80) floatingTexts.splice(0, floatingTexts.length - 80);
+            if (floatingTexts.length > 80) {
+                // #20 release the dropped slice into the pool before truncating.
+                for (let _i = 0; _i < floatingTexts.length - 80; _i++) FloatingText.release(floatingTexts[_i]);
+                floatingTexts.splice(0, floatingTexts.length - 80);
+            }
             for (let index = floatingTexts.length - 1; index >= 0; index--) {
                 const ft = floatingTexts[index];
                 ft.update(); ft.draw();
-                if (ft.life <= 0) floatingTexts.splice(index, 1);
+                if (ft.life <= 0) {
+                    FloatingText.release(ft); // #20 return to pool before splice
+                    floatingTexts.splice(index, 1);
+                }
             }
 
             // Draw Additional Players (Versus / AI)
@@ -6656,7 +6880,7 @@ function masterLoop(timestamp) {
                         // Frostbite Armor (Altar c2)
                         if (player.hasFrostbiteArmor) {
                             enemy.frozenTimer = 180; // 3s Freeze
-                            floatingTexts.push(new FloatingText(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
+                            floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
                         }
 
                         // Reflect damage?
@@ -6702,7 +6926,7 @@ function masterLoop(timestamp) {
                         const reflectDmg = 20;
                         enemy.hp -= reflectDmg;
                         createExplosion(player.x, player.y, '#2ecc71');
-                        floatingTexts.push(new FloatingText(player.x, player.y - 40, "REFLECT", "#2ecc71", 16));
+                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "REFLECT", "#2ecc71", 16));
                     }
 
                     if (!player.isInvincible) {
@@ -6716,7 +6940,7 @@ function masterLoop(timestamp) {
                             player.hp -= dmgTaken;
                             audioManager.play('damage');
                             if (isChaosShuffleMode) checkChaosEvent('HIT');
-                            floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
+                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
                             currentRunStats.damageTaken += dmgTaken; // Track Damage
                             player.resetCombo(); // Reset Combo on Damage
                             // Player hit by enemy body — medium jolt
@@ -6742,7 +6966,7 @@ function masterLoop(timestamp) {
                         let p2Dmg = 1 * (1 - player2.damageReduction);
                         if (enemy.subType === 'SPEEDSTER') { p2Dmg = 20 * (1 - player2.damageReduction); enemy.hp = 0; }
                         player2.hp -= p2Dmg;
-                        floatingTexts.push(new FloatingText(player2.x, player2.y - 20, Math.ceil(p2Dmg), '#e74c3c', 20));
+                        floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 20, Math.ceil(p2Dmg), '#e74c3c', 20));
                         if (player2.transformActive) { player2.transformActive = false; player2.currentForm = 'NONE'; }
                         const a2 = Math.atan2(enemy.y - player2.y, enemy.x - player2.x);
                         if (!(enemy instanceof Boss)) { enemy.x += Math.cos(a2) * 20; enemy.y += Math.sin(a2) * 20; }
@@ -6774,7 +6998,7 @@ function masterLoop(timestamp) {
                             const bonuses = getCollectionBonuses(proj.shooterType);
 
                             if (proj.shooterType === 'SHOOTER' && bonuses.specials.includes('SHOOTER_DODGE') && Math.random() < 0.15) {
-                                floatingTexts.push(new FloatingText(player.x, player.y - 40, "DODGE", "#f1c40f", 20));
+                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "DODGE", "#f1c40f", 20));
                                 projectiles.splice(pIndex, 1);
                                 return;
                             }
@@ -6791,7 +7015,7 @@ function masterLoop(timestamp) {
                                 player.hp -= dmgTaken;
                                 audioManager.play('damage');
                                 // Player takes damage number
-                                floatingTexts.push(new FloatingText(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
+                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
                                 currentRunStats.damageTaken += dmgTaken; // Track Damage
                                 player.resetCombo(); // Reset Combo on Damage
                                 // Player hit by enemy projectile — sharp jolt
@@ -6816,7 +7040,7 @@ function masterLoop(timestamp) {
                             if (pDistP2 < player2.radius + proj.radius) {
                                 const p2ProjDmg = proj.damage * (1 - player2.damageReduction);
                                 player2.hp -= p2ProjDmg;
-                                floatingTexts.push(new FloatingText(player2.x, player2.y - 20, Math.ceil(p2ProjDmg), '#e74c3c', 20));
+                                floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 20, Math.ceil(p2ProjDmg), '#e74c3c', 20));
                                 createExplosion(player2.x, player2.y, proj.color);
                                 projectiles.splice(pIndex, 1);
                                 if (player2.hp <= 0 && !player2.isDead) {
@@ -6859,7 +7083,7 @@ function masterLoop(timestamp) {
 
                             // Boss Immunity Check
                             if (enemy instanceof Boss && enemy.immune) {
-                                floatingTexts.push(new FloatingText(enemy.x, enemy.y - 40, "IMMUNE", "#fff", 20));
+                                floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "IMMUNE", "#fff", 20));
                                 projectiles.splice(pIndex, 1);
                                 return;
                             }
@@ -6903,7 +7127,7 @@ function masterLoop(timestamp) {
                             // Altar: Cryo-Flora (c9) - Apply Freeze
                             if (proj.isCryo) {
                                 enemy.frozenTimer = 60; // 1s
-                                floatingTexts.push(new FloatingText(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
+                                floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
                             }
 
                             enemy.hp -= finalDamage;
@@ -6921,7 +7145,7 @@ function masterLoop(timestamp) {
                             if (isCrit) triggerHitStop(4);
 
                             // Enemy takes damage number
-                            floatingTexts.push(new FloatingText(
+                            floatingTexts.push(FloatingText.acquire(
                                 enemy.x,
                                 enemy.y - 20,
                                 Math.floor(finalDamage) + (isCrit ? '!' : ''),
@@ -6949,7 +7173,7 @@ function masterLoop(timestamp) {
                                         }
 
                                         // Explosion damage number
-                                        floatingTexts.push(new FloatingText(nearby.x, nearby.y - 20, Math.floor(proj.damage), '#e67e22', 16));
+                                        floatingTexts.push(FloatingText.acquire(nearby.x, nearby.y - 20, Math.floor(proj.damage), '#e67e22', 16));
 
                                         currentRunStats.damageDealt += proj.damage; // Track Damage
                                         saveData.global.totalDamage += proj.damage;
@@ -6991,7 +7215,7 @@ function masterLoop(timestamp) {
                                           isCrit ? 0.35 : 0.22, isCrit ? 0.70 : 0.50,
                                           isCrit ? 220 : 160);
                             if (isCrit) triggerHitStop(5); else triggerHitStop(2);
-                            floatingTexts.push(new FloatingText(
+                            floatingTexts.push(FloatingText.acquire(
                                 enemy.x,
                                 enemy.y - 20,
                                 Math.floor(att.damage) + (isCrit ? '!' : ''),
@@ -7029,7 +7253,7 @@ function masterLoop(timestamp) {
                             if (!player.isInvincible) {
                                 player.hp -= 10 * (1 - player.damageReduction);
                                 audioManager.play('damage');
-                                floatingTexts.push(new FloatingText(player.x, player.y - 20, "10", "#e74c3c", 20));
+                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "10", "#e74c3c", 20));
                             }
                         }
                     }
@@ -7085,6 +7309,7 @@ function masterLoop(timestamp) {
 
                             // Start Boss Death Sequence
                             bossDeathTimer = 180; // 3 seconds at 60 FPS
+                            triggerHitStop(12); // #39 boss-kill freeze
                             if (typeof audioManager !== 'undefined') {
                                 audioManager.play('wave_completed');
                                 if (currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT') {
@@ -7115,7 +7340,7 @@ function masterLoop(timestamp) {
                                 const nearby = _swarmCands[_wi];
                                 if (nearby !== enemy && Math.hypot(nearby.x - enemy.x, nearby.y - enemy.y) < 100) {
                                     nearby.hp -= 20;
-                                    floatingTexts.push(new FloatingText(nearby.x, nearby.y - 20, "20", "#8e44ad", 16));
+                                    floatingTexts.push(FloatingText.acquire(nearby.x, nearby.y - 20, "20", "#8e44ad", 16));
                                 }
                             }
                         }
@@ -7151,7 +7376,7 @@ function masterLoop(timestamp) {
                                     if (!player.isInvincible) {
                                         player.hp -= 30 * (1 - player.damageReduction);
                                         audioManager.play('damage');
-                                        floatingTexts.push(new FloatingText(player.x, player.y - 20, "30", "#e74c3c", 20));
+                                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "30", "#e74c3c", 20));
                                     }
                                 }
                             }
@@ -7525,10 +7750,11 @@ function _launchMenu() {
         if (loader && loader.style.display !== 'none' && loader.style.opacity !== '0') {
             loader.style.transition = 'opacity 0.5s';
             loader.style.opacity = '0';
-            setTimeout(() => { loader.remove(); initMenu(); }, 500);
+            setTimeout(() => { loader.remove(); initMenu(); _maybeShowWhatsNew(); }, 500);
         } else {
             if (loader) loader.remove();
             initMenu();
+            _maybeShowWhatsNew();
         }
     });
 }
@@ -7580,6 +7806,9 @@ window.quitGlobalLobby     = quitGlobalLobby;
 window.startOnlineTestArena = startOnlineTestArena;
 window.exportSave          = exportSave;
 window.importSave          = importSave;
+window.openSaveBackups     = openSaveBackups;
+window.closeSaveBackups    = closeSaveBackups;
+window.closeWhatsNew       = closeWhatsNew;
 window.startTestingGrounds = startTestingGrounds;
 // Functions called as bare globals from TutorialMode.js, EvilMode.js, DLC files
 window.showNotification    = showNotification;

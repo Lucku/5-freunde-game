@@ -157,7 +157,7 @@ class EarthHero {
         if (typeof particles !== 'undefined') {
             for (let i = 0; i < 15; i++) {
                 const angle = (Math.PI * 2 / 15) * i;
-                particles.push(new Particle(player.x, player.y, '#5d4037', { x: Math.cos(angle) * 3, y: Math.sin(angle) * 3 }));
+                particles.push(Particle.acquire(player.x, player.y, '#5d4037', { x: Math.cos(angle) * 3, y: Math.sin(angle) * 3 }));
             }
         }
 
@@ -183,7 +183,7 @@ class EarthHero {
             const damageToShield = dmg * 2;
             player.rockShield.hp -= damageToShield;
 
-            if (floatingTexts) floatingTexts.push(new FloatingText(player.x, player.y - 40, "BLOCK", "#8d6e63", 20));
+            if (floatingTexts) floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "BLOCK", "#8d6e63", 20));
 
             // Visual Effect
             createExplosion?.(player.x, player.y, '#5d4037', 10);
@@ -280,7 +280,7 @@ class EarthHero {
 
                     // Floating Text
                     if (typeof FloatingText !== 'undefined') {
-                        floatingTexts?.push(new FloatingText(e.x, e.y - 20, Math.floor(damage), "#fff", 20));
+                        floatingTexts?.push(FloatingText.acquire(e.x, e.y - 20, Math.floor(damage), "#fff", 20));
                     }
                 }
             });
@@ -562,7 +562,7 @@ class EarthHero {
                         // Ice Breaker (c13)
                         if (has('c13') && e.frozenTimer > 0) {
                             damage *= 3;
-                            floatingTexts?.push(new FloatingText(e.x, e.y - 60, "SHATTER!", "#aaddff", 30));
+                            floatingTexts?.push(FloatingText.acquire(e.x, e.y - 60, "SHATTER!", "#aaddff", 30));
                             e.frozenTimer = 0;
                         }
 
@@ -581,7 +581,7 @@ class EarthHero {
                         // Nature's Embrace (c14)
                         if (has('c14')) {
                             player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.01);
-                            floatingTexts?.push(new FloatingText(player.x, player.y - 40, "+HP", "#2ecc71", 20));
+                            floatingTexts?.push(FloatingText.acquire(player.x, player.y - 40, "+HP", "#2ecc71", 20));
                         }
 
                         // Objective Tracking
@@ -592,7 +592,7 @@ class EarthHero {
                         // Visuals
                         if (typeof createExplosion === 'function') createExplosion(e.x, e.y, '#8d6e63');
                         if (typeof FloatingText === 'function' && typeof floatingTexts !== 'undefined') {
-                            floatingTexts.push(new FloatingText(e.x, e.y - 20, Math.floor(damage), "#8d6e63", 25));
+                            floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, Math.floor(damage), "#8d6e63", 25));
                         }
 
                         // Knockback
@@ -637,7 +637,7 @@ class EarthHero {
                         // Visuals
                         if (typeof createExplosion === 'function') createExplosion(e.x, e.y, '#8d6e63');
                         if (typeof FloatingText === 'function' && typeof floatingTexts !== 'undefined') {
-                            floatingTexts.push(new FloatingText(e.x, e.y - 20, Math.floor(damage), "#8d6e63", 25));
+                            floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, Math.floor(damage), "#8d6e63", 25));
                         }
 
                         // Knockback

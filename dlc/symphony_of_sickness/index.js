@@ -611,7 +611,7 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
                     createExplosion(this.x, this.y, '#6c3483');
                     createExplosion(this.x, this.y, '#000000');
                     if (typeof floatingTexts !== 'undefined')
-                        floatingTexts.push(new FloatingText(this.x, this.y - 90, 'THE REFLECTION STIRS', '#9b59b6', 90));
+                        floatingTexts.push(FloatingText.acquire(this.x, this.y - 90, 'THE REFLECTION STIRS', '#9b59b6', 90));
                     if (typeof showNotification === 'function') showNotification('THE REFLECTION STIRS!');
                     if (typeof audioManager !== 'undefined') audioManager.play('shadow_phase_transition');
                 }
@@ -705,7 +705,7 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
             _spawnTrailParticles(count) {
                 if (typeof Particle === 'undefined' || typeof particles === 'undefined') return;
                 for (let i = 0; i < count; i++) {
-                    const tp = new Particle(
+                    const tp = Particle.acquire(
                         this.x + (Math.random() - 0.5) * this.radius,
                         this.y + (Math.random() - 0.5) * this.radius,
                         i % 2 === 0 ? '#1a0030' : '#4a235a'

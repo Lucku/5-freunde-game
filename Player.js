@@ -417,7 +417,7 @@ class Player {
         this.hp -= actualDamage;
 
         if (actualDamage > 0) audioManager?.play('damage');
-        floatingTexts?.push(new FloatingText(this.x, this.y - 40, actualDamage.toFixed(0), "#ff0000", 25));
+        floatingTexts?.push(FloatingText.acquire(this.x, this.y - 40, actualDamage.toFixed(0), "#ff0000", 25));
     }
 
     useSpecial() {
@@ -465,14 +465,14 @@ class Player {
             for (let i = 0; i < 24; i++) {
                 const a = (Math.PI * 2 / 24) * i;
                 const spd = 3.5 + Math.random() * 3;
-                const p = new Particle(this.x, this.y, i % 3 === 0 ? '#ffd700' : '#ff4500');
+                const p = Particle.acquire(this.x, this.y, i % 3 === 0 ? '#ffd700' : '#ff4500');
                 p.velocity.x = Math.cos(a) * spd; p.velocity.y = Math.sin(a) * spd;
                 p.life = 0.018; particles.push(p);
             }
             // Inner ring at half radius fills the gap
             for (let i = 0; i < 16; i++) {
                 const a = (Math.PI * 2 / 16) * i + Math.PI / 16;
-                const p = new Particle(this.x + Math.cos(a) * radius * 0.5, this.y + Math.sin(a) * radius * 0.5, '#e67e22');
+                const p = Particle.acquire(this.x + Math.cos(a) * radius * 0.5, this.y + Math.sin(a) * radius * 0.5, '#e67e22');
                 p.life = 0.022; particles.push(p);
             }
 
@@ -484,7 +484,7 @@ class Player {
                     createExplosion(ex, ey, '#e74c3c');
                     // Ember scatter at each explosion
                     for (let j = 0; j < 6; j++) {
-                        const ep = new Particle(ex, ey, j % 2 === 0 ? '#ff4500' : '#ffd700');
+                        const ep = Particle.acquire(ex, ey, j % 2 === 0 ? '#ff4500' : '#ffd700');
                         ep.life = 0.03; particles.push(ep);
                     }
                     // Lingering Flame (f3)
@@ -495,11 +495,11 @@ class Player {
                     enemies.forEach(e => {
                         if (Math.hypot(e.x - ex, e.y - ey) < 80) {
                             e.hp -= 50 * this.damageMultiplier;
-                            floatingTexts.push(new FloatingText(e.x, e.y - 20, "50", "#e74c3c", 20));
+                            floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, "50", "#e74c3c", 20));
 
                             if (isThermal) {
                                 e.frozenTimer = 60; // 1s Freeze
-                                floatingTexts.push(new FloatingText(e.x, e.y - 40, "FREEZE", "#aaddff", 16));
+                                floatingTexts.push(FloatingText.acquire(e.x, e.y - 40, "FREEZE", "#aaddff", 16));
                             }
                             if (isMeteor) {
                                 const angle = Math.atan2(e.y - ey, e.x - ex);
@@ -523,7 +523,7 @@ class Player {
             for (let i = 0; i < 32; i++) {
                 const a = (Math.PI * 2 / 32) * i;
                 const spd = 4 + Math.random() * 5;
-                const p = new Particle(this.x, this.y, i % 4 === 0 ? '#ffffff' : '#3498db');
+                const p = Particle.acquire(this.x, this.y, i % 4 === 0 ? '#ffffff' : '#3498db');
                 p.velocity.x = Math.cos(a) * spd; p.velocity.y = Math.sin(a) * spd;
                 p.life = 0.02; particles.push(p);
             }
@@ -532,7 +532,7 @@ class Player {
                 setTimeout(() => {
                     for (let i = 0; i < 20; i++) {
                         const a = (Math.PI * 2 / 20) * i;
-                        const p = new Particle(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, wave === 0 ? '#74b9ff' : '#3498db');
+                        const p = Particle.acquire(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, wave === 0 ? '#74b9ff' : '#3498db');
                         p.velocity.x = Math.cos(a) * 1.5; p.velocity.y = Math.sin(a) * 1.5;
                         p.life = 0.025; particles.push(p);
                     }
@@ -552,7 +552,7 @@ class Player {
             // Convergence: Hydro-Shield (c8)
             if (has('c8')) {
                 if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + 20); // Temp HP / Heal
-                floatingTexts.push(new FloatingText(this.x, this.y - 40, "SHIELD", "#3498db", 20));
+                floatingTexts.push(FloatingText.acquire(this.x, this.y - 40, "SHIELD", "#3498db", 20));
             }
 
             // Convergence: Storm Surge (c19)
@@ -569,7 +569,7 @@ class Player {
                 if (isStormSurge) {
                     e.hp -= 25 * this.damageMultiplier;
                     if (Math.random() < 0.5) {
-                        floatingTexts.push(new FloatingText(e.x, e.y - 40, "ZAP", "#ffff00", 16));
+                        floatingTexts.push(FloatingText.acquire(e.x, e.y - 40, "ZAP", "#ffff00", 16));
                         // Check if createExplosion supports color
                         createExplosion(e.x, e.y, '#ffff00');
                     }
@@ -577,18 +577,18 @@ class Player {
 
                 if (isBoiling) {
                     e.hp -= 10 * this.damageMultiplier; // Fire DoT instant burst
-                    floatingTexts.push(new FloatingText(e.x, e.y - 40, "BOIL", "#e74c3c", 16));
+                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 40, "BOIL", "#e74c3c", 16));
                 }
                 if (isAlgae) {
                     if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + 1);
                 }
                 if (isMuddy) {
                     e.speedMult = (e.speedMult || 1) * 0.5;
-                    floatingTexts.push(new FloatingText(e.x, e.y - 60, "SLOW", "#8d6e63", 16));
+                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 60, "SLOW", "#8d6e63", 16));
                 }
                 if (isAcidRain) {
                     e.poisonStacks = Math.min((e.poisonStacks || 0) + 30, 100);
-                    floatingTexts.push(new FloatingText(e.x, e.y - 80, "TOXIC", "#76ff03", 16));
+                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 80, "TOXIC", "#76ff03", 16));
                 }
             });
         } else if (this.type === 'ice') {
@@ -600,7 +600,7 @@ class Player {
             for (let i = 0; i < 36; i++) {
                 const a = (Math.PI * 2 / 36) * i;
                 const spd = 3 + Math.random() * 3;
-                const p = new Particle(this.x, this.y, i % 3 === 0 ? '#ffffff' : '#aaddff');
+                const p = Particle.acquire(this.x, this.y, i % 3 === 0 ? '#ffffff' : '#aaddff');
                 p.velocity.x = Math.cos(a) * spd; p.velocity.y = Math.sin(a) * spd;
                 p.life = 0.016; particles.push(p);
             }
@@ -608,7 +608,7 @@ class Player {
             for (let i = 0; i < 8; i++) {
                 const a = (Math.PI * 2 / 8) * i;
                 for (let r = 30; r <= 150; r += 30) {
-                    const p = new Particle(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, r < 90 ? '#ffffff' : '#aaddff');
+                    const p = Particle.acquire(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, r < 90 ? '#ffffff' : '#aaddff');
                     p.velocity.x = Math.cos(a) * 1; p.velocity.y = Math.sin(a) * 1;
                     p.life = 0.02; particles.push(p);
                 }
@@ -617,7 +617,7 @@ class Player {
             setTimeout(() => {
                 for (let i = 0; i < 28; i++) {
                     const a = (Math.PI * 2 / 28) * i;
-                    const p = new Particle(this.x + Math.cos(a) * 200, this.y + Math.sin(a) * 200, '#aaddff');
+                    const p = Particle.acquire(this.x + Math.cos(a) * 200, this.y + Math.sin(a) * 200, '#aaddff');
                     p.velocity.x = Math.cos(a) * 1.2; p.velocity.y = Math.sin(a) * 1.2;
                     p.life = 0.022; particles.push(p);
                 }
@@ -636,10 +636,10 @@ class Player {
             enemies.forEach(e => {
                 if (canShatter && e.frozenTimer > 0) {
                     e.hp -= 50 * this.damageMultiplier; // Shatter Damage
-                    floatingTexts.push(new FloatingText(e.x, e.y - 20, "SHATTER", "#aaddff", 20));
+                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, "SHATTER", "#aaddff", 20));
                 }
                 e.frozenTimer = duration;
-                floatingTexts.push(new FloatingText(e.x, e.y - 40, "FROZEN", "#aaddff", 16));
+                floatingTexts.push(FloatingText.acquire(e.x, e.y - 40, "FROZEN", "#aaddff", 16));
 
                 if (isPermafrost) {
                     const angle = Math.atan2(e.y - this.y, e.x - this.x);
@@ -648,7 +648,7 @@ class Player {
                 }
                 if (isGlacial) {
                     e.hp -= 30 * this.damageMultiplier;
-                    floatingTexts.push(new FloatingText(e.x, e.y - 60, "CRUSH", "#8d6e63", 20));
+                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 60, "CRUSH", "#8d6e63", 20));
                 }
             });
         } else if (this.type === 'plant') {
@@ -658,13 +658,13 @@ class Player {
             if (has('p2')) healAmount *= 1.2; // +20% Heal
 
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + healAmount);
-            floatingTexts.push(new FloatingText(this.x, this.y - 40, "HEAL", "#2ecc71", 20));
+            floatingTexts.push(FloatingText.acquire(this.x, this.y - 40, "HEAL", "#2ecc71", 20));
             // Healing bloom: central green burst + rising life particles + outward spore ring
             createExplosion(this.x, this.y, '#2ecc71');
             for (let i = 0; i < 20; i++) {
                 setTimeout(() => {
                     const ox = (Math.random() - 0.5) * 40;
-                    const p = new Particle(this.x + ox, this.y, i % 3 === 0 ? '#f9ca24' : '#2ecc71');
+                    const p = Particle.acquire(this.x + ox, this.y, i % 3 === 0 ? '#f9ca24' : '#2ecc71');
                     p.velocity.x = (Math.random() - 0.5) * 1.5;
                     p.velocity.y = -(2.5 + Math.random() * 2.5);
                     p.life = 0.014; particles.push(p);
@@ -674,7 +674,7 @@ class Player {
             for (let i = 0; i < 24; i++) {
                 const a = (Math.PI * 2 / 24) * i;
                 const spd = 2.5 + Math.random() * 3;
-                const p = new Particle(this.x, this.y, i % 5 === 0 ? '#f9ca24' : '#27ae60');
+                const p = Particle.acquire(this.x, this.y, i % 5 === 0 ? '#f9ca24' : '#27ae60');
                 p.velocity.x = Math.cos(a) * spd; p.velocity.y = Math.sin(a) * spd;
                 p.life = 0.02; particles.push(p);
             }
@@ -685,7 +685,7 @@ class Player {
                     if (Math.hypot(e.x - this.x, e.y - this.y) < 250) {
                         e.hp -= 40 * this.damageMultiplier;
                         createExplosion(e.x, e.y, '#ffff00');
-                        floatingTexts.push(new FloatingText(e.x, e.y - 30, "SHOCK", "#ffff00", 18));
+                        floatingTexts.push(FloatingText.acquire(e.x, e.y - 30, "SHOCK", "#ffff00", 18));
                     }
                 });
             }
@@ -693,7 +693,7 @@ class Player {
             // Thornmail (p3)
             if (has('p3')) {
                 this.thornmailTimer = 300; // 5s
-                floatingTexts.push(new FloatingText(this.x, this.y - 60, "THORNMAIL", "#2ecc71", 20));
+                floatingTexts.push(FloatingText.acquire(this.x, this.y - 60, "THORNMAIL", "#2ecc71", 20));
             }
 
             // Convergence: Ironbark (c10)
@@ -701,13 +701,13 @@ class Player {
                 const oldDr = this.damageReduction;
                 this.damageReduction = Math.max(this.damageReduction, 0.5); // Set to 50% DR if lower
                 setTimeout(() => this.damageReduction = oldDr, 5000); // Reset to previous value
-                floatingTexts.push(new FloatingText(this.x, this.y - 80, "IRONBARK", "#95a5a6", 20));
+                floatingTexts.push(FloatingText.acquire(this.x, this.y - 80, "IRONBARK", "#95a5a6", 20));
             }
 
             // Convergence: Stone Roots (c14)
             if (has('c14')) {
                 this.invincibleTimer = 60; // 1s Invincibility
-                floatingTexts.push(new FloatingText(this.x, this.y - 80, "STONE SKIN", "#8d6e63", 20));
+                floatingTexts.push(FloatingText.acquire(this.x, this.y - 80, "STONE SKIN", "#8d6e63", 20));
             }
 
             // Convergence: Wildfire (c4)
@@ -738,7 +738,7 @@ class Player {
             if (has('m2')) duration *= 1.5; // +50% Duration
 
             this.invincibleTimer = duration;
-            floatingTexts.push(new FloatingText(this.x, this.y - 40, "INVINCIBLE", "#95a5a6", 20));
+            floatingTexts.push(FloatingText.acquire(this.x, this.y - 40, "INVINCIBLE", "#95a5a6", 20));
             // Armor activation: silver flash + steel spark ring + delayed shockwave
             createExplosion(this.x, this.y, '#ecf0f1');
             createExplosion(this.x, this.y, '#95a5a6');
@@ -746,7 +746,7 @@ class Player {
             for (let i = 0; i < 16; i++) {
                 const a = (Math.PI * 2 / 16) * i;
                 const spd = 5 + Math.random() * 4;
-                const p = new Particle(this.x, this.y, i % 2 === 0 ? '#ecf0f1' : '#bdc3c7');
+                const p = Particle.acquire(this.x, this.y, i % 2 === 0 ? '#ecf0f1' : '#bdc3c7');
                 p.velocity.x = Math.cos(a) * spd; p.velocity.y = Math.sin(a) * spd;
                 p.life = 0.025; particles.push(p);
             }
@@ -755,7 +755,7 @@ class Player {
                 createExplosion(this.x, this.y, '#95a5a6');
                 for (let i = 0; i < 24; i++) {
                     const a = (Math.PI * 2 / 24) * i;
-                    const p = new Particle(this.x + Math.cos(a) * 120, this.y + Math.sin(a) * 120, i % 3 === 0 ? '#ecf0f1' : '#7f8c8d');
+                    const p = Particle.acquire(this.x + Math.cos(a) * 120, this.y + Math.sin(a) * 120, i % 3 === 0 ? '#ecf0f1' : '#7f8c8d');
                     p.velocity.x = Math.cos(a) * 2; p.velocity.y = Math.sin(a) * 2;
                     p.life = 0.022; particles.push(p);
                 }
@@ -795,7 +795,7 @@ class Player {
                 enemies.forEach(e => {
                     if (Math.hypot(e.x - this.x, e.y - this.y) < 200) {
                         e.hp -= 30 * this.damageMultiplier;
-                        floatingTexts.push(new FloatingText(e.x, e.y - 20, "BURN", "#e74c3c", 16));
+                        floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, "BURN", "#e74c3c", 16));
                     }
                 });
             }
@@ -809,7 +809,7 @@ class Player {
             // Burst Heal
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
                 this.hp = Math.min(this.maxHp, this.hp + 50);
-                floatingTexts.push(new FloatingText(this.x, this.y - 40, "+50 HP", "#2ecc71", 20));
+                floatingTexts.push(FloatingText.acquire(this.x, this.y - 40, "+50 HP", "#2ecc71", 20));
             }
 
             createExplosion(this.x, this.y, '#9b59b6');
@@ -819,7 +819,7 @@ class Player {
             for (let i = 0; i < 28; i++) {
                 const a = (Math.PI * 2 / 28) * i;
                 const startR = radius * 0.8;
-                const p = new Particle(this.x + Math.cos(a) * startR, this.y + Math.sin(a) * startR, '#8e44ad');
+                const p = Particle.acquire(this.x + Math.cos(a) * startR, this.y + Math.sin(a) * startR, '#8e44ad');
                 p.velocity.x = -Math.cos(a) * 4; p.velocity.y = -Math.sin(a) * 4; // pull inward
                 p.life = 0.04; particles.push(p);
             }
@@ -828,7 +828,7 @@ class Player {
                 setTimeout(() => {
                     for (let i = 0; i < 24; i++) {
                         const a = (Math.PI * 2 / 24) * i;
-                        const p = new Particle(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, idx === 0 ? '#d7bde2' : idx === 1 ? '#8e44ad' : '#6c3483');
+                        const p = Particle.acquire(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r, idx === 0 ? '#d7bde2' : idx === 1 ? '#8e44ad' : '#6c3483');
                         p.velocity.x = Math.cos(a) * 2; p.velocity.y = Math.sin(a) * 2;
                         p.life = 0.022; particles.push(p);
                     }
@@ -842,14 +842,14 @@ class Player {
             enemies.forEach(e => {
                 if (Math.hypot(e.x - this.x, e.y - this.y) < radius) {
                     e.hp -= 100 * this.damageMultiplier;
-                    floatingTexts.push(new FloatingText(e.x, e.y - 20, "100", "#8e44ad", 25));
+                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, "100", "#8e44ad", 25));
                     createExplosion(e.x, e.y, '#9b59b6');
 
                     if (isVoidStorm) {
                         e.hp -= 50 * this.damageMultiplier;
                         e.frozenTimer = 60; // Mini-stun
                         createExplosion(e.x, e.y, '#ffff00'); // Lightning visual
-                        floatingTexts.push(new FloatingText(e.x, e.y - 50, "STORM", "#ffff00", 20));
+                        floatingTexts.push(FloatingText.acquire(e.x, e.y - 50, "STORM", "#ffff00", 20));
                     }
                 }
             });
@@ -863,7 +863,7 @@ class Player {
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
                 // Buffed Healing: 3 HP per kill (was 1)
                 this.hp = Math.min(this.maxHp, this.hp + 3);
-                floatingTexts.push(new FloatingText(this.x, this.y - 30, "+3", "#2ecc71", 14));
+                floatingTexts.push(FloatingText.acquire(this.x, this.y - 30, "+3", "#2ecc71", 14));
             }
         }
     }
@@ -898,7 +898,7 @@ class Player {
 
                 // Visual indicator for high DoT
                 if (dotDamage > 2) {
-                    floatingTexts.push(new FloatingText(this.x, this.y - 20, "-" + dotDamage.toFixed(1), "#555", 12));
+                    floatingTexts.push(FloatingText.acquire(this.x, this.y - 20, "-" + dotDamage.toFixed(1), "#555", 12));
                 }
             }
 
@@ -1096,7 +1096,7 @@ class Player {
             currentSpeed *= 4 * (this.dashSpeedMult || 1);
             this.dashFrames--;
             if (this.dashFrames <= 0) this.isDashing = false;
-            if (frame % 2 === 0) particles.push(new Particle(this.x, this.y, this.stats.color));
+            if (frame % 2 === 0) particles.push(Particle.acquire(this.x, this.y, this.stats.color));
         }
 
         // Calculate Movement Vector

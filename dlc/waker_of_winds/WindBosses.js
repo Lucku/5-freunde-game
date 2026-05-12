@@ -126,7 +126,7 @@ class WindBosses {
 
                 // Storm trail during dive
                 if (Math.random() < 0.4 && typeof particles !== 'undefined') {
-                    particles.push(new Particle(boss.x, boss.y, '#34495e'));
+                    particles.push(Particle.acquire(boss.x, boss.y, '#34495e'));
                 }
 
                 if (Math.hypot(boss.targetX - boss.x, boss.targetY - boss.y) < 25) {

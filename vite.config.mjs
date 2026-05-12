@@ -116,6 +116,14 @@ export default defineConfig({
                 }
                 // Save-editor's standalone scripts (none currently external)
                 // CSS is bundled via Vite's HTML pipeline.
+
+                // #165 — bundle CHANGELOG.md so the in-game "What's New" modal
+                // can fetch it at runtime via fetch('CHANGELOG.md').
+                {
+                    const src = path.resolve(__dirname, 'CHANGELOG.md');
+                    const dst = path.resolve(__dirname, 'dist', 'CHANGELOG.md');
+                    if (fs.existsSync(src)) fs.copyFileSync(src, dst);
+                }
             },
         },
     ],

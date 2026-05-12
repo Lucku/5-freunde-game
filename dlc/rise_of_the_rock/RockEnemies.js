@@ -91,7 +91,7 @@ class RockEnemies {
 
             if (!canPierce && enemy.hp < enemy.lastHp) {
                 enemy.hp = enemy.lastHp; // Revert damage
-                floatingTexts.push(new FloatingText(enemy.x, enemy.y - 20, "BLOCK", "#aaa", 15));
+                floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 20, "BLOCK", "#aaa", 15));
             }
         }
         enemy.lastHp = enemy.hp;

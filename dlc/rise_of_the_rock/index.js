@@ -650,7 +650,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
                 createExplosion(boss.x, boss.y, '#ff6600');
                 createExplosion(boss.x, boss.y, '#263238');
                 if (typeof floatingTexts !== 'undefined')
-                    floatingTexts.push(new FloatingText(boss.x, boss.y - 100, 'THE OBSIDIAN CRACKS!', '#ff6600', 90));
+                    floatingTexts.push(FloatingText.acquire(boss.x, boss.y - 100, 'THE OBSIDIAN CRACKS!', '#ff6600', 90));
                 if (typeof showNotification === 'function') showNotification('THE OBSIDIAN CRACKS!');
             }
             if (boss.phase === 2 && boss.hp <= boss.maxHp * 0.3) {

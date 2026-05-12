@@ -36,10 +36,32 @@ class FracturedBiome {
 
         if (this.pulseTimer > 300) { // Every 5s
             if (Math.random() < 0.3) {
-                // GLITCH: Teleport player slightly
-                player.x += (Math.random() - 0.5) * 200;
-                player.y += (Math.random() - 0.5) * 200;
-                if (typeof showNotification === 'function') showNotification("REALITY ERR_CONNECTION_RESET", "#f00");
+                // GLITCH: Teleport player to a nearby safe spot (no obstacle overlap).
+                // Try up to 12 candidates; if all collide, skip the teleport.
+                const origX = player.x;
+                const origY = player.y;
+                const radius = player.radius || 20;
+                const aw = arena?.width  ?? 3000;
+                const ah = arena?.height ?? 3000;
+                let placed = false;
+                for (let attempt = 0; attempt < 12; attempt++) {
+                    const nx = origX + (Math.random() - 0.5) * 200;
+                    const ny = origY + (Math.random() - 0.5) * 200;
+                    const cx = Math.max(radius + 4, Math.min(aw - radius - 4, nx));
+                    const cy = Math.max(radius + 4, Math.min(ah - radius - 4, ny));
+                    const collides = (typeof arena?.checkCollision === 'function')
+                        ? arena.checkCollision(cx, cy, radius)
+                        : false;
+                    if (!collides) {
+                        player.x = cx;
+                        player.y = cy;
+                        placed = true;
+                        break;
+                    }
+                }
+                if (placed && typeof showNotification === 'function') {
+                    showNotification("REALITY ERR_CONNECTION_RESET", "#f00");
+                }
             }
             this.pulseTimer = 0;
         }

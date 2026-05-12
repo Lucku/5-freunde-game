@@ -462,7 +462,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                 createExplosion(boss.x, boss.y, '#f1c40f');
                 createExplosion(boss.x, boss.y, '#ff00ff');
                 if (typeof floatingTexts !== 'undefined')
-                    floatingTexts.push(new FloatingText(boss.x, boss.y - 90, 'THE MIRROR AWAKENS', '#f1c40f', 90));
+                    floatingTexts.push(FloatingText.acquire(boss.x, boss.y - 90, 'THE MIRROR AWAKENS', '#f1c40f', 90));
                 if (typeof showNotification === 'function') showNotification('THE MIRROR AWAKENS!');
             }
             if (boss.phase === 2 && boss.hp <= boss.maxHp * 0.3) {
@@ -622,7 +622,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                     }
                     if (typeof audioManager !== 'undefined') audioManager.play('mimic_copy_hit');
                     if (typeof floatingTexts !== 'undefined')
-                        floatingTexts.push(new FloatingText(bx, by - 80, 'COPIED!', copyCol, 45));
+                        floatingTexts.push(FloatingText.acquire(bx, by - 80, 'COPIED!', copyCol, 45));
                     break;
                 }
 
@@ -639,7 +639,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                     } else {
                         if (typeof audioManager !== 'undefined') audioManager.play('gambit_nothing');
                         if (typeof floatingTexts !== 'undefined')
-                            floatingTexts.push(new FloatingText(bx, by - 80, 'HA! NOTHING!', col, 60));
+                            floatingTexts.push(FloatingText.acquire(bx, by - 80, 'HA! NOTHING!', col, 60));
                     }
                     break;
             }
