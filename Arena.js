@@ -6,6 +6,47 @@ class Arena {
         this.obstacles = [];
         this.traps = [];
         this.biomeZones = [];
+        // #21 — Static obstacle layer. Obstacles never move (only the array
+        // is mutated by adds/removes), so their gradient + crack + pit detail
+        // (~25 draw ops per obstacle) is baked into an offscreen canvas once
+        // per generation and blitted as a single drawImage each frame. The
+        // length+biome fingerprint below lets `draw()` detect DLC mutations
+        // (PoisonFlask spawns/consumes) and rebake lazily without explicit
+        // invalidation calls.
+        this._staticObstacleCanvas = null;
+        this._staticObstacleFingerprint = '';
+    }
+
+    // #21 — Lazy rebuild for the obstacle bake layer. No-op in non-browser
+    // environments (server simulation) since `document` is absent.
+    _rebuildStaticObstacleLayer() {
+        if (typeof document === 'undefined') {
+            this._staticObstacleCanvas = null;
+            return;
+        }
+        if (!this.obstacles || this.obstacles.length === 0) {
+            this._staticObstacleCanvas = null;
+            this._staticObstacleFingerprint = `0:${this.biomeType || ''}:${this.width}x${this.height}`;
+            return;
+        }
+        let off = this._staticObstacleCanvas;
+        if (!off || off.width !== this.width || off.height !== this.height) {
+            off = document.createElement('canvas');
+            off.width  = this.width;
+            off.height = this.height;
+            this._staticObstacleCanvas = off;
+        }
+        const octx = off.getContext('2d');
+        octx.clearRect(0, 0, off.width, off.height);
+        this.obstacles.forEach(obs => obs.draw(octx));
+        this._staticObstacleFingerprint = `${this.obstacles.length}:${this.biomeType || ''}:${this.width}x${this.height}`;
+    }
+
+    // Compare a cheap fingerprint of the current obstacle array against the
+    // last bake; rebuild if the count, biome, or arena dimensions changed.
+    _staticObstacleLayerDirty() {
+        const fp = `${this.obstacles.length}:${this.biomeType || ''}:${this.width}x${this.height}`;
+        return fp !== this._staticObstacleFingerprint;
     }
 
     updateCamera(player, canvasWidth, canvasHeight) {
@@ -245,6 +286,12 @@ class Arena {
                 memoryShards.push(shard);
             }
         }
+
+        // #21 — Bake obstacles into the offscreen layer after the final
+        // population (incl. turret/laser obstacle pushes above). Subsequent
+        // DLC mutations (PoisonFlask consume etc.) auto-rebake via the
+        // fingerprint check in draw().
+        this._rebuildStaticObstacleLayer();
     }
 
     draw(ctx, theme) {
@@ -301,8 +348,14 @@ class Arena {
         // Draw Traps
         this.traps.forEach(trap => trap.draw(ctx));
 
-        // Draw Obstacles
-        this.obstacles.forEach(obs => obs.draw(ctx));
+        // Draw Obstacles — #21 blit baked layer. Auto-rebuild if DLC adds /
+        // removes obstacles (PoisonFlask spawn or consume) since last bake.
+        if (this._staticObstacleLayerDirty()) this._rebuildStaticObstacleLayer();
+        if (this._staticObstacleCanvas) {
+            ctx.drawImage(this._staticObstacleCanvas, 0, 0);
+        } else {
+            this.obstacles.forEach(obs => obs.draw(ctx));
+        }
     }
 
     update(player) {

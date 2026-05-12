@@ -4739,3 +4739,77 @@ body.museum-mode #p2-special-cooldown-overlay {
     height: 1px;
     overflow: hidden;
 }
+
+/* ── What's New modal — markdown rendering (#165) ───────────────────────── */
+#whatsnew-body .wn-h2 {
+    margin: 14px 0 6px;
+    padding-bottom: 4px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffd86b;
+    border-bottom: 1px solid rgba(255, 216, 107, 0.25);
+    letter-spacing: 0.5px;
+}
+#whatsnew-body .wn-h2:first-child {
+    margin-top: 0;
+}
+#whatsnew-body .wn-h3 {
+    margin: 10px 0 4px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #9ad8ff;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+#whatsnew-body .wn-ul {
+    margin: 4px 0 8px;
+    padding-left: 18px;
+    list-style: disc;
+}
+#whatsnew-body .wn-li {
+    margin: 4px 0;
+}
+#whatsnew-body .wn-p {
+    margin: 6px 0;
+}
+#whatsnew-body .wn-strong {
+    color: #fff;
+    font-weight: 700;
+}
+#whatsnew-body .wn-em {
+    color: rgba(255, 255, 255, 0.95);
+    font-style: italic;
+}
+#whatsnew-body .wn-code {
+    padding: 1px 5px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: #ffd86b;
+}
+#whatsnew-body .wn-link {
+    color: #9ad8ff;
+    text-decoration: underline;
+}
+#whatsnew-body .wn-link:hover {
+    color: #c8e8ff;
+}
+
+/* High-contrast overrides */
+body.high-contrast #whatsnew-body .wn-h2,
+body.high-contrast #whatsnew-body .wn-h3,
+body.high-contrast #whatsnew-body .wn-strong,
+body.high-contrast #whatsnew-body .wn-em,
+body.high-contrast #whatsnew-body .wn-p,
+body.high-contrast #whatsnew-body .wn-li {
+    color: #fff !important;
+    border-color: #fff !important;
+}
+body.high-contrast #whatsnew-body .wn-code,
+body.high-contrast #whatsnew-body .wn-link {
+    color: #fff !important;
+    background: #000 !important;
+    border-color: #fff !important;
+}

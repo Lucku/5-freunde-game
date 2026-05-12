@@ -378,6 +378,49 @@ function importSave(input) {
 }
 
 // #165 — In-game changelog ("What's New") modal
+// Minimal markdown→HTML for the CHANGELOG slice rendered in the modal.
+// Subset: `##` / `###` headings, `- ` lists, `**bold**`, `*em*`, `` `code` ``,
+// `[text](url)`. Source is escaped first so any stray HTML is inert.
+function _renderMarkdownLite(md) {
+    const esc = (s) => s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const inline = (s) => s
+        .replace(/`([^`]+)`/g, (_, c) => `<code class="wn-code">${c}</code>`)
+        .replace(/\*\*([^*]+?)\*\*/g, '<strong class="wn-strong">$1</strong>')
+        .replace(/(^|[\s(])\*([^*\s][^*]*?)\*(?=[\s).,;:!?]|$)/g, '$1<em class="wn-em">$2</em>')
+        .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,
+            (_, t, u) => `<a class="wn-link" href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`);
+
+    const lines = md.split('\n');
+    const out = [];
+    let inList = false;
+    const closeList = () => { if (inList) { out.push('</ul>'); inList = false; } };
+    for (const raw of lines) {
+        const line = raw.replace(/\s+$/, '');
+        if (!line.trim()) { closeList(); continue; }
+        const escLine = esc(line);
+        let m;
+        if ((m = escLine.match(/^## (.+)$/))) {
+            closeList();
+            out.push(`<h2 class="wn-h2">${inline(m[1])}</h2>`);
+        } else if ((m = escLine.match(/^### (.+)$/))) {
+            closeList();
+            out.push(`<h3 class="wn-h3">${inline(m[1])}</h3>`);
+        } else if ((m = escLine.match(/^[-*] (.+)$/))) {
+            if (!inList) { out.push('<ul class="wn-ul">'); inList = true; }
+            out.push(`<li class="wn-li">${inline(m[1])}</li>`);
+        } else {
+            closeList();
+            out.push(`<p class="wn-p">${inline(escLine)}</p>`);
+        }
+    }
+    closeList();
+    return out.join('');
+}
 async function _maybeShowWhatsNew() {
     try {
         if (!gameConfig) return;
@@ -410,7 +453,7 @@ async function _maybeShowWhatsNew() {
         const modal = document.getElementById('whatsnew-modal');
         if (!body || !modal) return;
         ver.textContent = `Now on ${APP_VERSION}`;
-        body.textContent = shown.join('\n\n');
+        body.innerHTML = _renderMarkdownLite(shown.join('\n\n'));
         modal.style.display = 'flex';
     } catch (e) {
         console.warn('Whats-new modal failed:', e);
