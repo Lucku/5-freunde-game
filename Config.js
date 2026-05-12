@@ -99,7 +99,15 @@ const defaultConfig = {
 };
 
 var gameConfig = structuredClone(defaultConfig); // #17
-if (typeof window !== 'undefined') window.gameConfig = gameConfig;
+// #4 session 5 — GameContext owns gameConfig; `window.gameConfig` is a reverse
+// alias getter set up by the setter. Later mutations are in-place
+// (`Object.assign(gameConfig, …)` / `gameConfig.X = …`), so object identity
+// is preserved and `window.gameContext.gameConfig === gameConfig` always.
+if (typeof window !== 'undefined' && window.gameContext) {
+    window.gameContext.gameConfig = gameConfig;
+} else if (typeof window !== 'undefined') {
+    window.gameConfig = gameConfig; // pre-GameContext fallback (defensive)
+}
 
 function loadConfig() {
     let raw = null;

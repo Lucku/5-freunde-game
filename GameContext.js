@@ -77,16 +77,20 @@ GameContext._ctxBacking    = null;
 Object.defineProperty(GameContext, 'canvas', _ownedDescriptor('_canvasBacking', 'canvas'));
 Object.defineProperty(GameContext, 'ctx',    _ownedDescriptor('_ctxBacking',    'ctx'));
 
-// User config (settings, key bindings, accessibility) — still delegated to
-// `window.gameConfig` because Config.js declares a module-scope `var gameConfig`
-// and re-assigns on first load. Flip is deferred to session 5.
-Object.defineProperty(GameContext, 'gameConfig', _winDescriptor('gameConfig'));
+// User config (settings, key bindings, accessibility). Session 5 flip:
+// Config.js writes via setter on init; all later mutations are deep-prop
+// (`gameConfig.X = …` or `Object.assign(gameConfig, …)`) so object identity
+// is preserved and reverse-alias readers stay coherent.
+GameContext._gameConfigBacking = null;
+Object.defineProperty(GameContext, 'gameConfig', _ownedDescriptor('_gameConfigBacking', 'gameConfig'));
 
-// Save data + defaults — `saveData` deferred (many writers); `defaultSaveData`
-// flipped (written once in game.js init).
-Object.defineProperty(GameContext, 'saveData',         _winDescriptor('saveData'));
+// Save data + defaults — both flipped in session 5. `saveData` writers
+// (SaveManager.loadGame result, fresh-init, importSave, CloudSaveManager merge)
+// all route through the setter.
+GameContext._saveDataBacking = null;
+Object.defineProperty(GameContext, 'saveData', _ownedDescriptor('_saveDataBacking', 'saveData'));
 GameContext._defaultSaveDataBacking = null;
-Object.defineProperty(GameContext, 'defaultSaveData',  _ownedDescriptor('_defaultSaveDataBacking', '_defaultSaveData'));
+Object.defineProperty(GameContext, 'defaultSaveData', _ownedDescriptor('_defaultSaveDataBacking', '_defaultSaveData'));
 
 // Live run state (currently module-scoped in game.js, exposed via defineProperty
 // pairs and entity-array window shims — see game.js).

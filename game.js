@@ -184,7 +184,7 @@ let p1RevivalMarker = null; // { x, y, progress, maxProgress }
 let p2RevivalMarker = null;
 let p2LevelUpPending = false;
 let p2LevelUpOptions = [];
-window.saveData = {
+window.gameContext.saveData = { // #4 session 5
     fire: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
@@ -313,10 +313,10 @@ async function saveGame() {
 
 async function loadGame() {
     if (typeof SaveManager !== 'undefined') {
-        window.saveData = await SaveManager.loadGame(defaultSaveData);
+        window.gameContext.saveData = await SaveManager.loadGame(defaultSaveData); // #4 session 5
     } else {
         console.error("SaveManager is not defined!");
-        window.saveData = structuredClone(defaultSaveData); // #17
+        window.gameContext.saveData = structuredClone(defaultSaveData); // #4 session 5 + #17
     }
     if (typeof CloudSaveManager !== 'undefined') {
         await CloudSaveManager.syncOnStartup();
@@ -333,7 +333,7 @@ function importSave(input) {
     if (!input.files[0]) return;
     if (typeof SaveManager !== 'undefined') {
         SaveManager.importSave(input.files[0], (data) => {
-            window.saveData = data;
+            window.gameContext.saveData = data; // #4 session 5
             saveGame();
             alert("Save loaded successfully!");
             location.reload();

@@ -177,7 +177,7 @@ class CloudSaveManager {
         if (!merged.altar) merged.altar = { active: [] };
         if (!merged.weekly) merged.weekly = { lastCompleted: null };
 
-        window.saveData = merged;
+        window.gameContext.saveData = merged; // #4 session 5
         await SaveManager.saveGame(merged);
 
         window.gameConfig.cloudSave.lastSyncAt   = cloudSavedAt;
