@@ -464,7 +464,7 @@ window.HERO_LOGIC['makuta'] = {
         angles.forEach(a => {
             const isCrit = Math.random() < p.critChance;
             const finalDmg = isCrit ? dmg * p.critMultiplier : dmg;
-            const proj = new Projectile(
+            const proj = Projectile.acquire(
                 p.x, p.y,
                 { x: Math.cos(a) * speed, y: Math.sin(a) * speed },
                 finalDmg,
@@ -495,7 +495,7 @@ window.HERO_LOGIC['makuta'] = {
         const ringCount = 16;
         for (let i = 0; i < ringCount; i++) {
             const a = (Math.PI * 2 / ringCount) * i;
-            const proj = new Projectile(
+            const proj = Projectile.acquire(
                 p.x, p.y,
                 { x: Math.cos(a) * (speed * 0.7), y: Math.sin(a) * (speed * 0.7) },
                 baseDmg * 0.28,
@@ -519,7 +519,7 @@ window.HERO_LOGIC['makuta'] = {
         audioManager?.play('boss_makuta_shadow_beam');
         for (let s = -1; s <= 1; s++) {
             const a = baseAngle + s * 0.2;
-            const proj = new Projectile(
+            const proj = Projectile.acquire(
                 p.x, p.y,
                 { x: Math.cos(a) * (speed * 1.4), y: Math.sin(a) * (speed * 1.4) },
                 baseDmg * 0.8,

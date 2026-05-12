@@ -79,7 +79,7 @@ class ChanceHero {
             player.jackpotTimer = 600;
             if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#ff00ff', 60);
             if (typeof goldDrops !== 'undefined') {
-                for (let i = 0; i < 20; i++) goldDrops.push(new GoldDrop(player.x, player.y, 25));
+                for (let i = 0; i < 20; i++) goldDrops.push(GoldDrop.acquire(player.x, player.y, 25));
             }
             if (typeof showNotification === 'function') showNotification("ALL IN — JACKPOT FORM!", "#ff00ff");
             return true;
@@ -355,7 +355,7 @@ class ChanceHero {
             // Heal Full + Gold
             player.hp = player.maxHp;
             if (typeof goldDrops !== 'undefined') {
-                for (let i = 0; i < 50; i++) goldDrops.push(new GoldDrop(player.x, player.y, 50));
+                for (let i = 0; i < 50; i++) goldDrops.push(GoldDrop.acquire(player.x, player.y, 50));
             }
         }
         else if (outcome === 'DIAMOND') {
@@ -420,7 +420,7 @@ class ChanceHero {
             player.hp = Math.min(player.maxHp, player.hp + 50);
             // Drop Gold
             if (typeof goldDrops !== 'undefined') {
-                for (let i = 0; i < 10; i++) goldDrops.push(new GoldDrop(player.x, player.y, 10));
+                for (let i = 0; i < 10; i++) goldDrops.push(GoldDrop.acquire(player.x, player.y, 10));
             }
         }
         else if (outcome === 'DIAMOND') {

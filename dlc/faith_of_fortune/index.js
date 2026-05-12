@@ -554,7 +554,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
         _regularAttack(boss, tgt) {
             const a = Math.atan2(tgt.y - boss.y, tgt.x - boss.x);
             const spreads = boss.phase === 3 ? [-0.28, 0, 0.28] : boss.phase === 2 ? [-0.2, 0.2] : [0];
-            spreads.forEach(s => projectiles.push(new Projectile(
+            spreads.forEach(s => projectiles.push(Projectile.acquire(
                 boss.x, boss.y, { x: Math.cos(a + s) * 9, y: Math.sin(a + s) * 9 },
                 boss.damage * 0.7, '#f1c40f', 8, 'enemy', 0, true
             )));
@@ -572,7 +572,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                         const sp = (Math.random() - 0.5) * 0.14;
                         setTimeout(() => {
                             if (typeof projectiles !== 'undefined')
-                                projectiles.push(new Projectile(bx, by,
+                                projectiles.push(Projectile.acquire(bx, by,
                                     { x: Math.cos(a + sp) * 13, y: Math.sin(a + sp) * 13 },
                                     dmg * 0.9, col, 7, 'enemy', 0, true));
                         }, i * 120);
@@ -582,7 +582,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                 case 1: // NOVA — 10 outward orbs
                     for (let i = 0; i < 10; i++) {
                         const oa = (Math.PI * 2 / 10) * i;
-                        projectiles.push(new Projectile(bx, by,
+                        projectiles.push(Projectile.acquire(bx, by,
                             { x: Math.cos(oa) * 5.5, y: Math.sin(oa) * 5.5 },
                             dmg * 0.85, col, 10, 'enemy', 0, true));
                     }
@@ -593,7 +593,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                     for (let i = 0; i < 18; i++) {
                         const ra  = Math.random() * Math.PI * 2;
                         const spd = 2 + Math.random() * 2.5;
-                        projectiles.push(new Projectile(bx, by,
+                        projectiles.push(Projectile.acquire(bx, by,
                             { x: Math.cos(ra) * spd, y: Math.sin(ra) * spd },
                             dmg * 0.6, col, 7, 'enemy', 0, true));
                     }
@@ -605,7 +605,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                         [0, 22].forEach(delay => setTimeout(() => {
                             if (typeof projectiles === 'undefined') return;
                             const sa = (Math.PI * 2 / 3) * arm + frame * 0.05;
-                            projectiles.push(new Projectile(bx, by,
+                            projectiles.push(Projectile.acquire(bx, by,
                                 { x: Math.cos(sa) * 6, y: Math.sin(sa) * 6 },
                                 dmg * 0.75, col, 8, 'enemy', 0, true));
                         }, arm * 90 + delay * 10));
@@ -616,7 +616,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                     const copyCol = (window.player && _HERO_COLORS[window.player.type])
                         ? _HERO_COLORS[window.player.type] : '#ffffff';
                     for (let i = -1; i <= 1; i++) {
-                        projectiles.push(new Projectile(bx, by,
+                        projectiles.push(Projectile.acquire(bx, by,
                             { x: Math.cos(a + i * 0.22) * 11, y: Math.sin(a + i * 0.22) * 11 },
                             dmg * 1.1, copyCol, 9, 'enemy', 0, true));
                     }
@@ -630,7 +630,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                     if (Math.random() < 0.4) {
                         for (let i = 0; i < 20; i++) {
                             const ga = (Math.PI * 2 / 20) * i;
-                            projectiles.push(new Projectile(bx, by,
+                            projectiles.push(Projectile.acquire(bx, by,
                                 { x: Math.cos(ga) * 6.5, y: Math.sin(ga) * 6.5 },
                                 dmg, col, 10, 'enemy', 0, true));
                         }
@@ -663,7 +663,7 @@ window.DLC_REGISTRY['faith_of_fortune'] = FAITH_OF_FORTUNE;
                 d.y  = Math.max(boss.radius, Math.min(arena.height - boss.radius, d.y));
                 if (--d.fireTimer <= 0) {
                     const fa = Math.atan2(tgt.y - d.y, tgt.x - d.x);
-                    projectiles.push(new Projectile(d.x, d.y,
+                    projectiles.push(Projectile.acquire(d.x, d.y,
                         { x: Math.cos(fa) * 7, y: Math.sin(fa) * 7 },
                         boss.damage * 0.45, '#c8a000', 7, 'enemy', 0, true));
                     d.fireTimer = 80;

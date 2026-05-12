@@ -275,7 +275,7 @@ window.HERO_LOGIC['void'] = {
                             if (typeof projectiles !== 'undefined') {
                                 for (let k = 0; k < 3; k++) {
                                     const a = Math.random() * Math.PI * 2;
-                                    projectiles.push(new Projectile(
+                                    projectiles.push(Projectile.acquire(
                                         e.x, e.y,
                                         { x: Math.cos(a) * 10, y: Math.sin(a) * 10 },
                                         30, '#ffff00', 4, 'friend', 0

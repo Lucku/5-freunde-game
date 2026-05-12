@@ -233,7 +233,7 @@ window.HERO_LOGIC['mirror'] = {
             : (player._lastAimAngle || 0);
         const speed = 7;
         const dmg = (player.stats.rangeDmg || 12) * 1.2 * (player.damageMultiplier || 1);
-        const shard = new Projectile(
+        const shard = Projectile.acquire(
             player.x, player.y,
             { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
             dmg, '#aed6f1', 9, 'mirror', 0, false
@@ -336,6 +336,7 @@ window.HERO_LOGIC['mirror'] = {
                 }
                 if (exploded) {
                     this._spawnShatterFragments(p);
+                    if (typeof Projectile !== 'undefined') Projectile.release(p); // #20 P3
                     projectiles.splice(i, 1);
                 }
             }
@@ -407,7 +408,7 @@ window.HERO_LOGIC['mirror'] = {
         for (let i = 0; i < count; i++) {
             const a = (Math.PI * 2 / count) * i;
             const v = 8;
-            const frag = new Projectile(shard.x, shard.y,
+            const frag = Projectile.acquire(shard.x, shard.y,
                 { x: Math.cos(a) * v, y: Math.sin(a) * v },
                 baseDmg, '#aed6f1', 5, 'mirror', shard.knockback || 0, false);
             frag.life = 60;

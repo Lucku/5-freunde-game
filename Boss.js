@@ -380,7 +380,7 @@ class Boss {
                 createExplosion(this.x, this.y, '#330033');
                 for (let i = 0; i < 12; i++) {
                     const a = (Math.PI * 2 / 12) * i;
-                    projectiles.push(new Projectile(this.x, this.y,
+                    projectiles.push(Projectile.acquire(this.x, this.y,
                         { x: Math.cos(a) * 5, y: Math.sin(a) * 5 },
                         this.damage * 0.8, '#550055', 10, 'enemy', 0, true));
                 }
@@ -467,7 +467,7 @@ class Boss {
                         for (let i = 0; i < 20; i++) {
                             const a = (Math.PI * 2 / 20) * i + ringOffset;
                             const spd = 5 + r * 1.5;
-                            projectiles.push(new Projectile(this.x, this.y,
+                            projectiles.push(Projectile.acquire(this.x, this.y,
                                 { x: Math.cos(a) * spd, y: Math.sin(a) * spd },
                                 this.damage * 0.9, '#550066', 10, 'enemy', 0, true));
                         }
@@ -475,7 +475,7 @@ class Boss {
                     // Aimed shadow beam
                     if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_beam');
                     const ba = Math.atan2(_bossTarget.y - this.y, _bossTarget.x - this.x);
-                    projectiles.push(new Projectile(this.x, this.y,
+                    projectiles.push(Projectile.acquire(this.x, this.y,
                         { x: Math.cos(ba) * 13, y: Math.sin(ba) * 13 },
                         this.damage * 2.0, '#ff0055', 18, 'enemy', 0, true));
                     this.mkEyeFlare = 1;
@@ -490,7 +490,7 @@ class Boss {
                     const ba = Math.atan2(_bossTarget.y - this.y, _bossTarget.x - this.x);
                     for (let s = -1; s <= 1; s++) {
                         const a = ba + s * 0.18;
-                        projectiles.push(new Projectile(this.x, this.y,
+                        projectiles.push(Projectile.acquire(this.x, this.y,
                             { x: Math.cos(a) * 11, y: Math.sin(a) * 11 },
                             this.damage * 1.1, '#220033', 12, 'enemy', 0, true));
                     }
@@ -509,7 +509,7 @@ class Boss {
                     if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_shadow_beam');
                     for (let s = 0; s < 2; s++) {
                         const sa = this.mkSweepAngle + s * Math.PI;
-                        projectiles.push(new Projectile(this.x, this.y,
+                        projectiles.push(Projectile.acquire(this.x, this.y,
                             { x: Math.cos(sa) * 9, y: Math.sin(sa) * 9 },
                             this.damage * 1.2, '#440022', 14, 'enemy', 0, true));
                     }
@@ -682,14 +682,14 @@ class Boss {
                     for (let i = 0; i < 12; i++) {
                         const a = (Math.PI * 2 / 12) * i + (frame * 0.1);
                         const vel = { x: Math.cos(a) * 5, y: Math.sin(a) * 5 };
-                        projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#e74c3c', 8, 'enemy', 0, true));
+                        projectiles.push(Projectile.acquire(this.x, this.y, vel, this.damage, '#e74c3c', 8, 'enemy', 0, true));
                     }
                     this.attackCooldown = 180;
                 } else if (this.type === 'SPEEDSTER') {
                     if (typeof audioManager !== 'undefined') audioManager.play('boss_shooter');
                     const a = Math.atan2(player.y - this.y, player.x - this.x);
                     const vel = { x: Math.cos(a) * 10, y: Math.sin(a) * 10 };
-                    projectiles.push(new Projectile(this.x, this.y, vel, this.damage * 0.8, '#f1c40f', 5, 'enemy', 0, true));
+                    projectiles.push(Projectile.acquire(this.x, this.y, vel, this.damage * 0.8, '#f1c40f', 5, 'enemy', 0, true));
                     this.attackCooldown = 10;
                 } else if (this.type === 'SUMMONER') {
                     if (typeof audioManager !== 'undefined') audioManager.play('boss_summoner_spawn');
@@ -701,7 +701,7 @@ class Boss {
                     for (let i = 0; i < 3; i++) {
                         const a = (frame * 0.1) + (Math.PI * 2 / 3) * i;
                         const vel = { x: Math.cos(a) * 4, y: Math.sin(a) * 4 };
-                        projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#8e44ad', 6, 'enemy', 0, true));
+                        projectiles.push(Projectile.acquire(this.x, this.y, vel, this.damage, '#8e44ad', 6, 'enemy', 0, true));
                     }
                     this.attackCooldown = 5; // Very fast fire rate
                 } else if (this.type === 'HYDRA') {
@@ -711,7 +711,7 @@ class Boss {
                     for (let i = -1; i <= 1; i++) {
                         const a = baseAngle + (i * 0.3);
                         const vel = { x: Math.cos(a) * 7, y: Math.sin(a) * 7 };
-                        projectiles.push(new Projectile(this.x, this.y, vel, this.damage, '#27ae60', 10, 'enemy', 0, true));
+                        projectiles.push(Projectile.acquire(this.x, this.y, vel, this.damage, '#27ae60', 10, 'enemy', 0, true));
                     }
                     this.attackCooldown = 60;
                 } else if (this.type === 'GREEN_GOBLIN') {

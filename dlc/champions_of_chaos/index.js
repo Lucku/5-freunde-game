@@ -413,7 +413,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
             const count = boss.phase === 3 ? 3 : boss.phase === 2 ? 2 : 1;
             for (let i = 0; i < count; i++) {
                 const sp = (i - Math.floor(count / 2)) * 0.22;
-                projectiles.push(new Projectile(boss.x, boss.y,
+                projectiles.push(Projectile.acquire(boss.x, boss.y,
                     { x: Math.cos(a + sp) * 10, y: Math.sin(a + sp) * 10 },
                     boss.damage * 0.7, '#4a235a', 9, 'enemy', 0, true));
             }
@@ -423,7 +423,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
             const count = boss.phase === 3 ? 16 : boss.phase === 2 ? 12 : 8;
             for (let i = 0; i < count; i++) {
                 const a = (Math.PI * 2 / count) * i;
-                projectiles.push(new Projectile(boss.x, boss.y,
+                projectiles.push(Projectile.acquire(boss.x, boss.y,
                     { x: Math.cos(a) * 5.5, y: Math.sin(a) * 5.5 },
                     boss.damage * 0.8, '#6c3483', 10, 'enemy', 0, true));
             }
@@ -444,7 +444,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
             const bx = boss.x, by = boss.y;
             for (let i = 0; i < shots; i++) {
                 const fa = (Math.PI * 2 / shots) * i;
-                projectiles.push(new Projectile(bx, by,
+                projectiles.push(Projectile.acquire(bx, by,
                     { x: Math.cos(fa) * 7, y: Math.sin(fa) * 7 },
                     boss.damage * 0.65, '#4a235a', 8, 'enemy', 0, true));
             }
@@ -465,7 +465,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
         _voidStorm(boss) {
             for (let i = 0; i < 24; i++) {
                 const a = (Math.PI * 2 / 24) * i;
-                projectiles.push(new Projectile(boss.x, boss.y,
+                projectiles.push(Projectile.acquire(boss.x, boss.y,
                     { x: Math.cos(a) * 6.5, y: Math.sin(a) * 6.5 },
                     boss.damage * 0.9, '#6c3483', 10, 'enemy', 0, true));
             }
@@ -492,15 +492,16 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                 ctx.lineWidth = 2.5; ctx.stroke();
             }
 
-            // Body — dissolving void gradient
-            const rg = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-            rg.addColorStop(0,    '#000000');
-            rg.addColorStop(0.28, '#0d0020');
-            rg.addColorStop(0.60, '#4a235a');
-            rg.addColorStop(1,    'rgba(30, 0, 50, 0.05)');
+            // Body — dissolving void gradient (cached by r-bucket).
             ctx.shadowColor = '#6c3483'; ctx.shadowBlur = 14 + 8 * pulse;
             ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
-            ctx.fillStyle = rg; ctx.fill();
+            ctx.fillStyle = cachedRadial(ctx, `chaosVoid:body:${r | 0}`, 0, r, [
+                [0,    '#000000'],
+                [0.28, '#0d0020'],
+                [0.60, '#4a235a'],
+                [1,    'rgba(30, 0, 50, 0.05)'],
+            ]);
+            ctx.fill();
             ctx.shadowBlur = 0;
 
             // Rotating void tendrils — larger count than enemy version
@@ -646,7 +647,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
             for (let i = 0; i < count; i++) {
                 const a = (Math.PI * 2 / count) * i;
                 const col = ['#ff00ff', '#00ffff', '#ff0055'][i % 3];
-                projectiles.push(new Projectile(boss.x, boss.y,
+                projectiles.push(Projectile.acquire(boss.x, boss.y,
                     { x: Math.cos(a) * (boss._crashMode ? 8 : 5.5), y: Math.sin(a) * (boss._crashMode ? 8 : 5.5) },
                     boss.damage * 0.65, col, 8, 'enemy', 0, true));
             }
@@ -661,7 +662,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                 setTimeout(() => {
                     if (typeof projectiles === 'undefined') return;
                     const sp = (Math.random() - 0.5) * 0.18;
-                    projectiles.push(new Projectile(bx, by,
+                    projectiles.push(Projectile.acquire(bx, by,
                         { x: Math.cos(a + sp) * 12, y: Math.sin(a + sp) * 12 },
                         boss.damage * 0.8, '#00ffff', 7, 'enemy', 0, true));
                 }, i * 60);
@@ -695,7 +696,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                 d.y  = Math.max(30, Math.min(arena.height - 30, d.y));
                 if (--d.fireTimer <= 0) {
                     const fa = Math.atan2(tgt.y - d.y, tgt.x - d.x);
-                    projectiles.push(new Projectile(d.x, d.y,
+                    projectiles.push(Projectile.acquire(d.x, d.y,
                         { x: Math.cos(fa) * 7, y: Math.sin(fa) * 7 },
                         boss.damage * 0.4, '#ff00ff', 7, 'enemy', 0, true));
                     d.fireTimer = 55;
@@ -935,7 +936,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
             for (let i = 0; i < shots; i++) {
                 const sp = (i - Math.floor(shots / 2)) * 0.22;
                 const col = cols[i % cols.length];
-                projectiles.push(new Projectile(boss.x, boss.y,
+                projectiles.push(Projectile.acquire(boss.x, boss.y,
                     { x: Math.cos(a + sp) * 9, y: Math.sin(a + sp) * 9 },
                     boss.damage * 0.75, col, 9, 'enemy', 0, true));
             }
@@ -946,7 +947,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
             const cols  = ['#9b59b6', '#e74c3c', '#3498db'];
             for (let i = 0; i < count; i++) {
                 const a = (Math.PI * 2 / count) * i;
-                projectiles.push(new Projectile(boss.x, boss.y,
+                projectiles.push(Projectile.acquire(boss.x, boss.y,
                     { x: Math.cos(a) * 5, y: Math.sin(a) * 5 },
                     boss.damage * 0.8, cols[i % cols.length], 10, 'enemy', 0, true));
             }
@@ -965,7 +966,7 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
                     for (let i = 0; i < 8; i++) {
                         const a   = (Math.PI * 2 / 8) * i + offset;
                         const col = ['#9b59b6', '#e74c3c', '#00ffff'][v];
-                        projectiles.push(new Projectile(boss.x, boss.y,
+                        projectiles.push(Projectile.acquire(boss.x, boss.y,
                             { x: Math.cos(a) * 7, y: Math.sin(a) * 7 },
                             boss.damage * 0.85, col, 9, 'enemy', 0, true));
                     }
@@ -1016,12 +1017,12 @@ window.DLC_REGISTRY['champions_of_chaos'] = CHAMPIONS_OF_CHAOS;
             const eyeInner = boss.phase === 3 ? '#ff4444' : '#ffffff';
             const eyeMid   = boss.phase === 3 ? '#cc0000' : '#e74c3c';
             const eyeOuter = boss.phase === 3 ? '#8e0000' : '#8e44ad';
-            const eyeG = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.22);
-            eyeG.addColorStop(0,    eyeInner);
-            eyeG.addColorStop(0.35, eyeMid);
-            eyeG.addColorStop(1,    eyeOuter);
             ctx.beginPath(); ctx.arc(0, 0, r * 0.22, 0, Math.PI * 2);
-            ctx.fillStyle = eyeG;
+            ctx.fillStyle = cachedRadial(ctx, `chaosVoid:eye:p${boss.phase}:${(r * 0.22) | 0}`, 0, r * 0.22, [
+                [0,    eyeInner],
+                [0.35, eyeMid],
+                [1,    eyeOuter],
+            ]);
             ctx.shadowColor = eyeMid; ctx.shadowBlur = 16 + 8 * pulse;
             ctx.fill(); ctx.shadowBlur = 0;
 

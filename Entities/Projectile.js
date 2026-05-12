@@ -245,6 +245,49 @@ class Projectile {
 
         ctx.restore();
     }
+
+    // #20 P3 — object pool. Strict reset: every field touched by the
+    // constructor is reapplied at acquire, and every known optional field
+    // attached by callers (shooterType / onHit / altar flags / DLC marks /
+    // _ghost / dead) is cleared. Callers that subsequently set optional
+    // fields work unchanged.
+    static _pool = [];
+    static POOL_MAX = 256;
+    static acquire(x, y, velocity, damage, color, radius, type, knockback, isEnemy, isExplosive = false, isCrit = false, world = null) {
+        const p = Projectile._pool.pop();
+        if (!p) return new Projectile(x, y, velocity, damage, color, radius, type, knockback, isEnemy, isExplosive, isCrit, world);
+
+        // Mirror constructor — every base field reapplied.
+        p.x = x; p.y = y;
+        p.velocity = velocity;
+        p.damage = damage; p.color = color; p.radius = radius;
+        p.type = type; p.knockback = knockback; p.isEnemy = isEnemy;
+        p.isExplosive = isExplosive;
+        p.isCrit = isCrit;
+        p.pierce = (type === 'ice' && !isEnemy) ? 2 : 0;
+        p.owner = null;
+        p._world = world ?? (typeof window !== 'undefined' ? window._world : null) ?? null;
+        if (p.isCrit) p.radius *= 1.5;
+        p.life = null;
+
+        // Strict-reset optional fields. Callers reattach what they need.
+        p.shooterType = undefined;
+        p.onHit = undefined;
+        p.isWildfire = false;
+        p.isCryo = false;
+        p._ghost = false;
+        p._id = undefined;
+        p._loveHeartArrow = undefined;
+        p._loveHeartBolt = undefined;
+        p.outlineColor = undefined;
+        p.ownerIsPlayer = undefined;
+        p.dead = false;
+        return p;
+    }
+    static release(p) {
+        if (!p || Projectile._pool.length >= Projectile.POOL_MAX) return;
+        Projectile._pool.push(p);
+    }
 }
 export { Projectile };
 export default Projectile;

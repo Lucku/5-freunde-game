@@ -643,7 +643,7 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
                     const fanAng = Math.atan2(tgt.y - this.y, tgt.x - this.x);
                     for (let i = 0; i < shots; i++) {
                         const sp = ((i - Math.floor(shots / 2)) / Math.max(1, Math.floor(shots / 2))) * 0.55;
-                        projectiles.push(new Projectile(this.x, this.y,
+                        projectiles.push(Projectile.acquire(this.x, this.y,
                             { x: Math.cos(fanAng + sp) * 9, y: Math.sin(fanAng + sp) * 9 },
                             this.damage * 0.65, '#6c3483', 7, 'enemy', 0, true));
                     }
@@ -656,7 +656,7 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
                     const orbs = this.phase === 3 ? 16 : this.phase === 2 ? 12 : 8;
                     for (let i = 0; i < orbs; i++) {
                         const a = (Math.PI * 2 / orbs) * i;
-                        projectiles.push(new Projectile(this.x, this.y,
+                        projectiles.push(Projectile.acquire(this.x, this.y,
                             { x: Math.cos(a) * 5, y: Math.sin(a) * 5 },
                             this.damage * 0.8, '#4a235a', 9, 'enemy', 0, true));
                     }
@@ -670,12 +670,12 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
                     if (this.phase >= 2) {
                         // 3-way spread in later phases
                         for (let i = -1; i <= 1; i++) {
-                            projectiles.push(new Projectile(this.x, this.y,
+                            projectiles.push(Projectile.acquire(this.x, this.y,
                                 { x: Math.cos(a + i * 0.28) * 10, y: Math.sin(a + i * 0.28) * 10 },
                                 this.damage * 0.55, '#1a0030', 6, 'enemy', 0, true));
                         }
                     } else {
-                        projectiles.push(new Projectile(this.x, this.y,
+                        projectiles.push(Projectile.acquire(this.x, this.y,
                             { x: Math.cos(a) * 10, y: Math.sin(a) * 10 },
                             this.damage * 0.8, '#1a0030', 8, 'enemy', 0, true));
                     }

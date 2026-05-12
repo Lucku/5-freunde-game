@@ -435,7 +435,7 @@ class PoisonHero {
         const { projectiles, showNotification } = _w ?? {};
         if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("☠️ MIASMA UNLEASHED", "#76ff03");
-        const p = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(30,80,30,0.4)', 180, 'MIASMA', 0, false);
+        const p = Projectile.acquire(cx, cy, { x: 0, y: 0 }, 0, 'rgba(30,80,30,0.4)', 180, 'MIASMA', 0, false);
         p.life = 480; p.pierce = 9999; p.onHit = () => 'STOP'; p._rot = 0;
         p.update = function () {
             if (!player || player.hp <= 0) { this.dead = true; return; }
@@ -495,7 +495,7 @@ class PoisonHero {
         const { projectiles, showNotification } = _w ?? {};
         if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("🩸 SANGUINE LEECH", "#e74c3c");
-        const p = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(150,20,20,0.3)', 150, 'LEECH', 0, false);
+        const p = Projectile.acquire(cx, cy, { x: 0, y: 0 }, 0, 'rgba(150,20,20,0.3)', 150, 'LEECH', 0, false);
         p.life = 180; p.pierce = 9999; p.onHit = () => 'STOP'; p._rot = 0; p._healAccum = 0;
         p.update = function () {
             this.life--; this._rot += 0.06;
@@ -567,7 +567,7 @@ class PoisonHero {
         if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("❄️ CRYOGENIC BURST", "#3498db");
         // Phase 1: expanding wave
-        const wave = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', 0, 'CRYO_WAVE', 0, false);
+        const wave = Projectile.acquire(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', 0, 'CRYO_WAVE', 0, false);
         wave.life = 50; wave.pierce = 9999; wave.onHit = () => 'STOP';
         wave._maxR = 250; wave._hit = new Set();
         wave.update = function () {
@@ -612,7 +612,7 @@ class PoisonHero {
         // Phase 2: frost zone after 100ms
         setTimeout(() => {
             if (!_w.projectiles) return;
-            const zone = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(30,100,180,0.15)', 200, 'FROST_ZONE', 0, false);
+            const zone = Projectile.acquire(cx, cy, { x: 0, y: 0 }, 0, 'rgba(30,100,180,0.15)', 200, 'FROST_ZONE', 0, false);
             zone.life = 240; zone.pierce = 9999; zone.onHit = () => 'STOP'; zone.owner = player;
             zone.update = function () {
                 this.life--; if (this.life <= 0) { this.dead = true; return; }
@@ -653,7 +653,7 @@ class PoisonHero {
         if (typeof showNotification === 'function') showNotification("🧪 ACID RAIN", "#76ff03");
         const rainR = 220, totalDrops = 18;
         let dropped = 0;
-        const ctrl = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', 5, 'ACIDRAIN', 0, false);
+        const ctrl = Projectile.acquire(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', 5, 'ACIDRAIN', 0, false);
         ctrl.life = 300; ctrl.pierce = 9999; ctrl.onHit = () => 'STOP'; ctrl._last = 0;
         ctrl.update = function () {
             this.life--; if (this.life <= 0) { this.dead = true; return; }
@@ -680,7 +680,7 @@ class PoisonHero {
         const { projectiles } = _w ?? {};
         if (!projectiles) return;
         const spd = 12;
-        const p = new Projectile(sx, sy, { x: 0, y: spd }, 0, '#6bff00', 7, 'ACID_DROP', 0, false);
+        const p = Projectile.acquire(sx, sy, { x: 0, y: spd }, 0, '#6bff00', 7, 'ACID_DROP', 0, false);
         p.life = Math.ceil(Math.abs(ty - sy) / spd) + 5; p.pierce = 9999; p.onHit = () => 'STOP'; p._ty = ty; p._landed = false;
         p.update = function () {
             if (this._landed) return;
@@ -713,7 +713,7 @@ class PoisonHero {
         const _w = world ?? window._world;
         const { projectiles } = _w ?? {};
         if (!projectiles) return;
-        const p = new Projectile(x, y, { x: 0, y: 0 }, 0, 'rgba(80,200,20,0.25)', r, 'MINI_ACID', 0, false);
+        const p = Projectile.acquire(x, y, { x: 0, y: 0 }, 0, 'rgba(80,200,20,0.25)', r, 'MINI_ACID', 0, false);
         p.life = life; p.pierce = 9999; p.onHit = () => 'STOP';
         p.update = function () {
             this.life--; if (this.life <= 0) { this.dead = true; return; }
@@ -791,7 +791,7 @@ class PoisonHero {
         const _w = world ?? window._world;
         const { projectiles } = _w ?? {};
         if (!projectiles) return;
-        const p = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', maxR, 'RING_WAVE', 0, false);
+        const p = Projectile.acquire(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', maxR, 'RING_WAVE', 0, false);
         p.life = 30; p.pierce = 9999; p.onHit = () => 'STOP'; p._maxR = maxR; p._col = color; if (owner) p.owner = owner;
         p.update = function () { this.life--; if (this.life <= 0) this.dead = true; };
         p.draw = function () {
@@ -823,7 +823,7 @@ class PoisonHero {
         const _w = world ?? window._world;
         const { projectiles } = _w ?? {};
         if (!projectiles) return;
-        const p = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', maxR, 'ICE_WAVE', 0, false);
+        const p = Projectile.acquire(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', maxR, 'ICE_WAVE', 0, false);
         p.life = 40; p.pierce = 9999; p.onHit = () => 'STOP'; p._maxR = maxR; p._hit = new Set(); p._wi = waveIdx;
         p.update = function () {
             this.life--; const prog = 1 - this.life / 40, curR = this._maxR * prog;
@@ -879,7 +879,7 @@ class PoisonHero {
         if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("🌊 TOXIC TSUNAMI", "#00e676");
         const angle = player.aimAngle || 0, spd = 6, ww = 280;
-        const p = new Projectile(cx, cy, { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd }, 0, 'rgba(0,200,60,0.4)', 10, 'TSUNAMI', 0, false);
+        const p = Projectile.acquire(cx, cy, { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd }, 0, 'rgba(0,200,60,0.4)', 10, 'TSUNAMI', 0, false);
         p.life = Math.ceil(400 / spd) + 10; p.pierce = 9999; p.onHit = () => 'STOP';
         p._ang = angle; p._ww = ww; p._hit = new Set();
         p.update = function () {
@@ -939,7 +939,7 @@ class PoisonHero {
         const { projectiles, showNotification } = _w ?? {};
         if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("🌀 HALLUCINOGEN", "#9b59b6");
-        const p = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(100,20,150,0.3)', 280, 'HALLUCIN', 0, false);
+        const p = Projectile.acquire(cx, cy, { x: 0, y: 0 }, 0, 'rgba(100,20,150,0.3)', 280, 'HALLUCIN', 0, false);
         p.life = 360; p.pierce = 9999; p.onHit = () => 'STOP'; p._rot = 0;
         p.update = function () {
             this.life--; this._rot += 0.02;
@@ -999,7 +999,7 @@ class PoisonHero {
         const { projectiles, showNotification } = _w ?? {};
         if (!projectiles) return;
         if (typeof showNotification === 'function') showNotification("⚗️ UNSTABLE COMPOUND", "#f39c12");
-        const p = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', 250, 'UC_PHASE1', 0, false);
+        const p = Projectile.acquire(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', 250, 'UC_PHASE1', 0, false);
         p.life = 180; p.pierce = 9999; p.onHit = () => 'STOP'; p._rot = 0;
         p.update = function () {
             this.life--; this._rot += 0.05;
@@ -1088,7 +1088,7 @@ class PoisonHero {
         }
         if (count > 0 && typeof showNotification === 'function') showNotification(`${count} ENEMIES MUTATED!`, '#00e676');
         // Persistent controller for carrier logic + draw
-        const ctrl = new Projectile(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', 5, 'VIRAL_CTRL', 0, false);
+        const ctrl = Projectile.acquire(cx, cy, { x: 0, y: 0 }, 0, 'rgba(0,0,0,0)', 5, 'VIRAL_CTRL', 0, false);
         ctrl.life = 600; ctrl.pierce = 9999; ctrl.onHit = () => 'STOP';
         ctrl.update = function () {
             this.life--; if (this.life <= 0) { this.dead = true; return; }
@@ -1159,7 +1159,7 @@ class PoisonHero {
                 const vx = Math.cos(angle) * speed;
                 const vy = Math.sin(angle) * speed;
 
-                const p = new Projectile(
+                const p = Projectile.acquire(
                     player.x,
                     player.y,
                     { x: vx, y: vy },

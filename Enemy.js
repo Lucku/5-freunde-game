@@ -267,7 +267,7 @@ class Enemy {
             if (this.shootCooldown <= 0) {
                 // High velocity, high damage shot
                 const vel = { x: Math.cos(angle) * 15, y: Math.sin(angle) * 15 };
-                const p = new Projectile(this.x, this.y, vel, this.damage * 2, '#16a085', 4, 'enemy', 0, true);
+                const p = Projectile.acquire(this.x, this.y, vel, this.damage * 2, '#16a085', 4, 'enemy', 0, true);
                 p.shooterType = 'SNIPER';
                 projectiles.push(p);
                 this.shootCooldown = 240; // 4 seconds
@@ -308,7 +308,7 @@ class Enemy {
             moveX = Math.cos(angle) * currentSpeed; moveY = Math.sin(angle) * currentSpeed;
             if (this.shootCooldown <= 0) {
                 // Leave a stationary projectile (puddle)
-                const puddle = new Projectile(this.x, this.y, { x: 0, y: 0 }, 5, '#2ecc71', 10, 'enemy', 0, true);
+                const puddle = Projectile.acquire(this.x, this.y, { x: 0, y: 0 }, 5, '#2ecc71', 10, 'enemy', 0, true);
                 puddle.shooterType = 'TOXIC';
                 puddle.life = 180; // Custom life property needed in Projectile or handle cleanup
                 // Since Projectile doesn't have life, we'll just use a slow projectile
@@ -326,7 +326,7 @@ class Enemy {
                 if (this.shootCooldown <= 0) {
                     audioManager?.play('attack_shooter');
                     const vel = { x: Math.cos(angle) * 6, y: Math.sin(angle) * 6 };
-                    const p = new Projectile(this.x, this.y, vel, this.damage, '#e74c3c', 5, 'enemy', 0, true);
+                    const p = Projectile.acquire(this.x, this.y, vel, this.damage, '#e74c3c', 5, 'enemy', 0, true);
                     p.shooterType = 'SHOOTER';
                     projectiles.push(p);
                     this.shootCooldown = 120;

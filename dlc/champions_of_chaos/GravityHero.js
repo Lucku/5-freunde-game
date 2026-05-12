@@ -391,13 +391,13 @@ window.HERO_LOGIC['gravity'] = {
                     ctx.restore();
                 }
                 ctx.setLineDash([]);
-                const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 38);
-                grad.addColorStop(0, 'rgba(0,0,0,0.92)');
-                grad.addColorStop(0.75, 'rgba(0,0,0,0.5)');
-                grad.addColorStop(1, 'rgba(142,68,173,0)');
                 ctx.beginPath();
                 ctx.arc(0, 0, 38, 0, Math.PI * 2);
-                ctx.fillStyle = grad;
+                ctx.fillStyle = cachedRadial(ctx, 'gravityHero:wellCore', 0, 38, [
+                    [0,    'rgba(0,0,0,0.92)'],
+                    [0.75, 'rgba(0,0,0,0.5)'],
+                    [1,    'rgba(142,68,173,0)'],
+                ]);
                 ctx.fill();
                 ctx.shadowBlur = 0;
                 ctx.restore();

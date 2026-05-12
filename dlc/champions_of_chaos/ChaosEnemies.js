@@ -87,14 +87,15 @@ class ChaosEnemies {
             ctx.stroke();
         }
 
-        // Body — fades at edges like dissolving into the void
-        const rg = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-        rg.addColorStop(0,    '#000000');
-        rg.addColorStop(0.30, '#120820');
-        rg.addColorStop(0.65, '#4a235a');
-        rg.addColorStop(1,    'rgba(40, 10, 60, 0.05)');
+        // Body — fades at edges like dissolving into the void (cached by r).
         ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
-        ctx.fillStyle = rg; ctx.fill();
+        ctx.fillStyle = cachedRadial(ctx, `chaosEnemy:voidBody:${r | 0}`, 0, r, [
+            [0,    '#000000'],
+            [0.30, '#120820'],
+            [0.65, '#4a235a'],
+            [1,    'rgba(40, 10, 60, 0.05)'],
+        ]);
+        ctx.fill();
 
         // Rotating void tendrils
         ctx.save();
@@ -182,7 +183,7 @@ class ChaosEnemies {
                     const speed = 3 + Math.random() * 2;
                     const vel   = { x: Math.cos(ang) * speed, y: Math.sin(ang) * speed };
                     const cols  = ['#ff00ff', '#00ffff', '#ff0055'];
-                    const proj  = new Projectile(enemy.x, enemy.y, vel, enemy.damage * 0.5, cols[i % 3], 6, 'chaos', 0, true);
+                    const proj  = Projectile.acquire(enemy.x, enemy.y, vel, enemy.damage * 0.5, cols[i % 3], 6, 'chaos', 0, true);
                     if (proj) { proj.owner = enemy; projectiles.push(proj); }
                 }
             }
@@ -318,7 +319,7 @@ class ChaosEnemies {
                     const ang  = (i / novaCount) * Math.PI * 2;
                     const vel  = { x: Math.cos(ang) * 4, y: Math.sin(ang) * 4 };
                     const cols = ['#9b59b6', '#e74c3c', '#3498db'];
-                    const proj = new Projectile(enemy.x, enemy.y, vel, enemy.damage * 0.7, cols[i % 3], 10, 'gravity', 0, true);
+                    const proj = Projectile.acquire(enemy.x, enemy.y, vel, enemy.damage * 0.7, cols[i % 3], 10, 'gravity', 0, true);
                     if (proj) { proj.owner = enemy; projectiles.push(proj); }
                 }
             }
@@ -334,7 +335,7 @@ class ChaosEnemies {
                 const sv  = 0.8 + Math.random() * 0.4;
                 const vel = { x: Math.cos(ang + s) * 5 * sv, y: Math.sin(ang + s) * 5 * sv };
                 const col = ['#9b59b6', '#8e44ad', '#e74c3c'][Math.floor(Math.random() * 3)];
-                const proj = new Projectile(enemy.x, enemy.y, vel, enemy.damage, col, 10, 'gravity', 0, true);
+                const proj = Projectile.acquire(enemy.x, enemy.y, vel, enemy.damage, col, 10, 'gravity', 0, true);
                 if (proj) { proj.owner = enemy; projectiles.push(proj); }
             }
             enemy.shootCooldown = 150;
@@ -395,13 +396,13 @@ class ChaosEnemies {
         ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2); ctx.stroke();
         ctx.setLineDash([]); ctx.restore();
 
-        // Central chaos eye — glowing iris
-        const eyeGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.20);
-        eyeGrad.addColorStop(0,    '#ffffff');
-        eyeGrad.addColorStop(0.35, '#e74c3c');
-        eyeGrad.addColorStop(1,    '#8e44ad');
+        // Central chaos eye — glowing iris (cached by r-bucket).
         ctx.beginPath(); ctx.arc(0, 0, r * 0.20, 0, Math.PI * 2);
-        ctx.fillStyle = eyeGrad;
+        ctx.fillStyle = cachedRadial(ctx, `chaosEnemy:eye:${(r * 0.20) | 0}`, 0, r * 0.20, [
+            [0,    '#ffffff'],
+            [0.35, '#e74c3c'],
+            [1,    '#8e44ad'],
+        ]);
         ctx.shadowColor = '#e74c3c'; ctx.shadowBlur = 14;
         ctx.fill(); ctx.shadowBlur = 0;
 

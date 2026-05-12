@@ -745,7 +745,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
             const col = boss.phase >= 2 ? '#ff6600' : '#546e7a';
             for (let i = 0; i < count; i++) {
                 const a = (Math.PI * 2 / count) * i;
-                projectiles.push(new Projectile(boss.x, boss.y,
+                projectiles.push(Projectile.acquire(boss.x, boss.y,
                     { x: Math.cos(a) * (boss.phase === 3 ? 7 : 5), y: Math.sin(a) * (boss.phase === 3 ? 7 : 5) },
                     boss.damage * 0.55, col, 12, 'enemy', 0, true));
             }
@@ -764,7 +764,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
                 const a = Math.atan2(tgt.y - boss.y, tgt.x - boss.x) + spread;
                 setTimeout(() => {
                     if (typeof projectiles === 'undefined') return;
-                    projectiles.push(new Projectile(bx, by,
+                    projectiles.push(Projectile.acquire(bx, by,
                         { x: Math.cos(a) * 5, y: Math.sin(a) * 5 },
                         boss.damage * 0.85, '#546e7a', 20, 'enemy', 0, true));
                 }, i * 150);
@@ -776,7 +776,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
             const count = boss.phase === 3 ? 20 : 12;
             for (let i = 0; i < count; i++) {
                 const a = (Math.PI * 2 / count) * i;
-                projectiles.push(new Projectile(boss.x, boss.y,
+                projectiles.push(Projectile.acquire(boss.x, boss.y,
                     { x: Math.cos(a) * 8.5, y: Math.sin(a) * 8.5 },
                     boss.damage * 0.65, '#37474f', 9, 'enemy', 0, true));
             }
@@ -794,7 +794,7 @@ window.DLC_REGISTRY['rise_of_the_rock'] = RISE_OF_THE_ROCK;
                 setTimeout(() => {
                     if (typeof projectiles === 'undefined') return;
                     const a = Math.atan2(ly - by, lx - bx);
-                    projectiles.push(new Projectile(bx, by,
+                    projectiles.push(Projectile.acquire(bx, by,
                         { x: Math.cos(a) * 3.5, y: Math.sin(a) * 3.5 },
                         boss.damage * 0.6, '#ff6600', 15, 'enemy', 0, true));
                 }, i * 100);

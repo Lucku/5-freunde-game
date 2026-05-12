@@ -115,7 +115,7 @@ class TimeHero {
                     // ct5 Void Echo: bonus damage + purple void color
                     const projDmg = player._mutCt5 ? echoFireDmg * 1.4 : echoFireDmg;
                     const projColor = player._mutCt5 ? '#9b59b6' : '#c8aa6e';
-                    const echoProj = new Projectile(
+                    const echoProj = Projectile.acquire(
                         e.x, e.y,
                         { x: Math.cos(a) * projSpd, y: Math.sin(a) * projSpd },
                         projDmg, projColor, 5, 'player', 0, false
@@ -369,7 +369,7 @@ class TimeHero {
         const sz = player.stats.projectileSize || 8;
 
         // Chrono Orb — slow-moving, piercing, slows enemies on hit
-        const orb = new Projectile(
+        const orb = Projectile.acquire(
             player.x, player.y,
             { x: Math.cos(a) * spd * 0.55, y: Math.sin(a) * spd * 0.55 },
             dmg, '#c8aa6e', sz + 4, 'time', 0, false
@@ -388,7 +388,7 @@ class TimeHero {
 
         // Double-shot when chrono energy is high
         if (player.chronoEnergy >= 70) {
-            const orb2 = new Projectile(
+            const orb2 = Projectile.acquire(
                 player.x, player.y,
                 { x: Math.cos(a + 0.20) * spd * 0.55, y: Math.sin(a + 0.20) * spd * 0.55 },
                 dmg * 0.7, '#d4af37', sz + 1, 'time', 0, false
@@ -724,11 +724,11 @@ class TimeHero {
             ctx.shadowColor = '#c8aa6e';
             ctx.shadowBlur = 14 * pulse;
 
-            // Body fill
-            const sg = ctx.createRadialGradient(0, 0, 0, 0, 0, shadow.radius);
-            sg.addColorStop(0, 'rgba(210,180,100,0.85)');
-            sg.addColorStop(1, 'rgba(90,55,10,0.08)');
-            ctx.fillStyle = sg;
+            // Body fill (cached by radius bucket).
+            ctx.fillStyle = cachedRadial(ctx, `timeHero:shadowBody:${shadow.radius | 0}`, 0, shadow.radius, [
+                [0, 'rgba(210,180,100,0.85)'],
+                [1, 'rgba(90,55,10,0.08)'],
+            ]);
             ctx.beginPath();
             ctx.arc(0, 0, shadow.radius, 0, Math.PI * 2);
             ctx.fill();

@@ -5003,7 +5003,7 @@ function _onlineProcessGuestEvent(ev) {
             createExplosion(ev.x, ev.y, ev.color || '#fff');
             break;
         case 'gold_drop':
-            goldDrops.push(new GoldDrop(ev.x, ev.y));
+            goldDrops.push(GoldDrop.acquire(ev.x, ev.y));
             break;
         case 'wave_start':
             wave = ev.wave;
@@ -6683,6 +6683,7 @@ function masterFrame(deltaTime, timestamp) {
                     currentRunStats.moneyGained += amount; // Track Gold
                     saveData.global.totalGold += drop.value; // Track for achievement
                     if (typeof audioManager !== 'undefined') audioManager.play('pickup_gold');
+                    GoldDrop.release(drop); // #20 P3 — return to pool before splice
                     goldDrops.splice(index, 1);
                 }
             }
@@ -6876,6 +6877,7 @@ function masterFrame(deltaTime, timestamp) {
                 const proj = projectiles[index];
                 if (!_isHitStopped && !proj._ghost) proj.update();
                 if (proj.life !== null && proj.life <= 0) {
+                    Projectile.release(proj); // #20 P3
                     projectiles.splice(index, 1);
                     continue;
                 }
@@ -6934,6 +6936,7 @@ function masterFrame(deltaTime, timestamp) {
                     }
 
                     if (proj.dead) {
+                        Projectile.release(proj); // #20 P3
                         projectiles.splice(index, 1);
                         continue;
                     }
@@ -6965,7 +6968,7 @@ function masterFrame(deltaTime, timestamp) {
                             createExplosion(proj.x, proj.y, proj.color);
                         }
                     }
-                    if (proj.dead) { projectiles.splice(index, 1); continue; }
+                    if (proj.dead) { Projectile.release(proj); projectiles.splice(index, 1); continue; } // #20 P3
                 }
 
                 proj.draw();
@@ -6983,10 +6986,14 @@ function masterFrame(deltaTime, timestamp) {
                         }
                         createExplosion(proj.x, proj.y, '#e67e22');
                     }
+                    Projectile.release(proj); // #20 P3
                     projectiles.splice(index, 1);
                     continue;
                 }
-                if (proj.x < 0 || proj.x > arena.width || proj.y < 0 || proj.y > arena.height) projectiles.splice(index, 1);
+                if (proj.x < 0 || proj.x > arena.width || proj.y < 0 || proj.y > arena.height) {
+                    Projectile.release(proj); // #20 P3
+                    projectiles.splice(index, 1);
+                }
             }
 
             for (let index = meleeAttacks.length - 1; index >= 0; index--) {
@@ -7082,7 +7089,7 @@ function masterFrame(deltaTime, timestamp) {
                     }
                 }
 
-                if (att.life <= 0) meleeAttacks.splice(index, 1);
+                if (att.life <= 0) { MeleeSwipe.release(att); meleeAttacks.splice(index, 1); } // #20 P3
             }
 
             // #27 — camera-bounds culling. Skip draw for off-screen particles +
@@ -7178,6 +7185,7 @@ function masterFrame(deltaTime, timestamp) {
 
                     if (_proj.shooterType === 'SHOOTER' && _bonuses.specials.includes('SHOOTER_DODGE') && Math.random() < 0.15) {
                         floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "DODGE", "#f1c40f", 20));
+                        Projectile.release(_proj); // #20 P3
                         projectiles.splice(_pi, 1);
                         continue;
                     }
@@ -7204,6 +7212,7 @@ function masterFrame(deltaTime, timestamp) {
                     }
 
                     createExplosion(player.x, player.y, _proj.color);
+                    Projectile.release(_proj); // #20 P3
                     projectiles.splice(_pi, 1);
 
                     if (player.transformActive) {
@@ -7218,6 +7227,7 @@ function masterFrame(deltaTime, timestamp) {
                         player2.hp -= _p2Dmg;
                         floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 20, Math.ceil(_p2Dmg), '#e74c3c', 20));
                         createExplosion(player2.x, player2.y, _proj.color);
+                        Projectile.release(_proj); // #20 P3
                         projectiles.splice(_pi, 1);
                         if (player2.hp <= 0 && !player2.isDead) {
                             player2.isDead = true; player2.hp = 0; player2.isInvincible = true;
@@ -7414,7 +7424,7 @@ function masterFrame(deltaTime, timestamp) {
                     if (enemy._ghost) {
                         if (!proj.pierce || proj.pierce <= 0) {
                             const _gIdx = projectiles.indexOf(proj);
-                            if (_gIdx >= 0) projectiles.splice(_gIdx, 1);
+                            if (_gIdx >= 0) { Projectile.release(proj); projectiles.splice(_gIdx, 1); } // #20 P3
                         }
                         continue;
                     }
@@ -7425,7 +7435,7 @@ function masterFrame(deltaTime, timestamp) {
                         if (result === 'STOP') {
                             if (proj.life <= 0) {
                                 const _hIdx = projectiles.indexOf(proj);
-                                if (_hIdx >= 0) projectiles.splice(_hIdx, 1);
+                                if (_hIdx >= 0) { Projectile.release(proj); projectiles.splice(_hIdx, 1); } // #20 P3
                             }
                             continue;
                         }
@@ -7435,7 +7445,7 @@ function masterFrame(deltaTime, timestamp) {
                     if (enemy instanceof Boss && enemy.immune) {
                         floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "IMMUNE", "#fff", 20));
                         const _bIdx = projectiles.indexOf(proj);
-                        if (_bIdx >= 0) projectiles.splice(_bIdx, 1);
+                        if (_bIdx >= 0) { Projectile.release(proj); projectiles.splice(_bIdx, 1); } // #20 P3
                         continue;
                     }
 
@@ -7518,13 +7528,13 @@ function masterFrame(deltaTime, timestamp) {
                             }
                         }
                         const _eIdx = projectiles.indexOf(proj);
-                        if (_eIdx >= 0) projectiles.splice(_eIdx, 1);
+                        if (_eIdx >= 0) { Projectile.release(proj); projectiles.splice(_eIdx, 1); } // #20 P3
                     } else {
                         if (proj.pierce > 0) {
                             proj.pierce--;
                         } else {
                             const _nIdx = projectiles.indexOf(proj);
-                            if (_nIdx >= 0) projectiles.splice(_nIdx, 1);
+                            if (_nIdx >= 0) { Projectile.release(proj); projectiles.splice(_nIdx, 1); } // #20 P3
                         }
                     }
                     if (!(enemy instanceof Boss)) {
@@ -7721,7 +7731,7 @@ function masterFrame(deltaTime, timestamp) {
 
                         // Mutator: No Regen (No Health Drops)
                         if (!((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'NO_REGEN'))) {
-                            if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y)); // Gold Drop
+                            if (Math.random() < 0.3) goldDrops.push(GoldDrop.acquire(enemy.x, enemy.y)); // Gold Drop
                         } else {
                             // Still drop gold, but maybe less? Or just no health potions if they existed as drops.
                             // Wait, GoldDrop is money. Health is usually from Shop or Skills.
@@ -7732,7 +7742,7 @@ function masterFrame(deltaTime, timestamp) {
                             // Since we don't have health drops yet (only shop potions), let's make it block Gold Drops instead for now?
                             // Or better: Block Shop Healing.
                         }
-                        if (Math.random() < 0.3) goldDrops.push(new GoldDrop(enemy.x, enemy.y));
+                        if (Math.random() < 0.3) goldDrops.push(GoldDrop.acquire(enemy.x, enemy.y));
 
                         // Check for Card Drop
                         checkDrop(enemy.subType || 'BASIC', enemy.x, enemy.y);

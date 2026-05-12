@@ -151,11 +151,12 @@ class HolyMask {
 
         // Inner golden overlay
         ctx.shadowBlur = 0;
-        const g = ctx.createRadialGradient(0, 0, 3, 0, 0, 17);
-        g.addColorStop(0, 'rgba(255,250,200,0)');
-        g.addColorStop(0.6, 'rgba(241,196,15,0.15)');
-        g.addColorStop(1, 'rgba(200,150,0,0.35)');
-        ctx.fillStyle = g;
+        // #22 — static gradient cached across all HolyMask instances.
+        ctx.fillStyle = cachedRadial(ctx, 'holyMask:gold', 3, 17, [
+            [0,   'rgba(255,250,200,0)'],
+            [0.6, 'rgba(241,196,15,0.15)'],
+            [1,   'rgba(200,150,0,0.35)'],
+        ]);
         ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.fill();
 
         // --- Grand crown (5 tines) ---

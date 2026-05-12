@@ -283,7 +283,7 @@ class LoveHero {
                 const a = Math.atan2(nearest.y - comp.y, nearest.x - comp.x);
                 const spd = (player.stats.projectileSpeed || 12) * 0.85;
                 const dmg = player.stats.rangeDmg * player.damageMultiplier * 0.35;
-                const proj = new Projectile(
+                const proj = Projectile.acquire(
                     comp.x, comp.y,
                     { x: Math.cos(a) * spd, y: Math.sin(a) * spd },
                     dmg, '#ff9dbf', 6, 'player', 0, false
@@ -353,7 +353,7 @@ class LoveHero {
         }
 
         angles.forEach(angle => {
-            const proj = new Projectile(
+            const proj = Projectile.acquire(
                 player.x, player.y,
                 { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd },
                 dmg, '#ff6b9d', sz, 'love', 0, false
@@ -554,7 +554,7 @@ class LoveHero {
 
         for (let i = 0; i < COUNT; i++) {
             const angle = (Math.PI * 2 * i) / COUNT;
-            const proj = new Projectile(
+            const proj = Projectile.acquire(
                 player.x, player.y,
                 { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd },
                 dmg, '#ff1a6b', sz, 'love', 0, false

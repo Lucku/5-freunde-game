@@ -294,11 +294,11 @@ window.HERO_LOGIC['smoke'] = {
                 const t = (typeof frame !== 'undefined' ? frame : Date.now() * 0.06);
                 ctx.save();
                 ctx.translate(player.x, player.y);
-                const rg = ctx.createRadialGradient(0, 0, 20, 0, 0, 200);
-                rg.addColorStop(0,   'rgba(15, 15, 20, 0.55)');
-                rg.addColorStop(0.5, 'rgba(15, 15, 20, 0.35)');
-                rg.addColorStop(1,   'rgba(15, 15, 20, 0)');
-                ctx.fillStyle = rg;
+                ctx.fillStyle = cachedRadial(ctx, 'smokeHero:smogAura', 20, 200, [
+                    [0,   'rgba(15, 15, 20, 0.55)'],
+                    [0.5, 'rgba(15, 15, 20, 0.35)'],
+                    [1,   'rgba(15, 15, 20, 0)'],
+                ]);
                 ctx.beginPath();
                 ctx.arc(0, 0, 200, 0, Math.PI * 2);
                 ctx.fill();

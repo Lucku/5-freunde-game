@@ -20,7 +20,7 @@
 
     function spawnProj(x, y, vx, vy, damage, color, size) {
         if (typeof projectiles !== 'undefined') {
-            projectiles.push(new Projectile(x, y, { x: vx, y: vy }, damage, color, size || 8, 'boss', 0, true));
+            projectiles.push(Projectile.acquire(x, y, { x: vx, y: vy }, damage, color, size || 8, 'boss', 0, true));
         }
     }
 
@@ -507,6 +507,7 @@
                         if (p.isPlayerShot) {
                             const d = Math.hypot(p.x - b.x, p.y - b.y);
                             if (d < b.radius * 1.8) {
+                                if (typeof Projectile !== 'undefined') Projectile.release(p); // #20 P3
                                 projectiles.splice(i, 1);
                                 b._absorbedCount++;
                             }
@@ -1649,6 +1650,7 @@
                     const p = projectiles[pi];
                     if (p.isPlayerShot && Math.hypot(p.x - ox, p.y - oy) < 18) {
                         orb.hp -= p.damage || 10;
+                        if (typeof Projectile !== 'undefined') Projectile.release(p); // #20 P3
                         projectiles.splice(pi, 1);
                         if (orb.hp <= 0) {
                             explosion(ox, oy, '#a060e0', 6);

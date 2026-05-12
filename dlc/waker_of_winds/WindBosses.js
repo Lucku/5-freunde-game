@@ -76,7 +76,7 @@ class WindBosses {
                     for (let i = 0; i < 8; i++) {
                         const a   = (i / 8) * Math.PI * 2;
                         const vel = { x: Math.cos(a) * 5, y: Math.sin(a) * 5 };
-                        const p   = new Projectile(boss.x, boss.y, vel, boss.damage * 0.6, '#aed6f1', 10, 'enemy', 0, true);
+                        const p   = Projectile.acquire(boss.x, boss.y, vel, boss.damage * 0.6, '#aed6f1', 10, 'enemy', 0, true);
                         projectiles.push(p);
                     }
                 }
@@ -164,7 +164,7 @@ class WindBosses {
                     const count = boss.hp < boss.maxHp * 0.5 ? 5 : 3;
                     for (let i = 0; i < count; i++) {
                         const a = (Math.PI * 2 / count) * i + frame * 0.1;
-                        const p = new Projectile(boss.x, boss.y, { x: Math.cos(a), y: Math.sin(a) }, 10, '#1abc9c', 20, 'enemy', 0, true);
+                        const p = Projectile.acquire(boss.x, boss.y, { x: Math.cos(a), y: Math.sin(a) }, 10, '#1abc9c', 20, 'enemy', 0, true);
                         p.life = 600;
                         p.update = function () {
                             this.angle = (this.angle || 0) + 0.1;
@@ -197,7 +197,7 @@ class WindBosses {
             // Standard projectile
             if (boss.attackCooldown <= 0) {
                 if (ctx) {
-                    projectiles.push(new Projectile(boss.x, boss.y, { x: Math.cos(angle) * 15, y: Math.sin(angle) * 15 }, boss.damage, '#8e44ad', 10, 'enemy', 0, true));
+                    projectiles.push(Projectile.acquire(boss.x, boss.y, { x: Math.cos(angle) * 15, y: Math.sin(angle) * 15 }, boss.damage, '#8e44ad', 10, 'enemy', 0, true));
                 }
                 boss.attackCooldown = 40;
             } else {
@@ -227,7 +227,7 @@ class WindBosses {
                     for (let i = 0; i < count; i++) {
                         const a   = (i / count) * Math.PI * 2;
                         const vel = { x: Math.cos(a) * 5, y: Math.sin(a) * 5 };
-                        const p   = new Projectile(boss.x, boss.y, vel, boss.damage * 0.7, '#c39bd3', 8, 'enemy', 0, true);
+                        const p   = Projectile.acquire(boss.x, boss.y, vel, boss.damage * 0.7, '#c39bd3', 8, 'enemy', 0, true);
                         projectiles.push(p);
                     }
                 }
@@ -263,7 +263,7 @@ class WindBosses {
                     if (ctx && typeof projectiles !== 'undefined') {
                         const spread = (Math.random() - 0.5) * 0.4;
                         const vel    = { x: Math.cos(angle + spread) * 14, y: Math.sin(angle + spread) * 14 };
-                        projectiles.push(new Projectile(boss.x, boss.y, vel, boss.damage * 1.2, '#e74c3c', 8, 'enemy', 0, true));
+                        projectiles.push(Projectile.acquire(boss.x, boss.y, vel, boss.damage * 1.2, '#e74c3c', 8, 'enemy', 0, true));
                     }
                 }
             }
@@ -491,13 +491,14 @@ class WindBosses {
             ctx.restore();
         }
 
-        // Turbine core — glowing energy
-        const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.38);
-        cg.addColorStop(0,   phase2 ? '#ff6b6b' : '#a3e4d7');
-        cg.addColorStop(0.5, coreC);
-        cg.addColorStop(1,   '#1a2b2b');
+        // Turbine core — glowing energy (cached: phase + coreC).
         ctx.beginPath(); ctx.arc(0, 0, r * 0.38, 0, Math.PI * 2);
-        ctx.fillStyle = cg; ctx.fill();
+        ctx.fillStyle = cachedRadial(ctx, `windBoss:turbineCore:p${phase2 ? 2 : 1}:${coreC}:${(r * 0.38) | 0}`, 0, r * 0.38, [
+            [0,   phase2 ? '#ff6b6b' : '#a3e4d7'],
+            [0.5, coreC],
+            [1,   '#1a2b2b'],
+        ]);
+        ctx.fill();
         ctx.shadowColor = accentC; ctx.shadowBlur = phase2 ? 20 : 12;
         ctx.strokeStyle = accentC; ctx.lineWidth = 2; ctx.stroke();
         ctx.shadowBlur = 0;
@@ -546,15 +547,16 @@ class WindBosses {
             ctx.setLineDash([]); ctx.restore();
         }
 
-        // Main vortex body — dark radial gradient
-        const rg = ctx.createRadialGradient(0, 0, r * 0.05, 0, 0, r * 0.95);
-        rg.addColorStop(0,    '#000000');
-        rg.addColorStop(0.25, phase2 ? '#2c0a0a' : '#1a0a2e');
-        rg.addColorStop(0.60, outerC);
-        rg.addColorStop(0.85, midC);
-        rg.addColorStop(1,    'rgba(0,0,0,0)');
+        // Main vortex body — dark radial gradient (cached: phase + outerC + midC).
         ctx.beginPath(); ctx.arc(0, 0, r * 0.95, 0, Math.PI * 2);
-        ctx.fillStyle = rg; ctx.fill();
+        ctx.fillStyle = cachedRadial(ctx, `windBoss:vortexBody:p${phase2 ? 2 : 1}:${outerC}:${midC}:${(r * 0.95) | 0}`, r * 0.05, r * 0.95, [
+            [0,    '#000000'],
+            [0.25, phase2 ? '#2c0a0a' : '#1a0a2e'],
+            [0.60, outerC],
+            [0.85, midC],
+            [1,    'rgba(0,0,0,0)'],
+        ]);
+        ctx.fill();
 
         // Rotating inner spiral arms
         ctx.save();
@@ -600,12 +602,13 @@ class WindBosses {
         ctx.beginPath(); ctx.arc(0, 0, eyeR, 0, Math.PI * 2);
         ctx.fillStyle = '#000'; ctx.fill();
 
-        // Inner eye glow
-        const eyeG = ctx.createRadialGradient(0, 0, 0, 0, 0, eyeR);
-        eyeG.addColorStop(0, phase2 ? 'rgba(255,30,30,0.6)' : 'rgba(155,89,182,0.5)');
-        eyeG.addColorStop(1, 'rgba(0,0,0,0)');
+        // Inner eye glow (cached: phase + eyeR).
         ctx.beginPath(); ctx.arc(0, 0, eyeR, 0, Math.PI * 2);
-        ctx.fillStyle = eyeG; ctx.fill();
+        ctx.fillStyle = cachedRadial(ctx, `windBoss:eyeGlow:p${phase2 ? 2 : 1}:${eyeR | 0}`, 0, eyeR, [
+            [0, phase2 ? 'rgba(255,30,30,0.6)' : 'rgba(155,89,182,0.5)'],
+            [1, 'rgba(0,0,0,0)'],
+        ]);
+        ctx.fill();
 
         // Two glowing eye slits — V-shaped menacing gaze inside the eye
         const sw = Math.max(2.5, eyeR * 0.18);

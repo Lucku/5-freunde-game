@@ -49,7 +49,7 @@ class ThunderEnemies {
                         e.shootCooldown = 120;
                         if (typeof projectiles !== 'undefined') {
                             const angle = Math.atan2(player.y - e.y, player.x - e.x);
-                            projectiles.push(new Projectile(
+                            projectiles.push(Projectile.acquire(
                                 e.x, e.y,
                                 { x: Math.cos(angle) * 8, y: Math.sin(angle) * 8 },
                                 e.damage,

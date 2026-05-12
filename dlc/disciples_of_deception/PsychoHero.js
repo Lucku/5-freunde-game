@@ -185,7 +185,7 @@ window.HERO_LOGIC['psycho'] = {
                     const sp = Math.hypot(p.velocity.x, p.velocity.y);
                     offsets.forEach(off => {
                         const ang = baseAng + off + (Math.random() - 0.5) * 0.15;
-                        const np = new Projectile(p.x, p.y, { x: Math.cos(ang) * sp, y: Math.sin(ang) * sp },
+                        const np = Projectile.acquire(p.x, p.y, { x: Math.cos(ang) * sp, y: Math.sin(ang) * sp },
                             p.damage * 0.7, '#ffffff', p.radius, p.type, p.knockback, false);
                         newProjs.push(np);
                     });

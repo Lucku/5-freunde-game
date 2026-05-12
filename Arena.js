@@ -712,7 +712,7 @@ class Trap {
                 if (typeof player !== 'undefined' && typeof projectiles !== 'undefined') {
                     const angle = Math.atan2(player.y - (this.y + this.h / 2), player.x - (this.x + this.w / 2));
                     const vel = { x: Math.cos(angle) * 5, y: Math.sin(angle) * 5 };
-                    projectiles.push(new Projectile(this.x + this.w / 2, this.y + this.h / 2, vel, 10, '#e74c3c', 8, 'enemy', 0, true));
+                    projectiles.push(Projectile.acquire(this.x + this.w / 2, this.y + this.h / 2, vel, 10, '#e74c3c', 8, 'enemy', 0, true));
                 }
                 this.timer = 0;
             }

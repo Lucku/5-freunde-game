@@ -107,7 +107,7 @@ class ThunderBoss {
 
         setTimeout(() => {
             if (typeof audioManager !== 'undefined') audioManager.play('thunder_spear_launch');
-            projectiles.push(new Projectile(
+            projectiles.push(Projectile.acquire(
                 this.x, this.y,
                 { x: Math.cos(angle) * 20, y: Math.sin(angle) * 20 }, // Very Fast
                 40, // High Damage
@@ -126,7 +126,7 @@ class ThunderBoss {
         const count = this.phase === 3 ? 24 : 16;
         for (let i = 0; i < count; i++) {
             const angle = (Math.PI * 2 / count) * i;
-            projectiles.push(new Projectile(
+            projectiles.push(Projectile.acquire(
                 this.x, this.y,
                 { x: Math.cos(angle) * 6, y: Math.sin(angle) * 6 },
                 20, '#aaddff', 8, 'LIGHTNING', 5, true
@@ -148,7 +148,7 @@ class ThunderBoss {
     staticField() {
         // Place a mine/trap near player
         if (typeof audioManager !== 'undefined') audioManager.play('zeus_static_field');
-        projectiles.push(new Projectile(
+        projectiles.push(Projectile.acquire(
             player.x + (Math.random() * 200 - 100),
             player.y + (Math.random() * 200 - 100),
             { x: (Math.random() - 0.5) * 0.5, y: (Math.random() - 0.5) * 0.5 }, // Drift to ensure cleanup
@@ -177,7 +177,7 @@ class ThunderBoss {
                 const offset = (v % 2 === 0) ? 0 : (Math.PI / count); // Interleaved
                 for (let i = 0; i < count; i++) {
                     const angle = (Math.PI * 2 / count) * i + offset + this.angle; // Spiraling
-                    projectiles.push(new Projectile(
+                    projectiles.push(Projectile.acquire(
                         this.x, this.y,
                         { x: Math.cos(angle) * 10, y: Math.sin(angle) * 10 },
                         25, '#ff0000', 12, 'LIGHTNING_WRATH', 10, true
@@ -190,7 +190,7 @@ class ThunderBoss {
 
     strikeRandom() {
         // Lightning from sky
-        projectiles.push(new Projectile(
+        projectiles.push(Projectile.acquire(
             player.x + (Math.random() * 400 - 200), player.y - 400,
             { x: 0, y: 15 },
             15, '#aaddff', 15, 'LIGHTNING', 0, true

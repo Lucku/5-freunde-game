@@ -264,7 +264,7 @@ class EarthHero {
                     if (has('c21') && typeof projectiles !== 'undefined') {
                         for (let i = 0; i < 3; i++) {
                             const a = Math.random() * Math.PI * 2;
-                            projectiles.push(new Projectile(
+                            projectiles.push(Projectile.acquire(
                                 e.x, e.y,
                                 { x: Math.cos(a) * 5, y: Math.sin(a) * 5 },
                                 damage * 0.3, '#f1c40f', 5, 'friend', 0
@@ -322,7 +322,7 @@ class EarthHero {
         if (typeof Projectile !== 'undefined') {
             shots.forEach(a => {
                 const vel = { x: Math.cos(a) * speed, y: Math.sin(a) * speed };
-                const proj = new Projectile(
+                const proj = Projectile.acquire(
                     player.x, player.y,
                     vel,
                     dmg,
@@ -686,9 +686,13 @@ class EarthHero {
             // Ultimate transform aura
             if (isObsidian) {
                 const hc = '#f1c40f';
-                const ag = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r + 40);
-                ag.addColorStop(0,   hc + 'BB'); ag.addColorStop(0.5, hc + '44'); ag.addColorStop(1, hc + '00');
-                ctx.beginPath(); ctx.arc(0, 0, r + 40, 0, Math.PI * 2); ctx.fillStyle = ag; ctx.fill();
+                ctx.beginPath(); ctx.arc(0, 0, r + 40, 0, Math.PI * 2);
+                ctx.fillStyle = cachedRadial(ctx, `earthHero:obsidianAura:${r | 0}`, r * 0.4, r + 40, [
+                    [0,   hc + 'BB'],
+                    [0.5, hc + '44'],
+                    [1,   hc + '00'],
+                ]);
+                ctx.fill();
                 ctx.save();
                 ctx.shadowColor = hc; ctx.shadowBlur = 14;
                 ctx.lineWidth = 2.5; ctx.strokeStyle = hc + 'CC';

@@ -718,7 +718,7 @@ class Player {
             // Burst of thorns
             for (let i = 0; i < 20; i++) {
                 const angle = (Math.PI * 2 / 20) * i;
-                const p = new Projectile(this.x, this.y, { x: Math.cos(angle) * 10, y: Math.sin(angle) * 10 }, 30 * this.damageMultiplier, '#2ecc71', 5, 'plant', 10, false);
+                const p = Projectile.acquire(this.x, this.y, { x: Math.cos(angle) * 10, y: Math.sin(angle) * 10 }, 30 * this.damageMultiplier, '#2ecc71', 5, 'plant', 10, false);
                 p.owner = this;
                 if (isWildfire) p.color = '#e67e22'; // Orange thorns
                 if (isCryo) p.color = '#aaddff'; // Blue thorns
@@ -1195,13 +1195,15 @@ class Player {
 
             ctx.save();
 
-            // Layer 1 — soft radial halo
-            const grad = ctx.createRadialGradient(0, 0, this.radius * 0.4, 0, 0, this.radius + 40);
-            grad.addColorStop(0,   hc + 'BB');
-            grad.addColorStop(0.5, hc + '44');
-            grad.addColorStop(1,   hc + '00');
+            // Layer 1 — soft radial halo. Keyed by hero color + radius bucket
+            // (radius rarely changes per-hero so cache hit-rate is ~100%).
             ctx.beginPath(); ctx.arc(0, 0, this.radius + 40, 0, Math.PI * 2);
-            ctx.fillStyle = grad; ctx.fill();
+            ctx.fillStyle = cachedRadial(ctx, `player:transformHalo:${hc}:${this.radius | 0}`, this.radius * 0.4, this.radius + 40, [
+                [0,   hc + 'BB'],
+                [0.5, hc + '44'],
+                [1,   hc + '00'],
+            ]);
+            ctx.fill();
 
             // Layer 2 — tight glowing ring
             ctx.shadowColor = hc; ctx.shadowBlur = 22;
@@ -1365,7 +1367,7 @@ class Player {
             const finalDmg = dmg * (isCrit ? this.critMultiplier : 1);
 
             const vel = { x: Math.cos(a) * speed, y: Math.sin(a) * speed };
-            const proj = new Projectile(this.x, this.y, vel, finalDmg, color, size, this.type, knockback, false, isExplosive, isCrit);
+            const proj = Projectile.acquire(this.x, this.y, vel, finalDmg, color, size, this.type, knockback, false, isExplosive, isCrit);
             proj.owner = this; // Set Owner for PVP logic
             if (pierce > 0) proj.pierce = pierce;
             projectiles.push(proj);
@@ -1385,7 +1387,7 @@ class Player {
                     };
 
                     // Spawn exactly at hero position
-                    const extraProj = new Projectile(this.x, this.y, spreadVel, extraDmg, this.stats.color, size, this.type, knockback, false, false, isExtraCrit);
+                    const extraProj = Projectile.acquire(this.x, this.y, spreadVel, extraDmg, this.stats.color, size, this.type, knockback, false, false, isExtraCrit);
                     extraProj.owner = this;
                     if (pierce > 0) extraProj.pierce = pierce;
                     projectiles.push(extraProj);
@@ -1411,7 +1413,7 @@ class Player {
         const isCrit = Math.random() < this.critChance;
         const finalDmg = this.stats.meleeDmg * this.damageMultiplier * (isCrit ? this.critMultiplier : 1);
 
-        meleeAttacks.push(new MeleeSwipe(this.x, this.y, angle, finalDmg, this.stats.color, this.meleeRadius, isCrit, this));
+        meleeAttacks.push(MeleeSwipe.acquire(this.x, this.y, angle, finalDmg, this.stats.color, this.meleeRadius, isCrit, this));
         this.meleeCooldown = this.meleeMaxCooldown * this.cooldownMultiplier;
     }
 }

@@ -380,10 +380,11 @@ class WindEnemies {
         } else {
             ctx.shadowColor = '#00bcd4'; ctx.shadowBlur = 6;
         }
-        const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.26);
-        coreGrad.addColorStop(0, isBursting ? '#e0f7fa' : '#b2ebf2');
-        coreGrad.addColorStop(1, isBursting ? '#00bcd4' : '#0097a7');
-        ctx.fillStyle = coreGrad;
+        // Core gradient (cached: burst flag + r bucket).
+        ctx.fillStyle = cachedRadial(ctx, `windEnemy:core:b${isBursting ? 1 : 0}:${(r * 0.26) | 0}`, 0, r * 0.26, [
+            [0, isBursting ? '#e0f7fa' : '#b2ebf2'],
+            [1, isBursting ? '#00bcd4' : '#0097a7'],
+        ]);
         ctx.beginPath(); ctx.arc(0, 0, r * 0.26, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
 

@@ -28,11 +28,11 @@ class GoldDrop {
         ctx.save();
         ctx.translate(this.x, this.y + bob);
 
-        // Outer glow
-        const glow = ctx.createRadialGradient(0, 0, coinR * 0.3, 0, 0, coinR * 2);
-        glow.addColorStop(0, glowColor);
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow;
+        // Outer glow — keyed per tier (3 variants).
+        ctx.fillStyle = cachedRadial(ctx, `goldDrop:glow:t${this._tier}`, coinR * 0.3, coinR * 2, [
+            [0, glowColor],
+            [1, 'rgba(0,0,0,0)'],
+        ]);
         ctx.beginPath();
         ctx.ellipse(0, 0, coinR * 2, coinR * 1.4, 0, 0, Math.PI * 2);
         ctx.fill();
@@ -90,6 +90,28 @@ class GoldDrop {
         }
 
         ctx.restore();
+    }
+
+    // #20 P3 — object pool. Strict reset of every constructor field including
+    // re-rolling the random value + tier so reused drops aren't stuck on the
+    // previous instance's value.
+    static _pool = [];
+    static POOL_MAX = 64;
+    static acquire(x, y, world = null) {
+        const g = GoldDrop._pool.pop();
+        if (!g) return new GoldDrop(x, y, world);
+        g.x = x; g.y = y;
+        g.radius = 10;
+        g.value = Math.floor(Math.random() * 10) + 5;
+        g._angle = Math.random() * Math.PI * 2;
+        g._bobOffset = Math.random() * Math.PI * 2;
+        g._tier = g.value >= 12 ? 2 : g.value >= 8 ? 1 : 0;
+        g._world = world ?? (typeof window !== 'undefined' ? window._world : null) ?? null;
+        return g;
+    }
+    static release(g) {
+        if (!g || GoldDrop._pool.length >= GoldDrop.POOL_MAX) return;
+        GoldDrop._pool.push(g);
     }
 }
 export { GoldDrop };
