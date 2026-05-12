@@ -8,7 +8,7 @@ class AchievementsUI {
         list.innerHTML = '';
 
         const achievementsList = window.ACHIEVEMENTS || [];
-        const unlockedSet = new Set(window.saveData.global.unlockedAchievements || []);
+        const unlockedSet = new Set(window.gameContext.saveData.global.unlockedAchievements || []);
 
         // Update counter
         const total = achievementsList.length;

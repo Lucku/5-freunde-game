@@ -41,9 +41,9 @@ class HeroDetailsUI {
 
         // --- A. VOID SHOP (Meta Upgrades) ---
         let voidHtml = '';
-        if (typeof PERM_UPGRADES !== 'undefined' && window.saveData && window.saveData.metaUpgrades) {
+        if (typeof PERM_UPGRADES !== 'undefined' && window.gameContext.saveData && window.gameContext.saveData.metaUpgrades) {
             for (let key in PERM_UPGRADES) {
-                const level = window.saveData.metaUpgrades[key] || 0;
+                const level = window.gameContext.saveData.metaUpgrades[key] || 0;
                 if (level > 0) {
                     let effect = "";
                     if (key === 'health') { totals.healthFlat += level * 5; effect = `+${level * 5} Max HP`; }
@@ -63,8 +63,8 @@ class HeroDetailsUI {
 
         // --- B. ACHIEVEMENTS ---
         let achHtml = '';
-        if (window.saveData && window.saveData.global.unlockedAchievements) {
-            window.saveData.global.unlockedAchievements.forEach(id => {
+        if (window.gameContext.saveData && window.gameContext.saveData.global.unlockedAchievements) {
+            window.gameContext.saveData.global.unlockedAchievements.forEach(id => {
                 const ach = ACHIEVEMENTS.find(a => a.id === id);
                 if (ach) {
                     const val = ach.bonus.val;
@@ -92,7 +92,7 @@ class HeroDetailsUI {
         // If moved, we call it via appropriate referencing.
         if (typeof window.generateHeroSkillTree === 'function') {
             const treeData = window.generateHeroSkillTree(heroType);
-            const unlockedCount = window.saveData[heroType].unlocked;
+            const unlockedCount = window.gameContext.saveData[heroType].unlocked;
 
             let treeStats = { damage: 0, health: 0, speed: 0, cooldown: 0, defense: 0, projectiles: 0, other: [] };
 
@@ -141,7 +141,7 @@ class HeroDetailsUI {
                 <div class="summary-card"><div class="summary-val" style="color:#f39c12">+${totals.gold.toFixed(0)}%</div><div class="summary-label">Gold Gain</div></div>
                 <div class="summary-card"><div class="summary-val" style="color:#3498db">+${totals.xp.toFixed(0)}%</div><div class="summary-label">XP Gain</div></div>
                 <div class="summary-card"><div class="summary-val" style="color:#fff">+${totals.projectiles}</div><div class="summary-label">Extra Proj.</div></div>
-                <div class="summary-card"><div class="summary-val" style="color:#1abc9c">${window.saveData[heroType].prestige}</div><div class="summary-label">Prestige Rank</div></div>
+                <div class="summary-card"><div class="summary-val" style="color:#1abc9c">${window.gameContext.saveData[heroType].prestige}</div><div class="summary-label">Prestige Rank</div></div>
             `;
         }
     }

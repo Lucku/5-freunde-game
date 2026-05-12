@@ -25,7 +25,7 @@ class StatisticsUI {
 
         // 1. Best Run Stats
         for (let key in labels) {
-            let val = window.saveData.stats[key] || 0;
+            let val = window.gameContext.saveData.stats[key] || 0;
             if (key === 'timeSurvived') {
                 val = `${Math.floor(val / 60)}:${(val % 60).toString().padStart(2, '0')}`;
             }
@@ -44,12 +44,12 @@ class StatisticsUI {
                 <tr class="stat-row"><td>Total Play Time</td><td class="stats-val" style="color:#2ecc71">${timeAndHero.formattedTime}</td></tr>
                 <tr class="stat-row"><td>Most Favorite Hero</td><td class="stats-val" style="color:#f1c40f">${timeAndHero.mostPlayed}</td></tr>
                 <tr class="stat-row"><td>Least Favorite Hero</td><td class="stats-val" style="color:#e74c3c">${timeAndHero.leastPlayed}</td></tr>
-                <tr class="stat-row"><td>Total Games Played</td><td class="stats-val" style="color:#fff">${window.saveData.global.totalGames || 0}</td></tr>
-                <tr class="stat-row"><td>Total Kills</td><td class="stats-val" style="color:#3498db">${window.saveData.global.totalKills}</td></tr>
-                <tr class="stat-row"><td>Total Gold Collected</td><td class="stats-val" style="color:#f1c40f">${window.saveData.global.totalGold}</td></tr>
-                <tr class="stat-row"><td>Total Bosses Slain</td><td class="stats-val" style="color:#e74c3c">${window.saveData.global.totalBosses}</td></tr>
-                <tr class="stat-row"><td>Total Damage Dealt</td><td class="stats-val" style="color:#9b59b6">${(window.saveData.global.totalDamage / 1000000).toFixed(2)}M</td></tr>
-                <tr class="stat-row"><td>Highest Wave Ever</td><td class="stats-val" style="color:#2ecc71">${window.saveData.global.maxWave}</td></tr>
+                <tr class="stat-row"><td>Total Games Played</td><td class="stats-val" style="color:#fff">${window.gameContext.saveData.global.totalGames || 0}</td></tr>
+                <tr class="stat-row"><td>Total Kills</td><td class="stats-val" style="color:#3498db">${window.gameContext.saveData.global.totalKills}</td></tr>
+                <tr class="stat-row"><td>Total Gold Collected</td><td class="stats-val" style="color:#f1c40f">${window.gameContext.saveData.global.totalGold}</td></tr>
+                <tr class="stat-row"><td>Total Bosses Slain</td><td class="stats-val" style="color:#e74c3c">${window.gameContext.saveData.global.totalBosses}</td></tr>
+                <tr class="stat-row"><td>Total Damage Dealt</td><td class="stats-val" style="color:#9b59b6">${(window.gameContext.saveData.global.totalDamage / 1000000).toFixed(2)}M</td></tr>
+                <tr class="stat-row"><td>Highest Wave Ever</td><td class="stats-val" style="color:#2ecc71">${window.gameContext.saveData.global.maxWave}</td></tr>
             </tbody>
         </table>`;
 
@@ -64,14 +64,14 @@ class StatisticsUI {
 
     calculateTotalTimeAndHeroes() {
         // Time
-        const totalSeconds = window.saveData.global.totalTimePlayed || 0;
+        const totalSeconds = window.gameContext.saveData.global.totalTimePlayed || 0;
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const formattedTime = `${hours}h ${minutes}m`;
 
         // Heroes
-        const runs = window.saveData.global.heroRuns || {};
-        const allStats = window.saveData; // To check unlocked heroes
+        const runs = window.gameContext.saveData.global.heroRuns || {};
+        const allStats = window.gameContext.saveData; // To check unlocked heroes
 
         let maxVal = -1;
         let minVal = Infinity;

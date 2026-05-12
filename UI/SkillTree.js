@@ -19,7 +19,7 @@ class SkillTreeUI {
         if (!container) return;
         container.innerHTML = '';
 
-        const heroData = window.saveData[heroType];
+        const heroData = window.gameContext.saveData[heroType];
         const pointsAvailable = heroData.level - heroData.unlocked;
         // Assume generateHeroSkillTree is global. If not, we moved it? 
         // We found it in game.js in Phase 2. We should assume it stays there or we need to move it.
@@ -94,7 +94,7 @@ class SkillTreeUI {
 
             if (isAvailable) {
                 el.onclick = () => {
-                    window.saveData[heroType].unlocked++;
+                    window.gameContext.saveData[heroType].unlocked++;
                     if (window.saveGame) window.saveGame();
                     this.renderSkillTree();
 
@@ -141,9 +141,9 @@ class SkillTreeUI {
     prestigeHero() {
         const heroType = window.selectedHeroType || 'fire';
         if (confirm("Are you sure? This will reset your Skill Tree progress to 0, but increase difficulty and base stats.")) {
-            window.saveData[heroType].level = 0;
-            window.saveData[heroType].unlocked = 0;
-            window.saveData[heroType].prestige++;
+            window.gameContext.saveData[heroType].level = 0;
+            window.gameContext.saveData[heroType].unlocked = 0;
+            window.gameContext.saveData[heroType].prestige++;
             if (window.saveGame) window.saveGame();
             this.renderSkillTree();
         }
@@ -166,8 +166,9 @@ window.generateHeroSkillTree = function (type) {
         black: { DAMAGE: 1.0 }
     };
 
-    if (window.HERO_LOGIC && window.HERO_LOGIC[type] && window.HERO_LOGIC[type].getSkillTreeWeights) {
-        weights[type] = window.HERO_LOGIC[type].getSkillTreeWeights();
+    const _hlSt = window.gameContext.registries.getHero(type);
+    if (_hlSt && _hlSt.getSkillTreeWeights) {
+        weights[type] = _hlSt.getSkillTreeWeights();
     }
 
     const w = weights[type];
@@ -215,8 +216,9 @@ window.generateHeroSkillTree = function (type) {
         if (t === 'ARMOR') { val = 0.01; desc = "+1% Dmg Reduction"; }
         if (t === 'MELEE') { val = 0.05; desc = "+5% Melee Size"; }
 
-        if (window.HERO_LOGIC && window.HERO_LOGIC[type] && window.HERO_LOGIC[type].getSkillNodeDetails) {
-            const details = window.HERO_LOGIC[type].getSkillNodeDetails(t, val, desc);
+        const _hlNode = window.gameContext.registries.getHero(type);
+        if (_hlNode && _hlNode.getSkillNodeDetails) {
+            const details = _hlNode.getSkillNodeDetails(t, val, desc);
             val = details.val;
             desc = details.desc;
         }

@@ -135,9 +135,10 @@ class MainMenuUI {
         let routesToStandard = false;
         const hero = window.selectedHeroType || 'fire';
 
-        if (typeof window.DLC_REGISTRY !== 'undefined' && window.DLC_REGISTRY) {
-            for (const key in window.DLC_REGISTRY) {
-                const dlc = window.DLC_REGISTRY[key];
+        const _dlcReg = window.gameContext.registries.dlcs;
+        if (_dlcReg) {
+            for (const key in _dlcReg) {
+                const dlc = _dlcReg[key];
                 const matchesHero = (dlc.hero === hero) || (dlc.heroes && dlc.heroes.includes(hero));
 
                 if (dlc && matchesHero && dlc.name) {

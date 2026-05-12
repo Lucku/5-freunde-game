@@ -8,8 +8,8 @@ class CollectionUI {
             specials: []
         };
 
-        if (window.saveData && window.saveData.collection) {
-            window.saveData.collection.forEach(key => {
+        if (window.gameContext.saveData && window.gameContext.saveData.collection) {
+            window.gameContext.saveData.collection.forEach(key => {
                 const card = COLLECTOR_CARDS[key];
                 if (!card || !card.bonus) return;
 

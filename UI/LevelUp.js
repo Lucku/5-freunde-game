@@ -26,17 +26,15 @@ class LevelUpUI {
         container.innerHTML = '';
 
         // Allow hero to completely replace the option list (e.g. Time hero's Fast Forward / Reverse)
-        if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && typeof window.HERO_LOGIC[player.type].getCustomLevelUpOptions === 'function') {
-            options = window.HERO_LOGIC[player.type].getCustomLevelUpOptions(player, options);
-        }
+        const _hlCustom = window.gameContext.registries.callHero(player.type, 'getCustomLevelUpOptions', player, options);
+        if (_hlCustom !== undefined) options = _hlCustom;
 
         options.forEach(opt => {
             let displayOpt = { ...opt };
 
             // Allow Hero to Modify Option (Description/Icon)
-            if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && typeof window.HERO_LOGIC[player.type].modifyUpgradeOption === 'function') {
-                displayOpt = window.HERO_LOGIC[player.type].modifyUpgradeOption(player, displayOpt);
-            }
+            const _hlMod = window.gameContext.registries.callHero(player.type, 'modifyUpgradeOption', player, displayOpt);
+            if (_hlMod !== undefined) displayOpt = _hlMod;
 
             const card = document.createElement('div');
             card.className = 'upgrade-card';
@@ -77,15 +75,13 @@ class LevelUpUI {
 
         // 1. Try Hero Specific Upgrade Logic
         // Defined in Hero Class (e.g. SpiritHero.applyUpgrade)
-        if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && typeof window.HERO_LOGIC[player.type].applyUpgrade === 'function') {
-            if (window.HERO_LOGIC[player.type].applyUpgrade(player, type)) {
-                // Handled successfully by hero
-                window.isLevelingUp = false;
-                document.getElementById('levelup-screen').style.display = 'none';
-                if (typeof window._afterUpgradeChosen === 'function') window._afterUpgradeChosen();
-                else if (window.setUIState) window.setUIState('GAME');
-                return;
-            }
+        const _hlApplied = window.gameContext.registries.callHero(player.type, 'applyUpgrade', player, type);
+        if (_hlApplied) {
+            window.isLevelingUp = false;
+            document.getElementById('levelup-screen').style.display = 'none';
+            if (typeof window._afterUpgradeChosen === 'function') window._afterUpgradeChosen();
+            else if (window.setUIState) window.setUIState('GAME');
+            return;
         }
 
         if (type === 'health') {
@@ -136,7 +132,7 @@ LevelUpUI.prototype._upgradeTitle = function (id, player) {
     };
     if (builtIn[id]) return builtIn[id];
     // Hero-specific upgrade pools (e.g. SpiritHero) expose an upgradePool array
-    const hl = window.HERO_LOGIC && window.HERO_LOGIC[player && player.type];
+    const hl = window.gameContext.registries.getHero(player && player.type);
     if (hl && Array.isArray(hl.upgradePool)) {
         const found = hl.upgradePool.find(u => u.id === id);
         if (found && found.title) return found.title;

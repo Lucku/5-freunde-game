@@ -30,8 +30,9 @@ class ShopUI {
         let upgradesToRender = PERM_UPGRADES;
         const selectedHero = window.selectedHeroType || 'fire'; // Default
 
-        if (window.HERO_LOGIC && window.HERO_LOGIC[selectedHero] && window.HERO_LOGIC[selectedHero].permUpgrades) {
-            upgradesToRender = window.HERO_LOGIC[selectedHero].permUpgrades;
+        const _hlShop = window.gameContext.registries.getHero(selectedHero);
+        if (_hlShop && _hlShop.permUpgrades) {
+            upgradesToRender = _hlShop.permUpgrades;
         }
 
         if (typeof upgradesToRender !== 'undefined') {

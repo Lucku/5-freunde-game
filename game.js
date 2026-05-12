@@ -83,9 +83,11 @@ if (isElectron) {
 }
 
 const canvas = document.getElementById('gameCanvas');
-window.canvas = canvas; // Expose for DLCs
 const ctx = canvas.getContext('2d');
-window.ctx = ctx; // Expose for DLCs
+// #4 session 4 — GameContext now owns canvas + ctx; the setter mirrors to
+// `window.canvas` / `window.ctx` so DLC bare-reads keep working.
+window.gameContext.canvas = canvas;
+window.gameContext.ctx    = ctx;
 
 // Canvas click handler for boss-defeated choice screen buttons
 canvas.addEventListener('click', function (e) {
@@ -155,7 +157,7 @@ const defaultSaveData = {
     savedRun: null, // Slot for mid-run save
     tutorial: { seen: false, completed: false }, // First-launch & completion tracking
 };
-window._defaultSaveData = defaultSaveData;
+window.gameContext.defaultSaveData = defaultSaveData; // #4 session 4 — owned by GameContext, mirrored to window._defaultSaveData
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
 let isVersusMode = false;
