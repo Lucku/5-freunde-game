@@ -665,8 +665,10 @@ class Boss {
                         // Damage player if in range
                         const dist = Math.hypot(player.x - this.telegraphData.x, player.y - this.telegraphData.y);
                         if (dist < this.telegraphData.radius) {
-                            player.hp -= this.damage * 2;
-                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(this.damage * 2), "#e74c3c", 20));
+                            const _dmg = this.damage * 2;
+                            player.hp -= _dmg;
+                            if (typeof window.recordPlayerDamage === 'function') window.recordPlayerDamage(player, this.name || 'BOSS', _dmg); // #168
+                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(_dmg), "#e74c3c", 20));
                         }
                     }
                     this.telegraphData = null;

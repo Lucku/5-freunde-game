@@ -49,9 +49,9 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 35. ★ Modern post-processing stack (WebGL fragment shaders): bloom on projectiles, chromatic aberration on hit, vignette on low HP, color grade per biome — single full-screen pass.
 - [ ] 36. 2D normal-map lighting. Cheap radial lights on Fire hero / boss explosions affecting nearby sprites.
 - [ ] 37. Hero animations. Replace procedural-circle look with walk-cycle / attack frames.
-- [ ] 38. Camera shake taxonomy. Different shake types per event (heavy boss stomp vs small hit) using Perlin-noise offsets.
+- [x] 38. Camera shake taxonomy. *(Pass B: `SHAKE_PRESETS` + `shake(type)` helper consolidates per-event flavor. Perlin offsets deferred.)*
 - [x] 39. Hit-stop / freeze-frames. 50 ms freeze on critical hits and boss kill. *(Pass A: `triggerHitStop(frames)` + `_isHitStopped` masterLoop skip already existed for crits; extended to boss-death init at all 4 production sites. 12-frame freeze on boss kill.)*
-- [ ] 40. Damage number animations: crit numbers arc + scale + color-shift.
+- [x] 40. Damage number animations: crit numbers arc + scale + color-shift. *(Pass B: `FloatingText` auto-detects crit via `'!'` suffix or `size >= 25`; crit floats arc, scale-pulse, flash white every 4 frames.)*
 - [ ] 41. Death animations per enemy type: BOMBER fizzle, GHOST dissolve, SHIELDER shatter.
 - [ ] 42. Animated arena edges / parallax background.
 - [ ] 43. Biome-specific ambient particle systems: foliage, flowing water, drifting snow.
@@ -181,7 +181,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 146. Headless test harness. Extend `test-arena.js` + bots into nightly CI: 100 simulated runs, assert no crashes, log perf.
 - [ ] 147. Replay-driven regression tests. Record input traces, replay against new code, diff outputs.
 - [x] 148. In-game debug overlay (F1): all entities, hitboxes, paths, AI state, collision quadrants. *(Pass A: F1 toggles overlay showing FPS / p50+p99 frame time / wave / player pos / entity counts / spatial-hash cell count / hit-stop frames. Hitbox/AI-state overlay deferred.)*
-- [ ] 149. Cheat console (`~`): `give gold 1000`, `set wave 50`, `spawn boss MAKUTA`.
+- [x] 149. Cheat console (`~`): `give gold 1000`, `set wave 50`, `spawn boss MAKUTA`. *(Pass B: tilde-toggled overlay with give/set/spawn/kill/killall/god/heal/clear/help verbs.)*
 - [ ] 150. Visual save editor live-reload. `save-editor.html` exists — wire to running game via WS so changes apply without restart.
 - [ ] 151. Asset pipeline. Source assets (Aseprite, Audacity sources) under `/assets-src` + Makefile / npm script that builds final wav/png.
 - [ ] 152. Audio normalization pass. SFX volumes inconsistent — run through ffmpeg loudnorm.
@@ -197,16 +197,16 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 
 ## Long-tail polish
 
-- [ ] 159. Pause menu rework: run stats, current upgrades, current cards.
+- [x] 159. Pause menu rework: run stats, current upgrades, current cards. *(Pass B: 8-cell stat grid + last 24 upgrades + owned cards rendered on pause via `renderPauseMenu()`.)*
 - [x] 160. ★ End-of-run breakdown screen (Slay the Spire style): damage by source, cards picked, key moments timeline.
 - [ ] 161. Hero balance dashboard in admin: per-hero win rate, average wave, pick rate.
 - [ ] 162. Player skill rating (online matchmaking).
 - [ ] 163. Tutorial replay accessible from main menu.
 - [ ] 164. Onboarding flow first launch: name pick, hero recommendation quiz.
 - [x] 165. ★ In-game changelog. *(Pass A: Vite bundles CHANGELOG.md into dist/; on launch, if `gameConfig.lastSeenVersion !== APP_VERSION`, modal fetches + parses + renders newer `## [...]` sections. Closing stamps the version.)*
-- [ ] 166. Crash recovery. On unexpected exit, offer to restore last autosave run.
-- [ ] 167. Background music continues during pause with low-pass filter.
-- [ ] 168. Better death feedback. "You were killed by SHOOTER (200 damage)" with replay of last 3 seconds.
+- [x] 166. Crash recovery. *(Pass B: `5FreundeRunActive` localStorage sentinel — set on every saveRunState, cleared on clean exit; boot offers to restore last run via `continueRun()` if sentinel + savedRun both present.)*
+- [x] 167. Background music continues during pause with low-pass filter. *(Pass B: lazy Web Audio graph with `BiquadFilter(lowpass)`; ramps 22050 → 500 Hz on pause, back on resume.)*
+- [x] 168. Better death feedback. *(Pass B: `recordPlayerDamage` stamps `player._lastDamageSource` at every damage site; game-over screen renders "Defeated by {label} — {dmg} dmg". 3-second replay deferred.)*
 - [ ] 169. Configurable HUD layout (HP bar, combo, minimap moveable).
 - [ ] 170. Minimap. Especially helpful for larger arenas / co-op.
 

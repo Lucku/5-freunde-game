@@ -285,6 +285,7 @@ class Enemy {
                 if (Math.hypot(player.x - this.x, player.y - this.y) < 100) {
                     if (!player.isInvincible) {
                         player.hp -= 40 * (1 - player.damageReduction);
+                        if (typeof window.recordPlayerDamage === 'function') window.recordPlayerDamage(player, 'BOMBER', 40); // #168
                         floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "40", "#e74c3c", 20));
                     }
                     // Track hits for Untouchable objective

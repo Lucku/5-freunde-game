@@ -1590,6 +1590,7 @@ function saveRunState() {
 
     saveData.savedRun = runState;
     saveGame();
+    _markRunActive(); // #166 — flag a run in progress for crash recovery
     console.log("Run saved at Wave " + wave);
 }
 
@@ -1597,7 +1598,41 @@ function clearSavedRun() {
     saveData.savedRun = null;
     saveGame();
     updateContinueButton();
+    // #166 — crash recovery flag cleared on graceful shutdown / end-of-run.
+    try { localStorage.removeItem('5FreundeRunActive'); } catch (_) { /* noop */ }
 }
+
+// #166 — set/clear the "run in progress" sentinel. Read at startup to detect
+// crashes (sentinel still set + saveData.savedRun present → offer restore).
+function _markRunActive() {
+    try { localStorage.setItem('5FreundeRunActive', '1'); } catch (_) { /* noop */ }
+}
+function _markRunInactive() {
+    try { localStorage.removeItem('5FreundeRunActive'); } catch (_) { /* noop */ }
+}
+window.addEventListener('beforeunload', () => {
+    // Clean exit — clear the flag so re-launch won't show the recovery prompt.
+    if (typeof gameRunning !== 'undefined' && !gameRunning) _markRunInactive();
+});
+function _maybeOfferCrashRecovery() {
+    try {
+        const flag = localStorage.getItem('5FreundeRunActive');
+        if (!flag) return;
+        if (!saveData || !saveData.savedRun) {
+            _markRunInactive();
+            return;
+        }
+        const sr = saveData.savedRun;
+        const hero = (sr.player && sr.player.type) ? sr.player.type.toUpperCase() : '';
+        const ok = confirm(`Crash recovery — your last run (Wave ${sr.wave}${hero ? ', ' + hero : ''}) ended unexpectedly. Restore it now?`);
+        if (ok && typeof continueRun === 'function') {
+            continueRun();
+        } else {
+            _markRunInactive();
+        }
+    } catch (e) { console.warn('Crash recovery check failed:', e); }
+}
+window._maybeOfferCrashRecovery = _maybeOfferCrashRecovery;
 
 function updateContinueButton() {
     const btn = document.getElementById('continue-btn');
@@ -2359,6 +2394,65 @@ inputManager.onKeyDown = e => {
     }
 };
 
+// #159 — Pause menu summary. Pulls live numbers from currentRunStats + player
+// + wave globals and paints them into the existing #pause-screen panel.
+function renderPauseMenu() {
+    try {
+        const grid    = document.getElementById('pause-stats-grid');
+        const upTitle = document.getElementById('pause-upgrades-title');
+        const upList  = document.getElementById('pause-upgrades-list');
+        const cardTitle = document.getElementById('pause-cards-title');
+        const cardList  = document.getElementById('pause-cards-list');
+        if (!grid) return;
+
+        const timeSec = currentRunStats && currentRunStats.startTime
+            ? Math.floor((Date.now() - currentRunStats.startTime) / 1000) : 0;
+        const mm = Math.floor(timeSec / 60).toString().padStart(2, '0');
+        const ss = (timeSec % 60).toString().padStart(2, '0');
+        const stats = [
+            { label: 'Wave',  value: (typeof wave !== 'undefined') ? wave : 0 },
+            { label: 'Level', value: (player && player.level) ? player.level : 1 },
+            { label: 'Gold',  value: (player && Math.floor(player.gold || 0)) || 0 },
+            { label: 'Time',  value: `${mm}:${ss}` },
+            { label: 'Kills', value: currentRunStats?.enemiesKilled || 0 },
+            { label: 'Dmg Dealt', value: Math.floor(currentRunStats?.damageDealt || 0) },
+            { label: 'Dmg Taken', value: Math.floor(currentRunStats?.damageTaken || 0) },
+            { label: 'Max Combo', value: currentRunStats?.maxCombo || 0 }
+        ];
+        grid.innerHTML = stats.map(s =>
+            `<div class="pause-stat-cell"><div class="ps-label">${s.label}</div><div class="ps-value">${s.value}</div></div>`
+        ).join('');
+
+        // Upgrades picked this run (most recent first, cap 24).
+        const picks = (currentRunStats && currentRunStats.upgradesPicked) || [];
+        if (picks.length && upList && upTitle) {
+            upTitle.style.display = '';
+            const rev = picks.slice(-24).reverse();
+            upList.innerHTML = rev.map(p =>
+                `<span class="pu-chip" title="Wave ${p.wave}">${(p.title || p.id || 'Upgrade').replace(/</g, '&lt;')}</span>`
+            ).join('');
+        } else if (upList && upTitle) {
+            upTitle.style.display = 'none';
+            upList.innerHTML = '';
+        }
+
+        // Active collection cards held by player. saveData.collection holds owned
+        // card IDs across runs; show up to 12 so the panel stays compact.
+        const cards = (saveData && Array.isArray(saveData.collection)) ? saveData.collection : [];
+        if (cards.length && cardList && cardTitle) {
+            cardTitle.style.display = '';
+            const show = cards.slice(0, 12);
+            cardList.innerHTML = show.map(id =>
+                `<span class="pc-chip">${String(id).replace(/_/g, ' ')}</span>`
+            ).join('') + (cards.length > show.length ? `<span class="pc-chip">+${cards.length - show.length} more</span>` : '');
+        } else if (cardList && cardTitle) {
+            cardTitle.style.display = 'none';
+            cardList.innerHTML = '';
+        }
+    } catch (e) { console.warn('renderPauseMenu failed:', e); }
+}
+window.renderPauseMenu = renderPauseMenu;
+
 function togglePause() {
     gamePaused = !gamePaused;
     document.getElementById('pause-screen').style.display = gamePaused ? 'flex' : 'none';
@@ -2369,6 +2463,12 @@ function togglePause() {
         audioManager.stopLoop('attack_earth_roll');
         audioManager.stopLoop('special_spirit_charging');
     }
+    // #167 — apply low-pass on the music bus while paused.
+    if (typeof audioManager !== 'undefined' && typeof audioManager.setPauseFilter === 'function') {
+        audioManager.setPauseFilter(!!gamePaused);
+    }
+    // #159 — refresh pause-menu run summary contents.
+    if (gamePaused && typeof window.renderPauseMenu === 'function') window.renderPauseMenu();
 }
 
 function toggleLobbyMenu() {
@@ -2661,6 +2761,25 @@ function triggerScreenShake(intensity, duration) {
 }
 window.triggerScreenShake = triggerScreenShake;
 
+// #38 — Camera-shake taxonomy. Named presets keep per-event flavor
+// (intensity + duration) consistent across call sites.
+const SHAKE_PRESETS = {
+    hitSmall: { i: 3,  d: 6  }, // small projectile / pellet hit
+    hit:      { i: 5,  d: 10 }, // standard melee / shot
+    hitBig:   { i: 8,  d: 14 }, // crit / heavy hit
+    stomp:    { i: 10, d: 18 }, // boss stomp / shockwave
+    explode:  { i: 7,  d: 16 }, // grenade / death burst
+    boss:     { i: 12, d: 22 }, // boss phase change / boss death
+    weather:  { i: 2,  d: 8  }  // thunder, gust ambient
+};
+function shake(type) {
+    const p = SHAKE_PRESETS[type];
+    if (!p) return;
+    triggerScreenShake(p.i, p.d);
+}
+window.shake = shake;
+window.SHAKE_PRESETS = SHAKE_PRESETS;
+
 // True when the user has opted into reduced-motion / vestibular-safe mode.
 // Renderers (weather overlays, vignette pulses) check this to skip animated effects.
 function isReducedMotion() {
@@ -2713,6 +2832,21 @@ function triggerHitStop(frames) {
     _hitStopFrames = Math.max(_hitStopFrames, frames);
 }
 window.triggerHitStop = triggerHitStop;
+
+// #168 — track the last hit that landed on the local player so the game-over
+// screen can surface "Defeated by SHOOTER (40 dmg)" instead of a bare title.
+// Updated at every meaningful damage-take site (enemy body contact, projectile,
+// acid fog, lava DOT, bomber, boss melee/ranged). The killing blow leaves the
+// most recent value in place at the moment gameOver() fires.
+function recordPlayerDamage(target, label, dmg) {
+    if (!target) return;
+    target._lastDamageSource = {
+        label: String(label || 'UNKNOWN'),
+        dmg:   Math.max(0, Math.round(Number(dmg) || 0)),
+        time:  Date.now()
+    };
+}
+window.recordPlayerDamage = recordPlayerDamage;
 
 function createDeathBurst(x, y, color) {
     if (particles.length >= MAX_PARTICLES) return;
@@ -4307,6 +4441,21 @@ function gameOver(isVictory = false) {
     const wasVersusMode = isVersusMode;
     const wasOnlineMode = isOnlineMode;
 
+    // #168 — surface "Defeated by X (Y dmg)" on the game-over screen unless we
+    // won. Reads `player._lastDamageSource` set by recordPlayerDamage at every
+    // tagged damage site. Cleared on victory.
+    const _causeEl = document.getElementById('go-death-cause');
+    if (_causeEl) {
+        if (isVictory) {
+            _causeEl.textContent = '';
+        } else {
+            const src = player && player._lastDamageSource;
+            _causeEl.textContent = src
+                ? `Defeated by ${src.label} — ${src.dmg} dmg`
+                : '';
+        }
+    }
+
     // Stop any active weather immediately
     _stopWeather();
 
@@ -4975,6 +5124,107 @@ function _onlineShowReconnectOverlay(show) {
         gamePaused = false;
     }
 }
+
+// #149 — Cheat console (~ toggles). Behind a single Tilde/Backtick keybind.
+// Commands: give gold N | set wave N | spawn boss <id> | kill | god | heal | help
+let _cheatOpen = false;
+function _toggleCheatConsole() {
+    _cheatOpen = !_cheatOpen;
+    const el = document.getElementById('cheat-console');
+    if (!el) return;
+    el.style.display = _cheatOpen ? 'block' : 'none';
+    const input = document.getElementById('cheat-input');
+    if (_cheatOpen && input) { input.value = ''; input.focus(); }
+}
+function _cheatLog(line) {
+    const log = document.getElementById('cheat-log');
+    if (!log) return;
+    log.textContent += (log.textContent ? '\n' : '') + line;
+    log.scrollTop = log.scrollHeight;
+}
+function _cheatExec(raw) {
+    const cmd = String(raw || '').trim();
+    if (!cmd) return;
+    _cheatLog('> ' + cmd);
+    const parts = cmd.split(/\s+/);
+    const verb = parts[0].toLowerCase();
+    try {
+        if (verb === 'help') {
+            _cheatLog('  give gold <n>      add gold to current run');
+            _cheatLog('  give xp <n>        grant XP to player');
+            _cheatLog('  set wave <n>       jump to wave');
+            _cheatLog('  spawn boss <id>    spawn boss now (e.g. MAKUTA, GOBLIN, TANK)');
+            _cheatLog('  kill               kill player');
+            _cheatLog('  killall            kill all enemies on screen');
+            _cheatLog('  god                toggle invincibility');
+            _cheatLog('  heal               restore HP');
+            _cheatLog('  clear              clear log');
+        } else if (verb === 'give' && parts[1] === 'gold') {
+            const n = parseInt(parts[2], 10) || 0;
+            if (player) { player.gold = (player.gold || 0) + n; _cheatLog(`+${n} gold`); }
+        } else if (verb === 'give' && parts[1] === 'xp') {
+            const n = parseInt(parts[2], 10) || 0;
+            if (player && typeof player.gainXp === 'function') { player.gainXp(n); _cheatLog(`+${n} xp`); }
+        } else if (verb === 'set' && parts[1] === 'wave') {
+            const n = parseInt(parts[2], 10);
+            if (Number.isFinite(n) && n > 0) {
+                wave = n - 1;
+                enemies = [];
+                projectiles = [];
+                bossActive = false;
+                if (typeof advanceWave === 'function') advanceWave();
+                _cheatLog(`wave → ${n}`);
+            }
+        } else if (verb === 'spawn' && parts[1] === 'boss') {
+            const id = (parts[2] || 'MAKUTA').toUpperCase();
+            if (typeof Boss === 'function') {
+                const b = new Boss(id);
+                if (player) { b.x = player.x + 200; b.y = player.y; }
+                enemies.push(b);
+                bossActive = true;
+                _cheatLog(`spawned boss ${id}`);
+            }
+        } else if (verb === 'kill') {
+            if (player) { player.hp = -999; recordPlayerDamage(player, 'CHEAT', 999); _cheatLog('player killed'); }
+        } else if (verb === 'killall') {
+            if (typeof enemies !== 'undefined') {
+                const n = enemies.length;
+                enemies.forEach(e => { e.hp = 0; });
+                _cheatLog(`killed ${n} enemies`);
+            }
+        } else if (verb === 'god') {
+            if (player) { player.isInvincible = !player.isInvincible; _cheatLog(`god mode ${player.isInvincible ? 'ON' : 'OFF'}`); }
+        } else if (verb === 'heal') {
+            if (player) { player.hp = player.maxHp; _cheatLog('healed'); }
+        } else if (verb === 'clear') {
+            const log = document.getElementById('cheat-log');
+            if (log) log.textContent = '';
+        } else {
+            _cheatLog('unknown command — type help');
+        }
+    } catch (e) {
+        _cheatLog('error: ' + e.message);
+    }
+}
+window.addEventListener('keydown', e => {
+    // Toggle on tilde / backtick — but not when the user is typing into a field
+    if ((e.key === '`' || e.key === '~') && !(e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) ) {
+        e.preventDefault();
+        _toggleCheatConsole();
+        return;
+    }
+    // Enter in cheat input executes; Esc closes
+    if (_cheatOpen && e.target && e.target.id === 'cheat-input') {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            _cheatExec(e.target.value);
+            e.target.value = '';
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            _toggleCheatConsole();
+        }
+    }
+});
 
 // #148 — Debug overlay (F1)
 let _debugOverlayOn = false;
@@ -5770,6 +6020,7 @@ function masterLoop(timestamp) {
                         if (frame % 240 === 0 && wFadeIn >= 1 && !player.isInvincible) {
                             const acidDmg = Math.ceil(player.maxHp * 0.01);
                             player.hp -= acidDmg * (1 - player.damageReduction);
+                            recordPlayerDamage(player, 'ACID FOG', acidDmg); // #168
                             floatingTexts.push(FloatingText.acquire(player.x, player.y - 30, `☠${acidDmg}`, '#2ecc71', 16));
                         }
 
@@ -5907,6 +6158,7 @@ function masterLoop(timestamp) {
                         if (frame % 240 === 0 && _wFI2 >= 1 && !player.isInvincible) {
                             const _ad2 = Math.ceil(player.maxHp * 0.01);
                             player.hp -= _ad2 * (1 - player.damageReduction);
+                            recordPlayerDamage(player, 'ACID FOG', _ad2); // #168
                             floatingTexts.push(FloatingText.acquire(player.x, player.y - 30, `☠${_ad2}`, '#2ecc71', 16));
                         }
                     }
@@ -6081,6 +6333,7 @@ function masterLoop(timestamp) {
                             const lavaDmg = 5 * (1 - player.damageReduction);
                             if (!player.isInvincible) {
                                 player.hp -= lavaDmg;
+                                recordPlayerDamage(player, 'LAVA', lavaDmg); // #168
                                 audioManager.play('damage');
                                 floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.floor(lavaDmg), "#e74c3c", 20));
                                 currentRunStats.damageTaken += 5;
@@ -6944,6 +7197,7 @@ function masterLoop(timestamp) {
 
                         if (!damagePrevented) {
                             player.hp -= dmgTaken;
+                            recordPlayerDamage(player, enemy.subType || 'ENEMY', dmgTaken); // #168
                             audioManager.play('damage');
                             if (isChaosShuffleMode) checkChaosEvent('HIT');
                             floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
@@ -7019,6 +7273,7 @@ function masterLoop(timestamp) {
 
                             if (!player.isInvincible) {
                                 player.hp -= dmgTaken;
+                                recordPlayerDamage(player, proj.shooterType || 'PROJECTILE', dmgTaken); // #168
                                 audioManager.play('damage');
                                 // Player takes damage number
                                 floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(dmgTaken), '#e74c3c', 20));
@@ -7258,6 +7513,7 @@ function masterLoop(timestamp) {
                         if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 100) {
                             if (!player.isInvincible) {
                                 player.hp -= 10 * (1 - player.damageReduction);
+                                recordPlayerDamage(player, 'EXPLOSION', 10); // #168
                                 audioManager.play('damage');
                                 floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "10", "#e74c3c", 20));
                             }
@@ -7381,6 +7637,7 @@ function masterLoop(timestamp) {
                                 if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < radius) {
                                     if (!player.isInvincible) {
                                         player.hp -= 30 * (1 - player.damageReduction);
+                                        recordPlayerDamage(player, 'EXPLODER', 30); // #168
                                         audioManager.play('damage');
                                         floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "30", "#e74c3c", 20));
                                     }
@@ -7756,11 +8013,12 @@ function _launchMenu() {
         if (loader && loader.style.display !== 'none' && loader.style.opacity !== '0') {
             loader.style.transition = 'opacity 0.5s';
             loader.style.opacity = '0';
-            setTimeout(() => { loader.remove(); initMenu(); _maybeShowWhatsNew(); }, 500);
+            setTimeout(() => { loader.remove(); initMenu(); _maybeShowWhatsNew(); _maybeOfferCrashRecovery(); }, 500);
         } else {
             if (loader) loader.remove();
             initMenu();
             _maybeShowWhatsNew();
+            _maybeOfferCrashRecovery();
         }
     });
 }

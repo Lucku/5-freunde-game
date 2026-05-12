@@ -162,6 +162,55 @@ class AudioManager {
 
         // Loop Tracking
         this.activeLoops = {};
+
+        // #167 — lazy Web Audio graph for the pause low-pass filter. We don't
+        // construct anything until setPauseFilter() is called, since starting
+        // an AudioContext before a user gesture throws in some browsers.
+        this._audioCtx = null;
+        this._musicFilter = null;
+        this._musicNodes = new WeakMap();
+    }
+
+    // #167 — connect a music track into the AudioContext graph the first
+    // time we need it. `createMediaElementSource` is one-shot per element.
+    _ensureMusicFilter(track) {
+        if (!track) return null;
+        if (this._musicNodes.has(track)) return this._musicNodes.get(track);
+        if (!this._audioCtx) {
+            const Ctor = window.AudioContext || window.webkitAudioContext;
+            if (!Ctor) return null;
+            this._audioCtx = new Ctor();
+            this._musicFilter = this._audioCtx.createBiquadFilter();
+            this._musicFilter.type = 'lowpass';
+            this._musicFilter.frequency.value = 22050; // wide open
+            this._musicFilter.Q.value = 0.8;
+            this._musicFilter.connect(this._audioCtx.destination);
+        }
+        let source;
+        try {
+            source = this._audioCtx.createMediaElementSource(track);
+        } catch (_) { return null; } // already attached / cross-origin
+        source.connect(this._musicFilter);
+        this._musicNodes.set(track, source);
+        return source;
+    }
+
+    // #167 — toggle the low-pass effect on the master music bus.
+    setPauseFilter(active) {
+        if (!this._audioCtx && !active) return; // nothing to do
+        // Ensure every music track is routed through the filter graph.
+        for (const key in this.tracks) {
+            if (!this.isMusic(key)) continue;
+            const t = this.tracks[key];
+            if (t && !t.paused) this._ensureMusicFilter(t);
+        }
+        if (!this._musicFilter) return;
+        try { if (this._audioCtx.state === 'suspended') this._audioCtx.resume(); } catch (_) { /* noop */ }
+        const target = active ? 500 : 22050;
+        const now = this._audioCtx.currentTime;
+        this._musicFilter.frequency.cancelScheduledValues(now);
+        this._musicFilter.frequency.setValueAtTime(this._musicFilter.frequency.value, now);
+        this._musicFilter.frequency.exponentialRampToValueAtTime(Math.max(1, target), now + 0.18);
     }
 
     // #127 — category lookup. UI category falls back to SFX if not separately

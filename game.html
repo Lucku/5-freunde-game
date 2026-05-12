@@ -173,6 +173,20 @@
             background: rgba(0,0,0,0.7); color: #6efdaa; padding: 8px 12px;
             border: 1px solid rgba(110,253,170,0.3); border-radius:6px;
             pointer-events:none; white-space:pre; min-width:180px;"></div>
+
+        <!-- #149 — Cheat console (~ toggles) -->
+        <div id="cheat-console" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:3100;
+            font-family: 'Courier New', monospace; font-size: 12px;
+            background: rgba(0,0,0,0.85); color: #fff; padding: 8px 12px;
+            border-top: 1px solid rgba(110,253,170,0.5);">
+            <div id="cheat-log" style="max-height: 160px; overflow-y: auto; margin-bottom: 6px; color: #6efdaa; white-space: pre-wrap;"></div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="color:#6efdaa;">&gt;</span>
+                <input id="cheat-input" type="text" autocomplete="off" spellcheck="false"
+                    style="flex:1; background: transparent; border: none; outline: none; color: #fff; font-family: inherit; font-size: 12px;"
+                    placeholder="give gold 1000 | set wave 50 | spawn boss MAKUTA | kill | god | help">
+            </div>
+        </div>
         <div id="hero-subtitle" class="hero-sub-hidden">
             <span class="hero-sub-name"></span>
             <span class="hero-sub-text"></span>
@@ -280,10 +294,20 @@
 
     <!-- Pause Screen -->
     <div id="pause-screen">
-        <div class="modal-panel">
+        <div class="modal-panel" style="max-width: 540px;">
             <div class="screen-header" style="margin-bottom: 10px;">
                 <div class="screen-title">PAUSED</div>
             </div>
+
+            <!-- #159 — run summary surfaced on pause -->
+            <div id="pause-summary" style="margin-bottom: 16px;">
+                <div class="pause-stats-grid" id="pause-stats-grid"></div>
+                <div class="pause-section-title" id="pause-upgrades-title" style="display:none;">Upgrades</div>
+                <div class="pause-upgrades-list" id="pause-upgrades-list"></div>
+                <div class="pause-section-title" id="pause-cards-title" style="display:none;">Active Cards</div>
+                <div class="pause-cards-list" id="pause-cards-list"></div>
+            </div>
+
             <button class="pause-resume-btn" onclick="togglePause()">▶ RESUME</button>
             <button class="pause-quit-btn" id="btn-quit-run" onclick="quitGame()" onmouseover="showQuitWarning()"
                 onmouseout="hideQuitWarning()" onfocus="showQuitWarning()" onblur="hideQuitWarning()">Quit Run</button>
@@ -779,6 +803,7 @@
         <div id="game-over-screen">
             <div class="go-header">
                 <h1 id="go-title">GAME OVER</h1>
+                <div id="go-death-cause" style="margin: 6px 0 12px; font-size: 14px; color: rgba(255,255,255,0.55); letter-spacing: 1px; text-transform: uppercase; min-height: 18px;"></div>
                 <div class="go-score-container">
                     <span id="go-score-val">0</span>
                     <div class="go-score-label">Final Score</div>

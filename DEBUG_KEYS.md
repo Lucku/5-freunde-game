@@ -4,6 +4,32 @@ These keys are only active when running in the **browser** (non-Electron build).
 
 ---
 
+## Always-on overlays (browser + Electron)
+
+| Key | Effect |
+|-----|--------|
+| `F1` | Toggles the **debug overlay** (top-right). Shows: FPS (p50 / p99 rolling over 120 frames), current wave, player position, live entity counts (enemies / projectiles / particles / floating text), SpatialHash populated-cell count, current hit-stop frames. DOM writes throttled to 5 Hz. |
+| `` ` `` / `~` | Toggles the **cheat console** (bottom of screen). Backtick or tilde works. Press `Esc` while focused to close. Suppressed when typing into other inputs (text fields stay editable). |
+
+### Cheat console commands
+
+| Command | Effect |
+|---------|--------|
+| `give gold <n>` | Adds `n` gold to the current run |
+| `give xp <n>` | Grants `n` XP to the player (triggers level-ups normally) |
+| `set wave <n>` | Jumps to wave `n` — clears enemies / projectiles, sets `bossActive = false`, calls `advanceWave()` |
+| `spawn boss <id>` | Spawns boss `id` 200 px to the right of the player and flips `bossActive = true`. Example IDs: `MAKUTA`, `GOBLIN`, `TANK`, `SUMMONER`, `SHOOTER`, `RHINO` |
+| `kill` | Sets player HP to -999 and records `CHEAT` as the killing damage source |
+| `killall` | Sets `hp = 0` on every enemy on screen |
+| `god` | Toggles `player.isInvincible` |
+| `heal` | Restores player to full HP |
+| `clear` | Clears the cheat console log |
+| `help` | Prints the command list inline |
+
+Unknown verbs print `unknown command — type help`. Errors during execution print `error: <message>` rather than crashing.
+
+---
+
 ## In-Game (while a run is active)
 
 | Key | Condition | Effect |

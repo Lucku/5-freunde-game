@@ -4467,6 +4467,62 @@ input:checked+.slider:before {
     color: rgba(231,76,60,0.65);
 }
 
+/* ---- Pause menu summary (#159) ---- */
+.pause-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.pause-stat-cell {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 8px 10px;
+    text-align: center;
+}
+.pause-stat-cell .ps-label {
+    font-size: 9px;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+}
+.pause-stat-cell .ps-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin-top: 2px;
+}
+.pause-section-title {
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.50);
+    margin: 12px 0 6px;
+}
+.pause-upgrades-list, .pause-cards-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 140px;
+    overflow-y: auto;
+}
+.pause-upgrades-list .pu-chip,
+.pause-cards-list .pc-chip {
+    background: rgba(46, 204, 113, 0.10);
+    border: 1px solid rgba(46, 204, 113, 0.30);
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: rgba(220,255,235,0.85);
+    white-space: nowrap;
+}
+.pause-cards-list .pc-chip {
+    background: rgba(155, 89, 182, 0.10);
+    border-color: rgba(155, 89, 182, 0.30);
+    color: rgba(230,210,255,0.85);
+}
+
 /* ---- Accessibility (#135, #136, #137) ---- */
 
 :root { --ui-font-scale: 1; }
