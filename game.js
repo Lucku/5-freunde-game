@@ -7166,6 +7166,10 @@ function masterFrame(deltaTime, timestamp) {
                     particles.splice(index, 1);
                 }
             }
+            // #25/#26 — Particle.draw leaves ctx.globalAlpha at the last
+            // particle's alpha (the sprite-cache fast path skips save/restore).
+            // Reset once after the loop instead of inside every draw() call.
+            ctx.globalAlpha = 1;
 
             // Update and Draw Floating Texts (cap at 80 — drop oldest when full)
             if (floatingTexts.length > GAMEPLAY.MAX_FLOATING_TEXTS) {

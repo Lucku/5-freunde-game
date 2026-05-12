@@ -6,9 +6,48 @@ class Particle {
         this._world = world ?? (typeof window !== 'undefined' ? window._world : null) ?? null;
     }
     update() { this.x += this.velocity.x; this.y += this.velocity.y; this.alpha -= this.life; }
+
+    // #25/#26 — sprite cache. Lazily prerenders an 8×8 disc per unique color
+    // into an offscreen canvas, then draw() blits via drawImage instead of
+    // ctx.save / fillStyle / beginPath / arc / fill / restore per particle
+    // (7 ops → 2). Cache bounded to 64 entries with FIFO eviction so a
+    // runaway DLC can't grow it unbounded.
+    static _spriteCache = new Map();
+    static _SPRITE_CACHE_MAX = 64;
+    static _SPRITE_R = 3;       // particle radius in source canvas
+    static _SPRITE_SIZE = 8;    // 2r + 1px halo on each side
+    static _SPRITE_HALF = 4;    // offset used by drawImage to centre on (x, y)
+    static _getSprite(color) {
+        const cache = Particle._spriteCache;
+        let s = cache.get(color);
+        if (s) return s;
+        if (typeof document === 'undefined') return null;
+        const size = Particle._SPRITE_SIZE;
+        s = document.createElement('canvas');
+        s.width = size; s.height = size;
+        const sctx = s.getContext('2d');
+        sctx.fillStyle = color;
+        sctx.beginPath();
+        sctx.arc(Particle._SPRITE_HALF, Particle._SPRITE_HALF, Particle._SPRITE_R, 0, Math.PI * 2);
+        sctx.fill();
+        if (cache.size >= Particle._SPRITE_CACHE_MAX) {
+            const first = cache.keys().next().value;
+            if (first !== undefined) cache.delete(first);
+        }
+        cache.set(color, s);
+        return s;
+    }
+
     draw() {
-        ctx.save(); ctx.globalAlpha = this.alpha; ctx.fillStyle = this.color;
-        ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        const sprite = Particle._getSprite(this.color);
+        if (!sprite) {
+            // Server/no-document fallback — original immediate-mode path.
+            ctx.save(); ctx.globalAlpha = this.alpha; ctx.fillStyle = this.color;
+            ctx.beginPath(); ctx.arc(this.x, this.y, Particle._SPRITE_R, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            return;
+        }
+        ctx.globalAlpha = this.alpha;
+        ctx.drawImage(sprite, this.x - Particle._SPRITE_HALF, this.y - Particle._SPRITE_HALF);
     }
 
     // #20 — object pool. Reuses retired Particle instances to cut GC churn.
