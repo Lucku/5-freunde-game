@@ -518,3 +518,139 @@ All five planned phases shipped this session.
 
 Each phase ends with a working game and ships independently.
 
+
+---
+
+# Performance pass — improvements #19–#34 (2026-05-12)
+
+Pick up Performance category from `improvements-2026-05-10.md`. Mix of partial (#19, #20, #22, #29) + untouched (#21, #23–#28, #30, #32, #34). #31, #33 already done — confirm and close.
+
+## Status reconciliation
+
+| # | Item | State | Action |
+|---|------|-------|--------|
+| 19 | Spatial hash | Phase 1: 3 AOE scans migrated, projectile×enemy nested loop NOT inverted | Phase 2 |
+| 20 | Object pools | Particle + FloatingText done; Projectile / MeleeSwipe / GoldDrop deferred | Expand |
+| 21 | Offscreen static layers | not started | Build |
+| 22 | Gradient cache | helper landed, 3 / ~169 sites converted | Sweep |
+| 23 | Frame budget HUD (p99) | partial — F1 overlay already shows p99 frame time (#148 work) | Verify + close |
+| 24 | Web Worker AI | not started | Speculative — last |
+| 25 | Texture atlas | not started | Bundled with #26 |
+| 26 | Particle batching | not started | Bundled with #25 |
+| 27 | Cull off-camera particles + floats | not started | Session 1 |
+| 28 | 30 Hz throttle | not started | Session 1 |
+| 29 | Lazy DLC | Phase 1 (parallel) + Phase 9 (dynamic import). On-demand per-hero load NOT wired | Phase 3 |
+| 30 | WebGL/Pixi backend toggle | not started | Speculative — last |
+| 32 | Bitpack snapshot int16 deltas | not started | Late session |
+| 33 | WS permessage-deflate | DONE via #158 | Mark closed |
+| 34 | Audio off-main-thread | not started | Late session |
+
+## Sessions
+
+### Session P1 — Cheap wins (#27, #28, #23-close, #33-close)
+Goal: low-risk frame-time savings, no allocator/render-pipeline churn.
+
+- [ ] `#33` mark `[x]` — `permessage-deflate` shipped under `#158`. Add note to improvements list.
+- [ ] `#23` audit F1 overlay rendered by #148. If p99 already shown, mark `[x]` with reference. If only p50 shown, add p99 ring buffer (last 120 frames).
+- [ ] `#27` cull off-camera particles + floating text in their update loops. Reuse existing camera bounds (`viewHalfW` / `viewHalfH` + margin). Skip update; skip draw. Release to pool if past margin × 2 to bound retained count.
+- [ ] `#28` 30 Hz throttle for non-essential per-frame work:
+  - Boss telegraph alpha pulses (`bossActive && telegraphTimer`)
+  - Weather alpha pulses (`currentWeather` update branch)
+  - Biome zone aura updates (`biomeZones.forEach(zone => zone.update())` — only when `frameCount % 2 === 0`)
+- Verify: 80/80 parity + 38 Vitest, FPS in stress arena.
+
+### Session P2 — Spatial hash Phase 2 (#19)
+Goal: invert nested loops; the remaining O(N×M) cost.
+
+- [ ] Audit `game.js` for nested `enemies.forEach(e => projectiles.forEach(p => …))` style loops + their melee equivalents. Targets at lines ~7426 + ~7595 + ~6935 already use the hash; check the inner projectile-vs-enemy collision branch at the masterLoop tail.
+- [ ] Rebuild `_enemySpatialHash` once per tick (already done at 7100). Add `_projectileSpatialHash` for melee swipes that hunt projectiles (reflect, telekinesis).
+- [ ] Add small-N bypass: skip rebuild + use linear scan when `enemies.length < 30`.
+- [ ] Tune cell size (currently 128); profile at wave 30+ stress (200+ enemies).
+- [ ] Update F1 overlay max-bucket stat for visibility.
+
+### Session P3 — Pool expansion (#20)
+Goal: kill GC churn on hottest spawn paths.
+
+- [ ] Generic `Pool` factory in `Managers/Pool.js` (already exists for Particle/FloatingText — extract shared helper if not present).
+- [ ] `ProjectilePool` — `acquire(x, y, vx, vy, owner, opts)` + `release(p)`. Reset every field; explicit clears for `homing`, `pierce`, `chains`, `lifetime`. Most error-prone — Projectile has 40+ optional fields.
+- [ ] `MeleeSwipePool` — simpler, ~12 fields.
+- [ ] `GoldDropPool` — trivial, 6 fields.
+- [ ] Convert spawn sites (search `new Projectile(`, `new MeleeSwipe(`, `new GoldDrop(` across base + 8 DLCs).
+- [ ] Release dead instances in masterLoop sweep before `splice`.
+- [ ] Parity test + new Vitest assertions for pool reset correctness.
+
+### Session P4 — Gradient cache sweep (#22)
+Goal: drop per-frame `createRadialGradient` calls across all draw paths. ~169 sites.
+
+- [ ] Confirm `Utils.cachedRadial(ctx, key, r0, r1, stops)` API + add `cachedLinear` if needed.
+- [ ] Batch by file (each is mechanical):
+  - `Boss.js`, `Enemy.js`, `Player.js`, `Projectile.js`, `Arena.js`, `Biomes.js`, `Museum.js`, `EvilHeroes.js`
+  - `Entities/GoldDrop.js`, `Entities/HolyMask.js`
+  - `UI/MenuBackground.js`
+  - 8 DLC dirs (~30 files)
+- [ ] Key convention: `{className}:{purpose}:{colorVariant}` (e.g., `'BOMBER:glow:red'`).
+- [ ] Verify no rendering regression visually + parity 80/80.
+
+### Session P5 — Offscreen static layers (#21)
+Goal: bake static arena + biome decor; blit instead of redraw.
+
+- [ ] `Managers/StaticLayer.js`: `OffscreenCanvas` per biome layer (or single per arena).
+- [ ] Move arena-edge stripes, obstacle base sprites, biome static decals (mushroom rings, ice cracks, sand dunes) into `bake(biome, obstacles)`.
+- [ ] `drawStaticLayer(ctx, cameraX, cameraY)` blits per frame.
+- [ ] Invalidate on biome change, obstacle add/remove, arena regenerate.
+- [ ] Verify visuals match; check `Arena.generate` + each biome's `draw` for static-vs-animated split — only static moves.
+
+### Session P6 — Per-hero on-demand DLC load (#29 Phase 3)
+Goal: stop loading 8 DLCs on launch — load hero/biome modules when user picks them.
+
+- [ ] `DLCManager` split: `loadManifest()` (cheap — just registry of available DLCs) vs `loadDLC(id)` (full module import).
+- [ ] Manifest at startup populates hero/biome lists without executing `register*`.
+- [ ] First hero-pick or biome-spawn → `await loadDLC(owningId)` → registers hooks + caches.
+- [ ] Loading UI in Hero Select if module not yet resolved.
+- [ ] Verify Electron offline path (uses bundled paths, not network).
+
+### Session P7 — Texture atlas + particle batching (#25, #26)
+Goal: replace per-frame `arc/fill/stroke` with `drawImage` calls; batch fills.
+
+- [ ] Pre-render shared sprite atlas at boot: small particle sizes (4/8/12/16/24 px), enemy core glyphs (BOMBER fuse, GHOST eye, SHIELDER ring), pickup icons.
+- [ ] `SpriteAtlas` manager: `getFrame(id) → {sx, sy, sw, sh}`.
+- [ ] Particle draw loop: sort by atlas frame, single `drawImage` per frame, no `fillStyle` thrash.
+- [ ] Enemy glyph layer reuses same atlas.
+- [ ] Stretch: animated hero frames as a separate atlas (overlap with #37 — defer here).
+
+### Session P8 — Audio off-main-thread (#34)
+Goal: stop decoding blocking the main thread.
+
+- [ ] Audit `Audio.preload` defaults — `'metadata'` for everything not on the hot list (#15 partial done, verify).
+- [ ] Migrate hot SFX to Web Audio API `decodeAudioData()` in a `Promise` chain off the boot path; `AudioBufferSourceNode` per shot (already mostly using `<audio>` clones — measure first).
+- [ ] Don't ship if benchmark shows <5 ms saving — `<audio>` element pool may be fine.
+
+### Session P9 — Snapshot bitpacking (#32)
+Goal: bandwidth shrink for internet matches.
+
+- [ ] Server: change snapshot frame encoder to write `Int16` packed (x, y, vx, vy) deltas from last full snapshot.
+- [ ] Client: matching decoder.
+- [ ] Full snapshot every N ticks for keyframe.
+- [ ] Verify: parity 80/80, network bytes/sec halved on wave-30 boss fight.
+
+### Session P10 — Speculative (#24, #30)
+Goal: only if profiling at end of #P1–#P9 shows main-thread CPU still bound.
+
+- [ ] `#24` — Web Worker AI batches via `SharedArrayBuffer`. Steering only, not damage. Big lift, big risk.
+- [ ] `#30` — WebGL/Pixi backend toggle. Feature-flagged. Possibly its own multi-month track; deliberately last.
+
+## Execution order
+
+`P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8 → P9` then re-prioritize `P10` based on profiler.
+
+## Verification (each session)
+
+- `npm run build` green
+- `npm run lint` baseline (no new errors)
+- `npm run test` 38/38
+- `parityTest` 80/80
+- Manual stress: spawn-storm console cheat (`spawn 200`) at wave 30, observe F1 overlay p99 frame time
+
+## Tracking
+
+Each session commits separately with `refactor: perf #N — <summary>` and updates `CHANGELOG.md` under `### Changed` (perf).

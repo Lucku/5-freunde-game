@@ -31,17 +31,17 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [x] 20. Object pools for `Projectile`, `Particle`, `FloatingText`, `MeleeSwipe`, `GoldDrop`. GC churn visible on long runs. *(Pass A: `Particle` + `FloatingText` pools landed with acquire/release API; every call site across base + DLCs converted; masterLoop releases dead instances before splice. `Projectile`/`MeleeSwipe`/`GoldDrop` deferred — non-trivial reset state.)*
 - [ ] 21. Offscreen canvas for static layers. Bake arena obstacles + biome zones to `OffscreenCanvas`, blit once.
 - [x] 22. Cache gradients. Many enemies/bosses recreate `createRadialGradient` every draw. *(Pass A: `Utils.cachedRadial(ctx, key, r0, r1, stops)` helper + 3 hot projectile sites converted. ~107 remaining sites are incremental — helper is in place for opportunistic conversion.)*
-- [ ] 23. `requestAnimationFrame` budget tracker. p99 frame-time HUD next to FPS.
+- [x] 23. `requestAnimationFrame` budget tracker. p99 frame-time HUD next to FPS. *(P1: F1 debug overlay already prints p50 + p99 from the 120-frame `_frameTimes` ring buffer added under #148. No new work — promoted to closed.)*
 - [ ] 24. Web Worker for AI batches. 200+ enemy steering in worker via `SharedArrayBuffer`.
 - [ ] 25. Texture atlas for sprites. Replace per-frame `arc/fill/stroke` with `drawImage` from atlas.
 - [ ] 26. Particle batching. Sort by color/size; batch fills.
-- [ ] 27. Cull off-camera particles + floating text completely (currently update off-camera).
-- [ ] 28. Throttle non-essential per-frame work to 30 Hz (boss telegraph timers, weather alpha pulses, biome zone updates).
+- [x] 27. Cull off-camera particles + floating text completely (currently update off-camera). *(P1: per-frame `arena.camera` AABB margins; far-offscreen released to pool + spliced, on-screen draws normally, between-bands updates only. Saves both draw + update at high entity counts.)*
+- [x] 28. Throttle non-essential per-frame work to 30 Hz (boss telegraph timers, weather alpha pulses, biome zone updates). *(P1: `enemy._zoneRefreshAt` caches per-enemy biomeSpeedMod for 4 frames. 200×10 = 2k zone-AABB checks/frame → ~500/frame. LAVA DoT cadence preserved by also refreshing on `frame % 60 === 0`. Per-frame 1-op decrements (telegraphTimer / `_weatherFlash`) intentionally left untouched — gate overhead matches the work.)*
 - [x] 29. ★ Lazy-load DLC bundles. All 8 DLCs load at startup even if user only plays Fire. *(Phase 1: parallel `Promise.all`. Phase 9: DLCManager.loadScript switched from `<script>` injection to native dynamic `import()`. Each DLC file is now fetched on-demand via the module loader — modern browsers can prefetch/cache by URL, and Vite/Rolldown can code-split bundles per DLC if/when we mark them. Full lazy "load on first hero pick" wiring is the natural follow-up.)*
 - [ ] 30. WebGL/Pixi.js backend toggle. 5–10× perf at high entity counts.
 - [x] 31. Memoize `getHeroStats` per `(type, altarHash, metaHash)`. Currently runs every level-up + spawn. *(Map cache keyed by `(type, prestige:unlocked:level, JSON(metaUpgrades), achievements)`. Returns `structuredClone` of cached `base`. Auto-invalidates on any input mutation. `window.invalidateHeroStatsCache()` exposed for manual busts.)*
 - [ ] 32. Smarter snapshot diff: bitpack int16 position deltas to save bandwidth on internet links.
-- [ ] 33. WS `permessage-deflate` compression for snapshots if not already enabled.
+- [x] 33. WS `permessage-deflate` compression for snapshots if not already enabled. *(Shipped under #158 — `permessage-deflate` is the canonical equivalent of the Zstd plan; same effect, broader client support.)*
 - [ ] 34. Audio decoding off-main-thread. `Audio.preload='metadata'` for non-essential SFX.
 
 ## Visuals

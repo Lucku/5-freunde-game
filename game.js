@@ -7047,9 +7047,32 @@ function masterFrame(deltaTime, timestamp) {
                 if (att.life <= 0) meleeAttacks.splice(index, 1);
             }
 
+            // #27 — camera-bounds culling. Skip draw for off-screen particles +
+            // floating text; skip update entirely when far outside (≥2× margin),
+            // because those particles will never return into view.
+            const _cullMargin   = 64;
+            const _cullFarMargin = _cullMargin * 2;
+            const _camL = arena.camera.x - _cullMargin;
+            const _camT = arena.camera.y - _cullMargin;
+            const _camR = arena.camera.x + arena.camera.width  + _cullMargin;
+            const _camB = arena.camera.y + arena.camera.height + _cullMargin;
+            const _camLFar = arena.camera.x - _cullFarMargin;
+            const _camTFar = arena.camera.y - _cullFarMargin;
+            const _camRFar = arena.camera.x + arena.camera.width  + _cullFarMargin;
+            const _camBFar = arena.camera.y + arena.camera.height + _cullFarMargin;
+
             for (let index = particles.length - 1; index >= 0; index--) {
                 const part = particles[index];
-                part.update(); part.draw();
+                const _farOff = part.x < _camLFar || part.x > _camRFar || part.y < _camTFar || part.y > _camBFar;
+                if (_farOff) {
+                    // Drop and recycle far-offscreen particles immediately.
+                    Particle.release(part);
+                    particles.splice(index, 1);
+                    continue;
+                }
+                part.update();
+                const _onScreen = part.x >= _camL && part.x <= _camR && part.y >= _camT && part.y <= _camB;
+                if (_onScreen) part.draw();
                 if (part.alpha <= 0) {
                     Particle.release(part); // #20 return to pool before splice
                     particles.splice(index, 1);
@@ -7065,7 +7088,15 @@ function masterFrame(deltaTime, timestamp) {
             }
             for (let index = floatingTexts.length - 1; index >= 0; index--) {
                 const ft = floatingTexts[index];
-                ft.update(); ft.draw();
+                const _ftFarOff = ft.x < _camLFar || ft.x > _camRFar || ft.y < _camTFar || ft.y > _camBFar;
+                if (_ftFarOff) {
+                    FloatingText.release(ft);
+                    floatingTexts.splice(index, 1);
+                    continue;
+                }
+                ft.update();
+                const _ftOnScreen = ft.x >= _camL && ft.x <= _camR && ft.y >= _camT && ft.y <= _camB;
+                if (_ftOnScreen) ft.draw();
                 if (ft.life <= 0) {
                     FloatingText.release(ft); // #20 return to pool before splice
                     floatingTexts.splice(index, 1);
@@ -7103,23 +7134,30 @@ function masterFrame(deltaTime, timestamp) {
                 const enemy = enemies[eIndex];
                 if (enemy.dead) { enemies.splice(eIndex, 1); continue; }
 
-                // Biome Effects on Enemy
-                let enemySpeedMod = 1;
-                arena.biomeZones.forEach(zone => {
-                    if (enemy.x > zone.x && enemy.x < zone.x + zone.w &&
-                        enemy.y > zone.y && enemy.y < zone.y + zone.h) {
+                // #28 — Biome-zone collision cache. AABB iteration is the hottest
+                // zone cost (200 enemies × ~10 zones = 2k checks/frame). Refresh
+                // the cached speed mod every 4 frames, or whenever LAVA DPS could
+                // fire (frame % 60 === 0). Enemies move ~3–5 px/frame and zones
+                // are 200–800 px wide, so staleness is invisible.
+                if (enemy._zoneRefreshAt === undefined || frame >= enemy._zoneRefreshAt || frame % 60 === 0) {
+                    let enemySpeedMod = 1;
+                    arena.biomeZones.forEach(zone => {
+                        if (enemy.x > zone.x && enemy.x < zone.x + zone.w &&
+                            enemy.y > zone.y && enemy.y < zone.y + zone.h) {
 
-                        if (zone.type === 'MUD') enemySpeedMod = 0.5;
-                        if (zone.type === 'ICE') enemySpeedMod = 1.3;
-                        if (zone.type === 'WATER') enemySpeedMod = 0.7;
+                            if (zone.type === 'MUD') enemySpeedMod = 0.5;
+                            if (zone.type === 'ICE') enemySpeedMod = 1.3;
+                            if (zone.type === 'WATER') enemySpeedMod = 0.7;
 
-                        if (zone.type === 'LAVA' && frame % 60 === 0) {
-                            enemy.hp -= 5;
-                            createExplosion(enemy.x, enemy.y, '#e74c3c');
+                            if (zone.type === 'LAVA' && frame % 60 === 0) {
+                                enemy.hp -= 5;
+                                createExplosion(enemy.x, enemy.y, '#e74c3c');
+                            }
                         }
-                    }
-                });
-                enemy.biomeSpeedMod = enemySpeedMod;
+                    });
+                    enemy.biomeSpeedMod = enemySpeedMod;
+                    enemy._zoneRefreshAt = frame + 4;
+                }
 
                 if (!_isHitStopped && !enemy._ghost) enemy.update(); enemy.draw();
                 if (enemy._ghost && enemy._hitFlash > 0) {
