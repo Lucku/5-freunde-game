@@ -10,6 +10,10 @@ class UIManager {
         this.uiSelectionIndex = 0;
         this.uiDebounce = 20; // Delay to prevent instant input
         this.updateUIHighlight();
+        // Museum mode — hide in-game HUD overlays via body class.
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.classList.toggle('museum-mode', newState === 'MUSEUM');
+        }
         // #137 announce state changes for screen readers (silent when disabled).
         if (typeof window !== 'undefined' && typeof window.a11yAnnounce === 'function') {
             const labels = {

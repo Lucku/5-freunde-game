@@ -112,7 +112,10 @@ class SaveManager {
 
     // Ring-buffer backup count (#140). Bumping is non-breaking — older slots
     // beyond the new cap remain on disk until overwritten in their turn.
-    static BACKUP_COUNT = 5;
+    // Sourced from #16 GAMEPLAY constants when available; falls back to 5 to
+    // keep SaveManager loadable before Constants.js (Phase 1 leaf-file ESM order).
+    static BACKUP_COUNT = (typeof window !== 'undefined' && window.GAMEPLAY)
+        ? window.GAMEPLAY.SAVE_BACKUP_SLOTS : 5;
 
     // Rotate the previous encoded blob into a numbered backup slot before
     // overwriting. Single-slot rotation: oldest slot wins next write.

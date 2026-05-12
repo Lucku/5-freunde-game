@@ -2387,7 +2387,7 @@ inputManager.onKeyDown = e => {
             projectiles = [];
             bossActive = false;
             if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
-            bossDeathTimer = 180;
+            bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
             if (typeof audioManager !== 'undefined') audioManager.play('wave_completed');
             showNotification('DEBUG: Wave skipped');
         }
@@ -2742,7 +2742,7 @@ window.Particle = Particle;
 window.CardDrop = CardDrop;
 window.createExplosion = createExplosion; // Ensure function is visible
 
-const MAX_PARTICLES = 300;
+const MAX_PARTICLES = GAMEPLAY.MAX_PARTICLES;
 function createExplosion(x, y, color, count = 10) {
     if (particles.length >= MAX_PARTICLES) return;
     for (let i = 0; i < 8; i++) { particles.push(Particle.acquire(x, y, color)); } // #20
@@ -2847,6 +2847,65 @@ function recordPlayerDamage(target, label, dmg) {
     };
 }
 window.recordPlayerDamage = recordPlayerDamage;
+
+// #18 — Centralized damage pipeline. Handles the common bookkeeping that was
+// previously duplicated at every `player.hp -= X` site: invincibility check,
+// damageReduction multiplier, customOnDamage shield hook, damage-source stamp,
+// floating-text number, SFX, run-stat accounting. Returns the final damage
+// applied (0 if blocked).
+//
+// Options:
+//   label         — short name for the damage source (drives #168 death feedback)
+//   color         — floating-text color (default red #e74c3c)
+//   size          — floating-text font size (default 20; >=25 reads as crit)
+//   prefix        — optional text prefix (e.g. "☠")
+//   sfx           — AudioManager key to play (default 'damage'; null = silent)
+//   noFloatText   — suppress the floating-text damage number
+//   noReduction   — bypass damageReduction (raw DOT damage)
+//   shake         — SHAKE_PRESETS key for screenshake on hit (default null)
+//
+// Complex hero/biome-specific paths (chaos hooks, Earth momentum loss, Void
+// realm shift, Thornmail reflect, Mirror Shield, etc.) stay site-local — this
+// helper covers the cookie-cutter DOT + explosion paths.
+function applyDamage(target, dmg, opts = {}) {
+    if (!target) return 0;
+    if (target.isInvincible) return 0;
+    if (!Number.isFinite(dmg) || dmg <= 0) return 0;
+
+    const reduction = opts.noReduction ? 0 : (Number(target.damageReduction) || 0);
+    let finalDmg = dmg * (1 - reduction);
+
+    // Shield hook (Hand of Death etc.) — returns true to fully block.
+    if (typeof target.customOnDamage === 'function') {
+        try {
+            const blocked = target.customOnDamage(finalDmg);
+            if (blocked) return 0;
+        } catch (e) { console.warn('customOnDamage threw:', e); }
+    }
+
+    target.hp -= finalDmg;
+    if (target === player) {
+        recordPlayerDamage(target, opts.label || 'UNKNOWN', finalDmg);
+        if (typeof currentRunStats !== 'undefined') currentRunStats.damageTaken += finalDmg;
+        if (typeof player.resetCombo === 'function' && finalDmg > 0) player.resetCombo();
+    }
+
+    if (opts.sfx !== null && typeof audioManager !== 'undefined') {
+        audioManager.play(opts.sfx || 'damage');
+    }
+
+    if (!opts.noFloatText && typeof floatingTexts !== 'undefined') {
+        const txt = (opts.prefix || '') + Math.ceil(finalDmg);
+        floatingTexts.push(FloatingText.acquire(
+            target.x, target.y - 20, txt, opts.color || '#e74c3c', opts.size || 20
+        ));
+    }
+
+    if (opts.shake && typeof shake === 'function') shake(opts.shake);
+
+    return finalDmg;
+}
+window.applyDamage = applyDamage;
 
 function createDeathBurst(x, y, color) {
     if (particles.length >= MAX_PARTICLES) return;
@@ -5125,6 +5184,166 @@ function _onlineShowReconnectOverlay(show) {
     }
 }
 
+// #51 — Photo mode. Activated by `P` from the pause screen (or always-on `F2`).
+// While active: UI overlays hide (HUD + pause-screen + minimap + debug), camera
+// becomes free (Arrow keys / WASD pan, Shift = slow, Ctrl = fast). World stays
+// paused. Press F2 / Esc to exit and resume normal pause UI.
+let _photoMode = false;
+let _photoCam = { x: 0, y: 0 };
+const _PHOTO_HIDE_IDS = [
+    'ui-layer', 'pause-screen', 'minimap', 'debug-overlay', 'hud-top-left',
+    'bottom-ui', 'p2-hud', 'notification-area', 'weather-display',
+    'objective-display', 'combo-display', 'chaos-challenge-hud',
+    'online-name-bar', 'hero-subtitle', 'weather-bar-wrap'
+];
+function togglePhotoMode() {
+    if (typeof gameRunning === 'undefined' || !gameRunning) return;
+    _photoMode = !_photoMode;
+    // Snapshot current camera so panning starts from where the player was.
+    if (_photoMode && arena && arena.camera) {
+        _photoCam.x = arena.camera.x;
+        _photoCam.y = arena.camera.y;
+    }
+    for (const id of _PHOTO_HIDE_IDS) {
+        const el = document.getElementById(id);
+        if (el) el.style.visibility = _photoMode ? 'hidden' : '';
+    }
+    if (typeof showNotification === 'function') {
+        showNotification(_photoMode ? 'PHOTO MODE — Arrows to pan, F2 to exit' : 'Photo mode off');
+    }
+}
+window.togglePhotoMode = togglePhotoMode;
+
+// Free-camera tick during photo mode — wired into masterLoop below.
+function _photoModeTick() {
+    if (!_photoMode || !arena || !arena.camera) return;
+    const fast  = !!(window.keys && (window.keys['control'] || window.keys['ctrl']));
+    const slow  = !!(window.keys && window.keys['shift']);
+    let speed = 8;
+    if (fast) speed = 24;
+    if (slow) speed = 3;
+    let dx = 0, dy = 0;
+    if (window.keys) {
+        if (window.keys['arrowleft']  || window.keys['a']) dx -= 1;
+        if (window.keys['arrowright'] || window.keys['d']) dx += 1;
+        if (window.keys['arrowup']    || window.keys['w']) dy -= 1;
+        if (window.keys['arrowdown']  || window.keys['s']) dy += 1;
+    }
+    _photoCam.x += dx * speed;
+    _photoCam.y += dy * speed;
+    // Clamp to arena bounds.
+    _photoCam.x = Math.max(0, Math.min(arena.width  - arena.camera.width,  _photoCam.x));
+    _photoCam.y = Math.max(0, Math.min(arena.height - arena.camera.height, _photoCam.y));
+    arena.camera.x = _photoCam.x;
+    arena.camera.y = _photoCam.y;
+}
+
+window.addEventListener('keydown', e => {
+    // F2 toggles photo mode anytime during a run.
+    if (e.key === 'F2') { e.preventDefault(); togglePhotoMode(); return; }
+    // Esc exits photo mode if active (before falling through to normal Esc-pause).
+    if (_photoMode && (e.key === 'Escape' || e.key === 'F2')) {
+        e.preventDefault(); togglePhotoMode(); return;
+    }
+});
+
+// #170 — Minimap. Renders arena bounds + player(s) + enemies + boss + objective
+// markers into a small 180x135 canvas in the top-right corner. Throttled to 15 Hz
+// since the player only needs rough positional context. Off when:
+//   - gameConfig.minimapEnabled is false
+//   - no arena yet (menu / loading)
+//   - gameRunning is false
+// Hidden via CSS display:none rather than zero-clearing so toggling is cheap.
+let _minimapTimer = 0;
+function _renderMinimap() {
+    const el = document.getElementById('minimap');
+    if (!el) return;
+    // Auto-hide in any 2-player mode: P2 HUD takes the right edge in co-op,
+    // versus uses dynamic zoom-out so a minimap adds no info, and online co-op
+    // is identical to local co-op visually.
+    const twoPlayer = (typeof isCoopMode    !== 'undefined' && isCoopMode)
+                   || (typeof isVersusMode  !== 'undefined' && isVersusMode)
+                   || (typeof isOnlineMode  !== 'undefined' && isOnlineMode);
+    const shouldShow = (typeof gameConfig !== 'undefined' && gameConfig.minimapEnabled)
+        && (typeof gameRunning !== 'undefined' && gameRunning)
+        && (typeof arena !== 'undefined' && arena)
+        && !twoPlayer;
+    if (!shouldShow) {
+        if (el.style.display !== 'none') el.style.display = 'none';
+        return;
+    }
+    if (el.style.display === 'none') el.style.display = '';
+
+    // Throttle DOM-canvas writes to ~15 Hz.
+    _minimapTimer++;
+    if (_minimapTimer < 4) return;
+    _minimapTimer = 0;
+
+    const mctx = el.getContext('2d');
+    const W = el.width, H = el.height;
+    const aw = arena.width, ah = arena.height;
+    const sx = W / aw;
+    const sy = H / ah;
+
+    mctx.clearRect(0, 0, W, H);
+    // Arena floor tint
+    mctx.fillStyle = 'rgba(20,30,40,0.55)';
+    mctx.fillRect(0, 0, W, H);
+
+    // Camera viewport rectangle
+    if (arena.camera) {
+        mctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        mctx.lineWidth = 1;
+        mctx.strokeRect(
+            arena.camera.x * sx, arena.camera.y * sy,
+            (arena.camera.width || 0) * sx, (arena.camera.height || 0) * sy
+        );
+    }
+
+    // Obstacles
+    if (Array.isArray(arena.obstacles)) {
+        mctx.fillStyle = 'rgba(110,90,70,0.55)';
+        for (const o of arena.obstacles) {
+            mctx.fillRect(o.x * sx, o.y * sy, Math.max(1, o.w * sx), Math.max(1, o.h * sy));
+        }
+    }
+
+    // Enemies (red dots; boss = bigger yellow)
+    if (typeof enemies !== 'undefined') {
+        for (const e of enemies) {
+            if (!e || e.hp <= 0) continue;
+            const isBoss = (typeof Boss === 'function') && (e instanceof Boss);
+            mctx.fillStyle = isBoss ? '#f1c40f' : '#e74c3c';
+            const r = isBoss ? 3.5 : 1.6;
+            mctx.beginPath();
+            mctx.arc(e.x * sx, e.y * sy, r, 0, Math.PI * 2);
+            mctx.fill();
+        }
+    }
+
+    // Objective marker (cyan)
+    if (typeof currentObjective !== 'undefined' && currentObjective && currentObjective.x !== undefined) {
+        mctx.fillStyle = '#1abc9c';
+        mctx.beginPath();
+        mctx.arc(currentObjective.x * sx, currentObjective.y * sy, 3, 0, Math.PI * 2);
+        mctx.fill();
+    }
+
+    // Player(s) — green for P1, blue for P2
+    if (typeof player !== 'undefined' && player && !player.isDead) {
+        mctx.fillStyle = '#2ecc71';
+        mctx.beginPath();
+        mctx.arc(player.x * sx, player.y * sy, 3, 0, Math.PI * 2);
+        mctx.fill();
+    }
+    if (typeof player2 !== 'undefined' && player2 && !player2.isDead) {
+        mctx.fillStyle = '#3498db';
+        mctx.beginPath();
+        mctx.arc(player2.x * sx, player2.y * sy, 3, 0, Math.PI * 2);
+        mctx.fill();
+    }
+}
+
 // #149 — Cheat console (~ toggles). Behind a single Tilde/Backtick keybind.
 // Commands: give gold N | set wave N | spawn boss <id> | kill | god | heal | help
 let _cheatOpen = false;
@@ -5320,6 +5539,9 @@ function masterLoop(timestamp) {
             return; // Skip normal update/draw
         }
 
+        // #51 — photo mode runs even while paused so the camera can pan.
+        if (_photoMode) _photoModeTick();
+
         if (gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen) {
             const _isHitStopped = _hitStopFrames > 0;
             if (_hitStopFrames > 0) _hitStopFrames--;
@@ -5331,20 +5553,26 @@ function masterLoop(timestamp) {
                     audioManager.play('wave_completed');
                     if (player) audioManager.playHeroExclamation(player.type, 'boss_win');
                 }
-                bossDeathTimer = 180;
-                triggerHitStop(12); // #39 boss-kill freeze
+                bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
+                triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
             }
 
             if (isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
 
-            // Update Camera
-            if (isCoopMode && player2) {
-                const ref1 = !player.isDead ? player : player2;
-                const ref2 = player2 && !player2.isDead ? player2 : player;
-                coopZoom = arena.updateCameraForTwo(ref1, ref2, canvas.width, canvas.height);
+            // Update Camera — skipped during photo mode so manual pan sticks (#51).
+            if (!_photoMode) {
+                if (isCoopMode && player2) {
+                    const ref1 = !player.isDead ? player : player2;
+                    const ref2 = player2 && !player2.isDead ? player2 : player;
+                    coopZoom = arena.updateCameraForTwo(ref1, ref2, canvas.width, canvas.height);
+                } else {
+                    arena.updateCamera(player, canvas.width, canvas.height);
+                    coopZoom = 1.0;
+                }
             } else {
-                arena.updateCamera(player, canvas.width, canvas.height);
-                coopZoom = 1.0;
+                // Need camera dimensions for draw clipping.
+                arena.camera.width  = canvas.width;
+                arena.camera.height = canvas.height;
             }
 
             // Heatwave Mirage Effect (Camera Wobble)
@@ -6017,11 +6245,9 @@ function masterLoop(timestamp) {
                             });
                         }
                         // DoT: 1% max HP every 4s
-                        if (frame % 240 === 0 && wFadeIn >= 1 && !player.isInvincible) {
+                        if (frame % 240 === 0 && wFadeIn >= 1) {
                             const acidDmg = Math.ceil(player.maxHp * 0.01);
-                            player.hp -= acidDmg * (1 - player.damageReduction);
-                            recordPlayerDamage(player, 'ACID FOG', acidDmg); // #168
-                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 30, `☠${acidDmg}`, '#2ecc71', 16));
+                            applyDamage(player, acidDmg, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null }); // #18
                         }
 
                     } else if (currentWeather.id === 'GALE') {
@@ -6155,11 +6381,9 @@ function masterLoop(timestamp) {
                     } else if (currentWeather2.id === 'BLIZZARD') {
                         if (Math.random() < 0.5 * _wFI2) weatherParticles.push({ x: Math.random() * canvas.width, y: -8, vx: (Math.random() - 0.5) * 1.2 - 0.5, vy: 1.2 + Math.random() * 2.0, r: 1.0 + Math.random() * 2.2, alpha: 0.55 + Math.random() * 0.4, wobble: Math.random() * Math.PI * 2 });
                     } else if (currentWeather2.id === 'ACIDIC_FOG') {
-                        if (frame % 240 === 0 && _wFI2 >= 1 && !player.isInvincible) {
+                        if (frame % 240 === 0 && _wFI2 >= 1) {
                             const _ad2 = Math.ceil(player.maxHp * 0.01);
-                            player.hp -= _ad2 * (1 - player.damageReduction);
-                            recordPlayerDamage(player, 'ACID FOG', _ad2); // #168
-                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 30, `☠${_ad2}`, '#2ecc71', 16));
+                            applyDamage(player, _ad2, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null }); // #18
                         }
                     }
                     void _wProg2; // suppress unused warning
@@ -6330,14 +6554,7 @@ function masterLoop(timestamp) {
                         if (zone.type === 'WATER') biomeSpeedMod = 0.7;
 
                         if (zone.type === 'LAVA' && frame % 60 === 0) {
-                            const lavaDmg = 5 * (1 - player.damageReduction);
-                            if (!player.isInvincible) {
-                                player.hp -= lavaDmg;
-                                recordPlayerDamage(player, 'LAVA', lavaDmg); // #168
-                                audioManager.play('damage');
-                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.floor(lavaDmg), "#e74c3c", 20));
-                                currentRunStats.damageTaken += 5;
-                            }
+                            applyDamage(player, 5, { label: 'LAVA' }); // #18
                             createExplosion(player.x, player.y, '#e74c3c');
                             showNotification("BURNING!");
                         }
@@ -6869,8 +7086,8 @@ function masterLoop(timestamp) {
                                     } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
                                         // Story Mode Duel Victory
                                         bossActive = false;
-                                        bossDeathTimer = 180; // 3 seconds for dramatic effect
-                                        triggerHitStop(12); // #39 boss-kill freeze
+                                        bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds for dramatic effect
+                                        triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
 
                                         // Clear any remaining enemies/projectiles
                                         enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
@@ -6987,8 +7204,8 @@ function masterLoop(timestamp) {
                                                 setTimeout(() => gameOver(true), 2000);
                                             } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
                                                 bossActive = false;
-                                                bossDeathTimer = 180;
-                                                triggerHitStop(12); // #39 boss-kill freeze
+                                                bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
+                                                triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
                                                 enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
                                                 enemies = [];
                                                 projectiles = [];
@@ -7057,10 +7274,11 @@ function masterLoop(timestamp) {
             }
 
             // Update and Draw Floating Texts (cap at 80 — drop oldest when full)
-            if (floatingTexts.length > 80) {
+            if (floatingTexts.length > GAMEPLAY.MAX_FLOATING_TEXTS) {
                 // #20 release the dropped slice into the pool before truncating.
-                for (let _i = 0; _i < floatingTexts.length - 80; _i++) FloatingText.release(floatingTexts[_i]);
-                floatingTexts.splice(0, floatingTexts.length - 80);
+                const _excess = floatingTexts.length - GAMEPLAY.MAX_FLOATING_TEXTS;
+                for (let _i = 0; _i < _excess; _i++) FloatingText.release(floatingTexts[_i]);
+                floatingTexts.splice(0, _excess);
             }
             for (let index = floatingTexts.length - 1; index >= 0; index--) {
                 const ft = floatingTexts[index];
@@ -7403,7 +7621,7 @@ function masterLoop(timestamp) {
                             triggerImpact(isCrit ? 3.5 : 2, isCrit ? 8 : 5,
                                           isCrit ? 0.15 : 0.08, isCrit ? 0.25 : 0.12,
                                           isCrit ? 120 : 80);
-                            if (isCrit) triggerHitStop(4);
+                            if (isCrit) triggerHitStop(GAMEPLAY.HITSTOP_CRIT_SHOT);
 
                             // Enemy takes damage number
                             floatingTexts.push(FloatingText.acquire(
@@ -7475,7 +7693,7 @@ function masterLoop(timestamp) {
                             triggerImpact(isCrit ? 7 : 5, isCrit ? 16 : 13,
                                           isCrit ? 0.35 : 0.22, isCrit ? 0.70 : 0.50,
                                           isCrit ? 220 : 160);
-                            if (isCrit) triggerHitStop(5); else triggerHitStop(2);
+                            if (isCrit) triggerHitStop(GAMEPLAY.HITSTOP_CRIT_MELEE); else triggerHitStop(GAMEPLAY.HITSTOP_HIT);
                             floatingTexts.push(FloatingText.acquire(
                                 enemy.x,
                                 enemy.y - 20,
@@ -7511,12 +7729,7 @@ function masterLoop(timestamp) {
                     if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'EXPLOSIVE')) {
                         createExplosion(enemy.x, enemy.y, '#e74c3c');
                         if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 100) {
-                            if (!player.isInvincible) {
-                                player.hp -= 10 * (1 - player.damageReduction);
-                                recordPlayerDamage(player, 'EXPLOSION', 10); // #168
-                                audioManager.play('damage');
-                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "10", "#e74c3c", 20));
-                            }
+                            applyDamage(player, 10, { label: 'EXPLOSION' }); // #18
                         }
                     }
 
@@ -7570,8 +7783,8 @@ function masterLoop(timestamp) {
                             bossActive = false;
 
                             // Start Boss Death Sequence
-                            bossDeathTimer = 180; // 3 seconds at 60 FPS
-                            triggerHitStop(12); // #39 boss-kill freeze
+                            bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds at 60 FPS
+                            triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
                             if (typeof audioManager !== 'undefined') {
                                 audioManager.play('wave_completed');
                                 if (currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT') {
@@ -7635,12 +7848,7 @@ function masterLoop(timestamp) {
                                 createExplosion(enemy.x, enemy.y, '#e74c3c');
                                 // Damage Player
                                 if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < radius) {
-                                    if (!player.isInvincible) {
-                                        player.hp -= 30 * (1 - player.damageReduction);
-                                        recordPlayerDamage(player, 'EXPLODER', 30); // #168
-                                        audioManager.play('damage');
-                                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "30", "#e74c3c", 20));
-                                    }
+                                    applyDamage(player, 30, { label: 'EXPLODER' }); // #18
                                 }
                             }
                         }
@@ -7691,6 +7899,9 @@ function masterLoop(timestamp) {
             if (window.HERO_LOGIC && player && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawUI) {
                 window.HERO_LOGIC[player.type].drawUI(ctx);
             }
+
+            // #170 — Minimap (rendered into a separate DOM canvas)
+            _renderMinimap();
 
             // Tutorial HUD
             if (isTutorialMode) TutorialMode.drawHUD(ctx);

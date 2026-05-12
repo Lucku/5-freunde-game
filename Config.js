@@ -80,6 +80,9 @@ const defaultConfig = {
     // Last APP_VERSION the user has seen the "What's New" modal for (#165).
     lastSeenVersion: null,
 
+    // Minimap (#170)
+    minimapEnabled: true,
+
     // Dismissed info dialogues (array of dialogue IDs)
     dismissedDialogues: [],
 

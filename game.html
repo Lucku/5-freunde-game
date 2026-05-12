@@ -167,6 +167,12 @@
 
         <div id="notification-area"></div>
 
+        <!-- #170 — Minimap (toggleable in Options) -->
+        <canvas id="minimap" width="180" height="135"
+            style="position:fixed; top:14px; right:14px; z-index:1900;
+                background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.18);
+                border-radius: 6px; pointer-events: none;"></canvas>
+
         <!-- #148 — Debug overlay (F1 toggles) -->
         <div id="debug-overlay" style="display:none; position:fixed; top:8px; right:8px; z-index:3000;
             font-family: 'Courier New', monospace; font-size: 11px; line-height:1.4;
@@ -891,6 +897,14 @@
                     </div>
                     <button id="opt-dmg-btn" class="opt-toggle-btn active"
                         onclick="toggleOption('damageNumbers')">ON</button>
+                </div>
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">🗺</span>
+                        <span class="options-label">Minimap</span>
+                    </div>
+                    <button id="opt-minimap-btn" class="opt-toggle-btn active"
+                        onclick="toggleOption('minimapEnabled')">ON</button>
                 </div>
                 <div class="options-row">
                     <div class="options-row-left">

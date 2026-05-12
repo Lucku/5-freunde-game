@@ -33,6 +33,7 @@ class OptionsUI {
 
         const map = {
             'damageNumbers':           'opt-dmg-btn',
+            'minimapEnabled':          'opt-minimap-btn',
             'screenShake':             'opt-shake-btn',
             'controllerVibration':     'opt-vibration-btn',
             'showIntroScreens':        'opt-intro-btn',

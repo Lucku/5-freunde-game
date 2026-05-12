@@ -274,6 +274,45 @@ const PERM_UPGRADES = {
     wisdom: { name: "Void Mind", desc: "+2% XP Gain", baseCost: 2500, costMult: 1.3 }
 };
 
+// #16 — Gameplay tuning numbers extracted from inline call sites. Keep them
+// here so balance changes don't require grepping through 7000+ lines of game.js.
+// Reads via `import { GAMEPLAY }` (ESM) or `window.GAMEPLAY` (classic shim).
+const GAMEPLAY = {
+    // Particles + floating text
+    MAX_PARTICLES:           300,
+    MAX_FLOATING_TEXTS:       80,
+
+    // Combat tuning
+    DEFAULT_MELEE_RADIUS:     80,
+    DEFAULT_DASH_COOLDOWN:   180, // frames between dashes
+
+    // Camera / world
+    SERVER_VIEW_HALF_W:     1000,
+    SERVER_VIEW_HALF_H:      580,
+
+    // Networking
+    INTERP_DELAY_MS:         100,
+
+    // Hit-stop frame counts (#39)
+    HITSTOP_HIT:               2,
+    HITSTOP_CRIT_MELEE:        5,
+    HITSTOP_CRIT_SHOT:         4,
+    HITSTOP_BOSS_KILL:        12,
+
+    // Boss death cinematic
+    BOSS_DEATH_FRAMES:       180, // 3 s at 60 FPS
+
+    // Combo timing
+    COMBO_TIMEOUT_FRAMES:    240, // 4 s
+
+    // Save backups (#140)
+    SAVE_BACKUP_SLOTS:         5,
+
+    // Pause summary (#159)
+    PAUSE_UPGRADE_CHIPS:      24,
+    PAUSE_CARD_CHIPS:         12,
+};
+
 // ESM exports — Constants.js loads via `<script type="module">`. The window
 // shims keep classic-script callers working unchanged until they migrate too.
 export {
@@ -283,7 +322,7 @@ export {
     ACHIEVEMENTS, WEATHER_TYPES, ELITE_TYPES,
     COLLECTOR_CARDS, MUTATORS,
     CHAOS_EFFECTS, CHAOS_OBJECTIVES, CHAOS_REWARDS,
-    UPGRADE_POOL, PERM_UPGRADES,
+    UPGRADE_POOL, PERM_UPGRADES, GAMEPLAY,
 };
 if (typeof window !== 'undefined') {
     Object.assign(window, {
@@ -293,7 +332,7 @@ if (typeof window !== 'undefined') {
         WEATHER_TYPES, ELITE_TYPES,
         COLLECTOR_CARDS, MUTATORS,
         CHAOS_EFFECTS, CHAOS_OBJECTIVES, CHAOS_REWARDS,
-        UPGRADE_POOL, PERM_UPGRADES,
+        UPGRADE_POOL, PERM_UPGRADES, GAMEPLAY,
     });
     // ACHIEVEMENTS already comes from window.ACHIEVEMENTS — don't overwrite.
 }

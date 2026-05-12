@@ -149,7 +149,7 @@ class Player {
         const { currentRunStats } = _w ?? {};
         this.combo++;
         if (currentRunStats && this.combo > currentRunStats.maxCombo) currentRunStats.maxCombo = this.combo;
-        this.comboTimer = 240; // 4 seconds
+        this.comboTimer = (typeof GAMEPLAY !== 'undefined') ? GAMEPLAY.COMBO_TIMEOUT_FRAMES : 240; // 4 seconds
 
         // Combo Buffs (multiplicative on top of meta/achievement bonuses set in constructor)
         if (this._goldMultBase === undefined) this._goldMultBase = this.goldMultiplier;

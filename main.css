@@ -4710,6 +4710,27 @@ body.high-contrast .selected {
     outline-offset: 2px;
 }
 
+/* Museum mode — hide in-game HUD overlays. The museum is a hub world, not a
+ * run, so HP / XP / wave / objective / minimap / weather etc. all add noise. */
+body.museum-mode #hud-top-left,
+body.museum-mode #bottom-ui,
+body.museum-mode #p2-hud,
+body.museum-mode #combo-display,
+body.museum-mode #notification-area,
+body.museum-mode #weather-display,
+body.museum-mode #weather-bar-wrap,
+body.museum-mode #weather-overlay,
+body.museum-mode #objective-display,
+body.museum-mode #chaos-challenge-hud,
+body.museum-mode #online-name-bar,
+body.museum-mode #hero-subtitle,
+body.museum-mode #event-text,
+body.museum-mode #minimap,
+body.museum-mode #special-cooldown-overlay,
+body.museum-mode #p2-special-cooldown-overlay {
+    display: none !important;
+}
+
 /* Screen-reader-only helper kept off-screen but readable by assistive tech. */
 #a11y-live-region {
     position: absolute;

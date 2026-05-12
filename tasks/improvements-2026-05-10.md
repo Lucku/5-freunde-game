@@ -21,9 +21,9 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [x] 13. ESLint custom rule banning `forEach + arr.splice(index)` index-skip pattern (regression class hit 11 hot loops in `game.js`). *(`eslint-plugin-5freunde/no-foreach-splice` — found 8 more instances on first run.)*
 - [x] 14. ESLint + Prettier config. CI lint job. *(Flat config, warnings-only, 0 errors + 369 baseline warnings catalogued. CI runs lint + build + tests on every push/PR.)*
 - [ ] 15. Asset manifest + lazy load. `AudioManager.js` instantiates 50+ `new Audio()` at startup. Lazy-init or `<link rel=preload>` + `Promise.all`.
-- [ ] 16. Constants for magic numbers: `meleeRadius = 80`, `_INTERP_DELAY_MS = 100`, `dashMaxCooldown = 180`, `viewHalfW = 1000`.
+- [x] 16. Constants for magic numbers: `meleeRadius = 80`, `_INTERP_DELAY_MS = 100`, `dashMaxCooldown = 180`, `viewHalfW = 1000`. *(Pass C step 1: `GAMEPLAY` block in Constants.js holds 13 named values + window shim. game.js / Player.js / SaveManager.js wired.)*
 - [ ] 17. Remove `JSON.parse(JSON.stringify(...))` deep clones. `getHeroStats` already on `structuredClone` — extend to save load, default config.
-- [ ] 18. Centralize damage pipeline. One `applyDamage(target, dmg, source, opts)` would prevent "Spirit Tranquility never restored speed" class of bug.
+- [x] 18. Centralize damage pipeline. *(Pass C step 1: `applyDamage(target, dmg, opts)` helper covers invincibility / damageReduction / customOnDamage / recordPlayerDamage / SFX / floating text / combo reset / run-stat in one call. Wired at 5 cookie-cutter sites — acid-fog (×2), lava, explosive-mutator, exploder-elite. Hero-specific paths deferred.)*
 
 ## Performance
 
@@ -62,7 +62,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 48. Replace emoji icons in `Constants.js` (`POWERUP_TYPES`, `CHAOS_REWARDS`) with SVG/PNG. Emojis render differently on Windows/Linux/Steam Deck.
 - [ ] 49. Animated title screen. Loop `developer_animated.mp4`/`title_animated.mp4` instead of static.
 - [x] 50. ★ Colorblind modes (deuteranopia/protanopia palettes). Many mechanics rely on color.
-- [ ] 51. ★ Photo mode: pause + free camera + hide UI for screenshots.
+- [x] 51. ★ Photo mode: pause + free camera + hide UI for screenshots. *(Pass C step 2: F2 toggle hides 14 HUD overlays + suppresses auto-camera + Arrow/WASD pan with Shift/Ctrl speed modifiers. World keeps running ("live photo" — true freeze-pause deferred until game.js update/draw separation lands.)*
 
 ## Gameplay mechanics
 
@@ -186,7 +186,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 151. Asset pipeline. Source assets (Aseprite, Audacity sources) under `/assets-src` + Makefile / npm script that builds final wav/png.
 - [ ] 152. Audio normalization pass. SFX volumes inconsistent — run through ffmpeg loudnorm.
 - [x] 153. Dependency audit. `package-lock.json` 280k lines; `install` package in devDeps looks accidental. *(Dropped accidental `install` devDep during Path 1 npm install pass. Larger audit still pending.)*
-- [ ] 154. Docs / contributor guide. README minimal. Add CONTRIBUTING.md + ARCHITECTURE.md.
+- [x] 154. Docs / contributor guide. *(Pass C step 2: `CONTRIBUTING.md` covers setup / commands / PR checklist / commit convention / code conventions; `ARCHITECTURE.md` covers client/server split, build pipeline, module map, save shape, networking, CI.)*
 
 ## Networking polish
 
@@ -208,7 +208,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [x] 167. Background music continues during pause with low-pass filter. *(Pass B: lazy Web Audio graph with `BiquadFilter(lowpass)`; ramps 22050 → 500 Hz on pause, back on resume.)*
 - [x] 168. Better death feedback. *(Pass B: `recordPlayerDamage` stamps `player._lastDamageSource` at every damage site; game-over screen renders "Defeated by {label} — {dmg} dmg". 3-second replay deferred.)*
 - [ ] 169. Configurable HUD layout (HP bar, combo, minimap moveable).
-- [ ] 170. Minimap. Especially helpful for larger arenas / co-op.
+- [x] 170. Minimap. *(Pass C step 2: 180×135 DOM canvas top-right; arena bounds + camera viewport + obstacles + enemies/boss + objective + P1/P2 dots. Throttled to 15 Hz. Options toggle row added.)*
 
 ---
 
