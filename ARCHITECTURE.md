@@ -34,11 +34,44 @@ Vite 8 bundles ESM-converted modules. Classic-script files (`<script src>` witho
 The orchestrator. Holds ~539 module-scope globals (wave, score, enemies, projectiles, particles, …). Runs `masterLoop()` at 60 FPS — updates entities, draws the world, renders HUD overlays, handles input, manages UI state transitions.
 
 Cross-module access to game.js state goes through:
-1. **`Object.defineProperties(window, …)` blocks** — live getter/setter pairs for vars like `wave`, `bossActive`, `enemiesKilledInWave`, `isPlayerDying`, `isLevelingUp`, `isShopping`, `companions`, `projectiles`, etc. Pattern is mandatory after ESM migration because bare `var X` in an ES module does NOT auto-attach to `window`.
-2. **`window.GAME_API`** — formal contract for DLC code. Stable entry points for game state, mode flags, entity arrays, helpers, registries. New DLCs should prefer this over raw bare globals.
-3. **`window.X = X` shims** — bottom of `game.js` exposes specific helpers (`showNotification`, `advanceWave`, `gameOver`, `triggerImpact`, `triggerHitStop`, `applyDamage`, `recordPlayerDamage`, …) to DLC + classic-script callers.
+1. **`GameContext`** (preferred for new code) — single read-only view onto the ~15 cross-cutting globals. See "`GameContext` (#4)" below.
+2. **`Object.defineProperties(window, …)` blocks** — live getter/setter pairs for vars like `wave`, `bossActive`, `enemiesKilledInWave`, `isPlayerDying`, `isLevelingUp`, `isShopping`, `companions`, `projectiles`, etc. Pattern is mandatory after ESM migration because bare `var X` in an ES module does NOT auto-attach to `window`.
+3. **`window.GAME_API`** — formal contract for DLC code. Stable entry points for game state, mode flags, entity arrays, helpers, registries. New DLCs should prefer this over raw bare globals.
+4. **`window.X = X` shims** — bottom of `game.js` exposes specific helpers (`showNotification`, `advanceWave`, `gameOver`, `triggerImpact`, `triggerHitStop`, `applyDamage`, `recordPlayerDamage`, …) to DLC + classic-script callers.
 
 A CI lint step (`.github/workflows/test.yml`) verifies every `let/var/const` tagged `// Exposed for DLC` in game.js has a corresponding window binding. Prevents the gray-enemies regression class.
+
+### `GameContext` (#4)
+
+[`GameContext.js`](GameContext.js) — single source of truth for the ~15 cross-cutting globals (`canvas`, `ctx`, `gameConfig`, `saveData`, `defaultSaveData`, `wave`, `arena`, `enemies`, `projectiles`, `world`, `player`, `player2`, `enemiesPerWave`, `biomeObstacleDensity`, `platform`, plus `registries.{biomes,heroes,enemies,dlcs}`).
+
+**Current status (session 1):** getter-only view. Each property is an `Object.defineProperty` accessor that delegates to `window.X` so the underlying value stays where it always was. Readers can adopt the API today without breaking writers.
+
+```js
+import { GameContext } from './GameContext.js';
+
+const ctx = GameContext.ctx;            // → window.ctx
+const cfg = GameContext.gameConfig;     // → window.gameConfig
+const wv  = GameContext.wave;           // → window.wave (which already routes via defineProperty to game.js's module var)
+```
+
+Or via the window shim for classic-script callers / non-importing modules:
+
+```js
+window.gameContext.gameConfig.musicVolume
+```
+
+**Migration arc (multi-session):**
+
+| Session | Scope |
+|---------|-------|
+| 1 (shipped) | Singleton + getter view backed by `window.X`. 3 proof migrations (InputManager / AudioManager / CrashReporter). |
+| 2 | Migrate `saveData` + tuning numbers (`ENEMIES_PER_WAVE`, `BIOME_OBSTACLE_DENSITY`). Manager call-site sweep. |
+| 3 | Add registries view audit. DLC consumer survey. |
+| 4 | Flip ownership: `GameContext.X` becomes source of truth, `window.X` becomes alias. Couples with #11 RunState for entity arrays. |
+| 5 | Drop redundant `window.X` shims where no DLC bare-reads. ARCHITECTURE.md final sweep. |
+
+The flip in session 4 is the risky part — until then, every change is additive.
 
 ### `Entities/`
 

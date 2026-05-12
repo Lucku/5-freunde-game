@@ -23,7 +23,11 @@ class InputManager {
 
     // Resolve current key bindings. Falls back to defaults if config not ready.
     _getBindings() {
-        const cfg = (typeof window !== 'undefined' && window.gameConfig) || null;
+        // #4 — read through GameContext when available (falls through to
+        // window.gameConfig until ownership flips in a later session).
+        const cfg = (typeof window !== 'undefined')
+            ? (window.gameContext?.gameConfig || window.gameConfig)
+            : null;
         if (cfg && cfg.keyBindings) return cfg.keyBindings;
         return null;
     }
@@ -76,7 +80,10 @@ class InputManager {
 
     // Gamepad button bindings — single button index per action (array stored).
     _getGamepadBindings() {
-        const cfg = (typeof window !== 'undefined' && window.gameConfig) || null;
+        // #4 — read through GameContext when available.
+        const cfg = (typeof window !== 'undefined')
+            ? (window.gameContext?.gameConfig || window.gameConfig)
+            : null;
         if (cfg && cfg.gamepadBindings) return cfg.gamepadBindings;
         return null;
     }

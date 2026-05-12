@@ -243,7 +243,11 @@ class AudioManager {
     }
 
     _categoryMultiplier(category) {
-        const cfg = (typeof gameConfig !== 'undefined') ? gameConfig : null;
+        // #4 — read through GameContext when available; bare-global fallback
+        // covers the early-boot window before GameContext.js loads.
+        const cfg = (typeof window !== 'undefined' && window.gameContext?.gameConfig)
+            ? window.gameContext.gameConfig
+            : ((typeof gameConfig !== 'undefined') ? gameConfig : null);
         if (!cfg) return 1;
         if (category === 'music') return Number(cfg.musicVolume ?? 1);
         if (category === 'voice') return Number(cfg.voiceVolume ?? 1);
