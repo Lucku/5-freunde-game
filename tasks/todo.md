@@ -1,3 +1,43 @@
+# Improvement #1 — Split game.js into modules (2026-05-12)
+
+User picked "All 5 phases in one session" with eyes open about regression risk.
+
+Result: 5 new ES modules extracted from `game.js`. ~210 lines moved out (8379 → 8169). Build green, 80/80 parity tests + 38 Vitest assertions pass.
+
+| Phase | Module | Status | Surface |
+|-------|--------|--------|---------|
+| A | `Camera.js` | shipped | Shake state + `SHAKE_PRESETS`, `applyScreenShake(ctx)`, photo mode (F2/Esc), gamepad vibration, `triggerImpact` |
+| B | `Spawner.js` | shipped | `createExplosion`, `spawnLevelUpAura`, thin `spawnEnemy` / `spawnBoss` wrappers |
+| C | `Wave.js` | shipped | `enemiesNeededForWave`, `isWaveCleared`, `buildBiomePool`, `pickRandomBiome`, `pickSeededBiome`, `isStoryBossWave`, `notifyWaveAdvance` (EventBus) |
+| D | `RunState.js` | shipped | `createRunStats` factory, `resetRunStats`, `bumpDamageSource`, `logUpgradePick`, `logKeyMoment` |
+| E | `GameLoop.js` | shipped | `createGameLoop({ targetFps, onRafTick, onFrame })`, rAF + fixed-timestep gate, `start()` / `stop()` |
+
+`EventBus.js` (improvement #1 prerequisite) already existed from Phase 8a.
+
+## Constraints / decisions
+
+- **`advanceWave()` body stayed in game.js**. Touches 30+ run-scoped variables (currentBiomeType, currentStoryEvent, mode flags, p1/p2RevivalMarker, ...). Moving it requires moving those globals first (= improvement #11). Wave.js owns the pure helpers it uses now.
+- **`masterFrame()` body stayed in game.js**. ~3000 lines, references every system. GameLoop.js owns the frame-timing harness only; the body runs as the `onFrame` callback.
+- **Window shims preserved** (`window.shake`, `window.createExplosion`, ...) so unchanged DLCs and HTML `onclick` handlers keep working.
+- **Live array refs**: `window.projectiles` / `window.enemies` / `window.particles` / `window.floatingTexts` newly mirrored from game.js module-scope arrays so Spawner can push into them.
+- **EventBus wiring**: `notifyWaveAdvance(wave)` emits `wave:advance`. No subscribers yet — infrastructure for future extracted modules.
+
+## Verification
+
+- `npm run build` — green (no new warnings).
+- `npm run lint` — 0 errors, 332 baseline warnings (unchanged).
+- `npm run test` — 38 Vitest assertions pass.
+- `parityTest` — 80/80 pass (server simulation untouched).
+
+## Open follow-ups
+
+1. **#11 — full RunState migration**. Move `wave`, `enemiesKilledInWave`, `masksDroppedInWave`, `bossActive`, `bossDeathTimer`, `currentBiomeType`, `currentObjective`, `currentWeather`, `activeMutators`, mode flags, etc. into a RunState instance. Touch every `Object.defineProperties(window, ...)` getter/setter pair in game.js so they read/write through the instance.
+2. **advanceWave migration**. Once RunState owns the run-scoped vars, the function body can move into Wave.js and accept `(runState, modes)` params.
+3. **masterFrame migration**. Slice the per-frame body into update/draw passes, then move each into its own module. Loop harness already supports it.
+4. **Spawner grow**. Migrate the in-wave spawn rules (line ~6240, the mutator + special-enemy spawning block) once RunState lands.
+
+---
+
 # Path 1 — Foundation pass (Vite, ESM, lint, tests, hot reload)
 
 Date: 2026-05-11. Implements improvements #2, #12, #14, #145 (+ #13 lint rule, partial #1/#3 unlock).

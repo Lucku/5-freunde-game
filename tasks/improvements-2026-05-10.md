@@ -6,7 +6,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 
 ## Code structure / architecture
 
-- [ ] 1. ★ Split `game.js` (7257 lines) into modules: `GameLoop.js`, `Spawner.js`, `Wave.js`, `Camera.js`, `EventBus.js`, `RunState.js`. Use ES modules + `<script type=module>` or move to a bundler.
+- [x] 1. ★ Split `game.js` (7257 lines) into modules: `GameLoop.js`, `Spawner.js`, `Wave.js`, `Camera.js`, `EventBus.js`, `RunState.js`. Use ES modules + `<script type=module>` or move to a bundler. *(Phase A-E shipped 2026-05-12: Camera/Spawner/Wave/RunState/GameLoop all extracted as ES modules and imported from `game.js`. `EventBus.js` already existed. ~210 lines moved out (game.js 8379→8169). Window shims preserved for DLC back-compat. RunState is a thin factory for now — broader 540-global migration (#11) is the natural follow-up. Build green, 80/80 parity + 38 Vitest pass.)*
 - [x] 2. ★ Adopt bundler + tree-shaking (esbuild or Vite). Replace ~60 `<script src>` tags in `game.html`. Gives minification, source maps, dev HMR. *(Phase 1: Vite 8 wired, dev server + production build working. 4 leaf files in ESM bundle; remaining files still classic + `defer` for compatibility. ESM migration of Managers/Entities/UI/game.js/DLCs is the multi-session follow-up.)*
 - [ ] 3. ★ TypeScript or JSDoc `@type`. Save data schema, hero stats, world object — all undocumented. Prevents recent-style `saveData[player.type].prestige` regressions.
 - [ ] 4. Kill `window.*` globals (~15 cross-cutting: `canvas`, `ctx`, `wave`, `arena`, `enemies`, `projectiles`, `saveData`, `ENEMIES_PER_WAVE`, `BIOME_LOGIC`, `HERO_LOGIC`, `ENEMY_LOGIC`, `BIOME_OBSTACLE_DENSITY`, `_world`, `_defaultSaveData`, `gameConfig`). Replace with `GameContext` singleton or DI.

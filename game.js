@@ -44,6 +44,19 @@ import {
 // onclick handlers and DLC files reach them through `window.X` directly).
 import infoDialogueManager from './UI/InfoDialogueManager.js';
 import onlineLobby from './UI/OnlineLobby.js';
+import {
+    SHAKE_PRESETS, shake, triggerScreenShake, triggerVibration, triggerImpact,
+    applyScreenShake, togglePhotoMode, tickPhotoMode, isPhotoMode,
+} from './Camera.js';
+import {
+    createExplosion, spawnLevelUpAura, spawnEnemy, spawnBoss,
+} from './Spawner.js';
+import {
+    enemiesNeededForWave, isWaveCleared, buildBiomePool, pickRandomBiome,
+    pickSeededBiome, isStoryBossWave, notifyWaveAdvance,
+} from './Wave.js';
+import { createRunStats } from './RunState.js';
+import { createGameLoop } from './GameLoop.js';
 
 const isElectron = typeof process !== 'undefined' && process.versions && process.versions.electron;
 // lastInputType moved to InputManager
@@ -279,18 +292,8 @@ function _renderRunBreakdown(pfx) {
 // to avoid the O(N) linear walk that was hot at wave 30+ entity counts.
 const _enemySpatialHash = (typeof SpatialHash !== 'undefined') ? new SpatialHash(128) : null;
 
-// Runtime stats tracker
-let currentRunStats = {
-    missilesFired: 0,
-    startTime: 0,
-    damageTaken: 0,
-    damageDealt: 0,
-    moneyGained: 0,
-    moneySpent: 0,
-    enemiesKilled: 0,
-    bossesKilled: 0,
-    maxCombo: 0
-};
+// Runtime stats tracker — shape defined in RunState.js.
+let currentRunStats = createRunStats({ startTime: 0 });
 
 // --- Save Encoding/Decoding ---
 // Moved to SaveManager.js
@@ -2124,8 +2127,7 @@ var isStatsOpen = false;
 let score = 0;
 var wave = 1; // Exposed for DLC — window getter/setter below keeps DLC writes in sync
 let frame = 0;
-let _shakeIntensity = 0;
-let _shakeDuration = 0;
+// _shakeIntensity / _shakeDuration moved to Camera.js (Phase A of #1 split).
 let _hitStopFrames = 0;
 let _comboMilestoneTimer = 0;
 let _prevCombo = 0;
@@ -2179,6 +2181,12 @@ var meleeAttacks = [];
 window.player = player;
 window.meleeAttacks = meleeAttacks;
 window.arena = arena; // Expose Arena to Window for DLCs
+// Live array references shared with extracted modules (Spawner.js, RunState.js).
+// Arrays are reference types so module mutations propagate.
+window.projectiles  = projectiles;
+window.enemies      = enemies;
+window.particles    = particles;
+window.floatingTexts = floatingTexts;
 let powerUps = [];
 // obstacles and biomeZones moved to Arena class
 let holyMasks = [];
@@ -2740,93 +2748,17 @@ function closeDailyInfo() {
 window.FloatingText = FloatingText;
 window.Particle = Particle;
 window.CardDrop = CardDrop;
-window.createExplosion = createExplosion; // Ensure function is visible
-
+// createExplosion / spawnLevelUpAura moved to Spawner.js (Phase B of #1 split).
+// MAX_PARTICLES kept for createDeathBurst below (which still lives in game.js).
 const MAX_PARTICLES = GAMEPLAY.MAX_PARTICLES;
-function createExplosion(x, y, color, count = 10) {
-    if (particles.length >= MAX_PARTICLES) return;
-    for (let i = 0; i < 8; i++) { particles.push(Particle.acquire(x, y, color)); } // #20
-}
 
-/**
- * Trigger a camera shake effect.
- * @param {number} intensity  Max pixel offset per frame.
- * @param {number} duration   Number of frames the shake lasts.
- */
-function triggerScreenShake(intensity, duration) {
-    if (typeof gameConfig !== 'undefined' && (!gameConfig.screenShake || gameConfig.reducedMotion)) return;
-    // Max-stack: take whichever is stronger
-    _shakeIntensity = Math.max(_shakeIntensity, intensity);
-    _shakeDuration  = Math.max(_shakeDuration,  duration);
-}
-window.triggerScreenShake = triggerScreenShake;
+// #38/#51/#168 — screen-shake, shake taxonomy, gamepad vibration, photo mode
+// moved to Camera.js. Re-exposed via window shims from Camera.js for DLCs.
 
-// #38 — Camera-shake taxonomy. Named presets keep per-event flavor
-// (intensity + duration) consistent across call sites.
-const SHAKE_PRESETS = {
-    hitSmall: { i: 3,  d: 6  }, // small projectile / pellet hit
-    hit:      { i: 5,  d: 10 }, // standard melee / shot
-    hitBig:   { i: 8,  d: 14 }, // crit / heavy hit
-    stomp:    { i: 10, d: 18 }, // boss stomp / shockwave
-    explode:  { i: 7,  d: 16 }, // grenade / death burst
-    boss:     { i: 12, d: 22 }, // boss phase change / boss death
-    weather:  { i: 2,  d: 8  }  // thunder, gust ambient
-};
-function shake(type) {
-    const p = SHAKE_PRESETS[type];
-    if (!p) return;
-    triggerScreenShake(p.i, p.d);
-}
-window.shake = shake;
-window.SHAKE_PRESETS = SHAKE_PRESETS;
-
-// True when the user has opted into reduced-motion / vestibular-safe mode.
-// Renderers (weather overlays, vignette pulses) check this to skip animated effects.
 function isReducedMotion() {
     return typeof gameConfig !== 'undefined' && !!gameConfig.reducedMotion;
 }
 window.isReducedMotion = isReducedMotion;
-
-/**
- * Vibrate all connected gamepads.
- * @param {number} weak      High-frequency motor magnitude (0–1).
- * @param {number} strong    Low-frequency motor magnitude (0–1).
- * @param {number} ms        Duration in milliseconds.
- * @param {number|null} gpIndex  Specific gamepad index, or null for all.
- */
-function triggerVibration(weak, strong, ms, gpIndex = null) {
-    if (typeof gameConfig !== 'undefined' && !gameConfig.controllerVibration) return;
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    for (let i = 0; i < pads.length; i++) {
-        if (gpIndex !== null && i !== gpIndex) continue;
-        const gp = pads[i];
-        if (!gp || !gp.connected) continue;
-        try {
-            if (gp.vibrationActuator) {
-                gp.vibrationActuator.playEffect('dual-rumble', {
-                    startDelay: 0, duration: ms,
-                    weakMagnitude: weak, strongMagnitude: strong
-                });
-            }
-        } catch (e) { /* vibration not supported */ }
-    }
-}
-window.triggerVibration = triggerVibration;
-
-/**
- * Combined screen shake + controller vibration for a single impact event.
- * @param {number} shakePx     Shake intensity in pixels.
- * @param {number} shakeFrames Shake duration in frames.
- * @param {number} vibWeak     High-freq motor (0–1).
- * @param {number} vibStrong   Low-freq motor (0–1).
- * @param {number} vibMs       Vibration duration in milliseconds.
- * @param {number|null} gpIndex Specific gamepad, or null for all.
- */
-function triggerImpact(shakePx, shakeFrames, vibWeak, vibStrong, vibMs, gpIndex = null) {
-    triggerScreenShake(shakePx, shakeFrames);
-    triggerVibration(vibWeak, vibStrong, vibMs, gpIndex);
-}
-window.triggerImpact = triggerImpact;
 
 function triggerHitStop(frames) {
     _hitStopFrames = Math.max(_hitStopFrames, frames);
@@ -2921,33 +2853,7 @@ function createDeathBurst(x, y, color) {
     }
 }
 
-function spawnLevelUpAura(x, y, color) {
-    // Upward-rising aura particles — staggered with setTimeout for a flowing effect
-    for (let i = 0; i < 40; i++) {
-        setTimeout(() => {
-            if (!particles) return;
-            const ox = (Math.random() - 0.5) * 28; // spread around player
-            const oy = (Math.random() - 0.5) * 10;
-            const p = Particle.acquire(x + ox, y + oy, color); // #20
-            p.velocity.x = (Math.random() - 0.5) * 1.8;
-            p.velocity.y = -(Math.random() * 3.2 + 1.2); // drift upward
-            p.life = Math.random() * 0.008 + 0.005;  // slow fade (~120-200 frames)
-            particles.push(p);
-        }, i * 28);
-    }
-    // Burst ring at moment of level-up
-    const ringCount = 18;
-    for (let i = 0; i < ringCount; i++) {
-        const angle = (i / ringCount) * Math.PI * 2;
-        const speed = Math.random() * 1.5 + 1.5;
-        const p = Particle.acquire(x, y, color); // #20
-        p.velocity.x = Math.cos(angle) * speed;
-        p.velocity.y = Math.sin(angle) * speed;
-        p.life = 0.025;
-        particles.push(p);
-    }
-}
-window.spawnLevelUpAura = spawnLevelUpAura;
+// spawnLevelUpAura moved to Spawner.js (Phase B of #1 split).
 
 // generateArena removed - moved to Arena.js
 
@@ -3742,6 +3648,7 @@ function advanceWave() {
     enemies = [];
     if (window._world) window._world.enemies = enemies;
     bossActive = false;
+    notifyWaveAdvance(wave);
 
     // Maze of Time: reset per-wave enemy pool
     if (window.MazeOfTime) window.MazeOfTime.clearEnemyPool();
@@ -3795,48 +3702,22 @@ function resumeWaveGeneration() {
         return;
     }
 
-    // Randomize Biome (Skip in Versus Mode)
+    // Randomize Biome (Skip in Versus Mode) — biome-pool & roll moved to Wave.js.
     if (!isVersusMode) {
-        let types = ['fire', 'water', 'ice', 'plant', 'metal'];
-
-        // Add Enabled DLC Biomes (Only included in Standard/Challenge runs, NOT in active Story Mode)
         const isStoryRun = (saveData.story && saveData.story.enabled !== false) && !isDailyMode && !isWeeklyMode;
+        const heroType = (player && player.type) || 'fire';
+        const types = buildBiomePool(isStoryRun, heroType);
 
-        if (!isStoryRun && window.BIOME_LOGIC) {
-            const dlcBiomes = ['earth', 'lightning', 'air', 'gravity', 'void', 'spirit', 'chance', 'time', 'love', 'psycho', 'mirror', 'smoke'];
-            dlcBiomes.forEach(b => {
-                if (window.BIOME_LOGIC[b]) types.push(b);
-            });
-        }
-
-        if (player && player.type === 'black') {
-            types = ['black']; // Keep Black in his own realm
-        }
-
-        // Wave 1 starts in home biome
         if (wave === 1 && player && player.type !== 'black') {
-            // Online: use host hero so both clients agree regardless of their own hero
             currentBiomeType = (isOnlineMode && window._onlineStoryHero)
                 ? window._onlineStoryHero : player.type;
-        }
-        // Narrative Override (e.g. Arc 2 forces Hero Biome)
-        else if (currentStoryEvent && currentStoryEvent.data && currentStoryEvent.data.biome) {
-            if (currentStoryEvent.data.biome === 'HERO') {
-                currentBiomeType = player.type;
-            } else {
-                currentBiomeType = currentStoryEvent.data.biome;
-            }
-        }
-        else {
-            if (isOnlineMode && window._onlineBiomeSeed !== undefined) {
-                // Deterministic biome selection — both clients derive the same result from
-                // their shared seed + wave number, with no client-specific randomness.
-                const _ob = ['fire', 'water', 'ice', 'plant', 'metal', 'rock', 'cloud', 'chaos'];
-                const _oh = ((wave * 2654435761) ^ (window._onlineBiomeSeed * 40503)) >>> 0;
-                currentBiomeType = _ob[_oh % _ob.length];
-            } else {
-                currentBiomeType = types[Math.floor(Math.random() * types.length)];
-            }
+        } else if (currentStoryEvent && currentStoryEvent.data && currentStoryEvent.data.biome) {
+            currentBiomeType = currentStoryEvent.data.biome === 'HERO'
+                ? player.type : currentStoryEvent.data.biome;
+        } else if (isOnlineMode && window._onlineBiomeSeed !== undefined) {
+            currentBiomeType = pickSeededBiome(wave, window._onlineBiomeSeed);
+        } else {
+            currentBiomeType = pickRandomBiome(types);
         }
 
         showNotification(`BIOME SHIFT: ${currentBiomeType.toUpperCase()}`);
@@ -3873,8 +3754,8 @@ function resumeWaveGeneration() {
         storyBossId = currentStoryEvent.data.bossId;
     }
 
-    // Default Makuta check
-    if (!storyBossId && saveData.story.enabled && !isDailyMode && !isWeeklyMode && (wave === 50 || wave === 100)) {
+    // Default Makuta check (Wave.js helper)
+    if (!storyBossId && isStoryBossWave(wave, saveData, { isDailyMode, isWeeklyMode })) {
         storyBossId = 'MAKUTA';
     }
 
@@ -4346,25 +4227,8 @@ function startGame(mode = 'NORMAL') {
     isShopping = false;
     _stopWeather();
 
-    // Reset Stats
-    currentRunStats = {
-        missilesFired: 0,
-        startTime: Date.now(),
-        damageTaken: 0,
-        damageDealt: 0,
-        moneyGained: 0,
-        moneySpent: 0,
-        enemiesKilled: 0,
-        bossesKilled: 0,
-        maxCombo: 0,
-        itemsBought: 0,
-        // End-of-run breakdown: each upgrade pick + key moment is logged with
-        // (wave, time-since-start, label). Damage sources are accumulated by
-        // bucket so we can build a Slay-the-Spire-style "where your damage went".
-        upgradesPicked: [],   // [{ wave, timeSec, id, title }, ...]
-        keyMoments:     [],   // [{ wave, timeSec, kind, label }, ...]
-        damageBySource: {},   // 'melee'|'projectile'|'special'|'dot' → number
-    };
+    // Reset Stats — shape lives in RunState.js.
+    currentRunStats = createRunStats({ startTime: Date.now() });
 
     // ── World context (Phase 1 bridge) ────────────────────────────────────────
     // Create a fresh World for this run and point its arrays at the same objects
@@ -4833,10 +4697,8 @@ function gameOver(isVictory = false) {
     }
 }
 
-// --- Fixed Time Step Loop ---
-let lastTime = 0;
+// --- Fixed Time Step Loop --- (rAF + gate harness moved to GameLoop.js)
 const FPS = 60;
-const frameDelay = 1000 / FPS;
 
 // ── Online Co-op sync ─────────────────────────────────────────────────────────
 
@@ -5184,68 +5046,8 @@ function _onlineShowReconnectOverlay(show) {
     }
 }
 
-// #51 — Photo mode. Activated by `P` from the pause screen (or always-on `F2`).
-// While active: UI overlays hide (HUD + pause-screen + minimap + debug), camera
-// becomes free (Arrow keys / WASD pan, Shift = slow, Ctrl = fast). World stays
-// paused. Press F2 / Esc to exit and resume normal pause UI.
-let _photoMode = false;
-let _photoCam = { x: 0, y: 0 };
-const _PHOTO_HIDE_IDS = [
-    'ui-layer', 'pause-screen', 'minimap', 'debug-overlay', 'hud-top-left',
-    'bottom-ui', 'p2-hud', 'notification-area', 'weather-display',
-    'objective-display', 'combo-display', 'chaos-challenge-hud',
-    'online-name-bar', 'hero-subtitle', 'weather-bar-wrap'
-];
-function togglePhotoMode() {
-    if (typeof gameRunning === 'undefined' || !gameRunning) return;
-    _photoMode = !_photoMode;
-    // Snapshot current camera so panning starts from where the player was.
-    if (_photoMode && arena && arena.camera) {
-        _photoCam.x = arena.camera.x;
-        _photoCam.y = arena.camera.y;
-    }
-    for (const id of _PHOTO_HIDE_IDS) {
-        const el = document.getElementById(id);
-        if (el) el.style.visibility = _photoMode ? 'hidden' : '';
-    }
-    if (typeof showNotification === 'function') {
-        showNotification(_photoMode ? 'PHOTO MODE — Arrows to pan, F2 to exit' : 'Photo mode off');
-    }
-}
-window.togglePhotoMode = togglePhotoMode;
-
-// Free-camera tick during photo mode — wired into masterLoop below.
-function _photoModeTick() {
-    if (!_photoMode || !arena || !arena.camera) return;
-    const fast  = !!(window.keys && (window.keys['control'] || window.keys['ctrl']));
-    const slow  = !!(window.keys && window.keys['shift']);
-    let speed = 8;
-    if (fast) speed = 24;
-    if (slow) speed = 3;
-    let dx = 0, dy = 0;
-    if (window.keys) {
-        if (window.keys['arrowleft']  || window.keys['a']) dx -= 1;
-        if (window.keys['arrowright'] || window.keys['d']) dx += 1;
-        if (window.keys['arrowup']    || window.keys['w']) dy -= 1;
-        if (window.keys['arrowdown']  || window.keys['s']) dy += 1;
-    }
-    _photoCam.x += dx * speed;
-    _photoCam.y += dy * speed;
-    // Clamp to arena bounds.
-    _photoCam.x = Math.max(0, Math.min(arena.width  - arena.camera.width,  _photoCam.x));
-    _photoCam.y = Math.max(0, Math.min(arena.height - arena.camera.height, _photoCam.y));
-    arena.camera.x = _photoCam.x;
-    arena.camera.y = _photoCam.y;
-}
-
-window.addEventListener('keydown', e => {
-    // F2 toggles photo mode anytime during a run.
-    if (e.key === 'F2') { e.preventDefault(); togglePhotoMode(); return; }
-    // Esc exits photo mode if active (before falling through to normal Esc-pause).
-    if (_photoMode && (e.key === 'Escape' || e.key === 'F2')) {
-        e.preventDefault(); togglePhotoMode(); return;
-    }
-});
+// #51 — Photo mode moved to Camera.js. togglePhotoMode / tickPhotoMode /
+// isPhotoMode imported above. F2 keydown handler is registered inside Camera.js.
 
 // #170 — Minimap. Renders arena bounds + player(s) + enemies + boss + objective
 // markers into a small 180x135 canvas in the top-right corner. Throttled to 15 Hz
@@ -5493,24 +5295,11 @@ function _updateDebugOverlay(frameMs) {
         `F1 to hide`;
 }
 
-function masterLoop(timestamp) {
-    if (typeof audioManager !== 'undefined') {
-        audioManager.update();
-    }
-
-    requestAnimationFrame(masterLoop);
-
-    // Ensure timestamp is valid (for the first manual call)
-    if (!timestamp) timestamp = performance.now();
-
-    if (!lastTime) lastTime = timestamp;
-    const deltaTime = timestamp - lastTime;
-
-    // Only run logic if enough time has passed (cap at 60 FPS)
-    if (deltaTime >= frameDelay) {
+// Per-fixed-frame body. Invoked by the GameLoop harness once every ~16.6 ms.
+// The rAF dispatch + dt-gate now live in GameLoop.js.
+function masterFrame(deltaTime, timestamp) {
+    {
         _updateDebugOverlay(deltaTime); // #148
-        // Adjust lastTime to account for the extra time (smooths out the jitter)
-        lastTime = timestamp - (deltaTime % frameDelay);
 
         // Always handle UI input
         handleGamepadMenu();
@@ -5540,7 +5329,7 @@ function masterLoop(timestamp) {
         }
 
         // #51 — photo mode runs even while paused so the camera can pan.
-        if (_photoMode) _photoModeTick();
+        if (isPhotoMode()) tickPhotoMode();
 
         if (gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen) {
             const _isHitStopped = _hitStopFrames > 0;
@@ -5560,7 +5349,7 @@ function masterLoop(timestamp) {
             if (isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
 
             // Update Camera — skipped during photo mode so manual pan sticks (#51).
-            if (!_photoMode) {
+            if (!isPhotoMode()) {
                 if (isCoopMode && player2) {
                     const ref1 = !player.isDead ? player : player2;
                     const ref2 = player2 && !player2.isDead ? player2 : player;
@@ -5604,7 +5393,7 @@ function masterLoop(timestamp) {
                     }
                     // Survival Condition: Kill all enemies or survive time?
                     // Let's say kill count for now, or just standard wave clear
-                    if (enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
+                    if (isWaveCleared(wave, enemiesKilledInWave)) {
                         currentObjective.state = 'COMPLETED';
                         showNotification("SAPLING SAVED!");
                         triggerStory(wave);
@@ -5650,7 +5439,7 @@ function masterLoop(timestamp) {
                         currentObjective.state = 'FAILED';
                         gameOver();
                     }
-                    if (enemiesKilledInWave >= ENEMIES_PER_WAVE * wave) {
+                    if (isWaveCleared(wave, enemiesKilledInWave)) {
                         currentObjective.state = 'COMPLETED';
                         showNotification("UNTOUCHABLE!");
                         triggerStory(wave);
@@ -5995,14 +5784,8 @@ function masterLoop(timestamp) {
                 ctx.translate(-cx, -cy);
             }
 
-            // Screen shake
-            if (_shakeDuration > 0) {
-                const sx = (Math.random() - 0.5) * 2 * _shakeIntensity;
-                const sy = (Math.random() - 0.5) * 2 * _shakeIntensity;
-                ctx.translate(sx, sy);
-                _shakeIntensity *= 0.82;
-                _shakeDuration--;
-            }
+            // Screen shake (state owned by Camera.js).
+            applyScreenShake(ctx);
 
             if (isCoopMode && coopZoom !== 1.0) ctx.scale(coopZoom, coopZoom);
             ctx.translate(-arena.camera.x, -arena.camera.y);
@@ -6393,7 +6176,7 @@ function masterLoop(timestamp) {
 
             // --- Spawning Logic ---
             // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
-            if (!bossActive && bossDeathTimer === 0 && !isTestingMode && !isEvilMode && enemiesKilledInWave >= ENEMIES_PER_WAVE * wave && (!isTutorialMode || TutorialMode.bossForced)) {
+            if (!bossActive && bossDeathTimer === 0 && !isTestingMode && !isEvilMode && isWaveCleared(wave, enemiesKilledInWave) && (!isTutorialMode || TutorialMode.bossForced)) {
                 if (currentObjective && currentObjective.state === 'ACTIVE') {
                     // Do nothing, wait for objective completion logic
                 } else {
@@ -8234,7 +8017,14 @@ function _launchMenu() {
     });
 }
 
-masterLoop();
+// GameLoop harness (Phase E of #1 split). audioManager.update() runs every
+// rAF tick; masterFrame runs once per fixed 60 Hz frame.
+const _gameLoop = createGameLoop({
+    targetFps: FPS,
+    onRafTick: () => { if (typeof audioManager !== 'undefined') audioManager.update(); },
+    onFrame:   (dt, ts) => masterFrame(dt, ts),
+});
+_gameLoop.start();
 
 if (gameConfig.showIntroScreens) {
     // Hide the loading screen immediately — the intro-backdrop (already visible in HTML)
