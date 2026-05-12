@@ -1,8 +1,47 @@
 // Base Biome Visual Effects
 // Pure visual enhancements for the 5 core biomes: Fire | Water | Ice | Plant | Metal
 // No gameplay impact — only drawBackground, update (particles), draw (overlay).
+//
+// #7 — BiomeRegistry: enforce the `{ generate, update, draw }` shape on every
+// entry. DLC biomes register through `window.BiomeRegistry.register(id, impl)`
+// or assign directly to `window.BIOME_LOGIC[id]` (legacy path). Either way we
+// log a warning if a required method is missing so silent draw/update failures
+// surface during smoke-tests instead of after a player reports gray screens.
 
 if (typeof window.BIOME_LOGIC === 'undefined') window.BIOME_LOGIC = {};
+
+if (typeof window.BiomeRegistry === 'undefined') {
+    const REQUIRED  = ['generate'];
+    const RECOMMENDED = ['update', 'draw', 'drawObstacle'];
+    function _validate(id, impl) {
+        if (!impl || typeof impl !== 'object') {
+            console.warn(`BiomeRegistry: '${id}' is not an object — skipping`);
+            return false;
+        }
+        for (const m of REQUIRED) {
+            if (typeof impl[m] !== 'function') {
+                console.warn(`BiomeRegistry: '${id}' missing required method '${m}()' — biome will not work`);
+                return false;
+            }
+        }
+        for (const m of RECOMMENDED) {
+            if (typeof impl[m] !== 'function') {
+                console.info(`BiomeRegistry: '${id}' has no '${m}()' — fallback used`);
+            }
+        }
+        return true;
+    }
+    window.BiomeRegistry = {
+        register(id, impl) {
+            if (!_validate(id, impl)) return false;
+            window.BIOME_LOGIC[id] = impl;
+            return true;
+        },
+        list() { return Object.keys(window.BIOME_LOGIC); },
+        get(id) { return window.BIOME_LOGIC[id] || null; },
+        validate: _validate,
+    };
+}
 
 // ─────────────────────────────────────────────
 //  FIRE BIOME — Lava / Volcanic
@@ -1322,12 +1361,12 @@ class BlackBiome {
 // ─────────────────────────────────────────────
 //  Register
 // ─────────────────────────────────────────────
-window.BIOME_LOGIC['fire']  = new FireBiome();
-window.BIOME_LOGIC['water'] = new WaterBiome();
-window.BIOME_LOGIC['ice']   = new IceBiome();
-window.BIOME_LOGIC['plant'] = new PlantBiome();
-window.BIOME_LOGIC['metal'] = new MetalBiome();
-window.BIOME_LOGIC['black'] = new BlackBiome();
+window.BiomeRegistry.register('fire',  new FireBiome());
+window.BiomeRegistry.register('water', new WaterBiome());
+window.BiomeRegistry.register('ice',   new IceBiome());
+window.BiomeRegistry.register('plant', new PlantBiome());
+window.BiomeRegistry.register('metal', new MetalBiome());
+window.BiomeRegistry.register('black', new BlackBiome());
 
 export { FireBiome, WaterBiome, IceBiome, PlantBiome, MetalBiome, BlackBiome };
 if (typeof window !== 'undefined') {

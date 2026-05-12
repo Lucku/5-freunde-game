@@ -58,16 +58,14 @@ import {
 import { createRunStats } from './RunState.js';
 import { createGameLoop } from './GameLoop.js';
 
-const isElectron = typeof process !== 'undefined' && process.versions && process.versions.electron;
-// lastInputType moved to InputManager
-let fs, path, saveFilePath;
+// #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
+const isElectron   = !!(window.Platform && window.Platform.isElectron);
+const fs           = window.Platform ? window.Platform.fs   : null;
+const path         = window.Platform ? window.Platform.path : null;
+const saveFilePath = window.Platform ? window.Platform.saveFilePath : null;
 
 if (isElectron) {
-    fs = require('fs');
-    path = require('path');
-    // Use the path we set in index.js
-    saveFilePath = path.join(process.env.APP_SAVE_PATH, 'save_data.json');
-    console.log("Save File Location:", saveFilePath); // Useful for debugging
+    if (saveFilePath) console.log("Save File Location:", saveFilePath); // Useful for debugging
 
     // Write uncaught JS errors directly to the log file so crashes are captured
     // even if the renderer freezes before the main process can log them.
@@ -316,7 +314,7 @@ async function loadGame() {
         window.saveData = await SaveManager.loadGame(defaultSaveData);
     } else {
         console.error("SaveManager is not defined!");
-        window.saveData = JSON.parse(JSON.stringify(defaultSaveData));
+        window.saveData = structuredClone(defaultSaveData); // #17
     }
     if (typeof CloudSaveManager !== 'undefined') {
         await CloudSaveManager.syncOnStartup();
@@ -3579,8 +3577,8 @@ function shuffleHero(targetHeroType = null) {
         xp: player.xp,
         maxXp: player.maxXp,
         gold: player.gold,
-        buffs: JSON.parse(JSON.stringify(player.buffs)),
-        runBuffs: JSON.parse(JSON.stringify(player.runBuffs)),
+        buffs: structuredClone(player.buffs),       // #17
+        runBuffs: structuredClone(player.runBuffs), // #17
         critChance: player.critChance,
         critMultiplier: player.critMultiplier
     };

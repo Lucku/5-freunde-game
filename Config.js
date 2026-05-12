@@ -1,21 +1,14 @@
 // Config.js - Handles local user settings
-
-// Electron Detection (Duplicated from game.js to ensure early availability)
-const isElectronConfig = typeof process !== 'undefined' && process.versions && process.versions.electron;
-let fsConfig, pathConfig, configFilePath;
-
-if (isElectronConfig) {
-    try {
-        fsConfig = require('fs');
-        pathConfig = require('path');
-        // Use the path we set in index.js
-        if (process.env.APP_SAVE_PATH) {
-            configFilePath = pathConfig.join(process.env.APP_SAVE_PATH, 'config.json');
-            console.log("Config File Location:", configFilePath);
-        }
-    } catch (e) {
-        console.warn("Electron detected but failed to load modules in Config.js:", e);
-    }
+//
+// #9 — Electron detection + fs/path access now lives in Platform.js.
+// We read it through `window.Platform` because Config.js runs early in the
+// classic-script load order before all ESM imports settle on some pages.
+const _platform = (typeof window !== 'undefined' && window.Platform) ? window.Platform : null;
+const isElectronConfig = !!(_platform && _platform.isElectron);
+const fsConfig       = _platform ? _platform.fs   : null;
+const configFilePath = _platform ? _platform.configFilePath : null;
+if (isElectronConfig && configFilePath) {
+    console.log("Config File Location:", configFilePath);
 }
 
 const defaultConfig = {
@@ -105,7 +98,7 @@ const defaultConfig = {
     }
 };
 
-var gameConfig = JSON.parse(JSON.stringify(defaultConfig));
+var gameConfig = structuredClone(defaultConfig); // #17
 if (typeof window !== 'undefined') window.gameConfig = gameConfig;
 
 function loadConfig() {
@@ -141,7 +134,7 @@ function loadConfig() {
             console.log("Config loaded:", gameConfig);
         } catch (e) {
             console.error("Failed to parse config:", e);
-            Object.assign(gameConfig, JSON.parse(JSON.stringify(defaultConfig)));
+            Object.assign(gameConfig, structuredClone(defaultConfig)); // #17
         }
     } else {
         console.log("No config found, using defaults.");
@@ -229,9 +222,9 @@ const ONE_HANDED_PRESETS = {
 function applyOneHandedScheme(scheme) {
     const preset = ONE_HANDED_PRESETS[scheme];
     if (!preset) {
-        gameConfig.keyBindings = JSON.parse(JSON.stringify(defaultConfig.keyBindings));
+        gameConfig.keyBindings = structuredClone(defaultConfig.keyBindings); // #17
     } else {
-        gameConfig.keyBindings = JSON.parse(JSON.stringify(preset));
+        gameConfig.keyBindings = structuredClone(preset); // #17
     }
     gameConfig.oneHandedScheme = scheme;
     saveConfig();

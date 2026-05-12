@@ -342,7 +342,7 @@ class SaveManager {
             return merged;
         }
 
-        const fresh = JSON.parse(JSON.stringify(defaultSaveData));
+        const fresh = structuredClone(defaultSaveData); // #17
         fresh.version = SaveManager.SCHEMA_VERSION;
         return fresh;
     }

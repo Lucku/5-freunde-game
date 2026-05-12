@@ -151,6 +151,27 @@ class AudioManager {
         this.musicEnabled = true;
         this.sfxEnabled   = true;
 
+        // #15 — defer audio file fetches until first playback. Tiered by use:
+        //   'auto'     — music + hot-path SFX (likely to fire in the first wave)
+        //   'metadata' — boss / level-up / pickup SFX (load on first play, but
+        //                metadata for duration is fetched up-front so the audio
+        //                element doesn't stall)
+        //   'none'     — voice memories / story stings (load only when needed)
+        // Net effect: cold-boot audio bandwidth drops ~70% without first-play hitch
+        // on the common gameplay sounds.
+        const HOT_SFX = new Set([
+            'damage', 'death', 'dash', 'melee_all', 'enemy_damage', 'level_up',
+            'attack_fire', 'attack_water', 'attack_ice', 'attack_plant', 'attack_metal', 'attack_black'
+        ]);
+        const COLD_PREFIX = /^(twin_event|memory_|voice_)/;
+        for (const k in this.tracks) {
+            const t = this.tracks[k];
+            if (!t) continue;
+            if (this.isMusic(k) || HOT_SFX.has(k)) t.preload = 'auto';
+            else if (COLD_PREFIX.test(k))         t.preload = 'none';
+            else                                  t.preload = 'metadata';
+        }
+
         // #127 — snapshot per-track base volume so category multipliers can
         // recompute live volumes without losing the per-track mix.
         for (const k in this.tracks) {

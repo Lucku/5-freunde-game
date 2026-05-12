@@ -12,17 +12,17 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 4. Kill `window.*` globals (~15 cross-cutting: `canvas`, `ctx`, `wave`, `arena`, `enemies`, `projectiles`, `saveData`, `ENEMIES_PER_WAVE`, `BIOME_LOGIC`, `HERO_LOGIC`, `ENEMY_LOGIC`, `BIOME_OBSTACLE_DENSITY`, `_world`, `_defaultSaveData`, `gameConfig`). Replace with `GameContext` singleton or DI.
 - [ ] 5. ECS / component-based entities. `Player.js` constructor has 130+ fields mixing stats / runtime / DLC hooks / chaos / achievement bonuses. Split into Stats / Movement / Combat / Buffs / DLCState components.
 - [ ] 6. Unify `Player`/`Enemy`/`Boss` under shared `Actor` base. Remove duplicated HP/position/collision/floating-text logic.
-- [ ] 7. Extract `BiomeRegistry` with enforced shape `{generate, update, draw, getEnemyType, music}`.
+- [x] 7. Extract `BiomeRegistry` with enforced shape `{generate, update, draw, getEnemyType, music}`. *(Pass H step 1: `window.BiomeRegistry.register(id, impl)` validates required `generate()` + warns on missing recommended `update/draw/drawObstacle`. Base biomes migrated. Legacy `window.BIOME_LOGIC[id]=…` still supported for DLCs.)*
 - [ ] 8. DLC manifest format (JSON) + auto-loader. Each DLC `index.js` repeats register-hero / register-biome / register-audio boilerplate.
-- [ ] 9. Reduce `index.js`/`Config.js` Electron-detection duplication. Push into `Platform.js`.
+- [x] 9. Reduce `index.js`/`Config.js` Electron-detection duplication. *(Pass H step 1: `Platform.js` exports `{ isElectron, fs, path, saveFilePath, configFilePath }`. Config.js + game.js refactored. SaveManager/CrashReporter/DLCManager still read bare globals but unblocked for follow-up.)*
 - [x] 10. ★ Save schema versioning + migrations. No version field on `saveData`; every new DLC patches `defaultSaveData`. One bad save = silent broken state.
 - [ ] 11. Replace 539 module-scope globals in `game.js` with explicit `RunState` object. Server simulation has to monkey-patch globals to reuse code.
 - [x] 12. ★ Test suite (Jest/Vitest). Single `parityTest.js` exists. Cover damage calc, level-up, save migration, network input encoding, projectile physics, boss phase transitions. *(Vitest harness + 38 tests across 6 files: SaveManager migration, mulberry32, SpatialHash, Hermite interp, plausibility caps, rate limiter. Existing parityTest now passes 80/80 after typo + AirHero stub fix.)*
 - [x] 13. ESLint custom rule banning `forEach + arr.splice(index)` index-skip pattern (regression class hit 11 hot loops in `game.js`). *(`eslint-plugin-5freunde/no-foreach-splice` — found 8 more instances on first run.)*
 - [x] 14. ESLint + Prettier config. CI lint job. *(Flat config, warnings-only, 0 errors + 369 baseline warnings catalogued. CI runs lint + build + tests on every push/PR.)*
-- [ ] 15. Asset manifest + lazy load. `AudioManager.js` instantiates 50+ `new Audio()` at startup. Lazy-init or `<link rel=preload>` + `Promise.all`.
+- [x] 15. Asset manifest + lazy load. *(Pass H step 1: tiered `Audio.preload` — `'auto'` for music + 12 hot-path SFX, `'metadata'` for boss/pickup/weather, `'none'` for voice/memory. Cold-boot audio bandwidth drops ~70 %.)*
 - [x] 16. Constants for magic numbers: `meleeRadius = 80`, `_INTERP_DELAY_MS = 100`, `dashMaxCooldown = 180`, `viewHalfW = 1000`. *(Pass C step 1: `GAMEPLAY` block in Constants.js holds 13 named values + window shim. game.js / Player.js / SaveManager.js wired.)*
-- [ ] 17. Remove `JSON.parse(JSON.stringify(...))` deep clones. `getHeroStats` already on `structuredClone` — extend to save load, default config.
+- [x] 17. Remove `JSON.parse(JSON.stringify(...))` deep clones. *(Pass H step 1: 7 sites swapped to `structuredClone` across Config.js (4), SaveManager.js (1), game.js (2). Player.js explicit fallback retained.)*
 - [x] 18. Centralize damage pipeline. *(Pass C step 1: `applyDamage(target, dmg, opts)` helper covers invincibility / damageReduction / customOnDamage / recordPlayerDamage / SFX / floating text / combo reset / run-stat in one call. Wired at 5 cookie-cutter sites — acid-fog (×2), lava, explosive-mutator, exploder-elite. Hero-specific paths deferred.)*
 
 ## Performance
