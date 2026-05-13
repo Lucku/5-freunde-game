@@ -13,7 +13,8 @@ class MindscapeBiome {
         this.t = 0;
         this.tearBands = [];   // transient horizontal screen tears
         this.inkBlots = [];    // slow-drifting rorschach blobs
-        this.fracturePts = []; // mandala fracture-line endpoints (regen on generate)
+        this.eegLines = [];    // horizontal brainwave traces scrolling across arena
+        this.mindGlyphs = [];  // drifting abstract psyche symbols (Ψ ? ! ∞ ◊ ∴ ※)
         this.pulsePhase = 0;
     }
 
@@ -28,14 +29,25 @@ class MindscapeBiome {
         // Fracture Zone covering most of arena
         arena.biomeZones.push(new BiomeZone(cx - 900, cy - 700, 1800, 1400, 'FRACTURE'));
 
-        // Mandala fracture-line endpoints — 24 radial spokes with jittered length
-        this.fracturePts = [];
-        for (let i = 0; i < 24; i++) {
-            const ang = (i / 24) * Math.PI * 2;
-            const len = 700 + Math.random() * 600;
-            const wob = 0.35 + Math.random() * 0.4;
-            this.fracturePts.push({ ang, len, wob });
+        // EEG brainwave traces — 5 horizontal jagged sine lines scrolling left,
+        // stacked at varied y-positions. Each has independent amp/freq/hue/speed.
+        this.eegLines = [];
+        const eegCount = 5;
+        for (let i = 0; i < eegCount; i++) {
+            const yFrac = 0.12 + (i / (eegCount - 1)) * 0.76; // spread between 12% and 88%
+            this.eegLines.push({
+                y: h * yFrac + (Math.random() - 0.5) * 60,
+                amp: 14 + Math.random() * 22,
+                freq: 0.008 + Math.random() * 0.012,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.6 + Math.random() * 0.8,
+                hue: Math.random() < 0.5 ? '#1abc9c' : '#a83080',
+                spikeChance: 0.08 + Math.random() * 0.08
+            });
         }
+
+        // Drifting mind glyphs — start empty, spawned over time by update()
+        this.mindGlyphs = [];
 
         // 6 slow rorschach inkblots drifting across the arena
         this.inkBlots = [];
@@ -83,6 +95,47 @@ class MindscapeBiome {
                 if (b.y < -b.r) b.y = ah + b.r;
                 if (b.y > ah + b.r) b.y = -b.r;
             });
+        }
+
+        // Scroll EEG waveform phases — pace doubles during Hysteria
+        const hysteriaScroll = !!(player && player.hysteriaActive);
+        if (this.eegLines && this.eegLines.length) {
+            this.eegLines.forEach(w => {
+                w.phase += w.speed * (hysteriaScroll ? 0.06 : 0.025);
+                // Occasional amplitude jolt — looks like a thought spike
+                if (Math.random() < (hysteriaScroll ? w.spikeChance * 2 : w.spikeChance) * 0.05) {
+                    w._jolt = 18 + Math.random() * 14;
+                }
+                if (w._jolt) w._jolt = Math.max(0, w._jolt - 1);
+            });
+        }
+
+        // Spawn drifting mind glyphs — rate denser during Hysteria
+        const glyphRate = hysteriaScroll ? 0.08 : 0.025;
+        if (Math.random() < glyphRate && this.mindGlyphs.length < 40) {
+            const GLYPHS = ['?', '!', 'Ψ', '∞', '◊', '∴', '※', '⊗'];
+            this.mindGlyphs.push({
+                x: Math.random() * arena.width,
+                y: arena.height + 20,
+                vy: -(0.25 + Math.random() * 0.5),
+                vx: (Math.random() - 0.5) * 0.35,
+                glyph: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+                size: 14 + Math.random() * 22,
+                hue: Math.random() < 0.55 ? '#1abc9c' : '#a83080',
+                life: 360 + Math.random() * 240,
+                maxLife: 600,
+                rot: (Math.random() - 0.5) * 0.6,
+                rotSpeed: (Math.random() - 0.5) * 0.008
+            });
+        }
+        // Update glyphs
+        for (let i = this.mindGlyphs.length - 1; i >= 0; i--) {
+            const g = this.mindGlyphs[i];
+            g.x += g.vx;
+            g.y += g.vy;
+            g.rot += g.rotSpeed;
+            g.life--;
+            if (g.life <= 0 || g.y < -40) this.mindGlyphs.splice(i, 1);
         }
 
         // Random screen-tear band ~every 2-4 seconds (denser during Hysteria)
@@ -172,48 +225,70 @@ class MindscapeBiome {
         ctx.fillRect(0, 0, aw, ah);
         ctx.restore();
 
-        // ── 2. Mandala fracture lines radiating from centre ─────────────────
-        if (this.fracturePts && this.fracturePts.length) {
+        // ── 2. EEG brainwave traces — horizontal jagged scrolling waveforms ──
+        // Replaces the prior radial mandala (which clashed with the Mirror
+        // biome's prismatic-rays-from-center motif). Each trace samples a
+        // sine + noise wiggle across the full arena width, with occasional
+        // amplitude jolts ("thought spikes") set by update().
+        if (this.eegLines && this.eegLines.length) {
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            ctx.strokeStyle = 'rgba(26, 188, 156, 0.10)';
             ctx.lineWidth = 1.2;
-            for (let i = 0; i < this.fracturePts.length; i++) {
-                const p = this.fracturePts[i];
-                const wobble = Math.sin(t * 0.01 + i * 0.7) * p.wob;
-                const endX = cx + Math.cos(p.ang + wobble * 0.05) * p.len;
-                const endY = cy + Math.sin(p.ang + wobble * 0.05) * p.len;
+            const step = 16; // sample spacing in px — coarser = cheaper, still smooth
+            this.eegLines.forEach(w => {
+                const jolt = w._jolt ? (1 + w._jolt * 0.08) : 1;
+                ctx.strokeStyle = w.hue + '55'; // ~33% alpha as hex suffix
                 ctx.beginPath();
-                ctx.moveTo(cx, cy);
-                ctx.lineTo(endX, endY);
+                let first = true;
+                for (let x = 0; x <= aw; x += step) {
+                    // Base sine + secondary wiggle + light per-x noise via sin combo
+                    const s1 = Math.sin(x * w.freq + w.phase);
+                    const s2 = Math.sin(x * w.freq * 2.3 + w.phase * 1.7) * 0.45;
+                    const noise = Math.sin(x * 0.07 + w.phase * 3.1) * 0.25;
+                    const y = w.y + (s1 + s2 + noise) * w.amp * jolt;
+                    if (first) { ctx.moveTo(x, y); first = false; }
+                    else ctx.lineTo(x, y);
+                }
                 ctx.stroke();
-            }
-            // Cross-hatch echo
-            ctx.strokeStyle = 'rgba(231, 76, 60, 0.06)';
-            for (let i = 0; i < this.fracturePts.length; i += 2) {
-                const a = this.fracturePts[i];
-                const b = this.fracturePts[(i + 7) % this.fracturePts.length];
+
+                // Faint echo line shifted slightly — gives a chromatic-aberration feel
+                ctx.strokeStyle = (w.hue === '#1abc9c' ? '#a83080' : '#1abc9c') + '22';
                 ctx.beginPath();
-                ctx.moveTo(cx + Math.cos(a.ang) * a.len * 0.5, cy + Math.sin(a.ang) * a.len * 0.5);
-                ctx.lineTo(cx + Math.cos(b.ang) * b.len * 0.5, cy + Math.sin(b.ang) * b.len * 0.5);
+                first = true;
+                for (let x = 0; x <= aw; x += step) {
+                    const s1 = Math.sin(x * w.freq + w.phase - 0.4);
+                    const y = w.y + s1 * w.amp * jolt * 0.7 + 3;
+                    if (first) { ctx.moveTo(x, y); first = false; }
+                    else ctx.lineTo(x, y);
+                }
                 ctx.stroke();
-            }
+            });
             ctx.restore();
         }
 
-        // ── 3. Concentric pulsing rings around centre ───────────────────────
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        for (let r = 0; r < 5; r++) {
-            const radius = ((t * 1.4 + r * 220) % 1100) + 40;
-            const alpha = Math.max(0, 0.18 * (1 - radius / 1100));
-            ctx.strokeStyle = `rgba(26, 188, 156, ${alpha})`;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-            ctx.stroke();
+        // ── 3. Drifting mind glyphs — abstract symbols floating upward ──────
+        // Replaces the prior concentric-rings-from-center pulse.
+        if (this.mindGlyphs && this.mindGlyphs.length) {
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            this.mindGlyphs.forEach(g => {
+                const fade = Math.min(1, g.life / 90) * Math.min(1, (g.maxLife - g.life) / 60);
+                ctx.save();
+                ctx.translate(g.x, g.y);
+                ctx.rotate(g.rot);
+                ctx.globalAlpha = 0.28 * fade;
+                ctx.font = `bold ${g.size | 0}px serif`;
+                ctx.fillStyle = g.hue;
+                ctx.fillText(g.glyph, 0, 0);
+                // Subtle white inner highlight
+                ctx.globalAlpha = 0.12 * fade;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(g.glyph, -0.5, -0.5);
+                ctx.restore();
+            });
+            ctx.restore();
         }
-        ctx.restore();
 
         // ── 4. Rorschach inkblots — symmetric squashed lobes ────────────────
         if (this.inkBlots && this.inkBlots.length) {
