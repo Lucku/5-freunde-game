@@ -27,7 +27,8 @@ const DLC_BIOMES  = [
 ];
 
 export function enemiesNeededForWave(wave) {
-    return ENEMIES_PER_WAVE * wave;
+    const epw = window._customEnemiesPerWave ?? ENEMIES_PER_WAVE;
+    return epw * wave;
 }
 
 export function isWaveCleared(wave, killed) {

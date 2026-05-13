@@ -74,9 +74,31 @@ function createWindow() {
     });
 }
 
+function createMapEditorWindow() {
+    const win = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        title: '5 Freunde — Map Editor',
+        fullscreen: false,
+        autoHideMenuBar: true,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+        },
+    });
+    const distEditor = path.join(__dirname, 'dist', 'map-editor.html');
+    if (fs.existsSync(distEditor)) win.loadFile(distEditor);
+    else win.loadFile('map-editor.html');
+}
+
 app.whenReady().then(() => {
     // Define the save path in the environment variables so the game can read it
     process.env.APP_SAVE_PATH = app.getPath('userData');
+
+    // Maps directory — user-created custom maps live here
+    const mapsDir = path.join(app.getPath('userData'), 'maps');
+    process.env.APP_MAPS_PATH = mapsDir;
+    fs.mkdirSync(mapsDir, { recursive: true });
 
     if (LOGGING_ENABLED) {
         // Open a persistent log file (append mode so multiple sessions accumulate)
@@ -97,10 +119,12 @@ app.whenReady().then(() => {
         });
     }
 
-    createWindow();
+    const isMapEditor = process.argv.includes('--map-editor');
+    if (isMapEditor) createMapEditorWindow();
+    else createWindow();
 
-    // Check for updates after window is created
-    checkForUpdates();
+    // Check for updates after window is created (game only)
+    if (!isMapEditor) checkForUpdates();
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {

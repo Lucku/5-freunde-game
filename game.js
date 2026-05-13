@@ -168,6 +168,7 @@ let isEvilMode = false;
 let isCoopMode = false;
 let isSpeedrunMode = false; // Story Speedrun: skip modals/audio, run timer + splits
 let isAICompanionMode = false; // Story companion: full Player driven by AIController
+let isWorkshopMode = false;
 let isOnlineMode  = false;  // true when an online co-op session is active (host or guest)
 let isOnlineHost  = false;  // this client runs the authoritative simulation
 let isOnlineGuest = false;  // this client receives state snapshots
@@ -3827,6 +3828,14 @@ function advanceWave() {
     }
     currentRunStats._noHitBaseline = currentRunStats.damageTaken;
 
+    // Workshop: end game when configured wave count is reached
+    if (isWorkshopMode && window.pendingCustomMap?.waveConfig?.waveCount > 0) {
+        if (wave >= window.pendingCustomMap.waveConfig.waveCount) {
+            gameOver(true);
+            return;
+        }
+    }
+
     wave++;
     // Speedrun split: a wave is "cleared" the moment advanceWave runs for the
     // next one. Record on every 10-wave boundary; the final win-wave split is
@@ -4244,9 +4253,11 @@ function startGame(mode = 'NORMAL') {
     isVersusMode = (mode === 'VERSUS');
     isTutorialMode = (mode === 'TUTORIAL');
     isEvilMode = (mode === 'EVIL');
-    const isWorkshopMode = (mode === 'WORKSHOP');
+    isWorkshopMode = (mode === 'WORKSHOP');
     // Clear custom map state on any non-workshop start so stale data never leaks in
     if (!isWorkshopMode) { window.pendingCustomMap = null; window.currentCustomMapId = null; }
+    window._customEnemiesPerWave = (isWorkshopMode && window.pendingCustomMap?.waveConfig?.enemiesPerWave)
+        ? window.pendingCustomMap.waveConfig.enemiesPerWave : null;
     // Speedrun flag is owned by startSpeedrunGame() (set before this runs).
     // Defend against stale state from a prior run: clear it for any non-SPEEDRUN
     // entry path and force solo when SPEEDRUN.
@@ -6678,6 +6689,9 @@ function masterFrame(deltaTime, timestamp) {
             if (!bossActive && bossDeathTimer === 0 && !isTestingMode && !isEvilMode && isWaveCleared(wave, enemiesKilledInWave) && (!isTutorialMode || TutorialMode.bossForced)) {
                 if (currentObjective && currentObjective.state === 'ACTIVE') {
                     // Do nothing, wait for objective completion logic
+                } else if (isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType === 'none') {
+                    // Workshop: no boss configured — advance wave directly
+                    advanceWave();
                 } else {
                     bossActive = true;
                     // Boss spawn — heavy ground-pound rumble
@@ -6689,8 +6703,12 @@ function masterFrame(deltaTime, timestamp) {
                         enemies.unshift(tutBoss);
                     } else {
                         // Standard Boss Spawning
+                        const _workshopBossType = (isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType)
+                            ? window.pendingCustomMap.waveConfig.bossType : null;
+                        const _bossArg = (_workshopBossType && _workshopBossType !== 'random') ? _workshopBossType : undefined;
+
                         const _isStoryMode = (saveData.story && saveData.story.enabled !== false) && !isDailyMode && !isWeeklyMode && !isChaosShuffleMode && !isVersusMode;
-                        if (!_isStoryMode && Math.random() < 0.05) {
+                        if (!isWorkshopMode && !_isStoryMode && Math.random() < 0.05) {
                             document.getElementById('event-text').style.display = 'block';
                             setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
                             if (typeof audioManager !== 'undefined') {
@@ -6704,7 +6722,7 @@ function masterFrame(deltaTime, timestamp) {
                                 enemies.unshift(new Boss(), new Boss());
                                 showNotification("DOUBLE BOSS SPAWN!");
                             } else {
-                                enemies.unshift(new Boss());
+                                enemies.unshift(new Boss(_bossArg));
                             }
                         }
                         if (!currentStoryEvent || !currentStoryEvent.data || !currentStoryEvent.data.suppressMinions) {
@@ -6718,6 +6736,17 @@ function masterFrame(deltaTime, timestamp) {
                 if (!bossActive && bossDeathTimer === 0) {
                     let spawnRate = Math.max(10, 45 - (wave * 1.3));
                     let forcedType = null;
+
+                    // Workshop waveConfig overrides
+                    if (isWorkshopMode && window.pendingCustomMap?.waveConfig) {
+                        const _wc = window.pendingCustomMap.waveConfig;
+                        const _base  = _wc.spawnRateBase         ?? 45;
+                        const _decay = _wc.spawnRateDecayPerWave ?? 1.3;
+                        spawnRate = Math.max(10, _base - (wave * _decay));
+                        if (_wc.enemyPool && _wc.enemyPool.length > 0) {
+                            forcedType = _wc.enemyPool[Math.floor(Math.random() * _wc.enemyPool.length)];
+                        }
+                    }
 
                     // Story Override
                     if (currentStoryEvent && currentStoryEvent.type === 'WAVE_OVERRIDE' && currentStoryEvent.data) {

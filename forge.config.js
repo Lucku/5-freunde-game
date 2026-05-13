@@ -8,6 +8,25 @@ module.exports = {
       : process.platform === 'darwin' ? 'images/icons/mac/icon'
         : 'images/icons/png/256x256',
     executableName: '5FreundeArena',
+    afterCopy: [(buildPath, _electronVersion, platform, _arch, done) => {
+      const { writeFileSync, chmodSync } = require('fs');
+      const { join } = require('path');
+      try {
+        if (platform === 'win32') {
+          writeFileSync(
+            join(buildPath, 'MapEditor.bat'),
+            '@echo off\r\nstart "" "%~dp05FreundeArena.exe" --map-editor\r\n'
+          );
+        } else {
+          const sh = join(buildPath, 'MapEditor.sh');
+          writeFileSync(sh, '#!/bin/sh\n"$(dirname "$0")/5FreundeArena" --map-editor &\n');
+          chmodSync(sh, '755');
+        }
+      } catch (e) {
+        console.warn('[forge] Failed to write MapEditor launcher:', e.message);
+      }
+      done();
+    }],
   },
   rebuildConfig: {},
   makers: [

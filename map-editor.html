@@ -223,7 +223,6 @@
     <button class="btn" onclick="saveToFile()">Save</button>
     <button class="btn primary" onclick="exportJSON()">Export JSON</button>
     <button class="btn" onclick="copyJSON()">Copy JSON</button>
-    <button class="btn" onclick="uploadToServer()">Upload</button>
   </div>
 </header>
 
@@ -309,6 +308,11 @@
       <div class="counts" id="counts">Obstacles: 0<br>Zones: 0<br>Traps: 0</div>
     </div>
 
+    <div class="section" id="my-maps-section" style="display:none">
+      <h3>My Maps</h3>
+      <div id="my-maps-list" style="display:flex;flex-direction:column;gap:3px;max-height:180px;overflow-y:auto"></div>
+    </div>
+
   </aside>
 
   <!-- Canvas -->
@@ -335,6 +339,46 @@
         </div>
       </div>
     </div>
+
+    <div class="section" id="wave-config-section" style="border-top:1px solid #333;padding-top:10px">
+      <h3>⚔️ Wave Config</h3>
+
+      <div class="field-label">Wave Count <small style="color:#888">(0 = unlimited)</small></div>
+      <input type="number" id="wc-count" class="small-input" min="0" max="999" value="10"
+        style="width:100%;box-sizing:border-box"
+        oninput="S.waveConfig.waveCount = parseInt(this.value)||0">
+
+      <div class="field-label" style="margin-top:6px">Enemies / Wave</div>
+      <input type="number" id="wc-epw" class="small-input" min="1" max="500" value="30"
+        style="width:100%;box-sizing:border-box"
+        oninput="S.waveConfig.enemiesPerWave = parseInt(this.value)||30">
+
+      <div class="field-label" style="margin-top:6px">Spawn Rate Base <small style="color:#888">(frames)</small></div>
+      <input type="number" id="wc-srb" class="small-input" min="5" max="120" value="45"
+        style="width:100%;box-sizing:border-box"
+        oninput="S.waveConfig.spawnRateBase = parseFloat(this.value)||45">
+
+      <div class="field-label" style="margin-top:6px">Decay / Wave</div>
+      <input type="number" id="wc-srd" class="small-input" min="0" max="5" step="0.1" value="1.3"
+        style="width:100%;box-sizing:border-box"
+        oninput="S.waveConfig.spawnRateDecayPerWave = parseFloat(this.value)||1.3">
+
+      <div class="field-label" style="margin-top:6px">Enemy Pool</div>
+      <div id="wc-enemy-pool" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px"></div>
+
+      <div class="field-label" style="margin-top:6px">Boss Type</div>
+      <select id="wc-boss" class="small-input" style="width:100%;box-sizing:border-box"
+        onchange="S.waveConfig.bossType = this.value">
+        <option value="random">Random</option>
+        <option value="TANK">Tank</option>
+        <option value="SPEEDSTER">Speedster</option>
+        <option value="SUMMONER">Summoner</option>
+        <option value="NOVA">Nova</option>
+        <option value="RHINO">Rhino</option>
+        <option value="HYDRA">Hydra</option>
+        <option value="none">No Boss</option>
+      </select>
+    </div>
   </aside>
 
 </div>
@@ -359,6 +403,14 @@ const S = {
   obstacles: [],   // {id,x,y,w,h,biomeType}
   zones: [],       // {id,x,y,w,h,type}
   traps: [],       // {id,x,y,type,pairId}
+  waveConfig: {
+    waveCount: 10,
+    enemiesPerWave: 30,
+    spawnRateBase: 45,
+    spawnRateDecayPerWave: 1.3,
+    enemyPool: ['BASIC', 'SHOOTER', 'SWARM', 'SPEEDSTER', 'BRUTE', 'TOXIC'],
+    bossType: 'random',
+  },
   // ui
   tool: 'select',
   selKind: null,
@@ -917,7 +969,7 @@ function buildJSON() {
     return obj;
   });
   return {
-    version: 1,
+    version: 2,
     name: document.getElementById('map-name').value.trim() || 'Untitled',
     biomeType: document.getElementById('biome-select').value,
     arenaWidth:  parseInt(document.getElementById('arena-w').value)  || 2000,
@@ -925,6 +977,7 @@ function buildJSON() {
     obstacles: S.obstacles.map(o => ({ x: Math.round(o.x), y: Math.round(o.y), w: Math.round(o.w), h: Math.round(o.h), biomeType: o.biomeType || null })),
     biomeZones: S.zones.map(z => ({ x: Math.round(z.x), y: Math.round(z.y), w: Math.round(z.w), h: Math.round(z.h), type: z.type })),
     traps: trapArr,
+    waveConfig: { ...S.waveConfig },
   };
 }
 
@@ -943,30 +996,22 @@ function copyJSON() {
     .catch(() => toast('Copy failed — use Export instead'));
 }
 
-function saveToFile() { exportJSON(); }
-
-async function uploadToServer() {
-  let raw;
-  try { raw = localStorage.getItem('5FreundeConfig'); } catch { raw = null; }
-  if (!raw) { toast('Not logged in — open the game and log in first'); return; }
-  let cfg;
-  try { cfg = JSON.parse(raw); } catch { toast('Could not read game config'); return; }
-  const token = cfg?.account?.token;
-  if (!token) { toast('Not logged in — open the game and log in first'); return; }
-  const host  = (cfg?.serverUrl || 'localhost:3001').trim();
-  const proto = (host.startsWith('localhost') || host.startsWith('127.')) ? 'http' : 'https';
-  const url   = `${proto}://${host}/api/maps`;
-  toast('Uploading…');
-  try {
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(buildJSON()),
-    });
-    const j = await r.json();
-    if (j.ok) toast(`Uploaded! Map ID: ${j.id}`);
-    else toast(`Upload failed: ${j.error || r.status}`);
-  } catch (e) { toast('Upload error: ' + e.message); }
+function saveToFile() {
+  const isElectron = typeof process !== 'undefined' && !!process?.env?.APP_MAPS_PATH;
+  if (isElectron) {
+    try {
+      const fs   = require('fs');
+      const path = require('path');
+      const data = buildJSON();
+      const safe = data.name.replace(/[^a-z0-9_\- ]/gi, '_').trim().replace(/\s+/g, '_') || 'Untitled';
+      const filePath = path.join(process.env.APP_MAPS_PATH, safe + '.json');
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+      toast('Saved: ' + safe + '.json');
+      refreshMyMaps();
+    } catch (e) { toast('Save failed: ' + e.message); }
+  } else {
+    exportJSON();
+  }
 }
 
 function loadFromFile() { document.getElementById('file-input').click(); }
@@ -1002,6 +1047,14 @@ function loadMapData(data) {
   });
   S.traps = trapObjs;
 
+  // Restore waveConfig (v2 maps); v1 maps keep current defaults
+  if (data.waveConfig) {
+    Object.assign(S.waveConfig, data.waveConfig);
+    // Ensure enemyPool is always an array
+    if (!Array.isArray(S.waveConfig.enemyPool)) S.waveConfig.enemyPool = ['BASIC', 'SHOOTER'];
+  }
+  renderWaveConfigUI();
+
   deselect(); updateCounts(); resizeCanvas();
 }
 
@@ -1011,7 +1064,9 @@ function newMap() {
   }
   push_undo();
   S.obstacles = []; S.zones = []; S.traps = []; _id = 1;
+  Object.assign(S.waveConfig, { waveCount: 10, enemiesPerWave: 30, spawnRateBase: 45, spawnRateDecayPerWave: 1.3, enemyPool: ['BASIC', 'SHOOTER', 'SWARM', 'SPEEDSTER', 'BRUTE', 'TOXIC'], bossType: 'random' });
   document.getElementById('map-name').value = 'Untitled Map';
+  renderWaveConfigUI();
   deselect(); updateCounts(); render(); toast('New map');
 }
 
@@ -1020,10 +1075,111 @@ document.getElementById('arena-w').addEventListener('change', () => { S.arenaW =
 document.getElementById('arena-h').addEventListener('change', () => { S.arenaH = +document.getElementById('arena-h').value || 1500; resizeCanvas(); });
 document.getElementById('biome-select').addEventListener('change', render);
 
+// ─── MY MAPS (Electron only) ─────────────────────────────────────────────────
+function refreshMyMaps() {
+  const isElectron = typeof process !== 'undefined' && !!process?.env?.APP_MAPS_PATH;
+  const section = document.getElementById('my-maps-section');
+  if (!isElectron) return;
+  section.style.display = '';
+  const fs   = require('fs');
+  const path = require('path');
+  const dir  = process.env.APP_MAPS_PATH;
+  let files = [];
+  try {
+    files = fs.readdirSync(dir).filter(f => f.endsWith('.json'))
+      .sort((a, b) => fs.statSync(path.join(dir, b)).mtimeMs - fs.statSync(path.join(dir, a)).mtimeMs);
+  } catch { /* dir not ready yet */ }
+  const list = document.getElementById('my-maps-list');
+  list.innerHTML = '';
+  if (!files.length) {
+    list.innerHTML = '<div style="color:#888;font-size:0.8em;padding:4px 0">No saved maps yet.</div>';
+    return;
+  }
+  files.forEach(f => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:4px;align-items:center';
+    const displayName = f.replace(/\.json$/, '').replace(/_/g, ' ');
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'btn';
+    loadBtn.style.cssText = 'flex:1;text-align:left;font-size:0.78em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    loadBtn.title = displayName;
+    loadBtn.textContent = displayName;
+    loadBtn.onclick = () => loadMapFile(f);
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn';
+    delBtn.style.cssText = 'font-size:0.78em;flex-shrink:0;color:#f88';
+    delBtn.textContent = '🗑';
+    delBtn.onclick = () => deleteMapFile(f);
+    row.appendChild(loadBtn);
+    row.appendChild(delBtn);
+    list.appendChild(row);
+  });
+}
+
+function loadMapFile(fileName) {
+  const fs   = require('fs');
+  const path = require('path');
+  try {
+    const raw = fs.readFileSync(path.join(process.env.APP_MAPS_PATH, fileName), 'utf8');
+    loadMapData(JSON.parse(raw));
+    toast('Loaded: ' + fileName);
+  } catch (e) { toast('Load failed: ' + e.message); }
+}
+
+function deleteMapFile(fileName) {
+  if (!confirm('Delete "' + fileName + '"? This cannot be undone.')) return;
+  const fs   = require('fs');
+  const path = require('path');
+  try {
+    fs.unlinkSync(path.join(process.env.APP_MAPS_PATH, fileName));
+    refreshMyMaps();
+    toast('Deleted: ' + fileName);
+  } catch (e) { toast('Delete failed: ' + e.message); }
+}
+
+// ─── WAVE CONFIG UI ───────────────────────────────────────────────────────────
+const _ALL_ENEMY_TYPES = ['BASIC','SHOOTER','BRUTE','SPEEDSTER','SWARM','SUMMONER','GHOST','SNIPER','BOMBER','TOXIC','SHIELDER'];
+
+function renderWaveConfigUI() {
+  // Sync number inputs
+  document.getElementById('wc-count').value = S.waveConfig.waveCount;
+  document.getElementById('wc-epw').value   = S.waveConfig.enemiesPerWave;
+  document.getElementById('wc-srb').value   = S.waveConfig.spawnRateBase;
+  document.getElementById('wc-srd').value   = S.waveConfig.spawnRateDecayPerWave;
+  // Boss type select
+  const bossEl = document.getElementById('wc-boss');
+  bossEl.value = S.waveConfig.bossType || 'random';
+  // Enemy pool checkboxes
+  const pool = document.getElementById('wc-enemy-pool');
+  pool.innerHTML = '';
+  _ALL_ENEMY_TYPES.forEach(type => {
+    const checked = S.waveConfig.enemyPool.includes(type);
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'display:flex;align-items:center;gap:3px;font-size:0.75em;cursor:pointer;padding:2px 5px;border-radius:4px;background:' + (checked ? '#2a4a2a' : '#222');
+    lbl.innerHTML = `<input type="checkbox" ${checked ? 'checked' : ''} style="margin:0"> ${type}`;
+    lbl.querySelector('input').onchange = function() {
+      if (this.checked) {
+        if (!S.waveConfig.enemyPool.includes(type)) S.waveConfig.enemyPool.push(type);
+      } else {
+        S.waveConfig.enemyPool = S.waveConfig.enemyPool.filter(t => t !== type);
+        if (S.waveConfig.enemyPool.length === 0) {
+          S.waveConfig.enemyPool = ['BASIC']; // always keep at least one
+          this.checked = true;
+          toast('Enemy pool must have at least one type.');
+        }
+      }
+      lbl.style.background = this.checked ? '#2a4a2a' : '#222';
+    };
+    pool.appendChild(lbl);
+  });
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 resizeCanvas();
 setTool('select');
 updateCounts();
+renderWaveConfigUI();
+refreshMyMaps();
 </script>
 </body>
 </html>
