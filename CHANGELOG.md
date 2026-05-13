@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file, starting wi
 - **Cloud save conflict modal enhanced** (`#86`). The conflict UI now decodes both blobs client-side before showing the dialog and displays a one-line summary for each side: wave reached, heroes unlocked, total kills, and meta upgrade points. Users can make an informed choice rather than relying solely on timestamps.
 
 ### Fixed
+- **TimeHero crash on game start** (`#103`). `saveData` could be `undefined` when `_w` had no `saveData` property, causing `TypeError: Cannot read properties of undefined (reading 'altar')` at `TimeHero.init`. Fixed by defaulting `saveData` to `{}` via optional chaining.
 - **Lag compensation — hit registration** (`#91`). Player projectile vs. enemy collision radius on the server expanded by 18 px (`ROLLBACK_PX`). At typical enemy speeds (~8 px/tick) this covers ~2 server ticks (≈ 66 ms) of positional error introduced by network latency, eliminating most "I hit them but no damage" cases without affecting game balance meaningfully.
 
 ### Added

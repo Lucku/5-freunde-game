@@ -21,7 +21,7 @@ class TimeHero {
     // ─── Init ────────────────────────────────────────────────────────────────
     static init(player, world) {
         const _w = world ?? window._world;
-        const { saveData } = _w ?? {};
+        const saveData = _w?.saveData ?? {};
         // Core resources
         player.chronoEnergy = 0;   // 0-100
         player.timelineBurden = 0;   // 0-100
