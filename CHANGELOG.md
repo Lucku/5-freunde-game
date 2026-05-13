@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file, starting wi
 ## [Unreleased]
 
 ### Fixed
+- **Game stuck on "Loading Assets" after first server login**. The save-conflict modal (`cloud-conflict-modal`) had `z-index: 4000`, beneath the loading screen (`z-index: 9999`). Users who logged in once and restarted would hit a conflict check on startup, see the modal hidden behind the loading overlay, and be unable to proceed. Modal z-index raised to `10000`.
 - **CrashReporter URL construction** — bare IP/hostname in `gameConfig.serverUrl` was treated as a relative path, causing crash reports to POST to `localhost:5173/<ip>/api/crash`. `_baseUrl()` now mirrors `CloudSaveManager`: adds `http://` scheme and `:3001` port when no scheme is present.
 - **InputManager crash on synthetic key events** — `e.key` is undefined on some browser-generated `keydown`/`keyup` events, causing `TypeError: Cannot read properties of undefined (reading 'toLowerCase')`. Added `if (!e.key) return` guard to both listeners.
 - **`SaveManager` not defined in CloudSaveManager** — `SaveManager` was never exposed on `window`, so `CloudSaveManager._applyCloudSave()` (and other methods) threw `ReferenceError: SaveManager is not defined` at startup. Added `window.SaveManager = SaveManager` at the bottom of `SaveManager.js`.
