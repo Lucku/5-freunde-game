@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Fixed
+- **Museum player avatar color for Mirror, Smoke, Psycho heroes** — they fell through to default yellow. Added color entries: Marine Blue, Slate Gray, Teal.
+
 ### Added
 - **Story Speedrun mode**. Unlocks per hero once that hero's story is beaten (base heroes fire/water/ice/plant/metal share one unlock; DLC heroes unlock individually). A gold "⏱ Story Speedrun" button appears in the main menu below Story Mode when the selected hero qualifies. Solo only — hidden in co-op and online modes. During a speedrun run: story chapter modals are skipped (no screen, no audio) but all gameplay effects are preserved (boss spawns, companion joins, forced enemy types, hero swaps, objective waves). A live `mm:ss.t` HUD timer runs from run start; split toasts pop every 10 cleared waves (arc boundaries) and on the final victory wave showing the delta vs previous split. Best final time is saved per hero (`saveData[hero].bestSpeedrunSec`) and shown on the hero card in the main menu. Times are submitted to a new `speedrun_scores` server table via `POST /api/speedrun` (rate-limited, plausibility-checked at 4 s/wave minimum). The global leaderboard in the Museum gains a second **⏱ SPEEDRUN** tab (switch with Q / E); the tab shows all-hero times sorted fastest-first with the signed-in player's row highlighted in gold. Implementation: `isSpeedrunMode` flag + `startSpeedrunGame()` in `game.js`; `_finishStoryEvent()` extracted from `closeStory()` as shared post-modal mechanic runner; `openStory()` fast-path skips modal for speedrun; `_updateSpeedrunHud()` hooked into RAF tick; `_recordSpeedrunSplit()` pushes to `currentRunStats.splits[]` (new field in `RunState.js`); `storyCompleted` + `bestSpeedrunSec` fields in `defaultSaveData`; server table + endpoints in `server/server.js` + `server/anticheat.js`.
 

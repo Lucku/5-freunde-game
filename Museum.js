@@ -1454,6 +1454,9 @@ class Museum {
         if (this.player.type === 'poison') color = '#76ff03'; // Toxic Green
         if (this.player.type === 'time') color = '#c8aa6e';  // Sand gold
         if (this.player.type === 'love') color = '#ff6b9d';  // Rose pink
+        if (this.player.type === 'mirror') color = '#1a5276'; // Marine Blue
+        if (this.player.type === 'smoke') color = '#5a5a6e';  // Slate Gray
+        if (this.player.type === 'psycho') color = '#1abc9c'; // Teal
 
         drawHeroSprite(ctx, color, 15);
         ctx.restore();
