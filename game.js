@@ -5515,8 +5515,8 @@ function _cheatExec(raw) {
     }
 }
 window.addEventListener('keydown', e => {
-    // Toggle on tilde / backtick — but not when the user is typing into a field
-    if ((e.key === '`' || e.key === '~') && !(e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) ) {
+    // Toggle on F9
+    if (e.key === 'F9') {
         e.preventDefault();
         _toggleCheatConsole();
         return;
