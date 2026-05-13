@@ -4752,12 +4752,17 @@ function gameOver(isVictory = false) {
                 saveData[h].bestSpeedrunSec = finalTimeSec;
             }
         };
-        updatePB(player.type);
-        if (currentStoryEvent && currentStoryEvent.id) {
-            if (currentStoryEvent.id.startsWith('chaos_')) {
-                updatePB('gravity'); updatePB('void');
-            } else if (currentStoryEvent.id.startsWith('fortune_')) {
-                updatePB('spirit'); updatePB('chance');
+        const BASE_HEROES = ['fire', 'water', 'ice', 'plant', 'metal'];
+        if (BASE_HEROES.includes(player.type)) {
+            BASE_HEROES.forEach(updatePB);
+        } else {
+            updatePB(player.type);
+            if (currentStoryEvent && currentStoryEvent.id) {
+                if (currentStoryEvent.id.startsWith('chaos_')) {
+                    updatePB('gravity'); updatePB('void');
+                } else if (currentStoryEvent.id.startsWith('fortune_')) {
+                    updatePB('spirit'); updatePB('chance');
+                }
             }
         }
 

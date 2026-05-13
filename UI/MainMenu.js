@@ -141,8 +141,17 @@ class MainMenuUI {
 
     isSpeedrunUnlocked(heroType) {
         if (!heroType) return false;
-        const data = window.saveData && window.saveData[heroType];
-        return !!(data && data.storyCompleted === true);
+        const sd = window.saveData;
+        if (!sd) return false;
+        const BASE    = ['fire', 'water', 'ice', 'plant', 'metal'];
+        const CHAOS   = ['gravity', 'void'];
+        const FORTUNE = ['spirit', 'chance'];
+        let group;
+        if (BASE.includes(heroType))    group = BASE;
+        else if (CHAOS.includes(heroType))   group = CHAOS;
+        else if (FORTUNE.includes(heroType)) group = FORTUNE;
+        else group = [heroType];
+        return group.some(h => !!(sd[h] && sd[h].storyCompleted === true));
     }
 
     formatSpeedrunTime(totalSec) {
