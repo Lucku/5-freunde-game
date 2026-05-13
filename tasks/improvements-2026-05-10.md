@@ -99,20 +99,20 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 80. Region-based servers. Multi-region with lowest-latency selection (Cloudflare Workers / Fly.io).
 - [ ] 81. ★ 3-4 player co-op. Server already authoritative — extend `players[2]` to `players[N]`.
 - [ ] 82. Spectator mode. Watch live match (admin dashboard infra exists).
-- [ ] 83. Re-connect on drop. 30 s grace window so wifi blip doesn't end run.
-- [ ] 84. WebRTC voice chat in lobby + in-game.
-- [ ] 85. Friends list + invites. Extend SQLite users table with friendships.
-- [ ] 86. Cross-progression cloud save conflict UI (last-write-wins is dangerous).
+- [x] 83. Re-connect on drop. 30 s grace window so wifi blip doesn't end run. *(Server sends `PARTNER_RECONNECTING { timeoutSec: 30 }` instead of immediate disconnect; grace timer cancelled on reconnect; client overlay counts down. Hard cleanup still at 90 s.)*
+- [x] 84. WebRTC voice chat in lobby + in-game. *(`Managers/VoiceChatManager.js`: mic capture, `RTCPeerConnection`, remote audio, mute toggle. Signaling relayed via existing WS lobby (`WEBRTC_OFFER/ANSWER/ICE`). `NetworkManager._dispatch` wired to voice handlers. `VOICE_MUTE` relayed to partner.)*
+- [x] 85. Friends list + invites. Extend SQLite users table with friendships. *(`friendships` table with `requester_id`, `addressee_id`, `status`. REST: `GET /api/friends`, `POST /api/friends/request`, `POST /api/friends/respond`, `DELETE /api/friends/:userId`. Mutual-request auto-accepts. `NetworkManager` helper methods exposed.)*
+- [x] 86. Cross-progression cloud save conflict UI (last-write-wins is dangerous). *(Conflict modal now decodes both blobs client-side; shows side-by-side comparison: wave reached, heroes unlocked, total kills, meta upgrade points. `_extractSaveMeta` + `_metaLine` helpers added to `CloudSaveManager`.)*
 - [x] 87. ★ Anti-cheat for leaderboard. `POST /api/leaderboard` accepts any wave/score from authenticated client. Add server-side validation: minimum time per wave, hero-specific damage caps, replay token signed by `GameSession`.
 - [x] 88. ★ Rate limiting on register/login/leaderboard. `bcrypt.hash(password, 10)` is CPU-expensive — easy DoS vector.
 - [x] 89. CSRF / origin check on WS upgrade. *(Pass A: `ALLOWED_WS_ORIGINS` env-driven allowlist; `verifyClient` rejects mismatched browser Origin, native clients with no Origin pass through. Same allowlist also gates Express CORS.)*
 - [x] 90. ★ HTTPS / WSS by default. `Config.js` defaults to `http://localhost:3001`. Production should be `wss://`. *(Env-driven: TLS_CERT_PATH + TLS_KEY_PATH enables HTTPS/WSS automatically; plain HTTP fallback for local dev.)*
-- [ ] 91. Lag compensation / rollback. Current is delay-based interp (100 ms). Small rollback for hit confirmation reduces "I hit them but no damage" feel.
+- [x] 91. Lag compensation / rollback. Current is delay-based interp (100 ms). Small rollback for hit confirmation reduces "I hit them but no damage" feel. *(Player-projectile vs enemy collision radius in `GameSession._updateProjectiles` expanded by `ROLLBACK_PX = 18` in co-op mode, covering ~2 server ticks of enemy movement at typical speeds.)*
 - [ ] 92. Server-side stat tracking + meta unlocks. Move some meta progression server-side (counter to `save-editor.html` — flag online-mode runs).
 - [ ] 93. Tournament / brackets system. Schedule events on server, automatic bracket generation.
 - [ ] 94. Guild / clan system.
 - [ ] 95. Server message of the day / patch notes pushed to client on connect.
-- [ ] 96. Server-side world events: "this weekend 2× XP", configurable from admin dashboard.
+- [x] 96. Server-side world events: "this weekend 2× XP", configurable from admin dashboard. *(`world_events` table; public `GET /api/events`; admin CRUD `GET/POST /api/admin/events` + `DELETE /api/admin/events/:id`; admin dashboard **Events** tab with create form + live/inactive list. `Managers/WorldEventsManager.js` polls every 5 min; `getXpMultiplier()` applied to kill XP in `game.js`.)*
 - [x] 97. ★ Crash reporting (Sentry / GlitchTip). Use breadcrumbs from `console.log`/`window.onerror` already captured in `game.js:16-24`. *(Lightweight in-house pipeline: client `Managers/CrashReporter.js` → `POST /api/crash` → `data/crashes.jsonl`. Swap target URL later to plug into Sentry.)*
 - [ ] 98. Telemetry / analytics opt-in: wave-clear-rate per hero, drop-off curve, average run length. Guides balance.
 - [ ] 99. Match history. Per-session summary; player can browse own run history.
@@ -121,7 +121,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 ## Extensions / new content
 
 - [ ] 101. ★ Mod / scripting API. Expose `BIOME_LOGIC`/`HERO_LOGIC`/`ENEMY_LOGIC` registries officially with sandboxed user-loaded JS via dynamic `import()`. Steam Workshop equivalent.
-- [ ] 102. Map editor. Drag-drop biome zones, obstacles, spawn rules → exports JSON consumed by `Arena.generate`.
+- [x] 102. Map editor. Drag-drop biome zones, obstacles, spawn rules → exports JSON consumed by `Arena.generate`. *(`map-editor.html`: canvas editor with obstacle/zone/trap tools, grid snap, undo/redo, rubber-band drawing, property panel, teleporter auto-pair, export/copy JSON. `Arena.generateFromMap(mapData)` reconstructs obstacles + biomeZones + traps from the exported JSON.)*
 - [ ] 103. Roguelike modifier deck builder pre-run.
 - [ ] 104. Photo / hero gallery: pose heroes against backdrops, share.
 - [ ] 105. Lore codex. Expand `MemoryShard.js` / `MemoryStories.js` with art + audio per entry.
@@ -198,7 +198,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 
 - [x] 159. Pause menu rework: run stats, current upgrades, current cards. *(Pass B: 8-cell stat grid + last 24 upgrades + owned cards rendered on pause via `renderPauseMenu()`.)*
 - [x] 160. ★ End-of-run breakdown screen (Slay the Spire style): damage by source, cards picked, key moments timeline.
-- [ ] 161. Hero balance dashboard in admin: per-hero win rate, average wave, pick rate.
+- [x] 161. Hero balance dashboard in admin: per-hero win rate, average wave, pick rate. *(`GET /api/admin/hero-balance` queries `scores` table for per-hero run count, pick rate, win rate, avg wave, avg score. Admin dashboard **Balance** tab renders colour-coded win-rate table with pick-rate bars.)*
 - [ ] 162. Player skill rating (online matchmaking).
 - [ ] 163. Tutorial replay accessible from main menu.
 - [ ] 164. Onboarding flow first launch: name pick, hero recommendation quiz.

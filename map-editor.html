@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5 Freunde — Map Editor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #252836;
+      --border: #2e3244;
+      --accent: #6c63ff;
+      --text: #e2e8f0;
+      --text-muted: #7b849a;
+      --success: #48bb78;
+      --warning: #ed8936;
+      --danger: #fc5c65;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      z-index: 10;
+    }
+
+    header h1 { font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+
+    .field-group { display: flex; align-items: center; gap: 5px; }
+    .field-label { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+
+    input.hdr, select.hdr {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 12px;
+    }
+    input.hdr:focus, select.hdr:focus { outline: none; border-color: var(--accent); }
+    input.hdr[type=number] { width: 68px; }
+    input.hdr.wide { width: 160px; }
+
+    .header-actions { margin-left: auto; display: flex; gap: 5px; flex-wrap: wrap; }
+
+    .btn {
+      padding: 5px 11px; border-radius: 4px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text); cursor: pointer;
+      font-size: 12px; font-weight: 500; transition: background 0.12s; white-space: nowrap;
+    }
+    .btn:hover { background: var(--border); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: #5a52d5; }
+
+    /* Layout */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* Left panel */
+    .left-panel {
+      width: 172px; flex-shrink: 0;
+      background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow-y: auto;
+    }
+
+    .section { padding: 10px 11px; border-bottom: 1px solid var(--border); }
+
+    .section h3 {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.7px; color: var(--text-muted); margin-bottom: 7px;
+    }
+
+    .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+
+    .tool-btn {
+      padding: 7px 4px; border-radius: 4px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text); cursor: pointer;
+      font-size: 11px; text-align: center; display: flex;
+      flex-direction: column; align-items: center; gap: 2px; transition: background 0.12s;
+    }
+    .tool-btn .icon { font-size: 15px; line-height: 1; }
+    .tool-btn .key { font-size: 9px; color: var(--text-muted); font-family: monospace; }
+    .tool-btn:hover { background: var(--border); }
+    .tool-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .tool-btn.active .key { color: rgba(255,255,255,0.65); }
+
+    .type-list { display: flex; flex-direction: column; gap: 3px; }
+
+    .type-opt {
+      padding: 4px 7px; border-radius: 4px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text); cursor: pointer;
+      font-size: 11px; display: flex; align-items: center; gap: 6px;
+    }
+    .type-opt .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .type-opt:hover { background: var(--border); }
+    .type-opt.active { border-color: var(--accent); background: rgba(108,99,255,0.15); }
+
+    .cb-row {
+      display: flex; align-items: center; gap: 7px;
+      padding: 3px 0; cursor: pointer; font-size: 12px;
+    }
+    .cb-row input { cursor: pointer; accent-color: var(--accent); }
+
+    .small-input {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 4px 7px; border-radius: 4px; font-size: 11px; width: 100%;
+    }
+
+    .counts { font-size: 11px; color: var(--text-muted); line-height: 1.9; }
+
+    /* Canvas area */
+    .canvas-area {
+      flex: 1; overflow: hidden; background: #0a0c14;
+      display: flex; align-items: center; justify-content: center; position: relative;
+    }
+
+    #editor-canvas { display: block; cursor: crosshair; }
+
+    /* Right panel */
+    .right-panel {
+      width: 210px; flex-shrink: 0;
+      background: var(--surface); border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow-y: auto;
+    }
+
+    .props-empty {
+      padding: 16px; color: var(--text-muted); font-size: 12px; text-align: center; line-height: 1.8;
+    }
+
+    .prop-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 9px; }
+    .prop-row label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-muted); }
+    .prop-row input, .prop-row select {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 5px 7px; border-radius: 4px; font-size: 12px; width: 100%;
+    }
+    .prop-row input:focus, .prop-row select:focus { outline: none; border-color: var(--accent); }
+
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; margin-bottom: 10px;
+    }
+    .badge-obstacle { background: rgba(108,99,255,0.2); color: #9b94ff; border: 1px solid #6c63ff44; }
+    .badge-zone { background: rgba(72,187,120,0.2); color: #7af0ad; border: 1px solid #48bb7844; }
+    .badge-trap { background: rgba(252,92,101,0.2); color: #ff9ea3; border: 1px solid #fc5c6544; }
+
+    .del-btn {
+      width: 100%; margin-top: 6px; background: transparent;
+      border: 1px solid var(--danger); color: var(--danger);
+      padding: 6px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    }
+    .del-btn:hover { background: var(--danger); color: #fff; }
+
+    /* Status bar */
+    footer {
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 4px 14px; display: flex; align-items: center; gap: 18px;
+      font-size: 11px; color: var(--text-muted); flex-shrink: 0;
+    }
+    footer .mono { font-family: monospace; }
+
+    .kbd {
+      display: inline-block; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 3px; padding: 1px 4px; font-size: 9px; font-family: monospace;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%);
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 7px 14px; border-radius: 6px; font-size: 12px;
+      opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 9999;
+    }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>5 Freunde — Map Editor</h1>
+
+  <div class="field-group">
+    <span class="field-label">Name:</span>
+    <input type="text" id="map-name" class="hdr wide" value="Untitled Map" placeholder="Map name…">
+  </div>
+
+  <div class="field-group">
+    <span class="field-label">Biome:</span>
+    <select id="biome-select" class="hdr">
+      <option value="fire">Fire</option>
+      <option value="ice">Ice</option>
+      <option value="water">Water</option>
+      <option value="plant">Plant</option>
+      <option value="metal">Metal</option>
+      <option value="black">Black</option>
+    </select>
+  </div>
+
+  <div class="field-group">
+    <span class="field-label">Size:</span>
+    <input type="number" id="arena-w" class="hdr" value="2000" min="400" max="4000" step="100">
+    <span style="color:var(--text-muted)">×</span>
+    <input type="number" id="arena-h" class="hdr" value="1500" min="300" max="3000" step="100">
+  </div>
+
+  <div class="header-actions">
+    <button class="btn" onclick="newMap()">New</button>
+    <button class="btn" onclick="loadFromFile()">Load</button>
+    <button class="btn" onclick="saveToFile()">Save</button>
+    <button class="btn primary" onclick="exportJSON()">Export JSON</button>
+    <button class="btn" onclick="copyJSON()">Copy JSON</button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Left sidebar -->
+  <aside class="left-panel">
+
+    <div class="section">
+      <h3>Tools</h3>
+      <div class="tool-grid">
+        <button class="tool-btn active" id="tool-select" onclick="setTool('select')" title="Select &amp; move (S)">
+          <span class="icon">↖</span><span>Select</span><span class="key">S</span>
+        </button>
+        <button class="tool-btn" id="tool-obstacle" onclick="setTool('obstacle')" title="Draw obstacle (O)">
+          <span class="icon">⬛</span><span>Obstacle</span><span class="key">O</span>
+        </button>
+        <button class="tool-btn" id="tool-zone" onclick="setTool('zone')" title="Draw biome zone (Z)">
+          <span class="icon">🟦</span><span>Zone</span><span class="key">Z</span>
+        </button>
+        <button class="tool-btn" id="tool-trap" onclick="setTool('trap')" title="Place trap (T)">
+          <span class="icon">⚡</span><span>Trap</span><span class="key">T</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="section" id="zone-type-section" style="display:none">
+      <h3>Zone Type</h3>
+      <div class="type-list" id="zone-type-list">
+        <div class="type-opt active" data-type="LAVA"        onclick="setZoneType('LAVA')">       <span class="dot" style="background:#ff4400"></span>LAVA</div>
+        <div class="type-opt"        data-type="ICE"         onclick="setZoneType('ICE')">        <span class="dot" style="background:#88ccff"></span>ICE</div>
+        <div class="type-opt"        data-type="MUD"         onclick="setZoneType('MUD')">        <span class="dot" style="background:#8b5e3c"></span>MUD</div>
+        <div class="type-opt"        data-type="WATER"       onclick="setZoneType('WATER')">      <span class="dot" style="background:#0088ff"></span>WATER</div>
+        <div class="type-opt"        data-type="MAGNET"      onclick="setZoneType('MAGNET')">     <span class="dot" style="background:#aa00ff"></span>MAGNET</div>
+        <div class="type-opt"        data-type="DARK_ENERGY" onclick="setZoneType('DARK_ENERGY')"><span class="dot" style="background:#5500aa"></span>DARK_ENERGY</div>
+      </div>
+    </div>
+
+    <div class="section" id="trap-type-section" style="display:none">
+      <h3>Trap Type</h3>
+      <div class="type-list" id="trap-type-list">
+        <div class="type-opt active" data-type="SLOW"       onclick="setTrapType('SLOW')">      <span class="dot" style="background:#4488ff"></span>SLOW</div>
+        <div class="type-opt"        data-type="CONVEYOR"   onclick="setTrapType('CONVEYOR')">  <span class="dot" style="background:#ffaa00"></span>CONVEYOR</div>
+        <div class="type-opt"        data-type="SPIKE"      onclick="setTrapType('SPIKE')">     <span class="dot" style="background:#ff4444"></span>SPIKE</div>
+        <div class="type-opt"        data-type="TURRET"     onclick="setTrapType('TURRET')">    <span class="dot" style="background:#aaaaaa"></span>TURRET</div>
+        <div class="type-opt"        data-type="LASER_BEAM" onclick="setTrapType('LASER_BEAM')"><span class="dot" style="background:#ff0088"></span>LASER_BEAM</div>
+        <div class="type-opt"        data-type="TELEPORTER" onclick="setTrapType('TELEPORTER')"><span class="dot" style="background:#00ffcc"></span>TELEPORTER</div>
+      </div>
+    </div>
+
+    <div class="section" id="obs-biome-section" style="display:none">
+      <h3>Obstacle Biome</h3>
+      <select id="obs-biome" class="small-input">
+        <option value="">Stone (none)</option>
+        <option value="fire">Fire</option>
+        <option value="ice">Ice</option>
+        <option value="water">Water</option>
+        <option value="plant">Plant</option>
+        <option value="metal">Metal</option>
+        <option value="black">Black</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <h3>Layers</h3>
+      <label class="cb-row"><input type="checkbox" id="show-obs"   checked onchange="render()"><span>Obstacles</span></label>
+      <label class="cb-row"><input type="checkbox" id="show-zones" checked onchange="render()"><span>Biome Zones</span></label>
+      <label class="cb-row"><input type="checkbox" id="show-traps" checked onchange="render()"><span>Traps</span></label>
+    </div>
+
+    <div class="section">
+      <h3>Grid</h3>
+      <label class="cb-row"><input type="checkbox" id="show-grid" checked onchange="render()"><span>Show <span class="kbd">G</span></span></label>
+      <label class="cb-row"><input type="checkbox" id="snap-grid" checked><span>Snap</span></label>
+      <div style="margin-top:6px">
+        <div class="field-label" style="margin-bottom:3px">Size (arena units)</div>
+        <input type="number" id="grid-size" class="small-input" value="50" min="10" max="200" step="10" onchange="render()">
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Elements</h3>
+      <div class="counts" id="counts">Obstacles: 0<br>Zones: 0<br>Traps: 0</div>
+    </div>
+
+  </aside>
+
+  <!-- Canvas -->
+  <div class="canvas-area" id="canvas-area">
+    <canvas id="editor-canvas"></canvas>
+  </div>
+
+  <!-- Properties panel -->
+  <aside class="right-panel">
+    <div class="section" style="flex:1">
+      <h3>Properties</h3>
+      <div id="props">
+        <div class="props-empty">
+          Select an element to edit its properties.<br><br>
+          <span class="kbd">S</span> Select &nbsp;
+          <span class="kbd">O</span> Obstacle<br>
+          <span class="kbd">Z</span> Zone &nbsp;
+          <span class="kbd">T</span> Trap<br>
+          <span class="kbd">Del</span> Delete &nbsp;
+          <span class="kbd">Ctrl+Z</span> Undo<br>
+          <span class="kbd">G</span> Toggle grid<br><br>
+          Drag to draw rects.<br>
+          Right-click to delete.
+        </div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<footer>
+  <span id="st-cursor" class="mono">Cursor: —</span>
+  <span id="st-tool">Tool: Select</span>
+  <span id="st-sel">Selected: none</span>
+  <span id="st-hint" style="margin-left:auto">Drag to draw • Click to select • Right-click to delete</span>
+</footer>
+
+<div id="toast"></div>
+<input type="file" id="file-input" accept=".json" style="display:none">
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const S = {
+  name: 'Untitled Map',
+  biomeType: 'fire',
+  arenaW: 2000,
+  arenaH: 1500,
+  obstacles: [],   // {id,x,y,w,h,biomeType}
+  zones: [],       // {id,x,y,w,h,type}
+  traps: [],       // {id,x,y,type,pairId}
+  // ui
+  tool: 'select',
+  selKind: null,
+  selId: null,
+  activeTrap: 'SLOW',
+  activeZone: 'LAVA',
+  // interaction
+  isDrawing: false,
+  drawStart: null,
+  drawRect: null,
+  isMoving: false,
+  moveOrigin: null,
+  moveElemStart: null,
+  pendingTeleId: null,
+  // history
+  undoStack: [],
+  redoStack: [],
+};
+
+let _id = 1;
+const uid = () => _id++;
+
+// ─── CANVAS ───────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('editor-canvas');
+const ctx = canvas.getContext('2d');
+let scale = 1, cW = 0, cH = 0;
+
+function resizeCanvas() {
+  const area = document.getElementById('canvas-area').getBoundingClientRect();
+  const pad = 24;
+  const sx = (area.width  - pad) / S.arenaW;
+  const sy = (area.height - pad) / S.arenaH;
+  scale = Math.min(sx, sy, 1.2);
+  cW = Math.round(S.arenaW * scale);
+  cH = Math.round(S.arenaH * scale);
+  canvas.width  = cW;
+  canvas.height = cH;
+  render();
+}
+window.addEventListener('resize', resizeCanvas);
+
+// ─── COORDS ───────────────────────────────────────────────────────────────────
+const toC  = (ax, ay) => ({ x: ax * scale, y: ay * scale });
+const toA  = (cx, cy) => ({ x: cx / scale, y: cy / scale });
+const snapG = () => parseInt(document.getElementById('grid-size').value) || 50;
+function snap(v) {
+  return document.getElementById('snap-grid').checked
+    ? Math.round(v / snapG()) * snapG()
+    : v;
+}
+function mouseArena(e) {
+  const r = canvas.getBoundingClientRect();
+  return toA(e.clientX - r.left, e.clientY - r.top);
+}
+
+// ─── VISUALS ──────────────────────────────────────────────────────────────────
+const ZONE_C = {
+  LAVA:        { fill: 'rgba(255,68,0,0.32)',    border: '#ff4400' },
+  ICE:         { fill: 'rgba(136,204,255,0.32)', border: '#88ccff' },
+  MUD:         { fill: 'rgba(139,94,60,0.42)',   border: '#a07040' },
+  WATER:       { fill: 'rgba(0,136,255,0.32)',   border: '#0088ff' },
+  MAGNET:      { fill: 'rgba(170,0,255,0.28)',   border: '#aa00ff' },
+  DARK_ENERGY: { fill: 'rgba(85,0,170,0.45)',    border: '#7722cc' },
+};
+const BIOME_C = {
+  fire: '#993300', ice: '#4488aa', water: '#224488',
+  plant: '#224411', metal: '#445566', black: '#1a1a33',
+};
+const TRAP_C = {
+  SLOW: '#4488ff', CONVEYOR: '#ffaa00', SPIKE: '#ff4444',
+  TURRET: '#aaaaaa', LASER_BEAM: '#ff0088', TELEPORTER: '#00ffcc',
+};
+const TRAP_ICON = {
+  SLOW: '❄', CONVEYOR: '➜', SPIKE: '✦', TURRET: '◉', LASER_BEAM: '⚡', TELEPORTER: '⬡',
+};
+
+// ─── ELEMENT LOOKUP ───────────────────────────────────────────────────────────
+function getEl(kind, id) {
+  if (kind === 'obstacle') return S.obstacles.find(o => o.id === id);
+  if (kind === 'zone')     return S.zones.find(z => z.id === id);
+  if (kind === 'trap')     return S.traps.find(t => t.id === id);
+  return null;
+}
+
+function hitTest(ax, ay) {
+  if (document.getElementById('show-traps').checked) {
+    for (let i = S.traps.length - 1; i >= 0; i--) {
+      const t = S.traps[i];
+      if ((ax - t.x) ** 2 + (ay - t.y) ** 2 < 52 ** 2) return { kind: 'trap', id: t.id };
+    }
+  }
+  if (document.getElementById('show-obs').checked) {
+    for (let i = S.obstacles.length - 1; i >= 0; i--) {
+      const o = S.obstacles[i];
+      if (ax >= o.x && ax <= o.x + o.w && ay >= o.y && ay <= o.y + o.h) return { kind: 'obstacle', id: o.id };
+    }
+  }
+  if (document.getElementById('show-zones').checked) {
+    for (let i = S.zones.length - 1; i >= 0; i--) {
+      const z = S.zones[i];
+      if (ax >= z.x && ax <= z.x + z.w && ay >= z.y && ay <= z.y + z.h) return { kind: 'zone', id: z.id };
+    }
+  }
+  return null;
+}
+
+// ─── UNDO / REDO ──────────────────────────────────────────────────────────────
+function snap_state() {
+  return JSON.stringify({ o: S.obstacles, z: S.zones, t: S.traps });
+}
+function push_undo() {
+  S.undoStack.push(snap_state());
+  if (S.undoStack.length > 40) S.undoStack.shift();
+  S.redoStack = [];
+}
+function restore(json) {
+  const d = JSON.parse(json);
+  S.obstacles = d.o; S.zones = d.z; S.traps = d.t;
+  S.selKind = null; S.selId = null;
+  updateProps(); updateCounts(); render();
+}
+
+function undo() {
+  if (!S.undoStack.length) { toast('Nothing to undo'); return; }
+  S.redoStack.push(snap_state());
+  restore(S.undoStack.pop());
+  toast('Undo');
+}
+function redo() {
+  if (!S.redoStack.length) return;
+  S.undoStack.push(snap_state());
+  restore(S.redoStack.pop());
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+let _toastTm;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(_toastTm);
+  _toastTm = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+// ─── TOOL MANAGEMENT ─────────────────────────────────────────────────────────
+function setTool(tool) {
+  S.tool = tool;
+  S.pendingTeleId = null;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tool-' + tool).classList.add('active');
+  document.getElementById('trap-type-section').style.display = tool === 'trap' ? '' : 'none';
+  document.getElementById('zone-type-section').style.display = tool === 'zone' ? '' : 'none';
+  document.getElementById('obs-biome-section').style.display = tool === 'obstacle' ? '' : 'none';
+  document.getElementById('st-tool').textContent = 'Tool: ' + tool[0].toUpperCase() + tool.slice(1);
+  canvas.style.cursor = tool === 'select' ? 'default' : 'crosshair';
+}
+
+function setTrapType(type) {
+  S.activeTrap = type;
+  document.querySelectorAll('#trap-type-list .type-opt').forEach(el => el.classList.toggle('active', el.dataset.type === type));
+}
+function setZoneType(type) {
+  S.activeZone = type;
+  document.querySelectorAll('#zone-type-list .type-opt').forEach(el => el.classList.toggle('active', el.dataset.type === type));
+}
+
+// ─── SELECTION ────────────────────────────────────────────────────────────────
+function select(kind, id) {
+  S.selKind = kind; S.selId = id;
+  const el = getEl(kind, id);
+  document.getElementById('st-sel').textContent = el ? `Selected: ${kind} #${id}` : 'Selected: none';
+  updateProps(); render();
+}
+function deselect() {
+  S.selKind = null; S.selId = null;
+  document.getElementById('st-sel').textContent = 'Selected: none';
+  updateProps(); render();
+}
+
+// ─── PROPERTIES PANEL ────────────────────────────────────────────────────────
+function updateProps() {
+  const el = S.selId ? getEl(S.selKind, S.selId) : null;
+  const cont = document.getElementById('props');
+  if (!el) {
+    cont.innerHTML = `<div class="props-empty">
+      Select an element to edit its properties.<br><br>
+      <span class="kbd">S</span> Select &nbsp; <span class="kbd">O</span> Obstacle<br>
+      <span class="kbd">Z</span> Zone &nbsp; <span class="kbd">T</span> Trap<br>
+      <span class="kbd">Del</span> Delete &nbsp; <span class="kbd">Ctrl+Z</span> Undo<br>
+      <span class="kbd">G</span> Toggle grid<br><br>
+      Drag to draw rects.<br>Right-click to delete.
+    </div>`;
+    return;
+  }
+  const kind = S.selKind;
+  let h = `<span class="badge badge-${kind === 'zone' ? 'zone' : kind}">${kind}</span>`;
+
+  const xyWH = `
+    <div class="prop-row"><label>X</label><input type="number" value="${Math.round(el.x)}" onchange="setProp('x',+this.value)"></div>
+    <div class="prop-row"><label>Y</label><input type="number" value="${Math.round(el.y)}" onchange="setProp('y',+this.value)"></div>`;
+  const wh = `
+    <div class="prop-row"><label>Width</label><input type="number" value="${Math.round(el.w)}" min="10" onchange="setProp('w',Math.max(10,+this.value))"></div>
+    <div class="prop-row"><label>Height</label><input type="number" value="${Math.round(el.h)}" min="10" onchange="setProp('h',Math.max(10,+this.value))"></div>`;
+
+  if (kind === 'obstacle') {
+    const opts = ['','fire','ice','water','plant','metal','black'].map(v =>
+      `<option value="${v}" ${el.biomeType===v||(v===''&&!el.biomeType)?'selected':''}>${v||'Stone (none)'}</option>`
+    ).join('');
+    h += xyWH + wh + `<div class="prop-row"><label>Biome</label><select onchange="setProp('biomeType',this.value||null)">${opts}</select></div>`;
+  } else if (kind === 'zone') {
+    const zTypes = ['LAVA','ICE','MUD','WATER','MAGNET','DARK_ENERGY'];
+    const opts = zTypes.map(t => `<option value="${t}" ${el.type===t?'selected':''}>${t}</option>`).join('');
+    h += xyWH + wh + `<div class="prop-row"><label>Zone Type</label><select onchange="setProp('type',this.value)">${opts}</select></div>`;
+  } else if (kind === 'trap') {
+    const tTypes = ['SLOW','CONVEYOR','SPIKE','TURRET','LASER_BEAM','TELEPORTER'];
+    const opts = tTypes.map(t => `<option value="${t}" ${el.type===t?'selected':''}>${t}</option>`).join('');
+    h += xyWH + `<div class="prop-row"><label>Type</label><select onchange="setProp('type',this.value)">${opts}</select></div>`;
+    if (el.type === 'TELEPORTER') {
+      const partner = el.pairId ? S.traps.find(t => t.id === el.pairId) : null;
+      h += `<div class="prop-row"><label>Teleporter Pair</label>
+        <div style="font-size:11px;color:var(--text-muted)">
+          ${partner ? `Paired with #${partner.id}` : 'No pair — place another teleporter to auto-pair'}
+        </div>
+        ${partner ? `<button class="del-btn" style="margin-top:4px" onclick="unpairTele(${el.id})">Unpair</button>` : ''}
+      </div>`;
+    }
+  }
+
+  h += `<button class="del-btn" onclick="deleteSelected()">Delete (Del)</button>`;
+  cont.innerHTML = h;
+}
+
+function setProp(field, value) {
+  const el = getEl(S.selKind, S.selId);
+  if (!el) return;
+  push_undo();
+  el[field] = value;
+  updateProps(); render();
+}
+
+function unpairTele(id) {
+  push_undo();
+  const a = S.traps.find(t => t.id === id);
+  if (!a) return;
+  const b = a.pairId ? S.traps.find(t => t.id === a.pairId) : null;
+  if (b) b.pairId = null;
+  a.pairId = null;
+  updateProps(); render();
+}
+
+// ─── DELETE ───────────────────────────────────────────────────────────────────
+function deleteSelected() {
+  if (!S.selId) return;
+  push_undo();
+  if (S.selKind === 'obstacle') {
+    S.obstacles = S.obstacles.filter(o => o.id !== S.selId);
+  } else if (S.selKind === 'zone') {
+    S.zones = S.zones.filter(z => z.id !== S.selId);
+  } else if (S.selKind === 'trap') {
+    const t = S.traps.find(t => t.id === S.selId);
+    if (t?.pairId) { const p = S.traps.find(t2 => t2.id === t.pairId); if (p) p.pairId = null; }
+    S.traps = S.traps.filter(t => t.id !== S.selId);
+  }
+  deselect(); updateCounts();
+}
+
+function updateCounts() {
+  document.getElementById('counts').innerHTML =
+    `Obstacles: ${S.obstacles.length}<br>Zones: ${S.zones.length}<br>Traps: ${S.traps.length}`;
+}
+
+// ─── MOUSE ────────────────────────────────────────────────────────────────────
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 2) return; // context menu handles it
+  const { x: ax, y: ay } = mouseArena(e);
+
+  if (S.tool === 'select') {
+    const hit = hitTest(ax, ay);
+    if (hit) {
+      select(hit.kind, hit.id);
+      S.isMoving = true;
+      S.moveOrigin = { ax, ay };
+      S.moveElemStart = { ...getEl(hit.kind, hit.id) };
+      push_undo();
+    } else { deselect(); }
+  } else if (S.tool === 'trap') {
+    placeTrap(snap(ax), snap(ay));
+  } else {
+    S.isDrawing = true;
+    S.drawStart = { ax: snap(ax), ay: snap(ay) };
+    S.drawRect = null;
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const { x: ax, y: ay } = mouseArena(e);
+  document.getElementById('st-cursor').textContent =
+    `Cursor: ${Math.round(Math.max(0, Math.min(S.arenaW, ax)))}, ${Math.round(Math.max(0, Math.min(S.arenaH, ay)))}`;
+
+  if (S.isDrawing && S.drawStart) {
+    const sx = Math.min(S.drawStart.ax, snap(ax));
+    const sy = Math.min(S.drawStart.ay, snap(ay));
+    const ex = Math.max(S.drawStart.ax, snap(ax));
+    const ey = Math.max(S.drawStart.ay, snap(ay));
+    S.drawRect = { x: sx, y: sy, w: Math.max(10, ex - sx), h: Math.max(10, ey - sy) };
+    render();
+  }
+
+  if (S.isMoving && S.selId) {
+    const dx = ax - S.moveOrigin.ax;
+    const dy = ay - S.moveOrigin.ay;
+    const el = getEl(S.selKind, S.selId);
+    if (el) {
+      el.x = snap(Math.max(0, S.moveElemStart.x + dx));
+      el.y = snap(Math.max(0, S.moveElemStart.y + dy));
+      updateProps(); render();
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (S.isDrawing && S.drawStart && S.drawRect && S.drawRect.w >= 10 && S.drawRect.h >= 10) {
+    push_undo();
+    if (S.tool === 'obstacle') {
+      const biomeType = document.getElementById('obs-biome').value || null;
+      const id = uid();
+      S.obstacles.push({ id, ...S.drawRect, biomeType });
+      select('obstacle', id);
+    } else if (S.tool === 'zone') {
+      const id = uid();
+      S.zones.push({ id, ...S.drawRect, type: S.activeZone });
+      select('zone', id);
+    }
+    updateCounts();
+  }
+
+  if (S.isMoving && S.selId) {
+    const el = getEl(S.selKind, S.selId);
+    if (el) {
+      el.x = Math.max(0, Math.min(S.arenaW - (el.w ?? 100), el.x));
+      el.y = Math.max(0, Math.min(S.arenaH - (el.h ?? 100), el.y));
+      updateProps();
+    }
+  }
+
+  S.isDrawing = false; S.isMoving = false;
+  S.drawStart = null; S.moveOrigin = null;
+  S.moveElemStart = null; S.drawRect = null;
+  render();
+});
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const { x: ax, y: ay } = mouseArena(e);
+  const hit = hitTest(ax, ay);
+  if (hit) { select(hit.kind, hit.id); deleteSelected(); }
+});
+
+// ─── PLACE TRAP ───────────────────────────────────────────────────────────────
+function placeTrap(ax, ay) {
+  ax = Math.max(52, Math.min(S.arenaW - 52, ax));
+  ay = Math.max(52, Math.min(S.arenaH - 52, ay));
+  push_undo();
+  const id = uid();
+  const trap = { id, x: ax, y: ay, type: S.activeTrap, pairId: null };
+
+  if (S.activeTrap === 'TELEPORTER') {
+    if (S.pendingTeleId !== null) {
+      const pending = S.traps.find(t => t.id === S.pendingTeleId);
+      if (pending) { pending.pairId = id; trap.pairId = S.pendingTeleId; }
+      S.pendingTeleId = null;
+      toast('Teleporter pair linked!');
+    } else {
+      S.pendingTeleId = id;
+      toast('Place second teleporter to pair…');
+    }
+  }
+
+  S.traps.push(trap);
+  select('trap', id);
+  updateCounts(); render();
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render() {
+  ctx.clearRect(0, 0, cW, cH);
+
+  // Background
+  ctx.fillStyle = '#131520';
+  ctx.fillRect(0, 0, cW, cH);
+
+  // Arena border
+  ctx.strokeStyle = '#ffffff1a';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, cW - 1, cH - 1);
+
+  // Grid
+  if (document.getElementById('show-grid').checked) {
+    const g = snapG();
+    ctx.strokeStyle = '#ffffff08';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    for (let x = 0; x <= S.arenaW; x += g) { const cx = x * scale; ctx.moveTo(cx, 0); ctx.lineTo(cx, cH); }
+    for (let y = 0; y <= S.arenaH; y += g) { const cy = y * scale; ctx.moveTo(0, cy); ctx.lineTo(cW, cy); }
+    ctx.stroke();
+    // Center cross
+    ctx.strokeStyle = '#ffffff14'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cW / 2, 0); ctx.lineTo(cW / 2, cH);
+    ctx.moveTo(0, cH / 2); ctx.lineTo(cW, cH / 2);
+    ctx.stroke();
+  }
+
+  // Spawn safe zone (200×200 center)
+  {
+    const sz = 200, cx = (S.arenaW / 2 - sz / 2) * scale, cy = (S.arenaH / 2 - sz / 2) * scale;
+    const cw = sz * scale, ch = sz * scale;
+    ctx.fillStyle = 'rgba(255,255,80,0.04)';
+    ctx.fillRect(cx, cy, cw, ch);
+    ctx.setLineDash([3, 4]);
+    ctx.strokeStyle = 'rgba(255,255,80,0.2)'; ctx.lineWidth = 1;
+    ctx.strokeRect(cx, cy, cw, ch);
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,255,80,0.25)';
+    ctx.font = `${Math.max(8, Math.round(9 * scale))}px monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('SPAWN', cW / 2, cH / 2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  // Biome zones
+  if (document.getElementById('show-zones').checked) {
+    for (const z of S.zones) {
+      const c = ZONE_C[z.type] || { fill: 'rgba(128,128,128,0.28)', border: '#888' };
+      const cx = z.x * scale, cy = z.y * scale, cw = z.w * scale, ch = z.h * scale;
+      ctx.fillStyle = c.fill; ctx.fillRect(cx, cy, cw, ch);
+      ctx.strokeStyle = S.selId === z.id ? '#ffffff' : c.border;
+      ctx.lineWidth = S.selId === z.id ? 2 : 1;
+      ctx.strokeRect(cx, cy, cw, ch);
+      ctx.fillStyle = c.border;
+      ctx.font = `${Math.max(7, Math.round(10 * scale))}px monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(z.type, cx + cw / 2, cy + ch / 2);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    }
+  }
+
+  // Obstacles
+  if (document.getElementById('show-obs').checked) {
+    for (const o of S.obstacles) {
+      const col = o.biomeType ? (BIOME_C[o.biomeType] || '#555') : '#44444e';
+      const cx = o.x * scale, cy = o.y * scale, cw = o.w * scale, ch = o.h * scale;
+      ctx.fillStyle = col; ctx.fillRect(cx, cy, cw, ch);
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(cx + 1, cy + 1, cw - 2, Math.min(5, ch - 2));
+      ctx.strokeStyle = S.selId === o.id ? '#ffffff' : 'rgba(255,255,255,0.18)';
+      ctx.lineWidth = S.selId === o.id ? 2 : 1;
+      ctx.strokeRect(cx, cy, cw, ch);
+    }
+  }
+
+  // Traps
+  if (document.getElementById('show-traps').checked) {
+    for (const t of S.traps) {
+      const col = TRAP_C[t.type] || '#888';
+      const cx = t.x * scale, cy = t.y * scale;
+      const r = 22 * scale;
+
+      // Footprint (100×100)
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = col + '44'; ctx.lineWidth = 0.5;
+      ctx.strokeRect(cx - 50 * scale, cy - 50 * scale, 100 * scale, 100 * scale);
+      ctx.setLineDash([]);
+
+      // Teleporter pair line
+      if (t.type === 'TELEPORTER' && t.pairId) {
+        const p = S.traps.find(t2 => t2.id === t.pairId);
+        if (p && p.id > t.id) {
+          ctx.strokeStyle = '#00ffcc55'; ctx.lineWidth = 1;
+          ctx.setLineDash([5, 4]);
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(p.x * scale, p.y * scale); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      // Body circle
+      ctx.fillStyle = col + '3a';
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = S.selId === t.id ? '#ffffff' : col;
+      ctx.lineWidth = S.selId === t.id ? 2.5 : 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+
+      // Icon
+      ctx.fillStyle = S.selId === t.id ? '#ffffff' : col;
+      ctx.font = `${Math.max(9, Math.round(13 * scale))}px monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(TRAP_ICON[t.type] || '?', cx, cy);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+
+      // Pending teleporter glow
+      if (t.id === S.pendingTeleId) {
+        ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx, cy, r + 7, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+  }
+
+  // Rubber-band preview
+  if (S.drawRect && S.isDrawing) {
+    const { x, y, w, h } = S.drawRect;
+    const cx = x * scale, cy = y * scale, cw = w * scale, ch = h * scale;
+    if (S.tool === 'obstacle') {
+      const biomeType = document.getElementById('obs-biome').value;
+      ctx.fillStyle = (biomeType ? BIOME_C[biomeType] : '#44444e') + '88';
+      ctx.fillRect(cx, cy, cw, ch);
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]); ctx.strokeRect(cx, cy, cw, ch); ctx.setLineDash([]);
+    } else if (S.tool === 'zone') {
+      const c = ZONE_C[S.activeZone] || { fill: 'rgba(128,128,128,0.3)', border: '#888' };
+      ctx.fillStyle = c.fill; ctx.fillRect(cx, cy, cw, ch);
+      ctx.strokeStyle = c.border; ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]); ctx.strokeRect(cx, cy, cw, ch); ctx.setLineDash([]);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '10px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.round(w)}×${Math.round(h)}`, cx + cw / 2, cy + ch / 2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+}
+
+// ─── KEYBOARD ────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const k = e.key;
+  if (k === 's' || k === 'S') setTool('select');
+  else if (k === 'o' || k === 'O') setTool('obstacle');
+  else if (!e.ctrlKey && !e.metaKey && (k === 'z' || k === 'Z')) setTool('zone');
+  else if (k === 't' || k === 'T') setTool('trap');
+  else if (k === 'g' || k === 'G') {
+    const el = document.getElementById('show-grid');
+    el.checked = !el.checked; render();
+  }
+  else if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); deleteSelected(); }
+  else if (k === 'Escape') { deselect(); S.pendingTeleId = null; }
+  else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && k === 'z') { e.preventDefault(); undo(); }
+  else if ((e.ctrlKey || e.metaKey) && (k === 'y' || (e.shiftKey && k === 'Z'))) { e.preventDefault(); redo(); }
+});
+
+// ─── EXPORT / IMPORT ─────────────────────────────────────────────────────────
+function buildJSON() {
+  const trapArr = S.traps.map((t, i) => {
+    const obj = { x: Math.round(t.x), y: Math.round(t.y), type: t.type };
+    if (t.pairId !== null && t.pairId !== undefined) {
+      const pi = S.traps.findIndex(t2 => t2.id === t.pairId);
+      if (pi >= 0) obj.pairIndex = pi;
+    }
+    return obj;
+  });
+  return {
+    version: 1,
+    name: document.getElementById('map-name').value.trim() || 'Untitled',
+    biomeType: document.getElementById('biome-select').value,
+    arenaWidth:  parseInt(document.getElementById('arena-w').value)  || 2000,
+    arenaHeight: parseInt(document.getElementById('arena-h').value) || 1500,
+    obstacles: S.obstacles.map(o => ({ x: Math.round(o.x), y: Math.round(o.y), w: Math.round(o.w), h: Math.round(o.h), biomeType: o.biomeType || null })),
+    biomeZones: S.zones.map(z => ({ x: Math.round(z.x), y: Math.round(z.y), w: Math.round(z.w), h: Math.round(z.h), type: z.type })),
+    traps: trapArr,
+  };
+}
+
+function exportJSON() {
+  const data = buildJSON();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: url, download: (data.name).replace(/[^a-z0-9_-]/gi, '_') + '.json' });
+  a.click(); URL.revokeObjectURL(url);
+  toast('Exported ' + a.download);
+}
+
+function copyJSON() {
+  navigator.clipboard.writeText(JSON.stringify(buildJSON(), null, 2))
+    .then(() => toast('JSON copied!'))
+    .catch(() => toast('Copy failed — use Export instead'));
+}
+
+function saveToFile() { exportJSON(); }
+
+function loadFromFile() { document.getElementById('file-input').click(); }
+
+document.getElementById('file-input').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = ev => {
+    try { loadMapData(JSON.parse(ev.target.result)); toast('Loaded: ' + f.name); }
+    catch { toast('Error: invalid JSON'); }
+  };
+  rd.readAsText(f); e.target.value = '';
+});
+
+function loadMapData(data) {
+  push_undo();
+  S.name = data.name || 'Untitled';
+  document.getElementById('map-name').value = S.name;
+  if (data.biomeType) document.getElementById('biome-select').value = data.biomeType;
+  S.arenaW = data.arenaWidth  || 2000; document.getElementById('arena-w').value = S.arenaW;
+  S.arenaH = data.arenaHeight || 1500; document.getElementById('arena-h').value = S.arenaH;
+
+  _id = 1;
+  S.obstacles = (data.obstacles || []).map(o => ({ id: uid(), x: o.x, y: o.y, w: o.w, h: o.h, biomeType: o.biomeType ?? null }));
+  S.zones     = (data.biomeZones || []).map(z => ({ id: uid(), x: z.x, y: z.y, w: z.w, h: z.h, type: z.type }));
+
+  const trapObjs = (data.traps || []).map(t => ({ id: uid(), x: t.x, y: t.y, type: t.type, pairId: null }));
+  // Wire TELEPORTER pairs via pairIndex
+  (data.traps || []).forEach((t, i) => {
+    if (t.type === 'TELEPORTER' && typeof t.pairIndex === 'number' && trapObjs[t.pairIndex]) {
+      trapObjs[i].pairId = trapObjs[t.pairIndex].id;
+    }
+  });
+  S.traps = trapObjs;
+
+  deselect(); updateCounts(); resizeCanvas();
+}
+
+function newMap() {
+  if (S.obstacles.length + S.zones.length + S.traps.length > 0) {
+    if (!confirm('Discard current map and start new?')) return;
+  }
+  push_undo();
+  S.obstacles = []; S.zones = []; S.traps = []; _id = 1;
+  document.getElementById('map-name').value = 'Untitled Map';
+  deselect(); updateCounts(); render(); toast('New map');
+}
+
+// ─── HEADER SYNC ─────────────────────────────────────────────────────────────
+document.getElementById('arena-w').addEventListener('change', () => { S.arenaW = +document.getElementById('arena-w').value || 2000; resizeCanvas(); });
+document.getElementById('arena-h').addEventListener('change', () => { S.arenaH = +document.getElementById('arena-h').value || 1500; resizeCanvas(); });
+document.getElementById('biome-select').addEventListener('change', render);
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+resizeCanvas();
+setTool('select');
+updateCounts();
+</script>
+</body>
+</html>

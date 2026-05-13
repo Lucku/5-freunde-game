@@ -1,3 +1,9 @@
 # General
-- DCLs don't load in Electron app
-- Enable Markfown formatting in "Whats New" screen
+- TimeHero.js:67 Uncaught TypeError: Cannot read properties of undefined (reading 'altar')
+    at TimeHero.init (TimeHero.js:67:34)
+    at new Player (Player.js:120:42)
+    at startGame (game.js:4305:14)
+    at startStoryGame (game.js:1413:5)
+    at checkNewGame (game.js:2045:31)
+    at HTMLButtonElement.onclick (game.html:1:1)
+- For shared stories - finishing the story with one hero should unlock story mode with the other

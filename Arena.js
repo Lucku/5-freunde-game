@@ -294,6 +294,36 @@ class Arena {
         this._rebuildStaticObstacleLayer();
     }
 
+    // #102 — Load a custom map produced by the map editor.
+    // mapData shape: { biomeType, arenaWidth?, arenaHeight?, obstacles[], biomeZones[], traps[] }
+    // traps entries may include pairIndex (int) to wire TELEPORTER pairs.
+    generateFromMap(mapData) {
+        if (!mapData || typeof mapData !== 'object') return;
+        this.biomeType = mapData.biomeType || 'fire';
+        if (mapData.arenaWidth) this.width = mapData.arenaWidth;
+        if (mapData.arenaHeight) this.height = mapData.arenaHeight;
+
+        this.obstacles = (mapData.obstacles || []).map(
+            o => new Obstacle(o.x, o.y, o.w, o.h, o.biomeType ?? null)
+        );
+        this.biomeZones = (mapData.biomeZones || []).map(
+            z => new BiomeZone(z.x, z.y, z.w, z.h, z.type)
+        );
+        this.traps = (mapData.traps || []).map(t => new Trap(t.x, t.y, t.type));
+
+        // Wire TELEPORTER pairs via pairIndex
+        if (mapData.traps) {
+            mapData.traps.forEach((t, i) => {
+                if (t.type === 'TELEPORTER' && typeof t.pairIndex === 'number') {
+                    const partner = this.traps[t.pairIndex];
+                    if (partner) this.traps[i].pair = partner;
+                }
+            });
+        }
+
+        this._rebuildStaticObstacleLayer();
+    }
+
     draw(ctx, theme) {
         // Draw Background (Only visible area)
         ctx.fillStyle = theme.bg;
