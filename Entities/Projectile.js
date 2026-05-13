@@ -230,6 +230,149 @@ class Projectile {
             ctx.globalAlpha = 1;
             ctx.shadowBlur = 0;
 
+        } else if (this.type === 'smoke') {
+            // SMOKE PUFF: dark wispy orb with trailing tendrils
+            const t = NOW;
+            const r = this.radius;
+            const pulse = 0.85 + 0.15 * Math.sin(t * 0.012);
+
+            ctx.rotate(angle);
+
+            // Outer smoky aura
+            const aura = cachedRadial(ctx, `proj-smoke-aura:${r}`, r * 0.2, r * 2.0, [
+                [0,   'rgba(90, 90, 110, 0.55)'],
+                [0.5, 'rgba(60, 60, 75, 0.25)'],
+                [1,   'rgba(15, 15, 20, 0)']
+            ]);
+            ctx.fillStyle = aura;
+            ctx.beginPath(); ctx.arc(0, 0, r * 2.0 * pulse, 0, Math.PI * 2); ctx.fill();
+
+            // Trailing wisps behind direction of travel
+            ctx.fillStyle = 'rgba(60, 60, 75, 0.45)';
+            ctx.beginPath(); ctx.arc(-r * 1.8, -r * 0.3 + Math.sin(t * 0.02) * r * 0.2, r * 0.55, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-r * 2.8,  r * 0.3 + Math.cos(t * 0.02) * r * 0.2, r * 0.35, 0, Math.PI * 2); ctx.fill();
+
+            // Dark inner core
+            const core = cachedRadial(ctx, `proj-smoke-core:${r}`, 0, r, [
+                [0,   '#3a3a48'],
+                [0.6, '#1a1a22'],
+                [1,   '#0f0f14']
+            ]);
+            ctx.fillStyle = core;
+            ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, Math.PI * 2); ctx.fill();
+
+            // Subtle swirl
+            ctx.strokeStyle = 'rgba(140, 140, 160, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.6, t * 0.01 % (Math.PI * 2), (t * 0.01 % (Math.PI * 2)) + Math.PI);
+            ctx.stroke();
+
+        } else if (this.type === 'mirror') {
+            // MIRROR SHARD: angular glass fragment with prismatic sheen
+            const t = NOW;
+            const r = this.radius;
+
+            ctx.rotate(angle);
+
+            // Faint blue glow
+            ctx.shadowColor = '#5dade2';
+            ctx.shadowBlur  = 8;
+
+            // Elongated diamond shard
+            ctx.beginPath();
+            ctx.moveTo(r * 2.2, 0);
+            ctx.lineTo(0, -r * 0.8);
+            ctx.lineTo(-r * 1.4, 0);
+            ctx.lineTo(0, r * 0.8);
+            ctx.closePath();
+
+            // Glassy gradient body
+            const body = cachedRadial(ctx, `proj-mirror-body:${r}`, 0, r * 1.6, [
+                [0,   'rgba(220, 240, 255, 0.95)'],
+                [0.5, 'rgba(93, 173, 226, 0.85)'],
+                [1,   'rgba(26, 82, 118, 0.9)']
+            ]);
+            ctx.fillStyle = body;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Dark edge outline
+            ctx.strokeStyle = '#0e2e44';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Bright sheen stripe (prism highlight) — shifts with time
+            ctx.globalAlpha = 0.7;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.moveTo(r * 1.2, -r * 0.25);
+            ctx.lineTo(-r * 0.4, r * 0.25);
+            ctx.stroke();
+
+            // Rainbow refraction tick
+            ctx.strokeStyle = `hsl(${(t * 0.1) % 360}, 80%, 70%)`;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(r * 0.6, -r * 0.45);
+            ctx.lineTo(r * 0.1, -r * 0.1);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+
+        } else if (this.type === 'psycho') {
+            // PSYCHIC BOLT: erratic teal orb with crackling sparks
+            const t = NOW;
+            const r = this.radius;
+            const pulse = 0.8 + 0.2 * Math.sin(t * 0.025);
+
+            // Outer psychic aura
+            const aura = cachedRadial(ctx, `proj-psycho-aura:${r}`, r * 0.2, r * 2.0, [
+                [0,   'rgba(26, 188, 156, 0.5)'],
+                [0.5, 'rgba(155, 89, 182, 0.25)'],
+                [1,   'rgba(26, 188, 156, 0)']
+            ]);
+            ctx.fillStyle = aura;
+            ctx.beginPath(); ctx.arc(0, 0, r * 2.0, 0, Math.PI * 2); ctx.fill();
+
+            // Pulsing teal core
+            const core = cachedRadial(ctx, `proj-psycho-core:${r}`, 0, r, [
+                [0,   '#e8fff8'],
+                [0.4, '#1abc9c'],
+                [1,   '#117a65']
+            ]);
+            ctx.shadowColor = '#1abc9c';
+            ctx.shadowBlur  = 10 * pulse;
+            ctx.fillStyle = core;
+            ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Erratic spark arcs — 3 short jagged lines around the orb
+            ctx.strokeStyle = 'rgba(232, 255, 248, 0.85)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 3; i++) {
+                const baseA = (t * 0.01 + i * (Math.PI * 2 / 3)) % (Math.PI * 2);
+                const x0 = Math.cos(baseA) * r * 1.1;
+                const y0 = Math.sin(baseA) * r * 1.1;
+                const x1 = Math.cos(baseA) * r * 1.8 + Math.sin(t * 0.05 + i) * r * 0.3;
+                const y1 = Math.sin(baseA) * r * 1.8 + Math.cos(t * 0.05 + i) * r * 0.3;
+                ctx.beginPath();
+                ctx.moveTo(x0, y0);
+                ctx.lineTo((x0 + x1) * 0.5 + Math.sin(t * 0.08 + i * 2) * r * 0.25, (y0 + y1) * 0.5 + Math.cos(t * 0.08 + i * 2) * r * 0.25);
+                ctx.lineTo(x1, y1);
+                ctx.stroke();
+            }
+
+            // Magenta counter-rotating ring
+            ctx.save();
+            ctx.rotate(-t * 0.006);
+            ctx.strokeStyle = 'rgba(155, 89, 182, 0.6)';
+            ctx.lineWidth = 0.9;
+            ctx.setLineDash([3, 4]);
+            ctx.beginPath(); ctx.arc(0, 0, r * 1.3, 0, Math.PI * 2); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+
         } else {
             // FALLBACK / ENEMY
             ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2);

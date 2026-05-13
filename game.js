@@ -5353,6 +5353,33 @@ let _debugOverlayOn = false;
 const _frameTimes = new Array(120).fill(0);
 let _frameIdx = 0;
 let _lastDebugUpdateMs = 0;
+
+// #24/#30 P10 — Phase timing infrastructure. Records per-phase ms over a
+// rolling 120-frame window so the F1 overlay can show where main-thread time
+// goes. Used to decide whether the speculative #24 (worker AI) and #30
+// (WebGL/Pixi) passes are worth the rewrite cost. Active only while the
+// overlay is on so non-debug runs pay zero overhead.
+const _phaseTimes = {
+    frameWork: new Array(120).fill(0),
+    enemies:   new Array(120).fill(0),
+};
+function _recordPhase(name, ms) {
+    const arr = _phaseTimes[name];
+    if (!arr) return;
+    arr[_frameIdx] = ms;
+}
+function _phaseP50(name) {
+    const arr = _phaseTimes[name];
+    if (!arr) return 0;
+    const sorted = arr.filter(v => v > 0).sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length * 0.5)] || 0;
+}
+function _phaseP99(name) {
+    const arr = _phaseTimes[name];
+    if (!arr) return 0;
+    const sorted = arr.filter(v => v > 0).sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length * 0.99)] || 0;
+}
 function _toggleDebugOverlay() {
     _debugOverlayOn = !_debugOverlayOn;
     const el = document.getElementById('debug-overlay');
@@ -5386,6 +5413,15 @@ function _updateDebugOverlay(frameMs) {
     const _phStats = _ph && _ph.stats ? _ph.stats() : { buckets: 0, maxBucket: 0 };
     const hitStop  = _hitStopFrames;
     const wv       = (typeof wave !== 'undefined') ? wave : 0;
+    // #24/#30 P10 — phase breakdown. `frameWork` is total main-thread time
+    // in masterFrame body; `enemies` is the per-frame enemy update + draw +
+    // collision phase. Used to gate the speculative #24 (worker AI) /
+    // #30 (WebGL/Pixi) passes — if `enemies` p99 < 4ms or `frameWork` p99
+    // < 8ms at wave 30+, the rewrite cost outweighs the perf win.
+    const fwP50 = _phaseP50('frameWork');
+    const fwP99 = _phaseP99('frameWork');
+    const enP50 = _phaseP50('enemies');
+    const enP99 = _phaseP99('enemies');
     el.textContent =
         `FPS:    ${fps} (p50 ${p50.toFixed(1)}ms / p99 ${p99.toFixed(1)}ms)\n` +
         `Wave:   ${wv}\n` +
@@ -5397,13 +5433,19 @@ function _updateDebugOverlay(frameMs) {
         `EnemyHash:   ${_ehStats.buckets} cells, max ${_ehStats.maxBucket}\n` +
         `ProjHash:    ${_phStats.buckets} cells, max ${_phStats.maxBucket}\n` +
         `HitStop: ${hitStop}\n` +
+        `Frame work: p50 ${fwP50.toFixed(1)}ms / p99 ${fwP99.toFixed(1)}ms\n` +
+        `Enemies ph: p50 ${enP50.toFixed(1)}ms / p99 ${enP99.toFixed(1)}ms\n` +
         `F1 to hide`;
 }
 
 // Per-fixed-frame body. Invoked by the GameLoop harness once every ~16.6 ms.
 // The rAF dispatch + dt-gate now live in GameLoop.js.
 function masterFrame(deltaTime, timestamp) {
-    {
+    // #10 P10 — measure actual frame work time, not the rAF delta. Wrap the
+    // body in try/finally so timing covers every return path (museum skip,
+    // game-over early return). Negligible overhead when overlay is off.
+    const _frameT0 = performance.now();
+    try {
         _updateDebugOverlay(deltaTime); // #148
 
         // Always handle UI input
@@ -7322,6 +7364,10 @@ function masterFrame(deltaTime, timestamp) {
             if (_enemyHashActive) _enemySpatialHash.rebuild(enemies);
             if (_projectileHashActive) _projectileSpatialHash.rebuild(projectiles);
 
+            // #24 P10 — time the enemy update + draw + collision phase.
+            // Wave 30+ profile feeds the decision whether a Web Worker AI
+            // pass (#24) is worth the rewrite.
+            const _enemiesT0 = performance.now();
             for (let eIndex = enemies.length - 1; eIndex >= 0; eIndex--) {
                 const enemy = enemies[eIndex];
                 if (enemy.dead) { enemies.splice(eIndex, 1); continue; }
@@ -7821,6 +7867,7 @@ function masterFrame(deltaTime, timestamp) {
                     }
                 }
             }
+            _recordPhase('enemies', performance.now() - _enemiesT0); // #24 P10
 
             // Restore Camera Transform
             ctx.restore();
@@ -8147,6 +8194,9 @@ function masterFrame(deltaTime, timestamp) {
                 return; // Stop processing frame
             }
         }
+    } finally {
+        // #24/#30 P10 — record actual main-thread work time per frame.
+        _recordPhase('frameWork', performance.now() - _frameT0);
     }
 }
 
