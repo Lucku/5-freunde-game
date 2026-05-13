@@ -190,6 +190,98 @@ class AudioManager {
         this._audioCtx = null;
         this._musicFilter = null;
         this._musicNodes = new WeakMap();
+
+        // #34 P8 — Web Audio buffer cache for hot SFX. cloneNode() per shot
+        // is ~0.5–1ms on Chrome (HTMLAudioElement clone + decode); an
+        // AudioBufferSourceNode is ~0.01ms. Hot SFX list mirrors the #15
+        // tiered-preload hot set (12 entries). Decode happens off the main
+        // thread via fetch + decodeAudioData. Suspended AudioContext is fine
+        // for decoding; first play after user gesture resumes + plays. Decode
+        // is fire-and-forget at boot; play() falls back to the cloneNode
+        // path when the buffer isn't ready yet (first wave or two).
+        this._sfxBuffers = new Map();
+        this._sfxLoading = new Map();
+        this._prewarmHotSFX();
+    }
+
+    // #34 P8 — Lazily create the shared AudioContext on first need. Same
+    // instance powers the pause low-pass filter (#167) + Web Audio SFX.
+    _ensureAudioCtx() {
+        if (this._audioCtx) return this._audioCtx;
+        const Ctor = (typeof window !== 'undefined') && (window.AudioContext || window.webkitAudioContext);
+        if (!Ctor) return null;
+        try { this._audioCtx = new Ctor(); }
+        catch (_) { return null; }
+        return this._audioCtx;
+    }
+
+    // #34 P8 — fetch + decodeAudioData a single SFX into an AudioBuffer.
+    // Returns a promise; memoized so concurrent callers share work.
+    _loadSFXBuffer(key) {
+        if (this._sfxBuffers.has(key)) return Promise.resolve(this._sfxBuffers.get(key));
+        const inflight = this._sfxLoading.get(key);
+        if (inflight) return inflight;
+
+        const track = this.tracks[key];
+        if (!track || !track.src) return Promise.resolve(null);
+        const ctx = this._ensureAudioCtx();
+        if (!ctx) return Promise.resolve(null);
+
+        const p = fetch(track.src)
+            .then(r => r.arrayBuffer())
+            .then(ab => ctx.decodeAudioData(ab))
+            .then(buf => {
+                this._sfxBuffers.set(key, buf);
+                this._sfxLoading.delete(key);
+                return buf;
+            })
+            .catch(e => {
+                this._sfxLoading.delete(key);
+                console.warn(`AudioManager: SFX decode failed for ${key}:`, e);
+                return null;
+            });
+        this._sfxLoading.set(key, p);
+        return p;
+    }
+
+    // Fire-and-forget prewarm of hot SFX after construction. Skipped when no
+    // AudioContext support — falls back to HTMLAudio cloneNode forever.
+    _prewarmHotSFX() {
+        if (typeof window === 'undefined') return;
+        if (!(window.AudioContext || window.webkitAudioContext)) return;
+        const HOT = [
+            'damage', 'death', 'dash', 'melee_all', 'enemy_damage', 'level_up',
+            'attack_fire', 'attack_water', 'attack_ice', 'attack_plant',
+            'attack_metal', 'attack_black'
+        ];
+        // Defer one tick so the constructor finishes wiring before any decode
+        // landings hit the manager's state. setTimeout(_, 0) is sufficient.
+        setTimeout(() => {
+            for (const k of HOT) this._loadSFXBuffer(k);
+        }, 0);
+    }
+
+    // Try the Web Audio fast path. Returns true if it played, false if the
+    // buffer isn't ready yet (caller falls back to cloneNode).
+    _playBuffer(key, volume) {
+        const buf = this._sfxBuffers.get(key);
+        const ctx = this._audioCtx;
+        if (!buf || !ctx) return false;
+        // Suspended AudioContext after a user gesture: resume so the start()
+        // below actually emits. Pre-gesture call would no-op silently.
+        if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) { /* noop */ } }
+        try {
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            const gain = ctx.createGain();
+            gain.gain.value = volume;
+            src.connect(gain);
+            gain.connect(ctx.destination);
+            src.start(0);
+            return true;
+        } catch (_) {
+            return false;
+        }
     }
 
     // #167 — connect a music track into the AudioContext graph the first
@@ -511,11 +603,14 @@ class AudioManager {
         } else {
             if (!this.sfxEnabled) return;
             const track = this.tracks[trackName];
-            if (track) {
-                const sfx = track.cloneNode();
-                sfx.volume = track.volume;
-                sfx.play().catch(() => {});
-            }
+            if (!track) return;
+            // #34 P8 — prefer Web Audio (cheap AudioBufferSourceNode) when the
+            // buffer is decoded; fall back to cloneNode HTMLAudio for SFX not
+            // in the prewarm list or while their decode is still in-flight.
+            if (this._playBuffer(trackName, track.volume)) return;
+            const sfx = track.cloneNode();
+            sfx.volume = track.volume;
+            sfx.play().catch(() => {});
         }
     }
 

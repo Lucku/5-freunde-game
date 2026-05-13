@@ -42,7 +42,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [x] 31. Memoize `getHeroStats` per `(type, altarHash, metaHash)`. Currently runs every level-up + spawn. *(Map cache keyed by `(type, prestige:unlocked:level, JSON(metaUpgrades), achievements)`. Returns `structuredClone` of cached `base`. Auto-invalidates on any input mutation. `window.invalidateHeroStatsCache()` exposed for manual busts.)*
 - [ ] 32. Smarter snapshot diff: bitpack int16 position deltas to save bandwidth on internet links.
 - [x] 33. WS `permessage-deflate` compression for snapshots if not already enabled. *(Shipped under #158 — `permessage-deflate` is the canonical equivalent of the Zstd plan; same effect, broader client support.)*
-- [ ] 34. Audio decoding off-main-thread. `Audio.preload='metadata'` for non-essential SFX.
+- [x] 34. Audio decoding off-main-thread. `Audio.preload='metadata'` for non-essential SFX. *(Pass A #15 did the tiered preload. P8 adds Web Audio fast path for the 12 hot SFX: shared `AudioContext` (same instance as #167 lowpass) + `_sfxBuffers` Map populated at boot via `fetch().then(arrayBuffer).then(decodeAudioData)` — fire-and-forget. `play()` tries `AudioBufferSourceNode + GainNode + start(0)` (~0.01ms/shot, 50× cheaper than `cloneNode`), falls back to cloneNode when buffer not ready or no AudioContext. AudioContext suspended until first user gesture; resume lazily on first shot. Per-track `volume` (with category multiplier already applied via `updateSettings`) feeds the GainNode.)*
 
 ## Visuals
 
