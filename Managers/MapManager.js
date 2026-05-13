@@ -16,15 +16,23 @@ class MapManager {
     }
 
     static isAvailable() {
-        return typeof require !== 'undefined' && !!this.mapsDir;
+        return !!this.mapsDir;
+    }
+
+    static get _require() {
+        return (typeof require !== 'undefined' ? require : null)
+            ?? window.require
+            ?? null;
     }
 
     // Returns [{ name, fileName, mtime }] sorted newest-first.
     static listMaps() {
         if (!this.isAvailable()) return [];
         try {
-            const fs   = require('fs');
-            const path = require('path');
+            const _req = this._require;
+            if (!_req) return [];
+            const fs   = _req('fs');
+            const path = _req('path');
             const dir  = this.mapsDir;
             return fs.readdirSync(dir)
                 .filter(f => f.endsWith('.json'))
@@ -41,8 +49,10 @@ class MapManager {
     static loadMap(fileName) {
         if (!this.isAvailable()) return null;
         try {
-            const fs   = require('fs');
-            const path = require('path');
+            const _req = this._require;
+            if (!_req) return null;
+            const fs   = _req('fs');
+            const path = _req('path');
             const raw  = fs.readFileSync(path.join(this.mapsDir, fileName), 'utf8');
             const data = JSON.parse(raw);
             // Back-fill waveConfig for v1 maps
@@ -55,8 +65,10 @@ class MapManager {
     static saveMap(name, data) {
         if (!this.isAvailable()) return null;
         try {
-            const fs   = require('fs');
-            const path = require('path');
+            const _req = this._require;
+            if (!_req) return null;
+            const fs   = _req('fs');
+            const path = _req('path');
             const safe = (name || 'Untitled').replace(/[^a-z0-9_\- ]/gi, '_').trim().replace(/\s+/g, '_');
             const fileName = safe + '.json';
             fs.writeFileSync(path.join(this.mapsDir, fileName), JSON.stringify(data, null, 2), 'utf8');
@@ -68,8 +80,10 @@ class MapManager {
     static deleteMap(fileName) {
         if (!this.isAvailable()) return false;
         try {
-            const fs   = require('fs');
-            const path = require('path');
+            const _req = this._require;
+            if (!_req) return false;
+            const fs   = _req('fs');
+            const path = _req('path');
             fs.unlinkSync(path.join(this.mapsDir, fileName));
             return true;
         } catch { return false; }
