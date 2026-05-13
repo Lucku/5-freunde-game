@@ -55,6 +55,8 @@ class UIManager {
         else if (this.uiState === 'SIGN_IN') screenId = 'cloud-login-modal';
         else if (this.uiState === 'CHANGE_SERVER') screenId = 'server-config-modal';
         else if (this.uiState === 'GLOBAL_LOBBY_MENU') screenId = 'global-lobby-menu';
+        else if (this.uiState === 'CLOUD_CONFLICT') screenId = 'cloud-conflict-modal';
+        else if (this.uiState === 'CUSTOM_MAPS') screenId = 'custom-maps-panel';
 
         if (!screenId) return [];
         const screen = document.getElementById(screenId);

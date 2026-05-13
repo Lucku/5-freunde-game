@@ -229,9 +229,12 @@ class CloudSaveManager {
             if (localMetaEl) localMetaEl.textContent = this._metaLine(localMeta);
 
             modal.style.display = 'flex';
+            this._prevConflictUIState = window.uiState || 'MENU';
+            if (window.setUIState) window.setUIState('CLOUD_CONFLICT');
             window._resolveCloudConflict = choice => {
                 modal.style.display = 'none';
                 delete window._resolveCloudConflict;
+                if (window.setUIState) window.setUIState(this._prevConflictUIState || 'MENU');
                 resolve(choice);
             };
         });

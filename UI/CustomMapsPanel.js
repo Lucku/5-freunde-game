@@ -64,6 +64,7 @@ class CustomMapsPanel {
       style="background:#2a2a4a;border:1px solid #555;color:#ccc;padding:6px 22px;
              border-radius:6px;cursor:pointer;display:none">Load more</button>
   </div>
+  <div class="gamepad-hint" style="text-align:center;padding:4px 0 8px">🎮 Navigate: D-Pad · Confirm: A · Close: B</div>
 </div>`;
 
         document.body.appendChild(el);

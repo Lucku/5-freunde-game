@@ -776,6 +776,52 @@ function handleGamepadMenu() {
         return;
     }
 
+    // --- CLOUD SAVE CONFLICT ---
+    if (uiState === 'CLOUD_CONFLICT') {
+        if (b && !lastGamepadState.b) {
+            if (window._resolveCloudConflict) window._resolveCloudConflict('local');
+            uiDebounce = 20;
+        }
+        if (a && !lastGamepadState.a) {
+            const focused = getFocusables()[uiSelectionIndex];
+            if (focused) focused.click();
+            uiDebounce = 20;
+        }
+        if (up || down) {
+            const focusables = getFocusables();
+            if (focusables.length > 1) {
+                uiSelectionIndex = (uiSelectionIndex + (down ? 1 : -1) + focusables.length) % focusables.length;
+                uiManager.updateUIHighlight();
+                uiDebounce = 10;
+            }
+        }
+        lastGamepadState = { a, b, y };
+        return;
+    }
+
+    // --- CUSTOM MAPS PANEL ---
+    if (uiState === 'CUSTOM_MAPS') {
+        if (b && !lastGamepadState.b) {
+            if (window.customMapsPanel) window.customMapsPanel.close();
+            uiDebounce = 20;
+        }
+        if (a && !lastGamepadState.a) {
+            const focused = getFocusables()[uiSelectionIndex];
+            if (focused) focused.click();
+            uiDebounce = 20;
+        }
+        if (up || down) {
+            const focusables = getFocusables();
+            if (focusables.length > 1) {
+                uiSelectionIndex = (uiSelectionIndex + (down ? 1 : -1) + focusables.length) % focusables.length;
+                uiManager.updateUIHighlight();
+                uiDebounce = 10;
+            }
+        }
+        lastGamepadState = { a, b, y };
+        return;
+    }
+
     // --- SIGN IN MODAL ---
     if (uiState === 'SIGN_IN') {
         if (b && !lastGamepadState.b) {
