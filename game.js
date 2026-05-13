@@ -4244,6 +4244,9 @@ function startGame(mode = 'NORMAL') {
     isVersusMode = (mode === 'VERSUS');
     isTutorialMode = (mode === 'TUTORIAL');
     isEvilMode = (mode === 'EVIL');
+    const isWorkshopMode = (mode === 'WORKSHOP');
+    // Clear custom map state on any non-workshop start so stale data never leaks in
+    if (!isWorkshopMode) { window.pendingCustomMap = null; window.currentCustomMapId = null; }
     // Speedrun flag is owned by startSpeedrunGame() (set before this runs).
     // Defend against stale state from a prior run: clear it for any non-SPEEDRUN
     // entry path and force solo when SPEEDRUN.
@@ -4284,6 +4287,12 @@ function startGame(mode = 'NORMAL') {
     // Evil Mode: force Green Goblin as starting hero
     if (isEvilMode) {
         currentBiomeType = 'fire'; // wave 1 biome; EvilMode.setupWave will override per wave
+    }
+
+    // Workshop Mode: apply custom map data and override biome
+    if (isWorkshopMode && window.pendingCustomMap) {
+        arena.generateFromMap(window.pendingCustomMap);
+        currentBiomeType = window.pendingCustomMap.biomeType || currentBiomeType;
     }
 
     // Check for Shadow Form Mutator BEFORE creating player
@@ -4823,6 +4832,27 @@ function gameOver(isVictory = false) {
                 }),
             }).catch(() => {}); // fire-and-forget
         }
+    }
+
+    // Submit score for community map run
+    const _customMapId = window.currentCustomMapId;
+    if (_customMapId) {
+        const _lbToken = window.gameConfig?.account?.token;
+        const _lbUrl   = (typeof CloudSaveManager !== 'undefined') ? CloudSaveManager._baseUrl() : null;
+        if (_lbToken && _lbUrl) {
+            fetch(`${_lbUrl}/api/maps/${_customMapId}/score`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_lbToken}` },
+                body: JSON.stringify({
+                    hero: player.type,
+                    wave: Math.max(0, wave - 1),
+                    score: Math.floor(score),
+                    timeSec: _rhTimeSec,
+                }),
+            }).catch(() => {});
+        }
+        window.currentCustomMapId = null;
+        window.pendingCustomMap   = null;
     }
 
     saveData.global.runHistory.unshift({

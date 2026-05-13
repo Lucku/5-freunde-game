@@ -94,6 +94,49 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_speedrun_hero_time ON speedrun_scores(hero, time_sec);
 `);
 
+db.exec(`
+    CREATE TABLE IF NOT EXISTS custom_maps (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id      INTEGER NOT NULL,
+        author       TEXT NOT NULL,
+        name         TEXT NOT NULL,
+        biome_type   TEXT NOT NULL DEFAULT 'fire',
+        map_data     TEXT NOT NULL,
+        arena_width  INTEGER NOT NULL DEFAULT 2000,
+        arena_height INTEGER NOT NULL DEFAULT 1500,
+        play_count   INTEGER NOT NULL DEFAULT 0,
+        like_count   INTEGER NOT NULL DEFAULT 0,
+        created_at   INTEGER NOT NULL,
+        updated_at   INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_maps_user  ON custom_maps(user_id);
+    CREATE INDEX IF NOT EXISTS idx_maps_likes ON custom_maps(like_count DESC);
+    CREATE INDEX IF NOT EXISTS idx_maps_date  ON custom_maps(created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS custom_map_scores (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        map_id       INTEGER NOT NULL,
+        user_id      INTEGER NOT NULL,
+        username     TEXT NOT NULL,
+        hero         TEXT NOT NULL,
+        wave         INTEGER NOT NULL DEFAULT 0,
+        score        INTEGER NOT NULL DEFAULT 0,
+        time_sec     INTEGER NOT NULL DEFAULT 0,
+        submitted_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_mscores_map ON custom_map_scores(map_id, score DESC);
+
+    CREATE TABLE IF NOT EXISTS custom_map_likes (
+        id      INTEGER PRIMARY KEY AUTOINCREMENT,
+        map_id  INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        UNIQUE(map_id, user_id)
+    );
+`);
+
+const MAP_DATA_MAX_BYTES = 64 * 1024;
+const MAPS_PER_USER_MAX  = 20;
+
 // Schema upgrade: add `verified` + `daily_seed` columns to existing scores tables.
 // verified  — 0 = client-asserted (offline run), 1 = server-confirmed (online session).
 // daily_seed — null for ordinary runs; YYYYMMDD for daily-challenge runs,
@@ -376,6 +419,166 @@ app.get('/api/speedrun', (req, res) => {
 
     res.json({ entries: rows });
 });
+
+// ── Community Maps ────────────────────────────────────────────────────────────
+
+app.post('/api/maps',
+    rateLimit({ key: 'map_post', capacity: 10, refillPerSec: 10 / 3600 }),
+    requireAuth,
+    (req, res) => {
+        const body = req.body || {};
+        const raw  = JSON.stringify(body);
+        if (raw.length > MAP_DATA_MAX_BYTES) return res.status(413).json({ error: 'Map data too large (max 64 KB)' });
+        const name = (typeof body.name === 'string' && body.name.trim()) ? body.name.trim().slice(0, 64) : null;
+        if (!name) return res.status(400).json({ error: 'name required' });
+        const count = db.prepare('SELECT COUNT(*) AS n FROM custom_maps WHERE user_id = ?').get(req.user.id).n;
+        if (count >= MAPS_PER_USER_MAX) return res.status(400).json({ error: `Max ${MAPS_PER_USER_MAX} maps per user` });
+        const now = Date.now();
+        const mapData = JSON.stringify({
+            version:     body.version     || 1,
+            name:        name,
+            biomeType:   body.biomeType   || 'fire',
+            arenaWidth:  body.arenaWidth  || 2000,
+            arenaHeight: body.arenaHeight || 1500,
+            obstacles:   Array.isArray(body.obstacles)  ? body.obstacles  : [],
+            biomeZones:  Array.isArray(body.biomeZones) ? body.biomeZones : [],
+            traps:       Array.isArray(body.traps)      ? body.traps      : [],
+        });
+        const row = db.prepare(`
+            INSERT INTO custom_maps (user_id, author, name, biome_type, map_data, arena_width, arena_height, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(req.user.id, req.user.username, name,
+            body.biomeType || 'fire', mapData,
+            body.arenaWidth || 2000, body.arenaHeight || 1500,
+            now, now);
+        res.json({ ok: true, id: row.lastInsertRowid });
+    }
+);
+
+app.get('/api/maps', (req, res) => {
+    const sort   = req.query.sort === 'newest' ? 'newest' : 'popular';
+    const limit  = Math.min(Math.max(1, parseInt(req.query.limit)  || 20), 50);
+    const offset = Math.max(0, parseInt(req.query.offset) || 0);
+    const mine   = req.query.mine === '1' || req.query.mine === 'true';
+    const where  = [];
+    const params = [];
+    if (mine) {
+        const auth = req.headers.authorization;
+        if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+        try {
+            const u = require('jsonwebtoken').verify(auth.slice(7), JWT_SECRET);
+            where.push('user_id = ?'); params.push(u.id);
+        } catch { return res.status(401).json({ error: 'Invalid token' }); }
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const orderSql = sort === 'newest' ? 'created_at DESC' : 'like_count DESC, play_count DESC';
+    params.push(limit, offset);
+    const rows = db.prepare(`
+        SELECT id, name, author, biome_type AS biomeType, arena_width AS arenaWidth,
+               arena_height AS arenaHeight, play_count AS playCount, like_count AS likeCount,
+               created_at AS createdAt
+        FROM custom_maps ${whereSql}
+        ORDER BY ${orderSql}
+        LIMIT ? OFFSET ?
+    `).all(...params);
+    res.json({ maps: rows });
+});
+
+app.get('/api/maps/:id', (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const row = db.prepare(`
+        SELECT id, user_id AS userId, name, author, biome_type AS biomeType,
+               map_data AS mapData, arena_width AS arenaWidth, arena_height AS arenaHeight,
+               play_count AS playCount, like_count AS likeCount, created_at AS createdAt
+        FROM custom_maps WHERE id = ?
+    `).get(id);
+    if (!row) return res.status(404).json({ error: 'Map not found' });
+    // Increment play count fire-and-forget
+    db.prepare('UPDATE custom_maps SET play_count = play_count + 1 WHERE id = ?').run(id);
+    try { row.mapData = JSON.parse(row.mapData); } catch { row.mapData = {}; }
+    res.json(row);
+});
+
+app.delete('/api/maps/:id', requireAuth, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const row = db.prepare('SELECT user_id FROM custom_maps WHERE id = ?').get(id);
+    if (!row) return res.status(404).json({ error: 'Map not found' });
+    if (row.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+    db.prepare('DELETE FROM custom_maps WHERE id = ?').run(id);
+    db.prepare('DELETE FROM custom_map_scores WHERE map_id = ?').run(id);
+    db.prepare('DELETE FROM custom_map_likes WHERE map_id = ?').run(id);
+    res.json({ ok: true });
+});
+
+app.post('/api/maps/:id/like', requireAuth, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const map = db.prepare('SELECT id, like_count FROM custom_maps WHERE id = ?').get(id);
+    if (!map) return res.status(404).json({ error: 'Map not found' });
+    try {
+        db.prepare('INSERT INTO custom_map_likes (map_id, user_id) VALUES (?, ?)').run(id, req.user.id);
+        db.prepare('UPDATE custom_maps SET like_count = like_count + 1 WHERE id = ?').run(id);
+        const updated = db.prepare('SELECT like_count FROM custom_maps WHERE id = ?').get(id);
+        res.json({ liked: true, likeCount: updated.like_count });
+    } catch (e) {
+        if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+            // Already liked — toggle off
+            db.prepare('DELETE FROM custom_map_likes WHERE map_id = ? AND user_id = ?').run(id, req.user.id);
+            db.prepare('UPDATE custom_maps SET like_count = MAX(0, like_count - 1) WHERE id = ?').run(id);
+            const updated = db.prepare('SELECT like_count FROM custom_maps WHERE id = ?').get(id);
+            return res.json({ liked: false, likeCount: updated.like_count });
+        }
+        console.error(e);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.get('/api/maps/:id/leaderboard', (req, res) => {
+    const id    = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 50);
+    const rows  = db.prepare(`
+        SELECT username, hero, wave, score, time_sec AS timeSec, submitted_at AS submittedAt
+        FROM custom_map_scores
+        WHERE map_id = ?
+        ORDER BY score DESC
+        LIMIT ?
+    `).all(id, limit);
+    res.json({ entries: rows });
+});
+
+app.post('/api/maps/:id/score',
+    rateLimit({ key: 'map_score', capacity: 30, refillPerSec: 30 / 3600 }),
+    requireAuth,
+    (req, res) => {
+        const id = parseInt(req.params.id, 10);
+        if (!id) return res.status(400).json({ error: 'Invalid id' });
+        const map = db.prepare('SELECT id FROM custom_maps WHERE id = ?').get(id);
+        if (!map) return res.status(404).json({ error: 'Map not found' });
+        const { hero, wave, score, timeSec } = req.body || {};
+        if (typeof score !== 'number' || score < 0) return res.status(400).json({ error: 'Invalid score' });
+        const finalWave    = Math.max(0, wave    | 0);
+        const finalScore   = Math.max(0, score   | 0);
+        const finalTimeSec = Math.max(0, timeSec | 0);
+        const reason = plausibilityReject(finalWave, finalScore, finalTimeSec);
+        if (reason) return res.status(400).json({ error: 'Score failed plausibility check', reason });
+        db.prepare(`
+            INSERT INTO custom_map_scores (map_id, user_id, username, hero, wave, score, time_sec, submitted_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, req.user.id, req.user.username, hero || 'fire',
+            finalWave, finalScore, finalTimeSec, Date.now());
+        // Keep best 500 per map
+        db.prepare(`
+            DELETE FROM custom_map_scores
+            WHERE map_id = ? AND id NOT IN (
+                SELECT id FROM custom_map_scores WHERE map_id = ? ORDER BY score DESC LIMIT 500
+            )
+        `).run(id, id);
+        res.json({ ok: true });
+    }
+);
 
 app.post('/api/register',
     rateLimit({ key: 'register', capacity: 5, refillPerSec: 5 / 3600 }), // 5/hr burst, then trickle

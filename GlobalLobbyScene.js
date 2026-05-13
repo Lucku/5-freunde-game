@@ -39,6 +39,9 @@ class GlobalLobbyScene {
         // Emote display for local player
         this.localEmote     = null;  // { emoji, timer, y }
 
+        // Map Workshop panel
+        this.workshopPanel = window.WorkshopPanel ? new window.WorkshopPanel() : null;
+
         // Hero selector
         this._heroSelectorOpen = false;
         this._heroList = Object.keys(window.BASE_HERO_STATS || HERO_COLORS).filter(h => {
@@ -215,6 +218,15 @@ class GlobalLobbyScene {
             if (typeof window.toggleLobbyMenu === 'function') window.toggleLobbyMenu();
         }
 
+        // ── Map Workshop: M key or Select button ──────────────────────────────
+        const mPressed       = keys['m'] && !this._gpPrev.m;
+        const gpSelectPressed = gp && gp.buttons[8]?.pressed && !this._gpPrev.gpSelect;
+        if ((mPressed || gpSelectPressed) && !this._heroSelectorOpen && !this.pendingInvite && this.workshopPanel) {
+            keys['m'] = false;
+            this.workshopPanel.open();
+            return;
+        }
+
         // ── Exit: Escape (when no modal open) ─────────────────────────────────
         if (!this.pendingInvite && (keys['escape'] || keys['Escape'])) {
             nm.leaveGlobalLobby();
@@ -244,14 +256,16 @@ class GlobalLobbyScene {
 
         // Track gamepad state for edge detection
         this._gpPrev = {
-            tab:    keys['tab'],
-            gpY:    gp?.buttons[3]?.pressed,
-            gpA:    gp?.buttons[0]?.pressed,
-            gpB:    gp?.buttons[1]?.pressed,
-            start:  gp?.buttons[9]?.pressed,
-            e:      keys['e'],
-            enter:  keys['enter'],
-            escape: keys['escape'] || keys['Escape'],
+            tab:      keys['tab'],
+            gpY:      gp?.buttons[3]?.pressed,
+            gpA:      gp?.buttons[0]?.pressed,
+            gpB:      gp?.buttons[1]?.pressed,
+            start:    gp?.buttons[9]?.pressed,
+            e:        keys['e'],
+            enter:    keys['enter'],
+            escape:   keys['escape'] || keys['Escape'],
+            m:        keys['m'],
+            gpSelect: gp?.buttons[8]?.pressed,
             emote0: keys['1'], emote1: keys['2'], emote2: keys['3'], emote3: keys['4'], emote4: keys['5'],
             gpEmote0: gp?.buttons[4]?.pressed,
             gpEmote1: gp?.buttons[5]?.pressed,
@@ -322,6 +336,7 @@ class GlobalLobbyScene {
         // HUD (screen-space)
         this._drawEmoteBar(ctx);
         this._drawOnlineCount(ctx);
+        if (this.workshopPanel) this._drawWorkshopHint(ctx);
         if (this.nearbyPlayer && !this.pendingInvite) this._drawNearbyPrompt(ctx);
         if (this.pendingInvite) this._drawInvitePrompt(ctx);
         if (this.inviteFlash)   this._drawFlashMsg(ctx);
@@ -457,6 +472,18 @@ class GlobalLobbyScene {
         ctx.fillText(text, canvas.width - 14, 14);
         ctx.fillStyle = '#adf';
         ctx.fillText(text, canvas.width - 15, 13);
+        ctx.restore();
+    }
+
+    _drawWorkshopHint(ctx) {
+        ctx.save();
+        ctx.font = 'bold 11px Arial';
+        ctx.textAlign = 'left';
+        const text = '[M] Map Workshop';
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillText(text, 16, canvas.height - 13);
+        ctx.fillStyle = 'rgba(200,210,255,0.55)';
+        ctx.fillText(text, 15, canvas.height - 14);
         ctx.restore();
     }
 

@@ -223,6 +223,7 @@
     <button class="btn" onclick="saveToFile()">Save</button>
     <button class="btn primary" onclick="exportJSON()">Export JSON</button>
     <button class="btn" onclick="copyJSON()">Copy JSON</button>
+    <button class="btn" onclick="uploadToServer()">Upload</button>
   </div>
 </header>
 
@@ -943,6 +944,30 @@ function copyJSON() {
 }
 
 function saveToFile() { exportJSON(); }
+
+async function uploadToServer() {
+  let raw;
+  try { raw = localStorage.getItem('5FreundeConfig'); } catch { raw = null; }
+  if (!raw) { toast('Not logged in — open the game and log in first'); return; }
+  let cfg;
+  try { cfg = JSON.parse(raw); } catch { toast('Could not read game config'); return; }
+  const token = cfg?.account?.token;
+  if (!token) { toast('Not logged in — open the game and log in first'); return; }
+  const host  = (cfg?.serverUrl || 'localhost:3001').trim();
+  const proto = (host.startsWith('localhost') || host.startsWith('127.')) ? 'http' : 'https';
+  const url   = `${proto}://${host}/api/maps`;
+  toast('Uploading…');
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(buildJSON()),
+    });
+    const j = await r.json();
+    if (j.ok) toast(`Uploaded! Map ID: ${j.id}`);
+    else toast(`Upload failed: ${j.error || r.status}`);
+  } catch (e) { toast('Upload error: ' + e.message); }
+}
 
 function loadFromFile() { document.getElementById('file-input').click(); }
 
