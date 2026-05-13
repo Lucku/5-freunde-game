@@ -120,6 +120,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div class="tab" data-tab="saves">Cloud Saves</div>
     <div class="tab" data-tab="balance">Balance</div>
     <div class="tab" data-tab="events">Events</div>
+    <div class="tab" data-tab="technical">Technical</div>
   </nav>
   <div class="content">
     <div id="tab-overview"></div>
@@ -129,6 +130,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div id="tab-saves"        style="display:none"></div>
     <div id="tab-balance"      style="display:none"></div>
     <div id="tab-events"       style="display:none"></div>
+    <div id="tab-technical"    style="display:none"></div>
   </div>
 </div>
 
@@ -141,6 +143,7 @@ let token = sessionStorage.getItem('admin_token') || '';
 let D = {};  // fetched data
 let activeTab = 'overview';
 let expanded = new Set();
+let crashExpanded = new Set();
 let timer = null;
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
@@ -169,7 +172,7 @@ function logout() {
 async function fetchAll() {
   const h = { Authorization: `Bearer ${token}` };
   const fetch1 = url => fetch(url, { headers: h }).then(r => r.json()).catch(() => null);
-  const [sessions, online, players, stats, saves, balance, events] = await Promise.all([
+  const [sessions, online, players, stats, saves, balance, events, crashes] = await Promise.all([
     fetch1('/api/admin/sessions'),
     fetch1('/api/admin/online'),
     fetch1('/api/admin/players'),
@@ -177,6 +180,7 @@ async function fetchAll() {
     fetch1('/api/admin/saves'),
     fetch1('/api/admin/hero-balance'),
     fetch1('/api/admin/events'),
+    fetch1('/api/admin/crashes'),
   ]);
   if (sessions) D.sessions = sessions;
   if (online)   D.online   = online;
@@ -185,6 +189,7 @@ async function fetchAll() {
   if (saves)    D.saves    = saves;
   if (balance)  D.balance  = balance;
   if (events)   D.events   = events;
+  if (crashes)  D.crashes  = crashes;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -573,6 +578,88 @@ async function deleteEvent(id) {
   await refresh();
 }
 
+// ── Technical ──────────────────────────────────────────────────────────────────
+
+function renderTechnical() {
+  const crashes = D.crashes?.crashes || [];
+  const now = Date.now();
+  const last24h = crashes.filter(c => now - c.t < 86400000).length;
+  const stackCounts = new Map();
+  for (const c of crashes) {
+    const key = (c.stack || c.message || '').slice(0, 120);
+    stackCounts.set(key, (stackCounts.get(key) || 0) + 1);
+  }
+  const uniqueStacks = stackCounts.size;
+
+  const kindPill = k => {
+    const map = { uncaught: 'red', unhandled_rejection: 'yellow', manual: 'dim' };
+    return `<span class="pill pill-${map[k] || 'dim'}">${esc(k)}</span>`;
+  };
+
+  let h = `<div class="cards">
+    <div class="card"><div class="lbl">Total Crashes</div><div class="val red">${crashes.length}</div></div>
+    <div class="card"><div class="lbl">Last 24 h</div><div class="val yellow">${last24h}</div></div>
+    <div class="card"><div class="lbl">Unique Stacks</div><div class="val blue">${uniqueStacks}</div></div>
+  </div>`;
+
+  h += `<div class="section"><div class="sec-hd">Crash Reports <span class="badge badge-dim">${crashes.length}</span></div>`;
+  if (!crashes.length) {
+    h += '<div class="empty">No crash reports</div>';
+  } else {
+    h += `<table><thead><tr>
+      <th>Time</th><th>Kind</th><th>Message</th><th>Version</th><th>Hero</th><th>Wave</th><th></th>
+    </tr></thead><tbody>`;
+    for (let i = 0; i < crashes.length; i++) {
+      const c = crashes[i];
+      const ctx = c.context || {};
+      const open = crashExpanded.has(i);
+      const msg = esc((c.message || '').slice(0, 80)) + ((c.message || '').length > 80 ? '…' : '');
+      h += `<tr>
+        <td style="color:var(--dim);font-size:0.78rem;white-space:nowrap">${fmtDt(c.t)}</td>
+        <td>${kindPill(c.kind)}</td>
+        <td style="font-size:0.78rem;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${msg}</td>
+        <td style="color:var(--dim);font-size:0.78rem">${esc(ctx.version || '—')}</td>
+        <td>${ctx.hero ? heroBadge(ctx.hero) : '<span style="color:var(--dim)">—</span>'}</td>
+        <td style="color:var(--dim)">${ctx.wave != null ? ctx.wave : '—'}</td>
+        <td><button class="btn-sm crash-expand-btn" data-idx="${i}">${open ? '▲ Hide' : '▼ Details'}</button></td>
+      </tr>`;
+      if (open) {
+        const breadcrumbs = Array.isArray(c.breadcrumbs) ? c.breadcrumbs : [];
+        h += `<tr><td colspan="7" style="padding:0">
+          <div style="padding:1rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div>
+              <div class="detail-box" style="margin-bottom:0.75rem">
+                <h4>Context</h4>
+                ${kv('Platform', esc(ctx.platform || '—'))}
+                ${kv('Electron', esc(ctx.electron || '—'))}
+                ${kv('Biome',    esc(ctx.biome    || '—'))}
+                ${kv('Online',   ctx.online ? 'yes' : 'no')}
+                ${ctx.screen ? kv('Screen', `${ctx.screen.w}×${ctx.screen.h}`) : ''}
+                ${c.source ? kv('Source', `${esc(c.source)}:${c.lineno}:${c.colno}`) : ''}
+              </div>
+              ${breadcrumbs.length ? `<div class="detail-box">
+                <h4>Breadcrumbs (last ${breadcrumbs.length})</h4>
+                ${breadcrumbs.map(b => `<div style="display:flex;gap:0.5rem;padding:0.15rem 0;border-bottom:1px solid var(--border);font-size:0.75rem">
+                  <span style="color:${b.level==='error'?'var(--red)':'var(--yellow)'};flex-shrink:0">${b.level}</span>
+                  <span style="color:var(--dim);flex-shrink:0">${new Date(b.t).toLocaleTimeString()}</span>
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.msg)}</span>
+                </div>`).join('')}
+              </div>` : ''}
+            </div>
+            <div class="detail-box">
+              <h4>Stack Trace</h4>
+              <pre style="font-size:0.72rem;color:var(--dim);white-space:pre-wrap;word-break:break-all;margin:0;max-height:300px;overflow-y:auto">${esc(c.stack || c.message || '(no stack)')}</pre>
+            </div>
+          </div>
+        </td></tr>`;
+      }
+    }
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+  return h;
+}
+
 // ── Render ─────────────────────────────────────────────────────────────────────
 
 function render() {
@@ -587,6 +674,7 @@ function render() {
     saves:       renderSaves,
     balance:     renderBalance,
     events:      renderEvents,
+    technical:   renderTechnical,
   };
   el.innerHTML = (renderers[tab] || (() => ''))();
   document.getElementById('refresh-lbl').textContent = `Updated ${new Date().toLocaleTimeString()}`;
@@ -595,6 +683,14 @@ function render() {
     btn.addEventListener('click', () => {
       const code = btn.dataset.code;
       if (expanded.has(code)) expanded.delete(code); else expanded.add(code);
+      render();
+    });
+  });
+
+  el.querySelectorAll('.crash-expand-btn[data-idx]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = +btn.dataset.idx;
+      if (crashExpanded.has(idx)) crashExpanded.delete(idx); else crashExpanded.add(idx);
       render();
     });
   });
