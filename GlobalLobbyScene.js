@@ -24,6 +24,9 @@ function getHeroColor(type) {
 // Hero list for the in-scene selector (mirrors the hidden-set in OnlineLobby)
 const _HIDDEN_HEROES = new Set(['black', 'green_goblin', 'makuta']);
 
+// World-space Map Workshop notice board — top-centre of the gallery room
+const _WORKSHOP_BOARD = { x: 1200, y: 735, w: 130, h: 80, proximityR: 120 };
+
 class GlobalLobbyScene {
     constructor(heroType) {
         this.museum = new Museum({ noInteraction: true });
@@ -41,6 +44,22 @@ class GlobalLobbyScene {
 
         // Map Workshop panel
         this.workshopPanel = window.WorkshopPanel ? new window.WorkshopPanel() : null;
+        this.nearWorkshop  = false;
+
+        // Click on the world-space workshop board → open panel
+        this._onBoardClick = (e) => {
+            if (!this.workshopPanel) return;
+            const cam  = this.museum.camera;
+            const rect = canvas.getBoundingClientRect();
+            const wx = (e.clientX - rect.left) * (canvas.width  / rect.width)  + cam.x;
+            const wy = (e.clientY - rect.top)  * (canvas.height / rect.height) + cam.y;
+            const b  = _WORKSHOP_BOARD;
+            if (wx >= b.x - b.w / 2 && wx <= b.x + b.w / 2 &&
+                wy >= b.y - b.h / 2 && wy <= b.y + b.h / 2) {
+                this.workshopPanel.open();
+            }
+        };
+        canvas.addEventListener('click', this._onBoardClick);
 
         // Hero selector
         this._heroSelectorOpen = false;
@@ -131,6 +150,7 @@ class GlobalLobbyScene {
     _cleanup() {
         this._unsubscribe.forEach(fn => fn());
         this._unsubscribe = [];
+        canvas.removeEventListener('click', this._onBoardClick);
     }
 
     // ── Update ────────────────────────────────────────────────────────────────
@@ -169,6 +189,7 @@ class GlobalLobbyScene {
                 break;
             }
         }
+        this.nearWorkshop = Math.hypot(p.x - _WORKSHOP_BOARD.x, p.y - _WORKSHOP_BOARD.y) < _WORKSHOP_BOARD.proximityR;
 
         // ── Emote input: keys 1–5 (keyboard) or LB/RB/LT/RT/X (gamepad) ──────
         // Gamepad mapping: LB=4 RB=5 LT=6 RT=7 X=2
@@ -187,10 +208,15 @@ class GlobalLobbyScene {
         // ── Invite: E or gamepad A (when nearby and no pending invite) ─────────
         const ePressed  = keys['e'] && !this._gpPrev.e;
         const gpAPressed = gp && gp.buttons[0]?.pressed && !this._gpPrev.gpA;
-        if ((ePressed || gpAPressed) && this.nearbyPlayer && !this.pendingInvite) {
-            nm.sendGameInvite(this.nearbyPlayer.userId);
-            this.inviteFlash = { text: `Challenge sent to ${this.nearbyPlayer.username}!`, timer: 180 };
-            keys['e'] = false;
+        if ((ePressed || gpAPressed) && !this.pendingInvite) {
+            if (this.nearbyPlayer) {
+                nm.sendGameInvite(this.nearbyPlayer.userId);
+                this.inviteFlash = { text: `Challenge sent to ${this.nearbyPlayer.username}!`, timer: 180 };
+                keys['e'] = false;
+            } else if (this.nearWorkshop && this.workshopPanel) {
+                this.workshopPanel.open();
+                keys['e'] = false;
+            }
         }
 
         // ── Accept/decline incoming invite ─────────────────────────────────────
@@ -323,10 +349,13 @@ class GlobalLobbyScene {
         ctx.save();
         ctx.translate(-cam.x, -cam.y);
 
-        // 2. Remote players
+        // 2. Workshop notice board (world space, behind players)
+        if (this.workshopPanel) this._drawWorkshopBoard(ctx);
+
+        // 3. Remote players
         this._drawRemotePlayers(ctx);
 
-        // 3. Local player emote (in world space, above local player)
+        // 4. Local player emote (in world space, above local player)
         if (this.localEmote) {
             this._drawEmotePopup(ctx, this.museum.player.x, this.museum.player.y - 30 + this.localEmote.y, this.localEmote.emoji, this.localEmote.timer, 120);
         }
@@ -337,6 +366,9 @@ class GlobalLobbyScene {
         this._drawEmoteBar(ctx);
         this._drawOnlineCount(ctx);
         if (this.workshopPanel) this._drawWorkshopHint(ctx);
+        if (this.nearWorkshop && !this.nearbyPlayer && !this.pendingInvite && this.workshopPanel) {
+            this._drawCenteredHUD(ctx, '[E] / click  ·  Map Workshop', canvas.height / 2 + 120, 'rgba(180,200,255,0.95)');
+        }
         if (this.nearbyPlayer && !this.pendingInvite) this._drawNearbyPrompt(ctx);
         if (this.pendingInvite) this._drawInvitePrompt(ctx);
         if (this.inviteFlash)   this._drawFlashMsg(ctx);
@@ -472,6 +504,55 @@ class GlobalLobbyScene {
         ctx.fillText(text, canvas.width - 14, 14);
         ctx.fillStyle = '#adf';
         ctx.fillText(text, canvas.width - 15, 13);
+        ctx.restore();
+    }
+
+    _drawWorkshopBoard(ctx) {
+        const b = _WORKSHOP_BOARD;
+        const cx = b.x, cy = b.y;
+        const hw = b.w / 2, hh = b.h / 2;
+
+        ctx.save();
+
+        // Drop shadow
+        ctx.shadowColor = 'rgba(100,140,255,0.35)';
+        ctx.shadowBlur  = this.nearWorkshop ? 18 : 8;
+
+        // Board backing — dark wood colour
+        ctx.fillStyle = '#1e1408';
+        ctx.strokeStyle = this.nearWorkshop ? 'rgba(180,210,255,0.85)' : 'rgba(160,130,60,0.75)';
+        ctx.lineWidth = this.nearWorkshop ? 2.5 : 1.5;
+        ctx.beginPath();
+        ctx.roundRect(cx - hw, cy - hh, b.w, b.h, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+
+        // Inner paper area
+        ctx.fillStyle = '#2a1f0e';
+        ctx.fillRect(cx - hw + 8, cy - hh + 8, b.w - 16, b.h - 20);
+
+        // Map icon lines (simplified map grid)
+        ctx.strokeStyle = 'rgba(200,180,100,0.45)';
+        ctx.lineWidth = 1;
+        const mx = cx - hw + 14, my = cy - hh + 14, mw = b.w - 28, mh = b.h - 30;
+        for (let i = 0; i <= 3; i++) {
+            const lx = mx + (mw / 3) * i;
+            ctx.beginPath(); ctx.moveTo(lx, my); ctx.lineTo(lx, my + mh); ctx.stroke();
+        }
+        for (let i = 0; i <= 2; i++) {
+            const ly = my + (mh / 2) * i;
+            ctx.beginPath(); ctx.moveTo(mx, ly); ctx.lineTo(mx + mw, ly); ctx.stroke();
+        }
+
+        // Label banner at bottom of board
+        ctx.fillStyle = this.nearWorkshop ? 'rgba(180,210,255,0.9)' : 'rgba(200,175,100,0.85)';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🗺️  MAP WORKSHOP', cx, cy + hh - 8);
+
         ctx.restore();
     }
 

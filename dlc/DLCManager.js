@@ -241,9 +241,10 @@ class DLCManager {
      * import path (runtime-resolved strings can't be).
      */
     async loadScript(src) {
-        // Normalize to project-root-absolute. Browsers resolve relative to the
-        // module that called import(), which would yield dlc/dlc/... here.
-        const url = src.startsWith('/') ? src : '/' + src.replace(/^\.\/+/, '');
+        // Resolve relative to document.baseURI so both file:// (Electron) and
+        // http:// (Vite dev / browser) produce a correct absolute URL.
+        const rel = src.replace(/^\.?\/+/, '');
+        const url = new URL(rel, document.baseURI).href;
         await import(/* @vite-ignore */ url);
     }
 

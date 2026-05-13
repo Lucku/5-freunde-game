@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file, starting wi
 ## [Unreleased]
 
 ### Fixed
+- **DLC modules fail to load in packaged/dev Electron app**. `DLCManager.loadScript` built a root-relative URL (`/dlc/...`) which Electron's `file://` renderer resolved to `file:///dlc/...` (filesystem root) instead of the app directory. Fixed by resolving against `document.baseURI` via `new URL(rel, document.baseURI).href`, which works correctly under both `file://` and `http://`.
+- **Map Workshop notice board in global lobby**. A clickable world-space board is placed at the top-centre of the gallery room. Walking within 120 px shows a `[E] / click · Map Workshop` HUD prompt; pressing E or clicking the board opens the workshop panel. The board glows blue when the player is nearby. The `[M]` global shortcut still works from anywhere.
 - **Game stuck on "Loading Assets" after first server login**. The save-conflict modal (`cloud-conflict-modal`) had `z-index: 4000`, beneath the loading screen (`z-index: 9999`). Users who logged in once and restarted would hit a conflict check on startup, see the modal hidden behind the loading overlay, and be unable to proceed. Modal z-index raised to `10000`.
 - **CrashReporter URL construction** — bare IP/hostname in `gameConfig.serverUrl` was treated as a relative path, causing crash reports to POST to `localhost:5173/<ip>/api/crash`. `_baseUrl()` now mirrors `CloudSaveManager`: adds `http://` scheme and `:3001` port when no scheme is present.
 - **InputManager crash on synthetic key events** — `e.key` is undefined on some browser-generated `keydown`/`keyup` events, causing `TypeError: Cannot read properties of undefined (reading 'toLowerCase')`. Added `if (!e.key) return` guard to both listeners.
