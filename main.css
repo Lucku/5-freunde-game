@@ -244,6 +244,30 @@ canvas {
     padding: 5px 11px;
 }
 
+#speedrun-hud {
+    margin-top: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 0 6px rgba(241, 196, 15, 0.7), 0 1px 3px rgba(0, 0, 0, 0.6);
+    letter-spacing: 1px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+#speedrun-split-toast {
+    font-size: 13px;
+    color: #f1c40f;
+    opacity: 0;
+    transition: opacity 0.25s ease-out;
+}
+#speedrun-split-toast.show {
+    opacity: 1;
+}
+
 #combo-display {
     font-size: 26px;
     font-weight: 900;
@@ -1610,6 +1634,12 @@ tr.stat-row.selected td {
     text-transform: uppercase;
 }
 
+.hero-speedrun-pb {
+    color: #f1c40f;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
 /* Buttons */
 button.btn {
     padding: 15px 40px;
@@ -2639,6 +2669,18 @@ input:checked+.slider:before {
 .menu-primary-btn.selected {
     border: 3px solid #f1c40f !important;
     box-shadow: 0 0 20px rgba(241, 196, 15, 0.6) !important;
+}
+
+/* Story Speedrun — variant of the primary CTA. Gold-amber gradient signals
+ * the post-story unlock without clashing with the green Story Mode button. */
+.menu-primary-btn-speedrun {
+    background: linear-gradient(135deg, #d4a017, #f1c40f) !important;
+    padding: 14px 18px !important;
+    font-size: 17px !important;
+    box-shadow: 0 4px 18px rgba(241, 196, 15, 0.28);
+}
+.menu-primary-btn-speedrun:hover {
+    box-shadow: 0 6px 24px rgba(241, 196, 15, 0.45) !important;
 }
 
 /* ── Controller-focus (selected) overrides for all menu button types ── */

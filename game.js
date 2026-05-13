@@ -132,12 +132,12 @@ const defaultSaveData = {
     // Schema version — bumped only when SaveManager.MIGRATIONS gains an entry.
     // Saves loaded without a version field are treated as v0 and migrated.
     version: 1,
-    fire: { level: 0, unlocked: 1, highScore: 0, prestige: 0, maxWinPrestige: -1 },
-    water: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 },
-    ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 },
-    plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 },
-    metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 },
-    black: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1 }, // Hidden/Daily Hero
+    fire: { level: 0, unlocked: 1, highScore: 0, prestige: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null },
+    water: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null },
+    ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null },
+    plant: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null },
+    metal: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null },
+    black: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null }, // Hidden/Daily Hero
     global: {
         totalKills: 0, maxWave: 0, totalGold: 0, totalBosses: 0,
         totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0,
@@ -166,6 +166,7 @@ let isTutorialMode = false;
 let isTestingMode = false;
 let isEvilMode = false;
 let isCoopMode = false;
+let isSpeedrunMode = false; // Story Speedrun: skip modals/audio, run timer + splits
 let isAICompanionMode = false; // Story companion: full Player driven by AIController
 let isOnlineMode  = false;  // true when an online co-op session is active (host or guest)
 let isOnlineHost  = false;  // this client runs the authoritative simulation
@@ -1410,6 +1411,18 @@ function startStoryGame() {
     startGame('NORMAL');
 }
 
+function startSpeedrunGame() {
+    if (isCoopMode || isOnlineMode) return; // solo only
+    const hero = window.selectedHeroType || 'fire';
+    if (!(window.isSpeedrunUnlocked && window.isSpeedrunUnlocked(hero))) return;
+    if (!saveData.story) saveData.story = { unlockedChapters: [], enabled: true };
+    saveData.story.enabled = true;
+    isSpeedrunMode = true;
+    window.isSpeedrunMode = true;
+    startGame('SPEEDRUN');
+    _showSpeedrunHud(true);
+}
+
 function startEvilGame() {
     if (!saveData.story) saveData.story = { unlockedChapters: [], enabled: false };
     saveData.story.enabled = false;
@@ -2017,6 +2030,7 @@ function saveServerConfig() {
 window.saveServerConfig = saveServerConfig;
 
 function checkNewGame(mode) {
+    if (mode === 'SPEEDRUN' && (isCoopMode || isOnlineMode)) return; // solo only
     if (isCoopMode && mode !== 'STANDARD' && mode !== 'STORY' && mode !== 'DAILY' && mode !== 'WEEKLY') return; // co-op supports Standard, Story, Daily, Weekly
     if (isCoopMode && coopP2GamepadIndex === -1) return; // P2 controller not yet connected
     if (saveData.savedRun) {
@@ -2025,6 +2039,7 @@ function checkNewGame(mode) {
         setUIState('CONFIRM_OVERWRITE'); // Set UI state for controller
     } else {
         if (mode === 'STORY') startStoryGame();
+        else if (mode === 'SPEEDRUN') startSpeedrunGame();
         else if (mode === 'SHUFFLE') startShuffleGame();
         else if (mode === 'TUTORIAL') startTutorialGame();
         else if (mode === 'EVIL') startEvilGame();
@@ -2037,6 +2052,7 @@ function confirmNewGame() {
     clearSavedRun();
     closeConfirmDialog();
     if (mode === 'STORY') startStoryGame();
+    else if (mode === 'SPEEDRUN') startSpeedrunGame();
     else if (mode === 'SHUFFLE') startShuffleGame();
     else if (mode === 'TUTORIAL') startTutorialGame();
     else if (mode === 'EVIL') startEvilGame();
@@ -3217,6 +3233,64 @@ window._afterUpgradeChosen = function () {
 
 // --- Shop Logic moved to UI/Shop.js ---
 
+// --- Speedrun HUD ---
+// Formats elapsed seconds to mm:ss.t. Decisecond precision matches the HUD —
+// finer precision adds DOM noise without changing run feel.
+function _formatSpeedrunTime(totalSec) {
+    if (!isFinite(totalSec) || totalSec < 0) totalSec = 0;
+    const m = Math.floor(totalSec / 60);
+    const s = Math.floor(totalSec % 60);
+    const t = Math.floor((totalSec * 10) % 10);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${t}`;
+}
+
+let _speedrunSplitToastUntil = 0;
+
+function _showSpeedrunHud(show) {
+    const el = document.getElementById('speedrun-hud');
+    if (el) el.style.display = show ? '' : 'none';
+    if (!show) {
+        const toast = document.getElementById('speedrun-split-toast');
+        if (toast) { toast.textContent = ''; toast.classList.remove('show'); }
+    }
+}
+
+function _updateSpeedrunHud() {
+    if (!isSpeedrunMode || !gameRunning) return;
+    const timerEl = document.getElementById('speedrun-timer');
+    if (!timerEl) return;
+    const start = (currentRunStats && currentRunStats.startTime) || Date.now();
+    const elapsed = (Date.now() - start) / 1000;
+    timerEl.textContent = _formatSpeedrunTime(elapsed);
+
+    // Fade the split toast out after its TTL elapses.
+    if (_speedrunSplitToastUntil && Date.now() > _speedrunSplitToastUntil) {
+        const toast = document.getElementById('speedrun-split-toast');
+        if (toast) toast.classList.remove('show');
+        _speedrunSplitToastUntil = 0;
+    }
+}
+
+// Record a split and flash the delta in the HUD. Called from advanceWave for
+// every 10-wave boundary, and from _finishStoryEvent for the final win wave.
+function _recordSpeedrunSplit(forWave) {
+    if (!isSpeedrunMode || !currentRunStats) return;
+    const start = currentRunStats.startTime || Date.now();
+    const elapsed = (Date.now() - start) / 1000;
+    const splits = currentRunStats.splits || (currentRunStats.splits = []);
+    const prev = splits.length ? splits[splits.length - 1] : null;
+    splits.push({ wave: forWave, timeSec: elapsed });
+
+    const toast = document.getElementById('speedrun-split-toast');
+    if (toast) {
+        const delta = prev ? (elapsed - prev.timeSec) : elapsed;
+        const sign = prev ? '+' : '';
+        toast.textContent = `W${forWave} ${sign}${_formatSpeedrunTime(delta)}`;
+        toast.classList.add('show');
+        _speedrunSplitToastUntil = Date.now() + 2000;
+    }
+}
+
 // --- Story Logic ---
 function triggerStory(completedWave) {
     // Evil Mode has its own story pipeline
@@ -3342,6 +3416,20 @@ function _getStoryArcLabel(wave, hero) {
 }
 
 function openStory(story) {
+    // Speedrun fast-path: skip the modal + audio entirely. Mechanics (boss spawn,
+    // companion join, wave overrides, hero swap, THE_END victory, shop/advance)
+    // are owned by _finishStoryEvent + the wave generator that runs after.
+    if (isSpeedrunMode && story && !story.fromTutorial) {
+        currentStoryEvent = story;
+        if (saveData.story && Array.isArray(saveData.story.unlockedChapters) &&
+            !saveData.story.unlockedChapters.includes(story.id)) {
+            saveData.story.unlockedChapters.push(story.id);
+            saveGame();
+        }
+        _finishStoryEvent(story);
+        return;
+    }
+
     isStoryOpen = true;
     _onlineLocalContinuedStory  = false;
     _onlinePartnerContinuedStory = false;
@@ -3455,6 +3543,45 @@ function openStory(story) {
     currentStoryAudio.play().catch(() => { /* ignore missing audio */ });
 }
 
+// Post-modal story logic — runs THE_END victory, hero swap, shop/advance. Shared
+// by closeStory() (normal modal path) and openStory()'s speedrun fast-path so the
+// two paths can't drift.
+function _finishStoryEvent(event) {
+    // Victory Check: If this was "THE_END", trigger game over (victory)
+    if (event && event.type === 'THE_END') {
+        // Speedrun: push the final split before gameOver clears the flag so the
+        // splits array always ends with the win wave (base 101, DLC 51, etc.).
+        if (isSpeedrunMode) {
+            const splits = currentRunStats && currentRunStats.splits;
+            const lastWave = splits && splits.length ? splits[splits.length - 1].wave : 0;
+            if (lastWave !== wave) _recordSpeedrunSplit(wave);
+        }
+        gameOver(true);
+        return;
+    }
+
+    // Force Hero Swap to match Narrative (Generic Logic for Chaos/Fortune/etc)
+    // Skip in Evil Mode — villain hero is managed exclusively by EvilMode.setupWave()
+    if (!isEvilMode && event && event.hero) {
+        const requiredHero = event.hero.toLowerCase();
+        if (requiredHero !== 'all' && player.type !== requiredHero) {
+            changeHeroInGame(requiredHero);
+        }
+    }
+
+    // Proceed to Shop or Next Wave
+    // Special case: If wave is 0 (Intro), always advance to Wave 1
+    // Maze node events skip the shop entirely — the maze has its own reward flow
+    const _isMazeEvent = event && event.id && event.id.startsWith('maze_');
+    if (wave === 0 || isTutorialMode || isEvilMode) {
+        advanceWave();
+    } else if (!_isMazeEvent && wave % 4 === 0) {
+        openShop();
+    } else {
+        advanceWave();
+    }
+}
+
 function closeStory() {
     isStoryOpen = false;
     document.getElementById('story-screen').style.display = 'none';
@@ -3466,36 +3593,7 @@ function closeStory() {
         currentStoryAudio = null;
     }
 
-    // Victory Check: If this was "THE_END", trigger game over (victory)
-    if (currentStoryEvent && currentStoryEvent.type === 'THE_END') {
-        gameOver(true); // Victory!
-        return;
-    }
-
-    // Force Hero Swap to match Narrative (Generic Logic for Chaos/Fortune/etc)
-    // Skip in Evil Mode — villain hero is managed exclusively by EvilMode.setupWave()
-    if (!isEvilMode && currentStoryEvent && currentStoryEvent.hero) {
-        // Convert to lowercase because player types are lowercase (gravity/void/spirit/chance)
-        const requiredHero = currentStoryEvent.hero.toLowerCase();
-
-        // Ensure player matches the narrator, BUT ignore "all"
-        if (requiredHero !== 'all' && player.type !== requiredHero) {
-            // Use changeHeroInGame for direct swap preserving stats
-            changeHeroInGame(requiredHero);
-        }
-    }
-
-    // Proceed to Shop or Next Wave
-    // Special case: If wave is 0 (Intro), always advance to Wave 1
-    // Maze node events skip the shop entirely — the maze has its own reward flow
-    const _isMazeEvent = currentStoryEvent && currentStoryEvent.id && currentStoryEvent.id.startsWith('maze_');
-    if (wave === 0 || isTutorialMode || isEvilMode) {
-        advanceWave();
-    } else if (!_isMazeEvent && wave % 4 === 0) {
-        openShop();
-    } else {
-        advanceWave();
-    }
+    _finishStoryEvent(currentStoryEvent);
 }
 
 // ── Online story continue sync ────────────────────────────────────────────────
@@ -3722,6 +3820,15 @@ function advanceWave() {
     currentRunStats._noHitBaseline = currentRunStats.damageTaken;
 
     wave++;
+    // Speedrun split: a wave is "cleared" the moment advanceWave runs for the
+    // next one. Record on every 10-wave boundary; the final win-wave split is
+    // pushed by _finishStoryEvent when THE_END fires.
+    if (isSpeedrunMode) {
+        const justCleared = wave - 1;
+        if (justCleared > 0 && justCleared % 10 === 0) {
+            _recordSpeedrunSplit(justCleared);
+        }
+    }
     enemiesKilledInWave = 0;
     masksDroppedInWave = 0; // Reset mask cap
     enemies = [];
@@ -4132,6 +4239,16 @@ function startGame(mode = 'NORMAL') {
     isVersusMode = (mode === 'VERSUS');
     isTutorialMode = (mode === 'TUTORIAL');
     isEvilMode = (mode === 'EVIL');
+    // Speedrun flag is owned by startSpeedrunGame() (set before this runs).
+    // Defend against stale state from a prior run: clear it for any non-SPEEDRUN
+    // entry path and force solo when SPEEDRUN.
+    if (mode !== 'SPEEDRUN') {
+        isSpeedrunMode = false;
+        window.isSpeedrunMode = false;
+    } else {
+        isCoopMode = false;
+        window.isCoopMode = false;
+    }
 
     // Seeded RNG for daily/weekly so opt-in callers (mutator-specific rolls,
     // future arena/drop wiring) yield identical results for every player on the
@@ -4472,6 +4589,10 @@ function gameOver(isVictory = false) {
     gameRunning = false;
     isTutorialMode = false;
     isTestingMode = false;
+    const wasSpeedrunMode = isSpeedrunMode;
+    if (wasSpeedrunMode) _showSpeedrunHud(false);
+    isSpeedrunMode = false;
+    window.isSpeedrunMode = false;
     isCoopMode = false;
     window.isCoopMode = false;
     isAICompanionMode = false;
@@ -4580,6 +4701,30 @@ function gameOver(isVictory = false) {
             };
             const achId = dlcStoryMap[player.type];
             if (achId) unlockAchievement(achId);
+
+            // Mark Speedrun unlock per hero.
+            // Base game story (fire/water/ice/plant/metal) is shared — finishing
+            // with any one unlocks all five. Chaos and Fortune DLCs already share
+            // prestige across paired heroes; mirror that for Speedrun unlock.
+            const BASE_HEROES = ['fire', 'water', 'ice', 'plant', 'metal'];
+            const flipStoryCompleted = (h) => {
+                if (!saveData[h]) saveData[h] = { level: 0, unlocked: 0, highScore: 0, prestige: 0 };
+                saveData[h].storyCompleted = true;
+            };
+            if (BASE_HEROES.includes(player.type)) {
+                BASE_HEROES.forEach(flipStoryCompleted);
+            } else {
+                flipStoryCompleted(player.type);
+                if (currentStoryEvent && currentStoryEvent.id) {
+                    if (currentStoryEvent.id.startsWith('chaos_')) {
+                        flipStoryCompleted('gravity');
+                        flipStoryCompleted('void');
+                    } else if (currentStoryEvent.id.startsWith('fortune_')) {
+                        flipStoryCompleted('spirit');
+                        flipStoryCompleted('chance');
+                    }
+                }
+            }
         }
     }
 
@@ -4587,6 +4732,47 @@ function gameOver(isVictory = false) {
     if (isOnlineMode) {
         saveData.global.onlineGamesPlayed = (saveData.global.onlineGamesPlayed || 0) + 1;
         if (wave > (saveData.global.onlineMaxWave || 0)) saveData.global.onlineMaxWave = wave;
+    }
+
+    // ── Speedrun: best-time persistence + leaderboard submit ──────────────────
+    // Fires only on a successful speedrun victory (THE_END reached). Shared with
+    // Chaos/Fortune partner heroes to mirror existing prestige-share semantics.
+    if (wasSpeedrunMode && isVictory && player) {
+        const finalTimeSec = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
+        const updatePB = (h) => {
+            if (!saveData[h]) saveData[h] = { level: 0, unlocked: 0, highScore: 0, prestige: 0 };
+            const prev = saveData[h].bestSpeedrunSec;
+            if (prev == null || finalTimeSec < prev) {
+                saveData[h].bestSpeedrunSec = finalTimeSec;
+            }
+        };
+        updatePB(player.type);
+        if (currentStoryEvent && currentStoryEvent.id) {
+            if (currentStoryEvent.id.startsWith('chaos_')) {
+                updatePB('gravity'); updatePB('void');
+            } else if (currentStoryEvent.id.startsWith('fortune_')) {
+                updatePB('spirit'); updatePB('chance');
+            }
+        }
+
+        // Server submission — auth-only, fire-and-forget. Server clamps and
+        // validates via `speedrunPlausibilityReject` (see anticheat.js).
+        const _srToken = window.gameConfig?.account?.token;
+        const _srUrl   = (typeof CloudSaveManager !== 'undefined') ? CloudSaveManager._baseUrl() : null;
+        if (_srToken && _srUrl) {
+            const _srSession = window.networkManager?._gameSessionToken || null;
+            fetch(`${_srUrl}/api/speedrun`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_srToken}` },
+                body: JSON.stringify({
+                    hero: player.type,
+                    timeSec: finalTimeSec,
+                    finalWave: wave,
+                    splits: (currentRunStats && currentRunStats.splits) || [],
+                    sessionToken: _srSession,
+                }),
+            }).catch(() => {});
+        }
     }
 
     checkAchievements();
@@ -8227,7 +8413,10 @@ function _launchMenu() {
 // rAF tick; masterFrame runs once per fixed 60 Hz frame.
 const _gameLoop = createGameLoop({
     targetFps: FPS,
-    onRafTick: () => { if (typeof audioManager !== 'undefined') audioManager.update(); },
+    onRafTick: () => {
+        if (typeof audioManager !== 'undefined') audioManager.update();
+        _updateSpeedrunHud();
+    },
     onFrame:   (dt, ts) => masterFrame(dt, ts),
 });
 _gameLoop.start();

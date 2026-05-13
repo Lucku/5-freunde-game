@@ -152,6 +152,10 @@
                     <span class="hud-lbl">WAVE</span><span id="waveVal">1</span>
                 </div>
                 <div id="gold-display">🪙 <span id="goldVal">0</span></div>
+                <div id="speedrun-hud" style="display:none;">
+                    <span id="speedrun-timer">00:00.0</span>
+                    <span id="speedrun-split-toast"></span>
+                </div>
             </div>
             <div id="chaos-challenge-hud"
                 style="display:none; color: #ff5e5e; font-weight:bold; margin-top:5px; font-size: 14px; text-shadow: 0 0 5px red;">
@@ -674,6 +678,9 @@
 
                     <button id="btn-story-mode" class="btn menu-primary-btn" onclick="checkNewGame('STORY')">▶ Story
                         Mode</button>
+
+                    <button id="btn-speedrun-mode" class="btn menu-primary-btn menu-primary-btn-speedrun"
+                        style="display:none;" onclick="checkNewGame('SPEEDRUN')">⏱ Story Speedrun</button>
 
                     <div class="menu-modes-grid">
                         <button id="btn-standard-run" class="btn btn-story menu-mode-btn"

@@ -40,7 +40,7 @@ class MainMenuUI {
         heroes.forEach(h => {
             // Ensure save data exists
             if (!window.saveData[h]) {
-                window.saveData[h] = { level: 0, unlocked: 0, highScore: 0, prestige: 0 };
+                window.saveData[h] = { level: 0, unlocked: 0, highScore: 0, prestige: 0, storyCompleted: false, bestSpeedrunSec: null };
                 if (h === 'earth') window.saveData[h].unlocked = 1;
                 saveDirty = true;
             }
@@ -79,6 +79,9 @@ class MainMenuUI {
             const p2Badge = isP2Confirmed ? '<span class="hero-p2-badge">P2 ✓</span>'
                           : isP2Cursor    ? '<span class="hero-p2-badge" style="opacity:0.5">P2</span>' : '';
 
+            const pbText = (data.bestSpeedrunSec != null)
+                ? `<div class="hero-stats hero-speedrun-pb">⏱ ${this.formatSpeedrunTime(data.bestSpeedrunSec)}</div>`
+                : '';
             el.innerHTML = `
                 <div class="hero-icon" style="background: ${BASE_HERO_STATS[h].color}; position: relative; display: flex; justify-content: center; align-items: center;">
                     ${iconContent}
@@ -86,6 +89,7 @@ class MainMenuUI {
                 </div>
                 <div class="hero-name" style="color: ${BASE_HERO_STATS[h].color}; text-shadow: 0 0 30px rgba(255, 255, 255, 0.7);">${h.toUpperCase()}</div>
                 <div class="hero-stats">High Score: ${data.highScore}</div>
+                ${pbText}
                 ${prestigeText}
             `;
             el.onclick = () => {
@@ -135,8 +139,24 @@ class MainMenuUI {
         }
     }
 
+    isSpeedrunUnlocked(heroType) {
+        if (!heroType) return false;
+        const data = window.saveData && window.saveData[heroType];
+        return !!(data && data.storyCompleted === true);
+    }
+
+    formatSpeedrunTime(totalSec) {
+        if (totalSec == null || !isFinite(totalSec) || totalSec < 0) return '--:--';
+        const m = Math.floor(totalSec / 60);
+        const s = Math.floor(totalSec % 60);
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
     updateStoryButton() {
-        const btn = document.querySelector('.menu-primary-btn');
+        // Use IDs explicitly — after Speedrun was added there are two
+        // `.menu-primary-btn` elements in the DOM. querySelector(first) used to
+        // work by accident; lock it to btn-story-mode.
+        const btn = document.getElementById('btn-story-mode');
         if (!btn) return;
 
         let title = "Story Mode";
@@ -168,12 +188,30 @@ class MainMenuUI {
         if (standardBtn) {
             standardBtn.style.display = routesToStandard ? 'none' : '';
         }
+
+        // Story Speedrun button — unlocked per-hero on first story victory.
+        // Hidden in co-op / online (solo only) and for character-only DLCs (no story).
+        const speedrunBtn = document.getElementById('btn-speedrun-mode');
+        if (speedrunBtn) {
+            const eligible = this.isSpeedrunUnlocked(hero)
+                && !routesToStandard
+                && !window.isCoopMode
+                && !window.isOnlineMode;
+            speedrunBtn.style.display = eligible ? '' : 'none';
+            if (eligible) {
+                const pb = window.saveData?.[hero]?.bestSpeedrunSec;
+                speedrunBtn.innerText = pb != null
+                    ? `⏱ Story Speedrun (PB ${this.formatSpeedrunTime(pb)})`
+                    : '⏱ Story Speedrun';
+            }
+        }
     }
 }
 
 const mainMenuUI = new MainMenuUI();
 window.renderHeroSelect = () => mainMenuUI.renderHeroSelect();
 window.updateStoryButton = () => mainMenuUI.updateStoryButton();
+window.isSpeedrunUnlocked = (heroType) => mainMenuUI.isSpeedrunUnlocked(heroType);
 
 export { MainMenuUI, mainMenuUI };
 export default mainMenuUI;

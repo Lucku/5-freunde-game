@@ -34,6 +34,9 @@ export function createRunStats({ startTime = Date.now() } = {}) {
         upgradesPicked: [],   // [{ wave, timeSec, id, title }, ...]
         keyMoments:     [],   // [{ wave, timeSec, kind, label }, ...]
         damageBySource: {},   // 'melee'|'projectile'|'special'|'dot' → number
+        // Speedrun splits — populated only when isSpeedrunMode. Pushed every 10
+        // cleared waves and on THE_END so the final win-wave row always exists.
+        splits:         [],   // [{ wave, timeSec }, ...]
     };
 }
 

@@ -73,8 +73,10 @@ class Museum {
         // Player Avatar in Museum (defaults to selected hero)
         this.player = { x: 1200, y: 1300, radius: 20, speed: 5, type: selectedHeroType, angle: 0 };
 
-        this.viewingLeaderboard  = false;
-        this._leaderboardData    = null; // null = not yet fetched
+        this.viewingLeaderboard       = false;
+        this._lbSpeedrunTab           = false; // false = scores, true = speedrun
+        this._leaderboardData         = null; // null = not yet fetched
+        this._speedrunLeaderboardData = null;
 
         this.generateLayout();
         this.generateDecorations(); // Generate Decorations
@@ -91,6 +93,15 @@ class Museum {
             .then(r => r.json())
             .then(data => { this._leaderboardData = data.entries || []; })
             .catch(() => { this._leaderboardData = []; });
+    }
+
+    _fetchSpeedrunLeaderboard() {
+        const baseUrl = (typeof CloudSaveManager !== 'undefined') ? CloudSaveManager._baseUrl() : null;
+        if (!baseUrl) { this._speedrunLeaderboardData = []; return; }
+        fetch(`${baseUrl}/api/speedrun?limit=20`)
+            .then(r => r.json())
+            .then(data => { this._speedrunLeaderboardData = data.entries || []; })
+            .catch(() => { this._speedrunLeaderboardData = []; });
     }
 
     generateLayout() {
@@ -481,8 +492,18 @@ class Museum {
 
         if (this.viewingLeaderboard) {
             const gp = [...(navigator.getGamepads?.() || [])].find(g => window.isRealGamepad(g)) || null;
-            if (keys['escape']) { this.viewingLeaderboard = false; keys['escape'] = false; return; }
-            if (gp && gp.buttons[1].pressed) { this.viewingLeaderboard = false; return; }
+            if (keys['escape']) { this.viewingLeaderboard = false; this._lbSpeedrunTab = false; keys['escape'] = false; return; }
+            if (gp && gp.buttons[1].pressed) { this.viewingLeaderboard = false; this._lbSpeedrunTab = false; return; }
+            // Left/right arrow or Q/E to switch tabs
+            if (keys['arrowleft'] || keys['q']) {
+                this._lbSpeedrunTab = false;
+                keys['arrowleft'] = keys['q'] = false;
+            }
+            if (keys['arrowright'] || keys['e']) {
+                this._lbSpeedrunTab = true;
+                if (this._speedrunLeaderboardData === null) this._fetchSpeedrunLeaderboard();
+                keys['arrowright'] = keys['e'] = false;
+            }
             return;
         }
 
@@ -1802,8 +1823,14 @@ class Museum {
     drawLeaderboardScreen(ctx) {
         const W = canvas.width;
         const H = canvas.height;
-        const entries = this._leaderboardData;
-        const fmtTime = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+        const fmtTime = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+        const fmtTimeTenths = s => {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            const t = Math.floor((s % 1) * 10);
+            return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${t}`;
+        };
+        const myUsername = window.gameConfig?.account?.username || null;
 
         // Backdrop
         ctx.fillStyle = 'rgba(0,0,0,0.82)';
@@ -1829,11 +1856,35 @@ class Museum {
         ctx.roundRect(px, py, pw, 50, [10, 10, 0, 0]);
         ctx.fill();
 
-        ctx.fillStyle = '#5dade2';
-        ctx.font = 'bold 18px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('🌐  GLOBAL LEADERBOARD', W / 2, py + 32);
+        // Tab buttons
+        const tabW = pw / 2 - 20;
+        const tabH = 30;
+        const tab1x = px + 10;
+        const tab2x = px + pw / 2 + 10;
+        const tabY = py + 8;
+        const isSpeedrun = this._lbSpeedrunTab;
 
+        ctx.font = 'bold 13px Arial';
+        // Scores tab
+        ctx.fillStyle = isSpeedrun ? 'rgba(42,122,160,0.15)' : 'rgba(42,122,160,0.45)';
+        ctx.beginPath(); ctx.roundRect(tab1x, tabY, tabW, tabH, 5); ctx.fill();
+        ctx.strokeStyle = isSpeedrun ? 'rgba(42,122,160,0.3)' : '#2a7aa0';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(tab1x, tabY, tabW, tabH, 5); ctx.stroke();
+        ctx.fillStyle = isSpeedrun ? 'rgba(255,255,255,0.4)' : '#5dade2';
+        ctx.textAlign = 'center';
+        ctx.fillText('🌐  HIGH SCORES', tab1x + tabW / 2, tabY + 20);
+
+        // Speedrun tab
+        ctx.fillStyle = isSpeedrun ? 'rgba(212,175,55,0.35)' : 'rgba(212,175,55,0.10)';
+        ctx.beginPath(); ctx.roundRect(tab2x, tabY, tabW, tabH, 5); ctx.fill();
+        ctx.strokeStyle = isSpeedrun ? '#d4af37' : 'rgba(212,175,55,0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(tab2x, tabY, tabW, tabH, 5); ctx.stroke();
+        ctx.fillStyle = isSpeedrun ? '#d4af37' : 'rgba(212,175,55,0.45)';
+        ctx.fillText('⏱  SPEEDRUN', tab2x + tabW / 2, tabY + 20);
+
+        // Divider
         ctx.strokeStyle = '#2a7aa0';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -1841,86 +1892,147 @@ class Museum {
         ctx.lineTo(px + pw - 20, py + 52);
         ctx.stroke();
 
-        if (!entries) {
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
-            ctx.font = '16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Loading…', W / 2, py + ph / 2);
-        } else if (entries.length === 0) {
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
-            ctx.font = '16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('No scores submitted yet. Play online to appear here!', W / 2, py + ph / 2);
-        } else {
-            const rowH = (ph - 70) / entries.length;
-            const rankColors = ['#f1c40f', '#c0c0c0', '#cd7f32'];
-            entries.forEach((e, i) => {
-                const ry = py + 62 + i * rowH;
-                const heroColor = this._getHeroColor(e.hero);
-                const isVictory = e.outcome === 'victory';
+        const contentY = py + 58;
+        const contentH = ph - 70;
 
-                // Row bg
-                ctx.fillStyle = i % 2 === 0 ? 'rgba(42,122,160,0.07)' : 'rgba(0,0,0,0.15)';
-                ctx.fillRect(px + 10, ry, pw - 20, rowH - 4);
-
-                // Left accent bar (rank colour for top 3, hero colour otherwise)
-                ctx.fillStyle = rankColors[i] || heroColor;
-                ctx.fillRect(px + 10, ry, 5, rowH - 4);
-
-                // Rank badge
-                ctx.font = 'bold 13px Arial';
-                ctx.fillStyle = rankColors[i] || 'rgba(255,255,255,0.35)';
+        if (!isSpeedrun) {
+            // ── Scores tab ──────────────────────────────────────────────────────
+            const entries = this._leaderboardData;
+            if (!entries) {
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '16px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText(`#${i + 1}`, px + 30, ry + rowH / 2 + 5);
+                ctx.fillText('Loading…', W / 2, py + ph / 2);
+            } else if (entries.length === 0) {
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No scores submitted yet. Play online to appear here!', W / 2, py + ph / 2);
+            } else {
+                const rowH = contentH / entries.length;
+                const rankColors = ['#f1c40f', '#c0c0c0', '#cd7f32'];
+                entries.forEach((e, i) => {
+                    const ry = contentY + i * rowH;
+                    const heroColor = this._getHeroColor(e.hero);
+                    const isVictory = e.outcome === 'victory';
+                    const isMe = myUsername && e.username === myUsername;
 
-                // Username
-                ctx.font = 'bold 15px Arial';
-                ctx.fillStyle = '#fff';
-                ctx.textAlign = 'left';
-                ctx.fillText(e.username, px + 50, ry + 16);
+                    ctx.fillStyle = isMe ? 'rgba(212,175,55,0.12)' : (i % 2 === 0 ? 'rgba(42,122,160,0.07)' : 'rgba(0,0,0,0.15)');
+                    ctx.fillRect(px + 10, ry, pw - 20, rowH - 4);
 
-                // Hero + mode label
-                const modeLabel = { standard: 'Standard', story: 'Story', shuffle: 'Chaos Shuffle',
-                    daily: 'Daily', weekly: 'Weekly', versus: 'Versus', '2p_versus': '2P Versus',
-                    tutorial: 'Tutorial', evil: 'Evil Mode' }[e.mode] || 'Standard';
-                ctx.font = '10px Arial';
-                ctx.fillStyle = heroColor;
-                ctx.fillText(`${e.hero.toUpperCase()}  ·  ${modeLabel}`, px + 50, ry + 29);
+                    ctx.fillStyle = rankColors[i] || heroColor;
+                    ctx.fillRect(px + 10, ry, 5, rowH - 4);
 
-                // Outcome badge
-                ctx.font = 'bold 12px Arial';
-                ctx.fillStyle = isVictory ? '#f1c40f' : '#e74c3c';
-                ctx.textAlign = 'right';
-                ctx.fillText(isVictory ? '✓ VICTORY' : '✗ DEATH', px + pw - 20, ry + 16);
+                    ctx.font = 'bold 13px Arial';
+                    ctx.fillStyle = rankColors[i] || 'rgba(255,255,255,0.35)';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`#${i + 1}`, px + 30, ry + rowH / 2 + 5);
 
-                // Score (prominent, right-aligned)
-                ctx.font = 'bold 16px Arial';
-                ctx.fillStyle = '#5dade2';
-                ctx.fillText(e.score.toLocaleString(), px + pw - 20, ry + 32);
+                    ctx.font = isMe ? 'bold 15px Arial' : 'bold 15px Arial';
+                    ctx.fillStyle = isMe ? '#d4af37' : '#fff';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(e.username, px + 50, ry + 16);
 
-                // Stats line: wave · time
-                ctx.font = '11px Arial';
-                ctx.fillStyle = 'rgba(255,255,255,0.55)';
-                ctx.textAlign = 'left';
-                ctx.fillText(`Wave ${e.wave}   Time: ${fmtTime(e.timeSec)}`, px + 50, ry + 44);
+                    const modeLabel = { standard: 'Standard', story: 'Story', shuffle: 'Chaos Shuffle',
+                        daily: 'Daily', weekly: 'Weekly', versus: 'Versus', '2p_versus': '2P Versus',
+                        tutorial: 'Tutorial', evil: 'Evil Mode' }[e.mode] || 'Standard';
+                    ctx.font = '10px Arial';
+                    ctx.fillStyle = heroColor;
+                    ctx.fillText(`${e.hero.toUpperCase()}  ·  ${modeLabel}`, px + 50, ry + 29);
 
-                // Row divider
-                if (i < entries.length - 1) {
-                    ctx.strokeStyle = 'rgba(42,122,160,0.25)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(px + 20, ry + rowH - 2);
-                    ctx.lineTo(px + pw - 20, ry + rowH - 2);
-                    ctx.stroke();
-                }
-            });
+                    ctx.font = 'bold 12px Arial';
+                    ctx.fillStyle = isVictory ? '#f1c40f' : '#e74c3c';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(isVictory ? '✓ VICTORY' : '✗ DEATH', px + pw - 20, ry + 16);
+
+                    ctx.font = 'bold 16px Arial';
+                    ctx.fillStyle = '#5dade2';
+                    ctx.fillText(e.score.toLocaleString(), px + pw - 20, ry + 32);
+
+                    ctx.font = '11px Arial';
+                    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(`Wave ${e.wave}   Time: ${fmtTime(e.timeSec)}`, px + 50, ry + 44);
+
+                    if (i < entries.length - 1) {
+                        ctx.strokeStyle = 'rgba(42,122,160,0.25)';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(px + 20, ry + rowH - 2);
+                        ctx.lineTo(px + pw - 20, ry + rowH - 2);
+                        ctx.stroke();
+                    }
+                });
+            }
+        } else {
+            // ── Speedrun tab ─────────────────────────────────────────────────────
+            const entries = this._speedrunLeaderboardData;
+            if (!entries) {
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Loading…', W / 2, py + ph / 2);
+            } else if (entries.length === 0) {
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No speedrun times yet. Beat Story Mode to unlock!', W / 2, py + ph / 2);
+            } else {
+                const rowH = Math.min(48, contentH / entries.length);
+                const rankColors = ['#f1c40f', '#c0c0c0', '#cd7f32'];
+                entries.forEach((e, i) => {
+                    const ry = contentY + i * rowH;
+                    if (ry + rowH > py + ph - 20) return; // clip
+                    const heroColor = this._getHeroColor(e.hero);
+                    const isMe = myUsername && e.username === myUsername;
+
+                    ctx.fillStyle = isMe ? 'rgba(212,175,55,0.12)' : (i % 2 === 0 ? 'rgba(212,175,55,0.04)' : 'rgba(0,0,0,0.15)');
+                    ctx.fillRect(px + 10, ry, pw - 20, rowH - 4);
+
+                    ctx.fillStyle = rankColors[i] || heroColor;
+                    ctx.fillRect(px + 10, ry, 5, rowH - 4);
+
+                    ctx.font = 'bold 13px Arial';
+                    ctx.fillStyle = rankColors[i] || 'rgba(255,255,255,0.35)';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`#${i + 1}`, px + 30, ry + rowH / 2 + 5);
+
+                    ctx.font = 'bold 15px Arial';
+                    ctx.fillStyle = isMe ? '#d4af37' : '#fff';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(e.username, px + 50, ry + 16);
+
+                    ctx.font = '10px Arial';
+                    ctx.fillStyle = heroColor;
+                    ctx.fillText(e.hero.toUpperCase(), px + 50, ry + 29);
+
+                    // Time — prominent, gold, right-aligned
+                    ctx.font = 'bold 18px Arial';
+                    ctx.fillStyle = isMe ? '#ffe680' : '#d4af37';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(fmtTimeTenths(e.timeSec), px + pw - 20, ry + 20);
+
+                    ctx.font = '10px Arial';
+                    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+                    ctx.fillText(`Wave ${e.finalWave}`, px + pw - 20, ry + 33);
+
+                    if (i < entries.length - 1) {
+                        ctx.strokeStyle = 'rgba(212,175,55,0.20)';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(px + 20, ry + rowH - 2);
+                        ctx.lineTo(px + pw - 20, ry + rowH - 2);
+                        ctx.stroke();
+                    }
+                });
+            }
         }
 
         // Footer
         ctx.font = '12px Arial';
         ctx.fillStyle = 'rgba(255,255,255,0.35)';
         ctx.textAlign = 'center';
-        ctx.fillText('Press ESC or (B) to close', W / 2, py + ph - 14);
+        ctx.fillText('◀ Q / ▶ E to switch tabs   ·   ESC or (B) to close', W / 2, py + ph - 14);
     }
 
     _getHeroColor(h) {

@@ -53,6 +53,21 @@ db.exec(`
     )
 `);
 
+db.exec(`
+    CREATE TABLE IF NOT EXISTS speedrun_scores (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id      INTEGER NOT NULL,
+        username     TEXT NOT NULL,
+        hero         TEXT NOT NULL,
+        time_sec     INTEGER NOT NULL,
+        final_wave   INTEGER NOT NULL,
+        splits_json  TEXT,
+        submitted_at INTEGER NOT NULL,
+        verified     INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_speedrun_hero_time ON speedrun_scores(hero, time_sec);
+`);
+
 // Schema upgrade: add `verified` + `daily_seed` columns to existing scores tables.
 // verified  — 0 = client-asserted (offline run), 1 = server-confirmed (online session).
 // daily_seed — null for ordinary runs; YYYYMMDD for daily-challenge runs,
@@ -97,7 +112,7 @@ app.set('trust proxy', 1);
 // ── Rate limiting + plausibility (extracted to server/anticheat.js so unit
 //    tests can import them without booting the WS server). ────────────────────
 
-const { plausibilityReject, makeRateLimiter } = require('./anticheat');
+const { plausibilityReject, speedrunPlausibilityReject, makeRateLimiter } = require('./anticheat');
 
 const _rateBuckets = new Map(); // key → { tokens, last }
 const RATE_SWEEP_MS = 5 * 60 * 1000;
@@ -269,6 +284,70 @@ app.get('/api/leaderboard', (req, res) => {
         ORDER BY score DESC
         LIMIT ?
     `).all(...params);
+    res.json({ entries: rows });
+});
+
+// ── Speedrun leaderboard ──────────────────────────────────────────────────────
+
+app.post('/api/speedrun',
+    rateLimit({ key: 'sr_post', capacity: 5, refillPerSec: 5 / 3600 }), // 5/hr
+    requireAuth,
+    (req, res) => {
+        const { hero, timeSec, finalWave, splits, sessionToken } = req.body || {};
+
+        let tSec = timeSec | 0;
+        let fWave = finalWave | 0;
+
+        const reason = speedrunPlausibilityReject(hero, tSec, fWave, splits);
+        if (reason) {
+            console.warn(`[Speedrun] rejected from ${req.user.username}: ${reason}`);
+            return res.status(400).json({ error: 'Speedrun failed plausibility check', reason });
+        }
+
+        let verified = 0;
+        if (typeof sessionToken === 'string' && sessionToken.length > 0) {
+            const payload = verifySessionToken(sessionToken);
+            if (payload && payload.uid === req.user.id) {
+                const auth = _sessionScores.get(payload.sid);
+                if (auth) verified = 1;
+            }
+        }
+
+        const splitsJson = Array.isArray(splits) ? JSON.stringify(splits) : null;
+
+        db.prepare(`
+            INSERT INTO speedrun_scores (user_id, username, hero, time_sec, final_wave, splits_json, submitted_at, verified)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(req.user.id, req.user.username, hero, tSec, fWave, splitsJson, Date.now(), verified);
+
+        // Keep best 500 entries per hero — prune slowest beyond that
+        db.prepare(`
+            DELETE FROM speedrun_scores
+            WHERE hero = ? AND id NOT IN (
+                SELECT id FROM speedrun_scores WHERE hero = ? ORDER BY time_sec ASC LIMIT 500
+            )
+        `).run(hero, hero);
+
+        res.json({ ok: true, verified: !!verified });
+    }
+);
+
+app.get('/api/speedrun', (req, res) => {
+    const hero  = typeof req.query.hero === 'string' ? req.query.hero : null;
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 50);
+
+    const where  = hero ? 'WHERE hero = ?' : '';
+    const params = hero ? [hero, limit] : [limit];
+
+    const rows = db.prepare(`
+        SELECT username, hero, time_sec AS timeSec, final_wave AS finalWave,
+               submitted_at AS submittedAt, verified
+        FROM speedrun_scores
+        ${where}
+        ORDER BY time_sec ASC
+        LIMIT ?
+    `).all(...params);
+
     res.json({ entries: rows });
 });
 

@@ -46,7 +46,31 @@ function makeRateLimiter({ capacity, refillPerSec, buckets, now = Date.now }) {
     };
 }
 
+// Speedrun plausibility — more permissive than standard (story forces specific
+// wave counts, no score to inflate). 4s/wave minimum to block sub-second bots.
+const MIN_SEC_PER_WAVE_SPEEDRUN = 4;
+const MAX_SPEEDRUN_SPLITS = 20; // story never exceeds ~20 arc boundaries
+
+function speedrunPlausibilityReject(hero, timeSec, finalWave, splits) {
+    if (typeof timeSec !== 'number' || timeSec < 0) return 'negative time';
+    if (typeof finalWave !== 'number' || finalWave < 1 || finalWave > MAX_WAVE)
+        return `wave out of range (1..${MAX_WAVE})`;
+    if (finalWave >= 5 && timeSec < finalWave * MIN_SEC_PER_WAVE_SPEEDRUN)
+        return `time/wave ratio impossible (${timeSec}s for wave ${finalWave})`;
+    if (typeof hero !== 'string' || !hero) return 'hero required';
+    if (splits !== undefined && splits !== null) {
+        if (!Array.isArray(splits)) return 'splits must be array';
+        if (splits.length > MAX_SPEEDRUN_SPLITS) return 'too many splits';
+        for (const s of splits) {
+            if (typeof s.wave !== 'number' || typeof s.timeSec !== 'number') return 'malformed split';
+            if (s.timeSec < 0 || s.timeSec > timeSec + 1) return 'split time out of range';
+        }
+    }
+    return null;
+}
+
 module.exports = {
     MAX_WAVE, MAX_SCORE, MIN_SEC_PER_WAVE,
-    plausibilityReject, makeRateLimiter,
+    MIN_SEC_PER_WAVE_SPEEDRUN, MAX_SPEEDRUN_SPLITS,
+    plausibilityReject, speedrunPlausibilityReject, makeRateLimiter,
 };
