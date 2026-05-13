@@ -551,7 +551,8 @@
       <button class="tab-btn" data-tab="void">Void Shop</button>
       <button class="tab-btn" data-tab="memories">Memories</button>
       <button class="tab-btn" data-tab="cards">Collector Cards</button>
-      <button class="tab-btn" data-tab="currency">Currency</button>
+      <button class="tab-btn" data-tab="currency">Currency &amp; Stats</button>
+      <button class="tab-btn" data-tab="story">Story &amp; Misc</button>
     </div>
 
     <!-- HEROES -->
@@ -565,6 +566,12 @@
           </div>
         </div>
         <div class="hero-grid" id="hero-grid"></div>
+      </div>
+      <div class="section" id="dlc-hero-section" style="display:none">
+        <div class="section-header">
+          <span class="section-title">DLC Hero Progression</span>
+        </div>
+        <div class="hero-grid" id="dlc-hero-grid"></div>
       </div>
     </div>
 
@@ -633,6 +640,47 @@
         <div class="currency-grid" id="currency-grid"></div>
       </div>
     </div>
+
+    <!-- STORY & MISC -->
+    <div class="tab-panel" id="tab-story">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Story Mode</span>
+        </div>
+        <div class="field-row" style="margin-bottom:12px">
+          <span class="field-label" style="font-size:13px">Story mode enabled</span>
+          <input type="checkbox" id="story-enabled" style="width:16px;height:16px;accent-color:var(--success);cursor:pointer">
+        </div>
+        <div style="margin-bottom:6px;font-size:12px;color:var(--text-muted)">Unlocked chapter IDs (one per line)</div>
+        <textarea id="story-chapters" style="width:100%;height:120px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:monospace;padding:10px;resize:vertical" placeholder="e.g. fire_chapter_1"></textarea>
+      </div>
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Tutorial</span>
+        </div>
+        <div class="field-row" style="margin-bottom:10px">
+          <span class="field-label" style="font-size:13px">Tutorial seen</span>
+          <input type="checkbox" id="tutorial-seen" style="width:16px;height:16px;accent-color:var(--success);cursor:pointer">
+        </div>
+        <div class="field-row">
+          <span class="field-label" style="font-size:13px">Tutorial completed</span>
+          <input type="checkbox" id="tutorial-completed" style="width:16px;height:16px;accent-color:var(--success);cursor:pointer">
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Daily &amp; Weekly</span>
+        </div>
+        <div class="field-row" style="margin-bottom:10px">
+          <span class="field-label" style="font-size:13px">Daily last completed</span>
+          <input type="text" id="daily-lastCompleted" placeholder="null" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 8px;font-size:13px;width:160px">
+        </div>
+        <div class="field-row">
+          <span class="field-label" style="font-size:13px">Weekly last completed</span>
+          <input type="text" id="weekly-lastCompleted" placeholder="null" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 8px;font-size:13px;width:160px">
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -678,6 +726,25 @@ const BASE_HEROES = [
   { id: 'metal', name: 'Metal',  icon: '⚙️', color: '#95a5a6' },
   { id: 'black', name: 'Shadow', icon: '🖤', color: '#636e72' },
 ];
+
+const DLC_HEROES = [
+  { id: 'earth',     name: 'Earth',     icon: '🪨', color: '#8d6e63', dlc: 'Rise of the Rock' },
+  { id: 'lightning', name: 'Lightning', icon: '⚡', color: '#f1c40f', dlc: 'Tournament of Thunder' },
+  { id: 'gravity',   name: 'Gravity',   icon: '🌀', color: '#9b59b6', dlc: 'Champions of Chaos' },
+  { id: 'void',      name: 'Void',      icon: '🌌', color: '#2c3e50', dlc: 'Champions of Chaos' },
+  { id: 'spirit',    name: 'Spirit',    icon: '👻', color: '#ecf0f1', dlc: 'Faith of Fortune' },
+  { id: 'chance',    name: 'Chance',    icon: '🎲', color: '#e67e22', dlc: 'Faith of Fortune' },
+  { id: 'sound',     name: 'Sound',     icon: '🎵', color: '#1abc9c', dlc: 'Symphony of Sickness' },
+  { id: 'poison',    name: 'Poison',    icon: '☠️', color: '#27ae60', dlc: 'Symphony of Sickness' },
+  { id: 'air',       name: 'Air',       icon: '🌬️', color: '#bdc3c7', dlc: 'Waker of Winds' },
+  { id: 'time',      name: 'Time',      icon: '⏰', color: '#e74c3c', dlc: 'Echos of Eternity' },
+  { id: 'love',      name: 'Love',      icon: '❤️', color: '#e91e63', dlc: 'Echos of Eternity' },
+  { id: 'psycho',    name: 'Psycho',    icon: '🧠', color: '#8e24aa', dlc: 'Disciples of Deception' },
+  { id: 'mirror',    name: 'Mirror',    icon: '🪞', color: '#546e7a', dlc: 'Disciples of Deception' },
+  { id: 'smoke',     name: 'Smoke',     icon: '💨', color: '#78909c', dlc: 'Disciples of Deception' },
+];
+
+const ALL_HEROES = [...BASE_HEROES, ...DLC_HEROES];
 
 const ALL_MEMORY_HEROES = [
   { id: 'fire',      name: 'Fire',      icon: '🔥' },
@@ -882,8 +949,12 @@ function ensureDefaults() {
   if (!saveData.metaUpgrades) saveData.metaUpgrades = {};
   if (!saveData.memories) saveData.memories = {};
   if (!saveData.collection) saveData.collection = [];
-  for (const h of BASE_HEROES) {
-    if (!saveData[h.id]) saveData[h.id] = { level: 0, unlocked: 0, prestige: 0, highScore: 0, maxWinPrestige: -1 };
+  if (!saveData.story) saveData.story = { unlockedChapters: [], enabled: true };
+  if (!saveData.tutorial) saveData.tutorial = { seen: false, completed: false };
+  if (!saveData.daily) saveData.daily = { lastCompleted: null };
+  if (!saveData.weekly) saveData.weekly = { lastCompleted: null };
+  for (const h of ALL_HEROES) {
+    if (!saveData[h.id]) saveData[h.id] = { level: 0, unlocked: 0, prestige: 0, highScore: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null };
   }
 }
 
@@ -921,6 +992,22 @@ function closeModal(id) {
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 
+function renderStory() {
+  const story = saveData.story || {};
+  document.getElementById('story-enabled').checked = story.enabled !== false;
+  const chapters = Array.isArray(story.unlockedChapters) ? story.unlockedChapters : [];
+  document.getElementById('story-chapters').value = chapters.join('\n');
+
+  const tutorial = saveData.tutorial || {};
+  document.getElementById('tutorial-seen').checked = !!tutorial.seen;
+  document.getElementById('tutorial-completed').checked = !!tutorial.completed;
+
+  const daily = saveData.daily || {};
+  document.getElementById('daily-lastCompleted').value = daily.lastCompleted || '';
+  const weekly = saveData.weekly || {};
+  document.getElementById('weekly-lastCompleted').value = weekly.lastCompleted || '';
+}
+
 function renderAll() {
   renderHeroes();
   renderChaos();
@@ -928,9 +1015,62 @@ function renderAll() {
   renderMemories();
   renderCards();
   renderCurrency();
+  renderStory();
 }
 
 // ─── Render: Heroes ──────────────────────────────────────────────────────────
+
+function buildHeroCard(hero, h) {
+  const available = Math.max(0, (h.level || 0) - (h.unlocked || 0));
+  const speedrunVal = (h.bestSpeedrunSec != null) ? h.bestSpeedrunSec : '';
+  const card = document.createElement('div');
+  card.className = 'hero-card';
+  card.innerHTML = `
+    <div class="hero-card-header">
+      <div class="hero-icon" style="background:${hero.color}22; border:1px solid ${hero.color}44">
+        ${hero.icon}
+      </div>
+      <div>
+        <div class="hero-name">${hero.name}</div>
+        ${hero.dlc ? `<div style="font-size:10px;color:var(--text-muted)">${hero.dlc}</div>` : ''}
+      </div>
+    </div>
+    <div class="field-row">
+      <span class="field-label">XP Level</span>
+      <input type="number" min="0" max="9999" id="hero-${hero.id}-level" value="${h.level || 0}" onchange="updateHeroCalc('${hero.id}')">
+    </div>
+    <div class="field-row">
+      <span class="field-label">Skills Spent</span>
+      <input type="number" min="0" max="100" id="hero-${hero.id}-unlocked" value="${h.unlocked || 0}" onchange="updateHeroCalc('${hero.id}')">
+    </div>
+    <div class="field-row">
+      <span class="field-label">Available Points</span>
+      <span class="field-value" id="hero-${hero.id}-avail">${available}</span>
+    </div>
+    <div class="divider"></div>
+    <div class="field-row" style="margin-top:8px">
+      <span class="field-label">Prestige</span>
+      <input type="number" min="0" max="20" id="hero-${hero.id}-prestige" value="${h.prestige || 0}">
+    </div>
+    <div class="field-row">
+      <span class="field-label">High Score (wave)</span>
+      <input type="number" min="0" max="9999" id="hero-${hero.id}-highScore" value="${h.highScore || 0}">
+    </div>
+    <div class="field-row">
+      <span class="field-label">Max Win Prestige</span>
+      <input type="number" min="-1" max="20" id="hero-${hero.id}-maxWinPrestige" value="${h.maxWinPrestige ?? -1}">
+    </div>
+    <div class="field-row">
+      <span class="field-label">Story Completed</span>
+      <input type="checkbox" id="hero-${hero.id}-storyCompleted" ${h.storyCompleted ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--success);cursor:pointer">
+    </div>
+    <div class="field-row">
+      <span class="field-label">Best Speedrun (s)</span>
+      <input type="number" min="0" step="0.001" id="hero-${hero.id}-bestSpeedrunSec" placeholder="none" value="${speedrunVal}" style="width:90px">
+    </div>
+  `;
+  return card;
+}
 
 function renderHeroes() {
   const grid = document.getElementById('hero-grid');
@@ -938,37 +1078,17 @@ function renderHeroes() {
 
   for (const hero of BASE_HEROES) {
     const h = saveData[hero.id] || { level: 0, unlocked: 0, prestige: 0 };
-    const available = Math.max(0, (h.level || 0) - (h.unlocked || 0));
-
-    const card = document.createElement('div');
-    card.className = 'hero-card';
-    card.innerHTML = `
-      <div class="hero-card-header">
-        <div class="hero-icon" style="background:${hero.color}22; border:1px solid ${hero.color}44">
-          ${hero.icon}
-        </div>
-        <div class="hero-name">${hero.name}</div>
-      </div>
-      <div class="field-row">
-        <span class="field-label">XP Level</span>
-        <input type="number" min="0" max="9999" id="hero-${hero.id}-level" value="${h.level || 0}" onchange="updateHeroCalc('${hero.id}')">
-      </div>
-      <div class="field-row">
-        <span class="field-label">Skills Spent</span>
-        <input type="number" min="0" max="100" id="hero-${hero.id}-unlocked" value="${h.unlocked || 0}" onchange="updateHeroCalc('${hero.id}')">
-      </div>
-      <div class="field-row">
-        <span class="field-label">Available Points</span>
-        <span class="field-value" id="hero-${hero.id}-avail">${available}</span>
-      </div>
-      <div class="divider"></div>
-      <div class="field-row" style="margin-top:8px">
-        <span class="field-label">Prestige</span>
-        <input type="number" min="0" max="20" id="hero-${hero.id}-prestige" value="${h.prestige || 0}">
-      </div>
-    `;
-    grid.appendChild(card);
+    grid.appendChild(buildHeroCard(hero, h));
   }
+
+  const dlcSection = document.getElementById('dlc-hero-section');
+  const dlcGrid = document.getElementById('dlc-hero-grid');
+  dlcGrid.innerHTML = '';
+  for (const hero of DLC_HEROES) {
+    const h = saveData[hero.id] || { level: 0, unlocked: 0, prestige: 0 };
+    dlcGrid.appendChild(buildHeroCard(hero, h));
+  }
+  dlcSection.style.display = 'block';
 }
 
 function updateHeroCalc(heroId) {
@@ -978,8 +1098,10 @@ function updateHeroCalc(heroId) {
 }
 
 function maxAllHeroes() {
-  for (const hero of BASE_HEROES) {
-    document.getElementById(`hero-${hero.id}-level`).value = 100;
+  for (const hero of ALL_HEROES) {
+    const lvlEl = document.getElementById(`hero-${hero.id}-level`);
+    if (!lvlEl) continue;
+    lvlEl.value = 100;
     document.getElementById(`hero-${hero.id}-unlocked`).value = 0;
     updateHeroCalc(hero.id);
   }
@@ -990,8 +1112,9 @@ function setAllPrestige() {
   if (val === null) return;
   const n = parseInt(val);
   if (isNaN(n) || n < 0) return;
-  for (const hero of BASE_HEROES) {
-    document.getElementById(`hero-${hero.id}-prestige`).value = n;
+  for (const hero of ALL_HEROES) {
+    const el = document.getElementById(`hero-${hero.id}-prestige`);
+    if (el) el.value = n;
   }
 }
 
@@ -1232,17 +1355,78 @@ function lockAllCards() {
 // ─── Render: Currency ────────────────────────────────────────────────────────
 
 function renderCurrency() {
+  const g = saveData.global || {};
   const grid = document.getElementById('currency-grid');
   grid.innerHTML = `
     <div class="currency-card">
       <div class="currency-label">Void Shop Currency</div>
       <div class="currency-name">🪙 Total Gold</div>
-      <input type="number" id="cur-totalGold" min="0" value="${saveData.global?.totalGold || 0}">
+      <input type="number" id="cur-totalGold" min="0" value="${g.totalGold || 0}">
     </div>
     <div class="currency-card">
       <div class="currency-label">Chaos Shop Currency</div>
       <div class="currency-name">💜 Chaos Shards</div>
       <input type="number" id="cur-chaosShards" min="0" value="${saveData.chaos?.shards || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Lifetime Stat</div>
+      <div class="currency-name">💀 Total Kills</div>
+      <input type="number" id="cur-totalKills" min="0" value="${g.totalKills || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Lifetime Stat</div>
+      <div class="currency-name">🌊 Max Wave</div>
+      <input type="number" id="cur-maxWave" min="0" value="${g.maxWave || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Lifetime Stat</div>
+      <div class="currency-name">💥 Total Bosses Killed</div>
+      <input type="number" id="cur-totalBosses" min="0" value="${g.totalBosses || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Lifetime Stat</div>
+      <div class="currency-name">⚔️ Total Damage Dealt</div>
+      <input type="number" id="cur-totalDamage" min="0" value="${g.totalDamage || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Lifetime Stat</div>
+      <div class="currency-name">🔥 Max Combo</div>
+      <input type="number" id="cur-maxCombo" min="0" value="${g.maxCombo || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Lifetime Stat</div>
+      <div class="currency-name">🎮 Total Games</div>
+      <input type="number" id="cur-totalGames" min="0" value="${g.totalGames || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Lifetime Stat</div>
+      <div class="currency-name">💀 Total Deaths</div>
+      <input type="number" id="cur-totalDeaths" min="0" value="${g.totalDeaths || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Void Shop</div>
+      <div class="currency-name">🪙 Void Gold Spent</div>
+      <input type="number" id="cur-totalVoidGoldSpent" min="0" value="${g.totalVoidGoldSpent || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Online Stat</div>
+      <div class="currency-name">🌐 Online Games Played</div>
+      <input type="number" id="cur-onlineGamesPlayed" min="0" value="${g.onlineGamesPlayed || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Online Stat</div>
+      <div class="currency-name">🌐 Online Max Wave</div>
+      <input type="number" id="cur-onlineMaxWave" min="0" value="${g.onlineMaxWave || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Challenge</div>
+      <div class="currency-name">📅 Daily Wins</div>
+      <input type="number" id="cur-daily_wins" min="0" value="${g.daily_wins || 0}">
+    </div>
+    <div class="currency-card">
+      <div class="currency-label">Challenge</div>
+      <div class="currency-name">📅 Weekly Wins</div>
+      <input type="number" id="cur-weekly_wins" min="0" value="${g.weekly_wins || 0}">
     </div>
   `;
 }
@@ -1250,12 +1434,19 @@ function renderCurrency() {
 // ─── Collect all form values back into saveData ───────────────────────────────
 
 function collectAllValues() {
-  // Heroes
-  for (const hero of BASE_HEROES) {
+  // Heroes (base + DLC)
+  for (const hero of ALL_HEROES) {
+    const lvlEl = document.getElementById(`hero-${hero.id}-level`);
+    if (!lvlEl) continue;
     if (!saveData[hero.id]) saveData[hero.id] = {};
-    saveData[hero.id].level    = parseInt(document.getElementById(`hero-${hero.id}-level`).value) || 0;
+    saveData[hero.id].level    = parseInt(lvlEl.value) || 0;
     saveData[hero.id].unlocked = parseInt(document.getElementById(`hero-${hero.id}-unlocked`).value) || 0;
     saveData[hero.id].prestige = parseInt(document.getElementById(`hero-${hero.id}-prestige`).value) || 0;
+    saveData[hero.id].highScore       = parseInt(document.getElementById(`hero-${hero.id}-highScore`).value) || 0;
+    saveData[hero.id].maxWinPrestige  = parseInt(document.getElementById(`hero-${hero.id}-maxWinPrestige`).value) ?? -1;
+    saveData[hero.id].storyCompleted  = document.getElementById(`hero-${hero.id}-storyCompleted`).checked;
+    const srVal = document.getElementById(`hero-${hero.id}-bestSpeedrunSec`).value;
+    saveData[hero.id].bestSpeedrunSec = srVal === '' ? null : parseFloat(srVal);
   }
 
   // Chaos
@@ -1290,10 +1481,41 @@ function collectAllValues() {
   }
   saveData.collection = ownedCards;
 
-  // Currency
+  // Currency & global stats
   if (!saveData.global) saveData.global = {};
-  saveData.global.totalGold = parseInt(document.getElementById('cur-totalGold').value) || 0;
+  saveData.global.totalGold          = parseInt(document.getElementById('cur-totalGold').value) || 0;
+  saveData.global.totalKills         = parseInt(document.getElementById('cur-totalKills').value) || 0;
+  saveData.global.maxWave            = parseInt(document.getElementById('cur-maxWave').value) || 0;
+  saveData.global.totalBosses        = parseInt(document.getElementById('cur-totalBosses').value) || 0;
+  saveData.global.totalDamage        = parseInt(document.getElementById('cur-totalDamage').value) || 0;
+  saveData.global.maxCombo           = parseInt(document.getElementById('cur-maxCombo').value) || 0;
+  saveData.global.totalGames         = parseInt(document.getElementById('cur-totalGames').value) || 0;
+  saveData.global.totalDeaths        = parseInt(document.getElementById('cur-totalDeaths').value) || 0;
+  saveData.global.totalVoidGoldSpent = parseInt(document.getElementById('cur-totalVoidGoldSpent').value) || 0;
+  saveData.global.onlineGamesPlayed  = parseInt(document.getElementById('cur-onlineGamesPlayed').value) || 0;
+  saveData.global.onlineMaxWave      = parseInt(document.getElementById('cur-onlineMaxWave').value) || 0;
+  saveData.global.daily_wins         = parseInt(document.getElementById('cur-daily_wins').value) || 0;
+  saveData.global.weekly_wins        = parseInt(document.getElementById('cur-weekly_wins').value) || 0;
   saveData.chaos.shards = parseInt(document.getElementById('cur-chaosShards').value) || 0;
+
+  // Story
+  if (!saveData.story) saveData.story = {};
+  saveData.story.enabled = document.getElementById('story-enabled').checked;
+  const chapText = document.getElementById('story-chapters').value.trim();
+  saveData.story.unlockedChapters = chapText ? chapText.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+  // Tutorial
+  if (!saveData.tutorial) saveData.tutorial = {};
+  saveData.tutorial.seen      = document.getElementById('tutorial-seen').checked;
+  saveData.tutorial.completed = document.getElementById('tutorial-completed').checked;
+
+  // Daily / Weekly
+  if (!saveData.daily) saveData.daily = {};
+  const dailyVal = document.getElementById('daily-lastCompleted').value.trim();
+  saveData.daily.lastCompleted = dailyVal || null;
+  if (!saveData.weekly) saveData.weekly = {};
+  const weeklyVal = document.getElementById('weekly-lastCompleted').value.trim();
+  saveData.weekly.lastCompleted = weeklyVal || null;
 }
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
