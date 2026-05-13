@@ -176,6 +176,7 @@ class InputManager {
 
     initListeners() {
         window.addEventListener('keydown', e => {
+            if (!e.key) return;
             const k = e.key.toLowerCase();
 
             // Active remap session — capture binding instead of game input.
@@ -200,6 +201,7 @@ class InputManager {
             if (this.onKeyDown) this.onKeyDown(e);
         });
         window.addEventListener('keyup', e => {
+            if (!e.key) return;
             this.keys[e.key.toLowerCase()] = false;
             if (this.onKeyUp) this.onKeyUp(e);
         });

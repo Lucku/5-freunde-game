@@ -73,7 +73,10 @@ class CrashReporter {
 
     static _baseUrl() {
         const u = window.gameConfig && window.gameConfig.serverUrl;
-        return u ? u.replace(/\/$/, '') : null;
+        if (!u) return null;
+        const raw = u.trim().replace(/\/$/, '');
+        if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+        return `http://${raw}:3001`;
     }
 
     static report(info) {

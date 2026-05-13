@@ -375,5 +375,7 @@ class SaveManager {
     }
 }
 
+window.SaveManager = SaveManager;
+
 export { SaveManager };
 export default SaveManager;

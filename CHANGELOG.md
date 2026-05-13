@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Fixed
+- **CrashReporter URL construction** — bare IP/hostname in `gameConfig.serverUrl` was treated as a relative path, causing crash reports to POST to `localhost:5173/<ip>/api/crash`. `_baseUrl()` now mirrors `CloudSaveManager`: adds `http://` scheme and `:3001` port when no scheme is present.
+- **InputManager crash on synthetic key events** — `e.key` is undefined on some browser-generated `keydown`/`keyup` events, causing `TypeError: Cannot read properties of undefined (reading 'toLowerCase')`. Added `if (!e.key) return` guard to both listeners.
+- **`SaveManager` not defined in CloudSaveManager** — `SaveManager` was never exposed on `window`, so `CloudSaveManager._applyCloudSave()` (and other methods) threw `ReferenceError: SaveManager is not defined` at startup. Added `window.SaveManager = SaveManager` at the bottom of `SaveManager.js`.
+
 ### Added
 - **Map editor ships as a separate executable**. The installed game directory now contains `MapEditor.bat` (Windows) or `MapEditor.sh` (macOS/Linux), both of which launch the main binary with the `--map-editor` flag. The editor window opens at 1400×900, non-fullscreen. Electron main (`index.js`) detects `--map-editor` via `process.argv` and calls `createMapEditorWindow()` instead of `createWindow()`.
 - **Maps saved to user data directory**. Electron sets `APP_MAPS_PATH` to `<userData>/maps/` on startup. The map editor writes maps there via `fs.writeFileSync` when running in Electron; in a browser it falls back to JSON download. New `Managers/MapManager.js` provides `listMaps()`, `loadMap()`, `saveMap()`, `deleteMap()`, and a `defaultWaveConfig` getter — used by both the editor and the in-game Custom Maps panel.
