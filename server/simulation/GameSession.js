@@ -95,6 +95,17 @@ class GameSession {
         this._knownEnemyIds = new Set();
         this._knownProjIds  = new Set();
 
+        // #32 P9 — Position delta encoding. Track the last rounded x/y sent to
+        // each client per entity id so subsequent snapshots can emit `dx, dy`
+        // (typically -10..+10 = 2–3 char JSON tokens) instead of absolute
+        // `x, y` (4–5 char tokens). Force a full keyframe every
+        // _KEYFRAME_INTERVAL snapshots so client + server can never accumulate
+        // drift past one second of misses.
+        this._lastSentEnemyXY = new Map(); // id → [roundedX, roundedY]
+        this._lastSentProjXY  = new Map();
+        this._snapshotsSinceKeyframe = 0;
+        this._KEYFRAME_INTERVAL = 30; // 1s at 30Hz
+
         this._waveManager  = new WaveManager();
         this._tickInterval = null;
         this._startedAt    = 0;
@@ -657,19 +668,34 @@ class GameSession {
             } : null,
         } : null;
 
+        // #32 P9 — keyframe gate. Force full x,y this snapshot if we've sent
+        // _KEYFRAME_INTERVAL delta snapshots since the last keyframe.
+        const isKeyframe = this._snapshotsSinceKeyframe >= this._KEYFRAME_INTERVAL;
+
         const nextKnownEnemyIds = new Set();
+        const nextLastSentEnemyXY = new Map();
         const enemyList = this.enemies.slice(0, 80).map(e => {
             nextKnownEnemyIds.add(e._id);
+            const rx = Math.round(e.x * 10) / 10;
+            const ry = Math.round(e.y * 10) / 10;
+            nextLastSentEnemyXY.set(e._id, [rx, ry]);
             const entry = {
                 _id:         e._id,
-                x:           Math.round(e.x * 10) / 10,
-                y:           Math.round(e.y * 10) / 10,
                 vx:          Math.round((e.vx || 0) * 10) / 10,
                 vy:          Math.round((e.vy || 0) * 10) / 10,
                 hp:          Math.round(e.hp),
                 alpha:       e.alpha !== 1 ? Math.round((e.alpha || 1) * 100) / 100 : 1,
                 frozenTimer: e.frozenTimer > 0 ? Math.round(e.frozenTimer) : 0,
             };
+            const prev = this._lastSentEnemyXY.get(e._id);
+            if (isKeyframe || !prev) {
+                entry.x = rx;
+                entry.y = ry;
+            } else {
+                // Delta — integer pixel difference; ~95% of cases fit -127..+127.
+                entry.dx = Math.round(rx - prev[0]);
+                entry.dy = Math.round(ry - prev[1]);
+            }
             if (!this._knownEnemyIds.has(e._id)) {
                 entry.maxHp   = e.maxHp;
                 entry.subType = e.subType;
@@ -680,20 +706,31 @@ class GameSession {
             return entry;
         });
         this._knownEnemyIds = nextKnownEnemyIds;
+        this._lastSentEnemyXY = nextLastSentEnemyXY;
 
         const nextKnownProjIds = new Set();
+        const nextLastSentProjXY = new Map();
         const projList = this.projectiles.slice(0, 150).map(p => {
             nextKnownProjIds.add(p._id);
             // Support both real Projectile (velocity.x/y) and plain objects (vx/vy)
             const vx = p.vx ?? p.velocity?.x ?? 0;
             const vy = p.vy ?? p.velocity?.y ?? 0;
+            const rx = Math.round(p.x * 10) / 10;
+            const ry = Math.round(p.y * 10) / 10;
+            nextLastSentProjXY.set(p._id, [rx, ry]);
             const entry = {
                 _id: p._id,
-                x:   Math.round(p.x * 10) / 10,
-                y:   Math.round(p.y * 10) / 10,
                 vx:  Math.round(vx * 10) / 10,
                 vy:  Math.round(vy * 10) / 10,
             };
+            const prev = this._lastSentProjXY.get(p._id);
+            if (isKeyframe || !prev) {
+                entry.x = rx;
+                entry.y = ry;
+            } else {
+                entry.dx = Math.round(rx - prev[0]);
+                entry.dy = Math.round(ry - prev[1]);
+            }
             if (!this._knownProjIds.has(p._id)) {
                 entry.color       = p.color;
                 entry.radius      = p.radius;
@@ -704,6 +741,10 @@ class GameSession {
             return entry;
         });
         this._knownProjIds = nextKnownProjIds;
+        this._lastSentProjXY = nextLastSentProjXY;
+
+        // Advance / reset keyframe counter for next snapshot.
+        this._snapshotsSinceKeyframe = isKeyframe ? 0 : this._snapshotsSinceKeyframe + 1;
 
         const events = this._events.splice(0);
 

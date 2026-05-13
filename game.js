@@ -4969,11 +4969,23 @@ function _onlineApplySnapshot(s) {
             e.radius = 20; e.color = '#888888'; e.sides = 0; // safe defaults until static fields arrive
         }
         e._id = ed._id;
-        e._sx = ed.x; e._sy = ed.y;
+        // #32 P9 — position delta decoding. Server emits absolute `x, y` on
+        // first sight + every keyframe (~1s), and `dx, dy` between keyframes.
+        // Apply delta to the last absolute we stored so client + server agree
+        // bit-for-bit (server tracks the rounded value it sent).
+        let _ax, _ay;
+        if (ed.x !== undefined) {
+            _ax = ed.x; _ay = ed.y;
+        } else {
+            _ax = (e._lastSnapX ?? 0) + (ed.dx || 0);
+            _ay = (e._lastSnapY ?? 0) + (ed.dy || 0);
+        }
+        e._lastSnapX = _ax; e._lastSnapY = _ay;
+        e._sx = _ax; e._sy = _ay;
         e._snapshotAt = _now;
         e.vx = ed.vx || 0; e.vy = ed.vy || 0;
-        if (!e._snapBuf) { e._snapBuf = [{ x: ed.x, y: ed.y, t: _serverT }]; e.x = ed.x; e.y = ed.y; }
-        else { e._snapBuf.push({ x: ed.x, y: ed.y, t: _serverT }); if (e._snapBuf.length > _SNAP_BUF_MAX) e._snapBuf.shift(); }
+        if (!e._snapBuf) { e._snapBuf = [{ x: _ax, y: _ay, t: _serverT }]; e.x = _ax; e.y = _ay; }
+        else { e._snapBuf.push({ x: _ax, y: _ay, t: _serverT }); if (e._snapBuf.length > _SNAP_BUF_MAX) e._snapBuf.shift(); }
         const _prevEHp = e.hp;
         e.hp = ed.hp;
         if (ed.hp < _prevEHp && _prevEHp > 0) e._hitFlash = 6;
@@ -5007,11 +5019,21 @@ function _onlineApplySnapshot(s) {
             p.damage = 0; p.knockback = 0; p.type = '';
         }
         p._id = pd._id;
-        p._sx = pd.x; p._sy = pd.y;
+        // #32 P9 — position delta decoding for projectiles (mirrors enemy
+        // path; same keyframe-vs-delta wire shape).
+        let _pax, _pay;
+        if (pd.x !== undefined) {
+            _pax = pd.x; _pay = pd.y;
+        } else {
+            _pax = (p._lastSnapX ?? 0) + (pd.dx || 0);
+            _pay = (p._lastSnapY ?? 0) + (pd.dy || 0);
+        }
+        p._lastSnapX = _pax; p._lastSnapY = _pay;
+        p._sx = _pax; p._sy = _pay;
         p._snapshotAt = _snapTime;
         p.velocity = { x: pd.vx, y: pd.vy };
-        if (!p._snapBuf) { p._snapBuf = [{ x: pd.x, y: pd.y, t: _serverT }]; p.x = pd.x; p.y = pd.y; }
-        else { p._snapBuf.push({ x: pd.x, y: pd.y, t: _serverT }); if (p._snapBuf.length > _SNAP_BUF_MAX) p._snapBuf.shift(); }
+        if (!p._snapBuf) { p._snapBuf = [{ x: _pax, y: _pay, t: _serverT }]; p.x = _pax; p.y = _pay; }
+        else { p._snapBuf.push({ x: _pax, y: _pay, t: _serverT }); if (p._snapBuf.length > _SNAP_BUF_MAX) p._snapBuf.shift(); }
         // Static fields present only on first appearance (delta encoding)
         if (pd.color       !== undefined) p.color       = pd.color;
         if (pd.radius      !== undefined) p.radius      = pd.radius;
