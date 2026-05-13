@@ -1213,9 +1213,21 @@
                 <div class="screen-subtitle">Both local and cloud saves have changed</div>
             </div>
             <p class="cloud-conflict-desc">
-                Your cloud save from <strong id="cloud-conflict-cloud-date">—</strong> differs from your local save.
-                Choose which version to keep. The other will be overwritten.
+                Both your cloud save and local save have changed since the last sync.
+                Choose which version to keep — the other will be overwritten.
             </p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;font-size:0.82rem">
+                <div style="background:rgba(41,128,185,0.12);border:1px solid rgba(41,128,185,0.4);border-radius:6px;padding:10px">
+                    <div style="color:#5dade2;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px">☁ Cloud Save</div>
+                    <div style="color:#aaa;margin-bottom:4px;font-size:0.75rem" id="cloud-conflict-cloud-date">—</div>
+                    <div style="color:#ccc" id="cloud-conflict-cloud-meta">—</div>
+                </div>
+                <div style="background:rgba(52,73,94,0.3);border:1px solid rgba(127,140,141,0.35);border-radius:6px;padding:10px">
+                    <div style="color:#95a5a6;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px">⬛ Local Save</div>
+                    <div style="color:#aaa;margin-bottom:4px;font-size:0.75rem" id="cloud-conflict-local-date">This device</div>
+                    <div style="color:#ccc" id="cloud-conflict-local-meta">—</div>
+                </div>
+            </div>
             <button class="screen-action-btn" style="background:#2980b9;"
                 onclick="window._resolveCloudConflict && window._resolveCloudConflict('cloud')">
                 ☁ USE CLOUD SAVE

@@ -54,6 +54,32 @@ db.exec(`
 `);
 
 db.exec(`
+    CREATE TABLE IF NOT EXISTS friendships (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        requester_id INTEGER NOT NULL,
+        addressee_id INTEGER NOT NULL,
+        status       TEXT NOT NULL DEFAULT 'pending',
+        created_at   INTEGER NOT NULL,
+        UNIQUE(requester_id, addressee_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_fs_req  ON friendships(requester_id);
+    CREATE INDEX IF NOT EXISTS idx_fs_addr ON friendships(addressee_id);
+`);
+
+db.exec(`
+    CREATE TABLE IF NOT EXISTS world_events (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        type         TEXT NOT NULL DEFAULT 'xp_boost',
+        label        TEXT NOT NULL,
+        multiplier   REAL NOT NULL DEFAULT 2.0,
+        target       TEXT DEFAULT NULL,
+        starts_at    INTEGER NOT NULL,
+        ends_at      INTEGER NOT NULL,
+        created_at   INTEGER NOT NULL
+    )
+`);
+
+db.exec(`
     CREATE TABLE IF NOT EXISTS speedrun_scores (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id      INTEGER NOT NULL,
@@ -491,6 +517,130 @@ app.get('/api/admin/stats', requireAdmin, (_req, res) => {
     });
 });
 
+// ── World events ──────────────────────────────────────────────────────────────
+
+app.get('/api/events', (_req, res) => {
+    const now = Date.now();
+    const events = db.prepare(
+        'SELECT id, type, label, multiplier, target FROM world_events WHERE starts_at <= ? AND ends_at >= ? ORDER BY starts_at ASC'
+    ).all(now, now);
+    res.json({ events });
+});
+
+app.get('/api/admin/events', requireAdmin, (_req, res) => {
+    const events = db.prepare('SELECT * FROM world_events ORDER BY starts_at DESC LIMIT 50').all();
+    res.json({ events });
+});
+
+app.post('/api/admin/events', requireAdmin, (req, res) => {
+    const { type, label, multiplier, target, startsAt, endsAt } = req.body || {};
+    if (!label || !type) return res.status(400).json({ error: 'type and label required' });
+    const row = db.prepare(`
+        INSERT INTO world_events (type, label, multiplier, target, starts_at, ends_at, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(type, label, multiplier || 2.0, target || null,
+        startsAt || Date.now(), endsAt || (Date.now() + 3 * 24 * 60 * 60 * 1000), Date.now());
+    res.json({ ok: true, id: row.lastInsertRowid });
+});
+
+app.delete('/api/admin/events/:id', requireAdmin, (req, res) => {
+    db.prepare('DELETE FROM world_events WHERE id = ?').run(req.params.id | 0);
+    res.json({ ok: true });
+});
+
+// ── Friends ───────────────────────────────────────────────────────────────────
+
+app.get('/api/friends', requireAuth, (req, res) => {
+    const friends = db.prepare(`
+        SELECT u.id AS userId, u.username, 'accepted' AS status
+        FROM friendships f
+        JOIN users u ON u.id = CASE WHEN f.requester_id = ? THEN f.addressee_id ELSE f.requester_id END
+        WHERE (f.requester_id = ? OR f.addressee_id = ?) AND f.status = 'accepted'
+    `).all(req.user.id, req.user.id, req.user.id);
+
+    const incoming = db.prepare(`
+        SELECT f.id AS requestId, u.username AS fromUsername, f.created_at AS createdAt
+        FROM friendships f
+        JOIN users u ON u.id = f.requester_id
+        WHERE f.addressee_id = ? AND f.status = 'pending'
+    `).all(req.user.id);
+
+    const outgoing = db.prepare(`
+        SELECT f.id AS requestId, u.username AS toUsername, f.created_at AS createdAt
+        FROM friendships f
+        JOIN users u ON u.id = f.addressee_id
+        WHERE f.requester_id = ? AND f.status = 'pending'
+    `).all(req.user.id);
+
+    res.json({ friends, incoming, outgoing });
+});
+
+app.post('/api/friends/request',
+    rateLimit({ key: 'friend_req', capacity: 20, refillPerSec: 20 / 3600 }),
+    requireAuth,
+    (req, res) => {
+        const { username } = req.body || {};
+        if (!username) return res.status(400).json({ error: 'username required' });
+        const target = db.prepare('SELECT id, username FROM users WHERE username = ? COLLATE NOCASE').get(username);
+        if (!target) return res.status(404).json({ error: 'User not found' });
+        if (target.id === req.user.id) return res.status(400).json({ error: 'Cannot add yourself' });
+        const existing = db.prepare(`
+            SELECT * FROM friendships
+            WHERE (requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)
+        `).get(req.user.id, target.id, target.id, req.user.id);
+        if (existing) {
+            if (existing.status === 'accepted') return res.status(409).json({ error: 'Already friends' });
+            if (existing.requester_id === req.user.id) return res.status(409).json({ error: 'Request already sent' });
+            // The target already sent us a request — accept it
+            db.prepare('UPDATE friendships SET status = ? WHERE id = ?').run('accepted', existing.id);
+            return res.json({ ok: true, status: 'accepted' });
+        }
+        db.prepare('INSERT INTO friendships (requester_id, addressee_id, status, created_at) VALUES (?, ?, ?, ?)')
+            .run(req.user.id, target.id, 'pending', Date.now());
+        res.json({ ok: true, status: 'pending' });
+    }
+);
+
+app.post('/api/friends/respond', requireAuth, (req, res) => {
+    const { requestId, accept } = req.body || {};
+    const row = db.prepare('SELECT * FROM friendships WHERE id = ? AND addressee_id = ? AND status = ?')
+        .get(requestId | 0, req.user.id, 'pending');
+    if (!row) return res.status(404).json({ error: 'Request not found' });
+    if (accept) {
+        db.prepare('UPDATE friendships SET status = ? WHERE id = ?').run('accepted', requestId | 0);
+    } else {
+        db.prepare('DELETE FROM friendships WHERE id = ?').run(requestId | 0);
+    }
+    res.json({ ok: true, status: accept ? 'accepted' : 'rejected' });
+});
+
+app.delete('/api/friends/:userId', requireAuth, (req, res) => {
+    const other = req.params.userId | 0;
+    db.prepare(`
+        DELETE FROM friendships
+        WHERE (requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)
+    `).run(req.user.id, other, other, req.user.id);
+    res.json({ ok: true });
+});
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+
+app.get('/api/admin/hero-balance', requireAdmin, (_req, res) => {
+    const total = (db.prepare('SELECT COUNT(*) AS c FROM scores').get().c) || 1;
+    const rows = db.prepare(`
+        SELECT hero,
+               COUNT(*) AS runs,
+               ROUND(100.0 * COUNT(*) / ?, 1) AS pick_rate,
+               ROUND(100.0 * SUM(CASE WHEN outcome = 'victory' THEN 1 ELSE 0 END) / COUNT(*), 1) AS win_rate,
+               ROUND(AVG(wave), 1) AS avg_wave,
+               ROUND(AVG(score), 0) AS avg_score
+        FROM scores
+        GROUP BY hero
+        ORDER BY runs DESC
+    `).all(total);
+    res.json({ heroes: rows, totalRuns: total });
+});
+
 app.get('/api/admin/saves', requireAdmin, (_req, res) => {
     const users = db.prepare('SELECT id, username FROM users ORDER BY id').all();
     const saves = users.map(u => {
@@ -641,6 +791,8 @@ wss.on('connection', (ws, req) => {
             send(ws, { type: 'REJOINED', code: prevCode, role: ws.role });
             const p = partner(lobby, ws.role);
             if (p) send(p.ws, { type: 'PARTNER_RECONNECTED' });
+            clearTimeout(lobby._graceTimer);
+            lobby._graceTimer = null;
         } else {
             userLobby.delete(user.id);
         }
@@ -818,6 +970,24 @@ function handleMessage(ws, msg) {
             if (!lobby || lobby.phase !== 'pre_game') return;
             const p = partner(lobby, ws.role);
             if (p) send(p.ws, { type: 'RELAY', from: ws.role, payload: msg.payload });
+            break;
+        }
+
+        case 'WEBRTC_OFFER':
+        case 'WEBRTC_ANSWER':
+        case 'WEBRTC_ICE': {
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby) break;
+            const p = partner(lobby, ws.role);
+            if (p) send(p.ws, { type: msg.type, from: ws.role, data: msg.data });
+            break;
+        }
+
+        case 'VOICE_MUTE': {
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby) break;
+            const p = partner(lobby, ws.role);
+            if (p) send(p.ws, { type: 'VOICE_MUTE', muted: !!msg.muted, from: ws.role });
             break;
         }
 
@@ -999,7 +1169,16 @@ function handleClose(ws) {
         // Keep lobby alive for reconnect; null out the disconnected slot
         if (ws.role === 'host') lobby.host = null;
         else lobby.guest = null;
-        // Schedule cleanup if partner doesn't reconnect within 90s
+        // 30s grace window — partner gets a pause overlay, not an immediate game-over
+        if (p) send(p.ws, { type: 'PARTNER_RECONNECTING', timeoutSec: 30 });
+        clearTimeout(lobby._graceTimer);
+        lobby._graceTimer = setTimeout(() => {
+            const l = lobbies.get(lobby.code);
+            if (!l) return;
+            const remaining = l.host || l.guest;
+            if (remaining) send(remaining.ws, { type: 'PARTNER_DISCONNECTED' });
+        }, 30_000);
+        // Hard cleanup after 90s — allows the late leaderboard submission window
         setTimeout(() => {
             if (lobbies.has(lobby.code)) {
                 const l = lobbies.get(lobby.code);

@@ -118,6 +118,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div class="tab" data-tab="players">Players</div>
     <div class="tab" data-tab="leaderboard">Leaderboard</div>
     <div class="tab" data-tab="saves">Cloud Saves</div>
+    <div class="tab" data-tab="balance">Balance</div>
+    <div class="tab" data-tab="events">Events</div>
   </nav>
   <div class="content">
     <div id="tab-overview"></div>
@@ -125,6 +127,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div id="tab-players"      style="display:none"></div>
     <div id="tab-leaderboard"  style="display:none"></div>
     <div id="tab-saves"        style="display:none"></div>
+    <div id="tab-balance"      style="display:none"></div>
+    <div id="tab-events"       style="display:none"></div>
   </div>
 </div>
 
@@ -165,18 +169,22 @@ function logout() {
 async function fetchAll() {
   const h = { Authorization: `Bearer ${token}` };
   const fetch1 = url => fetch(url, { headers: h }).then(r => r.json()).catch(() => null);
-  const [sessions, online, players, stats, saves] = await Promise.all([
+  const [sessions, online, players, stats, saves, balance, events] = await Promise.all([
     fetch1('/api/admin/sessions'),
     fetch1('/api/admin/online'),
     fetch1('/api/admin/players'),
     fetch1('/api/admin/stats'),
     fetch1('/api/admin/saves'),
+    fetch1('/api/admin/hero-balance'),
+    fetch1('/api/admin/events'),
   ]);
   if (sessions) D.sessions = sessions;
   if (online)   D.online   = online;
   if (players)  D.players  = players;
   if (stats)    D.stats    = stats;
   if (saves)    D.saves    = saves;
+  if (balance)  D.balance  = balance;
+  if (events)   D.events   = events;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -458,6 +466,113 @@ function renderSaves() {
   return h;
 }
 
+// ── Balance ────────────────────────────────────────────────────────────────────
+
+function renderBalance() {
+  const data = D.balance || {};
+  const heroes = data.heroes || [];
+  let h = `<div class="section"><div class="sec-hd">Hero Balance <span class="badge badge-dim">${data.totalRuns || 0} total runs</span></div>`;
+  if (!heroes.length) {
+    h += '<div class="empty">No run data yet</div>';
+  } else {
+    h += `<table><thead><tr>
+      <th>Hero</th><th>Runs</th><th>Pick Rate</th><th>Win Rate</th><th>Avg Wave</th><th>Avg Score</th>
+    </tr></thead><tbody>`;
+    for (const r of heroes) {
+      const wr = r.win_rate || 0;
+      const wrColor = wr >= 50 ? 'var(--green)' : wr >= 20 ? 'var(--yellow)' : 'var(--red)';
+      h += `<tr>
+        <td>${heroBadge(r.hero)}</td>
+        <td>${r.runs}</td>
+        <td><span style="color:var(--dim)">${r.pick_rate}%</span>
+          <div class="bar" style="width:80px;display:inline-block;vertical-align:middle;margin-left:6px">
+            <div class="bar-fill" style="width:${r.pick_rate}%;background:${hclr(r.hero)}"></div>
+          </div></td>
+        <td><strong style="color:${wrColor}">${wr}%</strong></td>
+        <td>${r.avg_wave}</td>
+        <td>${(+r.avg_score).toLocaleString()}</td>
+      </tr>`;
+    }
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+  return h;
+}
+
+// ── Events ─────────────────────────────────────────────────────────────────────
+
+function renderEvents() {
+  const events = D.events?.events || [];
+  const now = Date.now();
+  let h = `<div class="section"><div class="sec-hd">Create World Event</div>
+    <div style="padding:1rem;display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;align-items:end">
+      <div><label style="font-size:0.75rem;color:var(--dim);display:block;margin-bottom:4px">Type</label>
+        <select id="ev-type" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:0.45rem 0.75rem;font-size:0.9rem">
+          <option value="xp_boost">XP Boost</option>
+          <option value="score_boost">Score Boost</option>
+          <option value="gold_boost">Gold Boost</option>
+        </select></div>
+      <div><label style="font-size:0.75rem;color:var(--dim);display:block;margin-bottom:4px">Label</label>
+        <input id="ev-label" type="text" placeholder="This weekend: 2× XP!"></div>
+      <div><label style="font-size:0.75rem;color:var(--dim);display:block;margin-bottom:4px">Multiplier</label>
+        <input id="ev-multi" type="number" value="2" min="1" max="10" step="0.5"></div>
+      <div><label style="font-size:0.75rem;color:var(--dim);display:block;margin-bottom:4px">Starts (local time)</label>
+        <input id="ev-starts" type="datetime-local"></div>
+      <div><label style="font-size:0.75rem;color:var(--dim);display:block;margin-bottom:4px">Ends (local time)</label>
+        <input id="ev-ends" type="datetime-local"></div>
+      <div><button class="btn-primary" onclick="createEvent()">Create Event</button></div>
+    </div>
+  </div>`;
+
+  h += `<div class="section"><div class="sec-hd">All Events <span class="badge badge-dim">${events.length}</span></div>`;
+  if (!events.length) {
+    h += '<div class="empty">No events configured</div>';
+  } else {
+    h += `<table><thead><tr>
+      <th>Label</th><th>Type</th><th>Multiplier</th><th>Status</th><th>Starts</th><th>Ends</th><th></th>
+    </tr></thead><tbody>`;
+    for (const ev of events) {
+      const active = ev.starts_at <= now && ev.ends_at >= now;
+      h += `<tr>
+        <td><strong>${esc(ev.label)}</strong></td>
+        <td><span class="pill pill-blue">${esc(ev.type)}</span></td>
+        <td>${ev.multiplier}×</td>
+        <td>${active ? '<span class="pill pill-green">Active</span>' : '<span class="pill pill-dim">Inactive</span>'}</td>
+        <td style="color:var(--dim);font-size:0.78rem">${fmtDt(ev.starts_at)}</td>
+        <td style="color:var(--dim);font-size:0.78rem">${fmtDt(ev.ends_at)}</td>
+        <td><button class="btn-sm" onclick="deleteEvent(${ev.id})">Delete</button></td>
+      </tr>`;
+    }
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+  return h;
+}
+
+async function createEvent() {
+  const type      = document.getElementById('ev-type').value;
+  const label     = document.getElementById('ev-label').value.trim();
+  const multi     = parseFloat(document.getElementById('ev-multi').value) || 2;
+  const startsRaw = document.getElementById('ev-starts').value;
+  const endsRaw   = document.getElementById('ev-ends').value;
+  if (!label) { alert('Label is required'); return; }
+  const startsAt = startsRaw ? new Date(startsRaw).getTime() : Date.now();
+  const endsAt   = endsRaw   ? new Date(endsRaw).getTime()   : Date.now() + 3 * 86400000;
+  const res = await fetch('/api/admin/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ type, label, multiplier: multi, startsAt, endsAt }),
+  });
+  if (res.ok) { document.getElementById('ev-label').value = ''; await refresh(); }
+  else alert('Failed to create event');
+}
+
+async function deleteEvent(id) {
+  if (!confirm('Delete this event?')) return;
+  await fetch(`/api/admin/events/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+  await refresh();
+}
+
 // ── Render ─────────────────────────────────────────────────────────────────────
 
 function render() {
@@ -470,6 +585,8 @@ function render() {
     players:     renderPlayers,
     leaderboard: renderLeaderboard,
     saves:       renderSaves,
+    balance:     renderBalance,
+    events:      renderEvents,
   };
   el.innerHTML = (renderers[tab] || (() => ''))();
   document.getElementById('refresh-lbl').textContent = `Updated ${new Date().toLocaleTimeString()}`;

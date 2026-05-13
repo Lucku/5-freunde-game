@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file, starting wi
 ## [Unreleased]
 
 ### Added
+- **Reconnect grace window** (`#83`). When a player disconnects mid-game the server no longer immediately fires `PARTNER_DISCONNECTED`. Instead, a `PARTNER_RECONNECTING { timeoutSec: 30 }` message is sent to the remaining player, pausing the game with a 30-second countdown overlay. If the disconnected player reconnects within the window the game resumes normally; if not, `PARTNER_DISCONNECTED` fires and the run is aborted. Hard lobby cleanup still runs after 90 s to preserve the leaderboard submission window.
+- **WebRTC P2P voice chat** (`#84`). New `Managers/VoiceChatManager.js` manages mic capture, `RTCPeerConnection` lifecycle, remote audio playback, and mute toggling. Signaling (`WEBRTC_OFFER` / `WEBRTC_ANSWER` / `WEBRTC_ICE`) is relayed through the existing WebSocket lobby. The host creates the offer automatically when `voiceChatManager.start('host')` is called; the guest responds via the received offer. STUN-only ICE (Google public server). `VOICE_MUTE` WS message relays mute state to partner. New `NetworkManager` methods: `sendFriendRequest`, `respondFriendRequest`, `fetchFriends`, `removeFriend`.
+- **Friends list** (`#85`). New `friendships` SQLite table (`requester_id`, `addressee_id`, `status`). REST API: `GET /api/friends`, `POST /api/friends/request`, `POST /api/friends/respond`, `DELETE /api/friends/:userId`. Mutual-request auto-accept: sending a request to someone who already sent you one immediately accepts both sides.
+- **Server-side world events** (`#96`). New `world_events` SQLite table stores timed events (type, label, multiplier, starts_at, ends_at). Public `GET /api/events` returns currently active events. Admin CRUD: `GET/POST /api/admin/events`, `DELETE /api/admin/events/:id`. New admin dashboard **Events** tab with a create form and event list. New `Managers/WorldEventsManager.js` polls `/api/events` every 5 minutes and exposes `getXpMultiplier()` / `getBanner()`. XP kill reward in `game.js` multiplied by active `xp_boost` event multiplier.
+- **Hero balance dashboard** (`#161`). New admin endpoint `GET /api/admin/hero-balance` returns per-hero run count, pick rate, win rate, average wave, and average score. New admin dashboard **Balance** tab displays the data as a sortable table with colour-coded win rate.
+
+### Changed
+- **Cloud save conflict modal enhanced** (`#86`). The conflict UI now decodes both blobs client-side before showing the dialog and displays a one-line summary for each side: wave reached, heroes unlocked, total kills, and meta upgrade points. Users can make an informed choice rather than relying solely on timestamps.
+
+### Fixed
+- **Lag compensation — hit registration** (`#91`). Player projectile vs. enemy collision radius on the server expanded by 18 px (`ROLLBACK_PX`). At typical enemy speeds (~8 px/tick) this covers ~2 server ticks (≈ 66 ms) of positional error introduced by network latency, eliminating most "I hit them but no damage" cases without affecting game balance meaningfully.
+
+### Added
 - **Boss intro cinematic** (`#46`). When any `BOSS_FIGHT` wave triggers, a 2.5-second canvas cinematic plays before gameplay resumes. Camera eases from the player's position to the boss location while zooming from 1.0× to 1.45×, holds on the boss, then zooms back out. A "BOSS FIGHT" label and the boss name fade in at the 0.22 mark with red glow and white text, flanked by decorative rule lines. An impact flash fires at the start; a vignette deepens throughout; the final 12% fades to black. Gameplay (enemy AI, player input, physics) is fully frozen during the cinematic — the boss is visible but inert. Works for all boss types including DLC heroes. The old `event-text` "BOSS: NAME" overlay is replaced by the cinematic banner.
 
 ### Changed

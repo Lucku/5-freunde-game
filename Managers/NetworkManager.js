@@ -166,6 +166,11 @@ class NetworkManager {
         }
         // Server-pushed in-game messages arrive as direct (non-RELAY) messages;
         // they are forwarded to registered handlers below without extra unwrapping.
+        if (msg.type === 'WEBRTC_OFFER')  { window.voiceChatManager?.handleOffer(msg.data); }
+        if (msg.type === 'WEBRTC_ANSWER') { window.voiceChatManager?.handleAnswer(msg.data); }
+        if (msg.type === 'WEBRTC_ICE')    { window.voiceChatManager?.handleIce(msg.data); }
+        if (msg.type === 'VOICE_MUTE')    { window.voiceChatManager?.handlePartnerMute(msg.muted); }
+
         if (msg.type === 'GLOBAL_LOBBY_STATE') {
             this.remotePlayers = {};
             (msg.players || []).forEach(p => { this.remotePlayers[p.userId] = p; });
@@ -323,6 +328,57 @@ class NetworkManager {
 
     respondToInvite(inviteId, accept) {
         this.send({ type: 'GAME_INVITE_RESPONSE', inviteId, accept });
+    }
+
+    // ── Friends ────────────────────────────────────────────────────────────────
+
+    async fetchFriends() {
+        if (!this._token) return null;
+        const base = this._serverUrl.replace(/^ws/, 'http');
+        try {
+            const res = await fetch(`${base}/api/friends`, {
+                headers: { Authorization: `Bearer ${this._token}` },
+            });
+            return res.ok ? res.json() : null;
+        } catch { return null; }
+    }
+
+    async sendFriendRequest(username) {
+        if (!this._token) return null;
+        const base = this._serverUrl.replace(/^ws/, 'http');
+        try {
+            const res = await fetch(`${base}/api/friends/request`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this._token}` },
+                body: JSON.stringify({ username }),
+            });
+            return res.json();
+        } catch { return null; }
+    }
+
+    async respondFriendRequest(requestId, accept) {
+        if (!this._token) return null;
+        const base = this._serverUrl.replace(/^ws/, 'http');
+        try {
+            const res = await fetch(`${base}/api/friends/respond`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this._token}` },
+                body: JSON.stringify({ requestId, accept }),
+            });
+            return res.json();
+        } catch { return null; }
+    }
+
+    async removeFriend(userId) {
+        if (!this._token) return null;
+        const base = this._serverUrl.replace(/^ws/, 'http');
+        try {
+            const res = await fetch(`${base}/api/friends/${userId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${this._token}` },
+            });
+            return res.json();
+        } catch { return null; }
     }
 
     _startPing() {

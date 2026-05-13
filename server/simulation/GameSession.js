@@ -439,11 +439,14 @@ class GameSession {
                         }
                     });
                 } else {
-                    // Co-op: player projectile vs enemies
+                    // Co-op: player projectile vs enemies.
+                    // +18px rollback tolerance compensates for ~100ms input-to-hit latency —
+                    // enemies typically move <9px per tick so this covers ~2 server ticks.
+                    const ROLLBACK_PX = 18;
                     this.enemies.forEach(enemy => {
                         if (remove.has(pi) || enemy.hp <= 0) return;
                         const dist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
-                        if (dist < proj.radius + enemy.radius) {
+                        if (dist < proj.radius + enemy.radius + ROLLBACK_PX) {
                             this._damageEnemy(enemy, proj.damage);
                             if ((proj.pierce || 0) <= 0) remove.add(pi);
                             else proj.pierce--;

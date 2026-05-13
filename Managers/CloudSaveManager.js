@@ -152,7 +152,18 @@ class CloudSaveManager {
                 return;
             }
 
-            const choice = await this._showConflictModal(cloudSavedAt);
+            let cloudMeta = null;
+            let localMeta = null;
+            try {
+                const decoded = await SaveManager.decodeSaveData(cloudBlob);
+                cloudMeta = this._extractSaveMeta(decoded);
+            } catch (_) {}
+            try {
+                const decoded = await SaveManager.decodeSaveData(localBlob);
+                localMeta = this._extractSaveMeta(decoded);
+            } catch (_) {}
+
+            const choice = await this._showConflictModal(cloudSavedAt, cloudMeta, localMeta);
             if (choice === 'cloud') {
                 await this._applyCloudSave(cloudBlob, cloudSavedAt);
             } else {
@@ -185,13 +196,37 @@ class CloudSaveManager {
         if (typeof saveConfig === 'function') saveConfig();
     }
 
-    static _showConflictModal(cloudSavedAt) {
+    static _extractSaveMeta(data) {
+        if (!data || typeof data !== 'object') return null;
+        const heroKeys = ['fire', 'water', 'ice', 'plant', 'metal', 'black'];
+        const unlockedCount = heroKeys.filter(h => data[h]?.unlocked).length;
+        const metaSum = Object.values(data.metaUpgrades || {}).reduce((a, b) => a + (b || 0), 0);
+        return {
+            unlockedHeroes: unlockedCount,
+            maxWave:    data.global?.maxWave    || 0,
+            totalKills: data.global?.totalKills || 0,
+            metaPoints: metaSum,
+        };
+    }
+
+    static _metaLine(meta) {
+        if (!meta) return '—';
+        return `Wave ${meta.maxWave} · ${meta.unlockedHeroes} heroes · ${meta.totalKills.toLocaleString()} kills · ${meta.metaPoints} meta pts`;
+    }
+
+    static _showConflictModal(cloudSavedAt, cloudMeta, localMeta) {
         return new Promise(resolve => {
             const modal = document.getElementById('cloud-conflict-modal');
             if (!modal) { resolve('local'); return; }
 
             const cloudDateEl = document.getElementById('cloud-conflict-cloud-date');
             if (cloudDateEl) cloudDateEl.textContent = new Date(cloudSavedAt).toLocaleString();
+
+            const cloudMetaEl = document.getElementById('cloud-conflict-cloud-meta');
+            if (cloudMetaEl) cloudMetaEl.textContent = this._metaLine(cloudMeta);
+
+            const localMetaEl = document.getElementById('cloud-conflict-local-meta');
+            if (localMetaEl) localMetaEl.textContent = this._metaLine(localMeta);
 
             modal.style.display = 'flex';
             window._resolveCloudConflict = choice => {

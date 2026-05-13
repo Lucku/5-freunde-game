@@ -358,6 +358,8 @@ async function loadGame() {
     if (typeof CloudSaveManager !== 'undefined') {
         await CloudSaveManager.syncOnStartup();
     }
+    // Poll active world events (fire-and-forget; TTL guards against repeated calls)
+    window.worldEvents?.poll?.();
 }
 
 function exportSave() {
@@ -1923,7 +1925,8 @@ function startOnlineGame(msg) {
     nm.on('PARTNER_LEVELING',()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(true); });
     nm.on('LEVEL_UP_DONE',   ()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
 
-    nm.on('PARTNER_DISCONNECTED', () => { if (gameRunning) _onlineShowReconnectOverlay(true); });
+    nm.on('PARTNER_RECONNECTING', (msg) => { if (gameRunning) _onlineShowReconnectOverlay(true, msg.timeoutSec || 30); });
+    nm.on('PARTNER_DISCONNECTED', () => { if (gameRunning) _onlineShowReconnectOverlay(true, 0); });
     nm.on('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
     nm.on('GAME_OVER', () => { if (isOnlineMode) gameOver(false); });
     nm.on('STORY_CONTINUE', () => { if (isOnlineMode && isStoryOpen) _onlinePartnerContinueStory(); });
@@ -5314,15 +5317,23 @@ function _onlineShowNameBar(show) {
     }
 }
 
-/** Show or hide the mid-game reconnect overlay. */
-function _onlineShowReconnectOverlay(show) {
+/** Show or hide the mid-game reconnect overlay. timeoutSec=0 = already timed out (instant disconnect). */
+function _onlineShowReconnectOverlay(show, timeoutSec = 90) {
     const ov = document.getElementById('online-reconnect-overlay');
     if (!ov) return;
     ov.style.display = show ? 'flex' : 'none';
     if (show) {
         gamePaused = true;
-        let secs = 90;
+        clearInterval(ov._iv);
+        if (timeoutSec <= 0) {
+            // Partner already hard-disconnected — let game logic decide next step
+            gamePaused = false;
+            abortOnlineGame();
+            return;
+        }
+        let secs = timeoutSec;
         const timer = document.getElementById('online-reconnect-timer');
+        if (timer) timer.textContent = `Giving up in ${secs}s…`;
         const iv = setInterval(() => {
             if (!isOnlineMode || ov.style.display === 'none') { clearInterval(iv); return; }
             secs--;
@@ -8118,7 +8129,8 @@ function masterFrame(deltaTime, timestamp) {
                         if (!saveData.stats[killKey]) saveData.stats[killKey] = 0;
                         saveData.stats[killKey]++;
 
-                        const _xpMod = bossActive ? 0.15 : 1;
+                        const _eventXpMult = window.worldEvents?.getXpMultiplier?.() ?? 1;
+                        const _xpMod = (bossActive ? 0.15 : 1) * _eventXpMult;
                         const _killer = (isCoopMode && enemy.killer) ? enemy.killer : player;
                         score += 10; _killer.gainXp(Math.round(20 * _xpMod));
                         createExplosion(enemy.x, enemy.y, '#aaa');
