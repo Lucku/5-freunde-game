@@ -5,9 +5,15 @@
  * @param {string} color  hero base colour (hex)
  * @param {number} r      hero radius
  */
-function drawHeroSprite(ctx, color, r) {
+function drawHeroSprite(ctx, color, r, anim = {}) {
     const dark = shadeColor(color, -50);
     const light = shadeColor(color, +55);
+    const fireRaise = anim.fireRaise || 0;
+    const lean      = anim.lean      || 0;
+
+    // Lean shear: sprite tilts laterally relative to facing direction
+    ctx.save();
+    if (lean !== 0) ctx.transform(1, 0, lean * 0.10, 1, 0, 0);
 
     // Ground shadow
     ctx.beginPath();
@@ -80,13 +86,19 @@ function drawHeroSprite(ctx, color, r) {
     ctx.fillRect(r * 0.0, -r * 0.85, r * 0.06, r * 1.7);
     ctx.restore();
 
-    // Weapon nozzle — subtle notch just past the helmet edge, not a full barrel
+    // Weapon nozzle — raises on fire (arm-up pose)
+    ctx.save();
+    ctx.translate(0, -fireRaise * r * 0.28);
     ctx.fillStyle = '#2a2a2a';
     ctx.fillRect(r * 0.80, -r * 0.10, r * 0.30, r * 0.20);
     ctx.strokeStyle = '#444'; ctx.lineWidth = 0.7;
     ctx.strokeRect(r * 0.80, -r * 0.10, r * 0.30, r * 0.20);
     ctx.fillStyle = 'rgba(255,255,255,0.10)';
     ctx.fillRect(r * 0.82, -r * 0.08, r * 0.26, r * 0.07);
+    ctx.restore();
+
+    // Close lean shear
+    ctx.restore();
 }
 
 /**

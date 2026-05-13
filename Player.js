@@ -111,6 +111,10 @@ class Player {
         this.vx = 0;
         this.vy = 0;
 
+        // Animation state
+        this._lean          = 0;
+        this._fireAnimTimer = 0;
+
         // DLC Hero Initialization
         if (window.HERO_LOGIC && window.HERO_LOGIC[this.type]) {
             window.HERO_LOGIC[this.type].init(this);
@@ -1148,6 +1152,16 @@ class Player {
 
         if (this.rangeCooldown > 0) this.rangeCooldown--;
         if (this.meleeCooldown > 0) this.meleeCooldown--;
+
+        // Lean: project movement onto local lateral axis (perpendicular to aim)
+        const _moveLen = Math.hypot(dx, dy);
+        if (_moveLen > 0.1) {
+            const lateral = (dx * (-Math.sin(this.aimAngle)) + dy * Math.cos(this.aimAngle)) / _moveLen;
+            this._lean += (lateral - this._lean) * 0.15;
+        } else {
+            this._lean *= 0.85;
+        }
+        if (this._fireAnimTimer > 0) this._fireAnimTimer--;
     }
 
     draw() {
@@ -1250,7 +1264,10 @@ class Player {
             ctx.stroke();
         }
 
-        drawHeroSprite(ctx, this.isGolden ? '#f1c40f' : this.stats.color, this.radius);
+        const _fireRaise = this._fireAnimTimer > 0
+            ? Math.sin(this._fireAnimTimer / 8 * Math.PI) : 0;
+        drawHeroSprite(ctx, this.isGolden ? '#f1c40f' : this.stats.color, this.radius,
+            { lean: this._lean, fireRaise: _fireRaise });
         ctx.restore();
 
         if (this.dashCooldown > 0) {
@@ -1283,6 +1300,7 @@ class Player {
 
         // Play Attack Sound
         audioManager?.playAttack(this.type);
+        this._fireAnimTimer = 8;
 
         let angle = this.aimAngle; // Use stored aim angle
         let autoAimActive = this.buffs.autoaim > 0;

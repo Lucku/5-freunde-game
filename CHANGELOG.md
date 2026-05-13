@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Added
+- **Hero walk and fire animations** (`#37`). `drawHeroSprite` gains an optional `anim` param (`lean`, `fireRaise`). Walk: sprite shears laterally (local-space `ctx.transform` shear, coefficient 0.10) based on `_lean` — computed each frame as the projection of movement input onto the axis perpendicular to aim, smoothed with a 0.15 lerp toward target and ×0.85 decay on idle. Effect: hero visibly leans into strafing/circular movement. Fire raise: nozzle translates −28 % radius on perpendicular axis for 8 frames after each shot, eased via `sin(timer/8 * π)`. DLC heroes using `customDraw` or no projectile fire are unaffected. Museum and DLC `drawHeroSprite` callsites work with zero-anim defaults.
+
 ### Fixed
 - **Museum player avatar color for Mirror, Smoke, Psycho heroes** — they fell through to default yellow. Added color entries: Marine Blue, Slate Gray, Teal.
 
