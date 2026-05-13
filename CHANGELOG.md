@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Added
+- **Boss intro cinematic** (`#46`). When any `BOSS_FIGHT` wave triggers, a 2.5-second canvas cinematic plays before gameplay resumes. Camera eases from the player's position to the boss location while zooming from 1.0× to 1.45×, holds on the boss, then zooms back out. A "BOSS FIGHT" label and the boss name fade in at the 0.22 mark with red glow and white text, flanked by decorative rule lines. An impact flash fires at the start; a vignette deepens throughout; the final 12% fades to black. Gameplay (enemy AI, player input, physics) is fully frozen during the cinematic — the boss is visible but inert. Works for all boss types including DLC heroes. The old `event-text` "BOSS: NAME" overlay is replaced by the cinematic banner.
+
 ### Changed
 - **Save editor extended with all recent schema fields**. Heroes tab now shows all 14 DLC heroes (earth, lightning, gravity, void, spirit, chance, sound, poison, air, time, love, psycho, mirror, smoke) alongside the 6 base heroes, each with `highScore`, `maxWinPrestige`, `storyCompleted` checkbox, and `bestSpeedrunSec` (speedrun PB) fields. "Max All Heroes" and "Set All Prestige" bulk actions cover DLC heroes too. Currency tab renamed to "Currency & Stats" and extended with all 12 global stat fields (`totalKills`, `maxWave`, `totalBosses`, `totalDamage`, `maxCombo`, `totalGames`, `totalDeaths`, `totalVoidGoldSpent`, `daily_wins`, `weekly_wins`, `onlineGamesPlayed`, `onlineMaxWave`). New "Story & Misc" tab exposes story mode enabled toggle, unlocked chapter list, tutorial seen/completed flags, and daily/weekly last-completed timestamps. `ensureDefaults` and `collectAllValues` updated to round-trip all new fields.
 

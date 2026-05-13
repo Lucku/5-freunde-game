@@ -299,6 +299,9 @@ const GAMEPLAY = {
     HITSTOP_CRIT_SHOT:         4,
     HITSTOP_BOSS_KILL:        12,
 
+    // Boss intro cinematic
+    BOSS_INTRO_FRAMES:       150, // 2.5 s at 60 FPS
+
     // Boss death cinematic
     BOSS_DEATH_FRAMES:       180, // 3 s at 60 FPS
 

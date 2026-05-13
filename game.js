@@ -1831,6 +1831,7 @@ function continueRun() {
 
     // Reset Boss Timer
     bossDeathTimer = 0;
+    bossIntroTimer = 0; bossIntroName = '';
     _bossChoiceScreen = false;
     _bossChoiceFrame = 0;
     bossActive = false;
@@ -2231,6 +2232,10 @@ let masksDroppedInWave = 0;  // Cap holy-mask drops per wave
 let waveTimer = 0;           // Sentinel used by versus mode to disable wave timer
 var bossActive = false;      // Exposed for DLC
 let bossDeathTimer = 0; // Timer for slow-mo effect
+let bossIntroTimer = 0;
+let bossIntroName = '';
+let bossIntroCamStartX = 0, bossIntroCamStartY = 0;
+let bossIntroCamTargetX = 0, bossIntroCamTargetY = 0;
 let _bossChoiceScreen = false;  // Choice screen active after cinematic ends
 let _bossChoiceFrame = 0;       // Frame counter for live animations on choice screen
 let _bossChoiceGpConsumed = false; // Gamepad debounce
@@ -3966,12 +3971,9 @@ function resumeWaveGeneration() {
         } else {
             showNotification(`BOSS WARNING: ${storyBossId}!`);
         }
-        document.getElementById('event-text').innerText = `BOSS: ${pName}`;
-
-        document.getElementById('event-text').style.display = 'block';
-        setTimeout(() => document.getElementById('event-text').style.display = 'none', 4000);
-
         enemies.unshift(new Boss(storyBossId));
+        bossIntroTimer = GAMEPLAY.BOSS_INTRO_FRAMES;
+        bossIntroName = pName;
         if (typeof audioManager !== 'undefined') {
             // Villain taunts when they spawn as a boss; hero reacts otherwise
             if (storyBossId === 'GREEN_GOBLIN') {
@@ -4398,6 +4400,7 @@ function startGame(mode = 'NORMAL') {
     bossActive = false;
     isPlayerDying = false;
     bossDeathTimer = 0;
+    bossIntroTimer = 0; bossIntroName = '';
     _bossChoiceScreen = false;
     _bossChoiceFrame = 0;
     enemies = [];
@@ -5801,6 +5804,123 @@ function masterFrame(deltaTime, timestamp) {
                 if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].checkObjectiveCompletion) {
                     window.HERO_LOGIC[player.type].checkObjectiveCompletion(currentObjective, wave);
                 }
+            }
+
+            // Boss Intro Cinematic
+            if (bossIntroTimer > 0) {
+                const _ITOTAL = GAMEPLAY.BOSS_INTRO_FRAMES;
+                if (bossIntroTimer === _ITOTAL) {
+                    bossIntroCamStartX = arena.camera.x;
+                    bossIntroCamStartY = arena.camera.y;
+                    const _ib = enemies.find(e => e instanceof Boss);
+                    if (_ib) {
+                        bossIntroCamTargetX = Math.max(0, Math.min(_ib.x - canvas.width / 2, arena.width - canvas.width));
+                        bossIntroCamTargetY = Math.max(0, Math.min(_ib.y - canvas.height / 2, arena.height - canvas.height));
+                    } else {
+                        bossIntroCamTargetX = bossIntroCamStartX;
+                        bossIntroCamTargetY = bossIntroCamStartY;
+                    }
+                }
+                bossIntroTimer--;
+                const _ip = 1 - bossIntroTimer / _ITOTAL;
+
+                const _iEaseOut = t => 1 - Math.pow(1 - Math.min(1, t), 3);
+                const _iEaseIn  = t => Math.min(1, t) * Math.min(1, t);
+
+                // Camera pan toward boss over first 55%
+                const _iCamT = _iEaseOut(Math.min(1, _ip / 0.55));
+                const _iCamX = bossIntroCamStartX + (bossIntroCamTargetX - bossIntroCamStartX) * _iCamT;
+                const _iCamY = bossIntroCamStartY + (bossIntroCamTargetY - bossIntroCamStartY) * _iCamT;
+
+                // Zoom 1.0→1.45 during pan, hold, then back to 1.0
+                let _iZoom;
+                if (_ip < 0.55) {
+                    _iZoom = 1.0 + 0.45 * _iEaseOut(_ip / 0.55);
+                } else if (_ip < 0.80) {
+                    _iZoom = 1.45;
+                } else {
+                    _iZoom = 1.45 - 0.45 * _iEaseIn((_ip - 0.80) / 0.20);
+                }
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // World — cinematic camera + zoom
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(_iZoom, _iZoom);
+                ctx.translate(-canvas.width / 2, -canvas.height / 2);
+                ctx.translate(-_iCamX, -_iCamY);
+                if (arena) arena.draw(ctx, getHeroTheme(currentBiomeType));
+                const _iB = enemies.find(e => e instanceof Boss);
+                if (_iB && typeof _iB.draw === 'function') _iB.draw(ctx);
+                ctx.restore();
+
+                // Vignette
+                const _ivg = ctx.createRadialGradient(
+                    canvas.width / 2, canvas.height / 2, Math.hypot(canvas.width, canvas.height) * 0.22,
+                    canvas.width / 2, canvas.height / 2, Math.hypot(canvas.width, canvas.height) * 0.68
+                );
+                _ivg.addColorStop(0, 'rgba(0,0,0,0)');
+                _ivg.addColorStop(1, 'rgba(0,0,0,0.84)');
+                ctx.fillStyle = _ivg;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Impact flash (first 8%)
+                if (_ip < 0.08) {
+                    ctx.fillStyle = `rgba(255,255,255,${(1 - _ip / 0.08) * 0.55})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+
+                // Boss name banner (fades 0.22→0.34, holds, fades 0.88→1.0)
+                if (_ip > 0.22) {
+                    const _iBannerA = _ip < 0.34 ? (_ip - 0.22) / 0.12 :
+                                      _ip > 0.88 ? 1 - (_ip - 0.88) / 0.12 : 1.0;
+                    const _iba = Math.max(0, Math.min(1, _iBannerA));
+
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const _bLabelY = canvas.height / 2 - 58;
+
+                    // Decorative rule lines
+                    ctx.globalAlpha = _iba * 0.55;
+                    ctx.strokeStyle = '#e74c3c';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(canvas.width / 2 - 200, _bLabelY); ctx.lineTo(canvas.width / 2 - 88, _bLabelY); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(canvas.width / 2 + 88, _bLabelY); ctx.lineTo(canvas.width / 2 + 200, _bLabelY); ctx.stroke();
+
+                    // "BOSS FIGHT" label
+                    ctx.globalAlpha = _iba * 0.9;
+                    ctx.shadowColor = '#e74c3c';
+                    ctx.shadowBlur = 14;
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.font = 'bold 13px Arial';
+                    ctx.fillText('BOSS FIGHT', canvas.width / 2, _bLabelY);
+
+                    // Boss name — red glow pass
+                    ctx.globalAlpha = _iba * 0.18;
+                    ctx.shadowBlur = 60;
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.font = 'bold 72px Arial';
+                    ctx.fillText(bossIntroName, canvas.width / 2, canvas.height / 2 - 4);
+
+                    // Boss name — crisp white pass
+                    ctx.globalAlpha = _iba;
+                    ctx.shadowBlur = 18;
+                    ctx.shadowColor = 'rgba(231,76,60,0.85)';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(bossIntroName, canvas.width / 2, canvas.height / 2 - 4);
+
+                    ctx.restore();
+                }
+
+                // Fade to black in final 12%
+                if (_ip > 0.88) {
+                    ctx.fillStyle = `rgba(0,0,0,${((_ip - 0.88) / 0.12) * 0.95})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+
+                return;
             }
 
             // Boss Death Cinematic Sequence
