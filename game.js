@@ -3952,7 +3952,7 @@ function resumeWaveGeneration() {
     }
 
     // Randomize Biome (Skip in Versus Mode) — biome-pool & roll moved to Wave.js.
-    if (!isVersusMode) {
+    if (!isVersusMode && !isWorkshopMode) {
         const isStoryRun = (saveData.story && saveData.story.enabled !== false) && !isDailyMode && !isWeeklyMode;
         const heroType = (player && player.type) || 'fire';
         const types = buildBiomePool(isStoryRun, heroType);

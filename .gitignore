@@ -3,5 +3,6 @@ out
 dist
 .vite
 *.code-workspace
+tasks
 .claude
 CLAUDE.md
