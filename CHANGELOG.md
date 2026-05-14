@@ -4,7 +4,12 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Changed
+- **Trap visual redesign**. All six trap types redrawn with modern canvas techniques: gradient fills, shadow glows, layered geometry, and smooth animations. Spikes: metallic gradient bodies with glowing red tips and a warning pulse before activation. Slow: purple hexagonal web zone with pulsing concentric rings. Conveyor: dark industrial steel plate with animated amber arrows and belt grooves. Turret: hexagonal armored shell, gradient barrel with muzzle charge glow, and glowing sensor eye. Laser: layered soft-glow beam with octagonal emitter and spinning dashed energy ring. Teleporter: multi-arm vortex arcs with radiant core and depth-layered portal rings.
+
 ### Fixed
+- **Custom map layout reverted to random on every wave**. `advanceWave()` unconditionally called `arena.generate()`, overwriting the custom layout loaded by `startGame('WORKSHOP')`. Workshop mode now calls `arena.generateFromMap(pendingCustomMap)` instead, preserving obstacles, biome zones, and traps every wave.
+- **Hero projectiles render as plain circles in multiplayer**. Server snapshot omitted the `type` field from per-projectile first-appearance data; clients initialized ghost projectiles with `type = ''`, falling through to the generic circle fallback. `type` is now included in the server snapshot and applied on the client alongside the other static fields.
 - **DLC modules fail to load in packaged/dev Electron app**. `DLCManager.loadScript` built a root-relative URL (`/dlc/...`) which Electron's `file://` renderer resolved to `file:///dlc/...` (filesystem root) instead of the app directory. Fixed by resolving against `document.baseURI` via `new URL(rel, document.baseURI).href`, which works correctly under both `file://` and `http://`.
 - **Map Workshop notice board in global lobby**. A clickable world-space board is placed at the top-centre of the gallery room. Walking within 120 px shows a `[E] / click · Map Workshop` HUD prompt; pressing E or clicking the board opens the workshop panel. The board glows blue when the player is nearby. The `[M]` global shortcut still works from anywhere.
 - **Game stuck on "Loading Assets" after first server login**. The save-conflict modal (`cloud-conflict-modal`) had `z-index: 4000`, beneath the loading screen (`z-index: 9999`). Users who logged in once and restarted would hit a conflict check on startup, see the modal hidden behind the loading overlay, and be unable to proceed. Modal z-index raised to `10000`.

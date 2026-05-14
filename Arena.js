@@ -812,120 +812,370 @@ class Trap {
     draw(ctx) {
         ctx.save();
         ctx.translate(this.x, this.y);
+        const cx = this.w / 2, cy = this.h / 2;
+        const t = Date.now();
 
         if (this.type === 'SPIKE') {
-            // Background (Floor)
-            ctx.fillStyle = '#222';
+            // Dark plate base with gradient depth
+            const bgGrad = ctx.createLinearGradient(0, 0, this.w, this.h);
+            bgGrad.addColorStop(0, '#1c1c1c');
+            bgGrad.addColorStop(1, '#0a0a0a');
+            ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, this.w, this.h);
 
+            // Warning pulse when cycle is near transition
+            if (this.timer > 160) {
+                const pulse = (Math.sin(t / 80) + 1) / 2;
+                ctx.fillStyle = `rgba(231, 76, 60, ${pulse * 0.35})`;
+                ctx.fillRect(0, 0, this.w, this.h);
+            }
+
             if (this.active) {
-                // Spikes UP
-                ctx.fillStyle = '#7f8c8d'; // Metallic
                 for (let i = 0; i < 4; i++) {
                     for (let j = 0; j < 4; j++) {
+                        const bx = i * 25, by = j * 25;
+                        const tipX = bx + 12.5;
+                        // Metallic gradient spike body
+                        const spikeGrad = ctx.createLinearGradient(bx, by + 25, bx + 25, by);
+                        spikeGrad.addColorStop(0, '#2d3035');
+                        spikeGrad.addColorStop(0.55, '#8a9196');
+                        spikeGrad.addColorStop(1, '#d8dfe2');
+                        ctx.fillStyle = spikeGrad;
                         ctx.beginPath();
-                        ctx.moveTo(i * 25, j * 25 + 25);
-                        ctx.lineTo(i * 25 + 12.5, j * 25); // Pointy
-                        ctx.lineTo(i * 25 + 25, j * 25 + 25);
+                        ctx.moveTo(bx + 3, by + 25);
+                        ctx.lineTo(tipX, by + 1);
+                        ctx.lineTo(bx + 22, by + 25);
+                        ctx.closePath();
                         ctx.fill();
-                    }
-                }
-                // Red tips
-                ctx.fillStyle = '#c0392b';
-                for (let i = 0; i < 4; i++) {
-                    for (let j = 0; j < 4; j++) {
+                        // Highlight left face
+                        ctx.fillStyle = 'rgba(255,255,255,0.2)';
                         ctx.beginPath();
-                        ctx.moveTo(i * 25 + 12.5, j * 25);
-                        ctx.lineTo(i * 25 + 10, j * 25 + 5);
-                        ctx.lineTo(i * 25 + 15, j * 25 + 5);
+                        ctx.moveTo(bx + 3, by + 25);
+                        ctx.lineTo(tipX, by + 1);
+                        ctx.lineTo(tipX - 4, by + 9);
+                        ctx.lineTo(bx + 7, by + 25);
+                        ctx.closePath();
                         ctx.fill();
+                        // Glowing blood-red tip
+                        ctx.shadowColor = '#ff3333';
+                        ctx.shadowBlur = 8;
+                        ctx.fillStyle = '#c0392b';
+                        ctx.beginPath();
+                        ctx.moveTo(tipX - 3.5, by + 8);
+                        ctx.lineTo(tipX, by + 1);
+                        ctx.lineTo(tipX + 3.5, by + 8);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
                     }
                 }
             } else {
-                // Spikes DOWN (Holes)
-                ctx.fillStyle = '#111';
+                // Retracted: deep hole per spike position
                 for (let i = 0; i < 4; i++) {
                     for (let j = 0; j < 4; j++) {
+                        const hx = i * 25 + 12.5, hy = j * 25 + 12.5;
+                        const holeGrad = ctx.createRadialGradient(hx, hy, 1, hx, hy, 9);
+                        holeGrad.addColorStop(0, '#000000');
+                        holeGrad.addColorStop(0.6, '#0d0d0d');
+                        holeGrad.addColorStop(1, '#1c1c1c');
+                        ctx.fillStyle = holeGrad;
                         ctx.beginPath();
-                        ctx.arc(i * 25 + 12.5, j * 25 + 12.5, 5, 0, Math.PI * 2);
+                        ctx.arc(hx, hy, 9, 0, Math.PI * 2);
+                        ctx.fill();
+                        // Tiny rim gleam
+                        ctx.fillStyle = 'rgba(100,100,100,0.35)';
+                        ctx.beginPath();
+                        ctx.arc(hx - 2.5, hy - 2.5, 2.5, 0, Math.PI * 2);
                         ctx.fill();
                     }
                 }
             }
+
         } else if (this.type === 'SLOW') {
-            // Subtle Mud/Web
-            ctx.fillStyle = 'rgba(100, 100, 100, 0.2)'; // Very subtle
+            // Deep purple viscous zone
+            const bgGrad = ctx.createRadialGradient(cx, cy, 8, cx, cy, 58);
+            bgGrad.addColorStop(0, 'rgba(95, 45, 135, 0.6)');
+            bgGrad.addColorStop(0.65, 'rgba(60, 20, 95, 0.42)');
+            bgGrad.addColorStop(1, 'rgba(25, 5, 45, 0.12)');
+            ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, this.w, this.h);
-            // No border, just some specks
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            for (let i = 0; i < 5; i++) {
-                ctx.fillRect(Math.random() * this.w, Math.random() * this.h, 5, 5);
-            }
-        } else if (this.type === 'CONVEYOR') {
-            // Subtle Wind
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-            ctx.fillRect(0, 0, this.w, this.h);
-        } else if (this.type === 'TURRET') {
-            // Base
-            ctx.fillStyle = '#7f8c8d';
-            ctx.beginPath(); ctx.arc(this.w / 2, this.h / 2, 30, 0, Math.PI * 2); ctx.fill();
-            // Barrel (aims at player if possible, else static)
-            ctx.strokeStyle = '#34495e'; ctx.lineWidth = 8;
-            ctx.beginPath(); ctx.moveTo(this.w / 2, this.h / 2);
-            // Simple visual aim
-            let angle = 0;
-            if (typeof player !== 'undefined') angle = Math.atan2(player.y - (this.y + this.h / 2), player.x - (this.x + this.w / 2));
-            ctx.lineTo(this.w / 2 + Math.cos(angle) * 40, this.h / 2 + Math.sin(angle) * 40);
-            ctx.stroke();
-        } else if (this.type === 'LASER_BEAM') {
-            // Base
-            ctx.fillStyle = '#2c3e50';
-            ctx.fillRect(this.w / 2 - 10, this.h / 2 - 10, 20, 20);
-            // Beam
-            ctx.strokeStyle = '#e74c3c';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(this.w / 2, this.h / 2);
-            ctx.lineTo(this.w / 2 + Math.cos(this.angle) * 200, this.h / 2 + Math.sin(this.angle) * 200);
-            ctx.stroke();
-            // Glow
-            ctx.strokeStyle = 'rgba(231, 76, 60, 0.3)';
-            ctx.lineWidth = 10;
-            ctx.stroke();
-        } else if (this.type === 'TELEPORTER') {
-            ctx.fillStyle = this.active ? 'rgba(52, 152, 219, 0.5)' : 'rgba(52, 152, 219, 0.1)';
-            ctx.beginPath(); ctx.arc(this.w / 2, this.h / 2, 40, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = '#3498db'; ctx.lineWidth = 2;
-            ctx.stroke();
-            // Swirl effect
-            if (this.active) {
-                ctx.save();
-                ctx.translate(this.w / 2, this.h / 2);
-                ctx.rotate(Date.now() / 500);
-                ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 1.5); ctx.stroke();
-                ctx.restore();
-            }
-        }
-        ctx.restore();
 
-        // Conveyor Arrows (Separate to handle rotation correctly)
-        if (this.type === 'CONVEYOR') {
-            ctx.save();
-            ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
-            const angle = Math.atan2(this.vy, this.vx);
-            ctx.rotate(angle);
-            ctx.fillStyle = 'rgba(255,255,255,0.1)'; // Faint arrows
-            const offset = (Date.now() / 10) % 50 - 25;
-
-            for (let i = -1; i <= 1; i++) {
+            // Hexagonal web pattern
+            ctx.strokeStyle = 'rgba(175, 95, 255, 0.38)';
+            ctx.lineWidth = 1;
+            const hexR = 18;
+            const hexCenters = [
+                [cx, cy],
+                [cx - hexR * 1.72, cy - hexR], [cx + hexR * 1.72, cy - hexR],
+                [cx - hexR * 1.72, cy + hexR], [cx + hexR * 1.72, cy + hexR],
+                [cx, cy - hexR * 2], [cx, cy + hexR * 2],
+            ];
+            for (const [hcx, hcy] of hexCenters) {
                 ctx.beginPath();
-                ctx.moveTo(-20 + offset + i * 50, -10);
-                ctx.lineTo(0 + offset + i * 50, 0);
-                ctx.lineTo(-20 + offset + i * 50, 10);
+                for (let a = 0; a < 6; a++) {
+                    const ang = (Math.PI / 3) * a - Math.PI / 6;
+                    const px = hcx + hexR * Math.cos(ang), py = hcy + hexR * Math.sin(ang);
+                    a === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
+
+            // Pulsing concentric rings
+            const pulse = (Math.sin(t / 600) + 1) / 2;
+            ctx.strokeStyle = `rgba(195, 125, 255, ${0.45 + pulse * 0.35})`;
+            ctx.lineWidth = 1.5;
+            for (let r = 12; r <= 36; r += 12) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+        } else if (this.type === 'CONVEYOR') {
+            // Dark industrial steel plate
+            const bgGrad = ctx.createLinearGradient(0, 0, this.w, this.h);
+            bgGrad.addColorStop(0, '#1c1c1f');
+            bgGrad.addColorStop(0.5, '#2c2c30');
+            bgGrad.addColorStop(1, '#1c1c1f');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, this.w, this.h);
+
+            // Belt grooves perpendicular to direction
+            ctx.save();
+            ctx.translate(cx, cy);
+            const beltAngle = Math.atan2(this.vy, this.vx);
+            ctx.rotate(beltAngle + Math.PI / 2);
+            ctx.strokeStyle = 'rgba(75, 75, 85, 0.65)';
+            ctx.lineWidth = 1;
+            for (let i = -60; i <= 60; i += 12) {
+                ctx.beginPath();
+                ctx.moveTo(i, -60);
+                ctx.lineTo(i, 60);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // Border
+            ctx.strokeStyle = 'rgba(90, 90, 110, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(1, 1, this.w - 2, this.h - 2);
+
+            // Animated amber directional arrows
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(beltAngle);
+            const offset = (t / 10) % 50 - 25;
+            ctx.fillStyle = 'rgba(255, 195, 60, 0.82)';
+            ctx.shadowColor = 'rgba(255, 170, 0, 0.5)';
+            ctx.shadowBlur = 7;
+            for (let i = -1; i <= 1; i++) {
+                const ox = offset + i * 50;
+                ctx.beginPath();
+                ctx.moveTo(ox - 14, -8);
+                ctx.lineTo(ox + 4, 0);
+                ctx.lineTo(ox - 14, 8);
+                ctx.lineTo(ox - 7, 0);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+            ctx.restore();
+
+        } else if (this.type === 'TURRET') {
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            // Hexagonal armored shell
+            ctx.shadowColor = 'rgba(231,76,60,0.5)';
+            ctx.shadowBlur = 14;
+            ctx.strokeStyle = 'rgba(231,76,60,0.55)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let a = 0; a < 6; a++) {
+                const ang = (Math.PI / 3) * a - Math.PI / 6;
+                a === 0 ? ctx.moveTo(Math.cos(ang) * 36, Math.sin(ang) * 36)
+                        : ctx.lineTo(Math.cos(ang) * 36, Math.sin(ang) * 36);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            const baseGrad = ctx.createRadialGradient(0, -4, 3, 0, 0, 33);
+            baseGrad.addColorStop(0, '#4a5568');
+            baseGrad.addColorStop(0.55, '#2d3748');
+            baseGrad.addColorStop(1, '#161b26');
+            ctx.fillStyle = baseGrad;
+            ctx.beginPath();
+            for (let a = 0; a < 6; a++) {
+                const ang = (Math.PI / 3) * a - Math.PI / 6;
+                a === 0 ? ctx.moveTo(Math.cos(ang) * 33, Math.sin(ang) * 33)
+                        : ctx.lineTo(Math.cos(ang) * 33, Math.sin(ang) * 33);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Pivot ring
+            ctx.strokeStyle = '#606878';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, 13, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Aim toward player and draw barrel
+            let aimAngle = 0;
+            if (typeof player !== 'undefined') {
+                aimAngle = Math.atan2(player.y - (this.y + cy), player.x - (this.x + cx));
+            }
+            ctx.rotate(aimAngle);
+            const barrelGrad = ctx.createLinearGradient(0, -5, 0, 5);
+            barrelGrad.addColorStop(0, '#6b7a8a');
+            barrelGrad.addColorStop(0.5, '#9daab8');
+            barrelGrad.addColorStop(1, '#3e4a58');
+            ctx.fillStyle = barrelGrad;
+            ctx.fillRect(10, -5, 30, 10);
+            ctx.fillRect(14, -7, 10, 14); // Barrel collar
+
+            // Charge glow near fire
+            const chargePhase = this.timer / 120;
+            if (chargePhase > 0.65) {
+                const charge = (chargePhase - 0.65) / 0.35;
+                ctx.shadowColor = '#ff4444';
+                ctx.shadowBlur = 14 * charge;
+                ctx.fillStyle = `rgba(255,68,68,${charge * 0.85})`;
+                ctx.beginPath();
+                ctx.arc(40, 0, 3 + 4 * charge, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            // Sensor eye
+            ctx.shadowColor = '#ff2222';
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(0, 0, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.restore();
+
+        } else if (this.type === 'LASER_BEAM') {
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            // Laser beam layers (drawn before base so base sits on top)
+            const ex = Math.cos(this.angle) * 200, ey = Math.sin(this.angle) * 200;
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(231,76,60,0.12)';
+            ctx.lineWidth = 20;
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(ex, ey); ctx.stroke();
+            ctx.strokeStyle = 'rgba(231,76,60,0.30)';
+            ctx.lineWidth = 9;
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(ex, ey); ctx.stroke();
+            ctx.shadowColor = '#ff7070';
+            ctx.shadowBlur = 5;
+            ctx.strokeStyle = '#fff0f0';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(ex, ey); ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Octagonal emitter base
+            const octGrad = ctx.createRadialGradient(0, -2, 1, 0, 0, 14);
+            octGrad.addColorStop(0, '#3a4555');
+            octGrad.addColorStop(0.65, '#1e2535');
+            octGrad.addColorStop(1, '#0e1520');
+            ctx.fillStyle = octGrad;
+            ctx.beginPath();
+            for (let a = 0; a < 8; a++) {
+                const ang = (Math.PI / 4) * a - Math.PI / 8;
+                a === 0 ? ctx.moveTo(Math.cos(ang) * 13, Math.sin(ang) * 13)
+                        : ctx.lineTo(Math.cos(ang) * 13, Math.sin(ang) * 13);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Emitter glow ring
+            ctx.shadowColor = '#e74c3c';
+            ctx.shadowBlur = 10;
+            ctx.strokeStyle = 'rgba(231,76,60,0.85)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Spinning dashed energy ring
+            ctx.save();
+            ctx.rotate(t / 300);
+            ctx.strokeStyle = 'rgba(255,90,70,0.65)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.arc(0, 0, 9, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+
+            ctx.restore();
+
+        } else if (this.type === 'TELEPORTER') {
+            ctx.save();
+            ctx.translate(cx, cy);
+            const pulse = (Math.sin(t / 400) + 1) / 2;
+
+            // Portal fill rings
+            const ringAlphas = this.active
+                ? [0.14, 0.28, 0.48]
+                : [0.04, 0.08, 0.14];
+            const ringColor = this.active ? '0,210,255' : '52,152,219';
+            for (let r = 0; r < 3; r++) {
+                ctx.fillStyle = `rgba(${ringColor},${ringAlphas[r]})`;
+                ctx.beginPath();
+                ctx.arc(0, 0, 40 - r * 10, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Outer border ring
+            ctx.shadowColor = this.active ? '#00d4ff' : '#3498db';
+            ctx.shadowBlur = this.active ? 18 + pulse * 8 : 4;
+            ctx.strokeStyle = this.active
+                ? `rgba(0,210,255,${0.7 + pulse * 0.3})`
+                : 'rgba(52,152,219,0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 40, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            if (this.active) {
+                // Three rotating vortex arcs
+                for (let arm = 0; arm < 3; arm++) {
+                    ctx.save();
+                    ctx.rotate(t / 500 + (arm * Math.PI * 2) / 3);
+                    ctx.strokeStyle = `rgba(0,220,255,${0.38 + arm * 0.15})`;
+                    ctx.lineWidth = 1.5 + arm * 0.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 28 - arm * 6, 0, Math.PI * 1.4);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                // Inner radiant core
+                const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
+                coreGrad.addColorStop(0, `rgba(210,248,255,${0.85 + pulse * 0.15})`);
+                coreGrad.addColorStop(0.5, 'rgba(0,200,255,0.5)');
+                coreGrad.addColorStop(1, 'rgba(0,100,200,0)');
+                ctx.fillStyle = coreGrad;
+                ctx.beginPath();
+                ctx.arc(0, 0, 15, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Inactive dim center
+                ctx.fillStyle = `rgba(52,152,219,${0.08 + pulse * 0.05})`;
+                ctx.beginPath();
+                ctx.arc(0, 0, 14, 0, Math.PI * 2);
                 ctx.fill();
             }
             ctx.restore();
         }
+
+        ctx.restore();
     }
 }
 

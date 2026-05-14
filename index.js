@@ -72,6 +72,13 @@ function createWindow() {
     win.webContents.on('unresponsive', () => {
         writeLog('WARN', 'MAIN', 'Renderer became unresponsive');
     });
+
+    // Inject file-system paths that Vite strips from process.env at build time
+    win.webContents.on('did-finish-load', () => {
+        win.webContents.executeJavaScript(
+            `window.__APP_MAPS_PATH__ = ${JSON.stringify(process.env.APP_MAPS_PATH)};`
+        );
+    });
 }
 
 function createMapEditorWindow() {

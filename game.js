@@ -4058,11 +4058,15 @@ function resumeWaveGeneration() {
         };
     }
 
-    arena.generate(currentBiomeType, layoutOverride, trapOverride);
+    if (isWorkshopMode && window.pendingCustomMap) {
+        arena.generateFromMap(window.pendingCustomMap);
+    } else {
+        arena.generate(currentBiomeType, layoutOverride, trapOverride);
 
-    // Versus Mode Override: Force 1v1 Layout if somehow called here
-    if (isVersusMode) {
-        arena.generate(currentBiomeType, 'VERSUS_1V1');
+        // Versus Mode Override: Force 1v1 Layout if somehow called here
+        if (isVersusMode) {
+            arena.generate(currentBiomeType, 'VERSUS_1V1');
+        }
     }
 
     if (_savedRandom) Math.random = _savedRandom;
@@ -5324,6 +5328,7 @@ function _onlineApplySnapshot(s) {
         if (pd.isEnemy     !== undefined) p.isEnemy     = pd.isEnemy;
         if (pd.isExplosive !== undefined) p.isExplosive = pd.isExplosive;
         if (pd.isCrit      !== undefined) p.isCrit      = pd.isCrit;
+        if (pd.type        !== undefined) p.type        = pd.type;
         return p;
     });
     // Carry forward orphans (in last frame's array, gone from this snapshot) so the

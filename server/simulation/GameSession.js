@@ -740,6 +740,7 @@ class GameSession {
                 entry.isEnemy     = !!p.isEnemy;
                 entry.isExplosive = !!p.isExplosive;
                 entry.isCrit      = !!p.isCrit;
+                entry.type        = p.type || '';
             }
             return entry;
         });

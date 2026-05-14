@@ -1,2 +1,2 @@
 # General
-- in online mode, projectiles are not rendered with correct style
+- custom maps not correctly loaded

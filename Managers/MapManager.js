@@ -12,7 +12,9 @@ const _DEFAULT_WAVE_CONFIG = {
 
 class MapManager {
     static get mapsDir() {
-        return (typeof process !== 'undefined' && process?.env?.APP_MAPS_PATH) || null;
+        // process.env.APP_MAPS_PATH is stripped by Vite at build time;
+        // main process injects the real path via executeJavaScript instead.
+        return window.__APP_MAPS_PATH__ || null;
     }
 
     static isAvailable() {
