@@ -1211,7 +1211,7 @@ const Manual = {
                 <h3>Private Lobby (1v1 Versus)</h3>
                 <div class="tut-card">
                     <div class="tut-card-title">Creating or Joining a Match</div>
-                    <p>Open <b>Online 2-Player</b> from the main menu to enter the lobby screen.</p>
+                    <p>Open <b>Online</b> from the main menu to enter the lobby screen.</p>
                     <ul>
                         <li><b>Create Lobby:</b> One player clicks "Create" — a 6-character lobby code is displayed. Share it with your opponent.</li>
                         <li><b>Join Lobby:</b> Enter the code and click "Join" to connect to your partner's lobby.</li>

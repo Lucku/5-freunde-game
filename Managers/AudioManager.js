@@ -652,13 +652,13 @@ class AudioManager {
             return;
         }
 
-        const menuStates = ['MENU','OPTIONS','PERMSHOP','ACHIEVEMENTS','COLLECTION','HIGHSCORE','STORY','ALTAR','CHAOSSHOP','TUTORIAL','STATS','COMPLETION','SKILLTREE','INFO_DIALOGUE','DLC'];
+        const menuStates = ['MENU','OPTIONS','PERMSHOP','ACHIEVEMENTS','COLLECTION','HIGHSCORE','STORY','ALTAR','CHAOSSHOP','TUTORIAL','STATS','COMPLETION','SKILLTREE','INFO_DIALOGUE','DLC','ONLINE_LOBBY'];
 
         if (uiState === 'VICTORY') {
             this.stopAllExcept('victory'); this.play('victory');
         } else if (uiState === 'GAMEOVER') {
             this.stopAllExcept('gameover'); this.play('gameover');
-        } else if (uiState === 'MUSEUM') {
+        } else if (uiState === 'MUSEUM' || uiState === 'GLOBAL_LOBBY' || uiState === 'GLOBAL_LOBBY_MENU') {
             this.stopAllExcept('museum'); this.play('museum');
         } else if (menuStates.includes(uiState)) {
             this.stopAllExcept('menu'); this.play('menu');

@@ -16,7 +16,6 @@ love = 5x1b7R9BDxre5p7xVRsn
 black = xrNwYO0xeioXswMCcFNF
 makuta = bwCXcoVxWNYMlC6Esa8u
 goblin = qhH5VOAvpCwvNpmn2srO
-# Disciples of Deception — replace placeholder lines below with real ElevenLabs voice IDs.
-# psycho: glassy / unhinged, mid-pitched, energetic male or female
-# mirror: cold / precise, deeper register, deliberate cadence
-# smoke:  low / smoky, breathy, calm but threatening
+psycho = TsHrPyMlNFuIYnbODF01
+mirror = 4tRn1lSkEn13EVTuqb0g
+smoke = 6xvoo5XaPTZUOsLWg4z2

@@ -5,9 +5,11 @@ All notable changes to this project will be documented in this file, starting wi
 ## [Unreleased]
 
 ### Changed
+- **Main menu "Online 2-Player" button renamed to "Online"**. Tutorial copy updated to match.
 - **Trap visual redesign**. All six trap types redrawn with modern canvas techniques: gradient fills, shadow glows, layered geometry, and smooth animations. Spikes: metallic gradient bodies with glowing red tips and a warning pulse before activation. Slow: purple hexagonal web zone with pulsing concentric rings. Conveyor: dark industrial steel plate with animated amber arrows and belt grooves. Turret: hexagonal armored shell, gradient barrel with muzzle charge glow, and glowing sensor eye. Laser: layered soft-glow beam with octagonal emitter and spinning dashed energy ring. Teleporter: multi-arm vortex arcs with radiant core and depth-layered portal rings.
 
 ### Fixed
+- **Battle theme played in online lobby and global lobby**. `AudioManager.update()` didn't recognize `ONLINE_LOBBY`, `GLOBAL_LOBBY`, or `GLOBAL_LOBBY_MENU` `uiState` values, so it fell through to the default battle music branch. Added `ONLINE_LOBBY` to `menuStates` (plays menu music) and routed `GLOBAL_LOBBY` / `GLOBAL_LOBBY_MENU` to the museum track.
 - **Custom map biome overridden by hero type in workshop mode**. `advanceWave()` biome-rotation block ran for all modes except Versus, forcing `currentBiomeType` to the player's hero type on wave 1 and a random biome on subsequent waves. Workshop mode is now excluded so the map's configured biome persists.
 - **Custom map layout reverted to random on every wave**. `advanceWave()` unconditionally called `arena.generate()`, overwriting the custom layout loaded by `startGame('WORKSHOP')`. Workshop mode now calls `arena.generateFromMap(pendingCustomMap)` instead, preserving obstacles, biome zones, and traps every wave.
 - **Hero projectiles render as plain circles in multiplayer**. Server snapshot omitted the `type` field from per-projectile first-appearance data; clients initialized ghost projectiles with `type = ''`, falling through to the generic circle fallback. `type` is now included in the server snapshot and applied on the client alongside the other static fields.
