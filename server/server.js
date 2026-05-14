@@ -134,6 +134,27 @@ db.exec(`
     );
 `);
 
+// Seed system-author example maps so the community workshop is never empty.
+// Idempotent: skip any (system_user_id, name) row that already exists.
+(function seedExampleMaps() {
+    const { SYSTEM_USER_ID, SYSTEM_AUTHOR, EXAMPLE_MAPS } = require('./exampleMaps');
+    const exists = db.prepare('SELECT 1 FROM custom_maps WHERE user_id = ? AND name = ?');
+    const insert = db.prepare(`
+        INSERT INTO custom_maps
+            (user_id, author, name, biome_type, map_data, arena_width, arena_height, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const now = Date.now();
+    for (const m of EXAMPLE_MAPS) {
+        if (exists.get(SYSTEM_USER_ID, m.name)) continue;
+        insert.run(
+            SYSTEM_USER_ID, SYSTEM_AUTHOR, m.name, m.biomeType || 'fire',
+            JSON.stringify(m), m.arenaWidth || 2000, m.arenaHeight || 1500, now, now,
+        );
+        console.log(`[seed] inserted example map: ${m.name}`);
+    }
+})();
+
 const MAP_DATA_MAX_BYTES = 64 * 1024;
 const MAPS_PER_USER_MAX  = 20;
 
