@@ -267,8 +267,8 @@
             </div>
         </div>
 
-        <!-- Co-op: P2 HUD (bottom-right, mirrored) -->
-        <div id="p2-hud" style="display:none;">
+        <!-- Co-op: P2 HUD (bottom-right, mirrored). #169 — repositionable. -->
+        <div id="p2-hud" data-hud-id="p2Hud" style="display:none;">
             <div id="p2-bars-container">
                 <div class="bar-row">
                     <div class="bar-header">
@@ -309,10 +309,14 @@
          at z:20, which would trap the toolbar behind the main menu). -->
     <div id="hud-edit-backdrop"></div>
     <div id="hud-edit-toolbar">
-        <span class="hud-edit-hint">Drag any highlighted HUD element. Hold Shift to snap to edges.</span>
-        <button type="button" id="hud-edit-reset">Reset</button>
-        <button type="button" id="hud-edit-cancel">Cancel</button>
-        <button type="button" id="hud-edit-done" class="primary">Done</button>
+        <span class="hud-edit-hint">
+            Mouse: drag (Shift = snap to edges).
+            Keyboard: Tab cycles · Space grabs · arrows move · Esc cancel · Enter save.
+            🎮 D-pad / LB-RB cycles · A grabs · B cancel · Start save · Y reset.
+        </span>
+        <button type="button" id="hud-edit-reset">Reset (Y)</button>
+        <button type="button" id="hud-edit-cancel">Cancel (B)</button>
+        <button type="button" id="hud-edit-done" class="primary">Done (Start)</button>
     </div>
 
     <!-- Pause Screen -->

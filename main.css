@@ -360,7 +360,29 @@ body.hud-edit-mode [data-hud-id] {
     z-index: 8050 !important;
 }
 body.hud-edit-mode [data-hud-id].hud-dragging { cursor: grabbing; }
-body.hud-edit-mode #combo-display { opacity: 1 !important; }
+body.hud-edit-mode #combo-display,
+body.hud-edit-mode #p2-hud,
+body.hud-edit-mode #bottom-ui,
+body.hud-edit-mode #minimap { opacity: 1 !important; }
+
+/* Controller / keyboard focus indicator — distinct from the drag outline. */
+body.hud-edit-mode [data-hud-id].hud-focused,
+#hud-edit-toolbar button.hud-focused {
+    outline: 3px solid #2ecc71;
+    outline-offset: 5px;
+    box-shadow: 0 0 0 6px rgba(46, 204, 113, 0.22), 0 0 18px rgba(46, 204, 113, 0.55);
+}
+/* Move mode — element is currently grabbed by controller / keyboard. */
+body.hud-edit-mode [data-hud-id].hud-moving {
+    outline: 3px solid #f39c12;
+    outline-offset: 5px;
+    box-shadow: 0 0 0 6px rgba(243, 156, 18, 0.28), 0 0 22px rgba(243, 156, 18, 0.7);
+    animation: hud-move-pulse 0.9s ease-in-out infinite alternate;
+}
+@keyframes hud-move-pulse {
+    from { box-shadow: 0 0 0 6px rgba(243, 156, 18, 0.18), 0 0 16px rgba(243, 156, 18, 0.5); }
+    to   { box-shadow: 0 0 0 10px rgba(243, 156, 18, 0.42), 0 0 28px rgba(243, 156, 18, 0.85); }
+}
 
 /* — Weather / Event text — */
 #weather-display {
