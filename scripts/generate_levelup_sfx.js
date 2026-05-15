@@ -199,6 +199,29 @@ const SOUNDS = [
         promptInfluence: 0.45,
         description: 'Smoke hero level-up — low industrial drone swelling through thick haze, breathy bass with muffled rumble building into a deep resonant pulse, dark and threatening but controlled, smoky synthesized tones layering with a final low boom that fades into a hiss',
     },
+
+    // ── Radiance of Ruin (character pack) ───────────────────────────────────────
+    {
+        id: 'level_up_light',
+        filename: 'level_up_light.wav',
+        duration: 2.0,
+        promptInfluence: 0.5,
+        description: 'Light hero level-up — radiant gold sun-mote bloom rising into a sacred bell-tone crescendo, warm shimmering harmonics layered with a fragile high chime that swells into a triumphant gilded ring, reverent and brilliant, the audible feeling of a mirrored mask catching dawn light, ends on a sustained luminous note',
+    },
+    {
+        id: 'level_up_thorn',
+        filename: 'level_up_thorn.wav',
+        duration: 2.0,
+        promptInfluence: 0.5,
+        description: 'Thorn hero level-up — wet organic blood-bloom swelling through deep crimson, low thorn-snap percussive hits beneath a rising vine-rustling crescendo, visceral and gardenlike, deep red resonance with vegetal creaks growing into a triumphant pulsing chord, ends with a single heavy heartbeat thud',
+    },
+    {
+        id: 'level_up_dream',
+        filename: 'level_up_dream.wav',
+        duration: 2.0,
+        promptInfluence: 0.45,
+        description: 'Dream hero level-up — soft twilight indigo synth pad swelling upward, descending lullaby tones inverted into a rising shimmer, dreamy reverb-soaked bell chimes layered with breath-in pad swells, ethereal and half-asleep, ends on a sustained indigo chord with distant star-twinkle harmonics',
+    },
 ];
 
 // ---------------------------------------------------------------------------

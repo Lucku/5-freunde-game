@@ -19,3 +19,6 @@ goblin = qhH5VOAvpCwvNpmn2srO
 psycho = TsHrPyMlNFuIYnbODF01
 mirror = 4tRn1lSkEn13EVTuqb0g
 smoke = 6xvoo5XaPTZUOsLWg4z2
+light =
+thorn =
+dream =

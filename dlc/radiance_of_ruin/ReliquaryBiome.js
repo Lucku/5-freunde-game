@@ -123,11 +123,10 @@ class ReliquaryBiome {
         }
     }
 
-    draw(ctx, arena) {
+    drawBackground(ctx, arena) {
         const aw = arena.width, ah = arena.height;
-        const t = this.t;
 
-        // ── Background: deep amber-black + warm-white shift during Unveiling ──
+        // Opaque bg fill (called before entities, so entities draw on top)
         ctx.save();
         const r = Math.floor(0x1a + (0xff - 0x1a) * this.unveilTint);
         const g = Math.floor(0x13 + (0xf8 - 0x13) * this.unveilTint);
@@ -135,7 +134,7 @@ class ReliquaryBiome {
         ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
         ctx.fillRect(0, 0, aw, ah);
 
-        // Player-centered gold radial glow
+        // Player-centered gold radial glow (translucent, part of bg layer)
         if (window.player) {
             const grd = ctx.createRadialGradient(window.player.x, window.player.y, 50, window.player.x, window.player.y, 600);
             grd.addColorStop(0,   'rgba(241, 196, 15, 0.18)');
@@ -145,6 +144,11 @@ class ReliquaryBiome {
             ctx.fillRect(0, 0, aw, ah);
         }
         ctx.restore();
+    }
+
+    draw(ctx, arena) {
+        const aw = arena.width, ah = arena.height;
+        const t = this.t;
 
         // ── Light shafts: vertical translucent gold cones + floor disc ──
         ctx.save();

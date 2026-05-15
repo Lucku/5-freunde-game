@@ -385,6 +385,56 @@ const LINES = {
         ultimate:      "INK STORM! You'll never find me in here.",
     },
 
+    // ── Radiance of Ruin (character pack DLC) ──────────────────────────────────
+
+    light: {
+        injured:       "The Mask hurts when it remembers me.",
+        failure_1:     "Mar... bles. Marbles, my cat's name was...",
+        failure_2:     "The light. It was supposed to protect.",
+        twin_event:    "Two of you. Good. I see twice as clearly.",
+        boss_moment_1: "You think the dark hides you. I am the morning.",
+        boss_moment_2: "Stand still. I want to see you.",
+        boss_win_1:    "Revealed. Resolved. Returned.",
+        boss_win_2:    "I told you the Mask was warm.",
+        found_1:       "It feeds the Mask. The Mask feeds me.",
+        found_2:       "I will remember this. For a while.",
+        level_up_1:    "Clearer. Brighter. Less of me left.",
+        level_up_2:    "The light learns my name.",
+        ultimate:      "THE UNVEILING! Let nothing be hidden from itself!",
+    },
+
+    thorn: {
+        injured:       "Good. The garden is hungry.",
+        failure_1:     "Brother... you were right. About none of it.",
+        failure_2:     "The rose was enough. It was always enough.",
+        twin_event:    "Two of us. The garden doubles.",
+        boss_moment_1: "You will feed the bloom. Willing or not.",
+        boss_moment_2: "Bleed for me. I bled first.",
+        boss_win_1:    "The thorn remembers it has the right to exist.",
+        boss_win_2:    "Yield, harvest, repeat.",
+        found_1:       "The roots will reach this.",
+        found_2:       "Mine. The garden's. Same thing.",
+        level_up_1:    "Deeper. The thorns go deeper.",
+        level_up_2:    "The rose drinks. I grow.",
+        ultimate:      "THE RECKONING! Let everything that owes me pay!",
+    },
+
+    dream: {
+        injured:       "The pain pulls me back. I was almost home.",
+        failure_1:     "Goodnight. For now.",
+        failure_2:     "I... wake.",
+        twin_event:    "Two of me. One asleep, one not. As it should be.",
+        boss_moment_1: "You are loud. Loud things do not last in dreams.",
+        boss_moment_2: "Close your eyes. I will make this easy.",
+        boss_win_1:    "There. The waking world is quieter again.",
+        boss_win_2:    "Rest. You earned it.",
+        found_1:       "A souvenir. I'll keep it on this side.",
+        found_2:       "Useful. In either world.",
+        level_up_1:    "The dream remembers me.",
+        level_up_2:    "More room in the threshold.",
+        ultimate:      "THE LONG SLEEP. Lie down. All of you. Lie down.",
+    },
+
     // ── Villains (Evil Mode + boss encounters) ─────────────────────────────────
     // Only the situations that make narrative sense for villain characters.
 
@@ -417,6 +467,10 @@ const VOICE_SETTINGS_OVERRIDES = {
     psycho:       { stability: 0.22, similarity_boost: 0.70, style: 0.60, use_speaker_boost: true }, // unhinged, expressive
     mirror:       { stability: 0.55, similarity_boost: 0.78, style: 0.25, use_speaker_boost: true }, // cold, controlled
     smoke:        { stability: 0.48, similarity_boost: 0.75, style: 0.30, use_speaker_boost: true }, // calm, threatening
+    // Radiance of Ruin — sacrifice / pain / doubt as resource
+    light:        { stability: 0.30, similarity_boost: 0.75, style: 0.55, use_speaker_boost: true }, // fractured, reverent
+    thorn:        { stability: 0.40, similarity_boost: 0.78, style: 0.45, use_speaker_boost: true }, // gaunt, hungry
+    dream:        { stability: 0.50, similarity_boost: 0.74, style: 0.30, use_speaker_boost: true }, // soft, half-asleep
 };
 
 // DLC heroes output to their own DLC directory to stay separate from base game audio
@@ -437,6 +491,10 @@ const DLC_OUTPUT_DIRS = {
     psycho: path.join(__dirname, '../dlc/disciples_of_deception/audio/voices/psycho'),
     mirror: path.join(__dirname, '../dlc/disciples_of_deception/audio/voices/mirror'),
     smoke:  path.join(__dirname, '../dlc/disciples_of_deception/audio/voices/smoke'),
+    // radiance_of_ruin heroes (add voice IDs to voice_ids.txt to enable):
+    light:  path.join(__dirname, '../dlc/radiance_of_ruin/audio/voices/light'),
+    thorn:  path.join(__dirname, '../dlc/radiance_of_ruin/audio/voices/thorn'),
+    dream:  path.join(__dirname, '../dlc/radiance_of_ruin/audio/voices/dream'),
 };
 
 // ── Main ────────────────────────────────────────────────────────────────────────

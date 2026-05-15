@@ -144,10 +144,10 @@ class DreamspaceBiome {
         }
     }
 
-    draw(ctx, arena) {
+    drawBackground(ctx, arena) {
         const aw = arena.width, ah = arena.height;
 
-        // Background fill — deepest indigo-black
+        // Opaque bg fill (called before entities)
         ctx.save();
         ctx.fillStyle = '#0a0815';
         ctx.fillRect(0, 0, aw, ah);
@@ -165,7 +165,7 @@ class DreamspaceBiome {
         }
         ctx.restore();
 
-        // Background stars
+        // Background stars (part of bg layer so entities draw on top)
         ctx.save();
         this.bgStars.forEach(s => {
             const tw = boosted ? 1.6 : 1.0;
@@ -179,7 +179,7 @@ class DreamspaceBiome {
         ctx.globalAlpha = 1;
         ctx.restore();
 
-        // Player indigo radial glow
+        // Player indigo radial glow (translucent — part of bg layer)
         if (window.player) {
             ctx.save();
             const grd = ctx.createRadialGradient(window.player.x, window.player.y, 50, window.player.x, window.player.y, 500);
@@ -190,6 +190,10 @@ class DreamspaceBiome {
             ctx.fillRect(0, 0, aw, ah);
             ctx.restore();
         }
+    }
+
+    draw(ctx, arena) {
+        const aw = arena.width, ah = arena.height;
 
         // Dream Pockets: rotating swirl rings
         ctx.save();

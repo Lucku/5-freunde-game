@@ -114,10 +114,9 @@ class CrimsonGreenhouseBiome {
         this.gardenActive = !!(player && player.bloodRose);
     }
 
-    draw(ctx, arena) {
+    drawBackground(ctx, arena) {
         const aw = arena.width, ah = arena.height;
 
-        // Background: near-black blood-red + crimson player glow
         ctx.save();
         ctx.fillStyle = '#1a0808';
         ctx.fillRect(0, 0, aw, ah);
@@ -130,6 +129,10 @@ class CrimsonGreenhouseBiome {
             ctx.fillRect(0, 0, aw, ah);
         }
         ctx.restore();
+    }
+
+    draw(ctx, arena) {
+        const aw = arena.width, ah = arena.height;
 
         // Bloom Patches: dark red circular zones with red rim + thorn outline
         ctx.save();
