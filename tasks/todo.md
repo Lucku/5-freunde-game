@@ -1,3 +1,95 @@
+# Improvement #98 — Telemetry / Analytics Opt-in (2026-05-15)
+
+Goal: lightweight in-house analytics pipeline (mirrors `CrashReporter` shape) so balance decisions are data-driven instead of gut-feel. Wave-clear-rate per hero, drop-off curve, average run length, upgrade pick popularity.
+
+User decisions:
+- **Consent**: first-launch modal (highest legal posture). Default selection is OFF; user must explicitly accept. Locked once chosen; toggleable from Options.
+- **Events**: all 4 — `run_start`, `wave_completed`, `level_up`, `run_end`.
+- **Instance ID**: random UUID per install, stored in `gameConfig.telemetryInstanceId`. No account linkage. Resettable.
+
+## Plan
+
+- [ ] **Server** — `server/server.js`
+  - [ ] CREATE TABLE `telemetry_events (id INTEGER PK, ts INTEGER, instance_id TEXT, event TEXT, hero TEXT, mode TEXT, wave INTEGER, payload TEXT)`. Index on `(event, ts)` and `(hero, event)`.
+  - [ ] `POST /api/telemetry` — unauthenticated, rate-limited (`capacity: 60, refillPerSec: 60/600` per IP), accepts `{ events: [...] }`, max payload 32 KB, whitelist event names, drop unknown fields. Insert each row in a single prepared-statement transaction. Cap total table rows (e.g. 500k); rolling prune on insert.
+  - [ ] `GET /api/admin/telemetry/summary` — aggregates: per-hero `{ runs, avgWave, avgTimeSec, p50Wave, p90Wave, dropoff: [{wave, %reached}] }`. Single SQL pass per hero.
+  - [ ] `GET /api/admin/telemetry/raw?event=…&limit=200` — for spot-checks.
+- [ ] **Client** — `Managers/TelemetryManager.js` (mirrors `CrashReporter` style)
+  - [ ] Static class. In-memory ring buffer (cap 100 events). Flush every 30 s OR on buffer ≥20 events OR on `pagehide` / `beforeunload` via `navigator.sendBeacon`.
+  - [ ] `track(event, fields)`. Gates on `gameConfig.telemetryEnabled === true` and `gameConfig.telemetryConsentSeen === true`.
+  - [ ] Strips PII: never sends username, account token, IP. Includes only `instanceId`, `appVersion`, `event`, `hero`, `mode`, `biome`, `wave`, `timeSec`, `upgradePicked`, `deathSource`, `outcome`. Hard-coded whitelist.
+  - [ ] Self-rate-limited: max 60 events/min client-side (drop excess; bump `_dropped` counter sent on next flush).
+- [ ] **Config** — `Config.js`
+  - [ ] `telemetryEnabled: false` (opt-in default).
+  - [ ] `telemetryConsentSeen: false` (drives first-launch modal).
+  - [ ] `telemetryInstanceId: null` (generated lazily on first opt-in).
+- [ ] **Run lifecycle hooks** — `game.js`
+  - [ ] `run_start` — at `gameRunning = true` site (and `advanceWave` entry for wave 1). Fields: `hero, mode, biome, dailySeed, appVersion`.
+  - [ ] `wave_completed` — at the existing `audioManager.play('wave_completed')` call sites. Fields: `wave, timeSec` (delta from `currentRunStats.startTime`).
+  - [ ] `level_up` — in `Player.levelUp()` completion / upgrade-picked callback. Fields: `hero, level, upgradePicked` (id from the chosen card).
+  - [ ] `run_end` — in `gameOver()`. Fields: `outcome` (win|death), `finalWave`, `totalTimeSec`, `deathSource` (`player._lastDamageSource?.label`).
+- [ ] **First-launch consent modal**
+  - [ ] New `<div id="telemetry-consent-modal">` in `game.html` (reuses existing modal styles).
+  - [ ] Shown on boot iff `!gameConfig.telemetryConsentSeen`. Three buttons: **Enable**, **Decline**, **Later** (Later keeps `telemetryConsentSeen` false → re-prompts next launch).
+  - [ ] Copy: short, plain language, mentions opt-in, anonymous, toggleable in Options, links to no external URL.
+- [ ] **Options UI** — `game.html` + `UI/Options.js`
+  - [ ] New options row "Anonymous Analytics" under "Crash Reports" with `opt-telemetry-btn`.
+  - [ ] Add `'telemetryEnabled': 'opt-telemetry-btn'` to the `map` in `updateOptionButtons()`.
+- [ ] **Admin dashboard** — `server/dashboard.html`
+  - [ ] New tab `Analytics`. Renders: per-hero clear-rate table, drop-off line chart per hero (canvas, 0–wave-50 x-axis), avg run length bar, top-10 upgrade picks.
+- [ ] **Tests** — `tests/telemetryManager.test.js` (Vitest)
+  - [ ] Opt-out gate drops events.
+  - [ ] Batching: 20-event threshold triggers flush.
+  - [ ] Payload shape whitelist (extra fields stripped).
+  - [ ] Self rate-limit caps at 60/min.
+- [ ] **Docs**
+  - [ ] CHANGELOG `[Unreleased] / Added` entry.
+  - [ ] Mark #98 done in `tasks/improvements-2026-05-10.md`.
+
+## Acceptance
+
+1. Fresh install: modal appears on boot, no events sent until consent given.
+2. Consent ON → run a wave → admin dashboard shows the event in raw view within 30 s.
+3. Consent OFF → no `/api/telemetry` POSTs ever (verified via DevTools network).
+4. Server rejects malformed payloads (return 400, no row inserted).
+5. Vitest green.
+
+## Risks / non-goals
+
+- **Not** wiring Sentry/Mixpanel/etc — keeps stack self-hosted. Swap endpoint later if needed.
+- **Not** persisting drafts client-side — events lost on hard crash before flush. `sendBeacon` covers normal unload.
+- Drop-off curve treats `run_start` as denominator. Players who decline but later opt in mid-run create a small gap. Accept.
+
+## Review (shipped 2026-05-15)
+
+All 10 checklist items shipped. Files touched:
+
+| File | Change |
+|------|--------|
+| `server/server.js` | `+telemetry_events` table (indexed) + 3 endpoints (POST `/api/telemetry`, GET `/api/admin/telemetry/summary`, `…/raw`). Rate-limit 60/10min IP, 32 KB payload cap, prepared-statement transaction insert, rolling prune at 500k rows. |
+| `Managers/TelemetryManager.js` | New. Mirrors `CrashReporter` shape. Ring buffer + 30 s flush + threshold flush + `sendBeacon` on pagehide/visibility. Strict whitelist (4 events, 9 fields). 60/min self rate-limit. |
+| `Config.js` | `+telemetryEnabled` (default `false`), `+telemetryConsentSeen` (`false`), `+telemetryInstanceId` (`null`). |
+| `game.js` | 4 lifecycle hook injections (run_start in `startGame`, wave_completed in `advanceWave`, level_up in `chooseUpgrade`, run_end in `gameOver` + immediate flush). `_maybeShowTelemetryConsent()` + `window.respondTelemetryConsent()`. Boot hook adds to both loader-fade and direct-init paths. |
+| `game.html` | TelemetryManager `<script>` tag, consent modal block (z-index 9600, 3 buttons), Options row. |
+| `UI/Options.js` | Add `telemetryEnabled` to map; on toggle, also mark `telemetryConsentSeen = true` so the boot modal doesn't re-prompt. |
+| `server/dashboard.html` | New Analytics tab between Balance and Events. `fetchAll` adds telemetry summary call. `renderAnalytics()` + `_drawDropoffChart()`. |
+| `tests/telemetryManager.test.js` | New. 13 assertions across opt-in gate / event whitelist / batching / sendBeacon path / client rate limit. |
+| `CHANGELOG.md` | `[Unreleased] / Added` entry. |
+| `tasks/improvements-2026-05-10.md` | Checked #98 with shipped notes. |
+
+**Verification:**
+- `npx vitest run tests/telemetryManager.test.js` → 13/13 green.
+- Full suite: 8 files passed, 65 + 13 = 78 assertions pass. `tests/saveManager.test.js` is broken on `main` (pre-existing `window is not defined` in `SaveManager.js:378`) — unrelated to this work.
+
+**Notes for the next pass / open follow-ups:**
+- "Reset analytics ID" button in Options would let suspicious users break the install pseudonym. Deferred — adding two clicks to the Options screen wasn't justified for a v1.
+- Dashboard charting is hand-rolled 2D canvas. If we add more charts (cumulative run-length histogram, hero pick rate over time, etc.), pull in a tiny lib (`chart.js` ~120 KB) rather than growing `_drawDropoffChart`.
+- The `_telemetryPrune` runs on every batch insert. For low-traffic deployments that's free; once batches are arriving at >1/sec we should move it to a periodic cron-style sweep.
+- Drop-off curve treats `run_start` count as denominator. If a player declines initially and later opts in mid-run, the resulting `wave_completed` lacks a matching `run_start` — pct math will be slightly over-attributed. Negligible at scale; accept.
+- DLC heroes from Radiance of Ruin (light/thorn/dream) aren't in the dashboard's `HERO_CLR` map — their lines will draw in the default `#8b949e`. Add palette entries when first analytics report lands.
+
+---
+
 # Improvement #1 — Split game.js into modules (2026-05-12)
 
 User picked "All 5 phases in one session" with eyes open about regression risk.

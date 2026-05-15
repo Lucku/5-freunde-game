@@ -56,7 +56,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 43. Biome-specific ambient particle systems: foliage, flowing water, drifting snow.
 - [ ] 44. Day/night cycle inside long runs. Subtle color grade shift every 5 waves.
 - [ ] 45. Trail renderer. Dash trails, projectile trails (esp. Lightning hero).
-- [ ] 46. Boss intro cinematics: camera pan + zoom + name banner + music swell.
+- [x] 46. Boss intro cinematics: camera pan + zoom + name banner + music swell.
 - [ ] 47. UI polish. Inconsistent style mix (CSS in `main.css` + canvas-drawn). CSS variables for color tokens.
 - [ ] 48. Replace emoji icons in `Constants.js` (`POWERUP_TYPES`, `CHAOS_REWARDS`) with SVG/PNG. Emojis render differently on Windows/Linux/Steam Deck.
 - [ ] 49. Animated title screen. Loop `developer_animated.mp4`/`title_animated.mp4` instead of static.
@@ -114,7 +114,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 95. Server message of the day / patch notes pushed to client on connect.
 - [x] 96. Server-side world events: "this weekend 2× XP", configurable from admin dashboard. *(`world_events` table; public `GET /api/events`; admin CRUD `GET/POST /api/admin/events` + `DELETE /api/admin/events/:id`; admin dashboard **Events** tab with create form + live/inactive list. `Managers/WorldEventsManager.js` polls every 5 min; `getXpMultiplier()` applied to kill XP in `game.js`.)*
 - [x] 97. ★ Crash reporting (Sentry / GlitchTip). Use breadcrumbs from `console.log`/`window.onerror` already captured in `game.js:16-24`. *(Lightweight in-house pipeline: client `Managers/CrashReporter.js` → `POST /api/crash` → `data/crashes.jsonl`. Swap target URL later to plug into Sentry.)*
-- [ ] 98. Telemetry / analytics opt-in: wave-clear-rate per hero, drop-off curve, average run length. Guides balance.
+- [x] 98. Telemetry / analytics opt-in: wave-clear-rate per hero, drop-off curve, average run length. Guides balance. *(Lightweight in-house pipeline mirrors `CrashReporter`. `Managers/TelemetryManager.js` buffers + batches whitelisted events (`run_start` / `wave_completed` / `level_up` / `run_end`) over `POST /api/telemetry`, flushes every 30 s / at 20 events / on `pagehide` via `sendBeacon`. Three `gameConfig` keys gate it: `telemetryEnabled` (default OFF), `telemetryConsentSeen` (drives first-launch modal), `telemetryInstanceId` (random UUID, no account linkage). First-launch consent modal with Enable / Decline / Ask-later. Options row "Anonymous Analytics" auto-marks consent seen. Server adds `telemetry_events` SQLite table + `POST /api/telemetry` (60/10min IP rate-limit, 32 KB cap, rolling prune at 500k rows) + `GET /api/admin/telemetry/summary` + `…/raw`. Admin dashboard **Analytics** tab: per-hero run stats table, drop-off curve canvas (coloured polylines, 0–wave-50, 25% gridlines + legend), top upgrades + top death causes. 13 Vitest assertions cover opt-in gate, PII whitelist, batching, sendBeacon path, client rate limit.)*
 - [ ] 99. Match history. Per-session summary; player can browse own run history.
 - [ ] 100. Online co-op revive ping (Apex-style audio + visual ping).
 

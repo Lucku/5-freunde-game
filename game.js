@@ -472,6 +472,34 @@ function closeWhatsNew() {
     }
 }
 
+// #98 — Telemetry consent. Shown once on first launch; suppressed once the
+// user has answered (Enable / Decline). "Ask me later" leaves consentSeen
+// false so the prompt returns next boot.
+function _maybeShowTelemetryConsent() {
+    try {
+        if (!gameConfig) return;
+        if (gameConfig.telemetryConsentSeen === true) return;
+        const modal = document.getElementById('telemetry-consent-modal');
+        if (modal) modal.style.display = 'flex';
+    } catch (e) { console.warn('Telemetry consent modal failed:', e); }
+}
+
+window.respondTelemetryConsent = function (accepted) {
+    const modal = document.getElementById('telemetry-consent-modal');
+    if (modal) modal.style.display = 'none';
+    if (!gameConfig) return;
+    if (accepted === null) {
+        // "Ask me later" — leave flags untouched so we re-prompt next launch.
+        return;
+    }
+    gameConfig.telemetryConsentSeen = true;
+    gameConfig.telemetryEnabled = !!accepted;
+    if (typeof saveConfig === 'function') saveConfig();
+    else if (typeof localStorage !== 'undefined') {
+        try { localStorage.setItem('5Freunde_Config', JSON.stringify(gameConfig)); } catch (_) {}
+    }
+};
+
 // #140 — Save backup browser
 function openSaveBackups() {
     const modal = document.getElementById('save-backups-modal');
@@ -3220,6 +3248,15 @@ function chooseUpgrade(type) {
     // Apply upgrade to whoever triggered the level-up (P1 or P2 in co-op)
     const target = (window.levelingUpPlayer) ? window.levelingUpPlayer : player;
 
+    // Telemetry (#98) — anonymous level_up event. `type` is the upgrade id.
+    try {
+        window.TelemetryManager?.track('level_up', {
+            hero:          target?.type || null,
+            wave:          wave,
+            upgradePicked: String(type || '').slice(0, 64),
+        });
+    } catch (_) { /* swallow */ }
+
     if (type === 'health') {
         target.maxHp += 25;
         target.hp = Math.min(target.maxHp, target.hp + (target.maxHp * 0.2));
@@ -3861,6 +3898,21 @@ function shuffleHero(targetHeroType = null) {
 
 function advanceWave() {
     if (isTestingMode) return; // Testing Grounds: no wave progression
+
+    // Telemetry (#98) — fire wave_completed for the wave that was just cleared.
+    // Skip the initial transition (wave 0 → 1) since no wave was actually played.
+    if (wave > 0) {
+        try {
+            const startMs = currentRunStats?.startTime || 0;
+            window.TelemetryManager?.track('wave_completed', {
+                hero:    player?.type || null,
+                mode:    isDailyMode ? 'daily' : isWeeklyMode ? 'weekly' : isVersusMode ? 'versus' : isEvilMode ? 'evil' : isSpeedrunMode ? 'speedrun' : isTutorialMode ? 'tutorial' : 'normal',
+                biome:   currentBiomeType || null,
+                wave:    wave,
+                timeSec: startMs ? Math.floor((Date.now() - startMs) / 1000) : null,
+            });
+        } catch (_) { /* swallow */ }
+    }
 
     _stopWeather(); // Clear any active weather at the start of every new wave
 
@@ -4626,6 +4678,16 @@ function startGame(mode = 'NORMAL') {
         }
     }
 
+    // Telemetry (#98) — anonymous run_start event (opt-in, gated by TelemetryManager).
+    try {
+        window.TelemetryManager?.track('run_start', {
+            hero:      player?.type || window.selectedHeroType || null,
+            mode:      String(mode || 'NORMAL').toLowerCase(),
+            biome:     currentBiomeType || null,
+            dailySeed: isDailyMode ? getDailySeed() : (isWeeklyMode ? getWeeklySeed() : null),
+        });
+    } catch (_) { /* never let telemetry break a run start */ }
+
     // Start Wave 1
     advanceWave();
 }
@@ -4635,6 +4697,24 @@ function gameOver(isVictory = false) {
     const wasEvilMode   = isEvilMode;
     const wasVersusMode = isVersusMode;
     const wasOnlineMode = isOnlineMode;
+
+    // Telemetry (#98) — anonymous run_end event. Fire before resets so we
+    // still have hero / mode / wave / damage source intact. Flush right after
+    // so the event survives an immediate menu return.
+    try {
+        const startMs = currentRunStats?.startTime || 0;
+        const totalTimeSec = startMs ? Math.floor((Date.now() - startMs) / 1000) : 0;
+        window.TelemetryManager?.track('run_end', {
+            hero:        player?.type || null,
+            mode:        isDailyMode ? 'daily' : isWeeklyMode ? 'weekly' : wasVersusMode ? 'versus' : wasEvilMode ? 'evil' : isSpeedrunMode ? 'speedrun' : isTutorialMode ? 'tutorial' : 'normal',
+            biome:       currentBiomeType || null,
+            outcome:     isVictory ? 'win' : 'death',
+            wave:        wave,
+            timeSec:     totalTimeSec,
+            deathSource: (!isVictory && player && player._lastDamageSource) ? String(player._lastDamageSource.label).slice(0, 64) : null,
+        });
+        window.TelemetryManager?.flush(false);
+    } catch (_) { /* swallow */ }
 
     // #168 — surface "Defeated by X (Y dmg)" on the game-over screen unless we
     // won. Reads `player._lastDamageSource` set by recordPlayerDamage at every
@@ -8646,12 +8726,13 @@ function _launchMenu() {
         if (loader && loader.style.display !== 'none' && loader.style.opacity !== '0') {
             loader.style.transition = 'opacity 0.5s';
             loader.style.opacity = '0';
-            setTimeout(() => { loader.remove(); initMenu(); _maybeShowWhatsNew(); _maybeOfferCrashRecovery(); }, 500);
+            setTimeout(() => { loader.remove(); initMenu(); _maybeShowWhatsNew(); _maybeOfferCrashRecovery(); _maybeShowTelemetryConsent(); }, 500);
         } else {
             if (loader) loader.remove();
             initMenu();
             _maybeShowWhatsNew();
             _maybeOfferCrashRecovery();
+            _maybeShowTelemetryConsent();
         }
     });
 }

@@ -80,6 +80,27 @@ db.exec(`
 `);
 
 db.exec(`
+    CREATE TABLE IF NOT EXISTS telemetry_events (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts           INTEGER NOT NULL,
+        instance_id  TEXT,
+        event        TEXT NOT NULL,
+        hero         TEXT,
+        mode         TEXT,
+        biome        TEXT,
+        wave         INTEGER,
+        time_sec     INTEGER,
+        outcome      TEXT,
+        upgrade      TEXT,
+        death_source TEXT,
+        app_version  TEXT,
+        daily_seed   INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_tel_event_ts ON telemetry_events(event, ts);
+    CREATE INDEX IF NOT EXISTS idx_tel_hero    ON telemetry_events(hero, event);
+`);
+
+db.exec(`
     CREATE TABLE IF NOT EXISTS speedrun_scores (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id      INTEGER NOT NULL,
@@ -304,6 +325,183 @@ app.get('/api/admin/crashes', requireAdmin, (_req, res) => {
     } catch (e) {
         res.status(500).json({ error: 'read failed' });
     }
+});
+
+// ── Telemetry (#98) ───────────────────────────────────────────────────────────
+// Opt-in, anonymous analytics. Stores whitelisted fields only — no PII, no
+// account linkage. instance_id is a client-generated UUID. Rate-limited per IP
+// and capped at TELEMETRY_MAX_ROWS total with rolling prune on insert.
+
+const TELEMETRY_ALLOWED_EVENTS = new Set(['run_start', 'wave_completed', 'level_up', 'run_end']);
+const TELEMETRY_MAX_PAYLOAD_BYTES = 32 * 1024;
+const TELEMETRY_MAX_BATCH = 50;
+const TELEMETRY_MAX_ROWS = 500_000;
+
+const _telemetryInsert = db.prepare(`
+    INSERT INTO telemetry_events
+        (ts, instance_id, event, hero, mode, biome, wave, time_sec, outcome, upgrade, death_source, app_version, daily_seed)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+const _telemetryInsertMany = db.transaction((rows) => {
+    for (const r of rows) _telemetryInsert.run(
+        r.ts, r.instance_id, r.event, r.hero, r.mode, r.biome,
+        r.wave, r.time_sec, r.outcome, r.upgrade, r.death_source,
+        r.app_version, r.daily_seed
+    );
+});
+const _telemetryPrune = db.prepare(`
+    DELETE FROM telemetry_events WHERE id NOT IN (
+        SELECT id FROM telemetry_events ORDER BY id DESC LIMIT ?
+    )
+`);
+
+function _clampStr(v, max) {
+    if (v == null) return null;
+    const s = String(v);
+    return s.length > max ? s.slice(0, max) : s;
+}
+function _clampInt(v) {
+    if (v == null) return null;
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    return Math.max(-2_147_483_648, Math.min(2_147_483_647, n | 0));
+}
+
+app.post('/api/telemetry',
+    rateLimit({ key: 'tel', capacity: 60, refillPerSec: 60 / 600 }), // 60 per 10min
+    (req, res) => {
+        const body = req.body || {};
+        if (!Array.isArray(body.events)) return res.status(400).json({ error: 'events array required' });
+        const raw = JSON.stringify(body);
+        if (raw.length > TELEMETRY_MAX_PAYLOAD_BYTES) return res.status(413).json({ error: 'payload too large' });
+        const instanceId = _clampStr(body.instanceId, 64);
+        const appVersion = _clampStr(body.appVersion, 32);
+        const events = body.events.slice(0, TELEMETRY_MAX_BATCH);
+
+        const rows = [];
+        for (const ev of events) {
+            if (!ev || typeof ev !== 'object') continue;
+            if (!TELEMETRY_ALLOWED_EVENTS.has(ev.event)) continue;
+            rows.push({
+                ts:           _clampInt(ev.ts) || Date.now(),
+                instance_id:  instanceId,
+                event:        ev.event,
+                hero:         _clampStr(ev.hero, 32),
+                mode:         _clampStr(ev.mode, 32),
+                biome:        _clampStr(ev.biome, 32),
+                wave:         _clampInt(ev.wave),
+                time_sec:     _clampInt(ev.timeSec),
+                outcome:      _clampStr(ev.outcome, 16),
+                upgrade:      _clampStr(ev.upgradePicked, 64),
+                death_source: _clampStr(ev.deathSource, 64),
+                app_version:  appVersion,
+                daily_seed:   _clampInt(ev.dailySeed),
+            });
+        }
+        if (!rows.length) return res.json({ ok: true, accepted: 0 });
+
+        try {
+            _telemetryInsertMany(rows);
+            // Rolling prune — keep newest TELEMETRY_MAX_ROWS. Cheap because of PK index.
+            _telemetryPrune.run(TELEMETRY_MAX_ROWS);
+        } catch (e) {
+            console.error('[Telemetry] insert failed:', e);
+            return res.status(500).json({ error: 'insert failed' });
+        }
+        res.json({ ok: true, accepted: rows.length });
+    }
+);
+
+app.get('/api/admin/telemetry/summary', requireAdmin, (_req, res) => {
+    try {
+        const totalRuns = db.prepare(`SELECT COUNT(*) AS n FROM telemetry_events WHERE event = 'run_start'`).get().n || 0;
+        const perHero = db.prepare(`
+            SELECT hero,
+                   COUNT(*) AS runs,
+                   AVG(wave) AS avgEndWave,
+                   AVG(time_sec) AS avgTimeSec,
+                   SUM(CASE WHEN outcome = 'win' THEN 1 ELSE 0 END) AS wins
+            FROM telemetry_events
+            WHERE event = 'run_end' AND hero IS NOT NULL
+            GROUP BY hero
+            ORDER BY runs DESC
+        `).all();
+
+        // Drop-off curve per hero: % of run_starts that reached each wave (via wave_completed).
+        const dropoffRows = db.prepare(`
+            SELECT hero, wave, COUNT(*) AS n
+            FROM telemetry_events
+            WHERE event = 'wave_completed' AND hero IS NOT NULL AND wave IS NOT NULL
+            GROUP BY hero, wave
+            ORDER BY hero, wave
+        `).all();
+        const startsByHero = db.prepare(`
+            SELECT hero, COUNT(*) AS n
+            FROM telemetry_events
+            WHERE event = 'run_start' AND hero IS NOT NULL
+            GROUP BY hero
+        `).all().reduce((acc, r) => { acc[r.hero] = r.n; return acc; }, {});
+        const dropoff = {};
+        for (const r of dropoffRows) {
+            (dropoff[r.hero] ||= []).push({ wave: r.wave, reached: r.n, pct: startsByHero[r.hero] ? r.n / startsByHero[r.hero] : 0 });
+        }
+
+        const topUpgrades = db.prepare(`
+            SELECT upgrade, hero, COUNT(*) AS n
+            FROM telemetry_events
+            WHERE event = 'level_up' AND upgrade IS NOT NULL
+            GROUP BY upgrade, hero
+            ORDER BY n DESC
+            LIMIT 30
+        `).all();
+
+        const topDeaths = db.prepare(`
+            SELECT death_source AS source, COUNT(*) AS n
+            FROM telemetry_events
+            WHERE event = 'run_end' AND outcome = 'death' AND death_source IS NOT NULL
+            GROUP BY death_source
+            ORDER BY n DESC
+            LIMIT 20
+        `).all();
+
+        const totalRowCount = db.prepare(`SELECT COUNT(*) AS n FROM telemetry_events`).get().n || 0;
+
+        res.json({
+            totalRuns,
+            totalRows: totalRowCount,
+            perHero: perHero.map(r => ({
+                hero: r.hero,
+                runs: r.runs,
+                wins: r.wins,
+                winRate: r.runs ? r.wins / r.runs : 0,
+                avgEndWave: r.avgEndWave,
+                avgTimeSec: r.avgTimeSec,
+            })),
+            dropoff,
+            topUpgrades,
+            topDeaths,
+        });
+    } catch (e) {
+        console.error('[Telemetry summary]', e);
+        res.status(500).json({ error: 'summary failed' });
+    }
+});
+
+app.get('/api/admin/telemetry/raw', requireAdmin, (req, res) => {
+    const event = typeof req.query.event === 'string' && TELEMETRY_ALLOWED_EVENTS.has(req.query.event)
+        ? req.query.event : null;
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 200), 500);
+    const where = event ? 'WHERE event = ?' : '';
+    const params = event ? [event, limit] : [limit];
+    const rows = db.prepare(`
+        SELECT id, ts, instance_id AS instanceId, event, hero, mode, biome, wave,
+               time_sec AS timeSec, outcome, upgrade, death_source AS deathSource,
+               app_version AS appVersion, daily_seed AS dailySeed
+        FROM telemetry_events ${where}
+        ORDER BY id DESC
+        LIMIT ?
+    `).all(...params);
+    res.json({ rows });
 });
 
 // ── Leaderboard ───────────────────────────────────────────────────────────────

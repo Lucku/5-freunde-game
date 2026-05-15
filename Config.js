@@ -70,6 +70,12 @@ const defaultConfig = {
     // Telemetry — opt-in crash reports to the configured server. No PII.
     crashReportsEnabled: true,
 
+    // Anonymous analytics (#98) — opt-in. First-launch modal must run before
+    // any events fire. instanceId generated lazily on first opt-in.
+    telemetryEnabled: false,
+    telemetryConsentSeen: false,
+    telemetryInstanceId: null,
+
     // Last APP_VERSION the user has seen the "What's New" modal for (#165).
     lastSeenVersion: null,
 

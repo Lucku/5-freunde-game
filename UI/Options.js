@@ -25,6 +25,15 @@ class OptionsUI {
                 localStorage.setItem('5Freunde_Config', JSON.stringify(window.gameConfig));
             }
         }
+        // #98 — Toggling telemetry from Options also marks consent as seen,
+        // otherwise the first-launch modal would re-prompt on next boot.
+        if (key === 'telemetryEnabled') {
+            window.gameConfig.telemetryConsentSeen = true;
+            if (typeof window.saveConfig === 'function') window.saveConfig();
+            else if (localStorage) {
+                try { localStorage.setItem('5Freunde_Config', JSON.stringify(window.gameConfig)); } catch (_) {}
+            }
+        }
         this.updateOptionButtons();
     }
 
@@ -40,6 +49,7 @@ class OptionsUI {
             'subtitlesEnabled':        'opt-subtitles-btn',
             'reducedMotion':           'opt-reduced-motion-btn',
             'crashReportsEnabled':     'opt-crash-btn',
+            'telemetryEnabled':        'opt-telemetry-btn',
             'cloudSaveEnabled':        'opt-cloud-btn',
             'highContrast':            'opt-highcontrast-btn',
             'screenReaderHints':       'opt-screenreader-btn',

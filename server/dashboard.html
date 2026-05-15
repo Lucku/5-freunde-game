@@ -119,6 +119,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div class="tab" data-tab="leaderboard">Leaderboard</div>
     <div class="tab" data-tab="saves">Cloud Saves</div>
     <div class="tab" data-tab="balance">Balance</div>
+    <div class="tab" data-tab="analytics">Analytics</div>
     <div class="tab" data-tab="events">Events</div>
     <div class="tab" data-tab="technical">Technical</div>
   </nav>
@@ -129,6 +130,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div id="tab-leaderboard"  style="display:none"></div>
     <div id="tab-saves"        style="display:none"></div>
     <div id="tab-balance"      style="display:none"></div>
+    <div id="tab-analytics"    style="display:none"></div>
     <div id="tab-events"       style="display:none"></div>
     <div id="tab-technical"    style="display:none"></div>
   </div>
@@ -172,7 +174,7 @@ function logout() {
 async function fetchAll() {
   const h = { Authorization: `Bearer ${token}` };
   const fetch1 = url => fetch(url, { headers: h }).then(r => r.json()).catch(() => null);
-  const [sessions, online, players, stats, saves, balance, events, crashes] = await Promise.all([
+  const [sessions, online, players, stats, saves, balance, events, crashes, telemetry] = await Promise.all([
     fetch1('/api/admin/sessions'),
     fetch1('/api/admin/online'),
     fetch1('/api/admin/players'),
@@ -181,15 +183,17 @@ async function fetchAll() {
     fetch1('/api/admin/hero-balance'),
     fetch1('/api/admin/events'),
     fetch1('/api/admin/crashes'),
+    fetch1('/api/admin/telemetry/summary'),
   ]);
-  if (sessions) D.sessions = sessions;
-  if (online)   D.online   = online;
-  if (players)  D.players  = players;
-  if (stats)    D.stats    = stats;
-  if (saves)    D.saves    = saves;
-  if (balance)  D.balance  = balance;
-  if (events)   D.events   = events;
-  if (crashes)  D.crashes  = crashes;
+  if (sessions) D.sessions  = sessions;
+  if (online)   D.online    = online;
+  if (players)  D.players   = players;
+  if (stats)    D.stats     = stats;
+  if (saves)    D.saves     = saves;
+  if (balance)  D.balance   = balance;
+  if (events)   D.events    = events;
+  if (crashes)  D.crashes   = crashes;
+  if (telemetry) D.telemetry = telemetry;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -580,6 +584,135 @@ async function deleteEvent(id) {
 
 // ── Technical ──────────────────────────────────────────────────────────────────
 
+// ── Analytics (#98) ────────────────────────────────────────────────────────────
+
+function renderAnalytics() {
+  const t = D.telemetry;
+  if (!t || (!t.totalRuns && !t.totalRows)) {
+    return '<div class="empty">No telemetry events recorded yet. Players must opt-in via the first-launch consent prompt or Options.</div>';
+  }
+  let h = `<div class="cards">
+    <div class="card"><div class="lbl">Total Runs Started</div><div class="val green">${n(t.totalRuns)}</div></div>
+    <div class="card"><div class="lbl">Total Events</div><div class="val blue">${n(t.totalRows)}</div></div>
+    <div class="card"><div class="lbl">Heroes Tracked</div><div class="val purple">${n((t.perHero||[]).length)}</div></div>
+    <div class="card"><div class="lbl">Unique Death Causes</div><div class="val yellow">${n((t.topDeaths||[]).length)}</div></div>
+  </div>`;
+
+  // Per-hero summary table
+  if (t.perHero?.length) {
+    h += `<div class="section"><div class="sec-hd">Per-Hero Run Stats</div>`;
+    h += `<table><thead><tr>
+      <th>Hero</th><th>Runs Ended</th><th>Wins</th><th>Win %</th><th>Avg End Wave</th><th>Avg Time</th>
+    </tr></thead><tbody>`;
+    for (const r of t.perHero) {
+      const wr  = Math.round((r.winRate || 0) * 100);
+      const aw  = (r.avgEndWave != null) ? r.avgEndWave.toFixed(1) : '—';
+      const at  = (r.avgTimeSec != null) ? fmtSec(Math.round(r.avgTimeSec)) : '—';
+      h += `<tr>
+        <td>${heroBadge(r.hero)}</td>
+        <td>${r.runs}</td>
+        <td>${r.wins}</td>
+        <td><span style="color:${wr>=50?'var(--green)':wr>=20?'var(--yellow)':'var(--red)'};font-weight:600">${wr}%</span></td>
+        <td>${aw}</td>
+        <td style="color:var(--dim)">${at}</td>
+      </tr>`;
+    }
+    h += '</tbody></table></div>';
+  }
+
+  // Drop-off curve: % of run_starts that reached each wave, per hero. Canvas chart.
+  if (t.dropoff && Object.keys(t.dropoff).length) {
+    h += `<div class="section"><div class="sec-hd">Drop-off Curve <span class="badge badge-dim">% of run_starts reaching wave N</span></div>
+      <div style="padding:1rem"><canvas id="dropoff-canvas" width="880" height="280" style="width:100%;max-width:880px;height:auto;background:#0d1117;border:1px solid var(--border);border-radius:4px"></canvas>
+      <div id="dropoff-legend" style="display:flex;flex-wrap:wrap;gap:0.6rem;margin-top:0.6rem;font-size:0.78rem"></div></div>
+    </div>`;
+  }
+
+  if (t.topUpgrades?.length) {
+    h += `<div class="section"><div class="sec-hd">Top Upgrades Picked <span class="badge badge-dim">${t.topUpgrades.length}</span></div>`;
+    h += `<table><thead><tr><th>Upgrade</th><th>Hero</th><th>Picks</th></tr></thead><tbody>`;
+    for (const u of t.topUpgrades) {
+      h += `<tr>
+        <td><span class="pill pill-blue">${esc(u.upgrade)}</span></td>
+        <td>${heroBadge(u.hero)}</td>
+        <td>${u.n}</td>
+      </tr>`;
+    }
+    h += '</tbody></table></div>';
+  }
+
+  if (t.topDeaths?.length) {
+    h += `<div class="section"><div class="sec-hd">Top Death Causes</div>`;
+    h += `<table><thead><tr><th>Source</th><th>Deaths</th></tr></thead><tbody>`;
+    for (const d of t.topDeaths) {
+      h += `<tr><td>${esc(d.source)}</td><td style="color:var(--red);font-weight:600">${d.n}</td></tr>`;
+    }
+    h += '</tbody></table></div>';
+  }
+
+  return h;
+}
+
+function _drawDropoffChart() {
+  const t = D.telemetry;
+  if (!t || !t.dropoff) return;
+  const canvas = document.getElementById('dropoff-canvas');
+  const legend = document.getElementById('dropoff-legend');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Find max wave across all heroes (cap at 50 for readability)
+  let maxWave = 1;
+  for (const hero in t.dropoff) {
+    for (const pt of t.dropoff[hero]) maxWave = Math.max(maxWave, pt.wave);
+  }
+  maxWave = Math.min(maxWave, 50);
+  const padL = 50, padR = 16, padT = 14, padB = 28;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  // Grid + axes
+  ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
+  ctx.fillStyle = '#586069'; ctx.font = '11px sans-serif';
+  for (let pct = 0; pct <= 100; pct += 25) {
+    const y = padT + plotH - (pct / 100) * plotH;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillText(`${pct}%`, 6, y + 4);
+  }
+  // X labels every 5 waves
+  for (let w = 0; w <= maxWave; w += 5) {
+    const x = padL + (w / maxWave) * plotW;
+    ctx.fillText(String(w), x - 5, H - 8);
+  }
+
+  // Plot each hero
+  const heroes = Object.keys(t.dropoff);
+  legend && (legend.innerHTML = '');
+  for (const hero of heroes) {
+    const points = (t.dropoff[hero] || []).slice().sort((a, b) => a.wave - b.wave);
+    if (!points.length) continue;
+    const color = hclr(hero);
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath();
+    let started = false;
+    for (const p of points) {
+      if (p.wave > maxWave) continue;
+      const x = padL + (p.wave / maxWave) * plotW;
+      const y = padT + plotH - Math.min(1, p.pct) * plotH;
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    if (legend) {
+      const sw = document.createElement('span');
+      sw.style.cssText = `display:inline-flex;align-items:center;gap:0.3rem;color:var(--dim)`;
+      sw.innerHTML = `<span style="width:14px;height:3px;background:${color};display:inline-block"></span>${hero}`;
+      legend.appendChild(sw);
+    }
+  }
+}
+
 function renderTechnical() {
   const crashes = D.crashes?.crashes || [];
   const now = Date.now();
@@ -673,10 +806,15 @@ function render() {
     leaderboard: renderLeaderboard,
     saves:       renderSaves,
     balance:     renderBalance,
+    analytics:   renderAnalytics,
     events:      renderEvents,
     technical:   renderTechnical,
   };
   el.innerHTML = (renderers[tab] || (() => ''))();
+  if (tab === 'analytics') {
+    // Canvas exists in the DOM only after innerHTML write — draw after.
+    try { _drawDropoffChart(); } catch (e) { console.warn('dropoff chart:', e); }
+  }
   document.getElementById('refresh-lbl').textContent = `Updated ${new Date().toLocaleTimeString()}`;
 
   el.querySelectorAll('.expand-btn[data-code]').forEach(btn => {
