@@ -269,6 +269,11 @@ canvas {
 }
 
 #combo-display {
+    /* #169 — combo is its own positioned HUD element so it doesn't share row
+     * width with score/gold and never extends into the minimap's region. */
+    position: fixed;
+    top: 70px;
+    left: 20px;
     font-size: 26px;
     font-weight: 900;
     letter-spacing: 3px;
@@ -277,7 +282,81 @@ canvas {
     opacity: 0;
     transition: opacity 0.2s;
     pointer-events: none;
+    z-index: 1800;
+    transform-origin: left center;
 }
+
+/* — #169 HUD Layout edit mode — */
+#hud-edit-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 8000;
+    pointer-events: auto;
+}
+body.hud-edit-mode #hud-edit-backdrop { display: block; }
+
+#hud-edit-toolbar {
+    display: none;
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 8100;
+    background: rgba(20, 22, 30, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    padding: 10px 16px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    gap: 10px;
+    align-items: center;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+body.hud-edit-mode #hud-edit-toolbar { display: flex; }
+
+#hud-edit-toolbar .hud-edit-hint {
+    opacity: 0.7;
+    margin-right: 8px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#hud-edit-toolbar button {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+}
+#hud-edit-toolbar button:hover { background: rgba(255, 255, 255, 0.16); }
+#hud-edit-toolbar button.primary {
+    background: rgba(46, 204, 113, 0.22);
+    border-color: rgba(46, 204, 113, 0.5);
+}
+#hud-edit-toolbar button.primary:hover { background: rgba(46, 204, 113, 0.35); }
+
+/* Each draggable element gets outline + grab cursor while editing. The
+ * `force-visible` class forces opacity so the user can see the combo even
+ * when it's at 0 mid-game. */
+body.hud-edit-mode [data-hud-id] {
+    outline: 2px dashed rgba(241, 196, 15, 0.85);
+    outline-offset: 4px;
+    cursor: grab;
+    pointer-events: auto !important;
+    z-index: 8050 !important;
+}
+body.hud-edit-mode [data-hud-id].hud-dragging { cursor: grabbing; }
+body.hud-edit-mode #combo-display { opacity: 1 !important; }
 
 /* — Weather / Event text — */
 #weather-display {

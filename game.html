@@ -173,11 +173,20 @@
 
         <div id="notification-area"></div>
 
-        <!-- #170 — Minimap (toggleable in Options) -->
-        <canvas id="minimap" width="180" height="135"
+        <!-- #170 — Minimap (toggleable in Options). #169 — repositionable. -->
+        <canvas id="minimap" data-hud-id="minimap" width="180" height="135"
             style="position:fixed; top:14px; right:14px; z-index:1900;
                 background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.18);
                 border-radius: 6px; pointer-events: none;"></canvas>
+
+        <!-- #169 — HUD Layout edit mode overlay (toggled from Options). -->
+        <div id="hud-edit-backdrop"></div>
+        <div id="hud-edit-toolbar">
+            <span class="hud-edit-hint">Drag any highlighted HUD element. Hold Shift to snap to edges.</span>
+            <button type="button" id="hud-edit-reset">Reset</button>
+            <button type="button" id="hud-edit-cancel">Cancel</button>
+            <button type="button" id="hud-edit-done" class="primary">Done</button>
+        </div>
 
         <!-- #148 — Debug overlay (F1 toggles) -->
         <div id="debug-overlay" style="display:none; position:fixed; top:8px; right:8px; z-index:3000;
@@ -224,7 +233,7 @@
             <div id="boss-hp-fill"></div>
         </div>
 
-        <div id="bottom-ui">
+        <div id="bottom-ui" data-hud-id="bottomUi">
             <div id="bottom-left">
                 <div id="buff-container"></div>
                 <!-- Special Ability Icon -->
@@ -916,6 +925,15 @@
                     <button id="opt-minimap-btn" class="opt-toggle-btn active"
                         onclick="toggleOption('minimapEnabled')">ON</button>
                 </div>
+                <!-- #169 — Configurable HUD layout. -->
+                <div class="options-row">
+                    <div class="options-row-left">
+                        <span class="options-icon">⛶</span>
+                        <span class="options-label">Customize HUD</span>
+                    </div>
+                    <button id="opt-hud-layout-btn" class="opt-toggle-btn"
+                        onclick="openHudEdit()">EDIT</button>
+                </div>
                 <div class="options-row">
                     <div class="options-row-left">
                         <span class="options-icon">≋</span>
@@ -1464,6 +1482,7 @@
     <script type="module" src="Managers/SpatialHash.js"></script>
     <script type="module" src="Managers/EventBus.js"></script>
     <script type="module" src="Managers/UIManager.js"></script>
+    <script type="module" src="Managers/HUDLayout.js"></script>
 
     <!-- Controllers (ESM-migrated 2026-05-11) -->
     <script type="module" src="Entities/PlayerController.js"></script>

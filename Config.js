@@ -76,6 +76,10 @@ const defaultConfig = {
     // Minimap (#170)
     minimapEnabled: true,
 
+    // HUD layout (#169) — per-element { left, top } overrides in CSS pixels.
+    // Empty {} means use CSS defaults. Populated by HUDLayout.js edit mode.
+    hudLayout: {},
+
     // Dismissed info dialogues (array of dialogue IDs)
     dismissedDialogues: [],
 

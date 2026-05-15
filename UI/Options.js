@@ -361,6 +361,18 @@ window.openGamepadRemap = () => optionsUI.openGamepadRemap();
 window.closeGamepadRemap = () => optionsUI.closeGamepadRemap();
 window.a11yAnnounce = (msg) => optionsUI.announce(msg);
 
+// #169 — entry point for the HUD layout edit mode. Hides the Options modal
+// (so the user can see the actual HUD) and hands off to HUDLayout.
+window.openHudEdit = function () {
+    if (!window.HUDLayout || typeof window.HUDLayout.enterEditMode !== 'function') {
+        console.warn('HUDLayout module not available');
+        return;
+    }
+    const screen = document.getElementById('options-screen');
+    if (screen) screen.style.display = 'none';
+    window.HUDLayout.enterEditMode();
+};
+
 window.showQuitWarning = function () {
     const el = document.getElementById('quit-run-warning');
     if (el) el.style.opacity = 1;

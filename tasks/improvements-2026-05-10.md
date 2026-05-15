@@ -206,7 +206,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [x] 166. Crash recovery. *(Pass B: `5FreundeRunActive` localStorage sentinel — set on every saveRunState, cleared on clean exit; boot offers to restore last run via `continueRun()` if sentinel + savedRun both present.)*
 - [x] 167. Background music continues during pause with low-pass filter. *(Pass B: lazy Web Audio graph with `BiquadFilter(lowpass)`; ramps 22050 → 500 Hz on pause, back on resume.)*
 - [x] 168. Better death feedback. *(Pass B: `recordPlayerDamage` stamps `player._lastDamageSource` at every damage site; game-over screen renders "Defeated by {label} — {dmg} dmg". 3-second replay deferred.)*
-- [ ] 169. Configurable HUD layout (HP bar, combo, minimap moveable).
+- [x] 169. Configurable HUD layout (HP bar, combo, minimap moveable). *(`Managers/HUDLayout.js`: `gameConfig.hudLayout = { <id>: {left, top} }` overrides applied as inline styles to `#combo-display`, `#minimap`, `#bottom-ui`. Options → "Customize HUD" → EDIT enters drag mode (dim backdrop, dashed outlines, pointer drag with Shift-snap-to-edges, viewport clamp). Done saves + applies; Cancel reverts; Reset restores CSS defaults. Combo extracted from `#hud-top-left` flex row so it no longer overlaps the minimap.)*
 - [x] 170. Minimap. *(Pass C step 2: 180×135 DOM canvas top-right; arena bounds + camera viewport + obstacles + enemies/boss + objective + P1/P2 dots. Throttled to 15 Hz. Options toggle row added.)*
 
 ---
