@@ -16,7 +16,8 @@
     "lint": "eslint . --ext .js,.mjs",
     "lint:fix": "eslint . --ext .js,.mjs --fix",
     "test": "vitest run --passWithNoTests && node server/simulation/parityTest.js",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:headless": "node scripts/nightly-headless.js"
   },
   "author": "Lucas Kuhring",
   "license": "ISC",

@@ -685,3 +685,61 @@ Implemented the second/final character-pack DLC per `tasks/dlc-radiance-of-ruin.
 ## Verification
 - Manual code review against the plan in `tasks/dlc-radiance-of-ruin.md`. All mechanics from the resolved decisions table implemented.
 - No automated tests run for this session. Recommended: enable DLC in-game, pick each hero, confirm SFX (will fall through silently without WAV files but no JS errors), confirm biome roll, confirm altar tree shows convergences when cross-hero prestige reaches 5.
+
+---
+
+# Improvement #146 — Nightly headless test harness (2026-05-15)
+
+Extend the existing `test-arena.js` / `OnlineTestBot.js` bot harness into a CI-grade nightly headless run that exercises the authoritative server simulation against random hero pairings and bot inputs, asserts no crashes, and logs perf metrics.
+
+## Shipped
+
+- **`scripts/nightly-headless.js`** — drives N runs against `server/simulation/GameSession` directly (no WS/HTTP layer). Each run:
+  - Picks two random heroes from `BASE_HERO_STATS` + random mode (NORMAL/VERSUS, weighted by `MODES` env).
+  - Drives ticks manually like `parityTest.js` (`clearTimeout(_tickInterval)` then explicit `_tick()` calls in a loop).
+  - Monkey-patches `Date.now()` to a per-tick virtual clock. Reason: `WaveManager.spawnIfReady` reads real wall time to throttle spawns; in a tight tick loop real time barely advances and the spawner starves. Virtual clock advances by `_currentTickMs` each tick so wave 1+ actually engages within the budget.
+  - Sends random `{ x, y, aimAngle, shoot, melee, dash, special }` inputs every 6 ticks via `gs.applyInput(role, …)` (same shape as the wire INPUT message `test-arena.js` / `OnlineTestBot.js` send).
+  - Auto-resolves any `isLevelingUp` state by looking up `_levelUpFor` → `players[idx]._levelUpOptions[0].id` and calling `applyLevelUpChoice('host'|'guest', id)`. Re-checks once in case both players queued same tick. Clears the flag manually if options vector is empty.
+  - Captures non-SNAPSHOT events via the `sendFn` callback (count only — full payload would balloon report size).
+  - Silences `console.log` / `console.warn` for the run window so hero ability `console.log('Using Special: NONE')` chatter doesn't drown the harness's own per-run line.
+  - Per-tick samples `process.hrtime.bigint()` for tick wall time; aggregates p50/p95/p99 + max.
+- **Report shape** (`nightly-report.json`): `meta` (seed, runs, ticksPerRun, modes, node, platform, walltime), `summary` (passed, failed, totalTicks, maxWave, maxEnemies, maxProjectiles, aggregateTickMs), `results[]` (per-run hero/mode/error/finalWave/finalScore/tickMs/maxEnemies/maxProjectiles/eventCount).
+- **Env knobs**: `RUNS` (100), `TICKS` (1800 ≈ 60 s sim @ 30 Hz), `SEED` (time-based default), `MODES` ("NORMAL,VERSUS"), `REPORT` (`./nightly-report.json`), `QUIET` (suppress per-run console line).
+- **Determinism**: `mulberry32(SEED)` powers hero pick + bot inputs so identical SEED reproduces. Note: `WaveManager.pickSubType` still uses bare `Math.random()`, so spawn composition is not seed-bound — out of scope for this pass.
+- **Exit code**: non-zero if any run throws or times out. CI step fails.
+- **npm script**: `test:headless` → `node scripts/nightly-headless.js`.
+- **GitHub Actions workflow**: `.github/workflows/nightly.yml`. Cron `17 4 * * *` (offset from the hour to dodge cron pile-up); `workflow_dispatch` with optional `runs` / `ticks` / `seed` inputs. Caches npm. Uploads `nightly-report.json` as a 30-day artifact even on failure. 30-min job timeout.
+- **`.gitignore`** gains `nightly-report.json` so local runs don't dirty the working tree.
+
+## Local smoke
+
+```
+RUNS=100 TICKS=1800 SEED=42 QUIET=1 node scripts/nightly-headless.js
+→ 100/100 passed, 1.53 s wall, 102 734 ticks/sec
+→ p50 / p95 / p99 = 0.012 / 0.064 / 0.120 ms
+→ peak load: enemies=11 projectiles=43 wave=2
+```
+
+## Why direct `GameSession` driving, not the WS path
+
+`test-arena.js` (the manual bot harness) requires `node server/server.js` running + two real WebSocket connections + HTTP auth. That works for an interactive dev session but is fragile in CI: needs port binding, race-free server startup, ws install resolved against `server/node_modules`, plus a teardown story. `parityTest.js` already established the pattern of driving `GameSession` directly with manual ticks — same simulation code path, no transport overhead, deterministic timing. The harness reuses that pattern at scale.
+
+## Constraints / decisions
+
+- **Why monkey-patch `Date.now`** instead of resetting `_waveManager._lastSpawnMs` each tick: the simulation also consumes `Date.now` in `_startedAt` + `_onTickStats` elapsed-time stats. A virtual clock is the single mechanism that makes all timing in the run advance coherently. Restored in `finally` block so the harness can run multiple sessions back-to-back.
+- **Why `QUIET=1` in CI** but not locally: 100 per-run lines is fine on a dev terminal; in GitHub Actions it bloats the log + ANSI escapes get mangled. The aggregate summary is what matters for triage.
+- **Why no per-hero coverage assertion**: the random hero pool already covers all 19 heroes statistically with RUNS=100. Strict "all heroes touched at least once" would be an additional pass and adds little value — a crash in hero X is caught by any run that picks X, and 100 random picks from 19 heroes misses any one hero with probability `(18/19)^100 ≈ 0.4%`. Acceptable.
+- **Why bots play 1800 ticks (~60 s sim) instead of full game length**: full Wave-30 runs take 5–10 min sim time × 100 runs = unacceptable CI cost. 60 s exercises spawning, projectile + melee + dash + special paths, and crosses wave 1→2 boundary in most runs — enough to surface init-time and steady-state crashes. Longer "deep" runs can be added later as a separate weekly workflow.
+
+## Verification
+
+- 100-run local smoke green (above).
+- Vitest + parityTest unaffected (no shared module changes; harness only `require`s simulation files that parityTest already exercises).
+- Workflow YAML valid per GitHub Actions schema (`runs-on`, `uses`, `with` structure mirrors existing `test.yml`).
+
+## Open follow-ups (not in this PR)
+
+1. Seed `Math.random` (e.g. patch global) for fully deterministic spawn composition — currently only hero picks + bot inputs are seeded.
+2. Memory / heap snapshot per run for leak detection across 100 runs.
+3. Aggregate report diffing across nightly runs to detect perf regressions automatically (post-job step that compares `aggregateTickMs.p99` vs the previous artifact and posts a Slack/issue ping on >25% regression).
+4. Replay-driven regression tests (improvement #147) — recorded input trace + diff outputs. Distinct from this random-fuzz harness.

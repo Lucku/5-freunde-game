@@ -1191,6 +1191,168 @@ const Manual = {
                 </ul>
             `
         },
+        ruin: {
+            title: "Radiance of Ruin",
+            html: `
+                <h2>DLC: Radiance of Ruin</h2>
+                <p>A character-pack DLC introducing three resource-driven heroes obsessed with a single fixation — radiance, the garden, and the threshold of sleep. Each one pays an escalating price for their power. No story mode, no memory shards, no new music — selecting any of these heroes routes the green main-menu button straight into Standard Mode.</p>
+
+                <h3>New Hero: Light — Radiant Gold 👁️</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★★☆ &nbsp;<span style="color:#e67e22;"><b>4/5 — Hard</b></span></p>
+                <p>A masked believer whose every action drains the gold thread that holds them together. Powerful when topped up, helpless when shattered.</p>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#f1c40f;">Mask Integrity (0–100)</div>
+                    <p>Your core resource. Refills to 100 at the start of every wave. <b>Every shot costs 2 Integrity, every melee 5, Revelation 25, and The Unveiling 80.</b> Standing still and idling slowly while moving spawns the <b>Aurum Burn</b> trail — a golden ground hazard that drains 1 Integrity/sec and deals 8 DPS to enemies that step in it.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#888;">Civilian Form (Mask Shatter)</div>
+                    <p>If Integrity hits zero, your mask shatters and you collapse into <b>Civilian Form</b> for 8 seconds: HP capped at 25, speed cut to 2.0, all abilities disabled, ranged shots deal 40% damage. <b>If you die during Civilian Form, Light is locked out for the rest of the run.</b> Manage Integrity carefully — over-firing is a death sentence.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#f1c40f;">Special: Revelation</div>
+                    <p>Casts a 400px sphere of light around you. All enemies inside are <b>revealed</b> (gold outline visible even through cover) and take <b>+30% damage</b> for 10 seconds. Cost: 25 Integrity. Cooldown: 14 seconds.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#ffffff;">Ultimate: The Unveiling</div>
+                    <p>At Level 10: arena-wide stun, full ally heal, +50% ally damage for 6 seconds. Costs 80 Integrity and forces you into Civilian Form for 15 seconds afterward. The most powerful effect in the DLC, and the riskiest.</p>
+                </div>
+
+                <h3>Light Skill Tree Highlights</h3>
+                <ul>
+                    <li><b>Max Integrity:</b> +10 per node — raise the ceiling so heavy casts don't shatter you.</li>
+                    <li><b>Cost Reduction:</b> −8% ability costs per node, multiplicative.</li>
+                    <li><b>Integrity on Kill:</b> +1 per node — turn kill chains into a self-sustain loop.</li>
+                </ul>
+                <p><i>Tip: Feed the Flame (+3 Integrity per kill) is the difference between a one-shot Revelation per wave and continuous casting.</i></p>
+
+                <h3 style="margin-top:28px;">New Hero: Thorn — Vine Red 🌹</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★★★ &nbsp;<span style="color:#e74c3c;"><b>5/5 — Very Hard</b></span></p>
+                <p>A gardener who feeds the bloom with his own blood. <b>Every attack costs HP</b> (floor of 1). Self-damage is the entire game — and the only way to win is to bleed less than you reap.</p>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#8b1a1a;">Blood Bond — Self-Damage Attacks</div>
+                    <p>Each ranged attack costs HP. Each melee costs HP. Crimson Garden costs 20 HP up-front. Skill-tree and level-up "Hardened Veins" reduce costs (minimum 1). Your survival comes entirely from <b>Lifebloom</b>: every kill heals you for a base amount + bonus per active Bleed stack on the enemy.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#8b1a1a;">Bleed Stacks</div>
+                    <p>Your attacks apply <b>Bleed</b> to enemies (4 DPS per stack, 6-second duration, max 5 stacks). Stacks scale with the Open Wound and Lacerate upgrades. Higher stacks = higher Lifebloom heal when the target dies. Build them up, then reap.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#8b1a1a;">Special: Crimson Garden</div>
+                    <p>Plant a Blood Rose at your position that pulses Bleed across a 250px radius for 8 seconds. Costs 20 HP. Cooldown: short. Use it on chokepoints to passively bleed entire spawn waves into Lifebloom fuel.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#ffffff;">Ultimate: The Reckoning</div>
+                    <p>At Level 10: drop yourself to 1 HP, erupt arena-wide vines for 5 seconds — every enemy bleeds at maximum stacks regardless of past hits. A panic-button finisher that converts near-death into a wave-clear if you can survive the recovery window.</p>
+                </div>
+
+                <h3>Thorn Skill Tree Highlights</h3>
+                <ul>
+                    <li><b>Bleed DPS:</b> +10% per node — every layer of Bleed is more lethal.</li>
+                    <li><b>Lifebloom:</b> +1 HP per kill per node. The single most important sustain stat.</li>
+                    <li><b>Cost Reduction:</b> −1 attack HP cost per node (minimum 1).</li>
+                </ul>
+                <p><i>Tip: A Garden + ranged poke combo lets you stack Bleed on a dozen enemies at once. Walk in, kill the weakened ones, watch your HP refill faster than it drained.</i></p>
+
+                <h3 style="margin-top:28px;">New Hero: Dream — Twilight Indigo 🌙</h3>
+                <p style="margin:2px 0 8px; font-size:0.85em;"><b>Difficulty:</b> ★★★★☆ &nbsp;<span style="color:#e67e22;"><b>4/5 — Hard</b></span></p>
+                <p>A fragile sleepwalker who slows reality around them. Lowest HP (55) but highest base speed (5.0). Slow enemies, execute the drowsy, and slip out of lethal hits once per wave.</p>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#5a3e9e;">Lucidity (0–100)</div>
+                    <p>Regenerates passively at <b>+2/sec</b> and gains <b>+1 per melee hit / +0.5 per ranged hit</b>. Lose 5 on damage taken. Spend Lucidity on Dreamscape (30) or The Long Sleep (90). Wakeful Mind upgrades raise the regen rate.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#5a3e9e;">Drowsy Debuff</div>
+                    <p>Every melee hit applies a Drowsy stack: 30% slow, 2 seconds, max 5 per enemy. Drowsy enemies are the primary target for Dreamscape bursts and The Long Sleep's execute window.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#5a3e9e;">Special: Dreamscape</div>
+                    <p>Spawn a 300px <b>dream pocket</b> at your position for 6 seconds. Enemies inside take −50% speed and +25% damage; allies inside regen 5 HP/sec. Drowsy enemies caught in the pocket take a burst on activation. Cost: 30 Lucidity.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#5a3e9e;">Lucid Step (Once per Wave)</div>
+                    <p>Automatic save: once per wave, lethal damage instead phases you for 3 seconds — untargetable, regen 5 HP/sec, full immunity. Cannot be triggered manually; it triggers <b>only</b> when an incoming hit would kill you.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#ffffff;">Ultimate: The Long Sleep</div>
+                    <p>At Level 10: convert the entire arena into a dreamscape for 8 seconds (all enemies slowed and vulnerable), then a 5-second <b>execute window</b> in which any enemy below 25% HP dies instantly. Cost: 90 Lucidity.</p>
+                </div>
+
+                <h3>Dream Skill Tree Highlights</h3>
+                <ul>
+                    <li><b>Lucidity Regen:</b> +0.5/sec per node — the most important node for casting frequency.</li>
+                    <li><b>Dreamscape:</b> +10% pocket radius per node.</li>
+                    <li><b>Drowsy:</b> +5% slow strength per node.</li>
+                </ul>
+                <p><i>Tip: Open with melee to stack Drowsy, drop Dreamscape on top, then peel off and let the pocket do the work.</i></p>
+
+                <h3>Altar of Mastery — Per-Hero Nodes</h3>
+                <ul>
+                    <li><b>Solar Crown (Light, Prestige 5):</b> Revelation radius +50%, duration +5s.</li>
+                    <li><b>Endless Bloom (Thorn, Prestige 5):</b> Crimson Garden lasts +50% longer, heal rate doubled.</li>
+                    <li><b>Sleepwalker (Dream, Prestige 5):</b> Lucid Step regen +5 HP/sec, phase +1s.</li>
+                </ul>
+
+                <h3>Convergence Mutations</h3>
+                <p>Every Ruin hero has a Prestige-5 cross-element convergence with <b>every other hero in the game</b> — base roster (Fire, Water, Ice, Plant, Metal), DLC roster (Earth, Lightning, Gravity, Void, Air, Spirit, Chance, Sound, Poison, Time, Love, Psycho, Mirror, Smoke), and the other two Ruin heroes. That's <b>19 convergences per hero (57 total)</b> plus the pack-wide trio. Selected highlights:</p>
+                <div class="control-grid">
+                    <div class="control-item"><b>Solar Forge</b><span>Light+Fire: Aurum Burn also applies Fire DoT</span></div>
+                    <div class="control-item"><b>Crystal Mirror</b><span>Light+Ice: Revelation freezes enemies for 1s</span></div>
+                    <div class="control-item"><b>Heliokeraunos</b><span>Light+Lightning: Storm +50% dmg vs Revealed</span></div>
+                    <div class="control-item"><b>Eclipse</b><span>Light+Void: Glitched+Revealed enemies +40% dmg</span></div>
+                    <div class="control-item"><b>Blood Tide</b><span>Thorn+Water: Tidal Wave applies 2 Bleed stacks</span></div>
+                    <div class="control-item"><b>Carnivorous Bloom</b><span>Thorn+Plant: Garden radius +50%, heal 75%</span></div>
+                    <div class="control-item"><b>Septic Thorn</b><span>Thorn+Poison: Bleed also applies Poison DoT</span></div>
+                    <div class="control-item"><b>Gravewell</b><span>Thorn+Gravity: Bleeding enemies pulled 2× force</span></div>
+                    <div class="control-item"><b>Voidstep</b><span>Dream+Void: Lucid Step usable twice per wave</span></div>
+                    <div class="control-item"><b>Slow Dream</b><span>Dream+Time: Long Sleep +3s, execute +3s</span></div>
+                    <div class="control-item"><b>Sleeper Brew</b><span>Dream+Poison: Drowsy enemies +50% Poison DoT</span></div>
+                    <div class="control-item"><b>Lucid Madness</b><span>Dream+Psycho: Confused counts as Drowsy</span></div>
+                    <div class="control-item"><b>Crowned Garden</b><span>Light+Thorn: Garden inside Revelation auto-reveals</span></div>
+                    <div class="control-item"><b>Lucid Halo</b><span>Light+Dream: Revelation cost in Lucidity instead</span></div>
+                    <div class="control-item"><b>Bleeding Sleep</b><span>Thorn+Dream: Drowsy enemies bleed automatically</span></div>
+                    <div class="control-item"><b>Radiance of Ruin</b><span>Trio: Revealed/Bleeding/Drowsy enemies take +20% dmg from all sources (requires P5 on all 3)</span></div>
+                </div>
+
+                <h3>New Biomes</h3>
+                <p>Three new biomes added to the standard random pool whenever the DLC is active — they appear for <b>any</b> hero in non-story runs.</p>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#f1c40f;">The Reliquary (Light biome)</div>
+                    <p>A vaulted museum hall after closing. Gold-dust shafts stream down from cathedral arches onto marble pedestals. <b>3–4 Light Shafts</b> act as healing zones — allies inside regen 1 HP/sec; Light gains an extra +2 Integrity/sec. Shafts pulse a heal burst every 12 seconds. No mechanical traps.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#8b1a1a;">The Crimson Greenhouse (Thorn biome)</div>
+                    <p>An abandoned glass conservatory overrun with blood-red foliage and shattered planters. The architecture funnels enemies into the rows where Crimson Garden chokeholds excel.</p>
+                </div>
+
+                <div class="tut-card">
+                    <div class="tut-card-title" style="color:#5a3e9e;">The Dreamspace (Dream biome)</div>
+                    <p>Floating geometry, starfields, drifting motes. Persistent <b>Dream Pockets</b> teleport enemies short distances when they pass through — use the disruption to space-out aggressive types.</p>
+                </div>
+
+                <h3>What's NOT in this DLC</h3>
+                <ul>
+                    <li><b>No story mode</b> — no story chapters, no memory shards. Green button reads "▶ Standard Mode" for these heroes.</li>
+                    <li><b>No new enemies</b> — base-game roster only.</li>
+                    <li><b>No collector cards</b> — no new enemy types means no new cards.</li>
+                    <li><b>No new music</b> — base-game biome music plays everywhere.</li>
+                </ul>
+            `
+        },
         online: {
             title: "Online Multiplayer",
             html: `
@@ -1312,6 +1474,9 @@ const Manual = {
 
             const deception = list.find(d => d.id === 'disciples_of_deception');
             if (deception && deception.active) document.getElementById('btn-tutorial-deception').style.display = 'block';
+
+            const ruin = list.find(d => d.id === 'radiance_of_ruin');
+            if (ruin && ruin.active) document.getElementById('btn-tutorial-ruin').style.display = 'block';
         }
 
         Manual.showTab('basics');

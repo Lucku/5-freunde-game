@@ -348,6 +348,10 @@ body.hud-edit-mode #hud-edit-toolbar { display: flex; }
 /* Each draggable element gets outline + grab cursor while editing. The
  * `force-visible` class forces opacity so the user can see the combo even
  * when it's at 0 mid-game. */
+/* Lift the entire HUD layer above the menu-overlay (z:20) and options-screen
+ * (z:2500) during edit mode so the draggable elements aren't trapped in
+ * #ui-layer's z:5 stacking context. */
+body.hud-edit-mode #ui-layer { z-index: 9000; }
 body.hud-edit-mode [data-hud-id] {
     outline: 2px dashed rgba(241, 196, 15, 0.85);
     outline-offset: 4px;

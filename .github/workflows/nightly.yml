@@ -1,0 +1,55 @@
+name: Nightly Headless Harness
+
+on:
+  schedule:
+    # 04:17 UTC daily — offset from the hour to avoid GitHub Actions cron pile-up.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: "Number of simulated runs"
+        required: false
+        default: "100"
+      ticks:
+        description: "Ticks per run (1800 ≈ 60s sim @ 30 Hz)"
+        required: false
+        default: "1800"
+      seed:
+        description: "PRNG seed (blank = time-based)"
+        required: false
+        default: ""
+
+jobs:
+  headless:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run headless test harness (improvement #146)
+        env:
+          RUNS:  ${{ github.event.inputs.runs  || '100' }}
+          TICKS: ${{ github.event.inputs.ticks || '1800' }}
+          SEED:  ${{ github.event.inputs.seed  || '' }}
+          QUIET: "1"
+        run: npm run test:headless
+
+      - name: Upload nightly report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-report
+          path: nightly-report.json
+          if-no-files-found: warn
+          retention-days: 30

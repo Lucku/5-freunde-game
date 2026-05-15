@@ -6,3 +6,4 @@ dist
 tasks
 .claude
 CLAUDE.md
+nightly-report.json

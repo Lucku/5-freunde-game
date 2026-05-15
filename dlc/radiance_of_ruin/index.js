@@ -143,27 +143,78 @@ const RADIANCE_OF_RUIN = {
 
         // ── CONVERGENCES ──────────────────────────────────────────────
         // Prefix `cv_ror_` to avoid collisions with all prior DLC convergences.
+        // Each Ruin hero pairs with every other hero in the convergence pool.
         const ruinMutations = [
-            // Light convergences
-            { id: 'cv_ror_lit_fire',     req: { light: 5, fire: 5 },     type: 'mutation', name: 'Solar Forge',      desc: 'Aurum Burn trail also applies Fire DoT (3 dmg/sec).' },
-            { id: 'cv_ror_lit_ice',      req: { light: 5, ice: 5 },      type: 'mutation', name: 'Crystal Mirror',   desc: 'Revelation freezes revealed enemies for 1s.' },
-            { id: 'cv_ror_lit_metal',    req: { light: 5, metal: 5 },    type: 'mutation', name: 'Gilded Plate',     desc: 'Civilian Form duration -2s and HP cap +15.' },
-            { id: 'cv_ror_lit_psycho',   req: { light: 5, psycho: 5 },   type: 'mutation', name: 'Revealing Mind',   desc: 'Revelation confuses revealed enemies for the full duration.' },
+            // Light convergences — full roster
+            { id: 'cv_ror_lit_fire',      req: { light: 5, fire: 5 },      type: 'mutation', name: 'Solar Forge',       desc: 'Aurum Burn trail also applies Fire DoT (3 dmg/sec).' },
+            { id: 'cv_ror_lit_water',     req: { light: 5, water: 5 },     type: 'mutation', name: 'Tidewash',          desc: 'Tidal Wave applies Revealed to all hit enemies for 5s.' },
+            { id: 'cv_ror_lit_ice',       req: { light: 5, ice: 5 },       type: 'mutation', name: 'Crystal Mirror',    desc: 'Revelation freezes revealed enemies for 1s.' },
+            { id: 'cv_ror_lit_plant',     req: { light: 5, plant: 5 },     type: 'mutation', name: 'Sanctified Grove',  desc: 'Overgrowth turrets deal +30% damage to Revealed enemies.' },
+            { id: 'cv_ror_lit_metal',     req: { light: 5, metal: 5 },     type: 'mutation', name: 'Gilded Plate',      desc: 'Civilian Form duration -2s and HP cap +15.' },
+            { id: 'cv_ror_lit_earth',     req: { light: 5, earth: 5 },     type: 'mutation', name: 'Gilded Quarry',     desc: 'Tremor radius +25% while Revelation is active.' },
+            { id: 'cv_ror_lit_lightning', req: { light: 5, lightning: 5 }, type: 'mutation', name: 'Heliokeraunos',     desc: 'Storm bolts deal +50% damage to Revealed enemies.' },
+            { id: 'cv_ror_lit_gravity',   req: { light: 5, gravity: 5 },   type: 'mutation', name: 'Singular Glow',     desc: 'Black Hole pulls Revealed enemies at 2x force.' },
+            { id: 'cv_ror_lit_void',      req: { light: 5, void: 5 },      type: 'mutation', name: 'Eclipse',           desc: 'Enemies that are both Glitched and Revealed take +40% damage.' },
+            { id: 'cv_ror_lit_air',       req: { light: 5, air: 5 },       type: 'mutation', name: 'Solar Gale',        desc: 'TORNADO applies Revealed to every enemy it catches.' },
+            { id: 'cv_ror_lit_spirit',    req: { light: 5, spirit: 5 },    type: 'mutation', name: 'Inner Light',       desc: 'Enlightened aura also applies Revealed on hit.' },
+            { id: 'cv_ror_lit_chance',    req: { light: 5, chance: 5 },    type: 'mutation', name: 'Lucky Ray',         desc: 'Slot Machine rolls one tier better while Revelation is active.' },
+            { id: 'cv_ror_lit_sound',     req: { light: 5, sound: 5 },     type: 'mutation', name: 'Hymn of Light',     desc: 'Crescendo applies Revealed to all hit enemies.' },
+            { id: 'cv_ror_lit_poison',    req: { light: 5, poison: 5 },    type: 'mutation', name: 'Sun-Brewed Toxin',  desc: 'Flask effects apply Revealed for 3s to hit enemies.' },
+            { id: 'cv_ror_lit_time',      req: { light: 5, time: 5 },      type: 'mutation', name: 'Eternal Mask',      desc: 'Chrono Strike refunds 5 Integrity per enemy hit.' },
+            { id: 'cv_ror_lit_love',      req: { light: 5, love: 5 },      type: 'mutation', name: 'Devoted Mask',      desc: 'Love Companion heals you for 5 HP per Revelation cast.' },
+            { id: 'cv_ror_lit_psycho',    req: { light: 5, psycho: 5 },    type: 'mutation', name: 'Revealing Mind',    desc: 'Revelation confuses revealed enemies for the full duration.' },
+            { id: 'cv_ror_lit_mirror',    req: { light: 5, mirror: 5 },    type: 'mutation', name: 'Refracted Aurum',   desc: 'Reflected projectiles apply Revealed for 3s to whatever they hit.' },
+            { id: 'cv_ror_lit_smoke',     req: { light: 5, smoke: 5 },     type: 'mutation', name: 'Spotlight',         desc: 'Smoke clouds inside Revelation glow gold, revealing enemies that enter them.' },
 
-            // Thorn convergences
-            { id: 'cv_ror_thr_water',    req: { thorn: 5, water: 5 },    type: 'mutation', name: 'Blood Tide',       desc: 'Tidal Wave applies 2 Bleed stacks to enemies it hits.' },
-            { id: 'cv_ror_thr_plant',    req: { thorn: 5, plant: 5 },    type: 'mutation', name: 'Carnivorous Bloom',desc: 'Crimson Garden radius +50%; heal scales to 75%.' },
-            { id: 'cv_ror_thr_poison',   req: { thorn: 5, poison: 5 },   type: 'mutation', name: 'Septic Thorn',     desc: 'Bleed stacks also apply Poison DoT (3 dmg/sec).' },
-            { id: 'cv_ror_thr_earth',    req: { thorn: 5, earth: 5 },    type: 'mutation', name: 'Iron Bramble',     desc: 'The Reckoning grants 50% damage reduction while active.' },
+            // Thorn convergences — full roster
+            { id: 'cv_ror_thr_fire',      req: { thorn: 5, fire: 5 },      type: 'mutation', name: 'Char-Bloom',        desc: 'Bleeding enemies also burn for 3 DPS.' },
+            { id: 'cv_ror_thr_water',     req: { thorn: 5, water: 5 },     type: 'mutation', name: 'Blood Tide',        desc: 'Tidal Wave applies 2 Bleed stacks to enemies it hits.' },
+            { id: 'cv_ror_thr_ice',       req: { thorn: 5, ice: 5 },       type: 'mutation', name: 'Frozen Sap',        desc: 'Enemies at max Bleed stacks Freeze for 1s.' },
+            { id: 'cv_ror_thr_plant',     req: { thorn: 5, plant: 5 },     type: 'mutation', name: 'Carnivorous Bloom', desc: 'Crimson Garden radius +50%; heal scales to 75%.' },
+            { id: 'cv_ror_thr_metal',     req: { thorn: 5, metal: 5 },     type: 'mutation', name: 'Iron Thorn',        desc: 'Iron Will recovers +1 HP per Bleed stack on hit enemies.' },
+            { id: 'cv_ror_thr_earth',     req: { thorn: 5, earth: 5 },     type: 'mutation', name: 'Iron Bramble',      desc: 'The Reckoning grants 50% damage reduction while active.' },
+            { id: 'cv_ror_thr_lightning', req: { thorn: 5, lightning: 5 }, type: 'mutation', name: 'Galvanic Vein',     desc: 'Bleeding enemies arc lightning to the nearest enemy (50% chain damage).' },
+            { id: 'cv_ror_thr_gravity',   req: { thorn: 5, gravity: 5 },   type: 'mutation', name: 'Gravewell',         desc: 'Bleeding enemies are pulled into Black Hole at 2x force.' },
+            { id: 'cv_ror_thr_void',      req: { thorn: 5, void: 5 },      type: 'mutation', name: 'Hemorrhagic Glitch',desc: 'Glitched enemies bleed for 2 extra stacks per second.' },
+            { id: 'cv_ror_thr_air',       req: { thorn: 5, air: 5 },       type: 'mutation', name: 'Thornstorm',        desc: 'TORNADO drags a Crimson Garden trail across the arena.' },
+            { id: 'cv_ror_thr_spirit',    req: { thorn: 5, spirit: 5 },    type: 'mutation', name: 'Blood Discipline',  desc: 'Mantra damage +50% when paid in HP (1 HP per shot, no Peace cost).' },
+            { id: 'cv_ror_thr_chance',    req: { thorn: 5, chance: 5 },    type: 'mutation', name: 'Lucky Reap',        desc: 'Lifebloom heal has a 25% chance to double.' },
+            { id: 'cv_ror_thr_sound',     req: { thorn: 5, sound: 5 },     type: 'mutation', name: 'Resonant Bleed',    desc: 'Resonating enemies take +25% Bleed DPS.' },
+            { id: 'cv_ror_thr_poison',    req: { thorn: 5, poison: 5 },    type: 'mutation', name: 'Septic Thorn',      desc: 'Bleed stacks also apply Poison DoT (3 dmg/sec).' },
+            { id: 'cv_ror_thr_time',      req: { thorn: 5, time: 5 },      type: 'mutation', name: 'Slow Hemorrhage',   desc: 'Bleed duration +2s.' },
+            { id: 'cv_ror_thr_love',      req: { thorn: 5, love: 5 },      type: 'mutation', name: 'Sacrificial Bond',  desc: 'Love Companion damage +50% while you are below 30% HP.' },
+            { id: 'cv_ror_thr_psycho',    req: { thorn: 5, psycho: 5 },    type: 'mutation', name: 'Bleeding Mind',     desc: 'Confused enemies bleed automatically (1 stack/sec).' },
+            { id: 'cv_ror_thr_mirror',    req: { thorn: 5, mirror: 5 },    type: 'mutation', name: 'Reflected Wound',   desc: 'Reflected projectiles apply 1 Bleed stack to whatever they hit.' },
+            { id: 'cv_ror_thr_smoke',     req: { thorn: 5, smoke: 5 },     type: 'mutation', name: 'Hemoglobin Veil',   desc: 'Smoke clouds inside Crimson Garden tick Bleed (1 stack/sec).' },
 
-            // Dream convergences
-            { id: 'cv_ror_drm_air',      req: { dream: 5, air: 5 },      type: 'mutation', name: 'Sky Walker',       desc: 'Dreamscape grants allies inside +25% speed.' },
-            { id: 'cv_ror_drm_void',     req: { dream: 5, void: 5 },     type: 'mutation', name: 'Voidstep',         desc: 'Lucid Step usable twice per wave.' },
-            { id: 'cv_ror_drm_time',     req: { dream: 5, time: 5 },     type: 'mutation', name: 'Slow Dream',       desc: 'The Long Sleep duration +3s; execute window +3s.' },
-            { id: 'cv_ror_drm_smoke',    req: { dream: 5, smoke: 5 },    type: 'mutation', name: 'Twilight Veil',    desc: 'Drowsy enemies inside smoke clouds drop 2 Drowsy stacks per second.' },
+            // Dream convergences — full roster
+            { id: 'cv_ror_drm_fire',      req: { dream: 5, fire: 5 },      type: 'mutation', name: 'Burning Dreams',    desc: 'Drowsy enemies take +50% Fire damage.' },
+            { id: 'cv_ror_drm_water',     req: { dream: 5, water: 5 },     type: 'mutation', name: 'Tidedream',         desc: 'Tidal Wave applies 2 Drowsy stacks to hit enemies.' },
+            { id: 'cv_ror_drm_ice',       req: { dream: 5, ice: 5 },       type: 'mutation', name: 'Frostlull',         desc: 'Frozen enemies are Drowsy when they thaw.' },
+            { id: 'cv_ror_drm_plant',     req: { dream: 5, plant: 5 },     type: 'mutation', name: 'Slumberbloom',      desc: 'Overgrowth turret shots apply 1 Drowsy stack.' },
+            { id: 'cv_ror_drm_metal',     req: { dream: 5, metal: 5 },     type: 'mutation', name: 'Iron Lullaby',      desc: 'Iron Will keeps nearby enemies Drowsy continuously while active.' },
+            { id: 'cv_ror_drm_earth',     req: { dream: 5, earth: 5 },     type: 'mutation', name: 'Stone Sleep',       desc: 'Tremor applies 2 Drowsy stacks.' },
+            { id: 'cv_ror_drm_lightning', req: { dream: 5, lightning: 5 }, type: 'mutation', name: 'Static Drowse',     desc: 'Stun chance also applies 2 Drowsy stacks.' },
+            { id: 'cv_ror_drm_gravity',   req: { dream: 5, gravity: 5 },   type: 'mutation', name: 'Gravity Lull',      desc: 'Enemies absorbed by Black Hole are Drowsy on absorb (refunds 5 Lucidity).' },
+            { id: 'cv_ror_drm_void',      req: { dream: 5, void: 5 },      type: 'mutation', name: 'Voidstep',          desc: 'Lucid Step usable twice per wave.' },
+            { id: 'cv_ror_drm_air',       req: { dream: 5, air: 5 },       type: 'mutation', name: 'Sky Walker',        desc: 'Dreamscape grants allies inside +25% speed.' },
+            { id: 'cv_ror_drm_spirit',    req: { dream: 5, spirit: 5 },    type: 'mutation', name: 'Meditative Veil',   desc: 'Lucidity regen +0.5/sec while Enlightened.' },
+            { id: 'cv_ror_drm_chance',    req: { dream: 5, chance: 5 },    type: 'mutation', name: 'Lucky Dream',       desc: 'Slot Machine costs no Lucidity while inside Dreamscape.' },
+            { id: 'cv_ror_drm_sound',     req: { dream: 5, sound: 5 },     type: 'mutation', name: 'Lullaby',           desc: 'Crescendo refreshes Drowsy on hit.' },
+            { id: 'cv_ror_drm_poison',    req: { dream: 5, poison: 5 },    type: 'mutation', name: 'Sleeper Brew',      desc: 'Drowsy enemies take +50% Poison DoT.' },
+            { id: 'cv_ror_drm_time',      req: { dream: 5, time: 5 },      type: 'mutation', name: 'Slow Dream',        desc: 'The Long Sleep duration +3s; execute window +3s.' },
+            { id: 'cv_ror_drm_love',      req: { dream: 5, love: 5 },      type: 'mutation', name: 'Dream Bond',        desc: 'Love Companion regenerates +1 Lucidity/sec for you.' },
+            { id: 'cv_ror_drm_psycho',    req: { dream: 5, psycho: 5 },    type: 'mutation', name: 'Lucid Madness',     desc: 'Confused enemies count as Drowsy for all effects.' },
+            { id: 'cv_ror_drm_mirror',    req: { dream: 5, mirror: 5 },    type: 'mutation', name: 'Mirror Sleep',      desc: 'Each reflected projectile grants +5 Lucidity.' },
+            { id: 'cv_ror_drm_smoke',     req: { dream: 5, smoke: 5 },     type: 'mutation', name: 'Twilight Veil',     desc: 'Enemies inside smoke clouds gain 2 Drowsy stacks per second.' },
+
+            // Intra-Ruin pairings
+            { id: 'cv_ror_lit_thr',       req: { light: 5, thorn: 5 },     type: 'mutation', name: 'Crowned Garden',    desc: 'Crimson Garden centered inside Revelation auto-applies Revealed to every enemy that enters.' },
+            { id: 'cv_ror_lit_drm',       req: { light: 5, dream: 5 },     type: 'mutation', name: 'Lucid Halo',        desc: 'Revelation may be paid in Lucidity instead of Integrity.' },
+            { id: 'cv_ror_thr_drm',       req: { thorn: 5, dream: 5 },     type: 'mutation', name: 'Bleeding Sleep',    desc: 'Drowsy enemies bleed automatically (1 stack/sec).' },
 
             // Pack-wide trio
-            { id: 'cv_ror_trio',         req: { light: 5, thorn: 5, dream: 5 }, type: 'mutation', name: 'Radiance of Ruin', desc: 'Revealed, Bleeding, or Drowsy enemies take +20% damage from all sources.' }
+            { id: 'cv_ror_trio',          req: { light: 5, thorn: 5, dream: 5 }, type: 'mutation', name: 'Radiance of Ruin', desc: 'Revealed, Bleeding, or Drowsy enemies take +20% damage from all sources.' }
         ];
 
         if (ALTAR_TREE.convergence) {
