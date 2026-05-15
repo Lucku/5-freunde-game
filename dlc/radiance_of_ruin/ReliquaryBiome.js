@@ -10,6 +10,14 @@ class ReliquaryBiome {
         this.noTraps       = true; // Sacral hall — no mechanical traps.
         this.particles = [];
         this.shafts = [];      // {x, y, radius, brightness, baseY, height}
+        this.chandeliers = []; // {x, ceilingY, chainLen, orbs:[{a,r}], swayPhase, swaySpeed, flicker}
+        this.candles    = []; // {x, y, h, flickerPhase}
+        this.medallions = []; // {x, y, r, rotPhase} — floor eye-of-providence mandalas
+        this.banners    = []; // {x, y, w, h, hue, swayPhase}
+        this.shrines    = []; // {x, y, edge} — small alcove mask icons along edges
+        this.sunbursts  = []; // {x, y, r, rays, rotPhase}
+        this.embers     = []; // gold particles drifting upward
+        this.roseWindow = null;
         this.pulseTimer = 0;
         this.t = 0;
         this.unveilTint = 0; // 0..1 — lerp to warm white during Unveiling
@@ -48,6 +56,122 @@ class ReliquaryBiome {
             if (Math.hypot(baseX - cx, baseY - cy) < 300) continue;
             arena.obstacles.push(new Obstacle(baseX, baseY, size, size, 'light'));
         }
+
+        // Hanging chandeliers — 6 across the top half, swaying
+        this.chandeliers = [];
+        const chandCount = 6;
+        for (let i = 0; i < chandCount; i++) {
+            const px = (i + 0.5) * (w / chandCount) + (Math.random() - 0.5) * 80;
+            const py = 90 + Math.random() * 60;
+            const chainLen = 60 + Math.random() * 70;
+            const orbCount = 6;
+            const orbs = [];
+            const radius = 26 + Math.random() * 10;
+            for (let k = 0; k < orbCount; k++) {
+                orbs.push({ a: (k / orbCount) * Math.PI * 2, r: radius });
+            }
+            this.chandeliers.push({
+                x: px,
+                ceilingY: py,
+                chainLen,
+                orbs,
+                ringRadius: radius,
+                swayPhase: Math.random() * Math.PI * 2,
+                swaySpeed: 0.015 + Math.random() * 0.012,
+                flickerPhase: Math.random() * Math.PI * 2
+            });
+        }
+
+        // Candle clusters — 18 small floor candles scattered around perimeter
+        this.candles = [];
+        const candleCount = 22;
+        for (let i = 0; i < candleCount; i++) {
+            let candX, candY, tries = 0;
+            do {
+                candX = 120 + Math.random() * (w - 240);
+                candY = 200 + Math.random() * (h - 400);
+                tries++;
+            } while (Math.hypot(candX - cx, candY - cy) < 240 && tries < 8);
+            this.candles.push({
+                x: candX, y: candY,
+                h: 14 + Math.random() * 8,
+                flickerPhase: Math.random() * Math.PI * 2
+            });
+        }
+
+        // Eye-of-providence floor medallions — 7 spread across non-center floor
+        this.medallions = [];
+        const medCount = 7;
+        for (let i = 0; i < medCount; i++) {
+            let mx, my, tries = 0;
+            do {
+                mx = 200 + Math.random() * (w - 400);
+                my = 200 + Math.random() * (h - 400);
+                tries++;
+            } while (Math.hypot(mx - cx, my - cy) < 280 && tries < 12);
+            this.medallions.push({
+                x: mx, y: my,
+                r: 50 + Math.random() * 22,
+                rotPhase: Math.random() * Math.PI * 2,
+                blinkPhase: Math.random() * Math.PI * 2
+            });
+        }
+
+        // Hanging banners — 4 vertical banners draped between arches
+        this.banners = [];
+        const archCount = 6;
+        const archW = w / archCount;
+        const bannerSlots = [1, 2, 3, 4]; // skip outermost
+        bannerSlots.forEach((slot, idx) => {
+            const bx = slot * archW;
+            this.banners.push({
+                x: bx,
+                y: 90,
+                w: 38,
+                h: 220 + idx * 18,
+                hue: idx % 2 === 0 ? '#7a1a1a' : '#a8741e',
+                swayPhase: Math.random() * Math.PI * 2
+            });
+        });
+
+        // Edge mask shrines — 8 alcoves with mask iconography
+        this.shrines = [];
+        const shrinePositions = [
+            { x: 70, y: h * 0.30, edge: 3 },
+            { x: 70, y: h * 0.70, edge: 3 },
+            { x: w - 70, y: h * 0.30, edge: 1 },
+            { x: w - 70, y: h * 0.70, edge: 1 },
+            { x: w * 0.25, y: 80, edge: 0 },
+            { x: w * 0.75, y: 80, edge: 0 },
+            { x: w * 0.25, y: h - 80, edge: 2 },
+            { x: w * 0.75, y: h - 80, edge: 2 }
+        ];
+        shrinePositions.forEach(s => this.shrines.push({ ...s, flickerPhase: Math.random() * Math.PI * 2 }));
+
+        // Sunburst inlays — 4 large radiant patterns at quarter-points
+        this.sunbursts = [];
+        const sbSpots = [
+            { x: w * 0.25, y: h * 0.5 },
+            { x: w * 0.75, y: h * 0.5 },
+            { x: w * 0.5,  y: h * 0.25 },
+            { x: w * 0.5,  y: h * 0.75 }
+        ];
+        sbSpots.forEach((p, i) => {
+            this.sunbursts.push({
+                x: p.x, y: p.y,
+                r: 100,
+                rays: 16,
+                rotPhase: i * Math.PI * 0.3
+            });
+        });
+
+        // Large rose window centered above arches
+        this.roseWindow = {
+            x: w * 0.5,
+            y: 80,
+            r: 95,
+            pulsePhase: 0
+        };
     }
 
     update(arena, player, enemies) {
@@ -77,6 +201,32 @@ class ReliquaryBiome {
             p.life--;
             if (p.life <= 0 || p.y > arena.height + 20) this.particles.splice(i, 1);
         }
+
+        // Gold embers — rise from candle clusters (occasional)
+        if (Math.random() < 0.35 && this.candles.length) {
+            const c = this.candles[Math.floor(Math.random() * this.candles.length)];
+            this.embers.push({
+                x: c.x + (Math.random() - 0.5) * 6,
+                y: c.y - c.h,
+                vx: (Math.random() - 0.5) * 0.25,
+                vy: -0.45 - Math.random() * 0.35,
+                life: 200 + Math.random() * 150,
+                maxLife: 350,
+                size: 1.4 + Math.random() * 1.4,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+        for (let i = this.embers.length - 1; i >= 0; i--) {
+            const e = this.embers[i];
+            e.x += e.vx + Math.sin(this.t * 0.05 + e.phase) * 0.15;
+            e.y += e.vy;
+            e.vy *= 0.995;
+            e.life--;
+            if (e.life <= 0) this.embers.splice(i, 1);
+        }
+
+        // Rose window pulse phase
+        if (this.roseWindow) this.roseWindow.pulsePhase = Math.sin(this.t * 0.03);
 
         // Shaft pulse every 12s → bright flash + heal all allies inside
         if (this.pulseTimer >= 720) {
@@ -224,6 +374,250 @@ class ReliquaryBiome {
         }
         ctx.restore();
 
+        // ── Rose window above arches (centered, top edge) ────────────────────
+        if (this.roseWindow) {
+            const rw = this.roseWindow;
+            const pulse = 0.9 + rw.pulsePhase * 0.1;
+            ctx.save();
+            ctx.translate(rw.x, rw.y);
+            // Outer halo
+            const halo = ctx.createRadialGradient(0, 0, 5, 0, 0, rw.r * 1.8);
+            halo.addColorStop(0,   'rgba(255, 230, 140, 0.45)');
+            halo.addColorStop(0.5, 'rgba(241, 196, 15, 0.18)');
+            halo.addColorStop(1,   'rgba(20, 14, 6, 0)');
+            ctx.fillStyle = halo;
+            ctx.beginPath();
+            ctx.arc(0, 0, rw.r * 1.8, 0, Math.PI * 2);
+            ctx.fill();
+            // Outer ring
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.7)';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, rw.r * pulse, 0, Math.PI * 2);
+            ctx.stroke();
+            // Petals — 12 stained-glass wedges in alternating hues
+            const petals = 12;
+            const wedgeHues = ['#e67e22', '#9b1c1c', '#2c5d9b', '#d4af37'];
+            for (let i = 0; i < petals; i++) {
+                const a0 = (i / petals) * Math.PI * 2;
+                const a1 = ((i + 1) / petals) * Math.PI * 2;
+                ctx.fillStyle = wedgeHues[i % wedgeHues.length];
+                ctx.globalAlpha = 0.55;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, rw.r * 0.92, a0, a1);
+                ctx.closePath();
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                // Lead lines between petals
+                ctx.strokeStyle = 'rgba(20, 14, 6, 0.6)';
+                ctx.lineWidth = 1.4;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(a0) * rw.r * 0.92, Math.sin(a0) * rw.r * 0.92);
+                ctx.stroke();
+            }
+            // Inner ring
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.9)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, rw.r * 0.4, 0, Math.PI * 2);
+            ctx.stroke();
+            // Center bright bulb
+            const core = ctx.createRadialGradient(0, 0, 1, 0, 0, rw.r * 0.35);
+            core.addColorStop(0, 'rgba(255, 250, 200, 0.95)');
+            core.addColorStop(1, 'rgba(241, 196, 15, 0)');
+            ctx.fillStyle = core;
+            ctx.beginPath();
+            ctx.arc(0, 0, rw.r * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // ── Hanging banners (vertical tapestries between arches) ─────────────
+        ctx.save();
+        const bannerSway = t * 0.012;
+        this.banners.forEach(b => {
+            const sway = Math.sin(bannerSway + b.swayPhase) * 4;
+            ctx.save();
+            ctx.translate(b.x + sway * 0.3, b.y);
+            // Hanging rod
+            ctx.fillStyle = '#8a6a1a';
+            ctx.fillRect(-b.w / 2 - 8, -4, b.w + 16, 4);
+            // Cloth body
+            const grd = ctx.createLinearGradient(-b.w / 2, 0, b.w / 2, 0);
+            grd.addColorStop(0,   '#220a06');
+            grd.addColorStop(0.5, b.hue);
+            grd.addColorStop(1,   '#220a06');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.moveTo(-b.w / 2, 0);
+            ctx.lineTo(b.w / 2, 0);
+            ctx.lineTo(b.w / 2 + sway, b.h);
+            ctx.lineTo(0 + sway, b.h + 10);
+            ctx.lineTo(-b.w / 2 + sway, b.h);
+            ctx.closePath();
+            ctx.fill();
+            // Gold trim border
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.85)';
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+            // Central gold sigil — eye
+            ctx.fillStyle = 'rgba(241, 196, 15, 0.9)';
+            ctx.beginPath();
+            ctx.ellipse(sway * 0.5, b.h * 0.45, 7, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#1a1308';
+            ctx.beginPath();
+            ctx.arc(sway * 0.5, b.h * 0.45, 2, 0, Math.PI * 2);
+            ctx.fill();
+            // Tassels at bottom
+            ctx.strokeStyle = '#d4af37';
+            ctx.lineWidth = 1;
+            for (let k = -2; k <= 2; k++) {
+                ctx.beginPath();
+                ctx.moveTo(k * 7 + sway, b.h + 8);
+                ctx.lineTo(k * 7 + sway, b.h + 18);
+                ctx.stroke();
+            }
+            ctx.restore();
+        });
+        ctx.restore();
+
+        // ── Sunburst inlays on floor (radiant gold) ─────────────────────────
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        this.sunbursts.forEach(sb => {
+            ctx.save();
+            ctx.translate(sb.x, sb.y);
+            ctx.rotate(sb.rotPhase + t * 0.001);
+            // Soft halo
+            const halo = ctx.createRadialGradient(0, 0, 5, 0, 0, sb.r * 1.3);
+            halo.addColorStop(0,   'rgba(255, 230, 140, 0.18)');
+            halo.addColorStop(0.7, 'rgba(212, 175, 55, 0.06)');
+            halo.addColorStop(1,   'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = halo;
+            ctx.beginPath();
+            ctx.arc(0, 0, sb.r * 1.3, 0, Math.PI * 2);
+            ctx.fill();
+            // Rays
+            ctx.strokeStyle = 'rgba(241, 196, 15, 0.4)';
+            ctx.lineWidth = 1.4;
+            for (let i = 0; i < sb.rays; i++) {
+                const a = (i / sb.rays) * Math.PI * 2;
+                const r1 = sb.r * 0.35;
+                const r2 = sb.r * (i % 2 === 0 ? 1.0 : 0.7);
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1);
+                ctx.lineTo(Math.cos(a) * r2, Math.sin(a) * r2);
+                ctx.stroke();
+            }
+            // Inner disc
+            ctx.fillStyle = 'rgba(212, 175, 55, 0.35)';
+            ctx.beginPath();
+            ctx.arc(0, 0, sb.r * 0.28, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        });
+        ctx.restore();
+
+        // ── Eye-of-providence floor medallions ──────────────────────────────
+        ctx.save();
+        this.medallions.forEach(m => {
+            const blink = 0.85 + 0.15 * Math.sin(t * 0.025 + m.blinkPhase);
+            ctx.save();
+            ctx.translate(m.x, m.y);
+            ctx.rotate(m.rotPhase);
+            // Outer dark inlay ring
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.55)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, m.r, 0, Math.PI * 2);
+            ctx.stroke();
+            // Triangle outer frame
+            ctx.beginPath();
+            for (let i = 0; i < 3; i++) {
+                const a = (i / 3) * Math.PI * 2 - Math.PI / 2;
+                const px = Math.cos(a) * m.r * 0.85;
+                const py = Math.sin(a) * m.r * 0.85;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            // Eye ellipse + iris
+            ctx.fillStyle = `rgba(255, 248, 200, ${0.7 * blink})`;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, m.r * 0.45, m.r * 0.22, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = `rgba(212, 175, 55, ${0.85 * blink})`;
+            ctx.beginPath();
+            ctx.arc(0, 0, m.r * 0.18, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#1a1308';
+            ctx.beginPath();
+            ctx.arc(0, 0, m.r * 0.08, 0, Math.PI * 2);
+            ctx.fill();
+            // Eight tiny outer dots (decorative)
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2;
+                ctx.fillStyle = 'rgba(212, 175, 55, 0.7)';
+                ctx.beginPath();
+                ctx.arc(Math.cos(a) * m.r * 0.7, Math.sin(a) * m.r * 0.7, 1.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        });
+        ctx.restore();
+
+        // ── Edge mask shrines ──────────────────────────────────────────────
+        ctx.save();
+        this.shrines.forEach(s => {
+            const flicker = 0.85 + 0.15 * Math.sin(t * 0.08 + s.flickerPhase);
+            ctx.save();
+            ctx.translate(s.x, s.y);
+            // Niche/alcove behind mask
+            ctx.fillStyle = 'rgba(20, 14, 6, 0.85)';
+            ctx.beginPath();
+            ctx.rect(-22, -28, 44, 56);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.65)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // Top arch
+            ctx.beginPath();
+            ctx.arc(0, -28, 22, Math.PI, 0);
+            ctx.stroke();
+            // Mask glyph
+            ctx.fillStyle = `rgba(241, 196, 15, ${0.85 * flicker})`;
+            // Forehead
+            ctx.beginPath();
+            ctx.ellipse(0, -8, 12, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Cheeks
+            ctx.beginPath();
+            ctx.ellipse(0, 4, 11, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Eye slits
+            ctx.fillStyle = '#1a1308';
+            ctx.beginPath();
+            ctx.ellipse(-4, -2, 2.2, 1.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(4, -2, 2.2, 1.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Candle pair beneath shrine
+            ctx.fillStyle = '#e8d8a8';
+            ctx.fillRect(-7, 16, 2, 8);
+            ctx.fillRect(5, 16, 2, 8);
+            // Tiny flames
+            ctx.fillStyle = `rgba(255, 220, 100, ${0.9 * flicker})`;
+            ctx.beginPath(); ctx.arc(-6, 14, 1.6, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(6, 14, 1.6, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        });
+        ctx.restore();
+
         // ── Stained-glass color puddles on floor (orange/red/blue) ───────────
         ctx.save();
         ctx.globalAlpha = 0.22;
@@ -258,6 +652,117 @@ class ReliquaryBiome {
     draw(ctx, arena) {
         const aw = arena.width, ah = arena.height;
         const t = this.t;
+
+        // ── Hanging chandeliers (sway + flicker, foreground) ───────────────
+        ctx.save();
+        this.chandeliers.forEach(c => {
+            const sway = Math.sin(t * c.swaySpeed + c.swayPhase) * 6;
+            const flicker = 0.85 + 0.15 * Math.sin(t * 0.18 + c.flickerPhase);
+            const hubX = c.x + sway;
+            const hubY = c.ceilingY + c.chainLen;
+            // Chain (single line from ceiling to hub)
+            ctx.strokeStyle = 'rgba(120, 100, 50, 0.85)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(c.x, c.ceilingY);
+            ctx.lineTo(hubX, hubY);
+            ctx.stroke();
+            // Hub disc
+            ctx.fillStyle = '#8a6a1a';
+            ctx.beginPath();
+            ctx.arc(hubX, hubY, 6, 0, Math.PI * 2);
+            ctx.fill();
+            // Outer ring (chandelier frame)
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.85)';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.arc(hubX, hubY, c.ringRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            // Orb candles around ring
+            c.orbs.forEach((o, i) => {
+                const oa = o.a + Math.sin(t * 0.02 + c.swayPhase + i) * 0.02;
+                const ox = hubX + Math.cos(oa) * o.r;
+                const oy = hubY + Math.sin(oa) * o.r;
+                // Glow halo
+                const glow = ctx.createRadialGradient(ox, oy, 0, ox, oy, 20);
+                glow.addColorStop(0,   `rgba(255, 230, 140, ${0.7 * flicker})`);
+                glow.addColorStop(0.5, `rgba(241, 196, 15, ${0.25 * flicker})`);
+                glow.addColorStop(1,   'rgba(241, 196, 15, 0)');
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(ox, oy, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                // Flame core
+                ctx.fillStyle = `rgba(255, 240, 180, ${0.95 * flicker})`;
+                ctx.beginPath();
+                ctx.arc(ox, oy, 2.2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            // Central pendant teardrop
+            ctx.fillStyle = 'rgba(212, 175, 55, 0.85)';
+            ctx.beginPath();
+            ctx.ellipse(hubX, hubY + 8, 4, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+
+        // ── Floor candles (taper + flame) ──────────────────────────────────
+        ctx.save();
+        this.candles.forEach(c => {
+            const flicker = 0.85 + 0.15 * Math.sin(t * 0.22 + c.flickerPhase);
+            // Taper body
+            ctx.fillStyle = '#e8d8a8';
+            ctx.fillRect(c.x - 1.8, c.y - c.h, 3.6, c.h);
+            // Wax drip highlight
+            ctx.fillStyle = 'rgba(255, 245, 200, 0.75)';
+            ctx.fillRect(c.x - 1.8, c.y - c.h, 1, c.h);
+            // Flame glow
+            const glow = ctx.createRadialGradient(c.x, c.y - c.h - 3, 0, c.x, c.y - c.h - 3, 18);
+            glow.addColorStop(0,   `rgba(255, 230, 130, ${0.7 * flicker})`);
+            glow.addColorStop(0.5, `rgba(241, 196, 15, ${0.22 * flicker})`);
+            glow.addColorStop(1,   'rgba(241, 196, 15, 0)');
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(c.x, c.y - c.h - 3, 18, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            // Flame teardrop
+            ctx.fillStyle = `rgba(255, 235, 150, ${0.95 * flicker})`;
+            ctx.beginPath();
+            ctx.ellipse(c.x, c.y - c.h - 3, 1.6, 3.5 * flicker, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = `rgba(255, 200, 80, ${0.9 * flicker})`;
+            ctx.beginPath();
+            ctx.arc(c.x, c.y - c.h - 1.5, 1, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+
+        // ── Gold embers (rising from candles) ──────────────────────────────
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        this.embers.forEach(e => {
+            ctx.globalAlpha = Math.min(1, e.life / 80) * 0.9;
+            const grd = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.size * 4);
+            grd.addColorStop(0,   'rgba(255, 240, 170, 0.95)');
+            grd.addColorStop(0.5, 'rgba(241, 196, 15, 0.35)');
+            grd.addColorStop(1,   'rgba(241, 196, 15, 0)');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.size * 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff7c0';
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+        ctx.restore();
 
         // ── Light shafts: vertical translucent gold cones + floor disc ──
         ctx.save();

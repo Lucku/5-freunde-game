@@ -192,7 +192,15 @@ class AudioManager {
         // an AudioContext before a user gesture throws in some browsers.
         this._audioCtx = null;
         this._musicFilter = null;
+        this._musicGain = null;
         this._musicNodes = new WeakMap();
+
+        // #126 — sidechain-style ducking. A GainNode sits between the music
+        // filter and destination so high-impact SFX (boss telegraphs, wave
+        // clears, level-ups) can briefly dip the music bus. Pulse-duck is
+        // self-restoring; hold-duck tracks a counter for stacking voice lines.
+        this._duckPulseEnd = 0;
+        this._duckHoldCount = 0;
 
         // #34 P8 — Web Audio buffer cache for hot SFX. cloneNode() per shot
         // is ~0.5–1ms on Chrome (HTMLAudioElement clone + decode); an
@@ -300,7 +308,11 @@ class AudioManager {
             this._musicFilter.type = 'lowpass';
             this._musicFilter.frequency.value = 22050; // wide open
             this._musicFilter.Q.value = 0.8;
-            this._musicFilter.connect(this._audioCtx.destination);
+            // #126 — ducking gain stage between filter and destination.
+            this._musicGain = this._audioCtx.createGain();
+            this._musicGain.gain.value = 1.0;
+            this._musicFilter.connect(this._musicGain);
+            this._musicGain.connect(this._audioCtx.destination);
         }
         let source;
         try {
@@ -311,15 +323,87 @@ class AudioManager {
         return source;
     }
 
-    // #167 — toggle the low-pass effect on the master music bus.
-    setPauseFilter(active) {
-        if (!this._audioCtx && !active) return; // nothing to do
-        // Ensure every music track is routed through the filter graph.
+    // #126 — force-route every currently-playing music track through the
+    // Web Audio graph so a duck applied here affects every active track.
+    // Cheap (N music tracks ≤ ~10) and idempotent — `_musicNodes` memoizes.
+    _routeActiveMusic() {
         for (const key in this.tracks) {
             if (!this.isMusic(key)) continue;
             const t = this.tracks[key];
             if (t && !t.paused) this._ensureMusicFilter(t);
         }
+        return !!this._musicGain;
+    }
+
+    // #126 — short pulse-duck for one-shot SFX. Music bus dips for
+    // `attackMs + holdMs + releaseMs`, then ramps back to unity. Overlapping
+    // pulses extend the schedule rather than fight it.
+    _duckMusicPulse(holdMs = 140, depth = 0.5) {
+        if (!this._routeActiveMusic()) return;
+        const ctx = this._audioCtx;
+        if (!ctx) return;
+        try { if (ctx.state === 'suspended') ctx.resume(); } catch (_) { /* noop */ }
+        // Hold-duck takes precedence; don't fight a voice line in progress.
+        if (this._duckHoldCount > 0) return;
+        const attack  = 0.05;
+        const hold    = Math.max(0.04, holdMs / 1000);
+        const release = 0.24;
+        const target  = Math.max(0.01, 1 - depth);
+        const g = this._musicGain.gain;
+        const now = ctx.currentTime;
+        const endsAt = now + attack + hold + release;
+        if (this._duckPulseEnd > endsAt) return; // longer pulse already scheduled
+        g.cancelScheduledValues(now);
+        g.setValueAtTime(g.value, now);
+        g.exponentialRampToValueAtTime(target, now + attack);
+        g.setValueAtTime(target, now + attack + hold);
+        g.exponentialRampToValueAtTime(1.0, endsAt);
+        this._duckPulseEnd = endsAt;
+    }
+
+    // #126 — held duck for voice lines / exclamations. Reference-counted so
+    // overlapping holds don't release early. `release` ramps back to unity.
+    _duckMusicHold(depth = 0.7) {
+        if (!this._routeActiveMusic()) return false;
+        const ctx = this._audioCtx;
+        if (!ctx) return false;
+        try { if (ctx.state === 'suspended') ctx.resume(); } catch (_) { /* noop */ }
+        this._duckHoldCount += 1;
+        if (this._duckHoldCount > 1) return true;
+        const target = Math.max(0.01, 1 - depth);
+        const g = this._musicGain.gain;
+        const now = ctx.currentTime;
+        g.cancelScheduledValues(now);
+        g.setValueAtTime(g.value, now);
+        g.exponentialRampToValueAtTime(target, now + 0.08);
+        this._duckPulseEnd = 0;
+        return true;
+    }
+
+    _releaseMusicDuck() {
+        if (this._duckHoldCount <= 0) return;
+        this._duckHoldCount -= 1;
+        if (this._duckHoldCount > 0) return;
+        if (!this._musicGain || !this._audioCtx) return;
+        const ctx = this._audioCtx;
+        const g = this._musicGain.gain;
+        const now = ctx.currentTime;
+        g.cancelScheduledValues(now);
+        g.setValueAtTime(g.value, now);
+        g.exponentialRampToValueAtTime(1.0, now + 0.28);
+    }
+
+    _shouldDuckOnSfx(key) {
+        if (!key) return false;
+        if (AudioManager.DUCK_TRIGGER_KEYS.has(key)) return true;
+        return AudioManager.DUCK_TRIGGER_PREFIX.test(key);
+    }
+
+    // #167 — toggle the low-pass effect on the master music bus.
+    setPauseFilter(active) {
+        if (!this._audioCtx && !active) return; // nothing to do
+        // Ensure every music track is routed through the filter graph.
+        this._routeActiveMusic();
         if (!this._musicFilter) return;
         try { if (this._audioCtx.state === 'suspended') this._audioCtx.resume(); } catch (_) { /* noop */ }
         const target = active ? 500 : 22050;
@@ -468,10 +552,25 @@ class AudioManager {
         this.voice = new Audio(path);
         this.voice.volume = 0.8 * this._categoryMultiplier('voice');
         this.voice.play().catch(e => console.warn(`Audio memory not found: ${path}`, e));
-        if (this.tracks.museum) this.tracks.museum.volume = 0.2;
-        this.voice.onended = () => {
-            if (this.tracks.museum) this.tracks.museum.volume = 0.5;
+        // #126 — graph-level duck when Web Audio available; HTMLAudio fallback
+        // keeps the legacy museum-volume dip for browsers without AudioContext.
+        const ducked = this._duckMusicHold(0.7);
+        let savedMuseum = null;
+        if (!ducked && this.tracks.museum) {
+            savedMuseum = this.tracks.museum.volume;
+            this.tracks.museum.volume = 0.2;
+        }
+        let _restored = false;
+        const _restore = () => {
+            if (_restored) return;
+            _restored = true;
+            if (ducked) this._releaseMusicDuck();
+            else if (savedMuseum !== null && this.tracks.museum) {
+                this.tracks.museum.volume = savedMuseum;
+            }
         };
+        this.voice.onended = _restore;
+        this.voice.onerror = _restore;
     }
 
     // Plays a situational hero exclamation (injured/failure_1/twin_event/etc.)
@@ -499,15 +598,26 @@ class AudioManager {
         audio.volume = 1.0 * this._categoryMultiplier('voice');
         this._exclamationPlaying = true;
 
-        // Duck music while the exclamation plays, restore after
+        // #126 — graph-level duck for voice lines. Falls back to legacy
+        // HTMLAudio per-track volume dip when Web Audio is unavailable.
+        const ducked = this._duckMusicHold(0.8);
         const _savedVols = {};
-        for (const key in this.tracks) {
-            if (this.isMusic(key) && !this.tracks[key].paused) {
-                _savedVols[key] = this.tracks[key].volume;
-                this.tracks[key].volume = 0.1;
+        if (!ducked) {
+            for (const key in this.tracks) {
+                if (this.isMusic(key) && !this.tracks[key].paused) {
+                    _savedVols[key] = this.tracks[key].volume;
+                    this.tracks[key].volume = 0.1;
+                }
             }
         }
+        let _restored = false;
         const _restoreMusic = () => {
+            if (_restored) return;
+            _restored = true;
+            if (ducked) {
+                this._releaseMusicDuck();
+                return;
+            }
             for (const key in _savedVols) {
                 if (this.tracks[key]) this.tracks[key].volume = _savedVols[key];
             }
@@ -607,6 +717,8 @@ class AudioManager {
             if (!this.sfxEnabled) return;
             const track = this.tracks[trackName];
             if (!track) return;
+            // #126 — duck music bus for high-impact SFX so the cue cuts through.
+            if (this._shouldDuckOnSfx(trackName)) this._duckMusicPulse();
             // #34 P8 — prefer Web Audio (cheap AudioBufferSourceNode) when the
             // buffer is decoded; fall back to cloneNode HTMLAudio for SFX not
             // in the prewarm list or while their decode is still in-flight.
@@ -699,6 +811,21 @@ class AudioManager {
         }
     }
 }
+
+// #126 — SFX keys that trigger a music-bus pulse-duck. High-impact one-shots
+// only; per-attack / per-damage SFX deliberately excluded so the music isn't
+// pumping every frame. Prefix regex catches all level_up_<hero> variants.
+AudioManager.DUCK_TRIGGER_KEYS = new Set([
+    'wave_completed',
+    'achievement_unlocked',
+    'challenge_success', 'challenge_fail',
+    'boss_makuta_teleport', 'boss_makuta_shadow_nova', 'boss_makuta_shadow_beam',
+    'boss_tank_phase2', 'boss_summoner_phase2', 'boss_summoner_shield_break',
+    'boss_summoner_spawn', 'boss_rhino_charge', 'boss_stomp',
+    'death', 'twin_event', 'weather_thunder_crack',
+    'pickup_card', 'pickup_mask',
+]);
+AudioManager.DUCK_TRIGGER_PREFIX = /^level_up(_|$)/;
 
 // All exclamation subtitle texts, keyed by hero → situation key.
 // DLC heroes can extend this via audioManager.registerExclamationTexts(hero, texts).

@@ -11,6 +11,10 @@ class DreamspaceBiome {
         this.sparks = [];
         this.pockets = [];     // {x, y, radius, blinkTimer, rotation}
         this.bgStars = [];     // precomputed at gen
+        this.constellations = []; // [{a, b}] pairs of star indices to connect
+        this.crescents  = []; // {x, y, r, tilt, hue}
+        this.nebulae    = []; // {x, y, r, hue, phase}
+        this.zzzPuffs   = []; // {x, y, vy, life, maxLife, scale}
         this.t = 0;
         this.starPulsePhase = 0;
     }
@@ -67,11 +71,82 @@ class DreamspaceBiome {
                 hue: Math.random() < 0.3 ? '#c4b5fd' : '#ffffff'
             });
         }
+
+        // Constellation line pairs — link ~36 nearby star pairs into figures
+        this.constellations = [];
+        for (let i = 0; i < 36; i++) {
+            const a = Math.floor(Math.random() * this.bgStars.length);
+            // Find closest star within a window for nicer lines
+            let bestB = -1, bestD = Infinity;
+            const sa = this.bgStars[a];
+            for (let k = 0; k < 14; k++) {
+                const b = Math.floor(Math.random() * this.bgStars.length);
+                if (b === a) continue;
+                const sb = this.bgStars[b];
+                const d = Math.hypot(sb.x - sa.x, sb.y - sa.y);
+                if (d > 30 && d < 220 && d < bestD) { bestD = d; bestB = b; }
+            }
+            if (bestB >= 0) this.constellations.push({ a, b: bestB, phase: Math.random() * Math.PI * 2 });
+        }
+
+        // Crescent moons (5–7 large decorative crescents)
+        this.crescents = [];
+        const moonCount = 5 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < moonCount; i++) {
+            let mx, my, tries = 0;
+            do {
+                mx = 240 + Math.random() * (w - 480);
+                my = 220 + Math.random() * (h - 440);
+                tries++;
+            } while (Math.hypot(mx - cx, my - cy) < 260 && tries < 10);
+            this.crescents.push({
+                x: mx, y: my,
+                r: 28 + Math.random() * 24,
+                tilt: Math.random() * Math.PI * 2,
+                hue: Math.random() < 0.5 ? '#dbcaff' : '#9c7fe0',
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+
+        // Nebula clouds — large soft color blooms
+        this.nebulae = [];
+        const nebCount = 6;
+        for (let i = 0; i < nebCount; i++) {
+            this.nebulae.push({
+                x: 200 + Math.random() * (w - 400),
+                y: 200 + Math.random() * (h - 400),
+                r: 220 + Math.random() * 160,
+                hue: ['#3a1e90', '#1a4a8a', '#5a3e9e', '#c4b5fd'][i % 4],
+                phase: Math.random() * Math.PI * 2
+            });
+        }
     }
 
     update(arena, player, enemies) {
         this.t++;
         this.starPulsePhase += 0.014;
+
+        // Occasional "Zzz" puff drifting up from a random idle area
+        const aw = arena.width, ah = arena.height;
+        if (Math.random() < 0.025) {
+            this.zzzPuffs.push({
+                x: 200 + Math.random() * (aw - 400),
+                y: 200 + Math.random() * (ah - 400),
+                vy: -0.25 - Math.random() * 0.2,
+                vx: (Math.random() - 0.5) * 0.15,
+                life: 360,
+                maxLife: 360,
+                scale: 0.7 + Math.random() * 0.6,
+                rot: (Math.random() - 0.5) * 0.5
+            });
+        }
+        for (let i = this.zzzPuffs.length - 1; i >= 0; i--) {
+            const p = this.zzzPuffs[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life--;
+            if (p.life <= 0) this.zzzPuffs.splice(i, 1);
+        }
 
         // Spark particles (2-3 per frame, slow random drift)
         if (Math.random() < 0.7) {
@@ -167,6 +242,23 @@ class DreamspaceBiome {
         }
         ctx.restore();
 
+        // Nebula clouds (soft color blooms behind stars)
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        this.nebulae.forEach(n => {
+            const pulse = 0.85 + 0.15 * Math.sin(this.starPulsePhase * 0.7 + n.phase);
+            const r = n.r * pulse;
+            const grd = ctx.createRadialGradient(n.x, n.y, 10, n.x, n.y, r);
+            grd.addColorStop(0,   n.hue + '55');
+            grd.addColorStop(0.6, n.hue + '18');
+            grd.addColorStop(1,   'rgba(10, 8, 21, 0)');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+
         // Background stars (part of bg layer so entities draw on top)
         ctx.save();
         this.bgStars.forEach(s => {
@@ -179,6 +271,55 @@ class DreamspaceBiome {
             ctx.fill();
         });
         ctx.globalAlpha = 1;
+        ctx.restore();
+
+        // Constellation lines connecting nearby star pairs
+        ctx.save();
+        ctx.strokeStyle = 'rgba(196, 181, 253, 0.18)';
+        ctx.lineWidth = 0.8;
+        this.constellations.forEach(c => {
+            const sa = this.bgStars[c.a];
+            const sb = this.bgStars[c.b];
+            if (!sa || !sb) return;
+            const flicker = 0.5 + 0.5 * Math.sin(this.starPulsePhase * 0.5 + c.phase);
+            ctx.globalAlpha = 0.10 + flicker * 0.18;
+            ctx.beginPath();
+            ctx.moveTo(sa.x, sa.y);
+            ctx.lineTo(sb.x, sb.y);
+            ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        // Crescent moons (decorative, hover-glow)
+        ctx.save();
+        this.crescents.forEach(m => {
+            const pulse = 0.85 + 0.15 * Math.sin(this.starPulsePhase + m.phase);
+            ctx.save();
+            ctx.translate(m.x, m.y);
+            ctx.rotate(m.tilt);
+            // Soft outer halo
+            const halo = ctx.createRadialGradient(0, 0, 4, 0, 0, m.r * 2.2);
+            halo.addColorStop(0,   m.hue + '60');
+            halo.addColorStop(0.5, m.hue + '20');
+            halo.addColorStop(1,   'rgba(10, 8, 21, 0)');
+            ctx.fillStyle = halo;
+            ctx.beginPath();
+            ctx.arc(0, 0, m.r * 2.2, 0, Math.PI * 2);
+            ctx.fill();
+            // Crescent — full disc then offset bg-colored disc cuts the bite
+            ctx.fillStyle = m.hue;
+            ctx.globalAlpha = 0.85 * pulse;
+            ctx.beginPath();
+            ctx.arc(0, 0, m.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#0a0815';
+            ctx.beginPath();
+            ctx.arc(m.r * 0.42, -m.r * 0.05, m.r * 0.95, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        });
         ctx.restore();
 
         // Player indigo radial glow (translucent — part of bg layer)
@@ -196,6 +337,27 @@ class DreamspaceBiome {
 
     draw(ctx, arena) {
         const aw = arena.width, ah = arena.height;
+
+        // Drifting "Zzz" sleep puffs (indigo letters)
+        ctx.save();
+        this.zzzPuffs.forEach(p => {
+            const a = Math.min(1, p.life / 90);
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot * (1 - a));
+            ctx.scale(p.scale, p.scale);
+            ctx.globalAlpha = a * 0.7;
+            ctx.fillStyle = '#c4b5fd';
+            ctx.font = 'bold 22px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = '#5a3e9e';
+            ctx.shadowBlur = 8;
+            ctx.fillText('Z', 0, 0);
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        });
+        ctx.restore();
 
         // Dream Pockets: rotating swirl rings
         ctx.save();

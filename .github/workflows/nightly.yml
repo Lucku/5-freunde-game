@@ -1,9 +1,10 @@
 name: Nightly Headless Harness
 
 on:
-  schedule:
-    # 04:17 UTC daily — offset from the hour to avoid GitHub Actions cron pile-up.
-    - cron: "17 4 * * *"
+  # Nightly cron disabled for now — re-enable by uncommenting the schedule block.
+  # schedule:
+  #   # 04:17 UTC daily — offset from the hour to avoid GitHub Actions cron pile-up.
+  #   - cron: "17 4 * * *"
   workflow_dispatch:
     inputs:
       runs:
