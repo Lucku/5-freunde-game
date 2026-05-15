@@ -1457,6 +1457,9 @@ class Museum {
         if (this.player.type === 'mirror') color = '#1a5276'; // Marine Blue
         if (this.player.type === 'smoke') color = '#5a5a6e';  // Slate Gray
         if (this.player.type === 'psycho') color = '#1abc9c'; // Teal
+        if (this.player.type === 'light') color = '#f1c40f';  // Radiant Gold
+        if (this.player.type === 'thorn') color = '#8b1a1a';  // Vine-Red
+        if (this.player.type === 'dream') color = '#5a3e9e';  // Twilight Indigo
 
         drawHeroSprite(ctx, color, 15);
         ctx.restore();

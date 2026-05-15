@@ -24,6 +24,7 @@ const BASE_BIOMES = ['fire', 'water', 'ice', 'plant', 'metal'];
 const DLC_BIOMES  = [
     'earth', 'lightning', 'air', 'gravity', 'void', 'spirit',
     'chance', 'time', 'love', 'psycho', 'mirror', 'smoke',
+    'light', 'thorn', 'dream',
 ];
 
 export function enemiesNeededForWave(wave) {

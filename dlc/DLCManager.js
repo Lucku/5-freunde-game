@@ -71,6 +71,12 @@ class DLCManager {
                 desc: "A character pack — three deception-themed heroes (Psycho, Mirror, Smoke) with their own biomes. No story mode.",
                 icon: "🎭",
                 heroes: ['psycho', 'mirror', 'smoke']
+            },
+            'radiance_of_ruin': {
+                title: "Radiance of Ruin",
+                desc: "A character pack — three resource-driven heroes (Light, Thorn, Dream) with their own biomes. No story mode.",
+                icon: "👁️",
+                heroes: ['light', 'thorn', 'dream']
             }
         };
         // #29 P3 — memoize in-flight loads so concurrent ensureDLCLoaded calls

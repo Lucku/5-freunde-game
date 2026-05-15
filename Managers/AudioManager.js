@@ -77,6 +77,9 @@ class AudioManager {
             level_up_psycho:       new Audio('audio/sounds/level_up_psycho.wav'),
             level_up_mirror:       new Audio('audio/sounds/level_up_mirror.wav'),
             level_up_smoke:        new Audio('audio/sounds/level_up_smoke.wav'),
+            level_up_light:        new Audio('audio/sounds/level_up_light.wav'),
+            level_up_thorn:        new Audio('audio/sounds/level_up_thorn.wav'),
+            level_up_dream:        new Audio('audio/sounds/level_up_dream.wav'),
 
             // Weather ambience (looped)
             weather_blizzard:     new Audio('audio/sounds/weather_blizzard.wav'),
@@ -105,7 +108,7 @@ class AudioManager {
 
         // SFX config
         this.tracks.level_up.volume = 0.8;
-        ['fire','water','ice','plant','metal','black','air','void','spirit','chance','sound','poison','gravity','earth','lightning','time','love','green_goblin','makuta','psycho','mirror','smoke'].forEach(h => {
+        ['fire','water','ice','plant','metal','black','air','void','spirit','chance','sound','poison','gravity','earth','lightning','time','love','green_goblin','makuta','psycho','mirror','smoke','light','thorn','dream'].forEach(h => {
             if (this.tracks[`level_up_${h}`]) this.tracks[`level_up_${h}`].volume = 0.85;
         });
         this.tracks.pickup_card.volume    = 0.5;

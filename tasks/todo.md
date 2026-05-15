@@ -654,3 +654,34 @@ Goal: only if profiling at end of #P1–#P9 shows main-thread CPU still bound.
 ## Tracking
 
 Each session commits separately with `refactor: perf #N — <summary>` and updates `CHANGELOG.md` under `### Changed` (perf).
+
+---
+
+# DLC: Radiance of Ruin — implementation (2026-05-15)
+
+Implemented the second/final character-pack DLC per `tasks/dlc-radiance-of-ruin.md`. Three heroes (light/thorn/dream) with full HERO_LOGIC, three biomes registered to `BIOME_LOGIC`, altar trees + 13 cross-hero convergences, 10 achievements, SFX + voice-line exclamation paths wired.
+
+## Files added
+- `dlc/radiance_of_ruin/LightHero.js` — Mask Integrity gauge, Revelation special (400 px reveal sphere, +30% dmg vulnerability via lazy `Enemy.prototype.takeDamage` wrap), The Unveiling ult (arena stun + ally heal + +50% dmg → forced 15 s Civilian Form), Aurum Burn passive trail (8 DPS), Civilian Form 8 s lockout, run-lock on Civilian death. Wave-start Integrity refill via `window.eventBus.on('wave:advance')`.
+- `dlc/radiance_of_ruin/ThornHero.js` — Blood Bond HP-cost attacks (floor 1), 4 DPS Bleed stacks (max 5, +2 from upgrade), Crimson Garden (8 s Blood Rose pulsing in 250 px, 50% heal of pulse damage), The Reckoning (drop to 1 HP, erupt `hpSpent × 1.5` arena-wide for 5 s, +10 HP per kill, full HP if survives). Lazy `Enemy.prototype.takeDamage` wrap to apply Bleed via projectile `_thornBleed` tag.
+- `dlc/radiance_of_ruin/DreamHero.js` — Lucidity gauge (+2/sec passive, +1 melee, +0.5 ranged, −5 on damage), Drowsy melee debuff (1 stack/hit, 30% slow 2 s, max 5), Dreamscape pocket (300 px, 6 s, −50% speed + +25% dmg taken to enemies, +5 HP/s ally regen, Drowsy consume = instant burst), The Long Sleep ult (8 s arena dream + 5 s execute window on <25% HP enemies), Lucid Step phase save (once per wave, 3 s untargetable, 5 HP/s regen). Wave-start reset of Lucid Step via eventBus.
+- `dlc/radiance_of_ruin/ReliquaryBiome.js` — Vaulted museum hall, 3-4 Light Shafts heal 1 HP/s (Light heroes +2 Integrity/s), shaft pulse every 12 s, gold dust particles, marble pedestals with vein striations.
+- `dlc/radiance_of_ruin/CrimsonGreenhouseBiome.js` — 3-5 Bloom Patches (5 DPS Bleed-style), Mother Rose decorative, petal particles, hedge clusters + terracotta planters with bloom caps, red overlay during Reckoning.
+- `dlc/radiance_of_ruin/DreamspaceBiome.js` — 2-4 Dream Pockets (20% teleport chance on enter, blink every ~6 s), 800 precomputed background stars, floating-island obstacles with hover bob + drop shadow + internal star points.
+- `dlc/radiance_of_ruin/index.js` — Manifest: `load()`, `injectHero` (registers via own files), `injectBiome`, `injectAltar` (3 trees + 13 `cv_ror_*` convergences + trio mutation), `injectAchievements` (10 entries), `audioManager.registerSounds` (18 SFX) + `registerExclamationPath` + `registerExclamationTexts` for all three heroes.
+
+## Wiring touched
+- `dlc/DLCManager.js` — added `radiance_of_ruin` to `availableDLCs` registry.
+- `Wave.js` — added `light`, `thorn`, `dream` to `DLC_BIOMES` so biomes roll in standard non-story runs.
+- `Managers/AudioManager.js` — added `light`/`thorn`/`dream` to the level-up hero list (sets `level_up_X.volume = 0.85`) and added three `new Audio('audio/sounds/level_up_light|thorn|dream.wav')` track entries.
+- `Museum.js` — added hero color mappings for `light` (#f1c40f), `thorn` (#8b1a1a), `dream` (#5a3e9e).
+- `CHANGELOG.md` — entry under `[Unreleased] > Added`.
+
+## Skipped / out of scope
+- Binary assets (PNG portraits, WAV/MP3 audio). Paths are registered; missing files fall through gracefully (Audio onerror is silent, image loaders fall back to color).
+- Achievement counters that lack tracking (`light_max_wave`, `thorn_max_wave`, `dream_max_wave`, `*_biome_waves`, `ror_pack_complete`). Same pattern as Disciples of Deception — declared but not auto-incremented; precedent matches existing DLC behavior.
+- No version bump — `APP_VERSION` and `package.json` remain at `1.2.0-dev` (still in pre-release cycle, only `[Unreleased]` section updated).
+
+## Verification
+- Manual code review against the plan in `tasks/dlc-radiance-of-ruin.md`. All mechanics from the resolved decisions table implemented.
+- No automated tests run for this session. Recommended: enable DLC in-game, pick each hero, confirm SFX (will fall through silently without WAV files but no JS errors), confirm biome roll, confirm altar tree shows convergences when cross-hero prestige reaches 5.
