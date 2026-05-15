@@ -6,6 +6,8 @@ class DreamspaceBiome {
         this.name = "The Dreamspace";
         this.color = "#0a0815";
         this.gridColor = "#5a3e9e44";
+        this.ownsObstacles = true;
+        this.noTraps       = true; // Dreamspace — biome IS the disruption (Dream Pockets).
         this.sparks = [];
         this.pockets = [];     // {x, y, radius, blinkTimer, rotation}
         this.bgStars = [];     // precomputed at gen

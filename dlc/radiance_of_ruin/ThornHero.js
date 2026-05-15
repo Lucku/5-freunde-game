@@ -146,12 +146,16 @@ window.HERO_LOGIC['thorn'] = {
         };
         player._thornApplyBleed = _bleed;
 
-        // Hook shoot — Volley costs 3 HP (3 thorns each apply Bleed on hit, low dmg)
+        // Hook shoot — Volley costs 3 HP per fired shot (NOT per call). origShoot
+        // gates on rangeCooldown; if it returns early no HP is deducted.
         const origShoot = player.shoot.bind(player);
         player.shoot = function () {
-            const cost = _selfCost(3);
-            // Drop to 1 floor, never below
-            if (player.hp > 1) player.hp = Math.max(1, player.hp - cost);
+            const initialLen = typeof projectiles !== 'undefined' ? projectiles.length : 0;
+            origShoot();
+            const finalLen = typeof projectiles !== 'undefined' ? projectiles.length : 0;
+            const fired = finalLen > initialLen;
+            if (!fired) return;
+
             if (typeof audioManager !== 'undefined') {
                 const now = Date.now();
                 if (!player._lastThornAttackSfx || now - player._lastThornAttackSfx >= 200) {
@@ -159,22 +163,27 @@ window.HERO_LOGIC['thorn'] = {
                     player._lastThornAttackSfx = now;
                 }
             }
-            const initialLen = typeof projectiles !== 'undefined' ? projectiles.length : 0;
-            origShoot();
-            const finalLen = typeof projectiles !== 'undefined' ? projectiles.length : 0;
+            const cost = _selfCost(3);
+            if (player.hp > 1) player.hp = Math.max(1, player.hp - cost);
             // Mark thorn projectiles so collision can apply Bleed
             for (let i = initialLen; i < finalLen; i++) {
                 if (projectiles[i]) projectiles[i]._thornBleed = true;
             }
         };
 
-        // Hook melee — Briar Lash costs 3 HP, applies Bleed
+        // Hook melee — Briar Lash costs 3 HP only when swing actually fires
+        // (origMelee gates on meleeCooldown).
         const origMelee = player.melee ? player.melee.bind(player) : null;
         if (origMelee) {
             player.melee = function (...args) {
+                const beforeCd = player.meleeCooldown;
+                origMelee(...args);
+                const fired = player.meleeCooldown > beforeCd;
+                if (!fired) return;
+
+                if (typeof audioManager !== 'undefined') audioManager.play('melee_thorn');
                 const cost = _selfCost(3);
                 if (player.hp > 1) player.hp = Math.max(1, player.hp - cost);
-                if (typeof audioManager !== 'undefined') audioManager.play('melee_thorn');
                 // Apply Bleed to nearby enemies on swing
                 const _w = window._world ?? window;
                 if (_w.enemies) {
@@ -185,7 +194,6 @@ window.HERO_LOGIC['thorn'] = {
                         }
                     });
                 }
-                origMelee(...args);
             };
         }
 
@@ -200,10 +208,11 @@ window.HERO_LOGIC['thorn'] = {
         };
 
         // Hook onKill — Lifebloom: base + per-stack heal
+        // Guard for kills where the caller passed no enemy reference.
         const origOnKill = player.onKill ? player.onKill.bind(player) : () => {};
         player.onKill = function (enemy) {
             origOnKill(enemy);
-            const stacks = enemy._thornBleedStacks || 0;
+            const stacks = (enemy && enemy._thornBleedStacks) || 0;
             const heal = (player.lifebloomBase || 5) + stacks * (player.lifebloomPerStack || 3);
             player.hp = Math.min(player.maxHp || player.hp + heal, player.hp + heal);
             if (typeof audioManager !== 'undefined' && stacks > 0) audioManager.play('lifebloom_heal');

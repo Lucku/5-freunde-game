@@ -151,31 +151,43 @@ window.HERO_LOGIC['light'] = {
         player.damageMultiplier    = 1.0;
         player.speedMultiplier     = 1.0;
 
-        // Hook shoot: Bolt costs 2 Integrity, locked in Civilian Form
+        // Hook shoot: Bolt costs 2 Integrity ONLY when a shot actually fires.
+        // origShoot returns early if rangeCooldown > 0; deducting before that
+        // would drain Integrity on every call-attempt (input loop) and kill
+        // the Mask in < 1s of held-fire.
         const origShoot = player.shoot.bind(player);
         player.shoot = function () {
             if (player.maskLost && player.type === 'light') return; // run-locked
+
             if (player.civilianForm) {
-                // Civilian basic shot: no integrity cost, reduced damage
-                if (typeof audioManager !== 'undefined') {
+                // Civilian basic shot: no integrity cost, reduced damage. Still
+                // gated by rangeCooldown — only play SFX on actual fire.
+                const initialLen = typeof projectiles !== 'undefined' ? projectiles.length : 0;
+                const restoreDmg = player.damageMultiplier;
+                player.damageMultiplier = (restoreDmg || 1) * 0.4;
+                origShoot();
+                player.damageMultiplier = restoreDmg;
+                const finalLen = typeof projectiles !== 'undefined' ? projectiles.length : 0;
+                if (finalLen > initialLen && typeof audioManager !== 'undefined') {
                     const now = Date.now();
                     if (!player._lastLightAttackSfx || now - player._lastLightAttackSfx >= 250) {
                         audioManager.play('attack_light');
                         player._lastLightAttackSfx = now;
                     }
                 }
-                const restoreDmg = player.damageMultiplier;
-                player.damageMultiplier = (restoreDmg || 1) * 0.4;
-                origShoot();
-                player.damageMultiplier = restoreDmg;
                 return;
             }
+
+            // Pre-check: if Integrity already too low to cover one shot, defer
+            // to origShoot (it'll cooldown-gate naturally) and only collapse on
+            // actual fire below.
             const cost = 2 * (player.integrityCostMult || 1);
-            if (player.integrity < cost) {
-                _self._enterCivilianForm(player);
-                return;
-            }
-            player.integrity -= cost;
+            const initialLen = typeof projectiles !== 'undefined' ? projectiles.length : 0;
+            origShoot();
+            const finalLen = typeof projectiles !== 'undefined' ? projectiles.length : 0;
+            const fired = finalLen > initialLen;
+            if (!fired) return;
+
             if (typeof audioManager !== 'undefined') {
                 const now = Date.now();
                 if (!player._lastLightAttackSfx || now - player._lastLightAttackSfx >= 200) {
@@ -183,23 +195,34 @@ window.HERO_LOGIC['light'] = {
                     player._lastLightAttackSfx = now;
                 }
             }
-            origShoot();
+
+            if (player.integrity < cost) {
+                player.integrity = 0;
+                _self._enterCivilianForm(player);
+            } else {
+                player.integrity -= cost;
+            }
             if (typeof player.setupSpecial === 'function') player.setupSpecial();
         };
 
-        // Hook melee — Solar Lance costs 5 Integrity
+        // Hook melee — Solar Lance costs 5 Integrity ONLY when swing fires.
         const origMelee = player.melee ? player.melee.bind(player) : null;
         if (origMelee) {
             player.melee = function (...args) {
-                if (player.civilianForm) return; // disabled
+                if (player.civilianForm) return; // disabled in Civilian Form
+                const beforeCd = player.meleeCooldown;
+                origMelee(...args);
+                const fired = player.meleeCooldown > beforeCd;
+                if (!fired) return;
+
+                if (typeof audioManager !== 'undefined') audioManager.play('melee_light');
                 const cost = 5 * (player.integrityCostMult || 1);
                 if (player.integrity < cost) {
+                    player.integrity = 0;
                     _self._enterCivilianForm(player);
-                    return;
+                } else {
+                    player.integrity -= cost;
                 }
-                player.integrity -= cost;
-                if (typeof audioManager !== 'undefined') audioManager.play('melee_light');
-                origMelee(...args);
                 if (typeof player.setupSpecial === 'function') player.setupSpecial();
             };
         }
@@ -215,6 +238,8 @@ window.HERO_LOGIC['light'] = {
         };
 
         // Hook onKill — Integrity restore + counter
+        // NOTE: `enemy` may be undefined (some base-game kill paths invoke
+        // onKill() without passing the enemy). Guard before reading props.
         const origOnKill = player.onKill ? player.onKill.bind(player) : () => {};
         player.onKill = function (enemy) {
             origOnKill(enemy);
@@ -223,7 +248,7 @@ window.HERO_LOGIC['light'] = {
                 if (typeof player.setupSpecial === 'function') player.setupSpecial();
             }
             // Revelation kill counter (for achievement)
-            if (player.revelationActive && enemy._lightRevealed && typeof saveData !== 'undefined' && saveData.global) {
+            if (enemy && player.revelationActive && enemy._lightRevealed && typeof saveData !== 'undefined' && saveData.global) {
                 saveData.global.light_reveal_kills = (saveData.global.light_reveal_kills || 0) + 1;
             }
         };

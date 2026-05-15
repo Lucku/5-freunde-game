@@ -6,6 +6,8 @@ class CrimsonGreenhouseBiome {
         this.name = "The Crimson Greenhouse";
         this.color = "#1a0808";
         this.gridColor = "#8b1a1a33";
+        this.ownsObstacles = true;
+        this.noTraps       = true; // Overgrowth — Bloom Patches are the hazard.
         this.particles = [];   // petals
         this.blooms = [];      // {x, y, radius, baseRadius, pulseTimer}
         this.motherRose = null;
@@ -116,10 +118,146 @@ class CrimsonGreenhouseBiome {
 
     drawBackground(ctx, arena) {
         const aw = arena.width, ah = arena.height;
+        const t = this.t;
 
         ctx.save();
+
+        // ── Base: near-black blood-red ──────────────────────────────────────
         ctx.fillStyle = '#1a0808';
         ctx.fillRect(0, 0, aw, ah);
+
+        // ── Cracked greenhouse glass roof (top band) ────────────────────────
+        // Diamond/triangular glass panes with thick lead frames + visible cracks.
+        ctx.save();
+        const panelH = 140;
+        const panelW = 180;
+        // Sky tint through glass (slight crimson)
+        const skyGrd = ctx.createLinearGradient(0, 0, 0, panelH);
+        skyGrd.addColorStop(0, 'rgba(60, 18, 18, 0.55)');
+        skyGrd.addColorStop(1, 'rgba(26, 8, 8, 0)');
+        ctx.fillStyle = skyGrd;
+        ctx.fillRect(0, 0, aw, panelH);
+        // Lead frame lattice
+        ctx.strokeStyle = 'rgba(80, 50, 30, 0.55)';
+        ctx.lineWidth = 2;
+        for (let x = 0; x <= aw; x += panelW) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, panelH); ctx.stroke();
+            // Diagonals on each pane
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x + panelW / 2, panelH * 0.5);
+            ctx.lineTo(x + panelW, 0);
+            ctx.stroke();
+        }
+        ctx.beginPath(); ctx.moveTo(0, panelH * 0.5); ctx.lineTo(aw, panelH * 0.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, panelH); ctx.lineTo(aw, panelH); ctx.stroke();
+
+        // Random crack lines through 3-4 panes
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.lineWidth = 1.2;
+        const crackCount = 6;
+        for (let i = 0; i < crackCount; i++) {
+            const seed = i * 13.37;
+            const sx = (Math.sin(seed) * 0.5 + 0.5) * aw;
+            const sy = (Math.sin(seed * 1.3) * 0.5 + 0.5) * panelH;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            let cx = sx, cy = sy;
+            for (let j = 0; j < 4; j++) {
+                cx += (Math.sin(seed + j * 7.3) * 0.5 + 0.5) * 60 - 30;
+                cy += (Math.sin(seed + j * 11.7) * 0.5 + 0.5) * 40 - 20;
+                ctx.lineTo(cx, cy);
+            }
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // ── Tangled vine silhouettes growing from all four edges ────────────
+        ctx.save();
+        ctx.strokeStyle = 'rgba(30, 70, 25, 0.55)';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        const vineCount = 14;
+        for (let i = 0; i < vineCount; i++) {
+            const seed = i * 17.91;
+            const edge = i % 4; // 0:top 1:right 2:bottom 3:left
+            let sx, sy, ex, ey;
+            const span = 250 + (Math.sin(seed) * 0.5 + 0.5) * 150;
+            if (edge === 0)      { sx = (i / vineCount) * aw; sy = 0; ex = sx + Math.sin(seed) * 80; ey = sy + span; }
+            else if (edge === 1) { sx = aw; sy = ((i + 1) / vineCount) * ah; ex = sx - span; ey = sy + Math.sin(seed) * 80; }
+            else if (edge === 2) { sx = (i / vineCount) * aw; sy = ah; ex = sx + Math.sin(seed) * 80; ey = sy - span; }
+            else                 { sx = 0; sy = ((i + 1) / vineCount) * ah; ex = sx + span; ey = sy + Math.sin(seed) * 80; }
+            const midX = (sx + ex) / 2 + Math.sin(seed * 3.1) * 60;
+            const midY = (sy + ey) / 2 + Math.cos(seed * 2.7) * 60;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.quadraticCurveTo(midX, midY, ex, ey);
+            ctx.stroke();
+            // Small thorn nubs along the vine
+            for (let n = 0.3; n < 1; n += 0.25) {
+                const nx = sx + (ex - sx) * n + Math.sin(seed + n * 5) * 6;
+                const ny = sy + (ey - sy) * n + Math.cos(seed + n * 5) * 6;
+                ctx.fillStyle = 'rgba(20, 50, 18, 0.7)';
+                ctx.beginPath(); ctx.arc(nx, ny, 3, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+        ctx.restore();
+
+        // ── Pulsing red veins crisscrossing arena floor ─────────────────────
+        ctx.save();
+        const veinPulse = 0.45 + 0.25 * Math.sin(t * 0.025);
+        ctx.strokeStyle = `rgba(180, 30, 30, ${veinPulse * 0.5})`;
+        ctx.shadowColor = '#c0392b';
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = 2;
+        const veinSeeds = [0.12, 0.41, 0.67, 0.83];
+        veinSeeds.forEach((s, idx) => {
+            const startX = Math.sin(s * 31.7) * aw * 0.4 + aw * 0.5;
+            const startY = idx % 2 === 0 ? 200 : ah - 200;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            let x = startX, y = startY;
+            for (let step = 0; step < 8; step++) {
+                x += Math.sin(s * 7 + step * 1.7) * 180;
+                y += (startY < ah / 2 ? 1 : -1) * (80 + Math.sin(s * 4 + step) * 50);
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        });
+        ctx.shadowBlur = 0;
+        ctx.restore();
+
+        // ── Pooling blood/sap splotches on floor ────────────────────────────
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        const pools = [
+            { x: aw * 0.22, y: ah * 0.40, r: 70 },
+            { x: aw * 0.75, y: ah * 0.30, r: 50 },
+            { x: aw * 0.35, y: ah * 0.75, r: 85 },
+            { x: aw * 0.62, y: ah * 0.62, r: 60 },
+            { x: aw * 0.48, y: ah * 0.18, r: 45 }
+        ];
+        pools.forEach(p => {
+            const grd = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, p.r);
+            grd.addColorStop(0,   'rgba(70, 6, 6, 0.85)');
+            grd.addColorStop(0.5, 'rgba(40, 3, 3, 0.55)');
+            grd.addColorStop(1,   'rgba(20, 0, 0, 0)');
+            ctx.fillStyle = grd;
+            // Irregular blotch shape
+            ctx.beginPath();
+            for (let a = 0; a <= Math.PI * 2; a += Math.PI / 8) {
+                const rad = p.r * (0.75 + Math.sin(a * 3 + p.x * 0.01) * 0.25);
+                const px = p.x + Math.cos(a) * rad;
+                const py = p.y + Math.sin(a) * rad;
+                if (a === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+        });
+        ctx.restore();
+
+        // ── Player-centered crimson radial glow ─────────────────────────────
         if (window.player) {
             const grd = ctx.createRadialGradient(window.player.x, window.player.y, 50, window.player.x, window.player.y, 600);
             grd.addColorStop(0,   'rgba(139, 26, 26, 0.22)');

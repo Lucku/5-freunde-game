@@ -160,8 +160,10 @@
             <div id="chaos-challenge-hud"
                 style="display:none; color: #ff5e5e; font-weight:bold; margin-top:5px; font-size: 14px; text-shadow: 0 0 5px red;">
             </div>
-            <div id="combo-display">COMBO x0</div>
         </div>
+        <!-- #169 — Combo display lives outside the top-left HUD so it can be
+             repositioned independently and not overlap the minimap. -->
+        <div id="combo-display" data-hud-id="combo">COMBO x0</div>
         <!-- Online player name bar — shown only in online co-op -->
         <div id="online-name-bar" style="display:none;">
             <span id="online-name-p1" class="online-name online-name-host"></span>

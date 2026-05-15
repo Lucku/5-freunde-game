@@ -130,9 +130,15 @@ window.HERO_LOGIC['dream'] = {
         player.damageMultiplier = 1.0;
         player.speedMultiplier  = 1.0;
 
-        // Hook shoot — +0.5 Lucidity on launch (assume hit-on-fire approximation)
+        // Hook shoot — +0.5 Lucidity ONLY when a shot actually fires.
         const origShoot = player.shoot.bind(player);
         player.shoot = function () {
+            const initialLen = typeof projectiles !== 'undefined' ? projectiles.length : 0;
+            origShoot();
+            const finalLen = typeof projectiles !== 'undefined' ? projectiles.length : 0;
+            const fired = finalLen > initialLen;
+            if (!fired) return;
+
             if (typeof audioManager !== 'undefined') {
                 const now = Date.now();
                 if (!player._lastDreamAttackSfx || now - player._lastDreamAttackSfx >= 200) {
@@ -140,17 +146,19 @@ window.HERO_LOGIC['dream'] = {
                     player._lastDreamAttackSfx = now;
                 }
             }
-            origShoot();
-            if (!player.civilianForm) {
-                player.lucidity = Math.min(player.maxLucidity, player.lucidity + 0.5);
-                if (typeof player.setupSpecial === 'function') player.setupSpecial();
-            }
+            player.lucidity = Math.min(player.maxLucidity, player.lucidity + 0.5);
+            if (typeof player.setupSpecial === 'function') player.setupSpecial();
         };
 
-        // Hook melee — Twilight Edge: apply 1 Drowsy stack per hit, +1 Lucidity
+        // Hook melee — Twilight Edge: apply 1 Drowsy stack per hit on actual swing.
         const origMelee = player.melee ? player.melee.bind(player) : null;
         if (origMelee) {
             player.melee = function (...args) {
+                const beforeCd = player.meleeCooldown;
+                origMelee(...args);
+                const fired = player.meleeCooldown > beforeCd;
+                if (!fired) return;
+
                 if (typeof audioManager !== 'undefined') audioManager.play('melee_dream');
                 const _w = window._world ?? window;
                 if (_w.enemies) {
@@ -163,7 +171,6 @@ window.HERO_LOGIC['dream'] = {
                         }
                     });
                 }
-                origMelee(...args);
                 if (typeof player.setupSpecial === 'function') player.setupSpecial();
             };
         }

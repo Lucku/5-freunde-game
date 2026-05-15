@@ -6,6 +6,8 @@ class ReliquaryBiome {
         this.name = "The Reliquary";
         this.color = "#1a1308";
         this.gridColor = "#f1c40f33";
+        this.ownsObstacles = true; // Skip Arena's default layout — biome places its own.
+        this.noTraps       = true; // Sacral hall — no mechanical traps.
         this.particles = [];
         this.shafts = [];      // {x, y, radius, brightness, baseY, height}
         this.pulseTimer = 0;
@@ -125,16 +127,123 @@ class ReliquaryBiome {
 
     drawBackground(ctx, arena) {
         const aw = arena.width, ah = arena.height;
+        const t = this.t;
 
-        // Opaque bg fill (called before entities, so entities draw on top)
         ctx.save();
+
+        // ── Base fill: deep amber-black, lerping to warm-white during Unveiling ──
         const r = Math.floor(0x1a + (0xff - 0x1a) * this.unveilTint);
         const g = Math.floor(0x13 + (0xf8 - 0x13) * this.unveilTint);
         const b = Math.floor(0x08 + (0xc8 - 0x08) * this.unveilTint);
         ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
         ctx.fillRect(0, 0, aw, ah);
 
-        // Player-centered gold radial glow (translucent, part of bg layer)
+        // ── Marble floor tile grid — large 300px squares with thin gold seams ──
+        ctx.save();
+        ctx.globalAlpha = 0.18;
+        ctx.strokeStyle = '#8a6a1a';
+        ctx.lineWidth = 1.5;
+        const tile = 300;
+        for (let x = 0; x <= aw; x += tile) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ah); ctx.stroke();
+        }
+        for (let y = 0; y <= ah; y += tile) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(aw, y); ctx.stroke();
+        }
+        // Diamond gold inlay at every other tile intersection
+        ctx.globalAlpha = 0.30;
+        ctx.fillStyle = '#d4af37';
+        for (let x = tile; x < aw; x += tile * 2) {
+            for (let y = tile; y < ah; y += tile * 2) {
+                ctx.beginPath();
+                ctx.moveTo(x, y - 6); ctx.lineTo(x + 6, y);
+                ctx.lineTo(x, y + 6); ctx.lineTo(x - 6, y);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+        ctx.restore();
+
+        // ── Vaulted cathedral arches along top edge ──────────────────────────
+        ctx.save();
+        const archCount = 6;
+        const archW = aw / archCount;
+        const archH = 160;
+        ctx.fillStyle = 'rgba(20, 14, 6, 0.65)';
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.35)';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < archCount; i++) {
+            const cx = i * archW + archW / 2;
+            ctx.beginPath();
+            ctx.moveTo(i * archW, 0);
+            ctx.lineTo(i * archW, archH * 0.4);
+            ctx.quadraticCurveTo(cx, archH * 1.4, (i + 1) * archW, archH * 0.4);
+            ctx.lineTo((i + 1) * archW, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            // Stained-glass center medallion
+            ctx.fillStyle = 'rgba(241, 196, 15, 0.18)';
+            ctx.beginPath();
+            ctx.arc(cx, archH * 0.55, 22, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(20, 14, 6, 0.65)';
+        }
+        // Mirror arches along bottom edge (inverted)
+        for (let i = 0; i < archCount; i++) {
+            const cx = i * archW + archW / 2;
+            ctx.beginPath();
+            ctx.moveTo(i * archW, ah);
+            ctx.lineTo(i * archW, ah - archH * 0.4);
+            ctx.quadraticCurveTo(cx, ah - archH * 1.4, (i + 1) * archW, ah - archH * 0.4);
+            ctx.lineTo((i + 1) * archW, ah);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // ── Streaming god-rays from arches ───────────────────────────────────
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < archCount; i++) {
+            const cx = i * archW + archW / 2;
+            const sway = Math.sin(t * 0.005 + i * 0.7) * 30;
+            const grd = ctx.createLinearGradient(cx + sway, 0, cx + sway * 0.5, ah * 0.6);
+            grd.addColorStop(0,   'rgba(255, 235, 150, 0.10)');
+            grd.addColorStop(0.5, 'rgba(241, 196, 15, 0.04)');
+            grd.addColorStop(1,   'rgba(241, 196, 15, 0)');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.moveTo(cx + sway - 40, archH * 0.6);
+            ctx.lineTo(cx + sway + 40, archH * 0.6);
+            ctx.lineTo(cx + sway * 0.5 + 180, ah * 0.7);
+            ctx.lineTo(cx + sway * 0.5 - 180, ah * 0.7);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // ── Stained-glass color puddles on floor (orange/red/blue) ───────────
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        const puddles = [
+            { x: aw * 0.18, y: ah * 0.30, r: 90, hue: '#e67e22' },
+            { x: aw * 0.78, y: ah * 0.32, r: 75, hue: '#9b1c1c' },
+            { x: aw * 0.30, y: ah * 0.72, r: 80, hue: '#2c5d9b' },
+            { x: aw * 0.65, y: ah * 0.78, r: 95, hue: '#a8741e' },
+            { x: aw * 0.50, y: ah * 0.45, r: 110, hue: '#d4af37' }
+        ];
+        puddles.forEach(p => {
+            const grd = ctx.createRadialGradient(p.x, p.y, 5, p.x, p.y, p.r);
+            grd.addColorStop(0, p.hue);
+            grd.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = grd;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.restore();
+
+        // ── Player-centered gold radial glow ─────────────────────────────────
         if (window.player) {
             const grd = ctx.createRadialGradient(window.player.x, window.player.y, 50, window.player.x, window.player.y, 600);
             grd.addColorStop(0,   'rgba(241, 196, 15, 0.18)');

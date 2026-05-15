@@ -373,6 +373,178 @@ class Projectile {
             ctx.setLineDash([]);
             ctx.restore();
 
+        } else if (this.type === 'light') {
+            // SUN-MOTE: small homing gold sphere with bright halo + comet trail
+            const t = NOW;
+            const r = this.radius;
+            const pulse = 0.85 + 0.15 * Math.sin(t * 0.018);
+
+            ctx.rotate(angle);
+
+            // Comet trail (behind direction of travel)
+            ctx.globalCompositeOperation = 'lighter';
+            for (let i = 1; i <= 4; i++) {
+                const tx = -r * 0.9 * i;
+                const tr = r * (0.85 - i * 0.16);
+                const ta = 0.45 - i * 0.10;
+                if (tr <= 0 || ta <= 0) break;
+                const trailGrd = cachedRadial(ctx, `proj-light-trail:${Math.round(tr * 4)}`, 0, tr, [
+                    [0,   `rgba(255, 245, 180, ${ta})`],
+                    [0.6, `rgba(241, 196, 15, ${ta * 0.5})`],
+                    [1,   'rgba(241, 196, 15, 0)']
+                ]);
+                ctx.fillStyle = trailGrd;
+                ctx.beginPath(); ctx.arc(tx, 0, tr, 0, Math.PI * 2); ctx.fill();
+            }
+
+            // Outer halo
+            const halo = cachedRadial(ctx, `proj-light-halo:${r}`, r * 0.1, r * 2.4, [
+                [0,   'rgba(255, 250, 200, 0.85)'],
+                [0.35,'rgba(255, 220, 90, 0.55)'],
+                [0.7, 'rgba(241, 196, 15, 0.18)'],
+                [1,   'rgba(241, 196, 15, 0)']
+            ]);
+            ctx.fillStyle = halo;
+            ctx.beginPath(); ctx.arc(0, 0, r * 2.4 * pulse, 0, Math.PI * 2); ctx.fill();
+
+            // Hot core
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.shadowColor = '#fff5b8';
+            ctx.shadowBlur  = 14 * pulse;
+            const core = cachedRadial(ctx, `proj-light-core:${r}`, 0, r, [
+                [0,   '#ffffff'],
+                [0.3, '#fff2a8'],
+                [0.7, '#f1c40f'],
+                [1,   '#b8860b']
+            ]);
+            ctx.fillStyle = core;
+            ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Cross-shaped lens-flare spike (subtle)
+            ctx.strokeStyle = 'rgba(255, 255, 230, 0.55)';
+            ctx.lineWidth = 1.1;
+            ctx.beginPath();
+            ctx.moveTo(-r * 1.9, 0); ctx.lineTo(r * 1.9, 0);
+            ctx.moveTo(0, -r * 1.4); ctx.lineTo(0, r * 1.4);
+            ctx.stroke();
+
+        } else if (this.type === 'thorn') {
+            // THORN-SHARD: dark crimson barbed shard with trailing red mist
+            const t = NOW;
+            const r = this.radius;
+
+            ctx.rotate(angle);
+
+            // Red mist trail (behind)
+            ctx.globalCompositeOperation = 'source-over';
+            for (let i = 1; i <= 3; i++) {
+                const tx = -r * 1.0 * i;
+                const tr = r * (0.7 - i * 0.18);
+                const ta = 0.4 - i * 0.10;
+                if (tr <= 0 || ta <= 0) break;
+                const mist = cachedRadial(ctx, `proj-thorn-mist:${Math.round(tr * 4)}`, 0, tr, [
+                    [0,   `rgba(192, 57, 43, ${ta})`],
+                    [0.5, `rgba(120, 18, 18, ${ta * 0.5})`],
+                    [1,   'rgba(60, 8, 8, 0)']
+                ]);
+                ctx.fillStyle = mist;
+                ctx.beginPath();
+                ctx.arc(tx + Math.sin(t * 0.02 + i) * r * 0.15, Math.cos(t * 0.025 + i) * r * 0.2, tr, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Faint blood-red glow under shard
+            ctx.shadowColor = '#8b1a1a';
+            ctx.shadowBlur  = 9;
+
+            // Barbed shard: elongated diamond with two side barbs
+            ctx.beginPath();
+            ctx.moveTo(r * 2.2, 0);                              // tip
+            ctx.lineTo(r * 0.6, -r * 0.55);                       // upper shoulder
+            ctx.lineTo(r * 0.1, -r * 0.25);                       // upper barb root
+            ctx.lineTo(-r * 0.4, -r * 0.75);                      // upper barb hook
+            ctx.lineTo(-r * 0.7, -r * 0.20);                      // upper rear
+            ctx.lineTo(-r * 1.5, 0);                              // back tip
+            ctx.lineTo(-r * 0.7,  r * 0.20);                      // lower rear
+            ctx.lineTo(-r * 0.4,  r * 0.75);                      // lower barb hook
+            ctx.lineTo(r * 0.1,  r * 0.25);                       // lower barb root
+            ctx.lineTo(r * 0.6,  r * 0.55);                       // lower shoulder
+            ctx.closePath();
+
+            const body = cachedRadial(ctx, `proj-thorn-body:${r}`, r * 0.6, r * 2.0, [
+                [0,   '#d63a3a'],
+                [0.45,'#8b1a1a'],
+                [1,   '#3d0606']
+            ]);
+            ctx.fillStyle = body;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Black thorn outline
+            ctx.strokeStyle = '#1a0303';
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+
+            // Sharp white tip highlight
+            ctx.fillStyle = 'rgba(255, 220, 220, 0.85)';
+            ctx.beginPath();
+            ctx.moveTo(r * 2.2, 0);
+            ctx.lineTo(r * 1.6, -r * 0.18);
+            ctx.lineTo(r * 1.6,  r * 0.18);
+            ctx.closePath();
+            ctx.fill();
+
+        } else if (this.type === 'dream') {
+            // WHISPER: thin curving violet arc with weak homing + dotted trail
+            const t = NOW;
+            const r = this.radius;
+            const wob = Math.sin(t * 0.018) * r * 0.25;
+
+            ctx.rotate(angle);
+
+            // Dotted trail (3-4 small fading dots behind, slight sinusoidal wave)
+            for (let i = 1; i <= 5; i++) {
+                const tx = -r * 0.9 * i;
+                const ty = Math.sin(t * 0.02 + i * 0.7) * r * 0.45;
+                const ta = 0.55 - i * 0.10;
+                const tr = r * (0.45 - i * 0.06);
+                if (tr <= 0 || ta <= 0) break;
+                ctx.fillStyle = `rgba(196, 181, 253, ${ta})`;
+                ctx.beginPath(); ctx.arc(tx, ty, tr, 0, Math.PI * 2); ctx.fill();
+            }
+
+            // Curving arc body — two layered swooshes
+            ctx.shadowColor = '#9c7fe0';
+            ctx.shadowBlur  = 8;
+
+            ctx.strokeStyle = 'rgba(196, 181, 253, 0.85)';
+            ctx.lineWidth = r * 0.55;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-r * 1.0,  wob);
+            ctx.quadraticCurveTo(0, -wob, r * 1.0, wob);
+            ctx.stroke();
+
+            // Brighter inner streak
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.lineWidth = r * 0.22;
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.9,  wob * 0.9);
+            ctx.quadraticCurveTo(0, -wob * 0.9, r * 0.9, wob * 0.9);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Front star-spark — tiny twinkle at the leading tip
+            ctx.fillStyle = 'rgba(230, 220, 255, 0.95)';
+            ctx.beginPath(); ctx.arc(r * 1.0, wob, r * 0.32, 0, Math.PI * 2); ctx.fill();
+
+            // Twin micro-stars on either side of the streak (slow-blinking)
+            const blink = (Math.sin(t * 0.04) + 1) * 0.5;
+            ctx.fillStyle = `rgba(196, 181, 253, ${0.4 + blink * 0.4})`;
+            ctx.beginPath(); ctx.arc(r * 0.2, -r * 0.6, r * 0.16, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-r * 0.2, r * 0.6, r * 0.16, 0, Math.PI * 2); ctx.fill();
+
         } else {
             // FALLBACK / ENEMY
             ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2);

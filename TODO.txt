@@ -1,2 +1,2 @@
 # General
-- custom maps not correctly loaded
+- Manual entries for new heroes

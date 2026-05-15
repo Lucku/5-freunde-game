@@ -140,7 +140,15 @@ class Arena {
             return new Obstacle(ox, oy, ow, oh, themed ? biomeType : null);
         };
 
-        if (layout === 0) { // 4 Corners
+        // DLC biomes can set `ownsObstacles = true` on their BIOME_LOGIC entry to
+        // skip the default layout pass entirely — biome.generate(this) is solely
+        // responsible for obstacle placement. Used by Radiance of Ruin biomes
+        // (Reliquary, Crimson Greenhouse, Dreamspace) which already place
+        // themed obstacles tied to biome layout.
+        const _biomeOwnsObstacles = !!(window.BIOME_LOGIC && window.BIOME_LOGIC[biomeType] && window.BIOME_LOGIC[biomeType].ownsObstacles);
+        if (_biomeOwnsObstacles) {
+            // Skip default layout generator below. Spawn-area clear + trap gen still run.
+        } else if (layout === 0) { // 4 Corners
             this.obstacles.push(themedObstacle(w * 0.1, h * 0.1, 200, 200));
             this.obstacles.push(themedObstacle(w * 0.9 - 200, h * 0.1, 200, 200));
             this.obstacles.push(themedObstacle(w * 0.1, h * 0.9 - 200, 200, 200));
@@ -224,21 +232,31 @@ class Arena {
         const trapCount = 5 + Math.floor(Math.random() * 5);
 
         // Trap Progression System
-        let availableTraps = ['SLOW']; // Wave 1-4: Only Slow Traps
-        if (currentWave >= 5) availableTraps.push('CONVEYOR');
+        let availableTraps = [];
+        if (currentWave >= 3)  availableTraps.push('SLOW');
+        if (currentWave >= 5)  availableTraps.push('CONVEYOR');
         if (currentWave >= 10) availableTraps.push('SPIKE');
         if (currentWave >= 15) availableTraps.push('TURRET');
         if (currentWave >= 20) availableTraps.push('LASER_BEAM');
 
-        for (let i = 0; i < trapCount; i++) {
-            const pos = this.getRandomSafePosition(50);
-            const type = trapOverride ? trapOverride : availableTraps[Math.floor(Math.random() * availableTraps.length)];
-            const newTrap = new Trap(pos.x, pos.y, type);
-            this.traps.push(newTrap);
+        // Biomes can set `noTraps = true` to opt out of trap generation entirely
+        // (Radiance of Ruin biomes: Reliquary, Dreamspace are sacral/dreamspace,
+        // Crimson Greenhouse is overgrowth — none should have mechanical traps).
+        const _biomeNoTraps = !!(window.BIOME_LOGIC && window.BIOME_LOGIC[biomeType] && window.BIOME_LOGIC[biomeType].noTraps);
 
-            // Add Obstacles for Turrets and Laser Beams
-            if (type === 'TURRET' || type === 'LASER_BEAM') {
-                this.obstacles.push(new Obstacle(pos.x, pos.y, newTrap.w, newTrap.h));
+        if (!_biomeNoTraps && (trapOverride || availableTraps.length > 0)) {
+            for (let i = 0; i < trapCount; i++) {
+                const pos = this.getRandomSafePosition(50);
+                const type = trapOverride ? trapOverride : availableTraps[Math.floor(Math.random() * availableTraps.length)];
+                const newTrap = new Trap(pos.x, pos.y, type);
+                this.traps.push(newTrap);
+
+                // Add Obstacles for Turrets and Laser Beams.
+                // Tag with the current biomeType so they render through the
+                // biome's drawObstacle hook instead of as default grey stones.
+                if (type === 'TURRET' || type === 'LASER_BEAM') {
+                    this.obstacles.push(new Obstacle(pos.x, pos.y, newTrap.w, newTrap.h, biomeType));
+                }
             }
         }
 
@@ -600,6 +618,12 @@ class BiomeZone {
         } else if (this.type === 'FRACTURE' || this.type === 'SMOG_POCKET') {
             // Visual rendering handled by MindscapeBiome.draw() / SmogQuarterBiome.draw() — skip default box
             ctx.restore(); return;
+        } else if (this.type === 'LIGHT_SHAFT' || this.type === 'BLOOM_PATCH' || this.type === 'DREAM_POCKET') {
+            // Visual rendering handled by Radiance of Ruin biomes (Reliquary,
+            // Crimson Greenhouse, Dreamspace). Skip default fillRect/strokeRect
+            // — otherwise the zones inherit whatever fill/stroke was last on
+            // the ctx (often red), painting an outlined box over the floor.
+            ctx.restore(); return;
         } else if (this.type === 'GLITCH') {
             ctx.fillStyle = Math.random() < 0.1 ? '#fff' : 'rgba(0, 188, 212, 0.2)'; // Glitchy Clear/White
             ctx.strokeStyle = '#00bcd4';
@@ -892,44 +916,12 @@ class Trap {
             }
 
         } else if (this.type === 'SLOW') {
-            // Deep purple viscous zone
-            const bgGrad = ctx.createRadialGradient(cx, cy, 8, cx, cy, 58);
-            bgGrad.addColorStop(0, 'rgba(95, 45, 135, 0.6)');
-            bgGrad.addColorStop(0.65, 'rgba(60, 20, 95, 0.42)');
-            bgGrad.addColorStop(1, 'rgba(25, 5, 45, 0.12)');
+            // Soft purple disc — minimal distraction
+            const bgGrad = ctx.createRadialGradient(cx, cy, 8, cx, cy, 50);
+            bgGrad.addColorStop(0, 'rgba(95, 45, 135, 0.45)');
+            bgGrad.addColorStop(1, 'rgba(25, 5, 45, 0.10)');
             ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, this.w, this.h);
-
-            // Hexagonal web pattern
-            ctx.strokeStyle = 'rgba(175, 95, 255, 0.38)';
-            ctx.lineWidth = 1;
-            const hexR = 18;
-            const hexCenters = [
-                [cx, cy],
-                [cx - hexR * 1.72, cy - hexR], [cx + hexR * 1.72, cy - hexR],
-                [cx - hexR * 1.72, cy + hexR], [cx + hexR * 1.72, cy + hexR],
-                [cx, cy - hexR * 2], [cx, cy + hexR * 2],
-            ];
-            for (const [hcx, hcy] of hexCenters) {
-                ctx.beginPath();
-                for (let a = 0; a < 6; a++) {
-                    const ang = (Math.PI / 3) * a - Math.PI / 6;
-                    const px = hcx + hexR * Math.cos(ang), py = hcy + hexR * Math.sin(ang);
-                    a === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-                }
-                ctx.closePath();
-                ctx.stroke();
-            }
-
-            // Pulsing concentric rings
-            const pulse = (Math.sin(t / 600) + 1) / 2;
-            ctx.strokeStyle = `rgba(195, 125, 255, ${0.45 + pulse * 0.35})`;
-            ctx.lineWidth = 1.5;
-            for (let r = 12; r <= 36; r += 12) {
-                ctx.beginPath();
-                ctx.arc(cx, cy, r, 0, Math.PI * 2);
-                ctx.stroke();
-            }
 
         } else if (this.type === 'CONVEYOR') {
             // Dark industrial steel plate

@@ -82,12 +82,26 @@ class MainMenuUI {
             const pbText = (data.bestSpeedrunSec != null)
                 ? `<div class="hero-stats hero-speedrun-pb">⏱ ${this.formatSpeedrunTime(data.bestSpeedrunSec)}</div>`
                 : '';
+
+            // Per-hero icon background. Most heroes use the flat stat color.
+            // Light gets a metallic gold gradient so it reads as Gold instead of yellow.
+            let iconBg = BASE_HERO_STATS[h].color;
+            let nameColor = BASE_HERO_STATS[h].color;
+            let nameStyle = `color: ${nameColor}; text-shadow: 0 0 30px rgba(255, 255, 255, 0.7);`;
+            if (h === 'light') {
+                iconBg = 'linear-gradient(135deg, #fff5b8 0%, #ffd633 25%, #f1c40f 55%, #b8860b 85%, #8b6914 100%)';
+                nameStyle = 'background: linear-gradient(135deg, #fff5b8, #f1c40f 50%, #b8860b);'
+                    + ' -webkit-background-clip: text; background-clip: text;'
+                    + ' color: transparent; -webkit-text-fill-color: transparent;'
+                    + ' text-shadow: 0 0 18px rgba(241, 196, 15, 0.55);';
+            }
+
             el.innerHTML = `
-                <div class="hero-icon" style="background: ${BASE_HERO_STATS[h].color}; position: relative; display: flex; justify-content: center; align-items: center;">
+                <div class="hero-icon" style="background: ${iconBg}; position: relative; display: flex; justify-content: center; align-items: center;${h === 'light' ? ' box-shadow: inset 0 0 18px rgba(255, 240, 180, 0.55), 0 0 14px rgba(241, 196, 15, 0.45);' : ''}">
                     ${iconContent}
                     ${p1Badge}${p2Badge}
                 </div>
-                <div class="hero-name" style="color: ${BASE_HERO_STATS[h].color}; text-shadow: 0 0 30px rgba(255, 255, 255, 0.7);">${h.toUpperCase()}</div>
+                <div class="hero-name" style="${nameStyle}">${h.toUpperCase()}</div>
                 <div class="hero-stats">High Score: ${data.highScore}</div>
                 ${pbText}
                 ${prestigeText}
