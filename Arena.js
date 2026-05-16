@@ -704,10 +704,29 @@ class Obstacle {
     }
 
     draw(ctx) {
-        // Delegate to biome-specific renderer if available
-        if (this.biomeType && window.BIOME_LOGIC?.[this.biomeType]?.drawObstacle) {
-            window.BIOME_LOGIC[this.biomeType].drawObstacle(ctx, this);
-            return;
+        // Delegate to biome-specific renderer if available.
+        // CrimsonGreenhouseBiome (thorn) + DreamspaceBiome (dream) tag their
+        // obstacles with compound keys like 'thorn-planter' / 'thorn-hedge'
+        // / 'dream-circle' to drive the subtype switch inside their own
+        // drawObstacle. The registry is keyed by base biome only, so the
+        // direct lookup misses — fall back to the prefix before the first
+        // hyphen.
+        if (this.biomeType) {
+            const reg = window.BIOME_LOGIC;
+            const direct = reg?.[this.biomeType];
+            if (direct?.drawObstacle) {
+                direct.drawObstacle(ctx, this);
+                return;
+            }
+            const dash = this.biomeType.indexOf('-');
+            if (dash > 0) {
+                const base = this.biomeType.slice(0, dash);
+                const aliased = reg?.[base];
+                if (aliased?.drawObstacle) {
+                    aliased.drawObstacle(ctx, this);
+                    return;
+                }
+            }
         }
 
         const { x, y, w, h } = this;

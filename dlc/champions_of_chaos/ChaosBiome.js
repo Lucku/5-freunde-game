@@ -35,7 +35,9 @@ class ChaosBiome {
             const y = Math.random() * (h - 400) + 200;
             // Avoid center spawn
             if (Math.hypot(x - cx, y - cy) > 400) {
-                arena.obstacles.push(new Obstacle(x, y, 150 + Math.random() * 100, 150 + Math.random() * 100));
+                // Tag with 'gravity' so Obstacle.draw delegates to ChaosBiome.drawObstacle
+                // (purple void style) instead of falling through to default grey stones.
+                arena.obstacles.push(new Obstacle(x, y, 150 + Math.random() * 100, 150 + Math.random() * 100, 'gravity'));
             }
         }
 
