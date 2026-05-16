@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { Projectile } from '../../Entities/Projectile.js';
+
 // Mirror Hero Logic
 // Color: Marine Blue (#1a5276)
 // Mechanic: Mirror Shield (special) — 3s aura that reflects projectiles back at 150% damage,

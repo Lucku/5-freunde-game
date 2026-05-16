@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { Projectile } from '../../Entities/Projectile.js';
+
 // Psycho Hero Logic
 // Color: Teal (#1abc9c)
 // Mechanic: Hysteria Gauge fills from damage and kills. When full, enter Hysteria Mode (6s) —

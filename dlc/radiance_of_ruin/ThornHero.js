@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { Enemy } from '../../Enemy.js';
+
 // Thorn Hero Logic — Radiance of Ruin
 // Color: Vine-Red (#8b1a1a)
 // Mechanic: Blood Bond — every attack costs HP (floor 1). Lifebloom heals on kill,

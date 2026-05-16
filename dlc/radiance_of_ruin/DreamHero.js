@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { Enemy } from '../../Enemy.js';
+
 // Dream Hero Logic — Radiance of Ruin
 // Color: Twilight Indigo (#5a3e9e)
 // Mechanic: Lucidity 0-100. Passive +2/sec, +1 on melee, +0.5 on ranged. -5 on damage taken.

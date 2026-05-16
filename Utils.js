@@ -165,14 +165,6 @@ function cachedRadial(ctx, key, r0, r1, stops) {
 }
 function clearGradientCache() { _GRAD_CACHE.clear(); }
 
-// ESM exports. The window shims below remain only for symbols still consumed
-// by classic-loaded DLCs by bare name (drawHeroSprite, shadeColor, cachedRadial).
-// `mulberry32` and `clearGradientCache` shims dropped in #171 phase 2:
-//   - `mulberry32` — game.js and tests now import it explicitly; no DLC refs
-//   - `clearGradientCache` — no consumers anywhere
+// ESM exports — #194 retired all window shims for this module after every DLC
+// gained explicit imports. Bundler tree-shake now applies.
 export { drawHeroSprite, shadeColor, mulberry32, cachedRadial, clearGradientCache };
-if (typeof window !== 'undefined') {
-    window.drawHeroSprite = drawHeroSprite;
-    window.shadeColor     = shadeColor;
-    window.cachedRadial   = cachedRadial;
-}

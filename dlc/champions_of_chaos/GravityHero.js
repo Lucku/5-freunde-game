@@ -1,3 +1,9 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { Boss } from '../../Boss.js';
+import { FloatingText } from '../../Entities/FloatingText.js';
+
+import { cachedRadial } from '../../Utils.js';
+
 // Gravity (The Void) Hero Logic
 
 // Hook into Player Class Prototype or extended logic
@@ -45,7 +51,6 @@ const GRAVITY_PERM_UPGRADES = {
     defense: { name: "Dark Matter", desc: "+1% Damage Reduction", baseCost: 4000, costMult: 1.5 },
     wisdom: { name: "Universal Mind", desc: "+2% XP Gain", baseCost: 2500, costMult: 1.3 }
 };
-
 
 // 2. Register Logic
 if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};

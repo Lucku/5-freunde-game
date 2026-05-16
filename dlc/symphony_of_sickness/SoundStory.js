@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 /*
     SOUND HERO — "THE GRAND TOUR OF RESONANCE"
     The Performer's world conquest through music.

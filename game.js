@@ -1,3 +1,7 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { MeleeSwipe } from './Entities/MeleeSwipe.js';
+import { World } from './shared/world.js';
+
 // game.js migrated to ESM 2026-05-11 (Phase 8b step 2; explicit-import pass 8b/3).
 // Mutable registries (BIOME_LOGIC, HERO_LOGIC, ENEMY_LOGIC, DLC_REGISTRY,
 // chaosState) and UI singletons whose call sites already use `window.X` are

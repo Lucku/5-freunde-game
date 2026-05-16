@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { FloatingText } from '../../Entities/FloatingText.js';
+
 class RockBiome {
     static generate(arena) {
         const cx = arena.width / 2;

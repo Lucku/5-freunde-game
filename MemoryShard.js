@@ -78,4 +78,3 @@ class MemoryShard {
 
 export { MemoryShard };
 export default MemoryShard;
-if (typeof window !== 'undefined') window.MemoryShard = MemoryShard;

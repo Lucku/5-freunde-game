@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 // Echos of Eternity — The Maze of Time
 // A persistent branching node map with ~82 deterministic nodes.
 // All node parameters (enemies, biome, difficulty) are fixed across every playthrough.

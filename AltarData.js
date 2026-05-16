@@ -40,4 +40,3 @@ const ALTAR_TREE = {
 };
 
 export { ALTAR_TREE };
-if (typeof window !== 'undefined') window.ALTAR_TREE = ALTAR_TREE;

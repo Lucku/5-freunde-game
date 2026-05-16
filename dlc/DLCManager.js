@@ -1,3 +1,13 @@
+// #194 — DLC module manifest. `import.meta.glob` returns
+//   { './foo/bar.js': () => import('./foo/bar.js'), ... }
+// at build time. Vite walks every match, statically resolves each module's
+// own imports (e.g. `../../Entities/Particle.js`), and emits one bundle chunk
+// per DLC file. Marking each as a separate chunk preserves the on-demand-load
+// behavior #29 set up; the chunks are only fetched when DLCManager.loadScript
+// is called. We exclude `./DLCManager.js` itself so the manifest doesn't
+// circularly reference this file.
+const DLC_MODULES = import.meta.glob('./*/*.js');
+
 // Electron detection (mirrors Config.js pattern)
 const _isElectronDLC = typeof process !== 'undefined' && process.versions && process.versions.electron;
 let _fsDLC, _pathDLC, _dlcFilePath;
@@ -238,20 +248,30 @@ class DLCManager {
     /**
      * Dynamically load a DLC file as an ES module.
      *
-     * Was: `document.createElement('script')` classic-tag injection.
-     * Now: native `import()` with absolute path. Vite serves DLC files as
-     * modules in dev (port 5173) and from /dist/dlc/ in built mode (the Vite
-     * config's closeBundle plugin mirrors dlc/ verbatim — no bundling).
+     * #194 — uses `import.meta.glob` (static manifest) instead of the prior
+     * runtime `import(url)`. Vite statically discovers every dlc/&#42;/&#42;.js file at
+     * build time and emits one chunk per DLC; the chunks pull in their
+     * transitive imports (Entities/, Managers/, etc.) from the same bundle
+     * graph as the rest of the renderer. In dev each glob entry is a thin
+     * `() => import('./foo/bar.js')` thunk Vite resolves through its normal
+     * module pipeline.
      *
-     * The `/* @vite-ignore *\/` hint tells Vite not to statically analyze the
-     * import path (runtime-resolved strings can't be).
+     * Previously this used `await import(/&#42; @vite-ignore &#42;/ url)` so the bundler
+     * skipped DLC files entirely — that worked while every DLC referenced
+     * renderer classes by global pollution (the `window.X = X` shims). After
+     * the #194 sweep added explicit `import` lines to every DLC file, those
+     * imports need a real module-graph resolution; the glob gives it.
      */
     async loadScript(src) {
-        // Resolve relative to document.baseURI so both file:// (Electron) and
-        // http:// (Vite dev / browser) produce a correct absolute URL.
-        const rel = src.replace(/^\.?\/+/, '');
-        const url = new URL(rel, document.baseURI).href;
-        await import(/* @vite-ignore */ url);
+        // src looks like 'dlc/foo/bar.js' (the legacy path the call sites pass).
+        // import.meta.glob keys are relative to THIS file (dlc/DLCManager.js),
+        // so strip the leading `dlc/` segment.
+        const key = './' + src.replace(/^\.?\/+/, '').replace(/^dlc\//, '');
+        const loader = DLC_MODULES[key];
+        if (!loader) {
+            throw new Error(`[DLCManager] No glob entry for DLC module: ${src}`);
+        }
+        await loader();
     }
 
     isDLCActive(id) {

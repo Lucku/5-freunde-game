@@ -1,3 +1,12 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { ALTAR_TREE } from '../../AltarData.js';
+import { Boss } from '../../Boss.js';
+import { Enemy } from '../../Enemy.js';
+import { Projectile } from '../../Entities/Projectile.js';
+import { MEMORY_STORIES } from '../../MemoryStories.js';
+
+import { cachedRadial } from '../../Utils.js';
+
 // The Champions of Chaos - DLC Manifest
 
 const CHAMPIONS_OF_CHAOS = {

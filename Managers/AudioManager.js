@@ -1,3 +1,6 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { Boss } from '../Boss.js';
+
 class AudioManager {
     constructor() {
         this.tracks = {

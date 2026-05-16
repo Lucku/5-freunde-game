@@ -1,3 +1,7 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
+import { Projectile } from '../../Entities/Projectile.js';
+
 // New Enemies for Cloud Biome
 
 class ThunderEnemies {

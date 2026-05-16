@@ -1,3 +1,5 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+
 const SHOP_POOL = [
     { id: 'dmg', name: 'Sharpening Stone', baseCost: 250, desc: '+5% Damage', action: () => { player.damageMultiplier += 0.05; player.runBuffs.damage += 0.05; } },
     { id: 'spd', name: 'Light Boots', baseCost: 200, desc: '+5% Speed', action: () => { player.speedMultiplier += 0.05; player.runBuffs.speed += 0.05; } },

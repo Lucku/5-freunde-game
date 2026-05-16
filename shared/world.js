@@ -157,4 +157,3 @@ class World {
 // window shim keeps classic-script callers (game.js) seeing `World` unchanged.
 export { World };
 export default World;
-if (typeof window !== 'undefined') window.World = World;

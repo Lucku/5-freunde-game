@@ -1,3 +1,10 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
+import { Enemy } from '../../Enemy.js';
+import { Particle } from '../../Entities/Particle.js';
+import { Projectile } from '../../Entities/Projectile.js';
+import { cachedRadial, shadeColor } from '../../Utils.js';
+
 // Champions of Chaos — Special Boss Enemies
 
 class ChaosEnemies {

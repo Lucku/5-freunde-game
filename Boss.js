@@ -1,3 +1,8 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { Enemy } from './Enemy.js';
+import { FloatingText } from './Entities/FloatingText.js';
+import { Projectile } from './Entities/Projectile.js';
+
 
 class Boss {
     constructor(type) {
@@ -1441,4 +1446,3 @@ class Boss {
 // instantiate bosses today — DLC bosses are still handled client-side).
 export { Boss };
 export default Boss;
-if (typeof window !== 'undefined') window.Boss = Boss;

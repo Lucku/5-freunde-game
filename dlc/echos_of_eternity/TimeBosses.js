@@ -1,3 +1,8 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
+import { FloatingText } from '../../Entities/FloatingText.js';
+import { Projectile } from '../../Entities/Projectile.js';
+
 /**
  * Echos of Eternity — DLC Boss Implementations
  * Registers TIME_WRAITH, TEMPORAL_RIFT, ETERNAL_COLLAPSE,

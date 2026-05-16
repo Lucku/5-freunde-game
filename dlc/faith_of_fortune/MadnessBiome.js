@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 // Madness Biome Logic
 // Associated with Chance Hero
 // Theme: High Contrast, Glitches, Random Hazards, Neon

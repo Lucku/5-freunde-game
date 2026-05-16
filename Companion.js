@@ -1,3 +1,6 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { FloatingText } from './Entities/FloatingText.js';
+
 class Companion {
     constructor(type, player) {
         this.type = type;
@@ -167,4 +170,3 @@ class Companion {
 // ESM exports + window shim.
 export { Companion };
 export default Companion;
-if (typeof window !== 'undefined') window.Companion = Companion;

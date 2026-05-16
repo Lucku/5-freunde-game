@@ -1,3 +1,10 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
+import { FloatingText } from '../../Entities/FloatingText.js';
+import { Particle } from '../../Entities/Particle.js';
+import { Projectile } from '../../Entities/Projectile.js';
+import { drawHeroSprite } from '../../Utils.js';
+
 // Echos of Eternity — Love Hero Logic (Phase 5)
 //
 // Core resources:

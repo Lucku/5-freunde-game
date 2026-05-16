@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 // The Champions of Chaos Story Campaign
 
 // 50 Chapters - Alternating Perspectives

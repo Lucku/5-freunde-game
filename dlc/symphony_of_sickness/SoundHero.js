@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 // Sound Hero (Light Blue) Logic
 // Playstyle: Rhythm/Timing based. Strong when synced, weak when off-beat.
 // Unique Mechanics:
@@ -447,7 +449,6 @@ class SoundHero {
             player.visualPulse = 10;
         }
         if (player.visualPulse > 0) player.visualPulse--;
-
 
         // All drawing goes through here while camera transform is active
         const ctx = window.ctx;

@@ -1,3 +1,7 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
+import { Projectile } from '../../Entities/Projectile.js';
+
 class ThunderBoss {
     constructor(wave, prestige) {
         this.isBoss = true;
@@ -75,7 +79,6 @@ class ThunderBoss {
         // Boundaries
         this.x = Math.max(0, Math.min(arena.width, this.x));
         this.y = Math.max(0, Math.min(arena.height, this.y));
-
 
         // Attacks
         // Attack rate increases with phase

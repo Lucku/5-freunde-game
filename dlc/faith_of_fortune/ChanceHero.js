@@ -1,3 +1,7 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { FloatingText } from '../../Entities/FloatingText.js';
+import { GoldDrop } from '../../Entities/GoldDrop.js';
+
 // Chance (Magenta) Hero Logic
 // Playstyle: High Risk, RNG, Luck Manipulation
 // Damage is random, abilities are random.

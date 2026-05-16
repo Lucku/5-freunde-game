@@ -1,3 +1,11 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { ALTAR_TREE } from '../../AltarData.js';
+
+import { FloatingText } from '../../Entities/FloatingText.js';
+import { Particle } from '../../Entities/Particle.js';
+import { Projectile } from '../../Entities/Projectile.js';
+import { MEMORY_STORIES } from '../../MemoryStories.js';
+
 // Symphony of Sickness DLC Entry Point
 const DLC_ID = 'symphony_of_sickness';
 

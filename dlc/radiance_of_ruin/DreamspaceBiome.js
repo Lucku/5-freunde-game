@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 // The Dreamspace — Dream's Biome
 // Floating geometry, starfields, drifting motes. Dream Pockets teleport enemies.
 

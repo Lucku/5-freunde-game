@@ -1,3 +1,7 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { FloatingText } from '../../Entities/FloatingText.js';
+import { Projectile } from '../../Entities/Projectile.js';
+
 // Void Reaver (Entropy) Hero Logic
 // Name: VOID
 // Concept: Melee Glitch Assassin.

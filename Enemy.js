@@ -1,3 +1,8 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { FloatingText } from './Entities/FloatingText.js';
+import { Particle } from './Entities/Particle.js';
+import { Projectile } from './Entities/Projectile.js';
+
 class Enemy {
     constructor(isBossMinion = false, forcedType = null, world = null) {
         const _w       = world;
@@ -583,4 +588,3 @@ Enemy._nextId = 0;
 // ESM exports — server/loader.js unwraps via `.default`.
 export { Enemy };
 export default Enemy;
-if (typeof window !== 'undefined') window.Enemy = Enemy;

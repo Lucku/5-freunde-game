@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { Enemy } from '../../Enemy.js';
+
 // Light Hero Logic — Radiance of Ruin
 // Color: Radiant Gold (#f1c40f)
 // Mechanic: Mask Integrity (0-100). Refills 100 at wave start. Drains per ability.

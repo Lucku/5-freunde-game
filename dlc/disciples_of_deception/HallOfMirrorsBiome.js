@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 // The Hall of Mirrors - Mirror's Biome
 
 class HallOfMirrorsBiome {

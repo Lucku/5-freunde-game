@@ -1,3 +1,6 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { Player } from './Player.js';
+
 // TutorialMode.js — Playable Tutorial Mode Orchestrator
 // 5 waves total, one per base hero. Each wave = 1 objective → boss fight → next hero.
 

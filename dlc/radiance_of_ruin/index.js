@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { ALTAR_TREE } from '../../AltarData.js';
+
 // Radiance of Ruin — DLC Manifest (Character Pack)
 // Three heroes — Light (Gold), Thorn (Crimson), Dream (Indigo) — each with a dedicated biome.
 // No story mode, no memory shards, no new music.

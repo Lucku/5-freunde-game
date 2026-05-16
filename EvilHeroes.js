@@ -1,3 +1,7 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { FloatingText } from './Entities/FloatingText.js';
+import { Projectile } from './Entities/Projectile.js';
+
 // EvilHeroes.js
 // HERO_LOGIC entries for the two playable villain heroes in Evil Mode.
 // Abilities mirror the boss implementations but are driven by player input.

@@ -1,3 +1,10 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { ALTAR_TREE } from '../../AltarData.js';
+import { Boss } from '../../Boss.js';
+
+import { MemoryShard } from '../../MemoryShard.js';
+import { MEMORY_STORIES } from '../../MemoryStories.js';
+
 // Echos of Eternity — DLC Manifest
 // The narrative and mechanical culmination of 5 Freunde.
 // Introduces the Time hero (sand), the hidden Love hero (pink),

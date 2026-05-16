@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 // The Mindscape - Psycho's Biome
 
 class MindscapeBiome {

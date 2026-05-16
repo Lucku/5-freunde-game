@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 // The Crimson Greenhouse — Thorn's Biome
 // Abandoned glass greenhouse, blood-red foliage, broken planters.
 

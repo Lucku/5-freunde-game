@@ -390,4 +390,3 @@ const MEMORY_STORIES = {
 };
 
 export { MEMORY_STORIES };
-if (typeof window !== 'undefined') window.MEMORY_STORIES = MEMORY_STORIES;

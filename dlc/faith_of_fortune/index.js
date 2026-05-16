@@ -1,3 +1,11 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { ALTAR_TREE } from '../../AltarData.js';
+
+import { FloatingText } from '../../Entities/FloatingText.js';
+import { Projectile } from '../../Entities/Projectile.js';
+import { MEMORY_STORIES } from '../../MemoryStories.js';
+import { Player } from '../../Player.js';
+
 // Faith of Fortune - DLC Manifest
 
 const FAITH_OF_FORTUNE = {

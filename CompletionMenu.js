@@ -1,3 +1,6 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { ALTAR_TREE } from './AltarData.js';
+
 let _completionHideCompleted = false;
 
 class CompletionMenu {

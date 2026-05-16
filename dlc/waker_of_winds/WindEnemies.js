@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { cachedRadial } from '../../Utils.js';
+
 class WindEnemies {
 
     // ==============================

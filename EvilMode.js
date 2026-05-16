@@ -1,3 +1,6 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { Player } from './Player.js';
+
 import { HolyMask } from './Entities/HolyMask.js';
 
 // EvilMode.js

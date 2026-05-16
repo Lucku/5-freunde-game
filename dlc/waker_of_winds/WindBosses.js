@@ -1,3 +1,9 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { Enemy } from '../../Enemy.js';
+import { Particle } from '../../Entities/Particle.js';
+import { Projectile } from '../../Entities/Projectile.js';
+import { cachedRadial } from '../../Utils.js';
+
 class WindBosses {
     static isWindBoss(type) {
         return ['CLOUD_GOLEM', 'STORM_CROW', 'TORNADO_MACHINA', 'TEMPEST'].includes(type);

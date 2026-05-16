@@ -74,4 +74,3 @@ class Particle {
 }
 export { Particle };
 export default Particle;
-if (typeof window !== 'undefined') window.Particle = Particle;

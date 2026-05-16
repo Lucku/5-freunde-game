@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { cachedRadial } from '../../Utils.js';
+
 // Smoke Hero Logic
 // Color: Slate Gray (#5a5a6e)
 // Mechanic: Each dash drops a Smoke Cloud (radius 60, 4s, max 3). Enemies inside slow 40%

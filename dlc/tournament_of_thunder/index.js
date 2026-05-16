@@ -1,3 +1,9 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { ALTAR_TREE } from '../../AltarData.js';
+import { Boss } from '../../Boss.js';
+import { MemoryShard } from '../../MemoryShard.js';
+import { MEMORY_STORIES } from '../../MemoryStories.js';
+
 // The Tournament of Thunder - DLC Manifest
 
 const TOURNAMENT_OF_THUNDER = {

@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { FloatingText } from '../../Entities/FloatingText.js';
+
 // Spirit (Soft Amber) Hero Logic
 // Playstyle: Support, Healing, Purification, Balance
 // Weak direct combat, strong utility/sustain. Requires maintaining "Inner Peace".

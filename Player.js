@@ -1,3 +1,8 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { FloatingText } from './Entities/FloatingText.js';
+import { Particle } from './Entities/Particle.js';
+import { Projectile } from './Entities/Projectile.js';
+
 import { MeleeSwipe } from './Entities/MeleeSwipe.js';
 import { TutorialMode } from './TutorialMode.js';
 
@@ -1577,4 +1582,3 @@ window.getHeroStats = function (type) {
 // the bare `Player` identifier unchanged.
 export { Player };
 export default Player;
-if (typeof window !== 'undefined') window.Player = Player;

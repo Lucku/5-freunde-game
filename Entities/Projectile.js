@@ -606,4 +606,3 @@ class Projectile {
 }
 export { Projectile };
 export default Projectile;
-if (typeof window !== 'undefined') window.Projectile = Projectile;

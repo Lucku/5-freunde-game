@@ -30,7 +30,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Directories of static runtime assets we ship as-is. Vite treats them as
 // public files in dev (served raw) and we mirror them into dist/ on build.
-const STATIC_DIRS = ['audio', 'images', 'dlc'];
+// #194 — `dlc/` removed: DLC files are now bundled into separate chunks via
+// the `import.meta.glob('./*/*.js')` manifest in dlc/DLCManager.js. Mirroring
+// the raw files into dist/ would duplicate them at stale paths.
+const STATIC_DIRS = ['audio', 'images'];
 
 export default defineConfig({
     root: __dirname,

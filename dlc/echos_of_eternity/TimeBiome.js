@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { drawHeroSprite } from '../../Utils.js';
+
 // Echos of Eternity — Time Biome: The Shattered Continuum
 // The multiverse tears open. Infinite timelines bleed into each other.
 // Shattered clock faces drift. Nebula-coloured rift veins crack the floor.

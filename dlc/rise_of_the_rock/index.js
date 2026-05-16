@@ -1,3 +1,12 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { ALTAR_TREE } from '../../AltarData.js';
+import { Boss } from '../../Boss.js';
+import { Enemy } from '../../Enemy.js';
+import { FloatingText } from '../../Entities/FloatingText.js';
+import { Projectile } from '../../Entities/Projectile.js';
+import { MemoryShard } from '../../MemoryShard.js';
+import { MEMORY_STORIES } from '../../MemoryStories.js';
+
 // The Rise of the Rock - DLC Manifest
 
 const RISE_OF_THE_ROCK = {

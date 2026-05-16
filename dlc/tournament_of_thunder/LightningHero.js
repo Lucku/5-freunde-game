@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { FloatingText } from '../../Entities/FloatingText.js';
+
 class LightningHero {
     static init(player) {
         // Unique Resource: Static Charge
@@ -451,7 +454,6 @@ if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
 if (!window.HERO_LOGIC['lightning']) window.HERO_LOGIC['lightning'] = {};
 window.HERO_LOGIC['lightning'].applyUpgrade = LightningHero.applyUpgrade.bind(LightningHero);
 
-
 // ---------------------------------------------------------
 // REVISED PROJECTILE CLASS
 // ---------------------------------------------------------
@@ -562,7 +564,6 @@ class LightningProjectile {
 
     hit(target) {
         // console.log("[L-Proj] Processing HIT Logic on", target);
-
 
         // 1. Damage
         let dmg = this.damage;

@@ -1,3 +1,7 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { Boss } from '../../Boss.js';
+import { FloatingText } from '../../Entities/FloatingText.js';
+
 // Air Hero Logic
 // Name: AIR (Turquoise)
 // Concept: Movement-based Controller. Projectiles that curve/return. 

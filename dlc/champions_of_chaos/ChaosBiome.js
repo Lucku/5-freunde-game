@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 // Chaos Biome - The Void Dimension
 
 class ChaosBiome {

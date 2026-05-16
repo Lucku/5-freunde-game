@@ -1,3 +1,8 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { FloatingText } from './Entities/FloatingText.js';
+import { Projectile } from './Entities/Projectile.js';
+import { MemoryShard } from './MemoryShard.js';
+
 /**
  * @typedef {import('./types/schemas.js').ArenaCamera}   ArenaCamera
  * @typedef {import('./types/schemas.js').ArenaObstacle} ArenaObstacle

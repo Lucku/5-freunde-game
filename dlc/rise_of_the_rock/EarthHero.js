@@ -1,3 +1,10 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { FloatingText } from '../../Entities/FloatingText.js';
+import { Particle } from '../../Entities/Particle.js';
+import { Projectile } from '../../Entities/Projectile.js';
+
+import { cachedRadial, drawHeroSprite, shadeColor } from '../../Utils.js';
+
 // Earth Hero Logic
 // This file would contain specific logic for the Earth hero, 
 // such as unique update loops, rendering overrides, or skill tree definitions.
@@ -417,7 +424,6 @@ class EarthHero {
         } else {
             player._golemWasActive = false;
         }
-
 
         const isMoving = (dx !== 0 || dy !== 0);
 

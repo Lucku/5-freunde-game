@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 class WindBiome {
     constructor() {
         this.name = "Sky Palace";
@@ -314,5 +316,4 @@ window.WindBiome = new WindBiome();
 if (window.BIOMES) {
     window.BIOMES['SKY_PALACE'] = WindBiome;
 }
-
 

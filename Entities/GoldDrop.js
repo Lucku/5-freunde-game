@@ -116,4 +116,3 @@ class GoldDrop {
 }
 export { GoldDrop };
 export default GoldDrop;
-if (typeof window !== 'undefined') window.GoldDrop = GoldDrop;

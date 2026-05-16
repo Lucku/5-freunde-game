@@ -1,3 +1,6 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { ALTAR_TREE } from '../../AltarData.js';
+
 // The Disciples of Deception - DLC Manifest (Character Pack)
 // Adds three heroes — Psycho (Teal), Mirror (Marine Blue), Smoke (Slate Gray) —
 // each with a dedicated biome. No story mode, no memory shards, no new music.

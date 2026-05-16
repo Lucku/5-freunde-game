@@ -1,3 +1,6 @@
+// #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { Companion } from './Companion.js';
+
 // ChaosMode.js
 /**
  * CHAOS MODE 2.0 Logic

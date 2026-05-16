@@ -1,3 +1,5 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+
 // The Reliquary — Light's Biome
 // Vaulted museum hall after closing, gold dust shafts, marble pedestals.
 

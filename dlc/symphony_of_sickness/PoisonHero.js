@@ -1,3 +1,7 @@
+// #194 — explicit renderer imports (was: window-shim lookup).
+import { Particle } from '../../Entities/Particle.js';
+import { Projectile } from '../../Entities/Projectile.js';
+
 // Poison Hero (Toxic Green) Logic
 // Playstyle: Alchemy & DoT. Collects Flasks to mix spells.
 // Unique: "Poison Flasks" inventory (Max 2).
