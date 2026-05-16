@@ -141,8 +141,23 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
-let token = sessionStorage.getItem('admin_token') || '';
-let D = {};  // fetched data
+// Stored session: { token: <jwt>, expiresAt: <epoch_ms> }.  Older builds stored
+// the raw password under `admin_token`; treat any stale value there as expired.
+function _readStoredSession() {
+  try {
+    const raw = sessionStorage.getItem('admin_session');
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s || typeof s.token !== 'string' || typeof s.expiresAt !== 'number') return null;
+    if (s.expiresAt <= Date.now()) return null;
+    return s;
+  } catch { return null; }
+}
+sessionStorage.removeItem('admin_token'); // wipe pre-JWT legacy storage
+const _initial = _readStoredSession();
+let token     = _initial ? _initial.token : '';
+let expiresAt = _initial ? _initial.expiresAt : 0;
+let D = {};
 let activeTab = 'overview';
 let expanded = new Set();
 let crashExpanded = new Set();
@@ -151,19 +166,37 @@ let timer = null;
 // ── Auth ───────────────────────────────────────────────────────────────────────
 
 async function tryLogin() {
-  const pwd = document.getElementById('pwd').value.trim();
+  const pwd = document.getElementById('pwd').value;
   const err = document.getElementById('login-err');
   err.textContent = '';
   if (!pwd) { err.textContent = 'Password required'; return; }
-  const res = await fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${pwd}` } }).catch(() => null);
-  if (!res) { err.textContent = 'Cannot reach server'; return; }
-  if (res.ok) { token = pwd; sessionStorage.setItem('admin_token', token); showApp(); }
-  else if (res.status === 401 || res.status === 403) err.textContent = 'Incorrect password';
-  else err.textContent = 'Server error';
+  let res;
+  try {
+    res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pwd }),
+    });
+  } catch { err.textContent = 'Cannot reach server'; return; }
+  if (res.status === 429) {
+    const ra = res.headers.get('Retry-After') || '?';
+    err.textContent = `Too many attempts — retry in ${ra}s`;
+    return;
+  }
+  if (res.status === 401) { err.textContent = 'Incorrect password'; return; }
+  if (!res.ok)             { err.textContent = `Server error (${res.status})`; return; }
+  const body = await res.json().catch(() => null);
+  if (!body || !body.token) { err.textContent = 'Malformed response'; return; }
+  token     = body.token;
+  expiresAt = body.expiresAt || (Date.now() + 8 * 3600 * 1000);
+  sessionStorage.setItem('admin_session', JSON.stringify({ token, expiresAt }));
+  document.getElementById('pwd').value = '';
+  showApp();
 }
 
 function logout() {
-  token = ''; sessionStorage.removeItem('admin_token');
+  token = ''; expiresAt = 0;
+  sessionStorage.removeItem('admin_session');
   clearInterval(timer);
   document.getElementById('app').style.display   = 'none';
   document.getElementById('login').style.display = 'flex';
@@ -172,8 +205,13 @@ function logout() {
 // ── Fetch ──────────────────────────────────────────────────────────────────────
 
 async function fetchAll() {
+  if (expiresAt && expiresAt <= Date.now()) { logout(); return; }
   const h = { Authorization: `Bearer ${token}` };
-  const fetch1 = url => fetch(url, { headers: h }).then(r => r.json()).catch(() => null);
+  let sawAuthFailure = false;
+  const fetch1 = url => fetch(url, { headers: h }).then(r => {
+    if (r.status === 401 || r.status === 403) { sawAuthFailure = true; return null; }
+    return r.json();
+  }).catch(() => null);
   const [sessions, online, players, stats, saves, balance, events, crashes, telemetry] = await Promise.all([
     fetch1('/api/admin/sessions'),
     fetch1('/api/admin/online'),
@@ -194,6 +232,8 @@ async function fetchAll() {
   if (events)   D.events    = events;
   if (crashes)  D.crashes   = crashes;
   if (telemetry) D.telemetry = telemetry;
+  // If every poll auth-failed, the session is invalid — bounce to login.
+  if (sawAuthFailure) logout();
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

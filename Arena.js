@@ -1,10 +1,18 @@
+/**
+ * @typedef {import('./types/schemas.js').ArenaCamera}   ArenaCamera
+ * @typedef {import('./types/schemas.js').ArenaObstacle} ArenaObstacle
+ * @typedef {import('./types/schemas.js').BiomeZone}     BiomeZone
+ */
 class Arena {
     constructor(width, height) {
         this.width = width;
         this.height = height;
+        /** @type {ArenaCamera} */
         this.camera = { x: 0, y: 0, width: 0, height: 0 };
+        /** @type {ArenaObstacle[]} */
         this.obstacles = [];
         this.traps = [];
+        /** @type {BiomeZone[]} */
         this.biomeZones = [];
         // #21 — Static obstacle layer. Obstacles never move (only the array
         // is mutated by adds/removes), so their gradient + crack + pit detail

@@ -14,9 +14,34 @@ const GameSession = require('./simulation/GameSession');
 
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
+const NODE_ENV  = process.env.NODE_ENV || 'development';
 const DATA_DIR = path.join(__dirname, 'data');
 const SAVES_DIR = path.join(DATA_DIR, 'saves');
+
+// ── Admin credential bootstrap ────────────────────────────────────────────────
+// Source of truth is `ADMIN_PASSWORD_HASH` (bcrypt). Plain ADMIN_PASSWORD env
+// is no longer supported; if set, we ignore it and log a loud warning so a
+// stale config doesn't silently grant insecure access.
+//
+// Fail-secure: in production with no hash configured, the process exits.
+// In development we mint an ephemeral random password so the dashboard is
+// usable locally without leaving a default-credentials hole behind.
+const crypto = require('crypto');
+const { signAdminToken, verifyAdminToken, resolveAdminHash, ADMIN_SESSION_TTL_SEC } = require('./adminAuth');
+
+let _adminHash;
+try {
+    const resolved = resolveAdminHash({ env: process.env, nodeEnv: NODE_ENV, bcrypt, crypto });
+    _adminHash = resolved.hash;
+} catch (e) {
+    console.error('[admin] FATAL:', e.message);
+    console.error('[admin]        Generate a hash with `npm run admin-hash <password>` and set ADMIN_PASSWORD_HASH.');
+    process.exit(1);
+}
+
+if (JWT_SECRET === 'change-this-secret-in-production' && NODE_ENV === 'production') {
+    console.warn('[security] WARNING: JWT_SECRET is using the placeholder default in production. Set a strong secret.');
+}
 
 // TLS — production deploys should set TLS_CERT_PATH + TLS_KEY_PATH to enable
 // https + wss. Falls back to plain http + ws when unset (local dev).
@@ -864,10 +889,25 @@ app.put('/api/save', requireAuth, (req, res) => {
 
 // ── Admin Dashboard ───────────────────────────────────────────────────────────
 
+// Login exchanges the admin password for an 8 h JWT (`kind:'admin'`). This
+// stops the password from being sent on every dashboard poll. Rate-limited
+// 5 attempts / 15 min per IP to throttle brute force.
+app.post('/api/admin/login',
+    rateLimit({ key: 'admin_login', capacity: 5, refillPerSec: 5 / 900 }),
+    async (req, res) => {
+        const password = req.body && typeof req.body.password === 'string' ? req.body.password : '';
+        if (!password) return res.status(400).json({ error: 'password required' });
+        let ok = false;
+        try { ok = await bcrypt.compare(password, _adminHash); }
+        catch (e) { console.error('[admin] bcrypt.compare failed:', e); return res.status(500).json({ error: 'verify failed' }); }
+        if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+        res.json(signAdminToken(JWT_SECRET));
+    }
+);
+
 function requireAdmin(req, res, next) {
-    const auth = req.headers.authorization;
-    if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
-    if (auth.slice(7) !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Forbidden' });
+    const result = verifyAdminToken(req.headers.authorization, JWT_SECRET);
+    if (!result.ok) return res.status(result.status).json({ error: result.reason });
     next();
 }
 

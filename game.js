@@ -128,6 +128,7 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+/** @type {import('./types/schemas.js').SaveData} */
 const defaultSaveData = {
     // Schema version — bumped only when SaveManager.MIGRATIONS gains an entry.
     // Saves loaded without a version field are treated as v0 and migrated.

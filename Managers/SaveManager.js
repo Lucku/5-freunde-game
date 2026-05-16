@@ -1,3 +1,11 @@
+/**
+ * Persisted save management — HMAC-signed encode/decode, ring-buffer backups,
+ * schema migrations. Top-level shape is documented in `types/schemas.js` as
+ * `SaveData`; bump `SCHEMA_VERSION` + add a `MIGRATIONS[]` entry whenever that
+ * shape changes.
+ *
+ * @typedef {import('../types/schemas.js').SaveData} SaveData
+ */
 class SaveManager {
     // Secret used to derive the HMAC signing key.
     // Lives in client-side JS — a determined attacker can find it — but this stops
@@ -14,6 +22,7 @@ class SaveManager {
     // Sequential migrations applied on load when stored version < SCHEMA_VERSION.
     // Each entry: { from, to, fn(data) -> data }. Pure transforms only; do not
     // touch disk / network. Backup blob is written before any migration runs.
+    /** @type {Array<{ from: number, to: number, fn: (data: SaveData) => SaveData }>} */
     static MIGRATIONS = [
         {
             from: 0, to: 1, fn(data) {
@@ -50,7 +59,12 @@ class SaveManager {
         return crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(plaintext));
     }
 
-    // --- Encode: JSON → base64(data) + HMAC signature ---
+    /**
+     * Encode + sign a SaveData blob. Outer envelope is `btoa(JSON({d, s}))`
+     * where `d` = base64(JSON(data)) and `s` = base64(HMAC-SHA256(d)).
+     * @param {SaveData} data
+     * @returns {Promise<string|null>} encoded blob, or null on encode failure
+     */
     static async encodeSaveData(data) {
         try {
             const json = JSON.stringify(data);
@@ -64,7 +78,13 @@ class SaveManager {
         }
     }
 
-    // --- Decode: verify HMAC, then unwrap JSON ---
+    /**
+     * Decode + HMAC-verify a save blob. Returns the parsed SaveData on success
+     * or null on tamper / parse failure. Transparently migrates legacy formats
+     * (plain JSON, unsigned base64).
+     * @param {string} raw
+     * @returns {Promise<SaveData|null>}
+     */
     static async decodeSaveData(raw) {
         try {
             // Legacy format 1: plain JSON (migrate transparently)
@@ -214,6 +234,13 @@ class SaveManager {
         }
     }
 
+    /**
+     * Persist a SaveData object to disk (Electron) or localStorage (web), with
+     * ring-buffer backup rotation. Stamps the current SCHEMA_VERSION before
+     * encoding so older blobs auto-fix on next write.
+     * @param {SaveData} data
+     * @returns {Promise<string|null>} encoded blob written, or null on failure
+     */
     static async saveGame(data) {
         if (!data) return null;
 
@@ -259,7 +286,11 @@ class SaveManager {
         }
     }
 
-    // Run all applicable migrations in order. Returns the migrated object.
+    /**
+     * Run all applicable MIGRATIONS in order. Returns the migrated SaveData.
+     * @param {SaveData} data
+     * @returns {SaveData}
+     */
     static _migrate(data) {
         const stored = (typeof data.version === 'number' && data.version >= 0) ? data.version : 0;
         if (stored >= SaveManager.SCHEMA_VERSION) {
@@ -301,6 +332,12 @@ class SaveManager {
         return null;
     }
 
+    /**
+     * Load + migrate + defensive-merge the on-disk save. Falls back to a fresh
+     * clone of `defaultSaveData` when no save exists or HMAC verification fails.
+     * @param {SaveData} defaultSaveData
+     * @returns {Promise<SaveData>}
+     */
     static async loadGame(defaultSaveData) {
         let data = null;
         let rawBlob = null;

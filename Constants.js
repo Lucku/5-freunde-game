@@ -1,6 +1,7 @@
 const APP_VERSION = '1.2.0-dev'; // Keep in sync with package.json and Git tags
 
 // --- Configuration ---
+/** @type {Object<string, import('./types/schemas.js').BaseHeroStats>} */
 const BASE_HERO_STATS = {
     fire: { color: '#e74c3c', hp: 60, speed: 4, rangeDmg: 25, meleeDmg: 100, rangeCd: 15, meleeCd: 120, projectileSpeed: 12, projectileSize: 6, knockback: 4 },
     water: { color: '#3498db', hp: 60, speed: 4.5, rangeDmg: 12, meleeDmg: 80, rangeCd: 8, meleeCd: 100, projectileSpeed: 10, projectileSize: 5, knockback: 20 },
@@ -277,6 +278,7 @@ const PERM_UPGRADES = {
 // #16 — Gameplay tuning numbers extracted from inline call sites. Keep them
 // here so balance changes don't require grepping through 7000+ lines of game.js.
 // Reads via `import { GAMEPLAY }` (ESM) or `window.GAMEPLAY` (classic shim).
+/** @type {import('./types/schemas.js').GameplayConstants} */
 const GAMEPLAY = {
     // Particles + floating text
     MAX_PARTICLES:           300,

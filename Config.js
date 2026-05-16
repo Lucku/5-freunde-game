@@ -11,6 +11,7 @@ if (isElectronConfig && configFilePath) {
     console.log("Config File Location:", configFilePath);
 }
 
+/** @type {import('./types/schemas.js').GameConfig} */
 const defaultConfig = {
     // Audio
     musicEnabled: true,

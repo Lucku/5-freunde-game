@@ -1,0 +1,37 @@
+{
+    "//": "IDE-only JS config (#3). VSCode / tsserver pick up the JSDoc @typedef",
+    "//1": "in types/schemas.js for cross-file IntelliSense. checkJs is OFF by",
+    "//2": "default to avoid flooding the project with type errors on existing",
+    "//3": "files; opt-in per file with a `// @ts-check` directive at the top.",
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "allowJs": true,
+        "checkJs": false,
+        "strict": false,
+        "noImplicitAny": false,
+        "noEmit": true,
+        "resolveJsonModule": true,
+        "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    },
+    "include": [
+        "types/**/*.js",
+        "Managers/**/*.js",
+        "Entities/**/*.js",
+        "UI/**/*.js",
+        "Player.js",
+        "Arena.js",
+        "Config.js",
+        "Constants.js",
+        "GameContext.js",
+        "Platform.js",
+        "game.js"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "DLCs",
+        "server"
+    ]
+}

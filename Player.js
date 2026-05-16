@@ -1448,6 +1448,13 @@ const _cloneStats = (s) => (typeof structuredClone === 'function')
 
 window.invalidateHeroStatsCache = function () { _heroStatsCache.clear(); };
 
+/**
+ * Build the fully-derived HeroStats for `type` (base stats + meta upgrades +
+ * prestige + skill tree + achievement bonuses). Memoised per
+ * (type, prestige:unlocked:level, metaUpgrades, achievements) — see #31.
+ * @param {import('./types/schemas.js').HeroType} type
+ * @returns {import('./types/schemas.js').HeroStats}
+ */
 window.getHeroStats = function (type) {
     const heroData = saveData[type];
     const meta = saveData.metaUpgrades || {};
