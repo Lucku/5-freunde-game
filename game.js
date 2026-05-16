@@ -64,6 +64,19 @@ const isElectron   = !!(window.Platform && window.Platform.isElectron);
 const fs           = window.Platform ? window.Platform.fs   : null;
 const saveFilePath = window.Platform ? window.Platform.saveFilePath : null;
 
+// #194 follow-up — cross-module exposure for symbols read by bare name from
+// non-importing files (typeof X !== 'undefined' guards in EvilMode.js,
+// SaveManager.js, AudioManager.js, InputManager.js, CrashReporter.js, etc.).
+// These bindings are immutable from this module's perspective so a one-time
+// write is sufficient. Variables that get reassigned are in the
+// defineProperty block further down.
+window.isElectron    = isElectron;
+window.fs            = fs;
+window.saveFilePath  = saveFilePath;
+window.audioManager  = audioManager;
+window.createExplosion = createExplosion;
+window.triggerImpact = triggerImpact;
+
 if (isElectron) {
     if (saveFilePath) console.log("Save File Location:", saveFilePath); // Useful for debugging
 
@@ -2333,7 +2346,11 @@ var isPlayerDying = false; // Player death animation flag - Exposed for Player.j
 let playerDeathTimer = 0; // Timer for player death animation
 
 // Bidirectional window bindings for DLC-exposed vars.
-// Getters return the live module variable; setters update it so DLC writes propagate back.
+// Getters return the live module variable; setters update it so DLC writes
+// propagate back. Arrow-function getters evaluate lazily, so closures over
+// `let` variables declared later in this module are fine — by the time
+// anything outside reads `window.X`, the corresponding `let X = …` line has
+// already executed.
 Object.defineProperties(window, {
     wave:                { get: () => wave,                set: v => { wave                = v; }, configurable: true, enumerable: true },
     bossActive:          { get: () => bossActive,          set: v => { bossActive          = v; }, configurable: true, enumerable: true },
@@ -2341,6 +2358,23 @@ Object.defineProperties(window, {
     isPlayerDying:       { get: () => isPlayerDying,       set: v => { isPlayerDying       = v; }, configurable: true, enumerable: true },
     isLevelingUp:        { get: () => isLevelingUp,        set: v => { isLevelingUp        = v; }, configurable: true, enumerable: true },
     isShopping:          { get: () => isShopping,          set: v => { isShopping          = v; }, configurable: true, enumerable: true },
+    // #194 follow-up — these are re-assigned at multiple sites in game.js
+    // (`activeMutators = getDailyMutators()`, `weatherParticles = []`,
+    // `currentWeather = pickWeather()`, etc.) so a one-time write would go
+    // stale. Use the same lazy-getter pattern as above; consumers in
+    // Enemy.js / Player.js / Biomes.js / TestingGrounds.js are guarded with
+    // `typeof X !== 'undefined'` already.
+    activeMutators:      { get: () => activeMutators,      set: v => { activeMutators      = v; }, configurable: true, enumerable: true },
+    weatherParticles:    { get: () => weatherParticles,    set: v => { weatherParticles    = v; }, configurable: true, enumerable: true },
+    currentWeather:      { get: () => currentWeather,      set: v => { currentWeather      = v; }, configurable: true, enumerable: true },
+    currentObjective:    { get: () => currentObjective,    set: v => { currentObjective    = v; }, configurable: true, enumerable: true },
+    currentBiomeType:    { get: () => currentBiomeType,    set: v => { currentBiomeType    = v; }, configurable: true, enumerable: true },
+    currentRunStats:     { get: () => currentRunStats,     set: v => { currentRunStats     = v; }, configurable: true, enumerable: true },
+    isChaosShuffleMode:  { get: () => isChaosShuffleMode,  set: v => { isChaosShuffleMode  = v; }, configurable: true, enumerable: true },
+    isEvilMode:          { get: () => isEvilMode,          set: v => { isEvilMode          = v; }, configurable: true, enumerable: true },
+    isOnlineMode:        { get: () => isOnlineMode,        set: v => { isOnlineMode        = v; }, configurable: true, enumerable: true },
+    gameRunning:         { get: () => gameRunning,         set: v => { gameRunning         = v; }, configurable: true, enumerable: true },
+    isStoryOpen:         { get: () => isStoryOpen,         set: v => { isStoryOpen         = v; }, configurable: true, enumerable: true },
 });
 
 // Weather
@@ -8830,6 +8864,8 @@ window.closeConfirmDialog  = closeConfirmDialog;
 // from inline HTML onclick handlers. These look unused to ESLint because the
 // references are out-of-file or in string attributes, but they need to live
 // on window for the legacy script-tag load order.
+// #194 follow-up — game.js-local functions called bare from other modules.
+window.triggerStory        = triggerStory;
 window.openAltar           = openAltar;
 window.shuffleHero         = shuffleHero;
 window.chooseUpgrade       = chooseUpgrade;
