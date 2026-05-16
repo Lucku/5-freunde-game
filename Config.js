@@ -248,7 +248,8 @@ function applyOneHandedScheme(scheme) {
     gameConfig.oneHandedScheme = scheme;
     saveConfig();
 }
-if (typeof window !== 'undefined') window.applyOneHandedScheme = applyOneHandedScheme;
+// #171 phase 2 — `window.applyOneHandedScheme` shim removed; UI/Options.js
+// imports it explicitly via the export block below.
 
 // Initial Load
 loadConfig();
@@ -265,7 +266,7 @@ function toggleSetting(key) {
 window.toggleSetting = toggleSetting;
 
 // ESM exports — classic-script callers still resolve via window/global lookup.
-export { defaultConfig, gameConfig, loadConfig, saveConfig, applyConfig, toggleSetting };
+export { defaultConfig, gameConfig, loadConfig, saveConfig, applyConfig, toggleSetting, applyOneHandedScheme };
 if (typeof window !== 'undefined') {
     window.loadConfig  = loadConfig;
     window.saveConfig  = saveConfig;

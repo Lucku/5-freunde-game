@@ -118,7 +118,9 @@ function mulberry32(seed) {
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
 }
-if (typeof window !== 'undefined') window.mulberry32 = mulberry32;
+// #171 phase 2 — duplicate `window.mulberry32` shim removed (also assigned in
+// the shim block at the bottom of this file; both were redundant once game.js
+// and tests started importing `mulberry32` explicitly).
 
 function shadeColor(color, percent) {
     // Accept #RGB shorthand, #RRGGBB, or any other input (fall back to color unchanged
@@ -163,15 +165,14 @@ function cachedRadial(ctx, key, r0, r1, stops) {
 }
 function clearGradientCache() { _GRAD_CACHE.clear(); }
 
-// ESM exports — file is loaded via `<script type="module">`. The window shims
-// below keep classic-script callers (not yet ESM-migrated) working unchanged.
+// ESM exports. The window shims below remain only for symbols still consumed
+// by classic-loaded DLCs by bare name (drawHeroSprite, shadeColor, cachedRadial).
+// `mulberry32` and `clearGradientCache` shims dropped in #171 phase 2:
+//   - `mulberry32` — game.js and tests now import it explicitly; no DLC refs
+//   - `clearGradientCache` — no consumers anywhere
 export { drawHeroSprite, shadeColor, mulberry32, cachedRadial, clearGradientCache };
 if (typeof window !== 'undefined') {
     window.drawHeroSprite = drawHeroSprite;
     window.shadeColor     = shadeColor;
-    // mulberry32 already exported via window above; this line keeps the
-    // assignment grouped with the others when callers grep for the shim block.
-    window.mulberry32     = mulberry32;
     window.cachedRadial   = cachedRadial;
-    window.clearGradientCache = clearGradientCache;
 }

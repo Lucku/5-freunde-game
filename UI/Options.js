@@ -1,3 +1,5 @@
+import { applyOneHandedScheme } from '../Config.js';
+
 class OptionsUI {
     openOptions() {
         if (window.setUIState) window.setUIState('OPTIONS');
@@ -175,12 +177,8 @@ class OptionsUI {
         const order = ['off', 'leftHand', 'rightHand'];
         const cur = window.gameConfig.oneHandedScheme || 'off';
         const next = order[(order.indexOf(cur) + 1) % order.length];
-        if (typeof window.applyOneHandedScheme === 'function') {
-            window.applyOneHandedScheme(next);
-        } else {
-            window.gameConfig.oneHandedScheme = next;
-            if (typeof saveConfig === 'function') saveConfig();
-        }
+        // #171 phase 2 — direct import; was `window.applyOneHandedScheme(next)`
+        applyOneHandedScheme(next);
         this.updateOptionButtons();
         // Rebuild remap rows in case modal is open.
         if (typeof this.renderRemapRows === 'function') this.renderRemapRows();
