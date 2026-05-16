@@ -250,7 +250,7 @@ Residual work surfaced by shipped items, plus new net items. Numbering continues
 
 ### Long-tail polish
 - [ ] 191. 3-second death replay. [#168](#168) shipped damage-source attribution on the game-over screen; the buffered-frames replay loop was deferred.
-- [ ] 192. Boss intro skip. [#46](#46) shipped the cinematic; some replayers want a hold-ESC / hold-B skip after first encounter per save.
+- [x] 192. Boss intro skip. [#46](#46) shipped the cinematic; some replayers want a hold-ESC / hold-B skip after first encounter per save. *(Shipped 2026-05-16: new `saveData.global.bossesSeen` map records each boss-id on first cinematic; on the second encounter onward, ESC (keyboard) or B (controller) ends the cinematic immediately. First encounters always play in full so new players never miss the reveal. Press-to-skip rather than the originally-listed hold-to-skip — simpler, less code, and the cinematic is short enough that misclicks aren't disruptive. Hint text fades in after the banner is fully visible on skippable runs only.)*
 - [ ] 193. HUD layout presets. [#169](#169) ships per-config layouts. Add "Save preset" / "Load preset" + shareable string export so the community can swap layouts.
 
 ---

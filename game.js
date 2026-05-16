@@ -144,7 +144,8 @@ const defaultSaveData = {
         totalDamage: 0, maxCombo: 0, totalGames: 0, totalDeaths: 0,
         totalVoidGoldSpent: 0, unlockedAchievements: [],
         daily_wins: 0, weekly_wins: 0,
-        onlineGamesPlayed: 0, onlineMaxWave: 0
+        onlineGamesPlayed: 0, onlineMaxWave: 0,
+        bossesSeen: {} // #192 — per-boss-id flag; first encounter cinematic is always full, repeats are skippable
     },
     collection: [],
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0, defense: 0, wisdom: 0 },
@@ -956,6 +957,13 @@ function handleGamepadMenu() {
 
     // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
     if (b && !lastGamepadState.b) {
+        // #192 — boss intro skip via controller B. Same gate as keyboard ESC:
+        // only skippable once the player has seen this boss before on this save.
+        if (bossIntroTimer > 0 && bossIntroSkippable) {
+            bossIntroTimer = 0;
+            lastGamepadState.b = b;
+            return;
+        }
         if (uiState === 'OPTIONS') closeOptions();
         else if (uiState === 'PERMSHOP') closePermShop();
         else if (uiState === 'SHOP') closeShop();
@@ -1909,7 +1917,7 @@ function continueRun() {
 
     // Reset Boss Timer
     bossDeathTimer = 0;
-    bossIntroTimer = 0; bossIntroName = '';
+    bossIntroTimer = 0; bossIntroName = ''; bossIntroSkippable = false;
     _bossChoiceScreen = false;
     _bossChoiceFrame = 0;
     bossActive = false;
@@ -2313,6 +2321,7 @@ var bossActive = false;      // Exposed for DLC
 let bossDeathTimer = 0; // Timer for slow-mo effect
 let bossIntroTimer = 0;
 let bossIntroName = '';
+let bossIntroSkippable = false; // #192 — true when this boss has been seen on this save before
 let bossIntroCamStartX = 0, bossIntroCamStartY = 0;
 let bossIntroCamTargetX = 0, bossIntroCamTargetY = 0;
 let _bossChoiceScreen = false;  // Choice screen active after cinematic ends
@@ -2393,6 +2402,14 @@ inputManager.onKeyDown = e => {
     // #131 routed via remappable key bindings; legacy keyCodes left as fallbacks
     // so the old defaults keep working even if config didn't load yet.
     const im = inputManager;
+    // #192 — boss intro skip: ESC during a re-encounter cinematic ends it
+    // immediately. Must run before the pause handler so the same key doesn't
+    // also pause the game. First-encounter cinematics ignore the key entirely.
+    if (bossIntroTimer > 0 && bossIntroSkippable && (im.eventMatches('pause', e) || e.code === 'Escape')) {
+        bossIntroTimer = 0;
+        e.preventDefault?.();
+        return;
+    }
     if ((im.eventMatches('pause', e) || e.code === 'Escape') && gameRunning && !isLevelingUp && !isShopping) {
         togglePause();
     }
@@ -4085,6 +4102,11 @@ function resumeWaveGeneration() {
         enemies.unshift(new Boss(storyBossId));
         bossIntroTimer = GAMEPLAY.BOSS_INTRO_FRAMES;
         bossIntroName = pName;
+        // #192 — only allow skip if this boss has been seen before on this save.
+        // Stamp the flag AFTER reading it so the first encounter always plays full.
+        if (!saveData.global.bossesSeen) saveData.global.bossesSeen = {};
+        bossIntroSkippable = !!saveData.global.bossesSeen[storyBossId];
+        saveData.global.bossesSeen[storyBossId] = true;
         if (typeof audioManager !== 'undefined') {
             // Villain taunts when they spawn as a boss; hero reacts otherwise
             if (storyBossId === 'GREEN_GOBLIN') {
@@ -4526,7 +4548,7 @@ function startGame(mode = 'NORMAL') {
     bossActive = false;
     isPlayerDying = false;
     bossDeathTimer = 0;
-    bossIntroTimer = 0; bossIntroName = '';
+    bossIntroTimer = 0; bossIntroName = ''; bossIntroSkippable = false;
     _bossChoiceScreen = false;
     _bossChoiceFrame = 0;
     enemies = [];
@@ -6100,6 +6122,23 @@ function masterFrame(deltaTime, timestamp) {
                     ctx.fillStyle = '#ffffff';
                     ctx.fillText(bossIntroName, canvas.width / 2, canvas.height / 2 - 4);
 
+                    ctx.restore();
+                }
+
+                // #192 — skip hint, only on re-encounters. Fades in after the
+                // banner is fully visible (≥0.34) and fades back out alongside
+                // the banner. First-encounter cinematics never show this.
+                if (bossIntroSkippable && _ip > 0.34) {
+                    const _isa = _ip > 0.88 ? Math.max(0, 1 - (_ip - 0.88) / 0.12) : 1.0;
+                    ctx.save();
+                    ctx.globalAlpha = _isa * 0.55;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '12px Arial';
+                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                    ctx.shadowBlur = 6;
+                    ctx.fillText('Press ESC or B to skip', canvas.width / 2, canvas.height - 36);
                     ctx.restore();
                 }
 
