@@ -5934,6 +5934,172 @@ function _renderBigGambleScene() {
     return false;
 }
 
+// #173 phase 2 — boss death cinematic finalizer. Runs when bossDeathTimer
+// transitions to 0. Daily / weekly win conditions, tutorial / evil-mode hooks,
+// then opens the boss-choice screen. Returns `true` if the caller should
+// short-circuit (game-over scheduled, mode-specific hook routed elsewhere)
+// or `false` if the boss-choice screen will take over on the next frame.
+function _finalizeBossDeathCinematic() {
+    if (isTestingMode) {
+        showNotification('Boss defeated — [TAB] to spawn another');
+        return false;
+    }
+
+    // Daily Challenge Win Condition
+    if (isDailyMode && wave === 10) {
+        showNotification("DAILY CHALLENGE COMPLETE!");
+        saveData.daily.lastCompleted = getDailySeed();
+        saveData.global.totalVoidGoldSpent += 0; // Just to ensure field exists
+        // Reward
+        player.gold += 5000; // Bonus Gold
+        saveData.global.totalGold += 5000;
+
+        // Chaos Reward
+        if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
+        saveData.chaos.shards += 1;
+        showNotification("EARNED 1 CHAOS SHARD!");
+
+        // Track Wins
+        saveData.global.daily_wins = (saveData.global.daily_wins || 0) + 1;
+
+        // Achievement
+        unlockAchievement('DAILY_CHALLENGE');
+        checkAchievements(); // Check tiered achievements
+
+        saveGame();
+        setTimeout(() => gameOver(true), 3000);
+        return true;
+    }
+
+    // Weekly Challenge Win Condition
+    if (isWeeklyMode && wave === 20) {
+        showNotification("WEEKLY CHALLENGE COMPLETE!");
+        saveData.weekly.lastCompleted = getWeeklySeed();
+        // Reward (Bigger than Daily)
+        player.gold += 15000; // Bonus Gold
+        saveData.global.totalGold += 15000;
+
+        // Chaos Reward
+        if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
+        saveData.chaos.shards += 3;
+        showNotification("EARNED 3 CHAOS SHARDS!");
+
+        // Track Wins
+        saveData.global.weekly_wins = (saveData.global.weekly_wins || 0) + 1;
+
+        // Achievement
+        unlockAchievement('WEEKLY_CHALLENGE');
+        checkAchievements(); // Check tiered achievements
+
+        saveGame();
+        setTimeout(() => gameOver(true), 3000);
+        return true;
+    }
+
+    if (isTutorialMode) { TutorialMode.onBossDefeated(); return true; }
+    if (isEvilMode && typeof EvilMode !== 'undefined') { EvilMode.onBossScreenDone(); return true; }
+
+    // Open choice screen — player picks Continue or Save & Quit
+    _bossChoiceScreen = true;
+    _bossChoiceFrame = 0;
+    _bossChoiceGpConsumed = false;
+    _bossChoiceFocus = 0;
+    _bossChoiceGpPrev = {};
+    return false;
+}
+
+// #173 phase 2 — boss death cinematic body. Pure render + 1s slow-motion
+// fade-out. Returns `true` while bossDeathTimer > 0 so caller bails out;
+// invokes the finalizer when the timer just hit 0.
+function _renderBossDeathCinematic() {
+    if (bossDeathTimer <= 0) return false;
+    bossDeathTimer--;
+
+    const _progress = 1 - bossDeathTimer / 180;
+
+    // --- Cinematic frame drawn every frame (no strobe) ---
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. Frozen arena background
+    ctx.save();
+    ctx.translate(-arena.camera.x, -arena.camera.y);
+    if (arena) arena.draw(ctx, getHeroTheme(currentBiomeType));
+    ctx.restore();
+
+    // 2. White impact flash — bright burst at start, fades in ~0.25s
+    if (_progress < 0.15) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${(1 - _progress / 0.15) * 0.88})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // 3. Cinematic dark overlay, deepens over the sequence
+    ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.78, _progress * 1.15)})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 4. Deterministic gold & white particle shower
+    if (_progress > 0.08) {
+        const _pA = Math.min(1, (_progress - 0.08) / 0.35);
+        ctx.save();
+        for (let _i = 0; _i < 28; _i++) {
+            const _elapsed = (_progress - 0.08) * 180;
+            const _x = ((_i * 1.618 * 97) % 1) * canvas.width;
+            const _y = (((_i * 2.236 * 83 + 40) % 1) * canvas.height + _elapsed * (1.0 + (_i % 5) * 0.5) * 2.2) % canvas.height;
+            ctx.globalAlpha = _pA * (0.35 + 0.65 * Math.abs(Math.sin(_progress * 14 + _i * 0.9))) * 0.65;
+            ctx.fillStyle = _i % 3 === 0 ? '#ffffff' : '#f1c40f';
+            ctx.beginPath();
+            ctx.arc(_x, _y, 1.5 + (_i % 4) * 1.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    // 5. "BOSS DEFEATED" heading — eases in with cubic after flash clears
+    if (_progress > 0.15) {
+        const _eased = 1 - Math.pow(1 - Math.min(1, (_progress - 0.15) / 0.28), 3);
+        ctx.save();
+        ctx.globalAlpha = _eased;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        // Broad gold halo pass
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 70;
+        ctx.fillStyle = 'rgba(241, 196, 15, 0.22)';
+        ctx.font = `bold ${Math.round(64 + (1 - _eased) * 14)}px Arial`;
+        ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
+        // Crisp white text on top
+        ctx.shadowBlur = 16;
+        ctx.shadowColor = 'rgba(241, 196, 15, 0.85)';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 64px Arial';
+        ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
+        ctx.restore();
+    }
+
+    // 6. "WAVE X CLEARED" subtitle — fades in a beat after the heading
+    if (_progress > 0.46) {
+        const _sT = Math.min(1, (_progress - 0.46) / 0.22);
+        ctx.save();
+        ctx.globalAlpha = _sT * 0.82;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = '13px Arial';
+        ctx.fillText(`— WAVE ${wave} CLEARED —`, canvas.width / 2, canvas.height / 2 + 48);
+        ctx.restore();
+    }
+
+    // 7. Fade to black in the final stretch
+    if (_progress > 0.8) {
+        ctx.fillStyle = `rgba(0, 0, 0, ${((_progress - 0.8) / 0.2) * 0.9})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    if (bossDeathTimer === 0) _finalizeBossDeathCinematic();
+    return true;
+}
+
 // #173 phase 2 — boss intro cinematic. Pure render + timer-decrement; reads
 // `bossIntroTimer/Name/Skippable/CamStart{X,Y}/CamTarget{X,Y}` from module
 // scope, writes back the same. Self-contained — returns `true` while active.
@@ -6069,6 +6235,2603 @@ function _renderBossIntroCinematic() {
     return true;
 }
 
+// #173 phase 3 — main gameplay frame (~2.6K LOC). Owns update + draw
+// for an active in-progress run. Gated by the caller on
+// `gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen`.
+// Phase 4 (next) will split the body into _updateGameplay(dt) and
+// _drawGameplay(ctx) so #180 (photo-mode true freeze) becomes a 1-line
+// update gate and the server simulation can call the update half alone.
+function _runGameplayFrame(deltaTime) {
+    const _isHitStopped = _hitStopFrames > 0;
+    if (_hitStopFrames > 0) _hitStopFrames--;
+
+    // Evil Mode — check if all enemy heroes are dead → boss-defeated cinematic then advance
+    if (isEvilMode && typeof EvilMode !== 'undefined' && EvilMode.checkWaveEnd()) {
+        EvilMode.onWaveCleared(); // cleanup + sets waveJustCleared
+        if (typeof audioManager !== 'undefined') {
+            audioManager.play('wave_completed');
+            if (player) audioManager.playHeroExclamation(player.type, 'boss_win');
+        }
+        bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
+        triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
+    }
+
+    if (isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
+
+    // Update Camera — skipped during photo mode so manual pan sticks (#51).
+    if (!isPhotoMode()) {
+        if (isCoopMode && player2) {
+            const ref1 = !player.isDead ? player : player2;
+            const ref2 = player2 && !player2.isDead ? player2 : player;
+            coopZoom = arena.updateCameraForTwo(ref1, ref2, canvas.width, canvas.height);
+        } else {
+            arena.updateCamera(player, canvas.width, canvas.height);
+            coopZoom = 1.0;
+        }
+    } else {
+        // Need camera dimensions for draw clipping.
+        arena.camera.width  = canvas.width;
+        arena.camera.height = canvas.height;
+    }
+
+    // Heatwave Mirage Effect (Camera Wobble)
+    if (currentWeather && currentWeather.id === 'HEATWAVE') {
+        const wobbleX = Math.sin(frame * 0.05) * 15;
+        const wobbleY = Math.cos(frame * 0.03) * 15;
+        arena.camera.x += wobbleX;
+        arena.camera.y += wobbleY;
+    }
+
+    arena.update(player);
+
+    // --- OBJECTIVE LOGIC ---
+    if (currentObjective && currentObjective.state === 'ACTIVE') {
+        if (currentObjective.type === 'INFERNO') {
+            if (player.combo >= 10) {
+                currentObjective.current += 1 / 60; // Add 1 second per 60 frames
+            }
+            if (currentObjective.current >= currentObjective.target) {
+                currentObjective.state = 'COMPLETED';
+                showNotification("OBJECTIVE COMPLETE!");
+                triggerStory(wave); // Advance
+            }
+        } else if (currentObjective.type === 'DEFENSE') {
+            // Sapling Logic handled in draw/enemy loop
+            if (currentObjective.data.sapling.hp <= 0) {
+                currentObjective.state = 'FAILED';
+                gameOver();
+            }
+            // Survival Condition: Kill all enemies or survive time?
+            // Let's say kill count for now, or just standard wave clear
+            if (isWaveCleared(wave, enemiesKilledInWave)) {
+                currentObjective.state = 'COMPLETED';
+                showNotification("SAPLING SAVED!");
+                triggerStory(wave);
+            }
+        } else if (currentObjective.type === 'EYE_OF_STORM') {
+            const eye = currentObjective.data.stormEye;
+            // Move Eye
+            const dx = eye.tx - eye.x;
+            const dy = eye.ty - eye.y;
+            const distToTarget = Math.hypot(dx, dy);
+            if (distToTarget < 10) {
+                eye.tx = Math.random() * arena.width;
+                eye.ty = Math.random() * arena.height;
+            } else {
+                eye.x += (dx / distToTarget) * 1.5; // Speed
+                eye.y += (dy / distToTarget) * 1.5;
+            }
+
+            // Check Player
+            const d = Math.hypot(player.x - eye.x, player.y - eye.y);
+            if (d < eye.radius) {
+                currentObjective.current += 1 / 60;
+            } else {
+                // Damage if outside
+                if (frame % 60 === 0) {
+                    if (!player.isInvincible) {
+                        player.hp -= 5;
+                        try { audioManager.play('damage'); } catch (e) { }
+                        currentRunStats.damageTaken += 5;
+                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "STORM!", "#3498db", 20));
+                    }
+                    if (player.hp <= 0) gameOver();
+                }
+            }
+
+            if (currentObjective.current >= currentObjective.target) {
+                currentObjective.state = 'COMPLETED';
+                showNotification("STORM SURVIVED!");
+                triggerStory(wave);
+            }
+        } else if (currentObjective.type === 'UNTOUCHABLE') {
+            if (currentObjective.current >= currentObjective.target) {
+                currentObjective.state = 'FAILED';
+                gameOver();
+            }
+            if (isWaveCleared(wave, enemiesKilledInWave)) {
+                currentObjective.state = 'COMPLETED';
+                showNotification("UNTOUCHABLE!");
+                triggerStory(wave);
+            }
+        } else if (currentObjective.type === 'IRON_WILL') {
+            // Decay HP
+            if (frame % 60 === 0) {
+                if (!player.isInvincible) {
+                    player.hp -= 2; // Lose 2 HP per second
+                    audioManager.play('damage');
+                }
+                if (player.hp <= 0) {
+                    currentObjective.state = 'FAILED';
+                    gameOver();
+                }
+            }
+            currentObjective.current += 1 / 60;
+            if (currentObjective.current >= currentObjective.target) {
+                currentObjective.state = 'COMPLETED';
+                showNotification("SURVIVED!");
+                triggerStory(wave);
+            }
+        }
+
+        // DLC Hook: Check Completion
+        if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].checkObjectiveCompletion) {
+            window.HERO_LOGIC[player.type].checkObjectiveCompletion(currentObjective, wave);
+        }
+    }
+
+    // Boss Intro Cinematic — see `_renderBossIntroCinematic`. Owns the
+    // frame while bossIntroTimer > 0; bail out for the rest of master loop.
+    if (_renderBossIntroCinematic()) return;
+
+    // Boss Death Cinematic — see `_renderBossDeathCinematic`. Owns the
+    // frame while bossDeathTimer > 0; invokes `_finalizeBossDeathCinematic`
+    // when the timer just hit 0 (handles daily/weekly win, tutorial /
+    // evil hooks, or opens the boss-choice screen).
+    if (_renderBossDeathCinematic()) return;
+
+    // Boss-Defeated Choice Screen (runs after cinematic, before next wave)
+    if (_bossChoiceScreen) {
+        _bossChoiceFrame++;
+        const _fi = Math.min(1, _bossChoiceFrame / 25); // fade-in over ~0.4 s
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Arena background
+        ctx.save();
+        ctx.translate(-arena.camera.x, -arena.camera.y);
+        if (arena) arena.draw(ctx, getHeroTheme(currentBiomeType));
+        ctx.restore();
+
+        // Dark overlay
+        ctx.fillStyle = 'rgba(0,0,0,0.82)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Live particle shower — driven by _bossChoiceFrame so it keeps moving
+        ctx.save();
+        for (let _i = 0; _i < 28; _i++) {
+            const _px = ((_i * 1.618 * 97) % 1) * canvas.width;
+            const _py = (((_i * 2.236 * 83 + 40) % 1) * canvas.height + _bossChoiceFrame * (1.0 + (_i % 5) * 0.5) * 2.2) % canvas.height;
+            ctx.globalAlpha = (0.35 + 0.65 * Math.abs(Math.sin(_bossChoiceFrame * 0.05 + _i * 0.9))) * 0.5;
+            ctx.fillStyle = _i % 3 === 0 ? '#ffffff' : '#f1c40f';
+            ctx.beginPath();
+            ctx.arc(_px, _py, 1.5 + (_i % 4) * 1.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // "BOSS DEFEATED" heading
+        ctx.save();
+        ctx.globalAlpha = _fi;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 70;
+        ctx.fillStyle = 'rgba(241,196,15,0.22)';
+        ctx.font = 'bold 64px Arial';
+        ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
+        ctx.shadowBlur = 16;
+        ctx.shadowColor = 'rgba(241,196,15,0.85)';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
+        ctx.restore();
+
+        // "WAVE X CLEARED" subtitle
+        ctx.save();
+        ctx.globalAlpha = _fi * 0.82;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = '13px Arial';
+        ctx.fillText(`\u2014 WAVE ${wave} CLEARED \u2014`, canvas.width / 2, canvas.height / 2 + 48);
+        ctx.restore();
+
+        // Buttons
+        const _btY = canvas.height / 2 + 100;
+        const _btW = 180, _btH = 40, _btGap = 20;
+        const _bcx = canvas.width / 2;
+        const _contX = _bcx - _btW - _btGap / 2;
+        const _quitX = _bcx + _btGap / 2;
+
+        // Detect gamepad to decide hint text and update focus via D-pad/stick
+        let _gpActive = false;
+        if (_bossChoiceFrame > 20) {
+            const _gpads = navigator.getGamepads ? navigator.getGamepads() : [];
+            for (const _gp of _gpads) {
+                if (!_gp || !isRealGamepad(_gp)) continue;
+                _gpActive = true;
+                const _gpPressed = (idx) => _gp.buttons[idx]?.pressed && !_bossChoiceGpPrev[idx];
+                const _stickX = _gp.axes[0] || 0;
+                const _dRight = _gpPressed(15) || (_stickX > 0.45 && !_bossChoiceGpPrev.sR);
+                const _dLeft = _gpPressed(14) || (_stickX < -0.45 && !_bossChoiceGpPrev.sL);
+                if (_dRight) _bossChoiceFocus = 1;
+                if (_dLeft) _bossChoiceFocus = 0;
+                // A confirms focused button; B shortcuts to Save & Quit
+                if (!_bossChoiceGpConsumed) {
+                    if (_gpPressed(0)) { _bossChoiceGpConsumed = true; _bossChoiceFocus === 0 ? _doBossContinue() : saveAndQuit(); break; }
+                    if (_gpPressed(1)) { _bossChoiceGpConsumed = true; saveAndQuit(); break; }
+                }
+                const _anyHeld = _gp.buttons[0]?.pressed || _gp.buttons[1]?.pressed;
+                if (!_anyHeld) _bossChoiceGpConsumed = false;
+                // Store prev state
+                for (let _bi = 0; _bi < _gp.buttons.length; _bi++) _bossChoiceGpPrev[_bi] = _gp.buttons[_bi]?.pressed;
+                _bossChoiceGpPrev.sR = _stickX > 0.45;
+                _bossChoiceGpPrev.sL = _stickX < -0.45;
+                break; // only first connected gamepad
+            }
+        }
+
+        // If a gamepad action dismissed the screen this frame, stop rendering it
+        if (!_bossChoiceScreen) return;
+
+        ctx.save();
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = 'bold 11px Arial';
+
+        // Continue button
+        const _contFocused = (_bossChoiceFocus === 0);
+        ctx.globalAlpha = _fi * (_contFocused ? 1.0 : 0.72);
+        ctx.strokeStyle = _contFocused ? '#f1c40f' : 'rgba(241,196,15,0.55)';
+        ctx.lineWidth = _contFocused ? 2.5 : 1.5;
+        ctx.beginPath(); ctx.roundRect(_contX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
+        ctx.fillStyle = _contFocused ? 'rgba(241,196,15,0.22)' : 'rgba(241,196,15,0.08)'; ctx.fill();
+        if (_contFocused) { ctx.shadowColor = '#f1c40f'; ctx.shadowBlur = 12; }
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillText('CONTINUE  \u2192', _contX + _btW / 2, _btY);
+        ctx.shadowBlur = 0;
+        window._bossContinueBtn = { x: _contX, y: _btY - _btH / 2, w: _btW, h: _btH };
+
+        // Save & Quit button
+        const _quitFocused = (_bossChoiceFocus === 1);
+        ctx.globalAlpha = _fi * (_quitFocused ? 0.95 : 0.55);
+        ctx.strokeStyle = _quitFocused ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = _quitFocused ? 2.5 : 1;
+        ctx.beginPath(); ctx.roundRect(_quitX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
+        ctx.fillStyle = _quitFocused ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'; ctx.fill();
+        if (_quitFocused) { ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 10; }
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('SAVE  &  QUIT', _quitX + _btW / 2, _btY);
+        ctx.shadowBlur = 0;
+        window._bossQuitBtn = { x: _quitX, y: _btY - _btH / 2, w: _btW, h: _btH };
+
+        // Hint line — show gamepad or keyboard hint depending on active input
+        ctx.globalAlpha = _fi * 0.35;
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '10px Arial';
+        const _hint = _gpActive
+            ? '[A] Confirm    [←/→] Switch    [B] Save & Quit'
+            : '[Click] Select    [Enter] Confirm';
+        ctx.fillText(_hint, _bcx, _btY + _btH / 2 + 18);
+        ctx.restore();
+
+        return; // Prevent normal game render
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any accumulated transform corruption
+
+    // Apply Camera Transform
+    ctx.save();
+
+    // Queasy Cam Chaos Effect
+    if (saveData.chaos && saveData.chaos.active && saveData.chaos.active.includes('DRUNK_CAM')) {
+        const cx = (canvas.width / 2);
+        const cy = (canvas.height / 2);
+        const angle = Math.sin(frame * 0.05) * 0.1; // Sway
+        const scale = 1 + Math.sin(frame * 0.03) * 0.05; // Breathe
+
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        ctx.scale(scale, scale);
+        ctx.translate(-cx, -cy);
+    }
+
+    // Screen shake (state owned by Camera.js).
+    applyScreenShake(ctx);
+
+    if (isCoopMode && coopZoom !== 1.0) ctx.scale(coopZoom, coopZoom);
+    ctx.translate(-arena.camera.x, -arena.camera.y);
+
+    // Draw World
+    // Background follows Biome Type
+    const themeType = currentBiomeType;
+    if (arena) arena.biomeType = themeType;
+
+    arena.draw(ctx, getHeroTheme(themeType));
+
+
+    // Draw Objective Elements
+    if (currentObjective && currentObjective.state === 'ACTIVE') {
+        const objDisplay = document.getElementById('objective-display');
+        const objText = document.getElementById('objective-text');
+        const objBar = document.getElementById('objective-bar-container');
+        const objFill = document.getElementById('objective-bar-fill');
+
+        objDisplay.style.display = 'block';
+        objBar.style.display = 'block';
+
+        if (currentObjective.type === 'INFERNO') {
+            objText.innerText = `COMBO TIME: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
+            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+            objFill.style.backgroundColor = '#e74c3c';
+        } else if (currentObjective.type === 'DEFENSE') {
+            const s = currentObjective.data.sapling;
+            objText.innerText = `SAPLING HP: ${Math.floor(s.hp)}`;
+            objFill.style.width = `${(s.hp / s.maxHp) * 100}%`;
+            objFill.style.backgroundColor = '#2ecc71';
+
+            // Draw Sapling in World
+            ctx.save();
+            ctx.translate(s.x - arena.camera.x, s.y - arena.camera.y);
+            ctx.fillStyle = '#2ecc71';
+            ctx.beginPath(); ctx.arc(0, 0, s.radius, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 20; ctx.shadowColor = '#2ecc71'; ctx.stroke();
+            ctx.restore();
+        } else if (currentObjective.type === 'EYE_OF_STORM') {
+            const eye = currentObjective.data.stormEye;
+            objText.innerText = `TIME IN EYE: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
+            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+            objFill.style.backgroundColor = '#ecf0f1';
+
+            // Draw Eye
+            ctx.save();
+            ctx.translate(eye.x - arena.camera.x, eye.y - arena.camera.y);
+
+            // Safe Zone
+            ctx.beginPath();
+            ctx.arc(0, 0, eye.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(52, 152, 219, 0.2)';
+            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#ecf0f1';
+            ctx.stroke();
+            ctx.restore();
+        } else if (currentObjective.type === 'UNTOUCHABLE') {
+            objText.innerText = `HITS TAKEN: ${currentObjective.current} / ${currentObjective.target}`;
+            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+            objFill.style.backgroundColor = '#3498db';
+        } else if (currentObjective.type === 'IRON_WILL') {
+            objText.innerText = `SURVIVE: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
+            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+            objFill.style.backgroundColor = '#95a5a6';
+        }
+
+        // DLC Hook: Draw UI
+        if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawObjectiveUI) {
+            window.HERO_LOGIC[player.type].drawObjectiveUI(currentObjective, objText, objFill);
+        }
+    } else {
+        document.getElementById('objective-display').style.display = 'none';
+    }
+
+    frame++;
+    window.frame = frame; // Expose for DLCs
+    if (window._world) {
+        window._world.frame            = frame;
+        window._world.wave             = wave;
+        window._world.score            = score;
+        window._world.gamePaused       = gamePaused;
+        window._world.isLevelingUp     = isLevelingUp;
+        window._world.isShopping       = isShopping;
+        window._world.currentWeather   = currentWeather;
+        window._world.currentObjective = currentObjective;
+        window._world.bossActive       = bossActive;
+        window._world.enemies          = enemies;
+    }
+
+    // ── Weather Logic ─────────────────────────────────────────────────
+    if (currentWeather) {
+        weatherDuration--;
+        // Update duration bar width every 6 frames (no need every frame)
+        if (frame % 6 === 0) {
+            const _wbf = document.getElementById('weather-bar-fill');
+            if (_wbf) _wbf.style.width = Math.max(0, (weatherDuration / currentWeather.duration) * 100) + '%';
+        }
+        if (weatherDuration <= 0) {
+            // Weather ending
+            if (typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + currentWeather.id.toLowerCase());
+            currentWeather = null;
+            weatherParticles = [];
+            _weatherBolts = [];
+            _weatherFlash = 0;
+            document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
+            document.getElementById('weather-display').style.display = 'none';
+            const _wbw = document.getElementById('weather-bar-wrap');
+            if (_wbw) _wbw.style.display = 'none';
+            weatherTimer = 3600 + Math.random() * 2400;
+        } else {
+            const wProg = weatherDuration / currentWeather.duration; // 1→0 as weather fades
+            const wFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
+
+            if (currentWeather.id === 'BLIZZARD') {
+                // ── Snow particles (screen-space, spawned per frame) ──────────
+                const spawnCount = Math.floor(4 * wFadeIn) + 1;
+                for (let _s = 0; _s < spawnCount; _s++) {
+                    weatherParticles.push({
+                        x: Math.random() * canvas.width,
+                        y: -8,
+                        vx: (Math.random() - 0.5) * 1.2 - 0.5,
+                        vy: 1.2 + Math.random() * 2.0,
+                        r: 1.0 + Math.random() * 2.2,
+                        alpha: 0.55 + Math.random() * 0.4,
+                        wobble: Math.random() * Math.PI * 2,
+                    });
+                }
+                // Projectile drag — wind resistance slows shots mid-air
+                for (let _pi = 0; _pi < projectiles.length; _pi++) {
+                    projectiles[_pi].velocity.x *= 0.975;
+                    projectiles[_pi].velocity.y *= 0.975;
+                }
+
+            } else if (currentWeather.id === 'HEATWAVE') {
+                // ── Rising ember / shimmer particles ─────────────────────────
+                if (Math.random() < 0.35 * wFadeIn) {
+                    weatherParticles.push({
+                        x: Math.random() * canvas.width,
+                        y: canvas.height + 5,
+                        vx: (Math.random() - 0.5) * 0.8,
+                        vy: -(0.6 + Math.random() * 1.4),
+                        r: 1.2 + Math.random() * 2.5,
+                        alpha: 0.3 + Math.random() * 0.35,
+                        wobble: Math.random() * Math.PI * 2,
+                        ember: true,
+                    });
+                }
+
+            } else if (currentWeather.id === 'THUNDERSTORM') {
+                // ── Rain streak particles ─────────────────────────────────────
+                const rainCount = Math.floor(6 * wFadeIn) + 1;
+                for (let _r = 0; _r < rainCount; _r++) {
+                    weatherParticles.push({
+                        x: Math.random() * (canvas.width + 100) - 50,
+                        y: -10,
+                        vx: -1.5,
+                        vy: 14 + Math.random() * 6,
+                        len: 12 + Math.random() * 10,
+                        alpha: 0.25 + Math.random() * 0.25,
+                        wobble: 0,
+                        rain: true,
+                    });
+                }
+
+                // ── Lightning bolts + enemy damage ───────────────────────────
+                _weatherFlash = Math.max(0, _weatherFlash - 0.04);
+
+                // Chance to strike a bolt each frame
+                const strikeChance = 0.018 + (1 - wProg) * 0.012; // ramps up over time
+                if (Math.random() < strikeChance * wFadeIn) {
+                    _weatherFlash = 0.55;
+                    if (typeof audioManager !== 'undefined') audioManager.play('weather_thunder_crack');
+
+                    // Pick a random target point — bias toward enemies
+                    let tx, ty;
+                    if (enemies.length > 0 && Math.random() < 0.65) {
+                        const target = enemies[Math.floor(Math.random() * enemies.length)];
+                        tx = target.x - arena.camera.x;
+                        ty = target.y - arena.camera.y;
+                        // Damage the struck enemy
+                        target.hp -= (player.rangeDmg || 20) * 1.8;
+                        createExplosion(target.x, target.y, '#ffffaa', 6);
+                    } else {
+                        tx = Math.random() * canvas.width;
+                        ty = Math.random() * canvas.height;
+                    }
+
+                    // Build jagged bolt segments from top of screen down to target
+                    const segs = [];
+                    let bx = tx + (Math.random() - 0.5) * 200;
+                    const steps = 8 + Math.floor(Math.random() * 5);
+                    for (let _i = 0; _i <= steps; _i++) {
+                        const progress = _i / steps;
+                        segs.push({
+                            x: bx + (Math.random() - 0.5) * 60,
+                            y: progress * ty
+                        });
+                        bx += (tx - bx) * 0.25;
+                    }
+                    segs[segs.length - 1] = { x: tx, y: ty };
+                    _weatherBolts.push({ segs, life: 10, maxLife: 10 });
+                }
+
+                // Age bolts
+                for (let _bi = _weatherBolts.length - 1; _bi >= 0; _bi--) {
+                    if (--_weatherBolts[_bi].life <= 0) _weatherBolts.splice(_bi, 1);
+                }
+
+            } else if (currentWeather.id === 'SANDSTORM') {
+                // ── Horizontal sand streak particles ─────────────────────────
+                const sandCount = Math.floor(8 * wFadeIn) + 2;
+                for (let _s = 0; _s < sandCount; _s++) {
+                    weatherParticles.push({
+                        x: -20,
+                        y: Math.random() * canvas.height,
+                        vx: 8 + Math.random() * 6,
+                        vy: (Math.random() - 0.5) * 1.5,
+                        len: 18 + Math.random() * 20,
+                        alpha: 0.2 + Math.random() * 0.3,
+                        wobble: 0,
+                        sand: true,
+                        color: `hsl(${30 + Math.random() * 20}, 70%, ${50 + Math.random() * 20}%)`,
+                    });
+                }
+
+            } else if (currentWeather.id === 'ACIDIC_FOG') {
+                // ── Drifting acid mist particles ─────────────────────────────
+                if (Math.random() < 0.25 * wFadeIn) {
+                    weatherParticles.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 0.4,
+                        vy: (Math.random() - 0.5) * 0.4,
+                        r: 30 + Math.random() * 40,
+                        alpha: 0.04 + Math.random() * 0.06,
+                        wobble: Math.random() * Math.PI * 2,
+                        fog: true,
+                    });
+                }
+                // DoT: 1% max HP every 4s
+                if (frame % 240 === 0 && wFadeIn >= 1) {
+                    const acidDmg = Math.ceil(player.maxHp * 0.01);
+                    applyDamage(player, acidDmg, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null }); // #18
+                }
+
+            } else if (currentWeather.id === 'GALE') {
+                // ── Wind streak particles ─────────────────────────────────────
+                if (Math.random() < 0.4 * wFadeIn) {
+                    weatherParticles.push({
+                        x: -10,
+                        y: Math.random() * canvas.height,
+                        vx: 12 + Math.random() * 8,
+                        vy: (Math.random() - 0.5) * 1.0,
+                        len: 30 + Math.random() * 30,
+                        alpha: 0.1 + Math.random() * 0.15,
+                        wobble: 0,
+                        gale: true,
+                    });
+                }
+                // Projectile wind deflection — drift all projectiles rightward
+                for (let _pi = 0; _pi < projectiles.length; _pi++) {
+                    const _pp = projectiles[_pi];
+                    if (_pp.velocity) _pp.velocity.x += 0.18 * wFadeIn;
+                    else if (_pp.vx !== undefined) _pp.vx += 0.18 * wFadeIn;
+                }
+            } else if (window._weatherLogicHooks[currentWeather.id]) {
+                // DLC custom weather logic hook — only run if registering DLC is active
+                const _lhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
+                const _lhDlc = _lhLock && _lhLock.dlcId;
+                const _lhOk = !_lhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_lhDlc));
+                if (_lhOk) window._weatherLogicHooks[currentWeather.id](wFadeIn, frame);
+            }
+
+            // Tick all weather particles
+            for (let _pi = weatherParticles.length - 1; _pi >= 0; _pi--) {
+                const p = weatherParticles[_pi];
+                p.wobble += 0.05;
+                p.x += p.vx + Math.sin(p.wobble) * 0.5;
+                p.y += p.vy;
+                if (p.y > canvas.height + 10 || p.y < -10 || p.x > canvas.width + 60) weatherParticles.splice(_pi, 1);
+            }
+        }
+    } else {
+        weatherTimer--;
+        if (weatherTimer <= 0) {
+            // Helper: returns true if weather w is eligible for the current biome + loaded DLCs
+            const _weatherAllowed = (w) => {
+                const lock = window._weatherBiomeLocks && window._weatherBiomeLocks[w.id];
+                if (!lock) return true; // no restriction
+                const biomes = lock.biomes || lock; // support both { biomes, dlcId } and legacy array
+                const dlcId = lock.dlcId;
+                const dlcOk = !dlcId || (window.dlcManager && window.dlcManager.isDLCActive(dlcId));
+                return dlcOk && biomes.includes(currentBiomeType);
+            };
+
+            // Biome-locked weathers: fire→HEATWAVE, cloud→THUNDERSTORM, wind→GALE
+            // DLC biomes hook in via _weatherBiomeLocks — e.g. 'time' biome → TEMPORAL_RIFT (EoE only)
+            const _dlcBiomeLock = window._weatherBiomeLocks &&
+                Object.keys(window._weatherBiomeLocks).find(id => _weatherAllowed({ id }));
+            const _biomeLockedWeather = _dlcBiomeLock || { fire: 'HEATWAVE', cloud: 'THUNDERSTORM', wind: 'GALE' }[currentBiomeType];
+            if (_biomeLockedWeather) {
+                currentWeather = WEATHER_TYPES.find(w => w.id === _biomeLockedWeather) || WEATHER_TYPES[0];
+            } else {
+                // Build weighted pool — biome boosts its preferred weather 3×
+                const _biomeBoost = { ice: 'BLIZZARD', plant: 'ACIDIC_FOG', metal: 'SANDSTORM', water: 'THUNDERSTORM', black: 'ACIDIC_FOG' }[currentBiomeType];
+                const _weatherPool = [];
+                for (const w of WEATHER_TYPES) {
+                    if (w.id === 'BLIZZARD' && currentBiomeType === 'fire') continue; // incompatible
+                    if (w.id === 'HEATWAVE' && currentBiomeType === 'ice') continue;
+                    if (!_weatherAllowed(w)) continue; // DLC/biome-locked
+                    const weight = (w.id === _biomeBoost) ? 3 : 1;
+                    for (let _wi = 0; _wi < weight; _wi++) _weatherPool.push(w);
+                }
+                currentWeather = _weatherPool[Math.floor(Math.random() * _weatherPool.length)];
+            }
+            // Wave scaling: +1% duration per wave, capped at 2×
+            const _waveDurationMult = Math.min(2.0, 1 + wave * 0.01);
+            weatherDuration = Math.floor(currentWeather.duration * _waveDurationMult);
+            document.getElementById('weather-overlay').style.backgroundColor = currentWeather.color;
+            const wDisplay = document.getElementById('weather-display');
+            wDisplay.innerText = `⚠ ${currentWeather.name}`;
+            const _wColor = { HEATWAVE: '#e74c3c', THUNDERSTORM: '#9b59b6', SANDSTORM: '#c8922a', ACIDIC_FOG: '#2ecc71', GALE: '#a8d8f0', TEMPORAL_RIFT: '#b8a0ff', PETAL_STORM: '#ff80c0' }[currentWeather.id] || '#3498db';
+            wDisplay.style.color = _wColor;
+            wDisplay.style.display = 'block';
+            const wBarWrap = document.getElementById('weather-bar-wrap');
+            const wBarFill = document.getElementById('weather-bar-fill');
+            if (wBarWrap && wBarFill) {
+                wBarWrap.style.display = 'block';
+                wBarFill.style.background = _wColor;
+                wBarFill.style.width = '100%';
+            }
+            if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + currentWeather.id.toLowerCase());
+        }
+    }
+    // ── Weather stacking (wave 30+): run a second concurrent weather ──
+    if (wave >= 30) {
+        if (currentWeather2) {
+            weatherDuration2--;
+            if (weatherDuration2 <= 0) {
+                if (typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + currentWeather2.id.toLowerCase());
+                currentWeather2 = null;
+                weatherDuration2 = 0;
+            }
+        } else if (currentWeather && Math.random() < 0.0003) {
+            // Small chance each frame to stack a second weather (different from first, biome/DLC eligible)
+            const _stackPool = WEATHER_TYPES.filter(w => {
+                if (w.id === currentWeather.id) return false;
+                const _lk = window._weatherBiomeLocks && window._weatherBiomeLocks[w.id];
+                if (!_lk) return true;
+                const _biomes = _lk.biomes || _lk;
+                const _dlcId = _lk.dlcId;
+                return (!_dlcId || (window.dlcManager && window.dlcManager.isDLCActive(_dlcId)))
+                    && _biomes.includes(currentBiomeType);
+            });
+            if (_stackPool.length > 0) {
+                currentWeather2 = _stackPool[Math.floor(Math.random() * _stackPool.length)];
+                const _waveMult2 = Math.min(2.0, 1 + wave * 0.01);
+                weatherDuration2 = Math.floor(currentWeather2.duration * _waveMult2 * 0.6); // shorter than primary
+                if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + currentWeather2.id.toLowerCase());
+                showNotification(`⚠ ${currentWeather2.name} STACKS WITH ${currentWeather.name}!`);
+            }
+        }
+        // Run secondary weather's particle/effect logic by temporarily swapping
+        if (currentWeather2) {
+            const _wProg2 = weatherDuration2 / currentWeather2.duration;
+            const _wFI2 = Math.min(1, (currentWeather2.duration - weatherDuration2) / 120);
+            if (currentWeather2.id === 'GALE') {
+                for (let _pi2 = 0; _pi2 < projectiles.length; _pi2++) {
+                    const _pp2 = projectiles[_pi2];
+                    if (_pp2.velocity) _pp2.velocity.x += 0.18 * _wFI2;
+                    else if (_pp2.vx !== undefined) _pp2.vx += 0.18 * _wFI2;
+                }
+                if (Math.random() < 0.4 * _wFI2) weatherParticles.push({ x: -10, y: Math.random() * canvas.height, vx: 12 + Math.random() * 8, vy: (Math.random() - 0.5), len: 30 + Math.random() * 30, alpha: 0.1 + Math.random() * 0.15, wobble: 0, gale: true });
+            } else if (currentWeather2.id === 'BLIZZARD') {
+                if (Math.random() < 0.5 * _wFI2) weatherParticles.push({ x: Math.random() * canvas.width, y: -8, vx: (Math.random() - 0.5) * 1.2 - 0.5, vy: 1.2 + Math.random() * 2.0, r: 1.0 + Math.random() * 2.2, alpha: 0.55 + Math.random() * 0.4, wobble: Math.random() * Math.PI * 2 });
+            } else if (currentWeather2.id === 'ACIDIC_FOG') {
+                if (frame % 240 === 0 && _wFI2 >= 1) {
+                    const _ad2 = Math.ceil(player.maxHp * 0.01);
+                    applyDamage(player, _ad2, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null }); // #18
+                }
+            }
+            void _wProg2; // suppress unused warning
+        }
+    }
+    // ── End Weather Logic ─────────────────────────────────────────────
+
+    // --- Spawning Logic ---
+    // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
+    if (!bossActive && bossDeathTimer === 0 && !isTestingMode && !isEvilMode && isWaveCleared(wave, enemiesKilledInWave) && (!isTutorialMode || TutorialMode.bossForced)) {
+        if (currentObjective && currentObjective.state === 'ACTIVE') {
+            // Do nothing, wait for objective completion logic
+        } else if (isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType === 'none') {
+            // Workshop: no boss configured — advance wave directly
+            advanceWave();
+        } else {
+            bossActive = true;
+            // Boss spawn — heavy ground-pound rumble
+            triggerImpact(9, 22, 0.45, 0.90, 550);
+            if (isTutorialMode) {
+                // Tutorial: one plain boss (no type modifier), reduced HP, no minions
+                const tutBoss = new Boss('BASIC');
+                tutBoss.hp = tutBoss.maxHp = Math.max(1, Math.floor(tutBoss.maxHp * 0.4));
+                enemies.unshift(tutBoss);
+            } else {
+                // Standard Boss Spawning
+                const _workshopBossType = (isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType)
+                    ? window.pendingCustomMap.waveConfig.bossType : null;
+                const _bossArg = (_workshopBossType && _workshopBossType !== 'random') ? _workshopBossType : undefined;
+
+                const _isStoryMode = (saveData.story && saveData.story.enabled !== false) && !isDailyMode && !isWeeklyMode && !isChaosShuffleMode && !isVersusMode;
+                if (!isWorkshopMode && !_isStoryMode && Math.random() < 0.05) {
+                    document.getElementById('event-text').style.display = 'block';
+                    setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
+                    if (typeof audioManager !== 'undefined') {
+                        audioManager.play('twin_event');
+                        audioManager.playHeroExclamation(player.type, 'twin_event');
+                    }
+                    enemies.unshift(new Boss(), new Boss());
+                } else {
+                    // Mutator: Double Boss
+                    if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'DOUBLE_BOSS')) {
+                        enemies.unshift(new Boss(), new Boss());
+                        showNotification("DOUBLE BOSS SPAWN!");
+                    } else {
+                        enemies.unshift(new Boss(_bossArg));
+                    }
+                }
+                if (!currentStoryEvent || !currentStoryEvent.data || !currentStoryEvent.data.suppressMinions) {
+                    for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
+                }
+            }
+        }
+    }
+
+    if (!isVersusMode && !isTestingMode && !isEvilMode) {
+        if (!bossActive && bossDeathTimer === 0) {
+            let spawnRate = Math.max(10, 45 - (wave * 1.3));
+            let forcedType = null;
+
+            // Workshop waveConfig overrides
+            if (isWorkshopMode && window.pendingCustomMap?.waveConfig) {
+                const _wc = window.pendingCustomMap.waveConfig;
+                const _base  = _wc.spawnRateBase         ?? 45;
+                const _decay = _wc.spawnRateDecayPerWave ?? 1.3;
+                spawnRate = Math.max(10, _base - (wave * _decay));
+                if (_wc.enemyPool && _wc.enemyPool.length > 0) {
+                    forcedType = _wc.enemyPool[Math.floor(Math.random() * _wc.enemyPool.length)];
+                }
+            }
+
+            // Story Override
+            if (currentStoryEvent && currentStoryEvent.type === 'WAVE_OVERRIDE' && currentStoryEvent.data) {
+                if (currentStoryEvent.data.spawnRateMod) {
+                    spawnRate = Math.max(5, spawnRate * currentStoryEvent.data.spawnRateMod);
+                }
+                if (currentStoryEvent.data.forcedEnemyType) {
+                    forcedType = currentStoryEvent.data.forcedEnemyType;
+                }
+            }
+
+            // Maze of Time: use node's deterministic enemy pool
+            if (window.mazeCurrentNode && window.mazeCurrentNode.enemyOverride) {
+                forcedType = window.MazeOfTime.pickNextEnemyType() || forcedType;
+            }
+
+            const nonBossCount = enemies.filter(e => !(e instanceof Boss) && e.hp > 0).length;
+            const enemyCap = Math.min(22, 5 + wave) + ((isCoopMode || isAICompanionMode) ? 4 : 0);
+            if (frame % Math.floor(spawnRate) === 0 && nonBossCount < enemyCap) {
+                let loops = 1;
+                if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
+
+                for (let l = 0; l < loops; l++) {
+                    if (forcedType) {
+                        enemies.push(new Enemy(false, forcedType));
+                    } else {
+                        // Swarm Logic
+                        if (wave > 2 && Math.random() < 0.1) {
+                            for (let i = 0; i < 5; i++) {
+                                const swarm = new Enemy(false, 'SWARM');
+                                // Offset slightly
+                                swarm.x += (Math.random() - 0.5) * 50;
+                                swarm.y += (Math.random() - 0.5) * 50;
+                                enemies.push(swarm);
+                            }
+                        } else {
+                            enemies.push(new Enemy());
+                        }
+                    }
+                }
+            }
+        } else {
+            let suppress = false;
+            if (currentStoryEvent && currentStoryEvent.data && currentStoryEvent.data.suppressMinions) {
+                suppress = true;
+            }
+            if (!suppress && frame % 150 === 0) enemies.push(new Enemy(true));
+        }
+    }
+
+    // Co-op / AI companion: scale new non-boss enemy HP up
+    if (isCoopMode || isAICompanionMode) {
+        enemies.forEach(e => {
+            if (!(e instanceof Boss) && !e._coopScaled) {
+                e._coopScaled = true;
+                e.hp *= 1.4; e.maxHp = e.hp;
+            }
+        });
+    }
+
+    // Maze of Time: scale enemy HP by node waveStrength
+    if (window.mazeCurrentNode && window.mazeCurrentNode.waveStrength !== 1.0) {
+        const s = window.mazeCurrentNode.waveStrength;
+        enemies.forEach(e => {
+            if (!(e instanceof Boss) && !e._mazeScaled) {
+                e._mazeScaled = true;
+                e.hp = Math.round(e.hp * s);
+                e.maxHp = e.hp;
+            }
+        });
+    }
+
+    // Tutorial: scale new non-boss enemy HP to 40% and cap count at 8
+    if (isTutorialMode) {
+        enemies.forEach(e => {
+            if (!(e instanceof Boss) && !e._tutorialScaled) {
+                e._tutorialScaled = true;
+                e.hp = e.maxHp = Math.max(1, Math.floor(e.maxHp * 0.4));
+            }
+        });
+        const nonBoss = enemies.filter(e => !(e instanceof Boss));
+        if (nonBoss.length > 8) {
+            const excess = new Set(nonBoss.slice(8));
+            enemies = enemies.filter(e => !excess.has(e));
+        }
+    }
+
+    if (frame % 600 === 0) powerUps.push(new PowerUp());
+
+    // --- Updates ---
+
+    // Biome Effects on Player
+    let biomeSpeedMod = 1;
+
+    // DLC Hook: Biome Update
+    if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType]) {
+        window.BIOME_LOGIC[currentBiomeType].update(arena, player, enemies);
+    }
+
+    arena.biomeZones.forEach(zone => {
+        // Simple AABB collision
+        if (player.x > zone.x && player.x < zone.x + zone.w &&
+            player.y > zone.y && player.y < zone.y + zone.h) {
+
+            // Immunity Check
+            let isImmune = false;
+            if (player.type === 'fire' && zone.type === 'LAVA') isImmune = true;
+            if (player.type === 'ice' && zone.type === 'ICE') isImmune = true;
+            if (player.type === 'plant' && zone.type === 'MUD') isImmune = true;
+            if (player.type === 'water' && zone.type === 'WATER') isImmune = true;
+            if (player.type === 'metal' && zone.type === 'MAGNET') isImmune = true;
+
+            if (!isImmune) {
+                if (zone.type === 'MUD') biomeSpeedMod = 0.5;
+                if (zone.type === 'ICE') biomeSpeedMod = 1.3; // Slide faster
+                if (zone.type === 'WATER') biomeSpeedMod = 0.7;
+
+                if (zone.type === 'LAVA' && frame % 60 === 0) {
+                    applyDamage(player, 5, { label: 'LAVA' }); // #18
+                    createExplosion(player.x, player.y, '#e74c3c');
+                    showNotification("BURNING!");
+                }
+
+                if (zone.type === 'MAGNET') {
+                    // Pull Player towards center
+                    const cx = zone.x + zone.w / 2;
+                    const cy = zone.y + zone.h / 2;
+                    const angle = Math.atan2(cy - player.y, cx - player.x);
+                    player.x += Math.cos(angle) * 2; // Strong pull
+                    player.y += Math.sin(angle) * 2;
+                }
+            }
+        }
+
+        // Biome Effects on Enemies (Always active, no immunity for them)
+        if (zone.type === 'MAGNET') {
+            const cx = zone.x + zone.w / 2;
+            const cy = zone.y + zone.h / 2;
+            enemies.forEach(e => {
+                if (e.x > zone.x && e.x < zone.x + zone.w &&
+                    e.y > zone.y && e.y < zone.y + zone.h) {
+                    const angle = Math.atan2(cy - e.y, cx - e.x);
+                    e.x += Math.cos(angle) * 3; // Enemies get pulled harder
+                    e.y += Math.sin(angle) * 3;
+                }
+            });
+        }
+    });
+    player.biomeSpeedMod = biomeSpeedMod;
+
+    if (isPlayerDying) {
+        // Freeze player during death sequence
+        player.vx = 0;
+        player.vy = 0;
+    } else {
+        player.update();
+    }
+    player.draw();
+
+    // Evil Mode hero ability updates and overlay rendering
+    if (isEvilMode && window.HERO_LOGIC && window.HERO_LOGIC[player.type]) {
+        const _hl = window.HERO_LOGIC[player.type];
+        if (_hl.update)      _hl.update(player, deltaTime / 1000);
+        if (_hl.drawOverlay) _hl.drawOverlay(player, ctx);
+    }
+
+    // Co-op / AI companion: update + draw P2
+    if ((isCoopMode || isAICompanionMode) && player2) {
+        if (!player2.isDead) {
+            // Online guest: P2 is a ghost — skip local physics, position set by network
+            if (!player2._ghost) {
+                player2.update();
+                // Distance enforcement — rubber band above 1800px (skip for online — server handles)
+                if (!isOnlineMode) {
+                    const _sep = Math.hypot(player2.x - player.x, player2.y - player.y);
+                    if (_sep > 1800) {
+                        const _force = (_sep - 1800) * 0.06;
+                        const _ang = Math.atan2(player.y - player2.y, player.x - player2.x);
+                        player2.x += Math.cos(_ang) * _force;
+                        player2.y += Math.sin(_ang) * _force;
+                        const _ang2 = Math.atan2(player2.y - player.y, player2.x - player.x);
+                        player.x += Math.cos(_ang2) * _force * 0.3;
+                        player.y += Math.sin(_ang2) * _force * 0.3;
+                    }
+                    if (_sep > 1400) drawCoopDistanceWarning(ctx, player2, _sep);
+                }
+            } else if (player2._snapshotAt) {
+                if (player2._snapBuf && player2._snapBuf.length >= 2) {
+                    const _p2pos = _onlineInterpBuf(player2._snapBuf, _onlineRenderTime());
+                    player2.x = _p2pos.x; player2.y = _p2pos.y;
+                } else {
+                    // Fallback: extrapolate from single snapshot until buffer fills
+                    const _p2dt = Math.min((Date.now() - player2._snapshotAt) / 1000 * 60, 8);
+                    const _smx = player2._smx || 0, _smy = player2._smy || 0;
+                    const _moveLen = Math.hypot(_smx, _smy);
+                    const _speed = (player2.stats?.speed || 4) * (player2.speedMultiplier || 1);
+                    if (_moveLen > 0) {
+                        player2.x = player2._sx + (_smx / _moveLen) * _speed * _p2dt;
+                        player2.y = player2._sy + (_smy / _moveLen) * _speed * _p2dt;
+                    } else {
+                        player2.x = player2._sx;
+                        player2.y = player2._sy;
+                    }
+                }
+            }
+        }
+        player2.draw();
+        updateDrawRevivalMarkers(ctx);
+    }
+
+    // Online: interpolate ghost entities between buffered snapshots; reconcile own player; flush input
+    if (isOnlineMode && gameRunning && !gamePaused) {
+        _onlineFrame++;
+
+        // Interpolate ghost entities between buffered snapshots for smooth rendering
+        const _now = Date.now();
+        const _renderTime = _onlineRenderTime();
+        enemies.forEach(e => {
+            if (!e._ghost) return;
+            if (e._snapBuf && e._snapBuf.length >= 2) {
+                const _ep = _onlineInterpBuf(e._snapBuf, _renderTime);
+                e.x = _ep.x; e.y = _ep.y;
+            } else {
+                const _dt = Math.min((_now - (e._snapshotAt || _now)) / 1000 * 60, 12);
+                e.x = (e._sx ?? e.x) + (e.vx || 0) * _dt;
+                e.y = (e._sy ?? e.y) + (e.vy || 0) * _dt;
+            }
+        });
+        projectiles.forEach(p => {
+            if (!p._ghost || !p._snapshotAt) return;
+            if (p._snapBuf && p._snapBuf.length >= 2) {
+                const _pp = _onlineInterpBuf(p._snapBuf, _renderTime);
+                p.x = _pp.x; p.y = _pp.y;
+            } else {
+                const _dt = Math.min((_now - p._snapshotAt) / 1000 * 60, 12);
+                p.x = p._sx + (p.velocity?.x || 0) * _dt;
+                p.y = p._sy + (p.velocity?.y || 0) * _dt;
+            }
+        });
+        // Drop orphan projectiles once render time has passed their last buffered
+        // server position — they've finished their visible flight to impact.
+        if (projectiles.some(p => p._orphanAt !== undefined)) {
+            projectiles = projectiles.filter(p => {
+                if (p._orphanAt === undefined) return true;
+                const lastT = p._snapBuf && p._snapBuf.length ? p._snapBuf[p._snapBuf.length - 1].t : 0;
+                return _renderTime <= lastT;
+            });
+            if (window._world) window._world.projectiles = projectiles;
+        }
+
+        // Own-player reconciliation. Trust client prediction whenever the
+        // player has active input (running, dashing). Server speed now matches
+        // client (sub-stepped Player.update) so drift during motion stays
+        // within RTT jitter and there's nothing to correct anyway.
+        //
+        // The remaining visible jerk happened the moment the player STOPPED
+        // moving: client stops at its predicted position, but the server keeps
+        // applying the last received "move" input for ~RTT until the "stop"
+        // arrives, so the next snapshot's server position is briefly overshot
+        // past the client. Reconciling against that snapshot pulled the player
+        // forward — perceived as a rubber-band on release of move keys.
+        //
+        // Solution: a post-move grace window that suspends reconciliation for
+        // ~600 ms after stopping. Server has time to apply the stop input and
+        // settle, so by the time we resume reconciliation the divergence is
+        // tiny. Combined with a 30 px idle dead-zone, the rubber-band on stop
+        // is invisible.
+        if (player) {
+            if (player.isDashing) player._reconcileGrace = 18; // ~300 ms dash grace
+            else if (player._reconcileGrace > 0) player._reconcileGrace--;
+
+            const _mi  = player.moveInput || { x: 0, y: 0 };
+            const _isInputMoving = Math.abs(_mi.x) > 0.05 || Math.abs(_mi.y) > 0.05;
+            if (player._wasInputMoving && !_isInputMoving) {
+                player._postMoveGrace = 36; // ~600 ms — covers any plausible RTT
+            } else if (player._postMoveGrace > 0) {
+                player._postMoveGrace--;
+            }
+            player._wasInputMoving = _isInputMoving;
+
+            if (!player.isDead && player._serverTargetX !== undefined) {
+                const _rdx = player._serverTargetX - player.x;
+                const _rdy = player._serverTargetY - player.y;
+                const _rd2 = _rdx * _rdx + _rdy * _rdy;
+                if (_rd2 > 90000) {                       // > 300 px — teleport / death / extreme lag: hard snap
+                    player.x = player._serverTargetX;
+                    player.y = player._serverTargetY;
+                } else if (!player.isDashing && !player._reconcileGrace
+                        && !player._postMoveGrace && !_isInputMoving
+                        && _rd2 > 900) {                  // > 30 px idle dead-zone (was 4 px)
+                    // Idle past grace, divergence beyond tolerance: gentle pull
+                    player.x += _rdx * 0.04;
+                    player.y += _rdy * 0.04;
+                }
+                // Otherwise: trust client prediction.
+            }
+        }
+        // Both clients send input every frame so the server has up-to-date state
+        window.networkManager?.flushInput();
+    }
+
+    // Update Companions
+    companions.forEach(c => {
+        c.update();
+        c.draw(ctx);
+    });
+
+    // Memory Shards
+    for (let index = memoryShards.length - 1; index >= 0; index--) {
+        const shard = memoryShards[index];
+        shard.update();
+        shard.draw(ctx);
+        const dist = Math.hypot(player.x - shard.x, player.y - shard.y);
+        if (dist < player.radius + 20) {
+            // Collect
+            memoryShards.splice(index, 1);
+            showNotification("MEMORY RECOVERED!");
+            createExplosion(shard.x, shard.y, shard.color);
+
+            // Save Memory
+            if (!saveData.memories) saveData.memories = {};
+
+            const shardType = shard.heroType;
+
+            // Migration: Convert number to array if needed
+            if (typeof saveData.memories[shardType] === 'number') {
+                const count = saveData.memories[shardType];
+                saveData.memories[shardType] = [];
+                for (let i = 0; i < count; i++) saveData.memories[shardType].push(i);
+            }
+
+            if (!saveData.memories[shardType]) saveData.memories[shardType] = [];
+
+            const unlockedIndices = saveData.memories[shardType];
+            const allStories = MEMORY_STORIES[shardType] || [];
+            const availableIndices = [];
+            for (let i = 0; i < allStories.length; i++) {
+                if (!unlockedIndices.includes(i)) availableIndices.push(i);
+            }
+
+            if (availableIndices.length > 0) {
+                const newIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+                saveData.memories[shardType].push(newIndex);
+
+                // Show Story Text
+                const storyText = allStories[newIndex];
+                showNotification(`MEMORY: "${storyText}"`);
+
+                // Play Audio
+                if (typeof audioManager !== 'undefined') {
+                    audioManager.playVoice(shardType, newIndex);
+                }
+            } else {
+                showNotification("MEMORY RECOVERED! (All collected)");
+            }
+
+            saveGame();
+
+            // Secret Love shard #51 — auto-reveal once all 50 regular Love shards are collected
+            if (shardType === 'love' && typeof window.ECHOS_LOVE_SECRET !== 'undefined') {
+                const collected = saveData.memories['love'] || [];
+                const allFiftyCollected = collected.length >= 50 &&
+                    Array.from({ length: 50 }, (_, i) => i).every(i => collected.includes(i));
+                if (allFiftyCollected && !saveData.memories['love_secret_51']) {
+                    saveData.memories['love_secret_51'] = true;
+                    setTimeout(() => {
+                        showNotification(`✦ REVELATION: "${window.ECHOS_LOVE_SECRET}"`);
+                        if (typeof audioManager !== 'undefined') audioManager.playVoice('love', 50);
+                    }, 3000);
+                    saveGame();
+                }
+            }
+        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+            const distP2 = Math.hypot(player2.x - shard.x, player2.y - shard.y);
+            if (distP2 < player2.radius + 20) {
+                memoryShards.splice(index, 1);
+                showNotification("MEMORY RECOVERED!");
+                createExplosion(shard.x, shard.y, shard.color);
+
+                if (!saveData.memories) saveData.memories = {};
+                const shardType = shard.heroType;
+                if (typeof saveData.memories[shardType] === 'number') {
+                    const count = saveData.memories[shardType];
+                    saveData.memories[shardType] = [];
+                    for (let i = 0; i < count; i++) saveData.memories[shardType].push(i);
+                }
+                if (!saveData.memories[shardType]) saveData.memories[shardType] = [];
+                const unlockedIndices = saveData.memories[shardType];
+                const allStories = MEMORY_STORIES[shardType] || [];
+                const availableIndices = [];
+                for (let i = 0; i < allStories.length; i++) {
+                    if (!unlockedIndices.includes(i)) availableIndices.push(i);
+                }
+                if (availableIndices.length > 0) {
+                    const newIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+                    saveData.memories[shardType].push(newIndex);
+                    const storyText = allStories[newIndex];
+                    showNotification(`MEMORY: "${storyText}"`);
+                    if (typeof audioManager !== 'undefined') audioManager.playVoice(shardType, newIndex);
+                } else {
+                    showNotification("MEMORY RECOVERED! (All collected)");
+                }
+                saveGame();
+            }
+        }
+    }
+
+    // Gold Drops
+    for (let index = goldDrops.length - 1; index >= 0; index--) {
+        const drop = goldDrops[index];
+        drop.draw();
+        // Golden Magnet (Chance Convergence)
+        const pickupRad = player.pickupRange || (player.radius + 20);
+        const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
+        if (dist < pickupRad) {
+            const amount = Math.floor(drop.value * player.goldMultiplier);
+            if (player.gainGold) player.gainGold(amount); // Use new method
+            else player.gold += amount; // Fallback
+
+            if (isChaosShuffleMode) checkChaosEvent('GOLD', amount);
+            if (isTutorialMode) TutorialMode.onGold();
+            currentRunStats.moneyGained += amount; // Track Gold
+            saveData.global.totalGold += drop.value; // Track for achievement
+            if (typeof audioManager !== 'undefined') audioManager.play('pickup_gold');
+            GoldDrop.release(drop); // #20 P3 — return to pool before splice
+            goldDrops.splice(index, 1);
+        }
+    }
+
+    // Card Drops
+    for (let index = cardDrops.length - 1; index >= 0; index--) {
+        const drop = cardDrops[index];
+        drop.draw();
+        const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
+        if (dist < player.radius + 20) {
+            const cardKey = drop.cardKey;
+            const card = COLLECTOR_CARDS[cardKey];
+
+            if (card && !saveData.collection.includes(cardKey)) {
+                saveData.collection.push(cardKey);
+                saveGame();
+
+                // Show notification
+                const notif = document.createElement('div');
+                notif.className = 'achievement-popup'; // Reuse achievement style
+                notif.style.borderColor = card.color;
+                notif.innerHTML = `
+                    <div style="font-size: 12px; color: #aaa;">NEW CARD FOUND!</div>
+                    <div style="color: ${card.color}; font-weight: bold; font-size: 16px; margin: 5px 0;">${card.name}</div>
+                    <div style="font-size: 12px;">${card.desc}</div>
+                `;
+                document.body.appendChild(notif);
+
+                if (typeof audioManager !== 'undefined') {
+                    audioManager.play('pickup_card');
+                    audioManager.playHeroExclamation(player.type, 'found');
+                }
+
+                // Trigger animation
+                setTimeout(() => notif.classList.add('show'), 10);
+
+                setTimeout(() => {
+                    notif.classList.remove('show');
+                    setTimeout(() => notif.remove(), 1000);
+                }, 4000);
+            }
+
+            cardDrops.splice(index, 1);
+        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+            const distP2 = Math.hypot(player2.x - drop.x, player2.y - drop.y);
+            if (distP2 < player2.radius + 20) {
+                const cardKey = drop.cardKey;
+                const card = COLLECTOR_CARDS[cardKey];
+                if (card && !saveData.collection.includes(cardKey)) {
+                    saveData.collection.push(cardKey);
+                    saveGame();
+                    const notif = document.createElement('div');
+                    notif.className = 'achievement-popup';
+                    notif.style.borderColor = card.color;
+                    notif.innerHTML = `
+                        <div style="font-size: 12px; color: #aaa;">NEW CARD FOUND!</div>
+                        <div style="color: ${card.color}; font-weight: bold; font-size: 16px; margin: 5px 0;">${card.name}</div>
+                        <div style="font-size: 12px;">${card.desc}</div>
+                    `;
+                    document.body.appendChild(notif);
+                    if (typeof audioManager !== 'undefined') {
+                        audioManager.play('pickup_card');
+                        audioManager.playHeroExclamation(player2.type, 'found');
+                    }
+                    setTimeout(() => notif.classList.add('show'), 10);
+                    setTimeout(() => { notif.classList.remove('show'); setTimeout(() => notif.remove(), 1000); }, 4000);
+                }
+                cardDrops.splice(index, 1);
+            }
+        }
+    }
+
+    // Holy Masks
+    for (let index = holyMasks.length - 1; index >= 0; index--) {
+        const mask = holyMasks[index];
+        mask.draw();
+        const dist = Math.hypot(player.x - mask.x, player.y - mask.y);
+        if (dist < player.radius + 20) {
+            if (mask.isTrueGolden) {
+                // True Golden Mask Effect
+                player.damageMultiplier += 0.5; // +50% Damage
+                player.speedMultiplier += 0.2; // +20% Speed
+                player.maxHp += 50;
+                player.hp += 50;
+                player.cooldownMultiplier *= 0.8; // -20% Cooldown
+
+                // Visual Flag
+                player.isGolden = true;
+
+                showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
+                createExplosion(player.x, player.y, '#fff');
+                if (typeof audioManager !== 'undefined') {
+                    audioManager.play('pickup_mask');
+                    audioManager.playHeroExclamation(player.type, 'found');
+                }
+
+                // Unlock Achievement if exists?
+            } else {
+                saveData[player.type].level++;
+                saveGame();
+                if (typeof audioManager !== 'undefined') {
+                    audioManager.play('pickup_mask');
+                    audioManager.playHeroExclamation(player.type, 'found');
+                }
+                showNotification("PERMANENT LEVEL UP!");
+                createExplosion(player.x, player.y, '#f1c40f');
+            }
+            holyMasks.splice(index, 1);
+        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+            const distP2 = Math.hypot(player2.x - mask.x, player2.y - mask.y);
+            if (distP2 < player2.radius + 20) {
+                if (mask.isTrueGolden) {
+                    player2.damageMultiplier += 0.5;
+                    player2.speedMultiplier += 0.2;
+                    player2.maxHp += 50;
+                    player2.hp += 50;
+                    player2.cooldownMultiplier *= 0.8;
+                    player2.isGolden = true;
+                    showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
+                    createExplosion(player2.x, player2.y, '#fff');
+                } else {
+                    saveData[player2.type].level++;
+                    saveGame();
+                    showNotification("PERMANENT LEVEL UP!");
+                    createExplosion(player2.x, player2.y, '#f1c40f');
+                }
+                if (typeof audioManager !== 'undefined') {
+                    audioManager.play('pickup_mask');
+                    audioManager.playHeroExclamation(player2.type, 'found');
+                }
+                holyMasks.splice(index, 1);
+            }
+        }
+    }
+
+    for (let index = powerUps.length - 1; index >= 0; index--) {
+        const pup = powerUps[index];
+        pup.update(); pup.draw();
+        const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
+        if (dist < player.radius + pup.radius) {
+            if (pup.type === 'HEAL') {
+                player.hp = Math.min(player.hp + 30, player.maxHp);
+                if (isChaosShuffleMode) checkChaosEvent('HEAL');
+                createExplosion(player.x, player.y, '#2ecc71');
+                if (typeof audioManager !== 'undefined') audioManager.play('pickup_heal');
+            }
+            else if (pup.type === 'MAXHP') {
+                player.maxHp += 20; player.hp += 20;
+                createExplosion(player.x, player.y, '#e74c3c');
+                if (typeof audioManager !== 'undefined') audioManager.play('pickup_maxhp');
+            }
+            else if (pup.type === 'SPEED') {
+                player.buffs.speed = 600;
+                createExplosion(player.x, player.y, '#f1c40f');
+                if (typeof audioManager !== 'undefined') audioManager.play('pickup_speed');
+            }
+            else if (pup.type === 'MULTI') {
+                player.buffs.multi = 600;
+                createExplosion(player.x, player.y, '#3498db');
+                if (typeof audioManager !== 'undefined') audioManager.play('pickup_multi');
+            }
+            else if (pup.type === 'AUTOAIM') {
+                if (player.heroType === 'EARTH') {
+                    // Earth Hero: Temporary Ram Damage Boost
+                    player.stats.ramDmgMult = (player.stats.ramDmgMult || 1) + 1.0; // +100% Ram Damage
+                    setTimeout(() => { player.stats.ramDmgMult -= 1.0; }, 10000); // Lasts 10s
+                    showNotification("RAM DAMAGE BOOST!");
+                    createExplosion(player.x, player.y, '#e74c3c');
+                } else {
+                    player.buffs.autoaim = 600;
+                    createExplosion(player.x, player.y, '#9b59b6');
+                }
+                if (typeof audioManager !== 'undefined') audioManager.play('pickup_autoaim');
+            }
+            powerUps.splice(index, 1);
+        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+            // Co-op: P2 collects power-ups
+            const distP2 = Math.hypot(player2.x - pup.x, player2.y - pup.y);
+            if (distP2 < player2.radius + pup.radius) {
+                if (pup.type === 'HEAL') { player2.hp = Math.min(player2.hp + 30, player2.maxHp); createExplosion(player2.x, player2.y, '#2ecc71'); }
+                else if (pup.type === 'MAXHP') { player2.maxHp += 20; player2.hp += 20; }
+                else if (pup.type === 'SPEED') { player2.buffs.speed = 600; }
+                else if (pup.type === 'MULTI') { player2.buffs.multi = 600; }
+                else if (pup.type === 'AUTOAIM') { player2.buffs.autoaim = 600; }
+                powerUps.splice(index, 1);
+            } else if (pup.timer <= 0) powerUps.splice(index, 1);
+        } else if (pup.timer <= 0) powerUps.splice(index, 1);
+    }
+
+    for (let index = projectiles.length - 1; index >= 0; index--) {
+        const proj = projectiles[index];
+        if (!_isHitStopped && !proj._ghost) proj.update();
+        if (proj.life !== null && proj.life <= 0) {
+            Projectile.release(proj); // #20 P3
+            projectiles.splice(index, 1);
+            continue;
+        }
+
+        // --- PVP LOGIC ---
+        // Check collision against AI Players (Avoiding Self-Damage)
+        if (typeof window.additionalPlayers !== 'undefined' && window.additionalPlayers.length > 0 && !proj.isEnemy) {
+            window.additionalPlayers.forEach(p2 => {
+                // Avoid self-damage 
+                if (proj.owner === p2) return;
+
+                if (Math.hypot(p2.x - proj.x, p2.y - proj.y) < p2.radius + proj.radius) {
+                    p2.hp -= proj.damage;
+                    floatingTexts.push(FloatingText.acquire(p2.x, p2.y - 40, proj.damage.toFixed(0), "#ff0000", 25));
+                    proj.dead = true; // Mark dead
+                    createExplosion(proj.x, proj.y, proj.color);
+                    if (p2.hp <= 0) {
+                        if (typeof isEvilMode !== 'undefined' && isEvilMode) {
+                            // Evil Mode: mark dead so checkWaveEnd() sees it — don't splice yet
+                            p2.isDead = true;
+                            createExplosion(p2.x, p2.y, '#fff');
+                        } else {
+                            const idx = window.additionalPlayers.indexOf(p2);
+                            if (idx > -1) window.additionalPlayers.splice(idx, 1);
+                            createExplosion(p2.x, p2.y, '#fff');
+                            showNotification("OPPONENT KO!");
+
+                            if (isVersusMode && window.additionalPlayers.length === 0) {
+                                audioManager.playHeroExclamation(player.type, 'boss_win');
+                                setTimeout(() => gameOver(true), 2000);
+                            } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
+                                // Story Mode Duel Victory
+                                bossActive = false;
+                                bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds for dramatic effect
+                                triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
+
+                                // Clear any remaining enemies/projectiles
+                                enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
+                                enemies = [];
+                                projectiles = [];
+                                if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Also check collision against Main Player (Player 1) if owner is not Player 1
+            if (proj.owner && proj.owner !== player) {
+                const p1 = player;
+                if (Math.hypot(p1.x - proj.x, p1.y - proj.y) < p1.radius + proj.radius) {
+                    p1.takeDamage(proj.damage); // Use standard take damage
+                    proj.dead = true;
+                    createExplosion(proj.x, proj.y, proj.color);
+                }
+            }
+
+            if (proj.dead) {
+                Projectile.release(proj); // #20 P3
+                projectiles.splice(index, 1);
+                continue;
+            }
+        }
+
+        // 2P Versus PvP: projectile hits between P1 and P2
+        if (isVersusMode && isCoopMode && player2 && !player2.isDead && !proj.isEnemy) {
+            if (proj.owner === player) {
+                // P1 projectile → P2
+                if (Math.hypot(player2.x - proj.x, player2.y - proj.y) < player2.radius + proj.radius) {
+                    const dmg = proj.damage * (1 - player2.damageReduction);
+                    player2.hp -= dmg;
+                    floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
+                    proj.dead = true;
+                    createExplosion(proj.x, proj.y, proj.color);
+                    if (player2.hp <= 0 && !player2.isDead) {
+                        player2.isDead = true; player2.hp = 0;
+                        createExplosion(player2.x, player2.y, '#fff');
+                        showNotification("OPPONENT KO!");
+                        audioManager.playHeroExclamation(player.type, 'boss_win');
+                        setTimeout(() => gameOver(true), 2000);
+                    }
+                }
+            } else if (proj.owner === player2 && !player.isInvincible) {
+                // P2 projectile → P1
+                if (Math.hypot(player.x - proj.x, player.y - proj.y) < player.radius + proj.radius) {
+                    player.takeDamage(proj.damage);
+                    proj.dead = true;
+                    createExplosion(proj.x, proj.y, proj.color);
+                }
+            }
+            if (proj.dead) { Projectile.release(proj); projectiles.splice(index, 1); continue; } // #20 P3
+        }
+
+        proj.draw();
+        if (arena.checkCollision(proj.x, proj.y, proj.radius)) {
+            if (proj.isExplosive) {
+                const _cands = queryEnemiesNear(proj.x, proj.y, 100);
+                for (let _ci = 0; _ci < _cands.length; _ci++) {
+                    const e = _cands[_ci];
+                    if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) {
+                        e.hp -= proj.damage;
+                        currentRunStats.damageDealt += proj.damage; // Track Damage
+                        saveData.global.totalDamage += proj.damage;
+                        bumpDamageSource('projectile', proj.damage);
+                    }
+                }
+                createExplosion(proj.x, proj.y, '#e67e22');
+            }
+            Projectile.release(proj); // #20 P3
+            projectiles.splice(index, 1);
+            continue;
+        }
+        if (proj.x < 0 || proj.x > arena.width || proj.y < 0 || proj.y > arena.height) {
+            Projectile.release(proj); // #20 P3
+            projectiles.splice(index, 1);
+        }
+    }
+
+    for (let index = meleeAttacks.length - 1; index >= 0; index--) {
+        const att = meleeAttacks[index];
+        att.update(); att.draw();
+
+        // PvP Collision: P1 vs P2 (AI)
+        if (att.owner === player && typeof window.additionalPlayers !== 'undefined') {
+            window.additionalPlayers.forEach(p2 => {
+                const pid = p2.id || 'P2';
+                if (att.hitList.includes(pid)) return;
+                if (Math.hypot(p2.x - att.x, p2.y - att.y) < att.radius + p2.radius) {
+                    const angleTo = Math.atan2(p2.y - att.y, p2.x - att.x);
+                    let diff = angleTo - att.angle;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    if (Math.abs(diff) < Math.PI / 3) {
+                        if (p2.hp > 0) {
+                            p2.hp -= att.damage;
+                            att.hitList.push(pid);
+                            createExplosion(p2.x, p2.y, att.color);
+                            floatingTexts.push(FloatingText.acquire(p2.x, p2.y - 40, att.damage.toFixed(0), "#ff0000", 25));
+                            if (p2.hp <= 0) {
+                                if (typeof isEvilMode !== 'undefined' && isEvilMode) {
+                                    // Evil Mode: mark dead so checkWaveEnd() sees it — don't splice yet
+                                    p2.isDead = true;
+                                    createExplosion(p2.x, p2.y, '#fff');
+                                } else {
+                                    const idx = window.additionalPlayers.indexOf(p2);
+                                    if (idx > -1) window.additionalPlayers.splice(idx, 1);
+                                    createExplosion(p2.x, p2.y, '#fff');
+                                    showNotification("OPPONENT KO!");
+
+                                    if (isVersusMode && window.additionalPlayers.length === 0) {
+                                        audioManager.playHeroExclamation(player.type, 'boss_win');
+                                        setTimeout(() => gameOver(true), 2000);
+                                    } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
+                                        bossActive = false;
+                                        bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
+                                        triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
+                                        enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
+                                        enemies = [];
+                                        projectiles = [];
+                                        if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 2P Versus: P1 melee → P2
+        if (isVersusMode && isCoopMode && player2 && !player2.isDead && att.owner === player) {
+            const pid = 'PLAYER_2';
+            if (!att.hitList.includes(pid) && Math.hypot(player2.x - att.x, player2.y - att.y) < att.radius + player2.radius) {
+                const angleTo = Math.atan2(player2.y - att.y, player2.x - att.x);
+                let diff = angleTo - att.angle;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                if (Math.abs(diff) < Math.PI / 3) {
+                    const dmg = att.damage * (1 - player2.damageReduction);
+                    player2.hp -= dmg;
+                    att.hitList.push(pid);
+                    createExplosion(player2.x, player2.y, att.color);
+                    floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
+                    if (player2.hp <= 0 && !player2.isDead) {
+                        player2.isDead = true; player2.hp = 0;
+                        createExplosion(player2.x, player2.y, '#fff');
+                        showNotification("OPPONENT KO!");
+                        audioManager.playHeroExclamation(player.type, 'boss_win');
+                        setTimeout(() => gameOver(true), 2000);
+                    }
+                }
+            }
+        }
+
+        // PvP Collision: P2 (AI or 2P-Versus) vs P1
+        if (att.owner && att.owner !== player && !att.hitList.includes('PLAYER')) {
+            if (Math.hypot(player.x - att.x, player.y - att.y) < att.radius + player.radius) {
+                const angleTo = Math.atan2(player.y - att.y, player.x - att.x);
+                let diff = angleTo - att.angle;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                if (Math.abs(diff) < Math.PI / 3) {
+                    if (!player.isInvincible && player.hp > 0) {
+                        player.takeDamage(att.damage);
+                        att.hitList.push('PLAYER');
+                        createExplosion(player.x, player.y, att.color);
+                    }
+                }
+            }
+        }
+
+        if (att.life <= 0) { MeleeSwipe.release(att); meleeAttacks.splice(index, 1); } // #20 P3
+    }
+
+    // #27 — camera-bounds culling. Skip draw for off-screen particles +
+    // floating text; skip update entirely when far outside (≥2× margin),
+    // because those particles will never return into view.
+    const _cullMargin   = 64;
+    const _cullFarMargin = _cullMargin * 2;
+    const _camL = arena.camera.x - _cullMargin;
+    const _camT = arena.camera.y - _cullMargin;
+    const _camR = arena.camera.x + arena.camera.width  + _cullMargin;
+    const _camB = arena.camera.y + arena.camera.height + _cullMargin;
+    const _camLFar = arena.camera.x - _cullFarMargin;
+    const _camTFar = arena.camera.y - _cullFarMargin;
+    const _camRFar = arena.camera.x + arena.camera.width  + _cullFarMargin;
+    const _camBFar = arena.camera.y + arena.camera.height + _cullFarMargin;
+
+    for (let index = particles.length - 1; index >= 0; index--) {
+        const part = particles[index];
+        const _farOff = part.x < _camLFar || part.x > _camRFar || part.y < _camTFar || part.y > _camBFar;
+        if (_farOff) {
+            // Drop and recycle far-offscreen particles immediately.
+            Particle.release(part);
+            particles.splice(index, 1);
+            continue;
+        }
+        part.update();
+        const _onScreen = part.x >= _camL && part.x <= _camR && part.y >= _camT && part.y <= _camB;
+        if (_onScreen) part.draw();
+        if (part.alpha <= 0) {
+            Particle.release(part); // #20 return to pool before splice
+            particles.splice(index, 1);
+        }
+    }
+    // #25/#26 — Particle.draw leaves ctx.globalAlpha at the last
+    // particle's alpha (the sprite-cache fast path skips save/restore).
+    // Reset once after the loop instead of inside every draw() call.
+    ctx.globalAlpha = 1;
+
+    // Update and Draw Floating Texts (cap at 80 — drop oldest when full)
+    if (floatingTexts.length > GAMEPLAY.MAX_FLOATING_TEXTS) {
+        // #20 release the dropped slice into the pool before truncating.
+        const _excess = floatingTexts.length - GAMEPLAY.MAX_FLOATING_TEXTS;
+        for (let _i = 0; _i < _excess; _i++) FloatingText.release(floatingTexts[_i]);
+        floatingTexts.splice(0, _excess);
+    }
+    for (let index = floatingTexts.length - 1; index >= 0; index--) {
+        const ft = floatingTexts[index];
+        const _ftFarOff = ft.x < _camLFar || ft.x > _camRFar || ft.y < _camTFar || ft.y > _camBFar;
+        if (_ftFarOff) {
+            FloatingText.release(ft);
+            floatingTexts.splice(index, 1);
+            continue;
+        }
+        ft.update();
+        const _ftOnScreen = ft.x >= _camL && ft.x <= _camR && ft.y >= _camT && ft.y <= _camB;
+        if (_ftOnScreen) ft.draw();
+        if (ft.life <= 0) {
+            FloatingText.release(ft); // #20 return to pool before splice
+            floatingTexts.splice(index, 1);
+        }
+    }
+
+    // Draw Additional Players (Versus / AI)
+    if (typeof window.additionalPlayers !== 'undefined') {
+        window.additionalPlayers.forEach(p2 => {
+            // Update P2
+            if (p2.controller) {
+                // Ensure input context is updated inside update() via controller
+                p2.update();
+            }
+
+            p2.draw();
+
+            // HP Bar for AI
+            const percent = Math.max(0, p2.hp / p2.maxHp);
+            ctx.save();
+            ctx.fillStyle = 'red';
+            ctx.fillRect(p2.x - 20, p2.y - 35, 40, 5);
+            ctx.fillStyle = '#2ecc71';
+            ctx.fillRect(p2.x - 20, p2.y - 35, 40 * percent, 5);
+            ctx.restore();
+        });
+    }
+
+    // #19 P2 — Lift enemy-projectile vs player(s) collision OUT of the
+    // per-enemy inner sweep. Each enemy projectile collides with the
+    // player exactly once regardless of how many enemies are on screen,
+    // so this branch is independent of the enemies array. Running it
+    // here trims the inner sweep's responsibilities to friendly
+    // projectile → enemy hits, which CAN exploit spatial locality.
+    for (let _pi = projectiles.length - 1; _pi >= 0; _pi--) {
+        const _proj = projectiles[_pi];
+        if (!_proj.isEnemy) continue;
+        const _pDist = Math.hypot(_proj.x - player.x, _proj.y - player.y);
+        if (_pDist < player.radius + _proj.radius) {
+            const _bonuses = getCollectionBonuses(_proj.shooterType);
+
+            if (_proj.shooterType === 'SHOOTER' && _bonuses.specials.includes('SHOOTER_DODGE') && Math.random() < 0.15) {
+                floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "DODGE", "#f1c40f", 20));
+                Projectile.release(_proj); // #20 P3
+                projectiles.splice(_pi, 1);
+                continue;
+            }
+
+            if (_proj.shooterType === 'TOXIC' && _bonuses.specials.includes('TOXIC_IMMUNE')) {
+                continue;
+            }
+
+            const _finalDmg = _proj.damage * _bonuses.defenseMult;
+            const _dmgTaken = _finalDmg * (1 - player.damageReduction);
+
+            if (!player.isInvincible) {
+                player.hp -= _dmgTaken;
+                recordPlayerDamage(player, _proj.shooterType || 'PROJECTILE', _dmgTaken); // #168
+                audioManager.play('damage');
+                floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(_dmgTaken), '#e74c3c', 20));
+                currentRunStats.damageTaken += _dmgTaken;
+                player.resetCombo();
+                triggerImpact(3.5, 10, 0.28, 0.55, 180);
+
+                if (player.heroType === 'EARTH' && player.momentum > 0) {
+                    player.momentum = Math.max(0, player.momentum - 30);
+                }
+            }
+
+            createExplosion(player.x, player.y, _proj.color);
+            Projectile.release(_proj); // #20 P3
+            projectiles.splice(_pi, 1);
+
+            if (player.transformActive) {
+                player.transformActive = false;
+                player.currentForm = 'NONE';
+                showNotification("FORM BROKEN!");
+            }
+        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
+            const _pDistP2 = Math.hypot(_proj.x - player2.x, _proj.y - player2.y);
+            if (_pDistP2 < player2.radius + _proj.radius) {
+                const _p2Dmg = _proj.damage * (1 - player2.damageReduction);
+                player2.hp -= _p2Dmg;
+                floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 20, Math.ceil(_p2Dmg), '#e74c3c', 20));
+                createExplosion(player2.x, player2.y, _proj.color);
+                Projectile.release(_proj); // #20 P3
+                projectiles.splice(_pi, 1);
+                if (player2.hp <= 0 && !player2.isDead) {
+                    player2.isDead = true; player2.hp = 0; player2.isInvincible = true;
+                    player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
+                    p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
+                    createExplosion(player2.x, player2.y, '#3b82f6');
+                    if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'failure');
+                    showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
+                }
+            }
+        }
+    }
+
+    // #19 P2 — Build broad-phase indices for this frame. Enemies hash
+    // serves AOE-radius scans + per-enemy projectile queries below;
+    // projectiles hash serves the per-enemy collision sweep that was
+    // O(N×M) before inversion. Both honour _SPATIAL_HASH_MIN: when
+    // entity counts are low, the rebuild + map overhead exceeds the
+    // savings, so the per-frame _*HashActive flag flips off and the
+    // queryEnemiesNear / queryProjectilesNear helpers linear-scan.
+    _enemyHashActive = !!_enemySpatialHash && enemies.length >= _SPATIAL_HASH_MIN;
+    _projectileHashActive = !!_projectileSpatialHash && projectiles.length >= _SPATIAL_HASH_MIN;
+    if (_enemyHashActive) _enemySpatialHash.rebuild(enemies);
+    if (_projectileHashActive) _projectileSpatialHash.rebuild(projectiles);
+
+    // #24 P10 — time the enemy update + draw + collision phase.
+    // Wave 30+ profile feeds the decision whether a Web Worker AI
+    // pass (#24) is worth the rewrite.
+    const _enemiesT0 = performance.now();
+    for (let eIndex = enemies.length - 1; eIndex >= 0; eIndex--) {
+        const enemy = enemies[eIndex];
+        if (enemy.dead) { enemies.splice(eIndex, 1); continue; }
+
+        // #28 — Biome-zone collision cache. AABB iteration is the hottest
+        // zone cost (200 enemies × ~10 zones = 2k checks/frame). Refresh
+        // the cached speed mod every 4 frames, or whenever LAVA DPS could
+        // fire (frame % 60 === 0). Enemies move ~3–5 px/frame and zones
+        // are 200–800 px wide, so staleness is invisible.
+        if (enemy._zoneRefreshAt === undefined || frame >= enemy._zoneRefreshAt || frame % 60 === 0) {
+            let enemySpeedMod = 1;
+            arena.biomeZones.forEach(zone => {
+                if (enemy.x > zone.x && enemy.x < zone.x + zone.w &&
+                    enemy.y > zone.y && enemy.y < zone.y + zone.h) {
+
+                    if (zone.type === 'MUD') enemySpeedMod = 0.5;
+                    if (zone.type === 'ICE') enemySpeedMod = 1.3;
+                    if (zone.type === 'WATER') enemySpeedMod = 0.7;
+
+                    if (zone.type === 'LAVA' && frame % 60 === 0) {
+                        enemy.hp -= 5;
+                        createExplosion(enemy.x, enemy.y, '#e74c3c');
+                    }
+                }
+            });
+            enemy.biomeSpeedMod = enemySpeedMod;
+            enemy._zoneRefreshAt = frame + 4;
+        }
+
+        if (!_isHitStopped && !enemy._ghost) enemy.update(); enemy.draw();
+        if (enemy._ghost && enemy._hitFlash > 0) {
+            enemy._hitFlash--;
+            ctx.save();
+            ctx.globalAlpha = (enemy._hitFlash / 6) * 0.55;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, (enemy.radius || 20) * 1.05, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+        const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+
+        if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
+            // Invincibility Check
+            if (player.invincibleTimer > 0) {
+                // Frostbite Armor (Altar c2)
+                if (player.hasFrostbiteArmor) {
+                    enemy.frozenTimer = 180; // 3s Freeze
+                    floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
+                }
+
+                // Reflect damage?
+                enemy.hp -= 5;
+                createExplosion(player.x, player.y, '#95a5a6');
+                const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20;
+                continue; // Skip damage
+            }
+
+            // Earth Hero Max Momentum Invulnerability (Ramming)
+            if (player.heroType === 'EARTH' && player.momentum >= player.maxMomentum * 0.95) {
+                // Bounce enemy away
+                const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                if (!(enemy instanceof Boss)) {
+                    enemy.x += Math.cos(angle) * 50;
+                    enemy.y += Math.sin(angle) * 50;
+                }
+                createExplosion(player.x, player.y, '#8d6e63');
+                continue; // No damage taken
+            }
+
+            // Void Hero Realm Shift (Phasing)
+            if (player.type === 'void' && player.inRealmShift) {
+                continue; // No collision damage
+            }
+
+            let dmgTaken = 1 * (1 - player.damageReduction);
+
+            // Speedster Explosion
+            if (enemy.subType === 'SPEEDSTER') {
+                let speedsterDmg = 20;
+                const bonuses = getCollectionBonuses('SPEEDSTER');
+                speedsterDmg *= bonuses.defenseMult;
+
+                dmgTaken = speedsterDmg * (1 - player.damageReduction);
+                createExplosion(player.x, player.y, '#e74c3c');
+                enemy.hp = 0; // Suicide
+            }
+
+            // Thornmail (Altar p3) — #177: route reflect damage through
+            // applyDamage so it respects isInvincible + customOnDamage on
+            // the enemy. Keeps the original "REFLECT" pop + explosion.
+            if (player.thornmailTimer > 0) {
+                applyDamage(enemy, 20, { label: 'Thornmail', color: '#2ecc71', noFloatText: true, sfx: null });
+                createExplosion(player.x, player.y, '#2ecc71');
+                floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "REFLECT", "#2ecc71", 16));
+            }
+
+            if (!player.isInvincible) {
+                // Hook: Custom pre-damage check (for Shields etc)
+                let damagePrevented = false;
+                if (player.customOnDamage) {
+                    damagePrevented = player.customOnDamage(dmgTaken);
+                }
+
+                if (!damagePrevented) {
+                    player.hp -= dmgTaken;
+                    recordPlayerDamage(player, enemy.subType || 'ENEMY', dmgTaken); // #168
+                    audioManager.play('damage');
+                    if (isChaosShuffleMode) checkChaosEvent('HIT');
+                    floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
+                    currentRunStats.damageTaken += dmgTaken; // Track Damage
+                    player.resetCombo(); // Reset Combo on Damage
+                    // Player hit by enemy body — medium jolt
+                    triggerImpact(4, 10, 0.30, 0.55, 200);
+                }
+            }
+            createExplosion(player.x, player.y, '#5e3939');
+
+            if (player.transformActive) {
+                player.transformActive = false;
+                player.currentForm = 'NONE';
+                showNotification("FORM BROKEN!");
+            }
+
+            const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+            if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20; }
+        }
+
+        // Co-op: P2 enemy body contact damage
+        if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
+            const distP2 = Math.hypot(player2.x - enemy.x, player2.y - enemy.y);
+            if (distP2 - enemy.radius - player2.radius < 0 && !player2.isDashing) {
+                let p2Dmg = 1 * (1 - player2.damageReduction);
+                if (enemy.subType === 'SPEEDSTER') { p2Dmg = 20 * (1 - player2.damageReduction); enemy.hp = 0; }
+                player2.hp -= p2Dmg;
+                floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 20, Math.ceil(p2Dmg), '#e74c3c', 20));
+                if (player2.transformActive) { player2.transformActive = false; player2.currentForm = 'NONE'; }
+                const a2 = Math.atan2(enemy.y - player2.y, enemy.x - player2.x);
+                if (!(enemy instanceof Boss)) { enemy.x += Math.cos(a2) * 20; enemy.y += Math.sin(a2) * 20; }
+                // P2 death in co-op
+                if (player2.hp <= 0 && !player2.isDead) {
+                    player2.isDead = true; player2.hp = 0; player2.isInvincible = true;
+                    player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
+                    p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
+                    createExplosion(player2.x, player2.y, '#3b82f6');
+                    if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'failure');
+                    showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
+                }
+            }
+        }
+
+        // #19 P2 — Per-enemy projectile collision. Iterates only the
+        // spatial-hash candidates near this enemy (~3–10 at wave 30+)
+        // instead of the full projectiles array (N×M → N×k). Enemy
+        // projectiles vs player were lifted into the pre-pass above
+        // and are skipped here. pIndex is resolved lazily via
+        // projectiles.indexOf only when a splice is needed.
+        const _qR = (enemy.radius || 30) + 60;
+        const _projCands = queryProjectilesNear(enemy.x, enemy.y, _qR);
+        for (let _ci = 0; _ci < _projCands.length; _ci++) {
+            const proj = _projCands[_ci];
+            if (!proj || proj.isEnemy) continue;
+
+            const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
+            if (pDist - enemy.radius - proj.radius >= 0) continue;
+
+            // Ghost enemies on the guest side: consume the projectile
+            // for visual feedback but skip authoritative damage/flash.
+            if (enemy._ghost) {
+                if (!proj.pierce || proj.pierce <= 0) {
+                    const _gIdx = projectiles.indexOf(proj);
+                    if (_gIdx >= 0) { Projectile.release(proj); projectiles.splice(_gIdx, 1); } // #20 P3
+                }
+                continue;
+            }
+
+            // DLC projectile hook — STOP suppresses default damage.
+            if (proj.onHit) {
+                const result = proj.onHit(enemy);
+                if (result === 'STOP') {
+                    if (proj.life <= 0) {
+                        const _hIdx = projectiles.indexOf(proj);
+                        if (_hIdx >= 0) { Projectile.release(proj); projectiles.splice(_hIdx, 1); } // #20 P3
+                    }
+                    continue;
+                }
+            }
+
+            // Boss immunity check
+            if (enemy instanceof Boss && enemy.immune) {
+                floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "IMMUNE", "#fff", 20));
+                const _bIdx = projectiles.indexOf(proj);
+                if (_bIdx >= 0) { Projectile.release(proj); projectiles.splice(_bIdx, 1); } // #20 P3
+                continue;
+            }
+
+            let finalDamage = proj.damage;
+
+            const bonuses = getCollectionBonuses(enemy.subType);
+            if (enemy instanceof Boss) {
+                const bossBonuses = getCollectionBonuses('BOSS');
+                bonuses.damageMult += (bossBonuses.damageMult - 1);
+
+                if (enemy.type === 'TANK' && enemy.phase === 2) {
+                    bonuses.damageMult *= 1.5;
+                }
+            }
+
+            finalDamage *= bonuses.damageMult;
+
+            let isCrit = proj.isCrit;
+            if (!isCrit && Math.random() < (player.critChance + bonuses.critChance)) {
+                isCrit = true;
+                finalDamage *= player.critMultiplier;
+            }
+
+            if (enemy.subType === 'SHIELDER' && bonuses.specials.includes('SHIELD_PIERCE')) {
+                finalDamage *= 1.5;
+            }
+
+            if (proj.isWildfire) {
+                finalDamage += 10;
+                createExplosion(enemy.x, enemy.y, '#e67e22');
+            }
+
+            if (proj.isCryo) {
+                enemy.frozenTimer = 60;
+                floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
+            }
+
+            enemy.hp -= finalDamage;
+            enemy.hitFlashTimer = 6;
+            audioManager.play('enemy_damage');
+            if (enemy.hp <= 0 && enemy.hp + finalDamage > 0) {
+                enemy.lastHitBy = 'PROJECTILE';
+                enemy.killer = proj.owner || player;
+            }
+
+            triggerImpact(isCrit ? 3.5 : 2, isCrit ? 8 : 5,
+                          isCrit ? 0.15 : 0.08, isCrit ? 0.25 : 0.12,
+                          isCrit ? 120 : 80);
+            if (isCrit) triggerHitStop(GAMEPLAY.HITSTOP_CRIT_SHOT);
+
+            floatingTexts.push(FloatingText.acquire(
+                enemy.x,
+                enemy.y - 20,
+                Math.floor(finalDamage) + (isCrit ? '!' : ''),
+                isCrit ? '#f1c40f' : '#fff',
+                isCrit ? 30 : 16
+            ));
+
+            currentRunStats.damageDealt += finalDamage;
+            saveData.global.totalDamage += finalDamage;
+            bumpDamageSource('projectile', finalDamage);
+            createExplosion(enemy.x, enemy.y, proj.color);
+            if (proj.isExplosive) {
+                triggerImpact(4.5, 12, 0.22, 0.55, 220);
+                const _splashCands = queryEnemiesNear(proj.x, proj.y, 100);
+                for (let _si = 0; _si < _splashCands.length; _si++) {
+                    const nearby = _splashCands[_si];
+                    if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
+                        nearby.hp -= proj.damage;
+                        if (nearby.hp <= 0 && nearby.hp + proj.damage > 0) {
+                            nearby.lastHitBy = 'PROJECTILE';
+                            nearby.killer = proj.owner || player;
+                        }
+
+                        floatingTexts.push(FloatingText.acquire(nearby.x, nearby.y - 20, Math.floor(proj.damage), '#e67e22', 16));
+
+                        currentRunStats.damageDealt += proj.damage;
+                        saveData.global.totalDamage += proj.damage;
+                        bumpDamageSource('projectile', proj.damage);
+                    }
+                }
+                const _eIdx = projectiles.indexOf(proj);
+                if (_eIdx >= 0) { Projectile.release(proj); projectiles.splice(_eIdx, 1); } // #20 P3
+            } else {
+                if (proj.pierce > 0) {
+                    proj.pierce--;
+                } else {
+                    const _nIdx = projectiles.indexOf(proj);
+                    if (_nIdx >= 0) { Projectile.release(proj); projectiles.splice(_nIdx, 1); } // #20 P3
+                }
+            }
+            if (!(enemy instanceof Boss)) {
+                const angle = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);
+                enemy.x += Math.cos(angle) * proj.knockback; enemy.y += Math.sin(angle) * proj.knockback;
+            }
+        }
+
+        meleeAttacks.forEach(att => {
+            if (att.hitList.includes(eIndex)) return;
+            const dx = enemy.x - att.x; const dy = enemy.y - att.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < att.radius + enemy.radius) {
+                const angleToEnemy = Math.atan2(dy, dx);
+                let diff = angleToEnemy - att.angle;
+                while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
+                if (Math.abs(diff) < Math.PI / 3) {
+                    enemy.hp -= att.damage;
+                    enemy.hitFlashTimer = 6;
+                    if (enemy.hp <= 0 && enemy.hp + att.damage > 0) {
+                        enemy.lastHitBy = 'MELEE';
+                        enemy.killer = att.owner || player;
+                    }
+                    if (isTutorialMode) TutorialMode.onMelee();
+
+                    // Melee impact — heavier thud
+                    const isCrit = att.isCrit;
+                    triggerImpact(isCrit ? 7 : 5, isCrit ? 16 : 13,
+                                  isCrit ? 0.35 : 0.22, isCrit ? 0.70 : 0.50,
+                                  isCrit ? 220 : 160);
+                    if (isCrit) triggerHitStop(GAMEPLAY.HITSTOP_CRIT_MELEE); else triggerHitStop(GAMEPLAY.HITSTOP_HIT);
+                    floatingTexts.push(FloatingText.acquire(
+                        enemy.x,
+                        enemy.y - 20,
+                        Math.floor(att.damage) + (isCrit ? '!' : ''),
+                        isCrit ? '#f1c40f' : '#fff',
+                        isCrit ? 35 : 20
+                    ));
+
+                    currentRunStats.damageDealt += att.damage; // Track Damage
+                    saveData.global.totalDamage += att.damage;
+                    bumpDamageSource('melee', att.damage);
+                    createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(eIndex);
+                    if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
+                }
+            }
+        });
+
+        if (enemy.hp <= 0) {
+            enemy.dead = true; // Prevent double-processing if forEach+splice skips this enemy
+            if (!(enemy instanceof Boss)) createDeathBurst(enemy.x, enemy.y, enemy.color || '#e74c3c');
+            if (isChaosShuffleMode) checkChaosEvent('KILL', { isMelee: (enemy.lastHitBy === 'MELEE') });
+            if (isTutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
+            // Boss Minion Logic
+            if (enemy.isSummonedMinion && enemy.parentBoss) {
+                enemy.parentBoss.minionsToKill--;
+            }
+
+            player.addCombo(); // Add Combo
+            if (player.onKill) player.onKill(); // Trigger onKill effects (e.g. Black Hero Heal)
+            checkAchievements(); // Check achievements on kill
+
+            // Mutator: Explosive Personality
+            if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'EXPLOSIVE')) {
+                createExplosion(enemy.x, enemy.y, '#e74c3c');
+                if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 100) {
+                    applyDamage(player, 10, { label: 'EXPLOSION' }); // #18
+                }
+            }
+
+            if (enemy instanceof Boss) {
+                // Makuta Achievement Check
+                if (enemy.type === 'MAKUTA' && wave >= 100) {
+                    unlockAchievement('MAKUTA_SLAYER'); // Base Achievement
+
+                    // Hard Mode Achievements (1-10)
+                    const prestige = saveData[player.type].prestige;
+                    for (let i = 1; i <= 10; i++) {
+                        if (prestige >= i) unlockAchievement(`MAKUTA_HM_${i}`);
+                    }
+
+                    showNotification("MAKUTA DEFEATED!");
+                }
+
+                currentRunStats.bossesKilled++; // Track Boss Kill
+                saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
+                if (currentRunStats.keyMoments) {
+                    const _km_t = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
+                    currentRunStats.keyMoments.push({ wave, timeSec: _km_t, kind: 'boss_kill', label: enemy.bossType || 'Boss' });
+                }
+                score += 1000; player.gainXp(500);
+                if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) player2.gainXp(500);
+                createExplosion(enemy.x, enemy.y, '#c0392b');
+                checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
+
+                // CHAOS EVENT HOOK
+                if (typeof checkChaosEvent === 'function') checkChaosEvent('BOSS_KILL', enemy.type);
+
+                // Unlock Hero Story Achievement
+                if (enemy.type === 'MAKUTA' && wave >= 100) {
+                    // True Golden Mask moved to Wave 90 start
+
+                    if (player.type === 'fire') unlockAchievement('STORY_FIRE');
+                    if (player.type === 'water') unlockAchievement('STORY_WATER');
+                    if (player.type === 'ice') unlockAchievement('STORY_ICE');
+                    if (player.type === 'plant') unlockAchievement('STORY_PLANT');
+                    if (player.type === 'metal') unlockAchievement('STORY_METAL');
+                }
+
+                // DLC boss-specific achievements (superbosses, etc.)
+                if (window.DLC_STORY_ACHIEVEMENTS[enemy.type]) {
+                    unlockAchievement(window.DLC_STORY_ACHIEVEMENTS[enemy.type]);
+                }
+
+                enemies.splice(eIndex, 1);
+                const remainingBosses = enemies.filter(e => e instanceof Boss).length;
+                if (remainingBosses === 0) {
+                    bossActive = false;
+
+                    // Start Boss Death Sequence
+                    bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds at 60 FPS
+                    triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
+                    if (typeof audioManager !== 'undefined') {
+                        audioManager.play('wave_completed');
+                        if (currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT') {
+                            audioManager.playHeroExclamation(player.type, 'boss_win');
+                            // Villain defeat cry (delayed so it doesn't clash with player's win line)
+                            if (enemy.type === 'GREEN_GOBLIN' || enemy.type === 'MAKUTA') {
+                                const _vType = enemy.type === 'GREEN_GOBLIN' ? 'green_goblin' : 'makuta';
+                                setTimeout(() => audioManager.playHeroExclamation(_vType, 'failure'), 2200);
+                            }
+                        }
+                    }
+
+
+                    // Clear all other enemies instantly for dramatic effect
+                    enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
+                    enemies = [];
+                    projectiles = []; // Clear projectiles too
+                    if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
+                }
+            } else {
+                // Swarm Explosion (Tier 4)
+                if (enemy.subType === 'SWARM' && saveData.collection.includes('SWARM_4')) {
+                    createExplosion(enemy.x, enemy.y, '#8e44ad');
+                    const _swarmCands = queryEnemiesNear(enemy.x, enemy.y, 100);
+                    for (let _wi = 0; _wi < _swarmCands.length; _wi++) {
+                        const nearby = _swarmCands[_wi];
+                        if (nearby !== enemy && Math.hypot(nearby.x - enemy.x, nearby.y - enemy.y) < 100) {
+                            nearby.hp -= 20;
+                            floatingTexts.push(FloatingText.acquire(nearby.x, nearby.y - 20, "20", "#8e44ad", 16));
+                        }
+                    }
+                }
+
+                currentRunStats.enemiesKilled++; // Track Kill
+
+                // Track Specific Enemy Kills for Achievements
+                const killKey = `kill_${enemy.subType}`;
+                if (!saveData.stats[killKey]) saveData.stats[killKey] = 0;
+                saveData.stats[killKey]++;
+
+                const _eventXpMult = window.worldEvents?.getXpMultiplier?.() ?? 1;
+                const _xpMod = (bossActive ? 0.15 : 1) * _eventXpMult;
+                const _killer = (isCoopMode && enemy.killer) ? enemy.killer : player;
+                score += 10; _killer.gainXp(Math.round(20 * _xpMod));
+                createExplosion(enemy.x, enemy.y, '#aaa');
+
+                // Elite Logic on Death
+                if (enemy.isElite) {
+                    score += 500;
+                    _killer.gainXp(Math.round(200 * _xpMod));
+                    createExplosion(enemy.x, enemy.y, enemy.eliteType.color);
+
+                    // Elite Card Drop
+                    checkDrop(enemy.eliteType.id, enemy.x, enemy.y);
+
+                    if (enemy.eliteType.id === 'EXPLODER') {
+                        let radius = 200;
+                        if (saveData.collection.includes('ELITE_EXPLODER_4')) radius = 160; // Nerf
+
+                        createExplosion(enemy.x, enemy.y, '#e74c3c');
+                        // Damage Player
+                        if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < radius) {
+                            applyDamage(player, 30, { label: 'EXPLODER' }); // #18
+                        }
+                    }
+                }
+
+                // Mask Drop Logic (Capped at 5 per wave)
+                if (masksDroppedInWave < 5 && Math.random() < player.maskChance) {
+                    holyMasks.push(new HolyMask(enemy.x, enemy.y));
+                    masksDroppedInWave++;
+                }
+
+                // Mutator: No Regen (No Health Drops)
+                if (!((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'NO_REGEN'))) {
+                    if (Math.random() < 0.3) goldDrops.push(GoldDrop.acquire(enemy.x, enemy.y)); // Gold Drop
+                } else {
+                    // Still drop gold, but maybe less? Or just no health potions if they existed as drops.
+                    // Wait, GoldDrop is money. Health is usually from Shop or Skills.
+                    // If "No Regen" means no healing, we should block healing in Player.js or here.
+                    // Let's assume "No Health Drops" refers to potential future drops or just disable lifesteal/regen.
+                    // For now, let's just block Gold Drops as a penalty or rename mutator to "Poverty".
+                    // Actually, let's stick to the description: "No Health Drops spawn".
+                    // Since we don't have health drops yet (only shop potions), let's make it block Gold Drops instead for now?
+                    // Or better: Block Shop Healing.
+                }
+                if (Math.random() < 0.3) goldDrops.push(GoldDrop.acquire(enemy.x, enemy.y));
+
+                // Check for Card Drop
+                checkDrop(enemy.subType || 'BASIC', enemy.x, enemy.y);
+
+                enemies.splice(eIndex, 1);
+                if (!bossActive) enemiesKilledInWave++;
+            }
+        }
+    }
+    _recordPhase('enemies', performance.now() - _enemiesT0); // #24 P10
+
+    // Restore Camera Transform
+    ctx.restore();
+
+    // DLC Hook: Biome Draw (e.g. Falling Rock Shadows)
+    if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType] && window.BIOME_LOGIC[currentBiomeType].draw) {
+        ctx.save();
+        // Apply camera transform again for biome effects
+        ctx.translate(-arena.camera.x, -arena.camera.y);
+        window.BIOME_LOGIC[currentBiomeType].draw(ctx, arena);
+        ctx.restore();
+    }
+
+    // DLC Hook: Hero UI (e.g. Spirit Meter)
+    if (window.HERO_LOGIC && player && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawUI) {
+        window.HERO_LOGIC[player.type].drawUI(ctx);
+    }
+
+    // #170 — Minimap (rendered into a separate DOM canvas)
+    _renderMinimap();
+
+    // Tutorial HUD
+    if (isTutorialMode) TutorialMode.drawHUD(ctx);
+
+    // Testing Grounds HUD
+    if (isTestingMode) TestingGrounds.drawHUD(ctx);
+
+    // Boss Off-Screen Direction Indicator
+    if (bossActive && enemies.length > 0 && enemies[0] instanceof Boss) {
+        const _boss = enemies[0];
+        const _bsx = _boss.x - arena.camera.x;
+        const _bsy = _boss.y - arena.camera.y;
+        const _br = _boss.radius || 60;
+        const _offScreen = _bsx < -_br || _bsx > canvas.width + _br ||
+                           _bsy < -_br || _bsy > canvas.height + _br;
+        if (_offScreen) {
+            const _cx = canvas.width / 2;
+            const _cy = canvas.height / 2;
+            const _angle = Math.atan2(_bsy - _cy, _bsx - _cx);
+            // Inner margin rectangle – keeps arrow off corners where UI lives
+            const _ml = 52, _mr = canvas.width - 52;
+            const _mt = 76, _mb = canvas.height - 52;
+            const _dx = _bsx - _cx, _dy = _bsy - _cy;
+            let _t = Infinity;
+            if (_dx > 0) { const _ty = (_mr - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
+            if (_dx < 0) { const _ty = (_ml - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
+            if (_dy > 0) { const _tx = (_mb - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
+            if (_dy < 0) { const _tx = (_mt - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
+            if (_t !== Infinity) {
+                const _ax = _cx + _t * _dx, _ay = _cy + _t * _dy;
+                const _pulse = 0.55 + 0.2 * ((Math.sin(frame * 0.08) + 1) / 2);
+                ctx.save();
+                ctx.translate(_ax, _ay);
+                ctx.rotate(_angle);
+                ctx.globalAlpha = _pulse;
+                const _s = 11;
+                // Shadow
+                ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                ctx.shadowBlur = 4;
+                ctx.fillStyle = 'rgba(255, 80, 60, 1)';
+                ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(_s, 0);
+                ctx.lineTo(-_s * 0.55, -_s * 0.6);
+                ctx.lineTo(-_s * 0.15, 0);
+                ctx.lineTo(-_s * 0.55, _s * 0.6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+    }
+
+    // SANDSTORM vision reduction (radial vignette)
+    if (currentWeather && currentWeather.id === 'SANDSTORM') {
+        const _swFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
+        ctx.save();
+        const _sg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 160, canvas.width / 2, canvas.height / 2, 700);
+        _sg.addColorStop(0, 'transparent');
+        _sg.addColorStop(0.5, `rgba(160, 110, 40, ${0.35 * _swFadeIn})`);
+        _sg.addColorStop(1, `rgba(100, 70, 20, ${0.75 * _swFadeIn})`);
+        ctx.fillStyle = _sg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+
+    // ACIDIC FOG green tint vignette
+    if (currentWeather && currentWeather.id === 'ACIDIC_FOG') {
+        const _afFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
+        ctx.save();
+        const _ag = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 100, canvas.width / 2, canvas.height / 2, 600);
+        _ag.addColorStop(0, 'transparent');
+        _ag.addColorStop(1, `rgba(40, 120, 40, ${0.45 * _afFadeIn})`);
+        ctx.fillStyle = _ag;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+
+    // Chaos: Darkness (Fog of War) OR Mutator: Low Visibility
+    const isLowVis = (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'LOW_VISIBILITY'));
+    if ((typeof isChaosActive === 'function' && isChaosActive('DARKNESS')) || isLowVis) {
+        ctx.save();
+        const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 150, canvas.width / 2, canvas.height / 2, 800);
+        gradient.addColorStop(0, 'transparent');
+        gradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.8)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+
+    // Low Health Indicator + injured exclamation (fires once per drop below 20%)
+    if (player.hp / player.maxHp < 0.2) {
+        if (!player._injuredVoicePlayed) {
+            player._injuredVoicePlayed = true;
+            if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player.type, 'injured');
+        }
+    } else {
+        player._injuredVoicePlayed = false; // reset when healed above threshold
+    }
+    // Co-op: P2 injured exclamation
+    if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+        if (player2.hp / player2.maxHp < 0.2) {
+            if (!player2._injuredVoicePlayed) {
+                player2._injuredVoicePlayed = true;
+                if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'injured');
+            }
+        } else {
+            player2._injuredVoicePlayed = false;
+        }
+    }
+    const _hpRatio = player.hp / player.maxHp;
+    if (_hpRatio < 0.25) {
+        ctx.save();
+        const _vigIntensity = Math.min(1, (0.25 - _hpRatio) / 0.25);
+        // Static red vignette
+        const _vg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.35, canvas.width / 2, canvas.height / 2, canvas.height * 0.78);
+        _vg.addColorStop(0, 'transparent');
+        _vg.addColorStop(1, `rgba(255, 0, 0, ${0.45 * _vigIntensity})`);
+        ctx.fillStyle = _vg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Pulse overlay — reduced-motion mode keeps the static vignette
+        // above but skips the time-varying alpha pass entirely.
+        if (!isReducedMotion()) {
+            const _pulseSpeed = 0.06 + _vigIntensity * 0.12;
+            const _pulse = (Math.sin(frame * _pulseSpeed) + 1) / 2;
+            ctx.fillStyle = `rgba(255, 0, 0, ${_pulse * 0.2 * _vigIntensity})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        ctx.restore();
+    }
+
+    // ── Weather Particle Render (screen-space) ─────────────────────────
+    if (weatherParticles.length > 0 && !isReducedMotion()) {
+        ctx.save();
+        const wid = currentWeather?.id;
+        for (const p of weatherParticles) {
+            ctx.globalAlpha = p.alpha;
+            if (p.rain) {
+                ctx.strokeStyle = '#8ab4d8';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.vx / p.vy * p.len, p.y + p.len);
+                ctx.stroke();
+            } else if (p.sand) {
+                ctx.strokeStyle = p.color || '#c8924a';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.len, p.y + p.vy * 2);
+                ctx.stroke();
+            } else if (p.gale) {
+                ctx.strokeStyle = '#d0e8ff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.len, p.y + p.vy * 3);
+                ctx.stroke();
+            } else if (p.fog) {
+                ctx.fillStyle = '#55cc55';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (wid === 'BLIZZARD') {
+                ctx.fillStyle = '#dff0ff';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (wid === 'HEATWAVE') {
+                ctx.fillStyle = p.color || '#ff6b2b';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1;
+        ctx.restore();
+    }
+
+    // Thunderstorm flash + bolts (screen-space)
+    if (_weatherFlash > 0) {
+        ctx.save();
+        ctx.globalAlpha = _weatherFlash;
+        ctx.fillStyle = '#c8d8ff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+    }
+    if (_weatherBolts.length > 0) {
+        ctx.save();
+        for (const bolt of _weatherBolts) {
+            const progress = bolt.life / bolt.maxLife;
+            ctx.globalAlpha = progress;
+            ctx.strokeStyle = '#e8f4ff';
+            ctx.shadowColor = '#a0c8ff';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            if (bolt.segs && bolt.segs.length > 0) {
+                ctx.moveTo(bolt.segs[0].x, bolt.segs[0].y);
+                for (let si = 1; si < bolt.segs.length; si++) ctx.lineTo(bolt.segs[si].x, bolt.segs[si].y);
+            }
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+        ctx.restore();
+    }
+    // DLC custom weather draw hook (screen-space, after all base weather)
+    if (currentWeather && window._weatherDrawHooks[currentWeather.id]) {
+        const _dhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
+        const _dhDlc = _dhLock && _dhLock.dlcId;
+        const _dhOk = !_dhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_dhDlc));
+        if (_dhOk) {
+            const _wFIForDraw = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
+            window._weatherDrawHooks[currentWeather.id](ctx, _wFIForDraw, frame);
+        }
+    }
+    // ──────────────────────────────────────────────────────────────────
+
+    updateUI();
+
+    // Player Death Logic
+    // Guard with !player.isDead: once the revival marker is placed we must not
+    // re-enter this block on subsequent frames (hp stays 0 while dead).
+    if (player.hp <= 0 && !player.isDead) {
+        if (!isVersusMode && (isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+            // Co-op / AI companion: P1 dies but P2 is alive — drop revival marker
+            player.isDead = true;
+            player.hp = 0;
+            player.isInvincible = true;
+            player.isDashing = false;
+            player.moveInput = { x: 0, y: 0 };
+            p1RevivalMarker = { x: player.x, y: player.y, progress: 0, maxProgress: 240 };
+            createExplosion(player.x, player.y, '#ffffff');
+            showNotification(isAICompanionMode ? 'You\'re down! Ally is coming to revive you.' : 'P1 down! Stand on marker to revive.');
+        } else if (!isPlayerDying && !isOnlineGuest) {
+            isPlayerDying = true;
+            playerDeathTimer = 180; // 3 seconds animation
+            createExplosion(player.x, player.y, '#c0392b');
+            // Death — maximum rumble
+            triggerImpact(14, 30, 0.70, 1.0, 800);
+
+            // Force Stop Movement
+            player.isDashing = false;
+            player.moveInput = { x: 0, y: 0 };
+            player.isInvincible = true; // Prevent further damage (negative HP)
+
+            // Sound
+            if (typeof audioManager !== 'undefined') {
+                // Play Death Sound
+                try { audioManager.play('death'); } catch (e) { }
+                audioManager.playHeroExclamation(player.type, 'failure');
+            }
+        }
+    }
+
+    // Co-op: both players dead → game over (separate check needed because the
+    // revival-marker path sets player.isDead=true, which blocks the block above).
+    if (!isPlayerDying && !isOnlineGuest &&
+        !isVersusMode && (isCoopMode || isAICompanionMode) &&
+        player.isDead && player2 && player2.isDead) {
+        isPlayerDying = true;
+        playerDeathTimer = 180;
+        createExplosion(player.x, player.y, '#c0392b');
+        triggerImpact(14, 30, 0.70, 1.0, 800);
+        player.isDashing = false;
+        player.moveInput = { x: 0, y: 0 };
+        if (typeof audioManager !== 'undefined') {
+            try { audioManager.play('death'); } catch (e) { }
+            audioManager.playHeroExclamation(player.type, 'failure');
+        }
+    }
+
+    if (isPlayerDying) {
+        playerDeathTimer--;
+
+        // Slow Motion / Freeze Frame Effect Logic could go here
+
+        // Visuals: Fade to Black + Text
+        ctx.save();
+        ctx.fillStyle = `rgba(0, 0, 0, ${(180 - playerDeathTimer) / 200})`; // Slow fade
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Blood Explosions
+        if (playerDeathTimer % 15 === 0) {
+            createExplosion(player.x + (Math.random() - 0.5) * 60, player.y + (Math.random() - 0.5) * 60, '#c0392b');
+        }
+
+        // Shake Screen
+        const shake = (playerDeathTimer / 180) * 5;
+        ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+
+        ctx.restore();
+
+        // Finish
+        if (playerDeathTimer <= 0) {
+            isPlayerDying = false;
+            gameOver();
+        }
+        return; // Stop processing frame
+    }
+}
+
 function masterFrame(deltaTime, timestamp) {
     // #10 P10 — measure actual frame work time, not the rAF delta. Wrap the
     // body in try/finally so timing covers every return path (museum skip,
@@ -6090,2744 +8853,7 @@ function masterFrame(deltaTime, timestamp) {
         if (isPhotoMode()) tickPhotoMode();
 
         if (gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen) {
-            const _isHitStopped = _hitStopFrames > 0;
-            if (_hitStopFrames > 0) _hitStopFrames--;
-
-            // Evil Mode — check if all enemy heroes are dead → boss-defeated cinematic then advance
-            if (isEvilMode && typeof EvilMode !== 'undefined' && EvilMode.checkWaveEnd()) {
-                EvilMode.onWaveCleared(); // cleanup + sets waveJustCleared
-                if (typeof audioManager !== 'undefined') {
-                    audioManager.play('wave_completed');
-                    if (player) audioManager.playHeroExclamation(player.type, 'boss_win');
-                }
-                bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
-                triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
-            }
-
-            if (isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
-
-            // Update Camera — skipped during photo mode so manual pan sticks (#51).
-            if (!isPhotoMode()) {
-                if (isCoopMode && player2) {
-                    const ref1 = !player.isDead ? player : player2;
-                    const ref2 = player2 && !player2.isDead ? player2 : player;
-                    coopZoom = arena.updateCameraForTwo(ref1, ref2, canvas.width, canvas.height);
-                } else {
-                    arena.updateCamera(player, canvas.width, canvas.height);
-                    coopZoom = 1.0;
-                }
-            } else {
-                // Need camera dimensions for draw clipping.
-                arena.camera.width  = canvas.width;
-                arena.camera.height = canvas.height;
-            }
-
-            // Heatwave Mirage Effect (Camera Wobble)
-            if (currentWeather && currentWeather.id === 'HEATWAVE') {
-                const wobbleX = Math.sin(frame * 0.05) * 15;
-                const wobbleY = Math.cos(frame * 0.03) * 15;
-                arena.camera.x += wobbleX;
-                arena.camera.y += wobbleY;
-            }
-
-            arena.update(player);
-
-            // --- OBJECTIVE LOGIC ---
-            if (currentObjective && currentObjective.state === 'ACTIVE') {
-                if (currentObjective.type === 'INFERNO') {
-                    if (player.combo >= 10) {
-                        currentObjective.current += 1 / 60; // Add 1 second per 60 frames
-                    }
-                    if (currentObjective.current >= currentObjective.target) {
-                        currentObjective.state = 'COMPLETED';
-                        showNotification("OBJECTIVE COMPLETE!");
-                        triggerStory(wave); // Advance
-                    }
-                } else if (currentObjective.type === 'DEFENSE') {
-                    // Sapling Logic handled in draw/enemy loop
-                    if (currentObjective.data.sapling.hp <= 0) {
-                        currentObjective.state = 'FAILED';
-                        gameOver();
-                    }
-                    // Survival Condition: Kill all enemies or survive time?
-                    // Let's say kill count for now, or just standard wave clear
-                    if (isWaveCleared(wave, enemiesKilledInWave)) {
-                        currentObjective.state = 'COMPLETED';
-                        showNotification("SAPLING SAVED!");
-                        triggerStory(wave);
-                    }
-                } else if (currentObjective.type === 'EYE_OF_STORM') {
-                    const eye = currentObjective.data.stormEye;
-                    // Move Eye
-                    const dx = eye.tx - eye.x;
-                    const dy = eye.ty - eye.y;
-                    const distToTarget = Math.hypot(dx, dy);
-                    if (distToTarget < 10) {
-                        eye.tx = Math.random() * arena.width;
-                        eye.ty = Math.random() * arena.height;
-                    } else {
-                        eye.x += (dx / distToTarget) * 1.5; // Speed
-                        eye.y += (dy / distToTarget) * 1.5;
-                    }
-
-                    // Check Player
-                    const d = Math.hypot(player.x - eye.x, player.y - eye.y);
-                    if (d < eye.radius) {
-                        currentObjective.current += 1 / 60;
-                    } else {
-                        // Damage if outside
-                        if (frame % 60 === 0) {
-                            if (!player.isInvincible) {
-                                player.hp -= 5;
-                                try { audioManager.play('damage'); } catch (e) { }
-                                currentRunStats.damageTaken += 5;
-                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "STORM!", "#3498db", 20));
-                            }
-                            if (player.hp <= 0) gameOver();
-                        }
-                    }
-
-                    if (currentObjective.current >= currentObjective.target) {
-                        currentObjective.state = 'COMPLETED';
-                        showNotification("STORM SURVIVED!");
-                        triggerStory(wave);
-                    }
-                } else if (currentObjective.type === 'UNTOUCHABLE') {
-                    if (currentObjective.current >= currentObjective.target) {
-                        currentObjective.state = 'FAILED';
-                        gameOver();
-                    }
-                    if (isWaveCleared(wave, enemiesKilledInWave)) {
-                        currentObjective.state = 'COMPLETED';
-                        showNotification("UNTOUCHABLE!");
-                        triggerStory(wave);
-                    }
-                } else if (currentObjective.type === 'IRON_WILL') {
-                    // Decay HP
-                    if (frame % 60 === 0) {
-                        if (!player.isInvincible) {
-                            player.hp -= 2; // Lose 2 HP per second
-                            audioManager.play('damage');
-                        }
-                        if (player.hp <= 0) {
-                            currentObjective.state = 'FAILED';
-                            gameOver();
-                        }
-                    }
-                    currentObjective.current += 1 / 60;
-                    if (currentObjective.current >= currentObjective.target) {
-                        currentObjective.state = 'COMPLETED';
-                        showNotification("SURVIVED!");
-                        triggerStory(wave);
-                    }
-                }
-
-                // DLC Hook: Check Completion
-                if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].checkObjectiveCompletion) {
-                    window.HERO_LOGIC[player.type].checkObjectiveCompletion(currentObjective, wave);
-                }
-            }
-
-            // Boss Intro Cinematic — see `_renderBossIntroCinematic`. Owns the
-            // frame while bossIntroTimer > 0; bail out for the rest of master loop.
-            if (_renderBossIntroCinematic()) return;
-
-            // Boss Death Cinematic Sequence
-            if (bossDeathTimer > 0) {
-                bossDeathTimer--;
-
-                const _progress = 1 - bossDeathTimer / 180;
-
-                // --- Cinematic frame drawn every frame (no strobe) ---
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // 1. Frozen arena background
-                ctx.save();
-                ctx.translate(-arena.camera.x, -arena.camera.y);
-                if (arena) arena.draw(ctx, getHeroTheme(currentBiomeType));
-                ctx.restore();
-
-                // 2. White impact flash — bright burst at start, fades in ~0.25s
-                if (_progress < 0.15) {
-                    ctx.fillStyle = `rgba(255, 255, 255, ${(1 - _progress / 0.15) * 0.88})`;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                }
-
-                // 3. Cinematic dark overlay, deepens over the sequence
-                ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.78, _progress * 1.15)})`;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // 4. Deterministic gold & white particle shower
-                if (_progress > 0.08) {
-                    const _pA = Math.min(1, (_progress - 0.08) / 0.35);
-                    ctx.save();
-                    for (let _i = 0; _i < 28; _i++) {
-                        const _elapsed = (_progress - 0.08) * 180;
-                        const _x = ((_i * 1.618 * 97) % 1) * canvas.width;
-                        const _y = (((_i * 2.236 * 83 + 40) % 1) * canvas.height + _elapsed * (1.0 + (_i % 5) * 0.5) * 2.2) % canvas.height;
-                        ctx.globalAlpha = _pA * (0.35 + 0.65 * Math.abs(Math.sin(_progress * 14 + _i * 0.9))) * 0.65;
-                        ctx.fillStyle = _i % 3 === 0 ? '#ffffff' : '#f1c40f';
-                        ctx.beginPath();
-                        ctx.arc(_x, _y, 1.5 + (_i % 4) * 1.2, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                    ctx.restore();
-                }
-
-                // 5. "BOSS DEFEATED" heading — eases in with cubic after flash clears
-                if (_progress > 0.15) {
-                    const _eased = 1 - Math.pow(1 - Math.min(1, (_progress - 0.15) / 0.28), 3);
-                    ctx.save();
-                    ctx.globalAlpha = _eased;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    // Broad gold halo pass
-                    ctx.shadowColor = '#f1c40f';
-                    ctx.shadowBlur = 70;
-                    ctx.fillStyle = 'rgba(241, 196, 15, 0.22)';
-                    ctx.font = `bold ${Math.round(64 + (1 - _eased) * 14)}px Arial`;
-                    ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
-                    // Crisp white text on top
-                    ctx.shadowBlur = 16;
-                    ctx.shadowColor = 'rgba(241, 196, 15, 0.85)';
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 64px Arial';
-                    ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
-                    ctx.restore();
-                }
-
-                // 6. "WAVE X CLEARED" subtitle — fades in a beat after the heading
-                if (_progress > 0.46) {
-                    const _sT = Math.min(1, (_progress - 0.46) / 0.22);
-                    ctx.save();
-                    ctx.globalAlpha = _sT * 0.82;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.shadowColor = '#f1c40f';
-                    ctx.shadowBlur = 10;
-                    ctx.fillStyle = '#f1c40f';
-                    ctx.font = '13px Arial';
-                    ctx.fillText(`\u2014 WAVE ${wave} CLEARED \u2014`, canvas.width / 2, canvas.height / 2 + 48);
-                    ctx.restore();
-                }
-
-                // 7. Fade to black in the final stretch
-                if (_progress > 0.8) {
-                    ctx.fillStyle = `rgba(0, 0, 0, ${((_progress - 0.8) / 0.2) * 0.9})`;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                }
-
-                if (bossDeathTimer === 0) {
-                    if (isTestingMode) {
-                        // In testing mode: cinematic plays but wave does not advance
-                        showNotification('Boss defeated — [TAB] to spawn another');
-                    } else {
-                        // Sequence Finished - Proceed to Next Wave/Shop
-
-                        // Daily Challenge Win Condition
-                        if (isDailyMode && wave === 10) {
-                            showNotification("DAILY CHALLENGE COMPLETE!");
-                            saveData.daily.lastCompleted = getDailySeed();
-                            saveData.global.totalVoidGoldSpent += 0; // Just to ensure field exists
-                            // Reward
-                            player.gold += 5000; // Bonus Gold
-                            saveData.global.totalGold += 5000;
-
-                            // Chaos Reward
-                            if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
-                            saveData.chaos.shards += 1;
-                            showNotification("EARNED 1 CHAOS SHARD!");
-
-                            // Track Wins
-                            saveData.global.daily_wins = (saveData.global.daily_wins || 0) + 1;
-
-                            // Achievement
-                            unlockAchievement('DAILY_CHALLENGE');
-                            checkAchievements(); // Check tiered achievements
-
-                            saveGame();
-                            setTimeout(() => gameOver(true), 3000);
-                            return;
-                        }
-
-                        // Weekly Challenge Win Condition
-                        if (isWeeklyMode && wave === 20) {
-                            showNotification("WEEKLY CHALLENGE COMPLETE!");
-                            saveData.weekly.lastCompleted = getWeeklySeed();
-                            // Reward (Bigger than Daily)
-                            player.gold += 15000; // Bonus Gold
-                            saveData.global.totalGold += 15000;
-
-                            // Chaos Reward
-                            if (!saveData.chaos) saveData.chaos = { shards: 0, unlocked: [], active: [] };
-                            saveData.chaos.shards += 3;
-                            showNotification("EARNED 3 CHAOS SHARDS!");
-
-                            // Track Wins
-                            saveData.global.weekly_wins = (saveData.global.weekly_wins || 0) + 1;
-
-                            // Achievement
-                            unlockAchievement('WEEKLY_CHALLENGE');
-                            checkAchievements(); // Check tiered achievements
-
-                            saveGame();
-                            setTimeout(() => gameOver(true), 3000);
-                            return;
-                        }
-
-                        if (isTutorialMode) { TutorialMode.onBossDefeated(); return; }
-                        if (isEvilMode && typeof EvilMode !== 'undefined') { EvilMode.onBossScreenDone(); return; }
-                        // Open choice screen — player picks Continue or Save & Quit
-                        _bossChoiceScreen = true;
-                        _bossChoiceFrame = 0;
-                        _bossChoiceGpConsumed = false;
-                        _bossChoiceFocus = 0;
-                        _bossChoiceGpPrev = {};
-                    }
-                }
-                return; // Always prevent normal render during cinematic
-            }
-
-            // Boss-Defeated Choice Screen (runs after cinematic, before next wave)
-            if (_bossChoiceScreen) {
-                _bossChoiceFrame++;
-                const _fi = Math.min(1, _bossChoiceFrame / 25); // fade-in over ~0.4 s
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // Arena background
-                ctx.save();
-                ctx.translate(-arena.camera.x, -arena.camera.y);
-                if (arena) arena.draw(ctx, getHeroTheme(currentBiomeType));
-                ctx.restore();
-
-                // Dark overlay
-                ctx.fillStyle = 'rgba(0,0,0,0.82)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Live particle shower — driven by _bossChoiceFrame so it keeps moving
-                ctx.save();
-                for (let _i = 0; _i < 28; _i++) {
-                    const _px = ((_i * 1.618 * 97) % 1) * canvas.width;
-                    const _py = (((_i * 2.236 * 83 + 40) % 1) * canvas.height + _bossChoiceFrame * (1.0 + (_i % 5) * 0.5) * 2.2) % canvas.height;
-                    ctx.globalAlpha = (0.35 + 0.65 * Math.abs(Math.sin(_bossChoiceFrame * 0.05 + _i * 0.9))) * 0.5;
-                    ctx.fillStyle = _i % 3 === 0 ? '#ffffff' : '#f1c40f';
-                    ctx.beginPath();
-                    ctx.arc(_px, _py, 1.5 + (_i % 4) * 1.2, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                ctx.restore();
-
-                // "BOSS DEFEATED" heading
-                ctx.save();
-                ctx.globalAlpha = _fi;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.shadowColor = '#f1c40f';
-                ctx.shadowBlur = 70;
-                ctx.fillStyle = 'rgba(241,196,15,0.22)';
-                ctx.font = 'bold 64px Arial';
-                ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
-                ctx.shadowBlur = 16;
-                ctx.shadowColor = 'rgba(241,196,15,0.85)';
-                ctx.fillStyle = '#ffffff';
-                ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
-                ctx.restore();
-
-                // "WAVE X CLEARED" subtitle
-                ctx.save();
-                ctx.globalAlpha = _fi * 0.82;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.shadowColor = '#f1c40f';
-                ctx.shadowBlur = 10;
-                ctx.fillStyle = '#f1c40f';
-                ctx.font = '13px Arial';
-                ctx.fillText(`\u2014 WAVE ${wave} CLEARED \u2014`, canvas.width / 2, canvas.height / 2 + 48);
-                ctx.restore();
-
-                // Buttons
-                const _btY = canvas.height / 2 + 100;
-                const _btW = 180, _btH = 40, _btGap = 20;
-                const _bcx = canvas.width / 2;
-                const _contX = _bcx - _btW - _btGap / 2;
-                const _quitX = _bcx + _btGap / 2;
-
-                // Detect gamepad to decide hint text and update focus via D-pad/stick
-                let _gpActive = false;
-                if (_bossChoiceFrame > 20) {
-                    const _gpads = navigator.getGamepads ? navigator.getGamepads() : [];
-                    for (const _gp of _gpads) {
-                        if (!_gp || !isRealGamepad(_gp)) continue;
-                        _gpActive = true;
-                        const _gpPressed = (idx) => _gp.buttons[idx]?.pressed && !_bossChoiceGpPrev[idx];
-                        const _stickX = _gp.axes[0] || 0;
-                        const _dRight = _gpPressed(15) || (_stickX > 0.45 && !_bossChoiceGpPrev.sR);
-                        const _dLeft = _gpPressed(14) || (_stickX < -0.45 && !_bossChoiceGpPrev.sL);
-                        if (_dRight) _bossChoiceFocus = 1;
-                        if (_dLeft) _bossChoiceFocus = 0;
-                        // A confirms focused button; B shortcuts to Save & Quit
-                        if (!_bossChoiceGpConsumed) {
-                            if (_gpPressed(0)) { _bossChoiceGpConsumed = true; _bossChoiceFocus === 0 ? _doBossContinue() : saveAndQuit(); break; }
-                            if (_gpPressed(1)) { _bossChoiceGpConsumed = true; saveAndQuit(); break; }
-                        }
-                        const _anyHeld = _gp.buttons[0]?.pressed || _gp.buttons[1]?.pressed;
-                        if (!_anyHeld) _bossChoiceGpConsumed = false;
-                        // Store prev state
-                        for (let _bi = 0; _bi < _gp.buttons.length; _bi++) _bossChoiceGpPrev[_bi] = _gp.buttons[_bi]?.pressed;
-                        _bossChoiceGpPrev.sR = _stickX > 0.45;
-                        _bossChoiceGpPrev.sL = _stickX < -0.45;
-                        break; // only first connected gamepad
-                    }
-                }
-
-                // If a gamepad action dismissed the screen this frame, stop rendering it
-                if (!_bossChoiceScreen) return;
-
-                ctx.save();
-                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.font = 'bold 11px Arial';
-
-                // Continue button
-                const _contFocused = (_bossChoiceFocus === 0);
-                ctx.globalAlpha = _fi * (_contFocused ? 1.0 : 0.72);
-                ctx.strokeStyle = _contFocused ? '#f1c40f' : 'rgba(241,196,15,0.55)';
-                ctx.lineWidth = _contFocused ? 2.5 : 1.5;
-                ctx.beginPath(); ctx.roundRect(_contX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
-                ctx.fillStyle = _contFocused ? 'rgba(241,196,15,0.22)' : 'rgba(241,196,15,0.08)'; ctx.fill();
-                if (_contFocused) { ctx.shadowColor = '#f1c40f'; ctx.shadowBlur = 12; }
-                ctx.fillStyle = '#f1c40f';
-                ctx.fillText('CONTINUE  \u2192', _contX + _btW / 2, _btY);
-                ctx.shadowBlur = 0;
-                window._bossContinueBtn = { x: _contX, y: _btY - _btH / 2, w: _btW, h: _btH };
-
-                // Save & Quit button
-                const _quitFocused = (_bossChoiceFocus === 1);
-                ctx.globalAlpha = _fi * (_quitFocused ? 0.95 : 0.55);
-                ctx.strokeStyle = _quitFocused ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)';
-                ctx.lineWidth = _quitFocused ? 2.5 : 1;
-                ctx.beginPath(); ctx.roundRect(_quitX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
-                ctx.fillStyle = _quitFocused ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'; ctx.fill();
-                if (_quitFocused) { ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 10; }
-                ctx.fillStyle = '#ffffff';
-                ctx.fillText('SAVE  &  QUIT', _quitX + _btW / 2, _btY);
-                ctx.shadowBlur = 0;
-                window._bossQuitBtn = { x: _quitX, y: _btY - _btH / 2, w: _btW, h: _btH };
-
-                // Hint line — show gamepad or keyboard hint depending on active input
-                ctx.globalAlpha = _fi * 0.35;
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '10px Arial';
-                const _hint = _gpActive
-                    ? '[A] Confirm    [←/→] Switch    [B] Save & Quit'
-                    : '[Click] Select    [Enter] Confirm';
-                ctx.fillText(_hint, _bcx, _btY + _btH / 2 + 18);
-                ctx.restore();
-
-                return; // Prevent normal game render
-            }
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any accumulated transform corruption
-
-            // Apply Camera Transform
-            ctx.save();
-
-            // Queasy Cam Chaos Effect
-            if (saveData.chaos && saveData.chaos.active && saveData.chaos.active.includes('DRUNK_CAM')) {
-                const cx = (canvas.width / 2);
-                const cy = (canvas.height / 2);
-                const angle = Math.sin(frame * 0.05) * 0.1; // Sway
-                const scale = 1 + Math.sin(frame * 0.03) * 0.05; // Breathe
-
-                ctx.translate(cx, cy);
-                ctx.rotate(angle);
-                ctx.scale(scale, scale);
-                ctx.translate(-cx, -cy);
-            }
-
-            // Screen shake (state owned by Camera.js).
-            applyScreenShake(ctx);
-
-            if (isCoopMode && coopZoom !== 1.0) ctx.scale(coopZoom, coopZoom);
-            ctx.translate(-arena.camera.x, -arena.camera.y);
-
-            // Draw World
-            // Background follows Biome Type
-            const themeType = currentBiomeType;
-            if (arena) arena.biomeType = themeType;
-
-            arena.draw(ctx, getHeroTheme(themeType));
-
-
-            // Draw Objective Elements
-            if (currentObjective && currentObjective.state === 'ACTIVE') {
-                const objDisplay = document.getElementById('objective-display');
-                const objText = document.getElementById('objective-text');
-                const objBar = document.getElementById('objective-bar-container');
-                const objFill = document.getElementById('objective-bar-fill');
-
-                objDisplay.style.display = 'block';
-                objBar.style.display = 'block';
-
-                if (currentObjective.type === 'INFERNO') {
-                    objText.innerText = `COMBO TIME: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
-                    objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
-                    objFill.style.backgroundColor = '#e74c3c';
-                } else if (currentObjective.type === 'DEFENSE') {
-                    const s = currentObjective.data.sapling;
-                    objText.innerText = `SAPLING HP: ${Math.floor(s.hp)}`;
-                    objFill.style.width = `${(s.hp / s.maxHp) * 100}%`;
-                    objFill.style.backgroundColor = '#2ecc71';
-
-                    // Draw Sapling in World
-                    ctx.save();
-                    ctx.translate(s.x - arena.camera.x, s.y - arena.camera.y);
-                    ctx.fillStyle = '#2ecc71';
-                    ctx.beginPath(); ctx.arc(0, 0, s.radius, 0, Math.PI * 2); ctx.fill();
-                    ctx.shadowBlur = 20; ctx.shadowColor = '#2ecc71'; ctx.stroke();
-                    ctx.restore();
-                } else if (currentObjective.type === 'EYE_OF_STORM') {
-                    const eye = currentObjective.data.stormEye;
-                    objText.innerText = `TIME IN EYE: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
-                    objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
-                    objFill.style.backgroundColor = '#ecf0f1';
-
-                    // Draw Eye
-                    ctx.save();
-                    ctx.translate(eye.x - arena.camera.x, eye.y - arena.camera.y);
-
-                    // Safe Zone
-                    ctx.beginPath();
-                    ctx.arc(0, 0, eye.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(52, 152, 219, 0.2)';
-                    ctx.fill();
-                    ctx.lineWidth = 5;
-                    ctx.strokeStyle = '#ecf0f1';
-                    ctx.stroke();
-                    ctx.restore();
-                } else if (currentObjective.type === 'UNTOUCHABLE') {
-                    objText.innerText = `HITS TAKEN: ${currentObjective.current} / ${currentObjective.target}`;
-                    objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
-                    objFill.style.backgroundColor = '#3498db';
-                } else if (currentObjective.type === 'IRON_WILL') {
-                    objText.innerText = `SURVIVE: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
-                    objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
-                    objFill.style.backgroundColor = '#95a5a6';
-                }
-
-                // DLC Hook: Draw UI
-                if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawObjectiveUI) {
-                    window.HERO_LOGIC[player.type].drawObjectiveUI(currentObjective, objText, objFill);
-                }
-            } else {
-                document.getElementById('objective-display').style.display = 'none';
-            }
-
-            frame++;
-            window.frame = frame; // Expose for DLCs
-            if (window._world) {
-                window._world.frame            = frame;
-                window._world.wave             = wave;
-                window._world.score            = score;
-                window._world.gamePaused       = gamePaused;
-                window._world.isLevelingUp     = isLevelingUp;
-                window._world.isShopping       = isShopping;
-                window._world.currentWeather   = currentWeather;
-                window._world.currentObjective = currentObjective;
-                window._world.bossActive       = bossActive;
-                window._world.enemies          = enemies;
-            }
-
-            // ── Weather Logic ─────────────────────────────────────────────────
-            if (currentWeather) {
-                weatherDuration--;
-                // Update duration bar width every 6 frames (no need every frame)
-                if (frame % 6 === 0) {
-                    const _wbf = document.getElementById('weather-bar-fill');
-                    if (_wbf) _wbf.style.width = Math.max(0, (weatherDuration / currentWeather.duration) * 100) + '%';
-                }
-                if (weatherDuration <= 0) {
-                    // Weather ending
-                    if (typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + currentWeather.id.toLowerCase());
-                    currentWeather = null;
-                    weatherParticles = [];
-                    _weatherBolts = [];
-                    _weatherFlash = 0;
-                    document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
-                    document.getElementById('weather-display').style.display = 'none';
-                    const _wbw = document.getElementById('weather-bar-wrap');
-                    if (_wbw) _wbw.style.display = 'none';
-                    weatherTimer = 3600 + Math.random() * 2400;
-                } else {
-                    const wProg = weatherDuration / currentWeather.duration; // 1→0 as weather fades
-                    const wFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
-
-                    if (currentWeather.id === 'BLIZZARD') {
-                        // ── Snow particles (screen-space, spawned per frame) ──────────
-                        const spawnCount = Math.floor(4 * wFadeIn) + 1;
-                        for (let _s = 0; _s < spawnCount; _s++) {
-                            weatherParticles.push({
-                                x: Math.random() * canvas.width,
-                                y: -8,
-                                vx: (Math.random() - 0.5) * 1.2 - 0.5,
-                                vy: 1.2 + Math.random() * 2.0,
-                                r: 1.0 + Math.random() * 2.2,
-                                alpha: 0.55 + Math.random() * 0.4,
-                                wobble: Math.random() * Math.PI * 2,
-                            });
-                        }
-                        // Projectile drag — wind resistance slows shots mid-air
-                        for (let _pi = 0; _pi < projectiles.length; _pi++) {
-                            projectiles[_pi].velocity.x *= 0.975;
-                            projectiles[_pi].velocity.y *= 0.975;
-                        }
-
-                    } else if (currentWeather.id === 'HEATWAVE') {
-                        // ── Rising ember / shimmer particles ─────────────────────────
-                        if (Math.random() < 0.35 * wFadeIn) {
-                            weatherParticles.push({
-                                x: Math.random() * canvas.width,
-                                y: canvas.height + 5,
-                                vx: (Math.random() - 0.5) * 0.8,
-                                vy: -(0.6 + Math.random() * 1.4),
-                                r: 1.2 + Math.random() * 2.5,
-                                alpha: 0.3 + Math.random() * 0.35,
-                                wobble: Math.random() * Math.PI * 2,
-                                ember: true,
-                            });
-                        }
-
-                    } else if (currentWeather.id === 'THUNDERSTORM') {
-                        // ── Rain streak particles ─────────────────────────────────────
-                        const rainCount = Math.floor(6 * wFadeIn) + 1;
-                        for (let _r = 0; _r < rainCount; _r++) {
-                            weatherParticles.push({
-                                x: Math.random() * (canvas.width + 100) - 50,
-                                y: -10,
-                                vx: -1.5,
-                                vy: 14 + Math.random() * 6,
-                                len: 12 + Math.random() * 10,
-                                alpha: 0.25 + Math.random() * 0.25,
-                                wobble: 0,
-                                rain: true,
-                            });
-                        }
-
-                        // ── Lightning bolts + enemy damage ───────────────────────────
-                        _weatherFlash = Math.max(0, _weatherFlash - 0.04);
-
-                        // Chance to strike a bolt each frame
-                        const strikeChance = 0.018 + (1 - wProg) * 0.012; // ramps up over time
-                        if (Math.random() < strikeChance * wFadeIn) {
-                            _weatherFlash = 0.55;
-                            if (typeof audioManager !== 'undefined') audioManager.play('weather_thunder_crack');
-
-                            // Pick a random target point — bias toward enemies
-                            let tx, ty;
-                            if (enemies.length > 0 && Math.random() < 0.65) {
-                                const target = enemies[Math.floor(Math.random() * enemies.length)];
-                                tx = target.x - arena.camera.x;
-                                ty = target.y - arena.camera.y;
-                                // Damage the struck enemy
-                                target.hp -= (player.rangeDmg || 20) * 1.8;
-                                createExplosion(target.x, target.y, '#ffffaa', 6);
-                            } else {
-                                tx = Math.random() * canvas.width;
-                                ty = Math.random() * canvas.height;
-                            }
-
-                            // Build jagged bolt segments from top of screen down to target
-                            const segs = [];
-                            let bx = tx + (Math.random() - 0.5) * 200;
-                            const steps = 8 + Math.floor(Math.random() * 5);
-                            for (let _i = 0; _i <= steps; _i++) {
-                                const progress = _i / steps;
-                                segs.push({
-                                    x: bx + (Math.random() - 0.5) * 60,
-                                    y: progress * ty
-                                });
-                                bx += (tx - bx) * 0.25;
-                            }
-                            segs[segs.length - 1] = { x: tx, y: ty };
-                            _weatherBolts.push({ segs, life: 10, maxLife: 10 });
-                        }
-
-                        // Age bolts
-                        for (let _bi = _weatherBolts.length - 1; _bi >= 0; _bi--) {
-                            if (--_weatherBolts[_bi].life <= 0) _weatherBolts.splice(_bi, 1);
-                        }
-
-                    } else if (currentWeather.id === 'SANDSTORM') {
-                        // ── Horizontal sand streak particles ─────────────────────────
-                        const sandCount = Math.floor(8 * wFadeIn) + 2;
-                        for (let _s = 0; _s < sandCount; _s++) {
-                            weatherParticles.push({
-                                x: -20,
-                                y: Math.random() * canvas.height,
-                                vx: 8 + Math.random() * 6,
-                                vy: (Math.random() - 0.5) * 1.5,
-                                len: 18 + Math.random() * 20,
-                                alpha: 0.2 + Math.random() * 0.3,
-                                wobble: 0,
-                                sand: true,
-                                color: `hsl(${30 + Math.random() * 20}, 70%, ${50 + Math.random() * 20}%)`,
-                            });
-                        }
-
-                    } else if (currentWeather.id === 'ACIDIC_FOG') {
-                        // ── Drifting acid mist particles ─────────────────────────────
-                        if (Math.random() < 0.25 * wFadeIn) {
-                            weatherParticles.push({
-                                x: Math.random() * canvas.width,
-                                y: Math.random() * canvas.height,
-                                vx: (Math.random() - 0.5) * 0.4,
-                                vy: (Math.random() - 0.5) * 0.4,
-                                r: 30 + Math.random() * 40,
-                                alpha: 0.04 + Math.random() * 0.06,
-                                wobble: Math.random() * Math.PI * 2,
-                                fog: true,
-                            });
-                        }
-                        // DoT: 1% max HP every 4s
-                        if (frame % 240 === 0 && wFadeIn >= 1) {
-                            const acidDmg = Math.ceil(player.maxHp * 0.01);
-                            applyDamage(player, acidDmg, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null }); // #18
-                        }
-
-                    } else if (currentWeather.id === 'GALE') {
-                        // ── Wind streak particles ─────────────────────────────────────
-                        if (Math.random() < 0.4 * wFadeIn) {
-                            weatherParticles.push({
-                                x: -10,
-                                y: Math.random() * canvas.height,
-                                vx: 12 + Math.random() * 8,
-                                vy: (Math.random() - 0.5) * 1.0,
-                                len: 30 + Math.random() * 30,
-                                alpha: 0.1 + Math.random() * 0.15,
-                                wobble: 0,
-                                gale: true,
-                            });
-                        }
-                        // Projectile wind deflection — drift all projectiles rightward
-                        for (let _pi = 0; _pi < projectiles.length; _pi++) {
-                            const _pp = projectiles[_pi];
-                            if (_pp.velocity) _pp.velocity.x += 0.18 * wFadeIn;
-                            else if (_pp.vx !== undefined) _pp.vx += 0.18 * wFadeIn;
-                        }
-                    } else if (window._weatherLogicHooks[currentWeather.id]) {
-                        // DLC custom weather logic hook — only run if registering DLC is active
-                        const _lhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
-                        const _lhDlc = _lhLock && _lhLock.dlcId;
-                        const _lhOk = !_lhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_lhDlc));
-                        if (_lhOk) window._weatherLogicHooks[currentWeather.id](wFadeIn, frame);
-                    }
-
-                    // Tick all weather particles
-                    for (let _pi = weatherParticles.length - 1; _pi >= 0; _pi--) {
-                        const p = weatherParticles[_pi];
-                        p.wobble += 0.05;
-                        p.x += p.vx + Math.sin(p.wobble) * 0.5;
-                        p.y += p.vy;
-                        if (p.y > canvas.height + 10 || p.y < -10 || p.x > canvas.width + 60) weatherParticles.splice(_pi, 1);
-                    }
-                }
-            } else {
-                weatherTimer--;
-                if (weatherTimer <= 0) {
-                    // Helper: returns true if weather w is eligible for the current biome + loaded DLCs
-                    const _weatherAllowed = (w) => {
-                        const lock = window._weatherBiomeLocks && window._weatherBiomeLocks[w.id];
-                        if (!lock) return true; // no restriction
-                        const biomes = lock.biomes || lock; // support both { biomes, dlcId } and legacy array
-                        const dlcId = lock.dlcId;
-                        const dlcOk = !dlcId || (window.dlcManager && window.dlcManager.isDLCActive(dlcId));
-                        return dlcOk && biomes.includes(currentBiomeType);
-                    };
-
-                    // Biome-locked weathers: fire→HEATWAVE, cloud→THUNDERSTORM, wind→GALE
-                    // DLC biomes hook in via _weatherBiomeLocks — e.g. 'time' biome → TEMPORAL_RIFT (EoE only)
-                    const _dlcBiomeLock = window._weatherBiomeLocks &&
-                        Object.keys(window._weatherBiomeLocks).find(id => _weatherAllowed({ id }));
-                    const _biomeLockedWeather = _dlcBiomeLock || { fire: 'HEATWAVE', cloud: 'THUNDERSTORM', wind: 'GALE' }[currentBiomeType];
-                    if (_biomeLockedWeather) {
-                        currentWeather = WEATHER_TYPES.find(w => w.id === _biomeLockedWeather) || WEATHER_TYPES[0];
-                    } else {
-                        // Build weighted pool — biome boosts its preferred weather 3×
-                        const _biomeBoost = { ice: 'BLIZZARD', plant: 'ACIDIC_FOG', metal: 'SANDSTORM', water: 'THUNDERSTORM', black: 'ACIDIC_FOG' }[currentBiomeType];
-                        const _weatherPool = [];
-                        for (const w of WEATHER_TYPES) {
-                            if (w.id === 'BLIZZARD' && currentBiomeType === 'fire') continue; // incompatible
-                            if (w.id === 'HEATWAVE' && currentBiomeType === 'ice') continue;
-                            if (!_weatherAllowed(w)) continue; // DLC/biome-locked
-                            const weight = (w.id === _biomeBoost) ? 3 : 1;
-                            for (let _wi = 0; _wi < weight; _wi++) _weatherPool.push(w);
-                        }
-                        currentWeather = _weatherPool[Math.floor(Math.random() * _weatherPool.length)];
-                    }
-                    // Wave scaling: +1% duration per wave, capped at 2×
-                    const _waveDurationMult = Math.min(2.0, 1 + wave * 0.01);
-                    weatherDuration = Math.floor(currentWeather.duration * _waveDurationMult);
-                    document.getElementById('weather-overlay').style.backgroundColor = currentWeather.color;
-                    const wDisplay = document.getElementById('weather-display');
-                    wDisplay.innerText = `⚠ ${currentWeather.name}`;
-                    const _wColor = { HEATWAVE: '#e74c3c', THUNDERSTORM: '#9b59b6', SANDSTORM: '#c8922a', ACIDIC_FOG: '#2ecc71', GALE: '#a8d8f0', TEMPORAL_RIFT: '#b8a0ff', PETAL_STORM: '#ff80c0' }[currentWeather.id] || '#3498db';
-                    wDisplay.style.color = _wColor;
-                    wDisplay.style.display = 'block';
-                    const wBarWrap = document.getElementById('weather-bar-wrap');
-                    const wBarFill = document.getElementById('weather-bar-fill');
-                    if (wBarWrap && wBarFill) {
-                        wBarWrap.style.display = 'block';
-                        wBarFill.style.background = _wColor;
-                        wBarFill.style.width = '100%';
-                    }
-                    if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + currentWeather.id.toLowerCase());
-                }
-            }
-            // ── Weather stacking (wave 30+): run a second concurrent weather ──
-            if (wave >= 30) {
-                if (currentWeather2) {
-                    weatherDuration2--;
-                    if (weatherDuration2 <= 0) {
-                        if (typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + currentWeather2.id.toLowerCase());
-                        currentWeather2 = null;
-                        weatherDuration2 = 0;
-                    }
-                } else if (currentWeather && Math.random() < 0.0003) {
-                    // Small chance each frame to stack a second weather (different from first, biome/DLC eligible)
-                    const _stackPool = WEATHER_TYPES.filter(w => {
-                        if (w.id === currentWeather.id) return false;
-                        const _lk = window._weatherBiomeLocks && window._weatherBiomeLocks[w.id];
-                        if (!_lk) return true;
-                        const _biomes = _lk.biomes || _lk;
-                        const _dlcId = _lk.dlcId;
-                        return (!_dlcId || (window.dlcManager && window.dlcManager.isDLCActive(_dlcId)))
-                            && _biomes.includes(currentBiomeType);
-                    });
-                    if (_stackPool.length > 0) {
-                        currentWeather2 = _stackPool[Math.floor(Math.random() * _stackPool.length)];
-                        const _waveMult2 = Math.min(2.0, 1 + wave * 0.01);
-                        weatherDuration2 = Math.floor(currentWeather2.duration * _waveMult2 * 0.6); // shorter than primary
-                        if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + currentWeather2.id.toLowerCase());
-                        showNotification(`⚠ ${currentWeather2.name} STACKS WITH ${currentWeather.name}!`);
-                    }
-                }
-                // Run secondary weather's particle/effect logic by temporarily swapping
-                if (currentWeather2) {
-                    const _wProg2 = weatherDuration2 / currentWeather2.duration;
-                    const _wFI2 = Math.min(1, (currentWeather2.duration - weatherDuration2) / 120);
-                    if (currentWeather2.id === 'GALE') {
-                        for (let _pi2 = 0; _pi2 < projectiles.length; _pi2++) {
-                            const _pp2 = projectiles[_pi2];
-                            if (_pp2.velocity) _pp2.velocity.x += 0.18 * _wFI2;
-                            else if (_pp2.vx !== undefined) _pp2.vx += 0.18 * _wFI2;
-                        }
-                        if (Math.random() < 0.4 * _wFI2) weatherParticles.push({ x: -10, y: Math.random() * canvas.height, vx: 12 + Math.random() * 8, vy: (Math.random() - 0.5), len: 30 + Math.random() * 30, alpha: 0.1 + Math.random() * 0.15, wobble: 0, gale: true });
-                    } else if (currentWeather2.id === 'BLIZZARD') {
-                        if (Math.random() < 0.5 * _wFI2) weatherParticles.push({ x: Math.random() * canvas.width, y: -8, vx: (Math.random() - 0.5) * 1.2 - 0.5, vy: 1.2 + Math.random() * 2.0, r: 1.0 + Math.random() * 2.2, alpha: 0.55 + Math.random() * 0.4, wobble: Math.random() * Math.PI * 2 });
-                    } else if (currentWeather2.id === 'ACIDIC_FOG') {
-                        if (frame % 240 === 0 && _wFI2 >= 1) {
-                            const _ad2 = Math.ceil(player.maxHp * 0.01);
-                            applyDamage(player, _ad2, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null }); // #18
-                        }
-                    }
-                    void _wProg2; // suppress unused warning
-                }
-            }
-            // ── End Weather Logic ─────────────────────────────────────────────
-
-            // --- Spawning Logic ---
-            // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
-            if (!bossActive && bossDeathTimer === 0 && !isTestingMode && !isEvilMode && isWaveCleared(wave, enemiesKilledInWave) && (!isTutorialMode || TutorialMode.bossForced)) {
-                if (currentObjective && currentObjective.state === 'ACTIVE') {
-                    // Do nothing, wait for objective completion logic
-                } else if (isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType === 'none') {
-                    // Workshop: no boss configured — advance wave directly
-                    advanceWave();
-                } else {
-                    bossActive = true;
-                    // Boss spawn — heavy ground-pound rumble
-                    triggerImpact(9, 22, 0.45, 0.90, 550);
-                    if (isTutorialMode) {
-                        // Tutorial: one plain boss (no type modifier), reduced HP, no minions
-                        const tutBoss = new Boss('BASIC');
-                        tutBoss.hp = tutBoss.maxHp = Math.max(1, Math.floor(tutBoss.maxHp * 0.4));
-                        enemies.unshift(tutBoss);
-                    } else {
-                        // Standard Boss Spawning
-                        const _workshopBossType = (isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType)
-                            ? window.pendingCustomMap.waveConfig.bossType : null;
-                        const _bossArg = (_workshopBossType && _workshopBossType !== 'random') ? _workshopBossType : undefined;
-
-                        const _isStoryMode = (saveData.story && saveData.story.enabled !== false) && !isDailyMode && !isWeeklyMode && !isChaosShuffleMode && !isVersusMode;
-                        if (!isWorkshopMode && !_isStoryMode && Math.random() < 0.05) {
-                            document.getElementById('event-text').style.display = 'block';
-                            setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
-                            if (typeof audioManager !== 'undefined') {
-                                audioManager.play('twin_event');
-                                audioManager.playHeroExclamation(player.type, 'twin_event');
-                            }
-                            enemies.unshift(new Boss(), new Boss());
-                        } else {
-                            // Mutator: Double Boss
-                            if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'DOUBLE_BOSS')) {
-                                enemies.unshift(new Boss(), new Boss());
-                                showNotification("DOUBLE BOSS SPAWN!");
-                            } else {
-                                enemies.unshift(new Boss(_bossArg));
-                            }
-                        }
-                        if (!currentStoryEvent || !currentStoryEvent.data || !currentStoryEvent.data.suppressMinions) {
-                            for (let i = 0; i < 5; i++) enemies.push(new Enemy(true));
-                        }
-                    }
-                }
-            }
-
-            if (!isVersusMode && !isTestingMode && !isEvilMode) {
-                if (!bossActive && bossDeathTimer === 0) {
-                    let spawnRate = Math.max(10, 45 - (wave * 1.3));
-                    let forcedType = null;
-
-                    // Workshop waveConfig overrides
-                    if (isWorkshopMode && window.pendingCustomMap?.waveConfig) {
-                        const _wc = window.pendingCustomMap.waveConfig;
-                        const _base  = _wc.spawnRateBase         ?? 45;
-                        const _decay = _wc.spawnRateDecayPerWave ?? 1.3;
-                        spawnRate = Math.max(10, _base - (wave * _decay));
-                        if (_wc.enemyPool && _wc.enemyPool.length > 0) {
-                            forcedType = _wc.enemyPool[Math.floor(Math.random() * _wc.enemyPool.length)];
-                        }
-                    }
-
-                    // Story Override
-                    if (currentStoryEvent && currentStoryEvent.type === 'WAVE_OVERRIDE' && currentStoryEvent.data) {
-                        if (currentStoryEvent.data.spawnRateMod) {
-                            spawnRate = Math.max(5, spawnRate * currentStoryEvent.data.spawnRateMod);
-                        }
-                        if (currentStoryEvent.data.forcedEnemyType) {
-                            forcedType = currentStoryEvent.data.forcedEnemyType;
-                        }
-                    }
-
-                    // Maze of Time: use node's deterministic enemy pool
-                    if (window.mazeCurrentNode && window.mazeCurrentNode.enemyOverride) {
-                        forcedType = window.MazeOfTime.pickNextEnemyType() || forcedType;
-                    }
-
-                    const nonBossCount = enemies.filter(e => !(e instanceof Boss) && e.hp > 0).length;
-                    const enemyCap = Math.min(22, 5 + wave) + ((isCoopMode || isAICompanionMode) ? 4 : 0);
-                    if (frame % Math.floor(spawnRate) === 0 && nonBossCount < enemyCap) {
-                        let loops = 1;
-                        if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
-
-                        for (let l = 0; l < loops; l++) {
-                            if (forcedType) {
-                                enemies.push(new Enemy(false, forcedType));
-                            } else {
-                                // Swarm Logic
-                                if (wave > 2 && Math.random() < 0.1) {
-                                    for (let i = 0; i < 5; i++) {
-                                        const swarm = new Enemy(false, 'SWARM');
-                                        // Offset slightly
-                                        swarm.x += (Math.random() - 0.5) * 50;
-                                        swarm.y += (Math.random() - 0.5) * 50;
-                                        enemies.push(swarm);
-                                    }
-                                } else {
-                                    enemies.push(new Enemy());
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    let suppress = false;
-                    if (currentStoryEvent && currentStoryEvent.data && currentStoryEvent.data.suppressMinions) {
-                        suppress = true;
-                    }
-                    if (!suppress && frame % 150 === 0) enemies.push(new Enemy(true));
-                }
-            }
-
-            // Co-op / AI companion: scale new non-boss enemy HP up
-            if (isCoopMode || isAICompanionMode) {
-                enemies.forEach(e => {
-                    if (!(e instanceof Boss) && !e._coopScaled) {
-                        e._coopScaled = true;
-                        e.hp *= 1.4; e.maxHp = e.hp;
-                    }
-                });
-            }
-
-            // Maze of Time: scale enemy HP by node waveStrength
-            if (window.mazeCurrentNode && window.mazeCurrentNode.waveStrength !== 1.0) {
-                const s = window.mazeCurrentNode.waveStrength;
-                enemies.forEach(e => {
-                    if (!(e instanceof Boss) && !e._mazeScaled) {
-                        e._mazeScaled = true;
-                        e.hp = Math.round(e.hp * s);
-                        e.maxHp = e.hp;
-                    }
-                });
-            }
-
-            // Tutorial: scale new non-boss enemy HP to 40% and cap count at 8
-            if (isTutorialMode) {
-                enemies.forEach(e => {
-                    if (!(e instanceof Boss) && !e._tutorialScaled) {
-                        e._tutorialScaled = true;
-                        e.hp = e.maxHp = Math.max(1, Math.floor(e.maxHp * 0.4));
-                    }
-                });
-                const nonBoss = enemies.filter(e => !(e instanceof Boss));
-                if (nonBoss.length > 8) {
-                    const excess = new Set(nonBoss.slice(8));
-                    enemies = enemies.filter(e => !excess.has(e));
-                }
-            }
-
-            if (frame % 600 === 0) powerUps.push(new PowerUp());
-
-            // --- Updates ---
-
-            // Biome Effects on Player
-            let biomeSpeedMod = 1;
-
-            // DLC Hook: Biome Update
-            if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType]) {
-                window.BIOME_LOGIC[currentBiomeType].update(arena, player, enemies);
-            }
-
-            arena.biomeZones.forEach(zone => {
-                // Simple AABB collision
-                if (player.x > zone.x && player.x < zone.x + zone.w &&
-                    player.y > zone.y && player.y < zone.y + zone.h) {
-
-                    // Immunity Check
-                    let isImmune = false;
-                    if (player.type === 'fire' && zone.type === 'LAVA') isImmune = true;
-                    if (player.type === 'ice' && zone.type === 'ICE') isImmune = true;
-                    if (player.type === 'plant' && zone.type === 'MUD') isImmune = true;
-                    if (player.type === 'water' && zone.type === 'WATER') isImmune = true;
-                    if (player.type === 'metal' && zone.type === 'MAGNET') isImmune = true;
-
-                    if (!isImmune) {
-                        if (zone.type === 'MUD') biomeSpeedMod = 0.5;
-                        if (zone.type === 'ICE') biomeSpeedMod = 1.3; // Slide faster
-                        if (zone.type === 'WATER') biomeSpeedMod = 0.7;
-
-                        if (zone.type === 'LAVA' && frame % 60 === 0) {
-                            applyDamage(player, 5, { label: 'LAVA' }); // #18
-                            createExplosion(player.x, player.y, '#e74c3c');
-                            showNotification("BURNING!");
-                        }
-
-                        if (zone.type === 'MAGNET') {
-                            // Pull Player towards center
-                            const cx = zone.x + zone.w / 2;
-                            const cy = zone.y + zone.h / 2;
-                            const angle = Math.atan2(cy - player.y, cx - player.x);
-                            player.x += Math.cos(angle) * 2; // Strong pull
-                            player.y += Math.sin(angle) * 2;
-                        }
-                    }
-                }
-
-                // Biome Effects on Enemies (Always active, no immunity for them)
-                if (zone.type === 'MAGNET') {
-                    const cx = zone.x + zone.w / 2;
-                    const cy = zone.y + zone.h / 2;
-                    enemies.forEach(e => {
-                        if (e.x > zone.x && e.x < zone.x + zone.w &&
-                            e.y > zone.y && e.y < zone.y + zone.h) {
-                            const angle = Math.atan2(cy - e.y, cx - e.x);
-                            e.x += Math.cos(angle) * 3; // Enemies get pulled harder
-                            e.y += Math.sin(angle) * 3;
-                        }
-                    });
-                }
-            });
-            player.biomeSpeedMod = biomeSpeedMod;
-
-            if (isPlayerDying) {
-                // Freeze player during death sequence
-                player.vx = 0;
-                player.vy = 0;
-            } else {
-                player.update();
-            }
-            player.draw();
-
-            // Evil Mode hero ability updates and overlay rendering
-            if (isEvilMode && window.HERO_LOGIC && window.HERO_LOGIC[player.type]) {
-                const _hl = window.HERO_LOGIC[player.type];
-                if (_hl.update)      _hl.update(player, deltaTime / 1000);
-                if (_hl.drawOverlay) _hl.drawOverlay(player, ctx);
-            }
-
-            // Co-op / AI companion: update + draw P2
-            if ((isCoopMode || isAICompanionMode) && player2) {
-                if (!player2.isDead) {
-                    // Online guest: P2 is a ghost — skip local physics, position set by network
-                    if (!player2._ghost) {
-                        player2.update();
-                        // Distance enforcement — rubber band above 1800px (skip for online — server handles)
-                        if (!isOnlineMode) {
-                            const _sep = Math.hypot(player2.x - player.x, player2.y - player.y);
-                            if (_sep > 1800) {
-                                const _force = (_sep - 1800) * 0.06;
-                                const _ang = Math.atan2(player.y - player2.y, player.x - player2.x);
-                                player2.x += Math.cos(_ang) * _force;
-                                player2.y += Math.sin(_ang) * _force;
-                                const _ang2 = Math.atan2(player2.y - player.y, player2.x - player.x);
-                                player.x += Math.cos(_ang2) * _force * 0.3;
-                                player.y += Math.sin(_ang2) * _force * 0.3;
-                            }
-                            if (_sep > 1400) drawCoopDistanceWarning(ctx, player2, _sep);
-                        }
-                    } else if (player2._snapshotAt) {
-                        if (player2._snapBuf && player2._snapBuf.length >= 2) {
-                            const _p2pos = _onlineInterpBuf(player2._snapBuf, _onlineRenderTime());
-                            player2.x = _p2pos.x; player2.y = _p2pos.y;
-                        } else {
-                            // Fallback: extrapolate from single snapshot until buffer fills
-                            const _p2dt = Math.min((Date.now() - player2._snapshotAt) / 1000 * 60, 8);
-                            const _smx = player2._smx || 0, _smy = player2._smy || 0;
-                            const _moveLen = Math.hypot(_smx, _smy);
-                            const _speed = (player2.stats?.speed || 4) * (player2.speedMultiplier || 1);
-                            if (_moveLen > 0) {
-                                player2.x = player2._sx + (_smx / _moveLen) * _speed * _p2dt;
-                                player2.y = player2._sy + (_smy / _moveLen) * _speed * _p2dt;
-                            } else {
-                                player2.x = player2._sx;
-                                player2.y = player2._sy;
-                            }
-                        }
-                    }
-                }
-                player2.draw();
-                updateDrawRevivalMarkers(ctx);
-            }
-
-            // Online: interpolate ghost entities between buffered snapshots; reconcile own player; flush input
-            if (isOnlineMode && gameRunning && !gamePaused) {
-                _onlineFrame++;
-
-                // Interpolate ghost entities between buffered snapshots for smooth rendering
-                const _now = Date.now();
-                const _renderTime = _onlineRenderTime();
-                enemies.forEach(e => {
-                    if (!e._ghost) return;
-                    if (e._snapBuf && e._snapBuf.length >= 2) {
-                        const _ep = _onlineInterpBuf(e._snapBuf, _renderTime);
-                        e.x = _ep.x; e.y = _ep.y;
-                    } else {
-                        const _dt = Math.min((_now - (e._snapshotAt || _now)) / 1000 * 60, 12);
-                        e.x = (e._sx ?? e.x) + (e.vx || 0) * _dt;
-                        e.y = (e._sy ?? e.y) + (e.vy || 0) * _dt;
-                    }
-                });
-                projectiles.forEach(p => {
-                    if (!p._ghost || !p._snapshotAt) return;
-                    if (p._snapBuf && p._snapBuf.length >= 2) {
-                        const _pp = _onlineInterpBuf(p._snapBuf, _renderTime);
-                        p.x = _pp.x; p.y = _pp.y;
-                    } else {
-                        const _dt = Math.min((_now - p._snapshotAt) / 1000 * 60, 12);
-                        p.x = p._sx + (p.velocity?.x || 0) * _dt;
-                        p.y = p._sy + (p.velocity?.y || 0) * _dt;
-                    }
-                });
-                // Drop orphan projectiles once render time has passed their last buffered
-                // server position — they've finished their visible flight to impact.
-                if (projectiles.some(p => p._orphanAt !== undefined)) {
-                    projectiles = projectiles.filter(p => {
-                        if (p._orphanAt === undefined) return true;
-                        const lastT = p._snapBuf && p._snapBuf.length ? p._snapBuf[p._snapBuf.length - 1].t : 0;
-                        return _renderTime <= lastT;
-                    });
-                    if (window._world) window._world.projectiles = projectiles;
-                }
-
-                // Own-player reconciliation. Trust client prediction whenever the
-                // player has active input (running, dashing). Server speed now matches
-                // client (sub-stepped Player.update) so drift during motion stays
-                // within RTT jitter and there's nothing to correct anyway.
-                //
-                // The remaining visible jerk happened the moment the player STOPPED
-                // moving: client stops at its predicted position, but the server keeps
-                // applying the last received "move" input for ~RTT until the "stop"
-                // arrives, so the next snapshot's server position is briefly overshot
-                // past the client. Reconciling against that snapshot pulled the player
-                // forward — perceived as a rubber-band on release of move keys.
-                //
-                // Solution: a post-move grace window that suspends reconciliation for
-                // ~600 ms after stopping. Server has time to apply the stop input and
-                // settle, so by the time we resume reconciliation the divergence is
-                // tiny. Combined with a 30 px idle dead-zone, the rubber-band on stop
-                // is invisible.
-                if (player) {
-                    if (player.isDashing) player._reconcileGrace = 18; // ~300 ms dash grace
-                    else if (player._reconcileGrace > 0) player._reconcileGrace--;
-
-                    const _mi  = player.moveInput || { x: 0, y: 0 };
-                    const _isInputMoving = Math.abs(_mi.x) > 0.05 || Math.abs(_mi.y) > 0.05;
-                    if (player._wasInputMoving && !_isInputMoving) {
-                        player._postMoveGrace = 36; // ~600 ms — covers any plausible RTT
-                    } else if (player._postMoveGrace > 0) {
-                        player._postMoveGrace--;
-                    }
-                    player._wasInputMoving = _isInputMoving;
-
-                    if (!player.isDead && player._serverTargetX !== undefined) {
-                        const _rdx = player._serverTargetX - player.x;
-                        const _rdy = player._serverTargetY - player.y;
-                        const _rd2 = _rdx * _rdx + _rdy * _rdy;
-                        if (_rd2 > 90000) {                       // > 300 px — teleport / death / extreme lag: hard snap
-                            player.x = player._serverTargetX;
-                            player.y = player._serverTargetY;
-                        } else if (!player.isDashing && !player._reconcileGrace
-                                && !player._postMoveGrace && !_isInputMoving
-                                && _rd2 > 900) {                  // > 30 px idle dead-zone (was 4 px)
-                            // Idle past grace, divergence beyond tolerance: gentle pull
-                            player.x += _rdx * 0.04;
-                            player.y += _rdy * 0.04;
-                        }
-                        // Otherwise: trust client prediction.
-                    }
-                }
-                // Both clients send input every frame so the server has up-to-date state
-                window.networkManager?.flushInput();
-            }
-
-            // Update Companions
-            companions.forEach(c => {
-                c.update();
-                c.draw(ctx);
-            });
-
-            // Memory Shards
-            for (let index = memoryShards.length - 1; index >= 0; index--) {
-                const shard = memoryShards[index];
-                shard.update();
-                shard.draw(ctx);
-                const dist = Math.hypot(player.x - shard.x, player.y - shard.y);
-                if (dist < player.radius + 20) {
-                    // Collect
-                    memoryShards.splice(index, 1);
-                    showNotification("MEMORY RECOVERED!");
-                    createExplosion(shard.x, shard.y, shard.color);
-
-                    // Save Memory
-                    if (!saveData.memories) saveData.memories = {};
-
-                    const shardType = shard.heroType;
-
-                    // Migration: Convert number to array if needed
-                    if (typeof saveData.memories[shardType] === 'number') {
-                        const count = saveData.memories[shardType];
-                        saveData.memories[shardType] = [];
-                        for (let i = 0; i < count; i++) saveData.memories[shardType].push(i);
-                    }
-
-                    if (!saveData.memories[shardType]) saveData.memories[shardType] = [];
-
-                    const unlockedIndices = saveData.memories[shardType];
-                    const allStories = MEMORY_STORIES[shardType] || [];
-                    const availableIndices = [];
-                    for (let i = 0; i < allStories.length; i++) {
-                        if (!unlockedIndices.includes(i)) availableIndices.push(i);
-                    }
-
-                    if (availableIndices.length > 0) {
-                        const newIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
-                        saveData.memories[shardType].push(newIndex);
-
-                        // Show Story Text
-                        const storyText = allStories[newIndex];
-                        showNotification(`MEMORY: "${storyText}"`);
-
-                        // Play Audio
-                        if (typeof audioManager !== 'undefined') {
-                            audioManager.playVoice(shardType, newIndex);
-                        }
-                    } else {
-                        showNotification("MEMORY RECOVERED! (All collected)");
-                    }
-
-                    saveGame();
-
-                    // Secret Love shard #51 — auto-reveal once all 50 regular Love shards are collected
-                    if (shardType === 'love' && typeof window.ECHOS_LOVE_SECRET !== 'undefined') {
-                        const collected = saveData.memories['love'] || [];
-                        const allFiftyCollected = collected.length >= 50 &&
-                            Array.from({ length: 50 }, (_, i) => i).every(i => collected.includes(i));
-                        if (allFiftyCollected && !saveData.memories['love_secret_51']) {
-                            saveData.memories['love_secret_51'] = true;
-                            setTimeout(() => {
-                                showNotification(`✦ REVELATION: "${window.ECHOS_LOVE_SECRET}"`);
-                                if (typeof audioManager !== 'undefined') audioManager.playVoice('love', 50);
-                            }, 3000);
-                            saveGame();
-                        }
-                    }
-                } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
-                    const distP2 = Math.hypot(player2.x - shard.x, player2.y - shard.y);
-                    if (distP2 < player2.radius + 20) {
-                        memoryShards.splice(index, 1);
-                        showNotification("MEMORY RECOVERED!");
-                        createExplosion(shard.x, shard.y, shard.color);
-
-                        if (!saveData.memories) saveData.memories = {};
-                        const shardType = shard.heroType;
-                        if (typeof saveData.memories[shardType] === 'number') {
-                            const count = saveData.memories[shardType];
-                            saveData.memories[shardType] = [];
-                            for (let i = 0; i < count; i++) saveData.memories[shardType].push(i);
-                        }
-                        if (!saveData.memories[shardType]) saveData.memories[shardType] = [];
-                        const unlockedIndices = saveData.memories[shardType];
-                        const allStories = MEMORY_STORIES[shardType] || [];
-                        const availableIndices = [];
-                        for (let i = 0; i < allStories.length; i++) {
-                            if (!unlockedIndices.includes(i)) availableIndices.push(i);
-                        }
-                        if (availableIndices.length > 0) {
-                            const newIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
-                            saveData.memories[shardType].push(newIndex);
-                            const storyText = allStories[newIndex];
-                            showNotification(`MEMORY: "${storyText}"`);
-                            if (typeof audioManager !== 'undefined') audioManager.playVoice(shardType, newIndex);
-                        } else {
-                            showNotification("MEMORY RECOVERED! (All collected)");
-                        }
-                        saveGame();
-                    }
-                }
-            }
-
-            // Gold Drops
-            for (let index = goldDrops.length - 1; index >= 0; index--) {
-                const drop = goldDrops[index];
-                drop.draw();
-                // Golden Magnet (Chance Convergence)
-                const pickupRad = player.pickupRange || (player.radius + 20);
-                const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
-                if (dist < pickupRad) {
-                    const amount = Math.floor(drop.value * player.goldMultiplier);
-                    if (player.gainGold) player.gainGold(amount); // Use new method
-                    else player.gold += amount; // Fallback
-
-                    if (isChaosShuffleMode) checkChaosEvent('GOLD', amount);
-                    if (isTutorialMode) TutorialMode.onGold();
-                    currentRunStats.moneyGained += amount; // Track Gold
-                    saveData.global.totalGold += drop.value; // Track for achievement
-                    if (typeof audioManager !== 'undefined') audioManager.play('pickup_gold');
-                    GoldDrop.release(drop); // #20 P3 — return to pool before splice
-                    goldDrops.splice(index, 1);
-                }
-            }
-
-            // Card Drops
-            for (let index = cardDrops.length - 1; index >= 0; index--) {
-                const drop = cardDrops[index];
-                drop.draw();
-                const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
-                if (dist < player.radius + 20) {
-                    const cardKey = drop.cardKey;
-                    const card = COLLECTOR_CARDS[cardKey];
-
-                    if (card && !saveData.collection.includes(cardKey)) {
-                        saveData.collection.push(cardKey);
-                        saveGame();
-
-                        // Show notification
-                        const notif = document.createElement('div');
-                        notif.className = 'achievement-popup'; // Reuse achievement style
-                        notif.style.borderColor = card.color;
-                        notif.innerHTML = `
-                            <div style="font-size: 12px; color: #aaa;">NEW CARD FOUND!</div>
-                            <div style="color: ${card.color}; font-weight: bold; font-size: 16px; margin: 5px 0;">${card.name}</div>
-                            <div style="font-size: 12px;">${card.desc}</div>
-                        `;
-                        document.body.appendChild(notif);
-
-                        if (typeof audioManager !== 'undefined') {
-                            audioManager.play('pickup_card');
-                            audioManager.playHeroExclamation(player.type, 'found');
-                        }
-
-                        // Trigger animation
-                        setTimeout(() => notif.classList.add('show'), 10);
-
-                        setTimeout(() => {
-                            notif.classList.remove('show');
-                            setTimeout(() => notif.remove(), 1000);
-                        }, 4000);
-                    }
-
-                    cardDrops.splice(index, 1);
-                } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
-                    const distP2 = Math.hypot(player2.x - drop.x, player2.y - drop.y);
-                    if (distP2 < player2.radius + 20) {
-                        const cardKey = drop.cardKey;
-                        const card = COLLECTOR_CARDS[cardKey];
-                        if (card && !saveData.collection.includes(cardKey)) {
-                            saveData.collection.push(cardKey);
-                            saveGame();
-                            const notif = document.createElement('div');
-                            notif.className = 'achievement-popup';
-                            notif.style.borderColor = card.color;
-                            notif.innerHTML = `
-                                <div style="font-size: 12px; color: #aaa;">NEW CARD FOUND!</div>
-                                <div style="color: ${card.color}; font-weight: bold; font-size: 16px; margin: 5px 0;">${card.name}</div>
-                                <div style="font-size: 12px;">${card.desc}</div>
-                            `;
-                            document.body.appendChild(notif);
-                            if (typeof audioManager !== 'undefined') {
-                                audioManager.play('pickup_card');
-                                audioManager.playHeroExclamation(player2.type, 'found');
-                            }
-                            setTimeout(() => notif.classList.add('show'), 10);
-                            setTimeout(() => { notif.classList.remove('show'); setTimeout(() => notif.remove(), 1000); }, 4000);
-                        }
-                        cardDrops.splice(index, 1);
-                    }
-                }
-            }
-
-            // Holy Masks
-            for (let index = holyMasks.length - 1; index >= 0; index--) {
-                const mask = holyMasks[index];
-                mask.draw();
-                const dist = Math.hypot(player.x - mask.x, player.y - mask.y);
-                if (dist < player.radius + 20) {
-                    if (mask.isTrueGolden) {
-                        // True Golden Mask Effect
-                        player.damageMultiplier += 0.5; // +50% Damage
-                        player.speedMultiplier += 0.2; // +20% Speed
-                        player.maxHp += 50;
-                        player.hp += 50;
-                        player.cooldownMultiplier *= 0.8; // -20% Cooldown
-
-                        // Visual Flag
-                        player.isGolden = true;
-
-                        showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
-                        createExplosion(player.x, player.y, '#fff');
-                        if (typeof audioManager !== 'undefined') {
-                            audioManager.play('pickup_mask');
-                            audioManager.playHeroExclamation(player.type, 'found');
-                        }
-
-                        // Unlock Achievement if exists?
-                    } else {
-                        saveData[player.type].level++;
-                        saveGame();
-                        if (typeof audioManager !== 'undefined') {
-                            audioManager.play('pickup_mask');
-                            audioManager.playHeroExclamation(player.type, 'found');
-                        }
-                        showNotification("PERMANENT LEVEL UP!");
-                        createExplosion(player.x, player.y, '#f1c40f');
-                    }
-                    holyMasks.splice(index, 1);
-                } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
-                    const distP2 = Math.hypot(player2.x - mask.x, player2.y - mask.y);
-                    if (distP2 < player2.radius + 20) {
-                        if (mask.isTrueGolden) {
-                            player2.damageMultiplier += 0.5;
-                            player2.speedMultiplier += 0.2;
-                            player2.maxHp += 50;
-                            player2.hp += 50;
-                            player2.cooldownMultiplier *= 0.8;
-                            player2.isGolden = true;
-                            showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
-                            createExplosion(player2.x, player2.y, '#fff');
-                        } else {
-                            saveData[player2.type].level++;
-                            saveGame();
-                            showNotification("PERMANENT LEVEL UP!");
-                            createExplosion(player2.x, player2.y, '#f1c40f');
-                        }
-                        if (typeof audioManager !== 'undefined') {
-                            audioManager.play('pickup_mask');
-                            audioManager.playHeroExclamation(player2.type, 'found');
-                        }
-                        holyMasks.splice(index, 1);
-                    }
-                }
-            }
-
-            for (let index = powerUps.length - 1; index >= 0; index--) {
-                const pup = powerUps[index];
-                pup.update(); pup.draw();
-                const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
-                if (dist < player.radius + pup.radius) {
-                    if (pup.type === 'HEAL') {
-                        player.hp = Math.min(player.hp + 30, player.maxHp);
-                        if (isChaosShuffleMode) checkChaosEvent('HEAL');
-                        createExplosion(player.x, player.y, '#2ecc71');
-                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_heal');
-                    }
-                    else if (pup.type === 'MAXHP') {
-                        player.maxHp += 20; player.hp += 20;
-                        createExplosion(player.x, player.y, '#e74c3c');
-                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_maxhp');
-                    }
-                    else if (pup.type === 'SPEED') {
-                        player.buffs.speed = 600;
-                        createExplosion(player.x, player.y, '#f1c40f');
-                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_speed');
-                    }
-                    else if (pup.type === 'MULTI') {
-                        player.buffs.multi = 600;
-                        createExplosion(player.x, player.y, '#3498db');
-                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_multi');
-                    }
-                    else if (pup.type === 'AUTOAIM') {
-                        if (player.heroType === 'EARTH') {
-                            // Earth Hero: Temporary Ram Damage Boost
-                            player.stats.ramDmgMult = (player.stats.ramDmgMult || 1) + 1.0; // +100% Ram Damage
-                            setTimeout(() => { player.stats.ramDmgMult -= 1.0; }, 10000); // Lasts 10s
-                            showNotification("RAM DAMAGE BOOST!");
-                            createExplosion(player.x, player.y, '#e74c3c');
-                        } else {
-                            player.buffs.autoaim = 600;
-                            createExplosion(player.x, player.y, '#9b59b6');
-                        }
-                        if (typeof audioManager !== 'undefined') audioManager.play('pickup_autoaim');
-                    }
-                    powerUps.splice(index, 1);
-                } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
-                    // Co-op: P2 collects power-ups
-                    const distP2 = Math.hypot(player2.x - pup.x, player2.y - pup.y);
-                    if (distP2 < player2.radius + pup.radius) {
-                        if (pup.type === 'HEAL') { player2.hp = Math.min(player2.hp + 30, player2.maxHp); createExplosion(player2.x, player2.y, '#2ecc71'); }
-                        else if (pup.type === 'MAXHP') { player2.maxHp += 20; player2.hp += 20; }
-                        else if (pup.type === 'SPEED') { player2.buffs.speed = 600; }
-                        else if (pup.type === 'MULTI') { player2.buffs.multi = 600; }
-                        else if (pup.type === 'AUTOAIM') { player2.buffs.autoaim = 600; }
-                        powerUps.splice(index, 1);
-                    } else if (pup.timer <= 0) powerUps.splice(index, 1);
-                } else if (pup.timer <= 0) powerUps.splice(index, 1);
-            }
-
-            for (let index = projectiles.length - 1; index >= 0; index--) {
-                const proj = projectiles[index];
-                if (!_isHitStopped && !proj._ghost) proj.update();
-                if (proj.life !== null && proj.life <= 0) {
-                    Projectile.release(proj); // #20 P3
-                    projectiles.splice(index, 1);
-                    continue;
-                }
-
-                // --- PVP LOGIC ---
-                // Check collision against AI Players (Avoiding Self-Damage)
-                if (typeof window.additionalPlayers !== 'undefined' && window.additionalPlayers.length > 0 && !proj.isEnemy) {
-                    window.additionalPlayers.forEach(p2 => {
-                        // Avoid self-damage 
-                        if (proj.owner === p2) return;
-
-                        if (Math.hypot(p2.x - proj.x, p2.y - proj.y) < p2.radius + proj.radius) {
-                            p2.hp -= proj.damage;
-                            floatingTexts.push(FloatingText.acquire(p2.x, p2.y - 40, proj.damage.toFixed(0), "#ff0000", 25));
-                            proj.dead = true; // Mark dead
-                            createExplosion(proj.x, proj.y, proj.color);
-                            if (p2.hp <= 0) {
-                                if (typeof isEvilMode !== 'undefined' && isEvilMode) {
-                                    // Evil Mode: mark dead so checkWaveEnd() sees it — don't splice yet
-                                    p2.isDead = true;
-                                    createExplosion(p2.x, p2.y, '#fff');
-                                } else {
-                                    const idx = window.additionalPlayers.indexOf(p2);
-                                    if (idx > -1) window.additionalPlayers.splice(idx, 1);
-                                    createExplosion(p2.x, p2.y, '#fff');
-                                    showNotification("OPPONENT KO!");
-
-                                    if (isVersusMode && window.additionalPlayers.length === 0) {
-                                        audioManager.playHeroExclamation(player.type, 'boss_win');
-                                        setTimeout(() => gameOver(true), 2000);
-                                    } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
-                                        // Story Mode Duel Victory
-                                        bossActive = false;
-                                        bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds for dramatic effect
-                                        triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
-
-                                        // Clear any remaining enemies/projectiles
-                                        enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
-                                        enemies = [];
-                                        projectiles = [];
-                                        if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
-                                    }
-                                }
-                            }
-                        }
-                    });
-
-                    // Also check collision against Main Player (Player 1) if owner is not Player 1
-                    if (proj.owner && proj.owner !== player) {
-                        const p1 = player;
-                        if (Math.hypot(p1.x - proj.x, p1.y - proj.y) < p1.radius + proj.radius) {
-                            p1.takeDamage(proj.damage); // Use standard take damage
-                            proj.dead = true;
-                            createExplosion(proj.x, proj.y, proj.color);
-                        }
-                    }
-
-                    if (proj.dead) {
-                        Projectile.release(proj); // #20 P3
-                        projectiles.splice(index, 1);
-                        continue;
-                    }
-                }
-
-                // 2P Versus PvP: projectile hits between P1 and P2
-                if (isVersusMode && isCoopMode && player2 && !player2.isDead && !proj.isEnemy) {
-                    if (proj.owner === player) {
-                        // P1 projectile → P2
-                        if (Math.hypot(player2.x - proj.x, player2.y - proj.y) < player2.radius + proj.radius) {
-                            const dmg = proj.damage * (1 - player2.damageReduction);
-                            player2.hp -= dmg;
-                            floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
-                            proj.dead = true;
-                            createExplosion(proj.x, proj.y, proj.color);
-                            if (player2.hp <= 0 && !player2.isDead) {
-                                player2.isDead = true; player2.hp = 0;
-                                createExplosion(player2.x, player2.y, '#fff');
-                                showNotification("OPPONENT KO!");
-                                audioManager.playHeroExclamation(player.type, 'boss_win');
-                                setTimeout(() => gameOver(true), 2000);
-                            }
-                        }
-                    } else if (proj.owner === player2 && !player.isInvincible) {
-                        // P2 projectile → P1
-                        if (Math.hypot(player.x - proj.x, player.y - proj.y) < player.radius + proj.radius) {
-                            player.takeDamage(proj.damage);
-                            proj.dead = true;
-                            createExplosion(proj.x, proj.y, proj.color);
-                        }
-                    }
-                    if (proj.dead) { Projectile.release(proj); projectiles.splice(index, 1); continue; } // #20 P3
-                }
-
-                proj.draw();
-                if (arena.checkCollision(proj.x, proj.y, proj.radius)) {
-                    if (proj.isExplosive) {
-                        const _cands = queryEnemiesNear(proj.x, proj.y, 100);
-                        for (let _ci = 0; _ci < _cands.length; _ci++) {
-                            const e = _cands[_ci];
-                            if (Math.hypot(e.x - proj.x, e.y - proj.y) < 100) {
-                                e.hp -= proj.damage;
-                                currentRunStats.damageDealt += proj.damage; // Track Damage
-                                saveData.global.totalDamage += proj.damage;
-                                bumpDamageSource('projectile', proj.damage);
-                            }
-                        }
-                        createExplosion(proj.x, proj.y, '#e67e22');
-                    }
-                    Projectile.release(proj); // #20 P3
-                    projectiles.splice(index, 1);
-                    continue;
-                }
-                if (proj.x < 0 || proj.x > arena.width || proj.y < 0 || proj.y > arena.height) {
-                    Projectile.release(proj); // #20 P3
-                    projectiles.splice(index, 1);
-                }
-            }
-
-            for (let index = meleeAttacks.length - 1; index >= 0; index--) {
-                const att = meleeAttacks[index];
-                att.update(); att.draw();
-
-                // PvP Collision: P1 vs P2 (AI)
-                if (att.owner === player && typeof window.additionalPlayers !== 'undefined') {
-                    window.additionalPlayers.forEach(p2 => {
-                        const pid = p2.id || 'P2';
-                        if (att.hitList.includes(pid)) return;
-                        if (Math.hypot(p2.x - att.x, p2.y - att.y) < att.radius + p2.radius) {
-                            const angleTo = Math.atan2(p2.y - att.y, p2.x - att.x);
-                            let diff = angleTo - att.angle;
-                            while (diff < -Math.PI) diff += Math.PI * 2;
-                            while (diff > Math.PI) diff -= Math.PI * 2;
-                            if (Math.abs(diff) < Math.PI / 3) {
-                                if (p2.hp > 0) {
-                                    p2.hp -= att.damage;
-                                    att.hitList.push(pid);
-                                    createExplosion(p2.x, p2.y, att.color);
-                                    floatingTexts.push(FloatingText.acquire(p2.x, p2.y - 40, att.damage.toFixed(0), "#ff0000", 25));
-                                    if (p2.hp <= 0) {
-                                        if (typeof isEvilMode !== 'undefined' && isEvilMode) {
-                                            // Evil Mode: mark dead so checkWaveEnd() sees it — don't splice yet
-                                            p2.isDead = true;
-                                            createExplosion(p2.x, p2.y, '#fff');
-                                        } else {
-                                            const idx = window.additionalPlayers.indexOf(p2);
-                                            if (idx > -1) window.additionalPlayers.splice(idx, 1);
-                                            createExplosion(p2.x, p2.y, '#fff');
-                                            showNotification("OPPONENT KO!");
-
-                                            if (isVersusMode && window.additionalPlayers.length === 0) {
-                                                audioManager.playHeroExclamation(player.type, 'boss_win');
-                                                setTimeout(() => gameOver(true), 2000);
-                                            } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
-                                                bossActive = false;
-                                                bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
-                                                triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
-                                                enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
-                                                enemies = [];
-                                                projectiles = [];
-                                                if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-
-                // 2P Versus: P1 melee → P2
-                if (isVersusMode && isCoopMode && player2 && !player2.isDead && att.owner === player) {
-                    const pid = 'PLAYER_2';
-                    if (!att.hitList.includes(pid) && Math.hypot(player2.x - att.x, player2.y - att.y) < att.radius + player2.radius) {
-                        const angleTo = Math.atan2(player2.y - att.y, player2.x - att.x);
-                        let diff = angleTo - att.angle;
-                        while (diff < -Math.PI) diff += Math.PI * 2;
-                        while (diff > Math.PI) diff -= Math.PI * 2;
-                        if (Math.abs(diff) < Math.PI / 3) {
-                            const dmg = att.damage * (1 - player2.damageReduction);
-                            player2.hp -= dmg;
-                            att.hitList.push(pid);
-                            createExplosion(player2.x, player2.y, att.color);
-                            floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
-                            if (player2.hp <= 0 && !player2.isDead) {
-                                player2.isDead = true; player2.hp = 0;
-                                createExplosion(player2.x, player2.y, '#fff');
-                                showNotification("OPPONENT KO!");
-                                audioManager.playHeroExclamation(player.type, 'boss_win');
-                                setTimeout(() => gameOver(true), 2000);
-                            }
-                        }
-                    }
-                }
-
-                // PvP Collision: P2 (AI or 2P-Versus) vs P1
-                if (att.owner && att.owner !== player && !att.hitList.includes('PLAYER')) {
-                    if (Math.hypot(player.x - att.x, player.y - att.y) < att.radius + player.radius) {
-                        const angleTo = Math.atan2(player.y - att.y, player.x - att.x);
-                        let diff = angleTo - att.angle;
-                        while (diff < -Math.PI) diff += Math.PI * 2;
-                        while (diff > Math.PI) diff -= Math.PI * 2;
-                        if (Math.abs(diff) < Math.PI / 3) {
-                            if (!player.isInvincible && player.hp > 0) {
-                                player.takeDamage(att.damage);
-                                att.hitList.push('PLAYER');
-                                createExplosion(player.x, player.y, att.color);
-                            }
-                        }
-                    }
-                }
-
-                if (att.life <= 0) { MeleeSwipe.release(att); meleeAttacks.splice(index, 1); } // #20 P3
-            }
-
-            // #27 — camera-bounds culling. Skip draw for off-screen particles +
-            // floating text; skip update entirely when far outside (≥2× margin),
-            // because those particles will never return into view.
-            const _cullMargin   = 64;
-            const _cullFarMargin = _cullMargin * 2;
-            const _camL = arena.camera.x - _cullMargin;
-            const _camT = arena.camera.y - _cullMargin;
-            const _camR = arena.camera.x + arena.camera.width  + _cullMargin;
-            const _camB = arena.camera.y + arena.camera.height + _cullMargin;
-            const _camLFar = arena.camera.x - _cullFarMargin;
-            const _camTFar = arena.camera.y - _cullFarMargin;
-            const _camRFar = arena.camera.x + arena.camera.width  + _cullFarMargin;
-            const _camBFar = arena.camera.y + arena.camera.height + _cullFarMargin;
-
-            for (let index = particles.length - 1; index >= 0; index--) {
-                const part = particles[index];
-                const _farOff = part.x < _camLFar || part.x > _camRFar || part.y < _camTFar || part.y > _camBFar;
-                if (_farOff) {
-                    // Drop and recycle far-offscreen particles immediately.
-                    Particle.release(part);
-                    particles.splice(index, 1);
-                    continue;
-                }
-                part.update();
-                const _onScreen = part.x >= _camL && part.x <= _camR && part.y >= _camT && part.y <= _camB;
-                if (_onScreen) part.draw();
-                if (part.alpha <= 0) {
-                    Particle.release(part); // #20 return to pool before splice
-                    particles.splice(index, 1);
-                }
-            }
-            // #25/#26 — Particle.draw leaves ctx.globalAlpha at the last
-            // particle's alpha (the sprite-cache fast path skips save/restore).
-            // Reset once after the loop instead of inside every draw() call.
-            ctx.globalAlpha = 1;
-
-            // Update and Draw Floating Texts (cap at 80 — drop oldest when full)
-            if (floatingTexts.length > GAMEPLAY.MAX_FLOATING_TEXTS) {
-                // #20 release the dropped slice into the pool before truncating.
-                const _excess = floatingTexts.length - GAMEPLAY.MAX_FLOATING_TEXTS;
-                for (let _i = 0; _i < _excess; _i++) FloatingText.release(floatingTexts[_i]);
-                floatingTexts.splice(0, _excess);
-            }
-            for (let index = floatingTexts.length - 1; index >= 0; index--) {
-                const ft = floatingTexts[index];
-                const _ftFarOff = ft.x < _camLFar || ft.x > _camRFar || ft.y < _camTFar || ft.y > _camBFar;
-                if (_ftFarOff) {
-                    FloatingText.release(ft);
-                    floatingTexts.splice(index, 1);
-                    continue;
-                }
-                ft.update();
-                const _ftOnScreen = ft.x >= _camL && ft.x <= _camR && ft.y >= _camT && ft.y <= _camB;
-                if (_ftOnScreen) ft.draw();
-                if (ft.life <= 0) {
-                    FloatingText.release(ft); // #20 return to pool before splice
-                    floatingTexts.splice(index, 1);
-                }
-            }
-
-            // Draw Additional Players (Versus / AI)
-            if (typeof window.additionalPlayers !== 'undefined') {
-                window.additionalPlayers.forEach(p2 => {
-                    // Update P2
-                    if (p2.controller) {
-                        // Ensure input context is updated inside update() via controller
-                        p2.update();
-                    }
-
-                    p2.draw();
-
-                    // HP Bar for AI
-                    const percent = Math.max(0, p2.hp / p2.maxHp);
-                    ctx.save();
-                    ctx.fillStyle = 'red';
-                    ctx.fillRect(p2.x - 20, p2.y - 35, 40, 5);
-                    ctx.fillStyle = '#2ecc71';
-                    ctx.fillRect(p2.x - 20, p2.y - 35, 40 * percent, 5);
-                    ctx.restore();
-                });
-            }
-
-            // #19 P2 — Lift enemy-projectile vs player(s) collision OUT of the
-            // per-enemy inner sweep. Each enemy projectile collides with the
-            // player exactly once regardless of how many enemies are on screen,
-            // so this branch is independent of the enemies array. Running it
-            // here trims the inner sweep's responsibilities to friendly
-            // projectile → enemy hits, which CAN exploit spatial locality.
-            for (let _pi = projectiles.length - 1; _pi >= 0; _pi--) {
-                const _proj = projectiles[_pi];
-                if (!_proj.isEnemy) continue;
-                const _pDist = Math.hypot(_proj.x - player.x, _proj.y - player.y);
-                if (_pDist < player.radius + _proj.radius) {
-                    const _bonuses = getCollectionBonuses(_proj.shooterType);
-
-                    if (_proj.shooterType === 'SHOOTER' && _bonuses.specials.includes('SHOOTER_DODGE') && Math.random() < 0.15) {
-                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "DODGE", "#f1c40f", 20));
-                        Projectile.release(_proj); // #20 P3
-                        projectiles.splice(_pi, 1);
-                        continue;
-                    }
-
-                    if (_proj.shooterType === 'TOXIC' && _bonuses.specials.includes('TOXIC_IMMUNE')) {
-                        continue;
-                    }
-
-                    const _finalDmg = _proj.damage * _bonuses.defenseMult;
-                    const _dmgTaken = _finalDmg * (1 - player.damageReduction);
-
-                    if (!player.isInvincible) {
-                        player.hp -= _dmgTaken;
-                        recordPlayerDamage(player, _proj.shooterType || 'PROJECTILE', _dmgTaken); // #168
-                        audioManager.play('damage');
-                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(_dmgTaken), '#e74c3c', 20));
-                        currentRunStats.damageTaken += _dmgTaken;
-                        player.resetCombo();
-                        triggerImpact(3.5, 10, 0.28, 0.55, 180);
-
-                        if (player.heroType === 'EARTH' && player.momentum > 0) {
-                            player.momentum = Math.max(0, player.momentum - 30);
-                        }
-                    }
-
-                    createExplosion(player.x, player.y, _proj.color);
-                    Projectile.release(_proj); // #20 P3
-                    projectiles.splice(_pi, 1);
-
-                    if (player.transformActive) {
-                        player.transformActive = false;
-                        player.currentForm = 'NONE';
-                        showNotification("FORM BROKEN!");
-                    }
-                } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
-                    const _pDistP2 = Math.hypot(_proj.x - player2.x, _proj.y - player2.y);
-                    if (_pDistP2 < player2.radius + _proj.radius) {
-                        const _p2Dmg = _proj.damage * (1 - player2.damageReduction);
-                        player2.hp -= _p2Dmg;
-                        floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 20, Math.ceil(_p2Dmg), '#e74c3c', 20));
-                        createExplosion(player2.x, player2.y, _proj.color);
-                        Projectile.release(_proj); // #20 P3
-                        projectiles.splice(_pi, 1);
-                        if (player2.hp <= 0 && !player2.isDead) {
-                            player2.isDead = true; player2.hp = 0; player2.isInvincible = true;
-                            player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
-                            p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
-                            createExplosion(player2.x, player2.y, '#3b82f6');
-                            if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'failure');
-                            showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
-                        }
-                    }
-                }
-            }
-
-            // #19 P2 — Build broad-phase indices for this frame. Enemies hash
-            // serves AOE-radius scans + per-enemy projectile queries below;
-            // projectiles hash serves the per-enemy collision sweep that was
-            // O(N×M) before inversion. Both honour _SPATIAL_HASH_MIN: when
-            // entity counts are low, the rebuild + map overhead exceeds the
-            // savings, so the per-frame _*HashActive flag flips off and the
-            // queryEnemiesNear / queryProjectilesNear helpers linear-scan.
-            _enemyHashActive = !!_enemySpatialHash && enemies.length >= _SPATIAL_HASH_MIN;
-            _projectileHashActive = !!_projectileSpatialHash && projectiles.length >= _SPATIAL_HASH_MIN;
-            if (_enemyHashActive) _enemySpatialHash.rebuild(enemies);
-            if (_projectileHashActive) _projectileSpatialHash.rebuild(projectiles);
-
-            // #24 P10 — time the enemy update + draw + collision phase.
-            // Wave 30+ profile feeds the decision whether a Web Worker AI
-            // pass (#24) is worth the rewrite.
-            const _enemiesT0 = performance.now();
-            for (let eIndex = enemies.length - 1; eIndex >= 0; eIndex--) {
-                const enemy = enemies[eIndex];
-                if (enemy.dead) { enemies.splice(eIndex, 1); continue; }
-
-                // #28 — Biome-zone collision cache. AABB iteration is the hottest
-                // zone cost (200 enemies × ~10 zones = 2k checks/frame). Refresh
-                // the cached speed mod every 4 frames, or whenever LAVA DPS could
-                // fire (frame % 60 === 0). Enemies move ~3–5 px/frame and zones
-                // are 200–800 px wide, so staleness is invisible.
-                if (enemy._zoneRefreshAt === undefined || frame >= enemy._zoneRefreshAt || frame % 60 === 0) {
-                    let enemySpeedMod = 1;
-                    arena.biomeZones.forEach(zone => {
-                        if (enemy.x > zone.x && enemy.x < zone.x + zone.w &&
-                            enemy.y > zone.y && enemy.y < zone.y + zone.h) {
-
-                            if (zone.type === 'MUD') enemySpeedMod = 0.5;
-                            if (zone.type === 'ICE') enemySpeedMod = 1.3;
-                            if (zone.type === 'WATER') enemySpeedMod = 0.7;
-
-                            if (zone.type === 'LAVA' && frame % 60 === 0) {
-                                enemy.hp -= 5;
-                                createExplosion(enemy.x, enemy.y, '#e74c3c');
-                            }
-                        }
-                    });
-                    enemy.biomeSpeedMod = enemySpeedMod;
-                    enemy._zoneRefreshAt = frame + 4;
-                }
-
-                if (!_isHitStopped && !enemy._ghost) enemy.update(); enemy.draw();
-                if (enemy._ghost && enemy._hitFlash > 0) {
-                    enemy._hitFlash--;
-                    ctx.save();
-                    ctx.globalAlpha = (enemy._hitFlash / 6) * 0.55;
-                    ctx.fillStyle = '#ffffff';
-                    ctx.beginPath();
-                    ctx.arc(enemy.x, enemy.y, (enemy.radius || 20) * 1.05, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-                const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
-
-                if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
-                    // Invincibility Check
-                    if (player.invincibleTimer > 0) {
-                        // Frostbite Armor (Altar c2)
-                        if (player.hasFrostbiteArmor) {
-                            enemy.frozenTimer = 180; // 3s Freeze
-                            floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
-                        }
-
-                        // Reflect damage?
-                        enemy.hp -= 5;
-                        createExplosion(player.x, player.y, '#95a5a6');
-                        const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                        enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20;
-                        continue; // Skip damage
-                    }
-
-                    // Earth Hero Max Momentum Invulnerability (Ramming)
-                    if (player.heroType === 'EARTH' && player.momentum >= player.maxMomentum * 0.95) {
-                        // Bounce enemy away
-                        const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                        if (!(enemy instanceof Boss)) {
-                            enemy.x += Math.cos(angle) * 50;
-                            enemy.y += Math.sin(angle) * 50;
-                        }
-                        createExplosion(player.x, player.y, '#8d6e63');
-                        continue; // No damage taken
-                    }
-
-                    // Void Hero Realm Shift (Phasing)
-                    if (player.type === 'void' && player.inRealmShift) {
-                        continue; // No collision damage
-                    }
-
-                    let dmgTaken = 1 * (1 - player.damageReduction);
-
-                    // Speedster Explosion
-                    if (enemy.subType === 'SPEEDSTER') {
-                        let speedsterDmg = 20;
-                        const bonuses = getCollectionBonuses('SPEEDSTER');
-                        speedsterDmg *= bonuses.defenseMult;
-
-                        dmgTaken = speedsterDmg * (1 - player.damageReduction);
-                        createExplosion(player.x, player.y, '#e74c3c');
-                        enemy.hp = 0; // Suicide
-                    }
-
-                    // Thornmail (Altar p3) — #177: route reflect damage through
-                    // applyDamage so it respects isInvincible + customOnDamage on
-                    // the enemy. Keeps the original "REFLECT" pop + explosion.
-                    if (player.thornmailTimer > 0) {
-                        applyDamage(enemy, 20, { label: 'Thornmail', color: '#2ecc71', noFloatText: true, sfx: null });
-                        createExplosion(player.x, player.y, '#2ecc71');
-                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "REFLECT", "#2ecc71", 16));
-                    }
-
-                    if (!player.isInvincible) {
-                        // Hook: Custom pre-damage check (for Shields etc)
-                        let damagePrevented = false;
-                        if (player.customOnDamage) {
-                            damagePrevented = player.customOnDamage(dmgTaken);
-                        }
-
-                        if (!damagePrevented) {
-                            player.hp -= dmgTaken;
-                            recordPlayerDamage(player, enemy.subType || 'ENEMY', dmgTaken); // #168
-                            audioManager.play('damage');
-                            if (isChaosShuffleMode) checkChaosEvent('HIT');
-                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
-                            currentRunStats.damageTaken += dmgTaken; // Track Damage
-                            player.resetCombo(); // Reset Combo on Damage
-                            // Player hit by enemy body — medium jolt
-                            triggerImpact(4, 10, 0.30, 0.55, 200);
-                        }
-                    }
-                    createExplosion(player.x, player.y, '#5e3939');
-
-                    if (player.transformActive) {
-                        player.transformActive = false;
-                        player.currentForm = 'NONE';
-                        showNotification("FORM BROKEN!");
-                    }
-
-                    const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                    if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20; }
-                }
-
-                // Co-op: P2 enemy body contact damage
-                if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
-                    const distP2 = Math.hypot(player2.x - enemy.x, player2.y - enemy.y);
-                    if (distP2 - enemy.radius - player2.radius < 0 && !player2.isDashing) {
-                        let p2Dmg = 1 * (1 - player2.damageReduction);
-                        if (enemy.subType === 'SPEEDSTER') { p2Dmg = 20 * (1 - player2.damageReduction); enemy.hp = 0; }
-                        player2.hp -= p2Dmg;
-                        floatingTexts.push(FloatingText.acquire(player2.x, player2.y - 20, Math.ceil(p2Dmg), '#e74c3c', 20));
-                        if (player2.transformActive) { player2.transformActive = false; player2.currentForm = 'NONE'; }
-                        const a2 = Math.atan2(enemy.y - player2.y, enemy.x - player2.x);
-                        if (!(enemy instanceof Boss)) { enemy.x += Math.cos(a2) * 20; enemy.y += Math.sin(a2) * 20; }
-                        // P2 death in co-op
-                        if (player2.hp <= 0 && !player2.isDead) {
-                            player2.isDead = true; player2.hp = 0; player2.isInvincible = true;
-                            player2.isDashing = false; player2.moveInput = { x: 0, y: 0 };
-                            p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
-                            createExplosion(player2.x, player2.y, '#3b82f6');
-                            if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'failure');
-                            showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
-                        }
-                    }
-                }
-
-                // #19 P2 — Per-enemy projectile collision. Iterates only the
-                // spatial-hash candidates near this enemy (~3–10 at wave 30+)
-                // instead of the full projectiles array (N×M → N×k). Enemy
-                // projectiles vs player were lifted into the pre-pass above
-                // and are skipped here. pIndex is resolved lazily via
-                // projectiles.indexOf only when a splice is needed.
-                const _qR = (enemy.radius || 30) + 60;
-                const _projCands = queryProjectilesNear(enemy.x, enemy.y, _qR);
-                for (let _ci = 0; _ci < _projCands.length; _ci++) {
-                    const proj = _projCands[_ci];
-                    if (!proj || proj.isEnemy) continue;
-
-                    const pDist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
-                    if (pDist - enemy.radius - proj.radius >= 0) continue;
-
-                    // Ghost enemies on the guest side: consume the projectile
-                    // for visual feedback but skip authoritative damage/flash.
-                    if (enemy._ghost) {
-                        if (!proj.pierce || proj.pierce <= 0) {
-                            const _gIdx = projectiles.indexOf(proj);
-                            if (_gIdx >= 0) { Projectile.release(proj); projectiles.splice(_gIdx, 1); } // #20 P3
-                        }
-                        continue;
-                    }
-
-                    // DLC projectile hook — STOP suppresses default damage.
-                    if (proj.onHit) {
-                        const result = proj.onHit(enemy);
-                        if (result === 'STOP') {
-                            if (proj.life <= 0) {
-                                const _hIdx = projectiles.indexOf(proj);
-                                if (_hIdx >= 0) { Projectile.release(proj); projectiles.splice(_hIdx, 1); } // #20 P3
-                            }
-                            continue;
-                        }
-                    }
-
-                    // Boss immunity check
-                    if (enemy instanceof Boss && enemy.immune) {
-                        floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "IMMUNE", "#fff", 20));
-                        const _bIdx = projectiles.indexOf(proj);
-                        if (_bIdx >= 0) { Projectile.release(proj); projectiles.splice(_bIdx, 1); } // #20 P3
-                        continue;
-                    }
-
-                    let finalDamage = proj.damage;
-
-                    const bonuses = getCollectionBonuses(enemy.subType);
-                    if (enemy instanceof Boss) {
-                        const bossBonuses = getCollectionBonuses('BOSS');
-                        bonuses.damageMult += (bossBonuses.damageMult - 1);
-
-                        if (enemy.type === 'TANK' && enemy.phase === 2) {
-                            bonuses.damageMult *= 1.5;
-                        }
-                    }
-
-                    finalDamage *= bonuses.damageMult;
-
-                    let isCrit = proj.isCrit;
-                    if (!isCrit && Math.random() < (player.critChance + bonuses.critChance)) {
-                        isCrit = true;
-                        finalDamage *= player.critMultiplier;
-                    }
-
-                    if (enemy.subType === 'SHIELDER' && bonuses.specials.includes('SHIELD_PIERCE')) {
-                        finalDamage *= 1.5;
-                    }
-
-                    if (proj.isWildfire) {
-                        finalDamage += 10;
-                        createExplosion(enemy.x, enemy.y, '#e67e22');
-                    }
-
-                    if (proj.isCryo) {
-                        enemy.frozenTimer = 60;
-                        floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "FROZEN", "#aaddff", 16));
-                    }
-
-                    enemy.hp -= finalDamage;
-                    enemy.hitFlashTimer = 6;
-                    audioManager.play('enemy_damage');
-                    if (enemy.hp <= 0 && enemy.hp + finalDamage > 0) {
-                        enemy.lastHitBy = 'PROJECTILE';
-                        enemy.killer = proj.owner || player;
-                    }
-
-                    triggerImpact(isCrit ? 3.5 : 2, isCrit ? 8 : 5,
-                                  isCrit ? 0.15 : 0.08, isCrit ? 0.25 : 0.12,
-                                  isCrit ? 120 : 80);
-                    if (isCrit) triggerHitStop(GAMEPLAY.HITSTOP_CRIT_SHOT);
-
-                    floatingTexts.push(FloatingText.acquire(
-                        enemy.x,
-                        enemy.y - 20,
-                        Math.floor(finalDamage) + (isCrit ? '!' : ''),
-                        isCrit ? '#f1c40f' : '#fff',
-                        isCrit ? 30 : 16
-                    ));
-
-                    currentRunStats.damageDealt += finalDamage;
-                    saveData.global.totalDamage += finalDamage;
-                    bumpDamageSource('projectile', finalDamage);
-                    createExplosion(enemy.x, enemy.y, proj.color);
-                    if (proj.isExplosive) {
-                        triggerImpact(4.5, 12, 0.22, 0.55, 220);
-                        const _splashCands = queryEnemiesNear(proj.x, proj.y, 100);
-                        for (let _si = 0; _si < _splashCands.length; _si++) {
-                            const nearby = _splashCands[_si];
-                            if (Math.hypot(nearby.x - proj.x, nearby.y - proj.y) < 100) {
-                                nearby.hp -= proj.damage;
-                                if (nearby.hp <= 0 && nearby.hp + proj.damage > 0) {
-                                    nearby.lastHitBy = 'PROJECTILE';
-                                    nearby.killer = proj.owner || player;
-                                }
-
-                                floatingTexts.push(FloatingText.acquire(nearby.x, nearby.y - 20, Math.floor(proj.damage), '#e67e22', 16));
-
-                                currentRunStats.damageDealt += proj.damage;
-                                saveData.global.totalDamage += proj.damage;
-                                bumpDamageSource('projectile', proj.damage);
-                            }
-                        }
-                        const _eIdx = projectiles.indexOf(proj);
-                        if (_eIdx >= 0) { Projectile.release(proj); projectiles.splice(_eIdx, 1); } // #20 P3
-                    } else {
-                        if (proj.pierce > 0) {
-                            proj.pierce--;
-                        } else {
-                            const _nIdx = projectiles.indexOf(proj);
-                            if (_nIdx >= 0) { Projectile.release(proj); projectiles.splice(_nIdx, 1); } // #20 P3
-                        }
-                    }
-                    if (!(enemy instanceof Boss)) {
-                        const angle = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);
-                        enemy.x += Math.cos(angle) * proj.knockback; enemy.y += Math.sin(angle) * proj.knockback;
-                    }
-                }
-
-                meleeAttacks.forEach(att => {
-                    if (att.hitList.includes(eIndex)) return;
-                    const dx = enemy.x - att.x; const dy = enemy.y - att.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < att.radius + enemy.radius) {
-                        const angleToEnemy = Math.atan2(dy, dx);
-                        let diff = angleToEnemy - att.angle;
-                        while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
-                        if (Math.abs(diff) < Math.PI / 3) {
-                            enemy.hp -= att.damage;
-                            enemy.hitFlashTimer = 6;
-                            if (enemy.hp <= 0 && enemy.hp + att.damage > 0) {
-                                enemy.lastHitBy = 'MELEE';
-                                enemy.killer = att.owner || player;
-                            }
-                            if (isTutorialMode) TutorialMode.onMelee();
-
-                            // Melee impact — heavier thud
-                            const isCrit = att.isCrit;
-                            triggerImpact(isCrit ? 7 : 5, isCrit ? 16 : 13,
-                                          isCrit ? 0.35 : 0.22, isCrit ? 0.70 : 0.50,
-                                          isCrit ? 220 : 160);
-                            if (isCrit) triggerHitStop(GAMEPLAY.HITSTOP_CRIT_MELEE); else triggerHitStop(GAMEPLAY.HITSTOP_HIT);
-                            floatingTexts.push(FloatingText.acquire(
-                                enemy.x,
-                                enemy.y - 20,
-                                Math.floor(att.damage) + (isCrit ? '!' : ''),
-                                isCrit ? '#f1c40f' : '#fff',
-                                isCrit ? 35 : 20
-                            ));
-
-                            currentRunStats.damageDealt += att.damage; // Track Damage
-                            saveData.global.totalDamage += att.damage;
-                            bumpDamageSource('melee', att.damage);
-                            createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(eIndex);
-                            if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
-                        }
-                    }
-                });
-
-                if (enemy.hp <= 0) {
-                    enemy.dead = true; // Prevent double-processing if forEach+splice skips this enemy
-                    if (!(enemy instanceof Boss)) createDeathBurst(enemy.x, enemy.y, enemy.color || '#e74c3c');
-                    if (isChaosShuffleMode) checkChaosEvent('KILL', { isMelee: (enemy.lastHitBy === 'MELEE') });
-                    if (isTutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
-                    // Boss Minion Logic
-                    if (enemy.isSummonedMinion && enemy.parentBoss) {
-                        enemy.parentBoss.minionsToKill--;
-                    }
-
-                    player.addCombo(); // Add Combo
-                    if (player.onKill) player.onKill(); // Trigger onKill effects (e.g. Black Hero Heal)
-                    checkAchievements(); // Check achievements on kill
-
-                    // Mutator: Explosive Personality
-                    if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'EXPLOSIVE')) {
-                        createExplosion(enemy.x, enemy.y, '#e74c3c');
-                        if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 100) {
-                            applyDamage(player, 10, { label: 'EXPLOSION' }); // #18
-                        }
-                    }
-
-                    if (enemy instanceof Boss) {
-                        // Makuta Achievement Check
-                        if (enemy.type === 'MAKUTA' && wave >= 100) {
-                            unlockAchievement('MAKUTA_SLAYER'); // Base Achievement
-
-                            // Hard Mode Achievements (1-10)
-                            const prestige = saveData[player.type].prestige;
-                            for (let i = 1; i <= 10; i++) {
-                                if (prestige >= i) unlockAchievement(`MAKUTA_HM_${i}`);
-                            }
-
-                            showNotification("MAKUTA DEFEATED!");
-                        }
-
-                        currentRunStats.bossesKilled++; // Track Boss Kill
-                        saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
-                        if (currentRunStats.keyMoments) {
-                            const _km_t = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
-                            currentRunStats.keyMoments.push({ wave, timeSec: _km_t, kind: 'boss_kill', label: enemy.bossType || 'Boss' });
-                        }
-                        score += 1000; player.gainXp(500);
-                        if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) player2.gainXp(500);
-                        createExplosion(enemy.x, enemy.y, '#c0392b');
-                        checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
-
-                        // CHAOS EVENT HOOK
-                        if (typeof checkChaosEvent === 'function') checkChaosEvent('BOSS_KILL', enemy.type);
-
-                        // Unlock Hero Story Achievement
-                        if (enemy.type === 'MAKUTA' && wave >= 100) {
-                            // True Golden Mask moved to Wave 90 start
-
-                            if (player.type === 'fire') unlockAchievement('STORY_FIRE');
-                            if (player.type === 'water') unlockAchievement('STORY_WATER');
-                            if (player.type === 'ice') unlockAchievement('STORY_ICE');
-                            if (player.type === 'plant') unlockAchievement('STORY_PLANT');
-                            if (player.type === 'metal') unlockAchievement('STORY_METAL');
-                        }
-
-                        // DLC boss-specific achievements (superbosses, etc.)
-                        if (window.DLC_STORY_ACHIEVEMENTS[enemy.type]) {
-                            unlockAchievement(window.DLC_STORY_ACHIEVEMENTS[enemy.type]);
-                        }
-
-                        enemies.splice(eIndex, 1);
-                        const remainingBosses = enemies.filter(e => e instanceof Boss).length;
-                        if (remainingBosses === 0) {
-                            bossActive = false;
-
-                            // Start Boss Death Sequence
-                            bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds at 60 FPS
-                            triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
-                            if (typeof audioManager !== 'undefined') {
-                                audioManager.play('wave_completed');
-                                if (currentStoryEvent && currentStoryEvent.type === 'BOSS_FIGHT') {
-                                    audioManager.playHeroExclamation(player.type, 'boss_win');
-                                    // Villain defeat cry (delayed so it doesn't clash with player's win line)
-                                    if (enemy.type === 'GREEN_GOBLIN' || enemy.type === 'MAKUTA') {
-                                        const _vType = enemy.type === 'GREEN_GOBLIN' ? 'green_goblin' : 'makuta';
-                                        setTimeout(() => audioManager.playHeroExclamation(_vType, 'failure'), 2200);
-                                    }
-                                }
-                            }
-
-
-                            // Clear all other enemies instantly for dramatic effect
-                            enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
-                            enemies = [];
-                            projectiles = []; // Clear projectiles too
-                            if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
-                        }
-                    } else {
-                        // Swarm Explosion (Tier 4)
-                        if (enemy.subType === 'SWARM' && saveData.collection.includes('SWARM_4')) {
-                            createExplosion(enemy.x, enemy.y, '#8e44ad');
-                            const _swarmCands = queryEnemiesNear(enemy.x, enemy.y, 100);
-                            for (let _wi = 0; _wi < _swarmCands.length; _wi++) {
-                                const nearby = _swarmCands[_wi];
-                                if (nearby !== enemy && Math.hypot(nearby.x - enemy.x, nearby.y - enemy.y) < 100) {
-                                    nearby.hp -= 20;
-                                    floatingTexts.push(FloatingText.acquire(nearby.x, nearby.y - 20, "20", "#8e44ad", 16));
-                                }
-                            }
-                        }
-
-                        currentRunStats.enemiesKilled++; // Track Kill
-
-                        // Track Specific Enemy Kills for Achievements
-                        const killKey = `kill_${enemy.subType}`;
-                        if (!saveData.stats[killKey]) saveData.stats[killKey] = 0;
-                        saveData.stats[killKey]++;
-
-                        const _eventXpMult = window.worldEvents?.getXpMultiplier?.() ?? 1;
-                        const _xpMod = (bossActive ? 0.15 : 1) * _eventXpMult;
-                        const _killer = (isCoopMode && enemy.killer) ? enemy.killer : player;
-                        score += 10; _killer.gainXp(Math.round(20 * _xpMod));
-                        createExplosion(enemy.x, enemy.y, '#aaa');
-
-                        // Elite Logic on Death
-                        if (enemy.isElite) {
-                            score += 500;
-                            _killer.gainXp(Math.round(200 * _xpMod));
-                            createExplosion(enemy.x, enemy.y, enemy.eliteType.color);
-
-                            // Elite Card Drop
-                            checkDrop(enemy.eliteType.id, enemy.x, enemy.y);
-
-                            if (enemy.eliteType.id === 'EXPLODER') {
-                                let radius = 200;
-                                if (saveData.collection.includes('ELITE_EXPLODER_4')) radius = 160; // Nerf
-
-                                createExplosion(enemy.x, enemy.y, '#e74c3c');
-                                // Damage Player
-                                if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < radius) {
-                                    applyDamage(player, 30, { label: 'EXPLODER' }); // #18
-                                }
-                            }
-                        }
-
-                        // Mask Drop Logic (Capped at 5 per wave)
-                        if (masksDroppedInWave < 5 && Math.random() < player.maskChance) {
-                            holyMasks.push(new HolyMask(enemy.x, enemy.y));
-                            masksDroppedInWave++;
-                        }
-
-                        // Mutator: No Regen (No Health Drops)
-                        if (!((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'NO_REGEN'))) {
-                            if (Math.random() < 0.3) goldDrops.push(GoldDrop.acquire(enemy.x, enemy.y)); // Gold Drop
-                        } else {
-                            // Still drop gold, but maybe less? Or just no health potions if they existed as drops.
-                            // Wait, GoldDrop is money. Health is usually from Shop or Skills.
-                            // If "No Regen" means no healing, we should block healing in Player.js or here.
-                            // Let's assume "No Health Drops" refers to potential future drops or just disable lifesteal/regen.
-                            // For now, let's just block Gold Drops as a penalty or rename mutator to "Poverty".
-                            // Actually, let's stick to the description: "No Health Drops spawn".
-                            // Since we don't have health drops yet (only shop potions), let's make it block Gold Drops instead for now?
-                            // Or better: Block Shop Healing.
-                        }
-                        if (Math.random() < 0.3) goldDrops.push(GoldDrop.acquire(enemy.x, enemy.y));
-
-                        // Check for Card Drop
-                        checkDrop(enemy.subType || 'BASIC', enemy.x, enemy.y);
-
-                        enemies.splice(eIndex, 1);
-                        if (!bossActive) enemiesKilledInWave++;
-                    }
-                }
-            }
-            _recordPhase('enemies', performance.now() - _enemiesT0); // #24 P10
-
-            // Restore Camera Transform
-            ctx.restore();
-
-            // DLC Hook: Biome Draw (e.g. Falling Rock Shadows)
-            if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType] && window.BIOME_LOGIC[currentBiomeType].draw) {
-                ctx.save();
-                // Apply camera transform again for biome effects
-                ctx.translate(-arena.camera.x, -arena.camera.y);
-                window.BIOME_LOGIC[currentBiomeType].draw(ctx, arena);
-                ctx.restore();
-            }
-
-            // DLC Hook: Hero UI (e.g. Spirit Meter)
-            if (window.HERO_LOGIC && player && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawUI) {
-                window.HERO_LOGIC[player.type].drawUI(ctx);
-            }
-
-            // #170 — Minimap (rendered into a separate DOM canvas)
-            _renderMinimap();
-
-            // Tutorial HUD
-            if (isTutorialMode) TutorialMode.drawHUD(ctx);
-
-            // Testing Grounds HUD
-            if (isTestingMode) TestingGrounds.drawHUD(ctx);
-
-            // Boss Off-Screen Direction Indicator
-            if (bossActive && enemies.length > 0 && enemies[0] instanceof Boss) {
-                const _boss = enemies[0];
-                const _bsx = _boss.x - arena.camera.x;
-                const _bsy = _boss.y - arena.camera.y;
-                const _br = _boss.radius || 60;
-                const _offScreen = _bsx < -_br || _bsx > canvas.width + _br ||
-                                   _bsy < -_br || _bsy > canvas.height + _br;
-                if (_offScreen) {
-                    const _cx = canvas.width / 2;
-                    const _cy = canvas.height / 2;
-                    const _angle = Math.atan2(_bsy - _cy, _bsx - _cx);
-                    // Inner margin rectangle – keeps arrow off corners where UI lives
-                    const _ml = 52, _mr = canvas.width - 52;
-                    const _mt = 76, _mb = canvas.height - 52;
-                    const _dx = _bsx - _cx, _dy = _bsy - _cy;
-                    let _t = Infinity;
-                    if (_dx > 0) { const _ty = (_mr - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
-                    if (_dx < 0) { const _ty = (_ml - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
-                    if (_dy > 0) { const _tx = (_mb - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
-                    if (_dy < 0) { const _tx = (_mt - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
-                    if (_t !== Infinity) {
-                        const _ax = _cx + _t * _dx, _ay = _cy + _t * _dy;
-                        const _pulse = 0.55 + 0.2 * ((Math.sin(frame * 0.08) + 1) / 2);
-                        ctx.save();
-                        ctx.translate(_ax, _ay);
-                        ctx.rotate(_angle);
-                        ctx.globalAlpha = _pulse;
-                        const _s = 11;
-                        // Shadow
-                        ctx.shadowColor = 'rgba(0,0,0,0.6)';
-                        ctx.shadowBlur = 4;
-                        ctx.fillStyle = 'rgba(255, 80, 60, 1)';
-                        ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-                        ctx.lineWidth = 1.2;
-                        ctx.beginPath();
-                        ctx.moveTo(_s, 0);
-                        ctx.lineTo(-_s * 0.55, -_s * 0.6);
-                        ctx.lineTo(-_s * 0.15, 0);
-                        ctx.lineTo(-_s * 0.55, _s * 0.6);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-                }
-            }
-
-            // SANDSTORM vision reduction (radial vignette)
-            if (currentWeather && currentWeather.id === 'SANDSTORM') {
-                const _swFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
-                ctx.save();
-                const _sg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 160, canvas.width / 2, canvas.height / 2, 700);
-                _sg.addColorStop(0, 'transparent');
-                _sg.addColorStop(0.5, `rgba(160, 110, 40, ${0.35 * _swFadeIn})`);
-                _sg.addColorStop(1, `rgba(100, 70, 20, ${0.75 * _swFadeIn})`);
-                ctx.fillStyle = _sg;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.restore();
-            }
-
-            // ACIDIC FOG green tint vignette
-            if (currentWeather && currentWeather.id === 'ACIDIC_FOG') {
-                const _afFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
-                ctx.save();
-                const _ag = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 100, canvas.width / 2, canvas.height / 2, 600);
-                _ag.addColorStop(0, 'transparent');
-                _ag.addColorStop(1, `rgba(40, 120, 40, ${0.45 * _afFadeIn})`);
-                ctx.fillStyle = _ag;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.restore();
-            }
-
-            // Chaos: Darkness (Fog of War) OR Mutator: Low Visibility
-            const isLowVis = (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'LOW_VISIBILITY'));
-            if ((typeof isChaosActive === 'function' && isChaosActive('DARKNESS')) || isLowVis) {
-                ctx.save();
-                const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 150, canvas.width / 2, canvas.height / 2, 800);
-                gradient.addColorStop(0, 'transparent');
-                gradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.8)');
-                gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.restore();
-            }
-
-            // Low Health Indicator + injured exclamation (fires once per drop below 20%)
-            if (player.hp / player.maxHp < 0.2) {
-                if (!player._injuredVoicePlayed) {
-                    player._injuredVoicePlayed = true;
-                    if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player.type, 'injured');
-                }
-            } else {
-                player._injuredVoicePlayed = false; // reset when healed above threshold
-            }
-            // Co-op: P2 injured exclamation
-            if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
-                if (player2.hp / player2.maxHp < 0.2) {
-                    if (!player2._injuredVoicePlayed) {
-                        player2._injuredVoicePlayed = true;
-                        if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'injured');
-                    }
-                } else {
-                    player2._injuredVoicePlayed = false;
-                }
-            }
-            const _hpRatio = player.hp / player.maxHp;
-            if (_hpRatio < 0.25) {
-                ctx.save();
-                const _vigIntensity = Math.min(1, (0.25 - _hpRatio) / 0.25);
-                // Static red vignette
-                const _vg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.35, canvas.width / 2, canvas.height / 2, canvas.height * 0.78);
-                _vg.addColorStop(0, 'transparent');
-                _vg.addColorStop(1, `rgba(255, 0, 0, ${0.45 * _vigIntensity})`);
-                ctx.fillStyle = _vg;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                // Pulse overlay — reduced-motion mode keeps the static vignette
-                // above but skips the time-varying alpha pass entirely.
-                if (!isReducedMotion()) {
-                    const _pulseSpeed = 0.06 + _vigIntensity * 0.12;
-                    const _pulse = (Math.sin(frame * _pulseSpeed) + 1) / 2;
-                    ctx.fillStyle = `rgba(255, 0, 0, ${_pulse * 0.2 * _vigIntensity})`;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                }
-                ctx.restore();
-            }
-
-            // ── Weather Particle Render (screen-space) ─────────────────────────
-            if (weatherParticles.length > 0 && !isReducedMotion()) {
-                ctx.save();
-                const wid = currentWeather?.id;
-                for (const p of weatherParticles) {
-                    ctx.globalAlpha = p.alpha;
-                    if (p.rain) {
-                        ctx.strokeStyle = '#8ab4d8';
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.moveTo(p.x, p.y);
-                        ctx.lineTo(p.x + p.vx / p.vy * p.len, p.y + p.len);
-                        ctx.stroke();
-                    } else if (p.sand) {
-                        ctx.strokeStyle = p.color || '#c8924a';
-                        ctx.lineWidth = 1.5;
-                        ctx.beginPath();
-                        ctx.moveTo(p.x, p.y);
-                        ctx.lineTo(p.x + p.len, p.y + p.vy * 2);
-                        ctx.stroke();
-                    } else if (p.gale) {
-                        ctx.strokeStyle = '#d0e8ff';
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.moveTo(p.x, p.y);
-                        ctx.lineTo(p.x + p.len, p.y + p.vy * 3);
-                        ctx.stroke();
-                    } else if (p.fog) {
-                        ctx.fillStyle = '#55cc55';
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                        ctx.fill();
-                    } else if (wid === 'BLIZZARD') {
-                        ctx.fillStyle = '#dff0ff';
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                        ctx.fill();
-                    } else if (wid === 'HEATWAVE') {
-                        ctx.fillStyle = p.color || '#ff6b2b';
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
-                ctx.globalAlpha = 1;
-                ctx.restore();
-            }
-
-            // Thunderstorm flash + bolts (screen-space)
-            if (_weatherFlash > 0) {
-                ctx.save();
-                ctx.globalAlpha = _weatherFlash;
-                ctx.fillStyle = '#c8d8ff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.globalAlpha = 1;
-                ctx.restore();
-            }
-            if (_weatherBolts.length > 0) {
-                ctx.save();
-                for (const bolt of _weatherBolts) {
-                    const progress = bolt.life / bolt.maxLife;
-                    ctx.globalAlpha = progress;
-                    ctx.strokeStyle = '#e8f4ff';
-                    ctx.shadowColor = '#a0c8ff';
-                    ctx.shadowBlur = 12;
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    if (bolt.segs && bolt.segs.length > 0) {
-                        ctx.moveTo(bolt.segs[0].x, bolt.segs[0].y);
-                        for (let si = 1; si < bolt.segs.length; si++) ctx.lineTo(bolt.segs[si].x, bolt.segs[si].y);
-                    }
-                    ctx.stroke();
-                }
-                ctx.globalAlpha = 1;
-                ctx.shadowBlur = 0;
-                ctx.restore();
-            }
-            // DLC custom weather draw hook (screen-space, after all base weather)
-            if (currentWeather && window._weatherDrawHooks[currentWeather.id]) {
-                const _dhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
-                const _dhDlc = _dhLock && _dhLock.dlcId;
-                const _dhOk = !_dhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_dhDlc));
-                if (_dhOk) {
-                    const _wFIForDraw = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
-                    window._weatherDrawHooks[currentWeather.id](ctx, _wFIForDraw, frame);
-                }
-            }
-            // ──────────────────────────────────────────────────────────────────
-
-            updateUI();
-
-            // Player Death Logic
-            // Guard with !player.isDead: once the revival marker is placed we must not
-            // re-enter this block on subsequent frames (hp stays 0 while dead).
-            if (player.hp <= 0 && !player.isDead) {
-                if (!isVersusMode && (isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
-                    // Co-op / AI companion: P1 dies but P2 is alive — drop revival marker
-                    player.isDead = true;
-                    player.hp = 0;
-                    player.isInvincible = true;
-                    player.isDashing = false;
-                    player.moveInput = { x: 0, y: 0 };
-                    p1RevivalMarker = { x: player.x, y: player.y, progress: 0, maxProgress: 240 };
-                    createExplosion(player.x, player.y, '#ffffff');
-                    showNotification(isAICompanionMode ? 'You\'re down! Ally is coming to revive you.' : 'P1 down! Stand on marker to revive.');
-                } else if (!isPlayerDying && !isOnlineGuest) {
-                    isPlayerDying = true;
-                    playerDeathTimer = 180; // 3 seconds animation
-                    createExplosion(player.x, player.y, '#c0392b');
-                    // Death — maximum rumble
-                    triggerImpact(14, 30, 0.70, 1.0, 800);
-
-                    // Force Stop Movement
-                    player.isDashing = false;
-                    player.moveInput = { x: 0, y: 0 };
-                    player.isInvincible = true; // Prevent further damage (negative HP)
-
-                    // Sound
-                    if (typeof audioManager !== 'undefined') {
-                        // Play Death Sound
-                        try { audioManager.play('death'); } catch (e) { }
-                        audioManager.playHeroExclamation(player.type, 'failure');
-                    }
-                }
-            }
-
-            // Co-op: both players dead → game over (separate check needed because the
-            // revival-marker path sets player.isDead=true, which blocks the block above).
-            if (!isPlayerDying && !isOnlineGuest &&
-                !isVersusMode && (isCoopMode || isAICompanionMode) &&
-                player.isDead && player2 && player2.isDead) {
-                isPlayerDying = true;
-                playerDeathTimer = 180;
-                createExplosion(player.x, player.y, '#c0392b');
-                triggerImpact(14, 30, 0.70, 1.0, 800);
-                player.isDashing = false;
-                player.moveInput = { x: 0, y: 0 };
-                if (typeof audioManager !== 'undefined') {
-                    try { audioManager.play('death'); } catch (e) { }
-                    audioManager.playHeroExclamation(player.type, 'failure');
-                }
-            }
-
-            if (isPlayerDying) {
-                playerDeathTimer--;
-
-                // Slow Motion / Freeze Frame Effect Logic could go here
-
-                // Visuals: Fade to Black + Text
-                ctx.save();
-                ctx.fillStyle = `rgba(0, 0, 0, ${(180 - playerDeathTimer) / 200})`; // Slow fade
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Blood Explosions
-                if (playerDeathTimer % 15 === 0) {
-                    createExplosion(player.x + (Math.random() - 0.5) * 60, player.y + (Math.random() - 0.5) * 60, '#c0392b');
-                }
-
-                // Shake Screen
-                const shake = (playerDeathTimer / 180) * 5;
-                ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
-
-                ctx.restore();
-
-                // Finish
-                if (playerDeathTimer <= 0) {
-                    isPlayerDying = false;
-                    gameOver();
-                }
-                return; // Stop processing frame
-            }
+            _runGameplayFrame(deltaTime);
         }
     } finally {
         // #24/#30 P10 — record actual main-thread work time per frame.

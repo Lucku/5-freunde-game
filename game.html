@@ -384,20 +384,24 @@
                 partLayer.appendChild(s);
             }
 
-            // Gameplay-flavored tips, cycled while loading.
+            // Gameplay-flavored tips, cycled while loading. Each one is
+            // verified against the codebase — no speculative claims.
             var TIPS = [
-                'Hold the dash key to slip past projectiles.',
-                'Metal hero can parry bullets back at the shooter.',
-                'Defeat a biome boss to unlock its hero for future runs.',
-                'Chain kills to build Combo — every 10x grants a damage bonus.',
-                'Each element has a strength. Fire melts Ice, Water douses Fire.',
-                'Visit the Altar between waves to spend gold on upgrades.',
-                'Forge permanent buffs from Memory Shards in the Workshop.',
-                'Block at the right moment to parry projectiles, not just absorb.',
-                'Custom Maps let you remix arenas in the Workshop.',
-                'Enable the speedrun timer in Options for split tracking.',
-                'Holding two elements at once unlocks fusion abilities.',
-                'Story bosses can be re-fought once seen — press ESC to skip the intro.'
+                'Dash (Shift by default) grants brief immunity to enemy contact, but not to projectiles.',
+                'Combo at 10x speeds up your fire rate. At 25x, gold pickups pay ×1.5; at 50x, ×2.',
+                'Melee swing (Space / right-click / RT) is separate from auto-fire and can land crits.',
+                'Boss intros are skippable on re-encounter — press Escape, or B on a controller.',
+                'Photo Mode (F2) freezes the action so you can pan the camera freely.',
+                'Daily and Weekly Challenges share seeds and mutators — every player faces the same run.',
+                'Some mutators disable a core mechanic. A NO_DASH run forces you to read patterns instead of slipping past.',
+                'Six weather systems can take over a biome: Blizzard, Heatwave, Thunderstorm, Sandstorm, Acidic Fog, Gale.',
+                'In co-op, stand on a downed partner’s marker to revive them.',
+                'Four colorblind correction modes live in Options — for deuteranopia, protanopia, tritanopia, or off.',
+                'Every keyboard and gamepad binding can be remapped from the Options menu.',
+                'Spend prestige stars at the Altar to unlock permanent roster upgrades.',
+                'Speedrun Mode unlocks per hero. Once active, splits and the run timer appear automatically.',
+                'Workshop maps can be uploaded, browsed, and played — your own creations included.',
+                'Collector Cards drop from elite enemies and grant per-kill damage, defense, XP, or crit bonuses.'
             ];
             var tipIdx = Math.floor(Math.random() * TIPS.length);
             function showNextTip() {
