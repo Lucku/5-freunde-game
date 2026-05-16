@@ -54,4 +54,5 @@ class MeleeSwipe {
 }
 export { MeleeSwipe };
 export default MeleeSwipe;
-if (typeof window !== 'undefined') window.MeleeSwipe = MeleeSwipe;
+// #171 phase 2 — no window shim. MeleeSwipe is referenced only by game.js
+// + Player.js + tests, all of which import it explicitly. DLCs do not use it.

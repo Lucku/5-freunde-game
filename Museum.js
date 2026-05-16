@@ -1,3 +1,5 @@
+import { CompletionMenu } from './CompletionMenu.js';
+
 // Room-aware dialogue: MUSEUM_DIALOGUES[heroType][roomName] or [heroType].generic
 const MUSEUM_DIALOGUES = {
     fire: {
@@ -331,8 +333,9 @@ class Museum {
             }
         });
 
-        // 4. 100% Completion Trophy (Center of Gallery)
-        // Check if CompletionMenu class is available
+        // 4. 100% Completion Trophy (Center of Gallery). CompletionMenu is
+        // imported at the top of this file (#171 phase 2 — used to rely on
+        // window.CompletionMenu set by the now-removed shim).
         if (typeof CompletionMenu !== 'undefined') {
             const tempMenu = new CompletionMenu();
             if (tempMenu.calculateProgress) {

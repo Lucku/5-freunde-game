@@ -189,4 +189,6 @@ infoDialogueManager.register({
 
 export { InfoDialogueManager };
 export default window.infoDialogueManager;
-if (typeof window !== 'undefined') window.InfoDialogueManager = InfoDialogueManager;
+// #171 phase 2 — class shim retired. Only the singleton
+// `window.infoDialogueManager` is referenced externally; the class itself has
+// zero callers outside this file.

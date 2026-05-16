@@ -688,4 +688,5 @@ class CompletionMenu {
 
 export { CompletionMenu };
 export default CompletionMenu;
-if (typeof window !== 'undefined') window.CompletionMenu = CompletionMenu;
+// #171 phase 2 — window shim retired. Museum.js (the only consumer) now
+// imports CompletionMenu explicitly.
