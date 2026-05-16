@@ -39,8 +39,17 @@ try {
     process.exit(1);
 }
 
-if (JWT_SECRET === 'change-this-secret-in-production' && NODE_ENV === 'production') {
-    console.warn('[security] WARNING: JWT_SECRET is using the placeholder default in production. Set a strong secret.');
+// Fail-secure: in production the placeholder is unacceptable. Refuse to boot
+// rather than sign tokens with a public-knowledge secret. Dev / test fall back
+// to the placeholder with a one-line warning so local workflows keep working
+// without a JWT_SECRET in every shell.
+if (JWT_SECRET === 'change-this-secret-in-production') {
+    if (NODE_ENV === 'production') {
+        console.error('[security] FATAL: JWT_SECRET must be set in production. The placeholder default cannot be used to sign session tokens.');
+        console.error('[security]        Generate a strong secret (e.g. `openssl rand -hex 32`) and set JWT_SECRET in the environment.');
+        process.exit(1);
+    }
+    console.warn('[security] JWT_SECRET is using the placeholder default. Acceptable for development; production deploys must set JWT_SECRET.');
 }
 
 // TLS — production deploys should set TLS_CERT_PATH + TLS_KEY_PATH to enable
