@@ -1,3 +1,5 @@
+import { cachedRadial } from '../Utils.js';
+
 class GoldDrop {
     constructor(x, y, world = null) {
         this.x = x;

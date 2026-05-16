@@ -1,3 +1,5 @@
+import { cachedRadial } from '../Utils.js';
+
 class HolyMask {
     constructor(x, y, isTrueGolden = false) {
         this.x = x; this.y = y; this.radius = 20; this.angle = 0;

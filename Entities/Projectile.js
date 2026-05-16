@@ -1,3 +1,5 @@
+import { cachedRadial } from '../Utils.js';
+
 class Projectile {
     constructor(x, y, velocity, damage, color, radius, type, knockback, isEnemy, isExplosive = false, isCrit = false, world = null) {
         this.x = x; this.y = y; this.velocity = velocity;
