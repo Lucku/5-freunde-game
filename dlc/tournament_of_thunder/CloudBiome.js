@@ -1,3 +1,6 @@
+// #194 follow-up — explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
+import { BiomeZone, Obstacle } from '../../Arena.js';
+
 class CloudBiome {
     // Static State
     static windTimer = 0;

@@ -1,3 +1,6 @@
+// #194 follow-up — explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
+import { BiomeZone } from '../../Arena.js';
+
 // Echos of Eternity — Love Biome: The Heart Nexus
 // Completely over-the-top pink fairytale love fantasy.
 // Giant translucent hearts float overhead. Rose petals cascade endlessly.

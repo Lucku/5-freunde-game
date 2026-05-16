@@ -599,6 +599,14 @@ class Projectile {
         p.outlineColor = undefined;
         p.ownerIsPlayer = undefined;
         p.dead = false;
+        // DLC hero shoot hooks (GravityHero, future custom-projectile heroes)
+        // overwrite the per-instance `draw` / `update` methods to render
+        // hero-specific visuals (e.g. Gravity's black-hole projectiles).
+        // Pooled instances were carrying those overrides across hero swaps,
+        // so e.g. switching from Gravity → Thorn made Thorn fire black-hole
+        // projectiles. `delete` restores the prototype method.
+        if (Object.prototype.hasOwnProperty.call(p, 'draw'))   delete p.draw;
+        if (Object.prototype.hasOwnProperty.call(p, 'update')) delete p.update;
         return p;
     }
     static release(p) {
