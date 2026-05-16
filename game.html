@@ -40,14 +40,36 @@
         </defs>
     </svg>
 
-    <!-- Loading Screen -->
-    <div id="loading-screen"
-        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white;">
-        <h1 style="font-size: 48px; margin-bottom: 20px;">LOADING</h1>
-        <div class="loader"
-            style="border: 5px solid #333; border-top: 5px solid #f1c40f; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite;">
+    <!-- Loading Screen — Elemental Ring -->
+    <div id="loading-screen" class="loading-screen" role="dialog" aria-label="Loading">
+        <div class="loading-particles" aria-hidden="true"></div>
+        <div class="loading-content">
+            <img src="images/logo.png" alt="5 Freunde" class="loading-logo" draggable="false" />
+            <div class="loading-ring-wrap">
+                <svg class="loading-ring" viewBox="0 0 220 220" role="progressbar" aria-label="Loading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <circle class="ring-bg" data-el="fire"  cx="110" cy="110" r="90" />
+                    <circle class="ring-bg" data-el="water" cx="110" cy="110" r="90" />
+                    <circle class="ring-bg" data-el="ice"   cx="110" cy="110" r="90" />
+                    <circle class="ring-bg" data-el="plant" cx="110" cy="110" r="90" />
+                    <circle class="ring-bg" data-el="metal" cx="110" cy="110" r="90" />
+                    <circle class="ring-fg" data-el="fire"  cx="110" cy="110" r="90" />
+                    <circle class="ring-fg" data-el="water" cx="110" cy="110" r="90" />
+                    <circle class="ring-fg" data-el="ice"   cx="110" cy="110" r="90" />
+                    <circle class="ring-fg" data-el="plant" cx="110" cy="110" r="90" />
+                    <circle class="ring-fg" data-el="metal" cx="110" cy="110" r="90" />
+                </svg>
+                <div class="loading-pct" id="loading-pct">0%</div>
+            </div>
+            <div class="loading-heroes" aria-hidden="true">
+                <span class="hero-pip" data-el="fire"  title="Fire">&#128293;</span>
+                <span class="hero-pip" data-el="water" title="Water">&#128167;</span>
+                <span class="hero-pip" data-el="ice"   title="Ice">&#10052;</span>
+                <span class="hero-pip" data-el="plant" title="Plant">&#127807;</span>
+                <span class="hero-pip" data-el="metal" title="Metal">&#9881;</span>
+            </div>
+            <div class="loading-tip" id="loading-tip"></div>
         </div>
-        <div id="loading-text" style="margin-top: 20px; font-family: monospace; color: #aaa;">Loading Assets...</div>
+        <div class="loading-version" id="loading-version"></div>
     </div>
     <!-- Intro Backdrop — solid black cover, visible from the very first paint so the canvas never
          bleeds through. Sits behind all intro/loading screens. Removed by initMenu(). -->
@@ -119,27 +141,336 @@
 
     <style>
         @keyframes ps-blink {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.2;
-            }
+            0%, 100% { opacity: 1; }
+            50%      { opacity: 0.2; }
         }
 
         @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
+            0%   { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
-            100% {
-                transform: rotate(360deg);
-            }
+        /* ── Elemental Ring loading screen ───────────────────────────── */
+        .loading-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background:
+                radial-gradient(ellipse at 50% 40%, #1c1a26 0%, #0a0810 55%, #050507 100%);
+            color: #fff;
+            font-family: 'Helvetica Neue', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .loading-screen::before {
+            /* Subtle vignette + grain */
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+            pointer-events: none;
+            z-index: 3;
+        }
+        .loading-content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 28px;
+            padding: 40px 24px;
+            max-width: 92vw;
+        }
+        .loading-logo {
+            max-width: 420px;
+            width: 38vw;
+            min-width: 220px;
+            filter: drop-shadow(0 8px 32px rgba(0,0,0,0.7));
+            user-select: none;
+            pointer-events: none;
+            animation: ll-pulse 4.5s ease-in-out infinite;
+        }
+        @keyframes ll-pulse {
+            0%, 100% { filter: drop-shadow(0 8px 32px rgba(0,0,0,0.7)); }
+            50%      { filter: drop-shadow(0 10px 40px rgba(120, 160, 255, 0.18)); }
+        }
+        .loading-ring-wrap {
+            position: relative;
+            width: 220px;
+            height: 220px;
+        }
+        .loading-ring {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+        .loading-ring circle {
+            fill: none;
+            stroke-width: 9;
+            stroke-linecap: round;
+            transition: stroke-dasharray 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .ring-bg { stroke-opacity: 0.16; }
+        .ring-fg { filter: drop-shadow(0 0 6px currentColor); }
+        .ring-bg[data-el="fire"],  .ring-fg[data-el="fire"]  { stroke: #ff5e5e; color: #ff5e5e; }
+        .ring-bg[data-el="water"], .ring-fg[data-el="water"] { stroke: #5ec8ff; color: #5ec8ff; }
+        .ring-bg[data-el="ice"],   .ring-fg[data-el="ice"]   { stroke: #bfe9ff; color: #bfe9ff; }
+        .ring-bg[data-el="plant"], .ring-fg[data-el="plant"] { stroke: #6cd06c; color: #6cd06c; }
+        .ring-bg[data-el="metal"], .ring-fg[data-el="metal"] { stroke: #d0d0d0; color: #d0d0d0; }
+        .loading-pct {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #fff;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.75);
+            font-variant-numeric: tabular-nums;
+            pointer-events: none;
+        }
+        .loading-heroes {
+            display: flex;
+            gap: 22px;
+            font-size: 22px;
+            line-height: 1;
+        }
+        .loading-heroes .hero-pip {
+            display: inline-block;
+            filter: grayscale(1) brightness(0.45);
+            opacity: 0.55;
+            transition: filter 0.4s ease, opacity 0.4s ease, transform 0.4s ease;
+        }
+        .loading-heroes .hero-pip.lit {
+            filter: none;
+            opacity: 1;
+            transform: translateY(-2px) scale(1.18);
+            animation: pip-pulse 1.6s ease-in-out infinite;
+        }
+        @keyframes pip-pulse {
+            0%, 100% { transform: translateY(-2px) scale(1.18); }
+            50%      { transform: translateY(-4px) scale(1.30); }
+        }
+        .loading-tip {
+            max-width: 540px;
+            min-height: 1.6em;
+            text-align: center;
+            color: rgba(255,255,255,0.78);
+            font-size: 14px;
+            line-height: 1.5;
+            letter-spacing: 0.04em;
+            font-family: 'Courier New', monospace;
+            opacity: 0;
+            transition: opacity 0.45s ease;
+        }
+        .loading-tip.visible { opacity: 1; }
+        .loading-tip .tip-label {
+            color: rgba(255,255,255,0.45);
+            margin-right: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            font-size: 11px;
+        }
+        .loading-version {
+            position: absolute;
+            bottom: 14px;
+            right: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: rgba(255,255,255,0.32);
+            letter-spacing: 0.08em;
+            z-index: 4;
+        }
+        .loading-particles {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .loading-particles span {
+            position: absolute;
+            bottom: -12px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            opacity: 0;
+            animation: pt-drift linear infinite;
+        }
+        @keyframes pt-drift {
+            0%   { transform: translateY(0) scale(0.55); opacity: 0; }
+            12%  { opacity: 0.7; }
+            88%  { opacity: 0.55; }
+            100% { transform: translateY(-115vh) scale(1.1); opacity: 0; }
+        }
+
+        @media (max-width: 540px) {
+            .loading-ring-wrap { width: 180px; height: 180px; }
+            .loading-pct { font-size: 32px; }
+            .loading-heroes { gap: 16px; font-size: 19px; }
+            .loading-tip { font-size: 13px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .loading-logo,
+            .loading-heroes .hero-pip.lit,
+            .loading-particles span { animation: none; }
         }
     </style>
+
+    <!-- Loading screen driver. Runs synchronously before the deferred main.js
+         module so window.reportLoadingProgress is available the moment any
+         loader (save read, DLC init) wants to report. -->
+    <script>
+        (function () {
+            var ROOT = document.getElementById('loading-screen');
+            if (!ROOT) return;
+
+            var R = 90;
+            var C = 2 * Math.PI * R;          // 565.49
+            var GAP_DEG = 5;
+            var ARC_DEG = (360 - GAP_DEG * 5) / 5;   // 67° per segment
+            var arcLen  = C * (ARC_DEG / 360);       // visible stroke length
+            var segLen  = C / 5;                     // angular slot per segment
+
+            var fgArcs = [].slice.call(ROOT.querySelectorAll('.ring-fg'));
+            var bgArcs = [].slice.call(ROOT.querySelectorAll('.ring-bg'));
+            var pips   = [].slice.call(ROOT.querySelectorAll('.hero-pip'));
+            var pctEl  = ROOT.querySelector('#loading-pct');
+            var tipEl  = ROOT.querySelector('#loading-tip');
+            var verEl  = ROOT.querySelector('#loading-version');
+            var svgEl  = ROOT.querySelector('.loading-ring');
+
+            // Position each background arc into its segment slot.
+            bgArcs.forEach(function (c, i) {
+                c.setAttribute('stroke-dasharray', arcLen + ' ' + C);
+                c.setAttribute('stroke-dashoffset', String(-i * segLen));
+            });
+            // Foreground arcs start at 0 fill, share the same slot offset.
+            fgArcs.forEach(function (c, i) {
+                c.setAttribute('stroke-dasharray', '0 ' + C);
+                c.setAttribute('stroke-dashoffset', String(-i * segLen));
+            });
+
+            function setProgress(p) {
+                p = Math.max(0, Math.min(1, p));
+                pctEl.textContent = Math.round(p * 100) + '%';
+                svgEl.setAttribute('aria-valuenow', String(Math.round(p * 100)));
+                fgArcs.forEach(function (c, i) {
+                    var seg  = Math.max(0, Math.min(1, p * 5 - i));
+                    var fill = arcLen * seg;
+                    c.setAttribute('stroke-dasharray', fill + ' ' + C);
+                    pips[i].classList.toggle('lit', seg >= 0.999);
+                });
+            }
+            setProgress(0);
+
+            // Particles — 28 drifting elemental motes, colors cycled per element.
+            var partLayer = ROOT.querySelector('.loading-particles');
+            var COLORS = ['#ff5e5e', '#5ec8ff', '#bfe9ff', '#6cd06c', '#d0d0d0'];
+            for (var i = 0; i < 28; i++) {
+                var s = document.createElement('span');
+                var col = COLORS[i % COLORS.length];
+                s.style.left = (Math.random() * 100) + '%';
+                s.style.background = col;
+                s.style.boxShadow = '0 0 8px ' + col;
+                s.style.animationDuration = (8 + Math.random() * 10).toFixed(2) + 's';
+                s.style.animationDelay   = (-Math.random() * 12).toFixed(2) + 's';
+                partLayer.appendChild(s);
+            }
+
+            // Gameplay-flavored tips, cycled while loading.
+            var TIPS = [
+                'Hold the dash key to slip past projectiles.',
+                'Metal hero can parry bullets back at the shooter.',
+                'Defeat a biome boss to unlock its hero for future runs.',
+                'Chain kills to build Combo — every 10x grants a damage bonus.',
+                'Each element has a strength. Fire melts Ice, Water douses Fire.',
+                'Visit the Altar between waves to spend gold on upgrades.',
+                'Forge permanent buffs from Memory Shards in the Workshop.',
+                'Block at the right moment to parry projectiles, not just absorb.',
+                'Custom Maps let you remix arenas in the Workshop.',
+                'Enable the speedrun timer in Options for split tracking.',
+                'Holding two elements at once unlocks fusion abilities.',
+                'Story bosses can be re-fought once seen — press ESC to skip the intro.'
+            ];
+            var tipIdx = Math.floor(Math.random() * TIPS.length);
+            function showNextTip() {
+                tipEl.classList.remove('visible');
+                setTimeout(function () {
+                    tipEl.innerHTML = '<span class="tip-label">Tip</span>' +
+                        TIPS[tipIdx % TIPS.length];
+                    tipEl.classList.add('visible');
+                    tipIdx++;
+                }, 380);
+            }
+            showNextTip();
+            var tipTimer = setInterval(showNextTip, 4400);
+
+            // Version pill. APP_VERSION is exposed on window once Constants.js
+            // (imported early by main.js) executes; poll briefly for it.
+            var verTries = 0;
+            (function fillVersion() {
+                if (window.APP_VERSION) {
+                    verEl.textContent = 'v' + window.APP_VERSION;
+                } else if (verTries++ < 40) {
+                    setTimeout(fillVersion, 80);
+                }
+            })();
+
+            // Smooth interpolation toward the latest reported target.
+            var _shown = 0;
+            var _target = 0;
+            var _rafId = 0;
+            function tick() {
+                _rafId = 0;
+                var delta = _target - _shown;
+                if (Math.abs(delta) > 0.0015) {
+                    _shown += delta * 0.14;
+                    setProgress(_shown);
+                    _rafId = requestAnimationFrame(tick);
+                } else {
+                    _shown = _target;
+                    setProgress(_shown);
+                }
+            }
+            function schedule() {
+                if (!_rafId) _rafId = requestAnimationFrame(tick);
+            }
+
+            // Public API. Monotonic: progress never goes backward.
+            window.reportLoadingProgress = function (pct) {
+                var clamped = Math.max(0, Math.min(1, +pct || 0));
+                if (clamped > _target) {
+                    _target = clamped;
+                    schedule();
+                }
+            };
+
+            // Idle creep so the ring doesn't sit at 0% while the deferred
+            // module bundle parses. Stops below 90% so real signals own the
+            // final stretch.
+            var creep = 0.04;
+            var creepTimer = setInterval(function () {
+                creep = Math.min(creep + 0.012, 0.88);
+                if (_target < creep) {
+                    _target = creep;
+                    schedule();
+                }
+            }, 280);
+
+            // Cleanup hook called by game.js before the screen fades out.
+            window.__loadingScreenCleanup = function () {
+                clearInterval(tipTimer);
+                clearInterval(creepTimer);
+            };
+        })();
+    </script>
 
     <div id="weather-overlay"></div>
 

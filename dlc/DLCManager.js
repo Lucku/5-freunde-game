@@ -188,7 +188,7 @@ class DLCManager {
         }));
     }
 
-    async init() {
+    async init({ onProgress } = {}) {
         console.log("Initializing DLC Manager...");
         const enabledDLCs = this._loadEnabledDLCs().filter(id => this.availableDLCs.hasOwnProperty(id));
         // Parallel script load — was sequential before, costing ~80ms × N DLCs
@@ -199,8 +199,20 @@ class DLCManager {
         // the same promise + the memoization is uniform between eager init
         // and on-demand load paths (hero pick, story menu, etc.).
         const t0 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+        let done = 0;
+        const total = enabledDLCs.length;
+        if (typeof onProgress === 'function') {
+            // Fire once at 0 so callers can render an initial state for the
+            // case where total === 0 (no enabled DLCs).
+            try { onProgress(0, total); } catch (_) { /* swallow */ }
+        }
         await Promise.all(enabledDLCs.map(id => this.ensureDLCLoaded(id).catch(e => {
             console.error(`DLC ${id} load failed:`, e);
+        }).then(() => {
+            done++;
+            if (typeof onProgress === 'function') {
+                try { onProgress(done, total); } catch (_) { /* swallow */ }
+            }
         })));
         const t1 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
         console.log(`DLCs loaded in ${(t1 - t0).toFixed(0)}ms (${enabledDLCs.length} parallel)`);

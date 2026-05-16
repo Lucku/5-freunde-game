@@ -8814,13 +8814,32 @@ function masterFrame(deltaTime, timestamp) {
     }
 }
 
-// Start save loading and DLC loading in parallel.
-const _saveReady = loadGame();
-const _dlcReady = window.dlcManager ? window.dlcManager.init() : Promise.resolve();
+// Start save loading and DLC loading in parallel. Both feed the elemental
+// loading ring in game.html via window.reportLoadingProgress so the user
+// sees real motion instead of a generic spinner.
+//   Weights — save read: 0.20, DLCs: 0.75, final fade-in jump: 1.00.
+const _reportProgress = (p) => {
+    if (typeof window.reportLoadingProgress === 'function') {
+        window.reportLoadingProgress(p);
+    }
+};
+const _saveReady = loadGame().then((r) => { _reportProgress(0.20); return r; });
+const _dlcReady = window.dlcManager
+    ? window.dlcManager.init({
+        onProgress: (done, total) => {
+            const ratio = total > 0 ? done / total : 1;
+            _reportProgress(0.20 + 0.75 * ratio);
+        }
+    })
+    : (_reportProgress(0.95), Promise.resolve());
 
 // Called once both the intro (if any) is done AND both save + DLCs are loaded.
 function _launchMenu() {
     Promise.all([_saveReady, _dlcReady]).then(() => {
+        _reportProgress(1.0);
+        if (typeof window.__loadingScreenCleanup === 'function') {
+            window.__loadingScreenCleanup();
+        }
         // If the loading screen is still visible (intro was off, or DLCs took longer
         // than the intro), fade it out gracefully before showing the menu.
         const loader = document.getElementById('loading-screen');
