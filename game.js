@@ -6241,6 +6241,149 @@ function _renderBossIntroCinematic() {
 // Phase 4 (next) will split the body into _updateGameplay(dt) and
 // _drawGameplay(ctx) so #180 (photo-mode true freeze) becomes a 1-line
 // update gate and the server simulation can call the update half alone.
+// #173 phase 3+ — boss-defeated choice screen. Renders the post-cinematic
+// "Continue / Save & Quit" overlay and handles mouse + gamepad navigation.
+// Returns `true` while the screen owns the frame so the caller bails out.
+function _renderBossChoiceScreen() {
+    if (!_bossChoiceScreen) return false;
+_bossChoiceFrame++;
+const _fi = Math.min(1, _bossChoiceFrame / 25); // fade-in over ~0.4 s
+
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+// Arena background
+ctx.save();
+ctx.translate(-arena.camera.x, -arena.camera.y);
+if (arena) arena.draw(ctx, getHeroTheme(currentBiomeType));
+ctx.restore();
+
+// Dark overlay
+ctx.fillStyle = 'rgba(0,0,0,0.82)';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+// Live particle shower — driven by _bossChoiceFrame so it keeps moving
+ctx.save();
+for (let _i = 0; _i < 28; _i++) {
+    const _px = ((_i * 1.618 * 97) % 1) * canvas.width;
+    const _py = (((_i * 2.236 * 83 + 40) % 1) * canvas.height + _bossChoiceFrame * (1.0 + (_i % 5) * 0.5) * 2.2) % canvas.height;
+    ctx.globalAlpha = (0.35 + 0.65 * Math.abs(Math.sin(_bossChoiceFrame * 0.05 + _i * 0.9))) * 0.5;
+    ctx.fillStyle = _i % 3 === 0 ? '#ffffff' : '#f1c40f';
+    ctx.beginPath();
+    ctx.arc(_px, _py, 1.5 + (_i % 4) * 1.2, 0, Math.PI * 2);
+    ctx.fill();
+}
+ctx.restore();
+
+// "BOSS DEFEATED" heading
+ctx.save();
+ctx.globalAlpha = _fi;
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+ctx.shadowColor = '#f1c40f';
+ctx.shadowBlur = 70;
+ctx.fillStyle = 'rgba(241,196,15,0.22)';
+ctx.font = 'bold 64px Arial';
+ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
+ctx.shadowBlur = 16;
+ctx.shadowColor = 'rgba(241,196,15,0.85)';
+ctx.fillStyle = '#ffffff';
+ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
+ctx.restore();
+
+// "WAVE X CLEARED" subtitle
+ctx.save();
+ctx.globalAlpha = _fi * 0.82;
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+ctx.shadowColor = '#f1c40f';
+ctx.shadowBlur = 10;
+ctx.fillStyle = '#f1c40f';
+ctx.font = '13px Arial';
+ctx.fillText(`\u2014 WAVE ${wave} CLEARED \u2014`, canvas.width / 2, canvas.height / 2 + 48);
+ctx.restore();
+
+// Buttons
+const _btY = canvas.height / 2 + 100;
+const _btW = 180, _btH = 40, _btGap = 20;
+const _bcx = canvas.width / 2;
+const _contX = _bcx - _btW - _btGap / 2;
+const _quitX = _bcx + _btGap / 2;
+
+// Detect gamepad to decide hint text and update focus via D-pad/stick
+let _gpActive = false;
+if (_bossChoiceFrame > 20) {
+    const _gpads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const _gp of _gpads) {
+        if (!_gp || !isRealGamepad(_gp)) continue;
+        _gpActive = true;
+        const _gpPressed = (idx) => _gp.buttons[idx]?.pressed && !_bossChoiceGpPrev[idx];
+        const _stickX = _gp.axes[0] || 0;
+        const _dRight = _gpPressed(15) || (_stickX > 0.45 && !_bossChoiceGpPrev.sR);
+        const _dLeft = _gpPressed(14) || (_stickX < -0.45 && !_bossChoiceGpPrev.sL);
+        if (_dRight) _bossChoiceFocus = 1;
+        if (_dLeft) _bossChoiceFocus = 0;
+        // A confirms focused button; B shortcuts to Save & Quit
+        if (!_bossChoiceGpConsumed) {
+            if (_gpPressed(0)) { _bossChoiceGpConsumed = true; _bossChoiceFocus === 0 ? _doBossContinue() : saveAndQuit(); break; }
+            if (_gpPressed(1)) { _bossChoiceGpConsumed = true; saveAndQuit(); break; }
+        }
+        const _anyHeld = _gp.buttons[0]?.pressed || _gp.buttons[1]?.pressed;
+        if (!_anyHeld) _bossChoiceGpConsumed = false;
+        // Store prev state
+        for (let _bi = 0; _bi < _gp.buttons.length; _bi++) _bossChoiceGpPrev[_bi] = _gp.buttons[_bi]?.pressed;
+        _bossChoiceGpPrev.sR = _stickX > 0.45;
+        _bossChoiceGpPrev.sL = _stickX < -0.45;
+        break; // only first connected gamepad
+    }
+}
+
+// If a gamepad action dismissed the screen this frame, stop rendering it
+if (!_bossChoiceScreen) return;
+
+ctx.save();
+ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+ctx.font = 'bold 11px Arial';
+
+// Continue button
+const _contFocused = (_bossChoiceFocus === 0);
+ctx.globalAlpha = _fi * (_contFocused ? 1.0 : 0.72);
+ctx.strokeStyle = _contFocused ? '#f1c40f' : 'rgba(241,196,15,0.55)';
+ctx.lineWidth = _contFocused ? 2.5 : 1.5;
+ctx.beginPath(); ctx.roundRect(_contX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
+ctx.fillStyle = _contFocused ? 'rgba(241,196,15,0.22)' : 'rgba(241,196,15,0.08)'; ctx.fill();
+if (_contFocused) { ctx.shadowColor = '#f1c40f'; ctx.shadowBlur = 12; }
+ctx.fillStyle = '#f1c40f';
+ctx.fillText('CONTINUE  \u2192', _contX + _btW / 2, _btY);
+ctx.shadowBlur = 0;
+window._bossContinueBtn = { x: _contX, y: _btY - _btH / 2, w: _btW, h: _btH };
+
+// Save & Quit button
+const _quitFocused = (_bossChoiceFocus === 1);
+ctx.globalAlpha = _fi * (_quitFocused ? 0.95 : 0.55);
+ctx.strokeStyle = _quitFocused ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)';
+ctx.lineWidth = _quitFocused ? 2.5 : 1;
+ctx.beginPath(); ctx.roundRect(_quitX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
+ctx.fillStyle = _quitFocused ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'; ctx.fill();
+if (_quitFocused) { ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 10; }
+ctx.fillStyle = '#ffffff';
+ctx.fillText('SAVE  &  QUIT', _quitX + _btW / 2, _btY);
+ctx.shadowBlur = 0;
+window._bossQuitBtn = { x: _quitX, y: _btY - _btH / 2, w: _btW, h: _btH };
+
+// Hint line — show gamepad or keyboard hint depending on active input
+ctx.globalAlpha = _fi * 0.35;
+ctx.fillStyle = '#ffffff';
+ctx.font = '10px Arial';
+const _hint = _gpActive
+    ? '[A] Confirm    [←/→] Switch    [B] Save & Quit'
+    : '[Click] Select    [Enter] Confirm';
+ctx.fillText(_hint, _bcx, _btY + _btH / 2 + 18);
+ctx.restore();
+
+return; // Prevent normal game render
+    return true;
+}
+
 function _runGameplayFrame(deltaTime) {
     const _isHitStopped = _hitStopFrames > 0;
     if (_hitStopFrames > 0) _hitStopFrames--;
@@ -6391,143 +6534,7 @@ function _runGameplayFrame(deltaTime) {
     if (_renderBossDeathCinematic()) return;
 
     // Boss-Defeated Choice Screen (runs after cinematic, before next wave)
-    if (_bossChoiceScreen) {
-        _bossChoiceFrame++;
-        const _fi = Math.min(1, _bossChoiceFrame / 25); // fade-in over ~0.4 s
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Arena background
-        ctx.save();
-        ctx.translate(-arena.camera.x, -arena.camera.y);
-        if (arena) arena.draw(ctx, getHeroTheme(currentBiomeType));
-        ctx.restore();
-
-        // Dark overlay
-        ctx.fillStyle = 'rgba(0,0,0,0.82)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Live particle shower — driven by _bossChoiceFrame so it keeps moving
-        ctx.save();
-        for (let _i = 0; _i < 28; _i++) {
-            const _px = ((_i * 1.618 * 97) % 1) * canvas.width;
-            const _py = (((_i * 2.236 * 83 + 40) % 1) * canvas.height + _bossChoiceFrame * (1.0 + (_i % 5) * 0.5) * 2.2) % canvas.height;
-            ctx.globalAlpha = (0.35 + 0.65 * Math.abs(Math.sin(_bossChoiceFrame * 0.05 + _i * 0.9))) * 0.5;
-            ctx.fillStyle = _i % 3 === 0 ? '#ffffff' : '#f1c40f';
-            ctx.beginPath();
-            ctx.arc(_px, _py, 1.5 + (_i % 4) * 1.2, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.restore();
-
-        // "BOSS DEFEATED" heading
-        ctx.save();
-        ctx.globalAlpha = _fi;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = '#f1c40f';
-        ctx.shadowBlur = 70;
-        ctx.fillStyle = 'rgba(241,196,15,0.22)';
-        ctx.font = 'bold 64px Arial';
-        ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
-        ctx.shadowBlur = 16;
-        ctx.shadowColor = 'rgba(241,196,15,0.85)';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('BOSS DEFEATED', canvas.width / 2, canvas.height / 2 - 10);
-        ctx.restore();
-
-        // "WAVE X CLEARED" subtitle
-        ctx.save();
-        ctx.globalAlpha = _fi * 0.82;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = '#f1c40f';
-        ctx.shadowBlur = 10;
-        ctx.fillStyle = '#f1c40f';
-        ctx.font = '13px Arial';
-        ctx.fillText(`\u2014 WAVE ${wave} CLEARED \u2014`, canvas.width / 2, canvas.height / 2 + 48);
-        ctx.restore();
-
-        // Buttons
-        const _btY = canvas.height / 2 + 100;
-        const _btW = 180, _btH = 40, _btGap = 20;
-        const _bcx = canvas.width / 2;
-        const _contX = _bcx - _btW - _btGap / 2;
-        const _quitX = _bcx + _btGap / 2;
-
-        // Detect gamepad to decide hint text and update focus via D-pad/stick
-        let _gpActive = false;
-        if (_bossChoiceFrame > 20) {
-            const _gpads = navigator.getGamepads ? navigator.getGamepads() : [];
-            for (const _gp of _gpads) {
-                if (!_gp || !isRealGamepad(_gp)) continue;
-                _gpActive = true;
-                const _gpPressed = (idx) => _gp.buttons[idx]?.pressed && !_bossChoiceGpPrev[idx];
-                const _stickX = _gp.axes[0] || 0;
-                const _dRight = _gpPressed(15) || (_stickX > 0.45 && !_bossChoiceGpPrev.sR);
-                const _dLeft = _gpPressed(14) || (_stickX < -0.45 && !_bossChoiceGpPrev.sL);
-                if (_dRight) _bossChoiceFocus = 1;
-                if (_dLeft) _bossChoiceFocus = 0;
-                // A confirms focused button; B shortcuts to Save & Quit
-                if (!_bossChoiceGpConsumed) {
-                    if (_gpPressed(0)) { _bossChoiceGpConsumed = true; _bossChoiceFocus === 0 ? _doBossContinue() : saveAndQuit(); break; }
-                    if (_gpPressed(1)) { _bossChoiceGpConsumed = true; saveAndQuit(); break; }
-                }
-                const _anyHeld = _gp.buttons[0]?.pressed || _gp.buttons[1]?.pressed;
-                if (!_anyHeld) _bossChoiceGpConsumed = false;
-                // Store prev state
-                for (let _bi = 0; _bi < _gp.buttons.length; _bi++) _bossChoiceGpPrev[_bi] = _gp.buttons[_bi]?.pressed;
-                _bossChoiceGpPrev.sR = _stickX > 0.45;
-                _bossChoiceGpPrev.sL = _stickX < -0.45;
-                break; // only first connected gamepad
-            }
-        }
-
-        // If a gamepad action dismissed the screen this frame, stop rendering it
-        if (!_bossChoiceScreen) return;
-
-        ctx.save();
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = 'bold 11px Arial';
-
-        // Continue button
-        const _contFocused = (_bossChoiceFocus === 0);
-        ctx.globalAlpha = _fi * (_contFocused ? 1.0 : 0.72);
-        ctx.strokeStyle = _contFocused ? '#f1c40f' : 'rgba(241,196,15,0.55)';
-        ctx.lineWidth = _contFocused ? 2.5 : 1.5;
-        ctx.beginPath(); ctx.roundRect(_contX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
-        ctx.fillStyle = _contFocused ? 'rgba(241,196,15,0.22)' : 'rgba(241,196,15,0.08)'; ctx.fill();
-        if (_contFocused) { ctx.shadowColor = '#f1c40f'; ctx.shadowBlur = 12; }
-        ctx.fillStyle = '#f1c40f';
-        ctx.fillText('CONTINUE  \u2192', _contX + _btW / 2, _btY);
-        ctx.shadowBlur = 0;
-        window._bossContinueBtn = { x: _contX, y: _btY - _btH / 2, w: _btW, h: _btH };
-
-        // Save & Quit button
-        const _quitFocused = (_bossChoiceFocus === 1);
-        ctx.globalAlpha = _fi * (_quitFocused ? 0.95 : 0.55);
-        ctx.strokeStyle = _quitFocused ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)';
-        ctx.lineWidth = _quitFocused ? 2.5 : 1;
-        ctx.beginPath(); ctx.roundRect(_quitX, _btY - _btH / 2, _btW, _btH, 6); ctx.stroke();
-        ctx.fillStyle = _quitFocused ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'; ctx.fill();
-        if (_quitFocused) { ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 10; }
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('SAVE  &  QUIT', _quitX + _btW / 2, _btY);
-        ctx.shadowBlur = 0;
-        window._bossQuitBtn = { x: _quitX, y: _btY - _btH / 2, w: _btW, h: _btH };
-
-        // Hint line — show gamepad or keyboard hint depending on active input
-        ctx.globalAlpha = _fi * 0.35;
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '10px Arial';
-        const _hint = _gpActive
-            ? '[A] Confirm    [←/→] Switch    [B] Save & Quit'
-            : '[Click] Select    [Enter] Confirm';
-        ctx.fillText(_hint, _bcx, _btY + _btH / 2 + 18);
-        ctx.restore();
-
-        return; // Prevent normal game render
-    }
+        if (_renderBossChoiceScreen()) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any accumulated transform corruption
