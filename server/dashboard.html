@@ -212,7 +212,7 @@ async function fetchAll() {
     if (r.status === 401 || r.status === 403) { sawAuthFailure = true; return null; }
     return r.json();
   }).catch(() => null);
-  const [sessions, online, players, stats, saves, balance, events, crashes, telemetry] = await Promise.all([
+  const [sessions, online, players, stats, saves, balance, events, crashes, telemetry, loginAudit] = await Promise.all([
     fetch1('/api/admin/sessions'),
     fetch1('/api/admin/online'),
     fetch1('/api/admin/players'),
@@ -222,6 +222,7 @@ async function fetchAll() {
     fetch1('/api/admin/events'),
     fetch1('/api/admin/crashes'),
     fetch1('/api/admin/telemetry/summary'),
+    fetch1('/api/admin/login-attempts?limit=100'),
   ]);
   if (sessions) D.sessions  = sessions;
   if (online)   D.online    = online;
@@ -231,7 +232,8 @@ async function fetchAll() {
   if (balance)  D.balance   = balance;
   if (events)   D.events    = events;
   if (crashes)  D.crashes   = crashes;
-  if (telemetry) D.telemetry = telemetry;
+  if (telemetry)  D.telemetry  = telemetry;
+  if (loginAudit) D.loginAudit = loginAudit;
   // If every poll auth-failed, the session is invalid — bounce to login.
   if (sawAuthFailure) logout();
 }
@@ -830,6 +832,49 @@ function renderTechnical() {
     h += '</tbody></table>';
   }
   h += '</div>';
+
+  // ── Admin login audit (#182) ────────────────────────────────────────────────
+  const audit = D.loginAudit || { attempts: [], total: 0, last24h: {} };
+  const l24 = audit.last24h || {};
+  const failPill = (reason) => {
+    const palette = {
+      rate_limited: 'red', bad_password: 'yellow', verify_error: 'red',
+      no_password: 'dim',
+    };
+    return `<span class="pill pill-${palette[reason] || 'dim'}">${esc(reason || '—')}</span>`;
+  };
+  const successPill = (s) => s
+    ? '<span class="pill pill-green">success</span>'
+    : '<span class="pill pill-red">fail</span>';
+
+  h += `<div class="cards" style="margin-top:1.25rem">
+    <div class="card"><div class="lbl">Admin Logins (24 h)</div><div class="val green">${l24.successes || 0}</div></div>
+    <div class="card"><div class="lbl">Bad Password (24 h)</div><div class="val yellow">${l24.badPassword || 0}</div></div>
+    <div class="card"><div class="lbl">Rate-Limited (24 h)</div><div class="val red">${l24.rateLimited || 0}</div></div>
+    <div class="card"><div class="lbl">Unique IPs (24 h)</div><div class="val blue">${l24.uniqueIps || 0}</div></div>
+  </div>`;
+
+  h += `<div class="section"><div class="sec-hd">Admin Login Attempts <span class="badge badge-dim">${audit.total || 0} total</span></div>`;
+  if (!audit.attempts.length) {
+    h += '<div class="empty">No login attempts recorded</div>';
+  } else {
+    h += `<table><thead><tr>
+      <th>Time</th><th>Result</th><th>Reason</th><th>IP</th><th>User Agent</th>
+    </tr></thead><tbody>`;
+    for (const a of audit.attempts) {
+      const ua = (a.userAgent || '').slice(0, 80) + ((a.userAgent || '').length > 80 ? '…' : '');
+      h += `<tr>
+        <td style="color:var(--dim);font-size:0.78rem;white-space:nowrap">${fmtDt(a.ts)}</td>
+        <td>${successPill(a.success)}</td>
+        <td>${a.success ? '<span style="color:var(--dim)">—</span>' : failPill(a.reason)}</td>
+        <td style="font-family:monospace;font-size:0.78rem">${esc(a.ip || '—')}</td>
+        <td style="color:var(--dim);font-size:0.74rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ua)}</td>
+      </tr>`;
+    }
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+
   return h;
 }
 

@@ -113,6 +113,21 @@ db.exec(`
     )
 `);
 
+// Audit trail for admin login attempts (success + failure + rate-limit).
+// Rolling-pruned at 10k rows. Surfaced in the admin dashboard Technical tab.
+db.exec(`
+    CREATE TABLE IF NOT EXISTS admin_login_attempts (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts         INTEGER NOT NULL,
+        ip         TEXT,
+        user_agent TEXT,
+        success    INTEGER NOT NULL,
+        reason     TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_ali_ts         ON admin_login_attempts(ts DESC);
+    CREATE INDEX IF NOT EXISTS idx_ali_success_ts ON admin_login_attempts(success, ts DESC);
+`);
+
 db.exec(`
     CREATE TABLE IF NOT EXISTS telemetry_events (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -268,13 +283,16 @@ setInterval(() => {
     }
 }, RATE_SWEEP_MS).unref?.();
 
-function rateLimit({ key, capacity, refillPerSec }) {
+function rateLimit({ key, capacity, refillPerSec, onReject }) {
     const limiter = makeRateLimiter({ capacity, refillPerSec, buckets: _rateBuckets });
     return (req, res, next) => {
         const ip = req.ip || req.headers['x-forwarded-for']?.split(',')[0].trim() || req.connection?.remoteAddress || 'unknown';
         const result = limiter(`${key}:${ip}`);
         if (!result.allowed) {
             res.set('Retry-After', String(result.retryAfterSec));
+            if (typeof onReject === 'function') {
+                try { onReject(req); } catch (e) { console.error('[rate-limit] onReject failed:', e); }
+            }
             return res.status(429).json({ error: 'Too many requests', retryAfterSec: result.retryAfterSec });
         }
         next();
@@ -358,6 +376,57 @@ app.get('/api/admin/crashes', requireAdmin, (_req, res) => {
         res.json({ crashes });
     } catch (e) {
         res.status(500).json({ error: 'read failed' });
+    }
+});
+
+// Admin login audit trail. Optional `?success=true|false` filter, `?limit=N`
+// caps at 500. Newest first. Aggregates fail-reason counts over the last 24 h
+// so the dashboard can show a "brute-force pressure" summary without a second
+// round-trip.
+app.get('/api/admin/login-attempts', requireAdmin, (req, res) => {
+    try {
+        const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 100));
+        const successFilter = typeof req.query.success === 'string'
+            ? (req.query.success === 'true' ? 1 : req.query.success === 'false' ? 0 : null)
+            : null;
+        const rows = successFilter === null
+            ? db.prepare('SELECT id, ts, ip, user_agent, success, reason FROM admin_login_attempts ORDER BY ts DESC LIMIT ?').all(limit)
+            : db.prepare('SELECT id, ts, ip, user_agent, success, reason FROM admin_login_attempts WHERE success = ? ORDER BY ts DESC LIMIT ?').all(successFilter, limit);
+        const since = Date.now() - 24 * 60 * 60 * 1000;
+        const last24h = db.prepare(`
+            SELECT
+                SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) AS successes,
+                SUM(CASE WHEN success = 0 AND reason = 'bad_password'  THEN 1 ELSE 0 END) AS bad_password,
+                SUM(CASE WHEN success = 0 AND reason = 'rate_limited'  THEN 1 ELSE 0 END) AS rate_limited,
+                SUM(CASE WHEN success = 0 AND reason = 'no_password'   THEN 1 ELSE 0 END) AS no_password,
+                SUM(CASE WHEN success = 0 AND reason = 'verify_error'  THEN 1 ELSE 0 END) AS verify_error,
+                COUNT(DISTINCT ip)                                                       AS unique_ips
+            FROM admin_login_attempts
+            WHERE ts >= ?
+        `).get(since);
+        const total = db.prepare('SELECT COUNT(*) AS n FROM admin_login_attempts').get().n;
+        res.json({
+            attempts: rows.map(r => ({
+                id: r.id,
+                ts: r.ts,
+                ip: r.ip,
+                userAgent: r.user_agent,
+                success: r.success === 1,
+                reason: r.reason,
+            })),
+            total,
+            last24h: {
+                successes:    last24h.successes    || 0,
+                badPassword:  last24h.bad_password || 0,
+                rateLimited:  last24h.rate_limited || 0,
+                noPassword:   last24h.no_password  || 0,
+                verifyError:  last24h.verify_error || 0,
+                uniqueIps:    last24h.unique_ips   || 0,
+            },
+        });
+    } catch (e) {
+        console.error('[admin] login-attempts query failed:', e);
+        res.status(500).json({ error: 'query failed' });
     }
 });
 
@@ -898,18 +967,55 @@ app.put('/api/save', requireAuth, (req, res) => {
 
 // ── Admin Dashboard ───────────────────────────────────────────────────────────
 
+// Audit trail for admin login attempts: success, bad password, verify error,
+// rate-limit hit. Persisted to `admin_login_attempts`; pruned to the most
+// recent 10k rows every 100 inserts to amortize the sweep cost.
+const _insertAdminLoginAttempt = db.prepare(
+    'INSERT INTO admin_login_attempts (ts, ip, user_agent, success, reason) VALUES (?, ?, ?, ?, ?)'
+);
+let _adminLoginInsertCount = 0;
+function _logAdminLoginAttempt(req, success, reason) {
+    try {
+        const ip = (req.ip || req.headers['x-forwarded-for']?.split(',')[0].trim() || req.connection?.remoteAddress || 'unknown').slice(0, 64);
+        const userAgent = (req.headers['user-agent'] || '').slice(0, 256);
+        _insertAdminLoginAttempt.run(Date.now(), ip, userAgent, success ? 1 : 0, reason || null);
+        _adminLoginInsertCount++;
+        if (_adminLoginInsertCount >= 100) {
+            _adminLoginInsertCount = 0;
+            db.exec('DELETE FROM admin_login_attempts WHERE id NOT IN (SELECT id FROM admin_login_attempts ORDER BY ts DESC LIMIT 10000)');
+        }
+    } catch (e) { console.error('[admin] login audit failed:', e); }
+}
+
 // Login exchanges the admin password for an 8 h JWT (`kind:'admin'`). This
 // stops the password from being sent on every dashboard poll. Rate-limited
-// 5 attempts / 15 min per IP to throttle brute force.
+// 5 attempts / 15 min per IP to throttle brute force. Every attempt — success,
+// failure, or rate-limit — is recorded to admin_login_attempts.
 app.post('/api/admin/login',
-    rateLimit({ key: 'admin_login', capacity: 5, refillPerSec: 5 / 900 }),
+    rateLimit({
+        key: 'admin_login',
+        capacity: 5,
+        refillPerSec: 5 / 900,
+        onReject: (req) => _logAdminLoginAttempt(req, 0, 'rate_limited'),
+    }),
     async (req, res) => {
         const password = req.body && typeof req.body.password === 'string' ? req.body.password : '';
-        if (!password) return res.status(400).json({ error: 'password required' });
+        if (!password) {
+            _logAdminLoginAttempt(req, 0, 'no_password');
+            return res.status(400).json({ error: 'password required' });
+        }
         let ok = false;
         try { ok = await bcrypt.compare(password, _adminHash); }
-        catch (e) { console.error('[admin] bcrypt.compare failed:', e); return res.status(500).json({ error: 'verify failed' }); }
-        if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+        catch (e) {
+            console.error('[admin] bcrypt.compare failed:', e);
+            _logAdminLoginAttempt(req, 0, 'verify_error');
+            return res.status(500).json({ error: 'verify failed' });
+        }
+        if (!ok) {
+            _logAdminLoginAttempt(req, 0, 'bad_password');
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        _logAdminLoginAttempt(req, 1, null);
         res.json(signAdminToken(JWT_SECRET));
     }
 );
