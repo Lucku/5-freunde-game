@@ -2382,8 +2382,16 @@ let goldDrops = [];
 let cardDrops = [];
 let memoryShards = [];
 let companions = [];
-// let obstacles = []; // REMOVED
-// let biomeZones = []; // REMOVED
+// obstacles and biomeZones moved to Arena class.
+// Cross-module references via window — these arrays are mutated (push / splice)
+// but never reassigned, so a one-time window export keeps Arena.js,
+// EvilMode.js, ChaosMode.js, Museum.js, etc. in sync without needing imports.
+window.powerUps     = powerUps;
+window.holyMasks    = holyMasks;
+window.goldDrops    = goldDrops;
+window.cardDrops    = cardDrops;
+window.memoryShards = memoryShards;
+window.companions   = companions;
 
 // Story Manager
 const storyManager = new StoryManager();

@@ -1,6 +1,7 @@
 // #194 phase 2 — explicit imports for symbols previously read off window shims.
 
 import { CompletionMenu } from './CompletionMenu.js';
+import { drawHeroSprite, shadeColor } from './Utils.js';
 
 // Room-aware dialogue: MUSEUM_DIALOGUES[heroType][roomName] or [heroType].generic
 const MUSEUM_DIALOGUES = {

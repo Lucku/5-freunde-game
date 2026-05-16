@@ -2,6 +2,7 @@
 import { FloatingText } from './Entities/FloatingText.js';
 import { Particle } from './Entities/Particle.js';
 import { Projectile } from './Entities/Projectile.js';
+import { drawHeroSprite, cachedRadial } from './Utils.js';
 
 import { MeleeSwipe } from './Entities/MeleeSwipe.js';
 import { TutorialMode } from './TutorialMode.js';

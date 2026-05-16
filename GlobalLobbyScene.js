@@ -2,6 +2,8 @@
 // All currently online players can walk around, see each other, use emotes,
 // and challenge each other to a match via proximity invite.
 
+import { drawHeroSprite } from './Utils.js';
+
 const GLOBAL_EMOTES = [
     { key: '1', label: 'Wave',  emoji: '👋' },
     { key: '2', label: 'Dance', emoji: '💃' },

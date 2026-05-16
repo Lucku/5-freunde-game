@@ -2,6 +2,7 @@
 import { FloatingText } from './Entities/FloatingText.js';
 import { Particle } from './Entities/Particle.js';
 import { Projectile } from './Entities/Projectile.js';
+import { shadeColor } from './Utils.js';
 
 class Enemy {
     constructor(isBossMinion = false, forcedType = null, world = null) {

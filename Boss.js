@@ -2,6 +2,7 @@
 import { Enemy } from './Enemy.js';
 import { FloatingText } from './Entities/FloatingText.js';
 import { Projectile } from './Entities/Projectile.js';
+import { shadeColor } from './Utils.js';
 
 
 class Boss {
