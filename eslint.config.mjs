@@ -68,7 +68,17 @@ export default [
         },
         rules: {
             // Warnings only — never errors. See header comment.
-            'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+            // `^_` for vars/args is the project convention for "intentionally unused".
+// `caughtErrorsIgnorePattern` also allows unprefixed `e`/`err` because
+// `catch (e) { /* swallow */ }` is widespread legacy and rewriting them
+// to `_e` or bare `catch {}` would be a thousand-line cosmetic churn
+// with no behavioral upside.
+'no-unused-vars': ['warn', {
+    argsIgnorePattern: '^_',
+    varsIgnorePattern: '^_',
+    caughtErrorsIgnorePattern: '^(_|e|err)$',
+    destructuredArrayIgnorePattern: '^_',
+}],
             'no-undef': 'off',                // too many globals to enumerate
             'no-empty': ['warn', { allowEmptyCatch: true }],
             'no-prototype-builtins': 'off',   // saveData.hasOwnProperty is widespread
@@ -82,12 +92,37 @@ export default [
             'no-self-assign': 'off',
             'no-async-promise-executor': 'off',
             'no-irregular-whitespace': 'off',
-            'no-var': 'warn',
+            // `var` is the project's chosen idiom for module-scope DLC-exposed
+            // variables (~200 sites across game.js + Entities). The
+            // `defineProperty(window, name, {get/set})` bridges depend on the
+            // local module variable being writable from outside. Flagging
+            // every legacy `var` swamps the warning channel for no behavioral
+            // upside — silenced.
+            'no-var': 'off',
             'prefer-const': 'warn',
             eqeqeq: ['warn', 'always', { null: 'ignore' }],
             'no-debugger': 'warn',
             // Custom rule — catches the forEach+splice index-skip bug class.
             '5freunde/no-foreach-splice': 'warn',
+        },
+    },
+    {
+        // DLC files implement shared callback contracts whose canonical
+        // parameter names are required for cross-DLC discoverability:
+        //   - Biome:  update(arena, player), draw(ctx, arena), drawObstacle(ctx, obs)
+        //   - Boss:   update(b, pl, ar)
+        //   - Hero:   update(player, enemies, projectiles, wave)
+        // Individual implementations frequently use only a subset, and
+        // renaming the unused half to `_pl` / `_arena` would obscure the
+        // contract for new DLC authors. Allow the canonical names unused.
+        files: ['dlc/**/*.js', 'Biomes.js'],
+        rules: {
+            'no-unused-vars': ['warn', {
+                argsIgnorePattern: '^(_|player|arena|enemies|projectiles|wave|world|frame|tick|enemy|pl|ar|b|cx|cy|pBad|tgt|src|w|ts)$',
+                varsIgnorePattern: '^_',
+                caughtErrorsIgnorePattern: '^(_|e|err)$',
+                destructuredArrayIgnorePattern: '^_',
+            }],
         },
     },
     {
@@ -106,7 +141,17 @@ export default [
             },
         },
         rules: {
-            'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+            // `^_` for vars/args is the project convention for "intentionally unused".
+// `caughtErrorsIgnorePattern` also allows unprefixed `e`/`err` because
+// `catch (e) { /* swallow */ }` is widespread legacy and rewriting them
+// to `_e` or bare `catch {}` would be a thousand-line cosmetic churn
+// with no behavioral upside.
+'no-unused-vars': ['warn', {
+    argsIgnorePattern: '^_',
+    varsIgnorePattern: '^_',
+    caughtErrorsIgnorePattern: '^(_|e|err)$',
+    destructuredArrayIgnorePattern: '^_',
+}],
             'no-undef': 'warn',
             'no-empty': ['warn', { allowEmptyCatch: true }],
             'no-prototype-builtins': 'off',
@@ -128,7 +173,17 @@ export default [
             },
         },
         rules: {
-            'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+            // `^_` for vars/args is the project convention for "intentionally unused".
+// `caughtErrorsIgnorePattern` also allows unprefixed `e`/`err` because
+// `catch (e) { /* swallow */ }` is widespread legacy and rewriting them
+// to `_e` or bare `catch {}` would be a thousand-line cosmetic churn
+// with no behavioral upside.
+'no-unused-vars': ['warn', {
+    argsIgnorePattern: '^_',
+    varsIgnorePattern: '^_',
+    caughtErrorsIgnorePattern: '^(_|e|err)$',
+    destructuredArrayIgnorePattern: '^_',
+}],
             'no-undef': 'warn',
         },
     },
@@ -145,7 +200,17 @@ export default [
             },
         },
         rules: {
-            'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+            // `^_` for vars/args is the project convention for "intentionally unused".
+// `caughtErrorsIgnorePattern` also allows unprefixed `e`/`err` because
+// `catch (e) { /* swallow */ }` is widespread legacy and rewriting them
+// to `_e` or bare `catch {}` would be a thousand-line cosmetic churn
+// with no behavioral upside.
+'no-unused-vars': ['warn', {
+    argsIgnorePattern: '^_',
+    varsIgnorePattern: '^_',
+    caughtErrorsIgnorePattern: '^(_|e|err)$',
+    destructuredArrayIgnorePattern: '^_',
+}],
             'no-undef': 'off',
         },
     },

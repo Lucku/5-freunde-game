@@ -292,8 +292,8 @@ class Player {
         // but existing logic reads this.moveInput properties. 
         // We need to ensure moveInput is updated before dash() is called if we call it from controller input loop.
 
-        let dx = this.moveInput.x;
-        let dy = this.moveInput.y;
+        const dx = this.moveInput.x;
+        const dy = this.moveInput.y;
 
         /*
         // Keyboard fallback if moveInput is zero (though update handles this)
@@ -808,7 +808,7 @@ class Player {
             // Play Sound
             audioManager?.play('special_black');
 
-            let radius = 300;
+            const radius = 300;
 
             // Burst Heal
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
@@ -1056,7 +1056,7 @@ class Player {
                 } else {
                     // Shortest-arc lerp from current aimAngle toward target.
                     const TWO_PI = Math.PI * 2;
-                    let diff = ((target - this.aimAngle + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI;
+                    const diff = ((target - this.aimAngle + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI;
                     this.aimAngle += diff * aimAssist;
                 }
             }
@@ -1136,8 +1136,8 @@ class Player {
 
         // Apply Movement
         if (moveX !== 0 || moveY !== 0) {
-            let nextX = this.x + moveX;
-            let nextY = this.y + moveY;
+            const nextX = this.x + moveX;
+            const nextY = this.y + moveY;
 
             if (!arena.checkCollision(nextX, nextY, this.radius)) {
                 this.x = nextX; this.y = nextY;
@@ -1319,7 +1319,7 @@ class Player {
             }
         }
 
-        let shots = [];
+        const shots = [];
         let speed = this.stats.projectileSpeed;
         let dmg = this.stats.rangeDmg * this.damageMultiplier;
         let size = this.stats.projectileSize;
@@ -1341,7 +1341,7 @@ class Player {
         let isExplosive = false;
         let pierce = this.stats.pierce || 0;
         let color = this.stats.color;
-        let knockback = this.stats.knockback * (this.stats.knockbackMult || 1);
+        const knockback = this.stats.knockback * (this.stats.knockbackMult || 1);
 
         if (this.transformActive) {
             dmg *= this.stats.ultModifiers.damage;

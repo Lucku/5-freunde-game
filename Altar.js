@@ -202,8 +202,8 @@ class Altar {
                 return `<span class="altar-conv-req-badge" style="--b-rgb:${m.rgb}">${m.name} P${node.req[h]}</span>`;
             }).join('');
 
-            let stateLabel = isActive ? '✦ Active' : (isUnlocked ? 'Activate' : '');
-            let stateHtml  = stateLabel ? `<div class="altar-conv-state">${stateLabel}</div>` : '';
+            const stateLabel = isActive ? '✦ Active' : (isUnlocked ? 'Activate' : '');
+            const stateHtml  = stateLabel ? `<div class="altar-conv-state">${stateLabel}</div>` : '';
 
             const item = document.createElement('div');
             item.className = itemClass;

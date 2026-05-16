@@ -175,7 +175,7 @@ describe('admin login rate limit', () => {
     it('allows 5 attempts per 15min, then blocks', () => {
         // Mirror the parameters used by server.js for POST /api/admin/login.
         const buckets = new Map();
-        let t = 1_000_000;
+        const t = 1_000_000;
         const limit = makeRateLimiter({
             capacity: 5,
             refillPerSec: 5 / 900,
@@ -188,7 +188,7 @@ describe('admin login rate limit', () => {
 
     it('different IPs do not share the bucket', () => {
         const buckets = new Map();
-        let t = 1_000_000;
+        const t = 1_000_000;
         const limit = makeRateLimiter({ capacity: 5, refillPerSec: 5 / 900, buckets, now: () => t });
         for (let i = 0; i < 5; i++) limit('ip-1');
         expect(limit('ip-1').allowed).toBe(false);

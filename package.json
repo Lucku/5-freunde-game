@@ -13,7 +13,7 @@
     "dev:electron": "VITE_DEV=1 concurrently --kill-others \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .js,.mjs",
+    "lint": "eslint . --ext .js,.mjs --max-warnings 95",
     "lint:fix": "eslint . --ext .js,.mjs --fix",
     "test": "vitest run --passWithNoTests && node server/simulation/parityTest.js",
     "test:watch": "vitest",

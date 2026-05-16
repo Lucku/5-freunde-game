@@ -39,7 +39,7 @@ class TempleBiome {
 
         // Update Lanterns
         for (let i = this.lanterns.length - 1; i >= 0; i--) {
-            let l = this.lanterns[i];
+            const l = this.lanterns[i];
             l.x += l.vx;
             l.y += l.vy;
             l.life--;
@@ -60,7 +60,7 @@ class TempleBiome {
         }
 
         for (let i = this.sanctuaries.length - 1; i >= 0; i--) {
-            let s = this.sanctuaries[i];
+            const s = this.sanctuaries[i];
             s.life--;
 
             // Effect: Heal / Peace gain — Spirit hero only (like Fire hero immunity to lava)

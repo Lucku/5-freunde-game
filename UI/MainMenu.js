@@ -86,7 +86,7 @@ class MainMenuUI {
             // Per-hero icon background. Most heroes use the flat stat color.
             // Light gets a metallic gold gradient so it reads as Gold instead of yellow.
             let iconBg = BASE_HERO_STATS[h].color;
-            let nameColor = BASE_HERO_STATS[h].color;
+            const nameColor = BASE_HERO_STATS[h].color;
             let nameStyle = `color: ${nameColor}; text-shadow: 0 0 30px rgba(255, 255, 255, 0.7);`;
             if (h === 'light') {
                 iconBg = 'linear-gradient(135deg, #fff5b8 0%, #ffd633 25%, #f1c40f 55%, #b8860b 85%, #8b6914 100%)';

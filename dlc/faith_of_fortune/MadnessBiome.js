@@ -53,7 +53,7 @@ class MadnessBiome {
             // Pick random tile to drop
             // Chance increases with difficulty/time? 
             // Let's drop 1-3 random tiles
-            let drops = 1 + Math.floor(Math.random() * 2);
+            const drops = 1 + Math.floor(Math.random() * 2);
 
             // Filter STABLE tiles
             const stable = this.tiles.filter(t => t.state === 'STABLE');
@@ -70,7 +70,7 @@ class MadnessBiome {
         }
 
         // Update Tiles
-        for (let t of this.tiles) {
+        for (const t of this.tiles) {
             if (t.state === 'WARNING') {
                 t.timer--;
                 if (t.timer <= 0) {
@@ -138,7 +138,7 @@ class MadnessBiome {
             let safe = false;
             // Access arena from window or passed context (we rely on window.arena here)
             if (_arena && _arena.biomeZones) {
-                for (let z of _arena.biomeZones) {
+                for (const z of _arena.biomeZones) {
                     if (z.type === 'SAFE_ZONE' &&
                         player.x > z.x && player.x < z.x + z.w &&
                         player.y > z.y && player.y < z.y + z.h) {
@@ -154,7 +154,7 @@ class MadnessBiome {
                     if (!player.invincibleTimer && !player.isFlying) {
                         // Nerf: Instead of instant death (9999), take heavy damage
                         // 60 dmg is significant (approx 25-30% HP) but survivable
-                        let voidDmg = 60;
+                        const voidDmg = 60;
 
                         player.takeDamage(voidDmg);
                         player.invincibleTimer = 90; // 1.5s invincibility to escape
@@ -174,7 +174,7 @@ class MadnessBiome {
                 // Safe Zone Check for Enemies
                 let safe = false;
                 if (_arena && _arena.biomeZones) {
-                    for (let z of _arena.biomeZones) {
+                    for (const z of _arena.biomeZones) {
                         if (z.type === 'SAFE_ZONE' &&
                             e.x > z.x && e.x < z.x + z.w &&
                             e.y > z.y && e.y < z.y + z.h) {
@@ -230,7 +230,7 @@ class MadnessBiome {
 
         // 2. Draw Floor Tiles
         ctx.save();
-        for (let t of this.tiles) {
+        for (const t of this.tiles) {
             // Culling
             if (t.x + this.tileSize < cam.x || t.x > cam.x + cam.width ||
                 t.y + this.tileSize < cam.y || t.y > cam.y + cam.height) continue;

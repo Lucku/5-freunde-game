@@ -490,7 +490,7 @@ class MazeUI {
             // Word-wrap title to 2 lines max
             const words = title.split(' ');
             let line1 = '', line2 = '';
-            let half = Math.ceil(words.length / 2);
+            const half = Math.ceil(words.length / 2);
             line1 = words.slice(0, half).join(' ');
             line2 = words.slice(half).join(' ');
 

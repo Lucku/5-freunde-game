@@ -163,10 +163,10 @@ window.HERO_LOGIC['void'] = {
         if (audioManager) audioManager.play('attack_void');
 
         // Use standard find nearest logic or random
-        let angle = player.aimAngle;
-        let speed = player.stats.projectileSpeed;
-        let dmg = player.stats.rangeDmg * player.damageMultiplier;
-        let size = player.stats.projectileSize;
+        const angle = player.aimAngle;
+        const speed = player.stats.projectileSpeed;
+        const dmg = player.stats.rangeDmg * player.damageMultiplier;
+        const size = player.stats.projectileSize;
 
         // Projectile Count
         if (typeof projectiles !== 'undefined') {
@@ -515,8 +515,8 @@ window.HERO_LOGIC['void'] = {
         const aimAngle = Math.atan2(dy, dx);
 
         // Movement: Always chase aggressively
-        let moveX = Math.cos(aimAngle);
-        let moveY = Math.sin(aimAngle);
+        const moveX = Math.cos(aimAngle);
+        const moveY = Math.sin(aimAngle);
 
         let shoot = false;
         let melee = false;

@@ -58,7 +58,7 @@ class OptionsUI {
             'pauseOnGamepadDisconnect': 'opt-pausegamepad-btn'
         };
 
-        for (let k in map) {
+        for (const k in map) {
             const btn = document.getElementById(map[k]);
             if (btn) {
                 const isActive = window.gameConfig[k];

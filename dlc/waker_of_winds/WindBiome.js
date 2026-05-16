@@ -168,7 +168,7 @@ class WindBiome {
 
         // Particle logic
         for (let i = this.particles.length - 1; i >= 0; i--) {
-            let p = this.particles[i];
+            const p = this.particles[i];
             p.x += p.speed || 0;
             p.life = (p.life || 100) - 1;
             if (p.x > arena.width + 200 || p.life <= 0) {

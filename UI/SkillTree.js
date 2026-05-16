@@ -173,7 +173,7 @@ window.generateHeroSkillTree = function (type) {
 
     const w = weights[type];
     const types = [];
-    for (let k in w) {
+    for (const k in w) {
         const count = Math.floor(w[k] * 100);
         for (let i = 0; i < count; i++) types.push(k);
     }

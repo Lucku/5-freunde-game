@@ -62,12 +62,12 @@ class HumanController extends PlayerController {
         // other low-button-count HID devices sitting at index 0 are skipped.
         // isRealGamepad() is defined in game.js and available during gameplay.
         if (typeof window.isRealGamepad === 'function') {
-            for (let g of gamepads) { if (g && g.connected && window.isRealGamepad(g)) { gp = g; break; } }
+            for (const g of gamepads) { if (g && g.connected && window.isRealGamepad(g)) { gp = g; break; } }
         } else {
             if (gamepads[this.gamepadIndex] && gamepads[this.gamepadIndex].connected) {
                 gp = gamepads[this.gamepadIndex];
             } else if (this.gamepadIndex === 0) {
-                for (let g of gamepads) { if (g && g.connected) { gp = g; break; } }
+                for (const g of gamepads) { if (g && g.connected) { gp = g; break; } }
             }
         }
 

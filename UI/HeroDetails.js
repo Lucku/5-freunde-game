@@ -25,7 +25,7 @@ class HeroDetailsUI {
         document.getElementById('stats-hero-title').innerText = `ACTIVE HERO: ${heroType.toUpperCase()}`;
 
         // 1. Initialize Accumulators
-        let totals = {
+        const totals = {
             damage: 0,      // %
             healthPct: 0,   // %
             healthFlat: 0,  // Flat
@@ -42,7 +42,7 @@ class HeroDetailsUI {
         // --- A. VOID SHOP (Meta Upgrades) ---
         let voidHtml = '';
         if (typeof PERM_UPGRADES !== 'undefined' && window.gameContext.saveData && window.gameContext.saveData.metaUpgrades) {
-            for (let key in PERM_UPGRADES) {
+            for (const key in PERM_UPGRADES) {
                 const level = window.gameContext.saveData.metaUpgrades[key] || 0;
                 if (level > 0) {
                     let effect = "";
@@ -94,7 +94,7 @@ class HeroDetailsUI {
             const treeData = window.generateHeroSkillTree(heroType);
             const unlockedCount = window.gameContext.saveData[heroType].unlocked;
 
-            let treeStats = { damage: 0, health: 0, speed: 0, cooldown: 0, defense: 0, projectiles: 0, other: [] };
+            const treeStats = { damage: 0, health: 0, speed: 0, cooldown: 0, defense: 0, projectiles: 0, other: [] };
 
             for (let i = 0; i < unlockedCount; i++) {
                 const node = treeData[i];

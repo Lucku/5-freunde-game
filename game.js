@@ -45,14 +45,11 @@ import {
 import infoDialogueManager from './UI/InfoDialogueManager.js';
 import onlineLobby from './UI/OnlineLobby.js';
 import {
-    SHAKE_PRESETS, shake, triggerScreenShake, triggerVibration, triggerImpact,
-    applyScreenShake, togglePhotoMode, tickPhotoMode, isPhotoMode,
+    shake, triggerImpact, applyScreenShake, tickPhotoMode, isPhotoMode,
 } from './Camera.js';
+import { createExplosion, spawnLevelUpAura } from './Spawner.js';
 import {
-    createExplosion, spawnLevelUpAura, spawnEnemy, spawnBoss,
-} from './Spawner.js';
-import {
-    enemiesNeededForWave, isWaveCleared, buildBiomePool, pickRandomBiome,
+    isWaveCleared, buildBiomePool, pickRandomBiome,
     pickSeededBiome, isStoryBossWave, notifyWaveAdvance,
 } from './Wave.js';
 import { createRunStats } from './RunState.js';
@@ -61,7 +58,6 @@ import { createGameLoop } from './GameLoop.js';
 // #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
 const isElectron   = !!(window.Platform && window.Platform.isElectron);
 const fs           = window.Platform ? window.Platform.fs   : null;
-const path         = window.Platform ? window.Platform.path : null;
 const saveFilePath = window.Platform ? window.Platform.saveFilePath : null;
 
 if (isElectron) {
@@ -187,7 +183,7 @@ let coopZoom = 1.0;
 let p1RevivalMarker = null; // { x, y, progress, maxProgress }
 let p2RevivalMarker = null;
 let p2LevelUpPending = false;
-let p2LevelUpOptions = [];
+const p2LevelUpOptions = [];
 window.gameContext.saveData = { // #4 session 5
     fire: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
@@ -443,7 +439,7 @@ async function _maybeShowWhatsNew() {
         if (!sections.length) return;
 
         const lastSeen = gameConfig.lastSeenVersion;
-        let shown = [];
+        const shown = [];
         for (const s of sections) {
             const head = s.split('\n', 1)[0]; // e.g. "[Unreleased]" or "[1.2.0] - 2026-…"
             const verMatch = head.match(/\[([^\]]+)\]/);
@@ -2304,8 +2300,8 @@ let arena; // Arena Instance
 var gameRunning = false;
 var gamePaused = false;
 var isLevelingUp = false;
-var isShopping = false;
-var isStatsOpen = false;
+let isShopping = false;
+const isStatsOpen = false;
 
 let score = 0;
 var wave = 1; // Exposed for DLC — window getter/setter below keeps DLC writes in sync
@@ -2359,12 +2355,12 @@ window._weatherDrawHooks = {};
 window._weatherLogicHooks = {};
 
 // GLOBAL VARIABLES (Window Scope for DLC Access)
-var player;
+let player;
 var projectiles = [];
 var enemies = [];
 var particles = [];
 var floatingTexts = [];
-var meleeAttacks = [];
+let meleeAttacks = [];
 
 window.player = player;
 window.meleeAttacks = meleeAttacks;
@@ -2830,7 +2826,7 @@ function getWeeklySeed() {
 function getWeeklyMutators() {
     const seed = getWeeklySeed();
     const random = (seed) => {
-        let x = Math.sin(seed++) * 10000;
+        const x = Math.sin(seed++) * 10000;
         return x - Math.floor(x);
     };
 
@@ -3001,7 +2997,7 @@ function applyDamage(target, dmg, opts = {}) {
     if (!Number.isFinite(dmg) || dmg <= 0) return 0;
 
     const reduction = opts.noReduction ? 0 : (Number(target.damageReduction) || 0);
-    let finalDmg = dmg * (1 - reduction);
+    const finalDmg = dmg * (1 - reduction);
 
     // Shield hook (Hand of Death etc.) — returns true to fully block.
     if (typeof target.customOnDamage === 'function') {
@@ -3836,7 +3832,7 @@ function startObjective() {
 
 function shuffleHero(targetHeroType = null) {
     // 1. Get available heroes
-    let availableHeroes = ['fire', 'water', 'ice', 'plant', 'metal'];
+    const availableHeroes = ['fire', 'water', 'ice', 'plant', 'metal'];
 
     // Check DLC for heroes
     if (window.dlcManager) {
@@ -4479,7 +4475,7 @@ function startGame(mode = 'NORMAL') {
             showNotification(`2P VERSUS: ${heroType.toUpperCase()} VS ${p2Hero}`);
         } else {
             // CPU Opponent
-            let oppHero = window.selectedOpponent || 'random';
+            const oppHero = window.selectedOpponent || 'random';
 
             console.log("Spawning Versus AI:", oppHero);
             const p2 = new Player(oppHero, true); // true = isCPU
@@ -6473,7 +6469,7 @@ function masterFrame(deltaTime, timestamp) {
 
             // Draw World
             // Background follows Biome Type
-            let themeType = currentBiomeType;
+            const themeType = currentBiomeType;
             if (arena) arena.biomeType = themeType;
 
             arena.draw(ctx, getHeroTheme(themeType));
@@ -7559,7 +7555,7 @@ function masterFrame(deltaTime, timestamp) {
                                     p2.isDead = true;
                                     createExplosion(p2.x, p2.y, '#fff');
                                 } else {
-                                    let idx = window.additionalPlayers.indexOf(p2);
+                                    const idx = window.additionalPlayers.indexOf(p2);
                                     if (idx > -1) window.additionalPlayers.splice(idx, 1);
                                     createExplosion(p2.x, p2.y, '#fff');
                                     showNotification("OPPONENT KO!");
@@ -7665,7 +7661,7 @@ function masterFrame(deltaTime, timestamp) {
                         const pid = p2.id || 'P2';
                         if (att.hitList.includes(pid)) return;
                         if (Math.hypot(p2.x - att.x, p2.y - att.y) < att.radius + p2.radius) {
-                            let angleTo = Math.atan2(p2.y - att.y, p2.x - att.x);
+                            const angleTo = Math.atan2(p2.y - att.y, p2.x - att.x);
                             let diff = angleTo - att.angle;
                             while (diff < -Math.PI) diff += Math.PI * 2;
                             while (diff > Math.PI) diff -= Math.PI * 2;
@@ -7681,7 +7677,7 @@ function masterFrame(deltaTime, timestamp) {
                                             p2.isDead = true;
                                             createExplosion(p2.x, p2.y, '#fff');
                                         } else {
-                                            let idx = window.additionalPlayers.indexOf(p2);
+                                            const idx = window.additionalPlayers.indexOf(p2);
                                             if (idx > -1) window.additionalPlayers.splice(idx, 1);
                                             createExplosion(p2.x, p2.y, '#fff');
                                             showNotification("OPPONENT KO!");
@@ -7710,7 +7706,7 @@ function masterFrame(deltaTime, timestamp) {
                 if (isVersusMode && isCoopMode && player2 && !player2.isDead && att.owner === player) {
                     const pid = 'PLAYER_2';
                     if (!att.hitList.includes(pid) && Math.hypot(player2.x - att.x, player2.y - att.y) < att.radius + player2.radius) {
-                        let angleTo = Math.atan2(player2.y - att.y, player2.x - att.x);
+                        const angleTo = Math.atan2(player2.y - att.y, player2.x - att.x);
                         let diff = angleTo - att.angle;
                         while (diff < -Math.PI) diff += Math.PI * 2;
                         while (diff > Math.PI) diff -= Math.PI * 2;
@@ -7734,7 +7730,7 @@ function masterFrame(deltaTime, timestamp) {
                 // PvP Collision: P2 (AI or 2P-Versus) vs P1
                 if (att.owner && att.owner !== player && !att.hitList.includes('PLAYER')) {
                     if (Math.hypot(player.x - att.x, player.y - att.y) < att.radius + player.radius) {
-                        let angleTo = Math.atan2(player.y - att.y, player.x - att.x);
+                        const angleTo = Math.atan2(player.y - att.y, player.x - att.x);
                         let diff = angleTo - att.angle;
                         while (diff < -Math.PI) diff += Math.PI * 2;
                         while (diff > Math.PI) diff -= Math.PI * 2;
@@ -8817,6 +8813,13 @@ window.continueRun         = continueRun;
 window.checkNewGame        = checkNewGame;
 window.confirmNewGame      = confirmNewGame;
 window.closeConfirmDialog  = closeConfirmDialog;
+// Functions called from cross-file scripts (Altar.js, ChaosMode.js, UI/*) and
+// from inline HTML onclick handlers. These look unused to ESLint because the
+// references are out-of-file or in string attributes, but they need to live
+// on window for the legacy script-tag load order.
+window.openAltar           = openAltar;
+window.shuffleHero         = shuffleHero;
+window.chooseUpgrade       = chooseUpgrade;
 window.quitGame            = quitGame;
 window.exitToDesktop       = exitToDesktop;
 window.closeGame           = closeGame;

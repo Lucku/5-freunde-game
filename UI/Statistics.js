@@ -24,7 +24,7 @@ class StatisticsUI {
             <tbody>`;
 
         // 1. Best Run Stats
-        for (let key in labels) {
+        for (const key in labels) {
             let val = window.gameContext.saveData.stats[key] || 0;
             if (key === 'timeSurvived') {
                 val = `${Math.floor(val / 60)}:${(val % 60).toString().padStart(2, '0')}`;
@@ -86,7 +86,7 @@ class StatisticsUI {
         if (heroKeys.length > 0) {
             // Find Most Played
             let hasRuns = false;
-            for (let h of heroKeys) {
+            for (const h of heroKeys) {
                 const count = runs[h] || 0;
                 if (count > maxVal) {
                     maxVal = count;
@@ -100,7 +100,7 @@ class StatisticsUI {
             const playedHeroes = heroKeys.filter(h => allStats[h].unlocked && (runs[h] || 0) > 0);
 
             if (playedHeroes.length > 0) {
-                for (let h of playedHeroes) {
+                for (const h of playedHeroes) {
                     const count = runs[h] || 0;
                     if (count < minVal) {
                         minVal = count;

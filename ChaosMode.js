@@ -46,14 +46,14 @@ function spawnChaosCompanion(type) {
 
 
 function getAvailableChaosBosses() {
-    let bosses = [
+    const bosses = [
         { id: 'MAKUTA', name: 'Makuta', reward: 'True Golden Mask' },
         { id: 'GREEN_GOBLIN', name: 'Green Goblin', reward: '3x Chaos Reward' },
     ];
 
     // Check DLC
     if (window.dlcManager) {
-        let dlcs = window.dlcManager.getDLCList();
+        const dlcs = window.dlcManager.getDLCList();
         if (dlcs.some(d => d.id === 'rise_of_the_rock' && d.active)) {
             bosses.push({ id: 'DARK_GOLEM', name: 'Dark Golem', reward: '3x Chaos Reward' });
         }
@@ -77,12 +77,12 @@ function openChaosGamble() {
         window.dlcManager.getDLCList().forEach(d => { if (d.active && d.hero) types.push(d.hero); });
     }
 
-    let available = types.filter(t => t !== player.type && !state.lostHeroes.includes(t));
+    const available = types.filter(t => t !== player.type && !state.lostHeroes.includes(t));
 
     // Pick 2 random unique
-    let picks = [];
+    const picks = [];
     while (picks.length < 2 && available.length > 0) {
-        let r = Math.floor(Math.random() * available.length);
+        const r = Math.floor(Math.random() * available.length);
         picks.push(available[r]);
         available.splice(r, 1);
     }
@@ -96,7 +96,7 @@ function openChaosGamble() {
         },
         {
             id: 'HP', name: '-10% Max HP', apply: (p) => {
-                let oldMax = p.maxHp;
+                const oldMax = p.maxHp;
                 p.maxHp = Math.floor(p.maxHp * 0.9);
                 p.hp = Math.floor(p.hp * (p.maxHp / oldMax));
             }
@@ -105,17 +105,17 @@ function openChaosGamble() {
         { id: 'SPEED', name: '-10% Speed', apply: (p) => { p.speedMultiplier = (p.speedMultiplier ?? 1) - 0.1; } },
         { id: 'DMG', name: '-10% Damage', apply: (p) => { p.damageMultiplier = (p.damageMultiplier ?? 1) * 0.9; } }
     ];
-    let penalty = penalties[Math.floor(Math.random() * penalties.length)];
+    const penalty = penalties[Math.floor(Math.random() * penalties.length)];
 
-    let options = [
+    const options = [
         { type: 'HERO', val: picks[0], label: `Switch to ${picks[0].toUpperCase()}`, color: BASE_HERO_STATS[picks[0]]?.color || '#fff' },
         { type: 'HERO', val: picks[1], label: `Switch to ${picks[1].toUpperCase()}`, color: BASE_HERO_STATS[picks[1]]?.color || '#fff' }
     ];
 
     // Feature 1: The Nemesis Wager (20% Chance)
     if (Math.random() < 0.20) {
-        let bosses = getAvailableChaosBosses();
-        let boss = bosses[Math.floor(Math.random() * bosses.length)];
+        const bosses = getAvailableChaosBosses();
+        const boss = bosses[Math.floor(Math.random() * bosses.length)];
         options.push({
             type: 'NEMESIS',
             val: boss,
@@ -215,7 +215,7 @@ function updateChaosGambleUI() {
 }
 
 function confirmChaosGamble(idx) {
-    let choice = state.chaosShuffleOptions[idx];
+    const choice = state.chaosShuffleOptions[idx];
     document.getElementById('chaos-selection-screen').style.display = 'none';
     gamePaused = false;
     setUIState('GAME'); // Reset UI State
@@ -228,10 +228,10 @@ function confirmChaosGamble(idx) {
         // Lose Affection for ignored Heroes
         state.chaosShuffleOptions.forEach(opt => {
             if (opt.type === 'HERO' && opt.val !== choice.val) {
-                let t = opt.val;
+                const t = opt.val;
                 if (state.heroAffection[t] !== undefined) {
-                    let oldVal = state.heroAffection[t];
-                    let newVal = Math.max(0, state.heroAffection[t] - 10);
+                    const oldVal = state.heroAffection[t];
+                    const newVal = Math.max(0, state.heroAffection[t] - 10);
                     state.heroAffection[t] = newVal;
 
                     // Apply Penalties
@@ -270,7 +270,7 @@ function manageAffection(dt) {
     if (!player || player.hp <= 0) return;
 
     // 1. Full Affection Companions (Permanent)
-    for (let type in state.heroAffection) {
+    for (const type in state.heroAffection) {
         if (type === player.type || state.lostHeroes.includes(type)) continue;
 
         if (state.heroAffection[type] >= 100) {
@@ -285,13 +285,13 @@ function manageAffection(dt) {
 
     // 2. Emergency Backup (>80% Affection, <20% HP)
     if (player.hp < player.maxHp * 0.2) {
-        for (let type in state.heroAffection) {
+        for (const type in state.heroAffection) {
             if (type === player.type || state.lostHeroes.includes(type)) continue;
 
             if (typeof companions !== 'undefined' && companions.find(c => c.type === type)) continue;
 
             if (state.heroAffection[type] > 80) {
-                let lastTime = state.affectionCooldowns[type] || 0;
+                const lastTime = state.affectionCooldowns[type] || 0;
                 if (Date.now() - lastTime > 60000) {
                     spawnChaosCompanion(type);
                     state.activeBackups.push({ type: type, expiry: Date.now() + 30000 });
@@ -305,11 +305,11 @@ function manageAffection(dt) {
 
     // 3. Expiry Check for Backups
     for (let i = state.activeBackups.length - 1; i >= 0; i--) {
-        let b = state.activeBackups[i];
+        const b = state.activeBackups[i];
         if (Date.now() > b.expiry) {
             if (state.heroAffection[b.type] < 100) {
                 if (typeof companions !== 'undefined') {
-                    let idx = companions.findIndex(c => c.type === b.type);
+                    const idx = companions.findIndex(c => c.type === b.type);
                     if (idx !== -1) {
                         companions.splice(idx, 1);
                         if (typeof showNotification !== 'undefined') showNotification(`${b.type.toUpperCase()} DEPARTS.`);
@@ -326,8 +326,8 @@ function generateChaosObjective() {
 
     // Feature 2: Chaos Bounty Hunter (Streak Check)
     if (state.chaosObjectiveStreak >= 3 && Math.random() < 0.3) {
-        let bosses = getAvailableChaosBosses();
-        let boss = bosses[Math.floor(Math.random() * bosses.length)];
+        const bosses = getAvailableChaosBosses();
+        const boss = bosses[Math.floor(Math.random() * bosses.length)];
 
         state.nextWaveIsNemesis = boss.id;
         showNotification("THE CHAOS ATTRACTS ATTENTION...");
@@ -342,7 +342,7 @@ function generateChaosObjective() {
             reward: { name: 'Chaos Artifact', icon: '🏆', val: 1, id: 'ARTIFACT' }
         };
 
-        let hud = document.getElementById('chaos-challenge-hud');
+        const hud = document.getElementById('chaos-challenge-hud');
         if (hud) {
             hud.style.display = 'block';
             hud.style.color = '#e74c3c';
@@ -352,12 +352,12 @@ function generateChaosObjective() {
     }
 
     // Pick random objective
-    let pool = CHAOS_OBJECTIVES;
-    let template = pool[Math.floor(Math.random() * pool.length)];
+    const pool = CHAOS_OBJECTIVES;
+    const template = pool[Math.floor(Math.random() * pool.length)];
 
     // Pick random reward
-    let rewardPool = CHAOS_REWARDS;
-    let reward = rewardPool[Math.floor(Math.random() * rewardPool.length)];
+    const rewardPool = CHAOS_REWARDS;
+    const reward = rewardPool[Math.floor(Math.random() * rewardPool.length)];
 
     state.currentChaosObjective = {
         ...template,
@@ -369,7 +369,7 @@ function generateChaosObjective() {
     };
 
     // UI Update
-    let hud = document.getElementById('chaos-challenge-hud');
+    const hud = document.getElementById('chaos-challenge-hud');
     if (hud) {
         hud.style.display = 'block';
         hud.style.color = '#ff5e5e';
@@ -383,7 +383,7 @@ function updateChaosObjective(dt) {
     // Run Affection System Logic (Per Frame)
     if (dt > 0) manageAffection(dt);
 
-    let hud = document.getElementById('chaos-challenge-hud');
+    const hud = document.getElementById('chaos-challenge-hud');
     if (!hud) return;
 
     // Force Display Block if Chaos Mode is Active
@@ -398,7 +398,7 @@ function updateChaosObjective(dt) {
             status += `<br><span style="color:cyan; font-size:10px;">BACKUP ACTIVE: ${state.activeBackups.map(b => b.type.toUpperCase()).join(', ')}</span>`;
         } else {
             // Show Full Affection Companions status
-            let fullLove = Object.keys(state.heroAffection).filter(k => state.heroAffection[k] >= 100 && k !== player.type && !state.lostHeroes.includes(k));
+            const fullLove = Object.keys(state.heroAffection).filter(k => state.heroAffection[k] >= 100 && k !== player.type && !state.lostHeroes.includes(k));
             if (fullLove.length > 0) {
                 status += `<br><span style="color:#2ecc71; font-size:10px;">COMPANIONS: ${fullLove.map(t => t.toUpperCase()).join(', ')}</span>`;
             }
@@ -414,18 +414,18 @@ function updateChaosObjective(dt) {
         return;
     }
 
-    let obj = state.currentChaosObjective;
+    const obj = state.currentChaosObjective;
     // Ensure HUD is visible
     hud.style.display = 'block';
 
     // Render Content
-    let rewardHtml = `<span style="margin-left:8px; color:#f1c40f; border:1px solid #f1c40f; padding:2px 5px; border-radius:4px; font-size:12px;">${obj.reward.icon} ${obj.reward.name}</span>`;
+    const rewardHtml = `<span style="margin-left:8px; color:#f1c40f; border:1px solid #f1c40f; padding:2px 5px; border-radius:4px; font-size:12px;">${obj.reward.icon} ${obj.reward.name}</span>`;
 
     let statusText = "";
     // Time limit check
     if (obj.duration && typeof obj.duration === 'number') {
-        let elapsed = (Date.now() - obj.startTime) / 1000;
-        let remaining = obj.duration - elapsed;
+        const elapsed = (Date.now() - obj.startTime) / 1000;
+        const remaining = obj.duration - elapsed;
 
         if (remaining <= 0) {
             // Time up!
@@ -449,7 +449,7 @@ function updateChaosObjective(dt) {
             const isMoving = (keys['w'] || keys['a'] || keys['s'] || keys['d'] || player.moveInput.x !== 0 || player.moveInput.y !== 0);
             if (!isMoving) {
                 obj.progress += dt;
-                let pct = Math.min(100, (obj.progress / obj.target) * 100);
+                const pct = Math.min(100, (obj.progress / obj.target) * 100);
                 statusText = `${obj.text} (${pct.toFixed(0)}%)`;
                 if (obj.progress >= obj.target) { completeChaosObjective(true); return; }
             }
@@ -471,7 +471,7 @@ function updateChaosObjective(dt) {
 
 function checkChaosEvent(eventType, val = 1) {
     if (!state.currentChaosObjective || state.currentChaosObjective.completed || state.currentChaosObjective.failed) return;
-    let obj = state.currentChaosObjective;
+    const obj = state.currentChaosObjective;
 
     if (eventType === 'BOSS_KILL') {
         if (obj.type === 'boss_kill' && val === obj.bossId) {
@@ -504,8 +504,8 @@ function checkChaosEvent(eventType, val = 1) {
 
 function completeChaosObjective(success) {
     state.currentChaosObjective.completed = true; // Stop checking
-    let hud = document.getElementById('chaos-challenge-hud');
-    let reward = state.currentChaosObjective.reward;
+    const hud = document.getElementById('chaos-challenge-hud');
+    const reward = state.currentChaosObjective.reward;
 
     if (success) {
         state.chaosObjectiveStreak++;

@@ -864,7 +864,7 @@ class AirHero {
 
         } else {
             // NORTH (SOOTHING BREEZE - Healing) or WEST (VORTEX)
-            let type = (dir === 'NORTH') ? 'HEALING' : 'VORTEX';
+            const type = (dir === 'NORTH') ? 'HEALING' : 'VORTEX';
 
             if (type === 'HEALING') {
                 // HEALING: SOOTHING BREEZE
@@ -1009,9 +1009,9 @@ class AirHero {
             }
         }
 
-        let angle = player.aimAngle;
-        let speed = player.stats.projectileSpeed * 2.0;
-        let dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier;
+        const angle = player.aimAngle;
+        const speed = player.stats.projectileSpeed * 2.0;
+        const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier;
 
         // --- COMPASS ATTACK LOGIC ---
         // Pushes to window.projectiles

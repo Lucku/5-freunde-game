@@ -20,7 +20,7 @@ const MenuBackground = (() => {
 
     let canvas = null, ctx = null, rafId = null;
     let W = 0, H = 0, t = 0;
-    let particles = [];
+    const particles = [];
 
     // ── Particle factory ─────────────────────────────────────────
     function makeParticle(randomY = false) {

@@ -7,7 +7,7 @@ const { makeRateLimiter } = require('../server/anticheat.js');
 describe('makeRateLimiter (token bucket)', () => {
     it('allows up to capacity bursts', () => {
         const buckets = new Map();
-        let t = 1000;
+        const t = 1000;
         const limit = makeRateLimiter({ capacity: 5, refillPerSec: 1, buckets, now: () => t });
         for (let i = 0; i < 5; i++) {
             expect(limit('ip1').allowed).toBe(true);
@@ -32,7 +32,7 @@ describe('makeRateLimiter (token bucket)', () => {
 
     it('reports retryAfterSec when exhausted', () => {
         const buckets = new Map();
-        let t = 0;
+        const t = 0;
         const limit = makeRateLimiter({ capacity: 1, refillPerSec: 0.5, buckets, now: () => t });
         expect(limit('ip').allowed).toBe(true);
         const denied = limit('ip');

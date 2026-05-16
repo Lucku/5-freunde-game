@@ -767,7 +767,7 @@ class Museum {
         if (x < 0 || x > this.width || y < 0 || y > this.height) return true;
 
         // Walls
-        for (let w of this.walls) {
+        for (const w of this.walls) {
             if (x > w.x && x < w.x + w.w && y > w.y && y < w.y + w.h) return true;
         }
         return false;
@@ -2308,7 +2308,7 @@ class MuseumEntity {
 
         // Walls
         if (!hitWall) {
-            for (let w of walls) {
+            for (const w of walls) {
                 if (nextX > w.x && nextX < w.x + w.w && nextY > w.y && nextY < w.y + w.h) {
                     hitWall = true;
                     break;

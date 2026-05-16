@@ -150,7 +150,7 @@ class CloudBiome {
 
     static generateBoltSegments() {
         // Simple vertical-ish jagged line
-        let points = [{ x: 0, y: -100 }];
+        const points = [{ x: 0, y: -100 }];
         let tx = 0, ty = -100;
         for (let i = 0; i < 5; i++) {
             tx += (Math.random() - 0.5) * 40;

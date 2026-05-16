@@ -36,7 +36,7 @@ class ShopUI {
         }
 
         if (typeof upgradesToRender !== 'undefined') {
-            for (let key in upgradesToRender) {
+            for (const key in upgradesToRender) {
                 const up = upgradesToRender[key];
                 // Use a hero-specific key prefix if the pool is custom, to avoid shared progress with global stats
                 // BUT user might want shared progress? "fleshed out skill tree that are specific".
@@ -127,8 +127,8 @@ class ShopUI {
                     div.style.background = isActive ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.1)';
                 }
 
-                let actionText = isUnlocked ? (isActive ? "ACTIVE (Click to Disable)" : "INACTIVE (Click to Enable)") : `Buy for ${effect.cost} Shards`;
-                let costColor = isUnlocked ? (isActive ? '#2ecc71' : '#e74c3c') : '#f1c40f';
+                const actionText = isUnlocked ? (isActive ? "ACTIVE (Click to Disable)" : "INACTIVE (Click to Enable)") : `Buy for ${effect.cost} Shards`;
+                const costColor = isUnlocked ? (isActive ? '#2ecc71' : '#e74c3c') : '#f1c40f';
 
                 div.innerHTML = `
                     <div style="font-size: 20px; font-weight: bold; color: #e74c3c;">${effect.name}</div>

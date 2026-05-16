@@ -294,11 +294,11 @@ class ChanceHero {
     static resolveBigSlots(player) {
         // Determine Outcome based on Luck but with high stakes
         // Logic similar to useSpecial but more extreme
-        let pBad = 0.30 - (player.luck * 0.002); // Higher chance of bad initially
-        let pMeh = 0.40 - (player.luck * 0.002);
-        let pGood = 0.15 + (player.luck * 0.002);
-        let pDiamond = 0.10 + (player.luck * 0.001);
-        let pJackpot = 0.05 + (player.luck * 0.001);
+        const pBad = 0.30 - (player.luck * 0.002); // Higher chance of bad initially
+        const pMeh = 0.40 - (player.luck * 0.002);
+        const pGood = 0.15 + (player.luck * 0.002);
+        const pDiamond = 0.10 + (player.luck * 0.001);
+        const pJackpot = 0.05 + (player.luck * 0.001);
 
         const roll = Math.random();
         let outcome = 'MEH';
@@ -631,11 +631,11 @@ class ChanceHero {
         // Luck 0: Standard
         // Luck 100: Bad 0%, Meh 30%, Good 40%, Diamond 20%, Jackpot 10%
 
-        let pBad = 0.20 - (player.luck * 0.002);
-        let pMeh = 0.50 - (player.luck * 0.002);
-        let pGood = 0.20 + (player.luck * 0.002);
-        let pDiamond = 0.09 + (player.luck * 0.001);
-        let pJackpot = 0.01 + (player.luck * 0.001);
+        const pBad = 0.20 - (player.luck * 0.002);
+        const pMeh = 0.50 - (player.luck * 0.002);
+        const pGood = 0.20 + (player.luck * 0.002);
+        const pDiamond = 0.09 + (player.luck * 0.001);
+        const pJackpot = 0.01 + (player.luck * 0.001);
 
         // Normalize if needed, but simple cumulative check is easier
         const roll = Math.random();
@@ -643,7 +643,7 @@ class ChanceHero {
         let outcome = 'MEH';
 
         // Cumulative Distribution
-        let acc = 0;
+        const acc = 0;
 
         // Check Jackpot first (High roll needed? No, usually low P)
         // Let's do thresholds:

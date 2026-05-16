@@ -686,8 +686,8 @@ app.post('/api/speedrun',
     (req, res) => {
         const { hero, timeSec, finalWave, splits, sessionToken } = req.body || {};
 
-        let tSec = timeSec | 0;
-        let fWave = finalWave | 0;
+        const tSec = timeSec | 0;
+        const fWave = finalWave | 0;
 
         const reason = speedrunPlausibilityReject(hero, tSec, fWave, splits);
         if (reason) {

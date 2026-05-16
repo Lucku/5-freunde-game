@@ -110,7 +110,7 @@ class RNGTurret {
         
         if (typeof enemyProjectiles === 'undefined') return;
 
-        let projectile = {
+        const projectile = {
             x: this.x,
             y: this.y,
             life: 200,

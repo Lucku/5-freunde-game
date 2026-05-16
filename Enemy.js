@@ -401,7 +401,7 @@ class Enemy {
             }
         }
 
-        let nextX = this.x + moveX; let nextY = this.y + moveY;
+        const nextX = this.x + moveX; const nextY = this.y + moveY;
         if (!arena.checkCollision(nextX, nextY, this.radius)) { this.x = nextX; this.y = nextY; }
         else {
             if (!arena.checkCollision(nextX, this.y, this.radius)) this.x = nextX;

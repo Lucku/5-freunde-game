@@ -109,7 +109,7 @@ const defaultConfig = {
     }
 };
 
-var gameConfig = structuredClone(defaultConfig); // #17
+const gameConfig = structuredClone(defaultConfig); // #17
 // #4 session 5 — GameContext owns gameConfig; `window.gameConfig` is a reverse
 // alias getter set up by the setter. Later mutations are in-place
 // (`Object.assign(gameConfig, …)` / `gameConfig.X = …`), so object identity

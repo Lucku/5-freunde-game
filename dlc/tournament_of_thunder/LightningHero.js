@@ -232,9 +232,9 @@ class LightningHero {
             let minDist = 400; // Search range
             const targets = enemies ?? [];
 
-            for (let e of targets) {
+            for (const e of targets) {
                 if (e.hp <= 0) continue;
-                let d = Math.hypot(e.x - player.x, e.y - player.y);
+                const d = Math.hypot(e.x - player.x, e.y - player.y);
                 if (d < minDist) { minDist = d; nearest = e; }
             }
 
@@ -252,7 +252,7 @@ class LightningHero {
         // NERFED: Reduced base damage and Super multiplier
         const dmgMult = isSuper ? 2.5 : 0.6; // Super is 4x stronger (was 4.0 / 0.8)
         const globalMult = player.damageMultiplier || 1;
-        let finalDmg = player.stats.rangeDmg * dmgMult * globalMult;
+        const finalDmg = player.stats.rangeDmg * dmgMult * globalMult;
 
         // SAFE INSTANTIATION: Check if class exists
         // We ensure the class is defined below BEFORE this method runs in typical usage,
@@ -588,7 +588,7 @@ class LightningProjectile {
             createExplosion(target.x, target.y, this.color, 8); // Sparks
         }
         if (typeof FloatingText !== 'undefined' && typeof floatingTexts !== 'undefined') {
-            let color = isCrit ? '#ff0000' : '#fff';
+            const color = isCrit ? '#ff0000' : '#fff';
             let txt = Math.floor(dmg);
             if (isCrit) txt += "!";
             floatingTexts.push(FloatingText.acquire(target.x, target.y - 20, txt, color, isCrit ? 20 : 14));
@@ -617,7 +617,7 @@ class LightningProjectile {
 
     chain(hitEnemy) {
         // Find next target
-        let nextTarget = this.findNextTarget(hitEnemy);
+        const nextTarget = this.findNextTarget(hitEnemy);
         if (nextTarget) {
             // Play Chain Sound
             if (typeof audioManager !== 'undefined') {
@@ -656,9 +656,9 @@ class LightningProjectile {
         let minDist = 350; // Chain Range
         const targets = this._world?.enemies ?? [];
 
-        for (let e of targets) {
+        for (const e of targets) {
             if (e === excludeEnemy || e.hp <= 0 || this.ignored.includes(e)) continue;
-            let d = Math.hypot(e.x - this.x, e.y - this.y);
+            const d = Math.hypot(e.x - this.x, e.y - this.y);
             if (d < minDist) {
                 minDist = d;
                 best = e;
@@ -692,7 +692,7 @@ class LightningProjectile {
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        for (let p of this.segments) ctx.lineTo(p.x, p.y);
+        for (const p of this.segments) ctx.lineTo(p.x, p.y);
         ctx.stroke();
 
         // Draw Outer Glow
@@ -700,7 +700,7 @@ class LightningProjectile {
         ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        for (let p of this.segments) ctx.lineTo(p.x, p.y);
+        for (const p of this.segments) ctx.lineTo(p.x, p.y);
         ctx.stroke();
 
         ctx.shadowBlur = 0;

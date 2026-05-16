@@ -81,7 +81,7 @@ class HolyMask {
         ctx.stroke();
 
         // --- Eyes (almond shape) ---
-        for (let side of [-1, 1]) {
+        for (const side of [-1, 1]) {
             const ex = side * 4.5;
             ctx.save();
             ctx.translate(ex, -2);
@@ -179,7 +179,7 @@ class HolyMask {
         ctx.shadowBlur = 0;
 
         // --- Eyes ---
-        for (let side of [-1, 1]) {
+        for (const side of [-1, 1]) {
             const ex = side * 5.5;
             ctx.save();
             ctx.translate(ex, -2.5);

@@ -368,12 +368,12 @@ class HallOfMirrorsBiome {
         ctx.globalCompositeOperation = 'lighter';
         const ab = 0.04 + 0.03 * Math.sin(t * 0.02);
         const edgeW = 80;
-        let lg1 = ctx.createLinearGradient(0, 0, edgeW, 0);
+        const lg1 = ctx.createLinearGradient(0, 0, edgeW, 0);
         lg1.addColorStop(0, `rgba(174, 214, 241, ${ab})`);
         lg1.addColorStop(1, 'rgba(174, 214, 241, 0)');
         ctx.fillStyle = lg1;
         ctx.fillRect(0, 0, edgeW, ah);
-        let lg2 = ctx.createLinearGradient(aw - edgeW, 0, aw, 0);
+        const lg2 = ctx.createLinearGradient(aw - edgeW, 0, aw, 0);
         lg2.addColorStop(0, 'rgba(220, 174, 241, 0)');
         lg2.addColorStop(1, `rgba(220, 174, 241, ${ab})`);
         ctx.fillStyle = lg2;

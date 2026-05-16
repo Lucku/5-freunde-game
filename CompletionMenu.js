@@ -81,7 +81,7 @@ class CompletionMenu {
             if (hero === 'earth') {
                 const stories = MEMORY_STORIES[hero];
                 const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
-                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                const unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
                 if (!Array.isArray(unlocked)) { // Legacy count support
                     for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
                 }
@@ -95,7 +95,7 @@ class CompletionMenu {
             if (hero === 'lightning') { // Tournament of Thunder DLC
                 const stories = MEMORY_STORIES[hero];
                 const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
-                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                const unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
                 if (!Array.isArray(unlocked)) {
                     for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
                 }
@@ -109,7 +109,7 @@ class CompletionMenu {
             if (hero === 'air') { // The Wind Waker DLC
                 const stories = MEMORY_STORIES[hero];
                 const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
-                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                const unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
                 if (!Array.isArray(unlocked)) {
                     for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
                 }
@@ -125,7 +125,7 @@ class CompletionMenu {
                 // Champions of Chaos shares one DLC entry but separate memory tracks or just grouped?
                 // Grouping them under "Champions of Chaos"
                 const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
-                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                const unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
                 if (!Array.isArray(unlocked)) {
                     for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
                 }
@@ -139,7 +139,7 @@ class CompletionMenu {
             if (hero === 'spirit' || hero === 'chance') { // Faith of Fortune DLC
                 const stories = MEMORY_STORIES[hero];
                 const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
-                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                const unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
                 if (!Array.isArray(unlocked)) {
                     for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
                 }
@@ -153,7 +153,7 @@ class CompletionMenu {
             if (hero === 'sound' || hero === 'poison') { // Symphony of Sickness DLC
                 const stories = MEMORY_STORIES[hero];
                 const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
-                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                const unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
                 if (!Array.isArray(unlocked)) {
                     for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
                 }
@@ -166,7 +166,7 @@ class CompletionMenu {
             if (hero === 'time' || hero === 'love') { // Echos of Eternity DLC
                 const stories = MEMORY_STORIES[hero];
                 const unlocked = saveData.memories && saveData.memories[hero] ? saveData.memories[hero] : [];
-                let unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
+                const unlockedIndices = Array.isArray(unlocked) ? unlocked : [];
                 if (!Array.isArray(unlocked)) {
                     for (let i = 0; i < unlocked; i++) unlockedIndices.push(i);
                 }

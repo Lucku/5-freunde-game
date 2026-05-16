@@ -240,7 +240,7 @@ class Arena {
         const trapCount = 5 + Math.floor(Math.random() * 5);
 
         // Trap Progression System
-        let availableTraps = [];
+        const availableTraps = [];
         if (currentWave >= 3)  availableTraps.push('SLOW');
         if (currentWave >= 5)  availableTraps.push('CONVEYOR');
         if (currentWave >= 10) availableTraps.push('SPIKE');
@@ -549,12 +549,12 @@ class Arena {
         if (x - r < 0 || x + r > this.width || y - r < 0 || y + r > this.height) return true;
 
         // Obstacles
-        for (let obs of this.obstacles) {
+        for (const obs of this.obstacles) {
             if (obs.solid === false) continue; // Non-solid pickups (e.g. PoisonFlask) don't block movement
-            let closestX = Math.max(obs.x, Math.min(x, obs.x + obs.w));
-            let closestY = Math.max(obs.y, Math.min(y, obs.y + obs.h));
-            let dx = x - closestX;
-            let dy = y - closestY;
+            const closestX = Math.max(obs.x, Math.min(x, obs.x + obs.w));
+            const closestY = Math.max(obs.y, Math.min(y, obs.y + obs.h));
+            const dx = x - closestX;
+            const dy = y - closestY;
             if ((dx * dx + dy * dy) < (r * r)) return true;
         }
         return false;

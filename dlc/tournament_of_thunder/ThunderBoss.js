@@ -167,8 +167,8 @@ class ThunderBoss {
         this.state = 'CASTING';
 
         // Massive Bullet Hell
-        let volleys = 5;
-        let volleyDelay = 200; // ms
+        const volleys = 5;
+        const volleyDelay = 200; // ms
 
         for (let v = 0; v < volleys; v++) {
             setTimeout(() => {
