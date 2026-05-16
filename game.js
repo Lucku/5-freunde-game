@@ -2358,6 +2358,8 @@ Object.defineProperties(window, {
     isPlayerDying:       { get: () => isPlayerDying,       set: v => { isPlayerDying       = v; }, configurable: true, enumerable: true },
     isLevelingUp:        { get: () => isLevelingUp,        set: v => { isLevelingUp        = v; }, configurable: true, enumerable: true },
     isShopping:          { get: () => isShopping,          set: v => { isShopping          = v; }, configurable: true, enumerable: true },
+    gamePaused:          { get: () => gamePaused,          set: v => { gamePaused          = v; }, configurable: true, enumerable: true },
+    isTutorialMode:      { get: () => isTutorialMode,      set: v => { isTutorialMode      = v; }, configurable: true, enumerable: true },
     // #194 follow-up — these are re-assigned at multiple sites in game.js
     // (`activeMutators = getDailyMutators()`, `weatherParticles = []`,
     // `currentWeather = pickWeather()`, etc.) so a one-time write would go
