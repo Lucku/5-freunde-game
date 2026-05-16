@@ -6380,8 +6380,7 @@ const _hint = _gpActive
 ctx.fillText(_hint, _bcx, _btY + _btH / 2 + 18);
 ctx.restore();
 
-return; // Prevent normal game render
-    return true;
+return true; // Prevent normal game render
 }
 
 function _runGameplayFrame(deltaTime) {
