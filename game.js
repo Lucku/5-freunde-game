@@ -4413,7 +4413,23 @@ function checkAchievements() {
 
 // --- Main Loop ---
 
-function startGame(mode = 'NORMAL') {
+async function startGame(mode = 'NORMAL') {
+    // #194 follow-up — block on DLC load before any arena.generate runs.
+    // The hover-prefetch in UI/MainMenu.js fires `ensureDLCLoaded()` as a
+    // fire-and-forget promise, but if the player clicks Start before the
+    // chunk finishes downloading, `window.BIOME_LOGIC[hero]` is undefined
+    // when Arena.generate consults the registry — DLC biomes silently fall
+    // through to Arena's default obstacle layout (the "fallback obstacles"
+    // bug reported for Thorn / Gravity). Awaiting the shared promise here
+    // costs nothing on warm hits and bounds first-launch UX to the actual
+    // download time.
+    const hero = window.selectedHeroType;
+    const owner = hero && window.dlcManager?.getHeroOwnerDLC?.(hero);
+    if (owner) {
+        try { await window.dlcManager.ensureDLCLoaded(owner); }
+        catch (e) { console.warn('[startGame] DLC ensure failed for', owner, e); }
+    }
+
     // Initialize Arena (3000x3000)
     arena = new Arena(3000, 3000);
     window.arena = arena; // Expose to window for DLCs
