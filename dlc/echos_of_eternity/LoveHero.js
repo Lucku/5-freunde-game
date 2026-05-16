@@ -95,10 +95,16 @@ class LoveHero {
         if (typeof enemies !== 'undefined') {
             enemies.forEach(e => {
                 if (e._loveCharmed > 0) {
-                    // cl1 Heartbreak: burst fire damage when charm expires
+                    // cl1 Heartbreak: burst fire damage when charm expires.
+                    // #177: route through applyDamage for isInvincible + shield
+                    // hook coverage. Burst damage so show the number.
                     if (player._mutCl1 && e._loveCharmed === 1) {
                         const burnDmg = player.stats.rangeDmg * player.damageMultiplier * 1.5;
-                        e.hp -= burnDmg;
+                        if (typeof window !== 'undefined' && window.applyDamage) {
+                            window.applyDamage(e, burnDmg, { label: 'Heartbreak', color: '#ff4500', sfx: null });
+                        } else {
+                            e.hp -= burnDmg;
+                        }
                         if (typeof createExplosion === 'function') createExplosion(e.x, e.y, '#ff4500', 10);
                     }
                     e._loveCharmed--;

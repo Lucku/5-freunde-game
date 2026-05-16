@@ -325,12 +325,17 @@ class AirHero {
         // Any projectile fired doesn't leave immediately; it orbits for 1s then launches
         // (Handled partially in shoot, but let's override behavior here or add passive damage aura)
 
-        // Passive Storm Damage to anything inside ring
+        // Passive Storm Damage to anything inside ring. #177: route through
+        // applyDamage; noFloatText since this ticks every 10 frames and the
+        // hurricane visual already conveys the AOE.
         if (player.hurricaneActive && frame % 10 === 0 && enemies) {
+            const ad = (typeof window !== 'undefined' && window.applyDamage) ? window.applyDamage : null;
             enemies.forEach(e => {
                 if (Math.hypot(e.x - player.x, e.y - player.y) < 220) {
                     const hurricaneDmg = (player.transformActive && player.currentForm === 'ZEPHYR') ? 15 : 2;
-                    e.hp -= hurricaneDmg * player.damageMultiplier;
+                    const dmg = hurricaneDmg * player.damageMultiplier;
+                    if (ad) ad(e, dmg, { label: 'Hurricane', color: '#80d0ff', noFloatText: true, sfx: null });
+                    else e.hp -= dmg;
                     // Suck them into the "Wall" of the storm (radius 200)
                     const angle = Math.atan2(e.y - player.y, e.x - player.x);
                     // If outside 200, pull in. If inside 200, push out.
@@ -528,13 +533,17 @@ class AirHero {
 
                     // Logic: Suck Enemies IN
                     if (enemies) {
+                        // #177: ambient tempest aura DOT via applyDamage.
+                        const ad = (typeof window !== 'undefined' && window.applyDamage) ? window.applyDamage : null;
                         enemies.forEach(e => {
                             const d = Math.hypot(e.x - eff.x, e.y - eff.y);
                             if (d < 150) {
                                 const a = Math.atan2(eff.y - e.y, eff.x - e.x);
                                 e.x += Math.cos(a) * 3;
                                 e.y += Math.sin(a) * 3;
-                                e.hp -= 0.5 * player.damageMultiplier;
+                                const dmg = 0.5 * player.damageMultiplier;
+                                if (ad) ad(e, dmg, { label: 'Tempest Aura', color: '#a0e0ff', noFloatText: true, sfx: null });
+                                else e.hp -= dmg;
                             }
                         });
                     }

@@ -133,10 +133,14 @@ class LightningHero {
                 floatingTexts.push(FloatingText.acquire(tx, ty - 20, Math.floor(damage), "#00ffff", 24));
             }
         } else {
-            // AOE Check (if ground strike hit anyone)
+            // AOE Check (if ground strike hit anyone). #177: route secondary
+            // hits through applyDamage; noFloatText keeps the ground-strike
+            // visuals readable (explosion + bolt convey the hit).
+            const ad = (typeof window !== 'undefined' && window.applyDamage) ? window.applyDamage : null;
             targets.forEach(e => {
                 if (e.hp > 0 && Math.hypot(e.x - tx, e.y - ty) < blastRadius) {
-                    e.hp -= damage;
+                    if (ad) ad(e, damage, { label: 'Lightning AOE', color: '#00ffff', noFloatText: true, sfx: null });
+                    else e.hp -= damage;
                 }
             });
             if (typeof createExplosion !== 'undefined') createExplosion(tx, ty, '#fff', 8);

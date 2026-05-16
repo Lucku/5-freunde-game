@@ -231,8 +231,14 @@ class TimeHero {
                 if (dl.timer <= 0) {
                     const lightDmg = player.stats.rangeDmg * player.damageMultiplier * 0.65;
                     if (enemies) {
+                        // #177: AOE secondary hits through applyDamage. noFloatText
+                        // keeps the cinematic clean (explosion conveys the impact).
+                        const ad = (typeof window !== 'undefined' && window.applyDamage) ? window.applyDamage : null;
                         enemies.forEach(e => {
-                            if (Math.hypot(e.x - dl.x, e.y - dl.y) < 130) e.hp -= lightDmg;
+                            if (Math.hypot(e.x - dl.x, e.y - dl.y) < 130) {
+                                if (ad) ad(e, lightDmg, { label: 'Delayed Lightning', color: '#ffe066', noFloatText: true, sfx: null });
+                                else e.hp -= lightDmg;
+                            }
                         });
                     }
                     createExplosion?.(dl.x, dl.y, '#ffe066', 18);
@@ -258,13 +264,17 @@ class TimeHero {
                 if (gw.timer <= 0) player._gravWells.splice(i, 1);
             }
         }
-        // ct3 Burning Moment: slowed enemies take fire DOT every 45 frames
+        // ct3 Burning Moment: slowed enemies take fire DOT every 45 frames.
+        // #177: route through applyDamage; noFloatText avoids spamming numbers
+        // on every tick while the ember particles convey the damage.
         if (player._mutCt3 && typeof enemies !== 'undefined') {
             if ((player._ct3Tick = ((player._ct3Tick || 0) + 1)) % 45 === 0) {
                 const burnDmg = player.stats.rangeDmg * player.damageMultiplier * 0.2;
+                const ad = (typeof window !== 'undefined' && window.applyDamage) ? window.applyDamage : null;
                 enemies.forEach(e => {
                     if (e._timeSlowed) {
-                        e.hp -= burnDmg;
+                        if (ad) ad(e, burnDmg, { label: 'Burning Moment', color: '#ff4500', noFloatText: true, sfx: null });
+                        else e.hp -= burnDmg;
                         if (typeof particles !== 'undefined' && typeof Particle !== 'undefined' && Math.random() < 0.5) {
                             particles.push(Particle.acquire(e.x, e.y - e.radius, '#ff4500', { x: (Math.random() - 0.5) * 1.5, y: -2 }));
                         }

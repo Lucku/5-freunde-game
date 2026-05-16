@@ -8005,10 +8005,11 @@ function masterFrame(deltaTime, timestamp) {
                         enemy.hp = 0; // Suicide
                     }
 
-                    // Thornmail (Altar p3)
+                    // Thornmail (Altar p3) — #177: route reflect damage through
+                    // applyDamage so it respects isInvincible + customOnDamage on
+                    // the enemy. Keeps the original "REFLECT" pop + explosion.
                     if (player.thornmailTimer > 0) {
-                        const reflectDmg = 20;
-                        enemy.hp -= reflectDmg;
+                        applyDamage(enemy, 20, { label: 'Thornmail', color: '#2ecc71', noFloatText: true, sfx: null });
                         createExplosion(player.x, player.y, '#2ecc71');
                         floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "REFLECT", "#2ecc71", 16));
                     }

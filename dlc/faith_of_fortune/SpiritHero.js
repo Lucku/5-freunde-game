@@ -35,13 +35,16 @@ class SpiritHero {
             }
 
             if (hasBell && typeof enemies !== 'undefined') {
+                // #177: Spirit Bell reflect — route through applyDamage so the
+                // AOE respects isInvincible + customOnDamage. noFloatText since
+                // the sparse explosion particles already convey the reflect.
                 const reflectDmg = amount * 0.1;
-                // Find nearest attacker? Or just global?
-                // Hard to find attacker. Let's reflect to ALL nearby.
+                const ad = (typeof window !== 'undefined' && window.applyDamage) ? window.applyDamage : null;
                 enemies.forEach(e => {
                     const dist = Math.hypot(e.x - player.x, e.y - player.y);
                     if (dist < 300) {
-                        e.hp -= reflectDmg;
+                        if (ad) ad(e, reflectDmg, { label: 'Spirit Bell', color: '#95a5a6', noFloatText: true, sfx: null });
+                        else e.hp -= reflectDmg;
                         if (Math.random() < 0.1) createExplosion(e.x, e.y, "#95a5a6", 5);
                     }
                 });
