@@ -641,3 +641,6 @@ class WindBosses {
         }
     }
 }
+
+// #194 — DLC class must be reachable by bare-name `typeof WindBosses` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
+if (typeof window !== 'undefined') window.WindBosses = WindBosses;

@@ -426,3 +426,6 @@ class MindscapeBiome {
 // Register
 if (typeof BIOME_LOGIC === 'undefined') window.BIOME_LOGIC = {};
 window.BIOME_LOGIC['psycho'] = new MindscapeBiome();
+
+// #194 — DLC class must be reachable by bare-name `typeof MindscapeBiome` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
+if (typeof window !== 'undefined') window.MindscapeBiome = MindscapeBiome;

@@ -442,3 +442,6 @@ class SmogQuarterBiome {
 // Register
 if (typeof BIOME_LOGIC === 'undefined') window.BIOME_LOGIC = {};
 window.BIOME_LOGIC['smoke'] = new SmogQuarterBiome();
+
+// #194 — DLC class must be reachable by bare-name `typeof SmogQuarterBiome` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
+if (typeof window !== 'undefined') window.SmogQuarterBiome = SmogQuarterBiome;

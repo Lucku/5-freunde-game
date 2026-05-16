@@ -630,3 +630,6 @@ window.HERO_LOGIC['spirit'].drawUI = function (ctx) {
     ctx.strokeStyle = "#aaa";
     ctx.strokeRect(x, y, w, h);
 };
+
+// #194 — DLC class must be reachable by bare-name `typeof SpiritHero` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
+if (typeof window !== 'undefined') window.SpiritHero = SpiritHero;
