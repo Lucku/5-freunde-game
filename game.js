@@ -5934,6 +5934,141 @@ function _renderBigGambleScene() {
     return false;
 }
 
+// #173 phase 2 — boss intro cinematic. Pure render + timer-decrement; reads
+// `bossIntroTimer/Name/Skippable/CamStart{X,Y}/CamTarget{X,Y}` from module
+// scope, writes back the same. Self-contained — returns `true` while active.
+function _renderBossIntroCinematic() {
+    if (bossIntroTimer <= 0) return false;
+    const _ITOTAL = GAMEPLAY.BOSS_INTRO_FRAMES;
+    if (bossIntroTimer === _ITOTAL) {
+        bossIntroCamStartX = arena.camera.x;
+        bossIntroCamStartY = arena.camera.y;
+        const _ib = enemies.find(e => e instanceof Boss);
+        if (_ib) {
+            bossIntroCamTargetX = Math.max(0, Math.min(_ib.x - canvas.width / 2, arena.width - canvas.width));
+            bossIntroCamTargetY = Math.max(0, Math.min(_ib.y - canvas.height / 2, arena.height - canvas.height));
+        } else {
+            bossIntroCamTargetX = bossIntroCamStartX;
+            bossIntroCamTargetY = bossIntroCamStartY;
+        }
+    }
+    bossIntroTimer--;
+    const _ip = 1 - bossIntroTimer / _ITOTAL;
+
+    const _iEaseOut = t => 1 - Math.pow(1 - Math.min(1, t), 3);
+    const _iEaseIn  = t => Math.min(1, t) * Math.min(1, t);
+
+    // Camera pan toward boss over first 55%
+    const _iCamT = _iEaseOut(Math.min(1, _ip / 0.55));
+    const _iCamX = bossIntroCamStartX + (bossIntroCamTargetX - bossIntroCamStartX) * _iCamT;
+    const _iCamY = bossIntroCamStartY + (bossIntroCamTargetY - bossIntroCamStartY) * _iCamT;
+
+    // Zoom 1.0→1.45 during pan, hold, then back to 1.0
+    let _iZoom;
+    if (_ip < 0.55) {
+        _iZoom = 1.0 + 0.45 * _iEaseOut(_ip / 0.55);
+    } else if (_ip < 0.80) {
+        _iZoom = 1.45;
+    } else {
+        _iZoom = 1.45 - 0.45 * _iEaseIn((_ip - 0.80) / 0.20);
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // World — cinematic camera + zoom
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(_iZoom, _iZoom);
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+    ctx.translate(-_iCamX, -_iCamY);
+    if (arena) arena.draw(ctx, getHeroTheme(currentBiomeType));
+    const _iB = enemies.find(e => e instanceof Boss);
+    if (_iB && typeof _iB.draw === 'function') _iB.draw(ctx);
+    ctx.restore();
+
+    // Vignette
+    const _ivg = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, Math.hypot(canvas.width, canvas.height) * 0.22,
+        canvas.width / 2, canvas.height / 2, Math.hypot(canvas.width, canvas.height) * 0.68
+    );
+    _ivg.addColorStop(0, 'rgba(0,0,0,0)');
+    _ivg.addColorStop(1, 'rgba(0,0,0,0.84)');
+    ctx.fillStyle = _ivg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Impact flash (first 8%)
+    if (_ip < 0.08) {
+        ctx.fillStyle = `rgba(255,255,255,${(1 - _ip / 0.08) * 0.55})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Boss name banner (fades 0.22→0.34, holds, fades 0.88→1.0)
+    if (_ip > 0.22) {
+        const _iBannerA = _ip < 0.34 ? (_ip - 0.22) / 0.12 :
+                          _ip > 0.88 ? 1 - (_ip - 0.88) / 0.12 : 1.0;
+        const _iba = Math.max(0, Math.min(1, _iBannerA));
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const _bLabelY = canvas.height / 2 - 58;
+
+        // Decorative rule lines
+        ctx.globalAlpha = _iba * 0.55;
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(canvas.width / 2 - 200, _bLabelY); ctx.lineTo(canvas.width / 2 - 88, _bLabelY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(canvas.width / 2 + 88, _bLabelY); ctx.lineTo(canvas.width / 2 + 200, _bLabelY); ctx.stroke();
+
+        // "BOSS FIGHT" label
+        ctx.globalAlpha = _iba * 0.9;
+        ctx.shadowColor = '#e74c3c';
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = '#e74c3c';
+        ctx.font = 'bold 13px Arial';
+        ctx.fillText('BOSS FIGHT', canvas.width / 2, _bLabelY);
+
+        // Boss name — red glow pass
+        ctx.globalAlpha = _iba * 0.18;
+        ctx.shadowBlur = 60;
+        ctx.fillStyle = '#e74c3c';
+        ctx.font = 'bold 72px Arial';
+        ctx.fillText(bossIntroName, canvas.width / 2, canvas.height / 2 - 4);
+
+        // Boss name — crisp white pass
+        ctx.globalAlpha = _iba;
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = 'rgba(231,76,60,0.85)';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(bossIntroName, canvas.width / 2, canvas.height / 2 - 4);
+
+        ctx.restore();
+    }
+
+    // #192 — skip hint, only on re-encounters. Fades in after the banner is
+    // fully visible (≥0.34) and fades back out alongside the banner.
+    if (bossIntroSkippable && _ip > 0.34) {
+        const _isa = _ip > 0.88 ? Math.max(0, 1 - (_ip - 0.88) / 0.12) : 1.0;
+        ctx.save();
+        ctx.globalAlpha = _isa * 0.55;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '12px Arial';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 6;
+        ctx.fillText('Press ESC or B to skip', canvas.width / 2, canvas.height - 36);
+        ctx.restore();
+    }
+
+    // Fade to black in final 12%
+    if (_ip > 0.88) {
+        ctx.fillStyle = `rgba(0,0,0,${((_ip - 0.88) / 0.12) * 0.95})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    return true;
+}
+
 function masterFrame(deltaTime, timestamp) {
     // #10 P10 — measure actual frame work time, not the rAF delta. Wrap the
     // body in try/finally so timing covers every return path (museum skip,
@@ -6093,139 +6228,9 @@ function masterFrame(deltaTime, timestamp) {
                 }
             }
 
-            // Boss Intro Cinematic
-            if (bossIntroTimer > 0) {
-                const _ITOTAL = GAMEPLAY.BOSS_INTRO_FRAMES;
-                if (bossIntroTimer === _ITOTAL) {
-                    bossIntroCamStartX = arena.camera.x;
-                    bossIntroCamStartY = arena.camera.y;
-                    const _ib = enemies.find(e => e instanceof Boss);
-                    if (_ib) {
-                        bossIntroCamTargetX = Math.max(0, Math.min(_ib.x - canvas.width / 2, arena.width - canvas.width));
-                        bossIntroCamTargetY = Math.max(0, Math.min(_ib.y - canvas.height / 2, arena.height - canvas.height));
-                    } else {
-                        bossIntroCamTargetX = bossIntroCamStartX;
-                        bossIntroCamTargetY = bossIntroCamStartY;
-                    }
-                }
-                bossIntroTimer--;
-                const _ip = 1 - bossIntroTimer / _ITOTAL;
-
-                const _iEaseOut = t => 1 - Math.pow(1 - Math.min(1, t), 3);
-                const _iEaseIn  = t => Math.min(1, t) * Math.min(1, t);
-
-                // Camera pan toward boss over first 55%
-                const _iCamT = _iEaseOut(Math.min(1, _ip / 0.55));
-                const _iCamX = bossIntroCamStartX + (bossIntroCamTargetX - bossIntroCamStartX) * _iCamT;
-                const _iCamY = bossIntroCamStartY + (bossIntroCamTargetY - bossIntroCamStartY) * _iCamT;
-
-                // Zoom 1.0→1.45 during pan, hold, then back to 1.0
-                let _iZoom;
-                if (_ip < 0.55) {
-                    _iZoom = 1.0 + 0.45 * _iEaseOut(_ip / 0.55);
-                } else if (_ip < 0.80) {
-                    _iZoom = 1.45;
-                } else {
-                    _iZoom = 1.45 - 0.45 * _iEaseIn((_ip - 0.80) / 0.20);
-                }
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // World — cinematic camera + zoom
-                ctx.save();
-                ctx.translate(canvas.width / 2, canvas.height / 2);
-                ctx.scale(_iZoom, _iZoom);
-                ctx.translate(-canvas.width / 2, -canvas.height / 2);
-                ctx.translate(-_iCamX, -_iCamY);
-                if (arena) arena.draw(ctx, getHeroTheme(currentBiomeType));
-                const _iB = enemies.find(e => e instanceof Boss);
-                if (_iB && typeof _iB.draw === 'function') _iB.draw(ctx);
-                ctx.restore();
-
-                // Vignette
-                const _ivg = ctx.createRadialGradient(
-                    canvas.width / 2, canvas.height / 2, Math.hypot(canvas.width, canvas.height) * 0.22,
-                    canvas.width / 2, canvas.height / 2, Math.hypot(canvas.width, canvas.height) * 0.68
-                );
-                _ivg.addColorStop(0, 'rgba(0,0,0,0)');
-                _ivg.addColorStop(1, 'rgba(0,0,0,0.84)');
-                ctx.fillStyle = _ivg;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Impact flash (first 8%)
-                if (_ip < 0.08) {
-                    ctx.fillStyle = `rgba(255,255,255,${(1 - _ip / 0.08) * 0.55})`;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                }
-
-                // Boss name banner (fades 0.22→0.34, holds, fades 0.88→1.0)
-                if (_ip > 0.22) {
-                    const _iBannerA = _ip < 0.34 ? (_ip - 0.22) / 0.12 :
-                                      _ip > 0.88 ? 1 - (_ip - 0.88) / 0.12 : 1.0;
-                    const _iba = Math.max(0, Math.min(1, _iBannerA));
-
-                    ctx.save();
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    const _bLabelY = canvas.height / 2 - 58;
-
-                    // Decorative rule lines
-                    ctx.globalAlpha = _iba * 0.55;
-                    ctx.strokeStyle = '#e74c3c';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(canvas.width / 2 - 200, _bLabelY); ctx.lineTo(canvas.width / 2 - 88, _bLabelY); ctx.stroke();
-                    ctx.beginPath(); ctx.moveTo(canvas.width / 2 + 88, _bLabelY); ctx.lineTo(canvas.width / 2 + 200, _bLabelY); ctx.stroke();
-
-                    // "BOSS FIGHT" label
-                    ctx.globalAlpha = _iba * 0.9;
-                    ctx.shadowColor = '#e74c3c';
-                    ctx.shadowBlur = 14;
-                    ctx.fillStyle = '#e74c3c';
-                    ctx.font = 'bold 13px Arial';
-                    ctx.fillText('BOSS FIGHT', canvas.width / 2, _bLabelY);
-
-                    // Boss name — red glow pass
-                    ctx.globalAlpha = _iba * 0.18;
-                    ctx.shadowBlur = 60;
-                    ctx.fillStyle = '#e74c3c';
-                    ctx.font = 'bold 72px Arial';
-                    ctx.fillText(bossIntroName, canvas.width / 2, canvas.height / 2 - 4);
-
-                    // Boss name — crisp white pass
-                    ctx.globalAlpha = _iba;
-                    ctx.shadowBlur = 18;
-                    ctx.shadowColor = 'rgba(231,76,60,0.85)';
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillText(bossIntroName, canvas.width / 2, canvas.height / 2 - 4);
-
-                    ctx.restore();
-                }
-
-                // #192 — skip hint, only on re-encounters. Fades in after the
-                // banner is fully visible (≥0.34) and fades back out alongside
-                // the banner. First-encounter cinematics never show this.
-                if (bossIntroSkippable && _ip > 0.34) {
-                    const _isa = _ip > 0.88 ? Math.max(0, 1 - (_ip - 0.88) / 0.12) : 1.0;
-                    ctx.save();
-                    ctx.globalAlpha = _isa * 0.55;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = '12px Arial';
-                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                    ctx.shadowBlur = 6;
-                    ctx.fillText('Press ESC or B to skip', canvas.width / 2, canvas.height - 36);
-                    ctx.restore();
-                }
-
-                // Fade to black in final 12%
-                if (_ip > 0.88) {
-                    ctx.fillStyle = `rgba(0,0,0,${((_ip - 0.88) / 0.12) * 0.95})`;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                }
-
-                return;
-            }
+            // Boss Intro Cinematic — see `_renderBossIntroCinematic`. Owns the
+            // frame while bossIntroTimer > 0; bail out for the rest of master loop.
+            if (_renderBossIntroCinematic()) return;
 
             // Boss Death Cinematic Sequence
             if (bossDeathTimer > 0) {
