@@ -1482,96 +1482,13 @@
     </div>
 
 
-    <!-- All scripts use `defer` so they execute in document order AFTER the
-         HTML parser has finished. `type="module"` files (ESM-migrated) and
-         `defer` files (classic) interleave correctly in this mode. Inline
-         scripts that read deferred symbols (e.g. APP_VERSION) are wrapped in
-         DOMContentLoaded below to wait for the same fence. -->
-    <script type="module" src="shared/world.js"></script>
-    <script type="module" src="Platform.js"></script>
-    <script type="module" src="GameContext.js"></script>
-    <script type="module" src="Constants.js"></script>
-    <script type="module" src="Config.js"></script>
-    <script type="module" src="dlc/DLCManager.js"></script>
-    <script type="module" src="AltarData.js"></script>
-    <script type="module" src="Arena.js"></script>
-    <script type="module" src="Biomes.js"></script>
-    <script type="module" src="Museum.js"></script>
-    <script type="module" src="GlobalLobbyScene.js"></script>
-    <script type="module" src="Altar.js"></script>
-    <script type="module" src="Tutorial.js"></script>
-    <script type="module" src="Managers/StoryManager.js"></script>
-    <script type="module" src="Player.js"></script>
-    <script type="module" src="Enemy.js"></script>
-    <script type="module" src="Boss.js"></script>
-    <script type="module" src="Companion.js"></script>
-    <script type="module" src="MemoryStories.js"></script>
-    <script type="module" src="MemoryShard.js"></script>
-    <script type="module" src="CompletionMenu.js"></script>
-
-    <!-- Managers (all ESM-migrated 2026-05-11) -->
-    <script type="module" src="Managers/IntroManager.js"></script>
-    <script type="module" src="Managers/AudioManager.js"></script>
-    <script type="module" src="Managers/InputManager.js"></script>
-    <script type="module" src="Managers/SaveManager.js"></script>
-    <script type="module" src="Managers/CloudSaveManager.js"></script>
-    <script type="module" src="Managers/NetworkManager.js"></script>
-    <script type="module" src="Managers/CrashReporter.js"></script>
-    <script type="module" src="Managers/TelemetryManager.js"></script>
-    <script type="module" src="Managers/SpatialHash.js"></script>
-    <script type="module" src="Managers/EventBus.js"></script>
-    <script type="module" src="Managers/UIManager.js"></script>
-    <script type="module" src="Managers/HUDLayout.js"></script>
-
-    <!-- Controllers (ESM-migrated 2026-05-11) -->
-    <script type="module" src="Entities/PlayerController.js"></script>
-    <script type="module" src="Entities/NetworkInputController.js"></script>
-
-    <!-- UI Modules (ESM-migrated 2026-05-11) -->
-    <script type="module" src="UI/HeroDetails.js"></script>
-    <script type="module" src="UI/Completion.js"></script>
-    <script type="module" src="UI/Collection.js"></script>
-    <script type="module" src="UI/SkillTree.js"></script>
-    <script type="module" src="UI/Achievements.js"></script>
-    <script type="module" src="UI/Statistics.js"></script>
-    <script type="module" src="UI/Shop.js"></script>
-    <script type="module" src="UI/LevelUp.js"></script>
-    <script type="module" src="UI/Options.js"></script>
-    <script type="module" src="UI/OnlineLobby.js"></script>
-    <script type="module" src="UI/WorkshopPanel.js"></script>
-    <script type="module" src="Managers/MapManager.js"></script>
-    <script type="module" src="UI/CustomMapsPanel.js"></script>
-    <script type="module" src="UI/VersusMenu.js"></script>
-    <script type="module" src="UI/InfoDialogueManager.js"></script>
-    <script type="module" src="UI/MainMenu.js"></script>
-    <script type="module" src="UI/MenuBackground.js"></script>
-    <!-- ChaosMode ESM-migrated 2026-05-11 — shared mutable state moved to
-         `window.chaosState`; game.js mutates that object. -->
-    <script type="module" src="ChaosMode.js"></script>
-    <script type="module" src="EvilHeroes.js"></script>
-    <script type="module" src="EvilMode.js"></script>
-
-    <!-- Experimental Scripts -->
-    <script type="module" src="scripts/VersusTest.js"></script>
-
-    <!-- Entities and Utils (ESM-migrated 2026-05-11) -->
-    <script type="module" src="Utils.js"></script>
-    <script type="module" src="Entities/Projectile.js"></script>
-    <script type="module" src="Entities/MeleeSwipe.js"></script>
-    <script type="module" src="Entities/GoldDrop.js"></script>
-    <script type="module" src="Entities/CardDrop.js"></script>
-    <script type="module" src="Entities/HolyMask.js"></script>
-    <script type="module" src="Entities/PowerUp.js"></script>
-    <script type="module" src="Entities/Particle.js"></script>
-    <script type="module" src="Entities/FloatingText.js"></script>
-
-    <script type="module" src="CoopGamepadController.js"></script>
-    <script type="module" src="OnlineTestBot.js"></script>
-    <!-- game.js migrated to ESM 2026-05-11 (Phase 8b step 2). Cross-module
-         symbols are pulled in via a `window` bridge at the top of the file. -->
-    <script type="module" src="game.js"></script>
-    <script type="module" src="TutorialMode.js"></script>
-    <script type="module" src="TestingGrounds.js"></script>
+    <!-- #171 — Single ESM entry point. All renderer modules now live in the
+         dependency graph rooted at main.js, which Vite/Rollup bundles into a
+         single chunk. Boot semantics match the prior 70 sequential
+         `<script type="module">` tags because main.js imports them in the
+         same order, and ESM hoists `import` statements so each module's body
+         runs in declaration order. -->
+    <script type="module" src="main.js"></script>
 
     <!-- Tutorial Welcome Overlay (first launch) -->
     <div id="tutorial-welcome-overlay"
