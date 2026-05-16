@@ -56,7 +56,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 - [ ] 43. Biome-specific ambient particle systems: foliage, flowing water, drifting snow.
 - [ ] 44. Day/night cycle inside long runs. Subtle color grade shift every 5 waves.
 - [ ] 45. Trail renderer. Dash trails, projectile trails (esp. Lightning hero).
-- [x] 46. Boss intro cinematics: camera pan + zoom + name banner + music swell.
+- [x] 46. Boss intro cinematics: camera pan + zoom + name banner + music swell. *(`e386a79`: camera pans to boss spawn position, slow-zoom + nameplate banner + music swell wired into all boss inits. Per-boss skip-after-first-encounter deferred — see [#190](#190-boss-intro-skip).)*
 - [ ] 47. UI polish. Inconsistent style mix (CSS in `main.css` + canvas-drawn). CSS variables for color tokens.
 - [ ] 48. Replace emoji icons in `Constants.js` (`POWERUP_TYPES`, `CHAOS_REWARDS`) with SVG/PNG. Emojis render differently on Windows/Linux/Steam Deck.
 - [ ] 49. Animated title screen. Loop `developer_animated.mp4`/`title_animated.mp4` instead of static.
@@ -211,18 +211,64 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 
 ---
 
-## Quick-win shortlist (pick first)
+## Active follow-ups (added 2026-05-16)
 
-1. #19 spatial hash for collisions — biggest perf win
-2. #29 lazy-load DLC bundles — fastest startup win
-3. #145 hot reload — biggest DevX win
-4. #87/#88/#90 anti-cheat + rate limit + WSS — biggest security gap
-5. #50 colorblind modes + #134 reduced-motion — biggest accessibility wins
-6. #61 daily seed mode — biggest community-engagement win
-7. #2 bundler — unlocks #1, #3, #29
-8. #10 save schema versioning — prevents future regression class
-9. #97 crash reporting — reveals what real players hit
-10. #160 end-of-run breakdown screen — biggest perceived-quality bump
+Residual work surfaced by shipped items, plus new net items. Numbering continues from 170.
+
+### Code structure / architecture
+- [ ] 171. ESM migration completion (Managers/Entities/UI/game.js + DLCs). Vite is wired (#2 phase 1) but only 4 leaf files are true ESM; the remaining ~55 are still classic `<script defer>`. Finishing this removes the `window.*` shims kept for back-compat and unlocks real tree-shake.
+- [ ] 172. Lazy DLC select screen. #29 phase 3 shipped on-demand `import()` primitives + hover-prefetch; full lazy mode (skip eager init, render select from manifest, spinner on first hero click) blocked on hardening Achievements / Collection / Story menus to read `availableDLCs` manifest instead of loaded data.
+- [ ] 173. Game.js `update(dt)` / `draw(ctx)` separation. Currently `masterLoop` runs a mixed function. Splitting unblocks [#51 photo-mode freeze-pause](#176), [#5 ECS](#5-ecs), and removes the DOM-dependency from the server-side simulation bundle.
+- [ ] 174. DLC global-usage stub layer. 53 DLC bare-reads of registry globals stayed in place during #4's flip because DLCs also run server-side via `require()`. Need a stub layer that validates DLC contracts before the sweep can finish.
+- [ ] 175. DLC compatibility version stamps. Each DLC declares a `dlcVersion`; save data records the version under which each hero/biome was unlocked. Lets [#10 save migrations](#10) live per-DLC instead of in one monolithic table.
+
+### Performance
+- [ ] 176. Enemy + pickup texture atlas. #25 shipped per-color `Particle` sprite cache; the long tail is per-enemy-type and per-pickup-type. Replaces remaining `arc/fill/stroke` hot paths.
+- [ ] 177. applyDamage pipeline coverage. #18 wired the helper at 5 cookie-cutter sites (acid-fog ×2, lava, explosive-mutator, exploder-elite). Hero-specific paths (FireHero burn ticks, LightningHero chain, telekinesis-bounced shots, boss-specific reductions) still inline the same boilerplate.
+- [ ] 178. Gradient cache long-tail. #22 cached ~18 of ~169 sites. Per-frame dynamic-alpha pulses and non-origin sphere-shading were skipped intentionally — revisit if frame-time gates trip ([#24](#24), [#30](#30)).
+- [ ] 179. Melee-vs-projectile reflect / telekinesis spatial hash. #19 phase 2 left these paths unchanged; gated on profiling showing the cost.
+
+### Visuals
+- [ ] 180. Photo mode true freeze-pause. #51 ships a "live photo" (world keeps running). Once [#173 update/draw split](#173) lands, freeze world state for proper screenshots.
+
+### Server / multiplayer
+- [ ] 181. JWT_SECRET fail-secure on production boot. Admin hardening (715f03e) added a warning when the placeholder is in use; promote to `process.exit(1)` like `ADMIN_PASSWORD_HASH`.
+- [ ] 182. Admin login audit log. Record `{ts, ip, success, userAgent}` per `POST /api/admin/login`. Expose under admin dashboard Technical tab next to crash reports.
+- [ ] 183. `_sessionScores` LRU migration. Hourly TTL sweep is fine at current load; sustained traffic needs an LRU cap to avoid pile-up between sweeps.
+- [ ] 184. CrashReporter → Sentry / GlitchTip swap. In-house pipeline ([#97](#97)) works but lacks breadcrumb UI. Swap `CrashReporter._baseUrl` to a real DSN once a paid plan is provisioned. Keep in-house endpoint as offline-mode fallback.
+- [ ] 185. Map workshop moderation. Workshop ([#102](#102)) lacks ratings (1-5★), report flag, hidden-flag column, admin takedown. Required before upload volume scales.
+- [ ] 186. Daily-seed arena / drop wiring audit. [#61](#61) shipped `getSeededRng()` infrastructure + per-seed leaderboard. Each spawn / drop / mutator-roll site needs an audit + opt-in for true reproducible determinism.
+
+### Audio
+- (no new items — #123/#124/#125/#129/#130 still cover the open ground)
+
+### Tooling / DevX
+- [ ] 187. Hitbox + AI-state debug overlay. [#148](#148) phase 1 shipped perf overlay (FPS / frame time / entity counts / hash cell count). Phase 2: draw hitboxes, projectile paths, AI state labels, spatial-hash cells.
+- [ ] 188. Lint warning baseline cleanup. [#14](#14) catalogued 369 baseline warnings, currently allowed so the build stays green. Auto-fixables first; manual-judgement leftovers get inline `eslint-disable` with a reason. Goal: new warnings stand out instead of getting lost.
+- [ ] 189. Fix outstanding `no-foreach-splice` violations. [#13](#13) found 8 instances on first run; convert each to reverse-index `for` loop or filter-rebuild.
+- [ ] 190. `better-sqlite3` native-build dev pain. `npm install` in `server/` fails on the developer machine; the admin-auth tests had to use `--ignore-scripts`. Investigate prebuilt-binary fallback, or evaluate `node:sqlite` (Node 22+) to drop the native-build dep entirely.
+
+### Long-tail polish
+- [ ] 191. 3-second death replay. [#168](#168) shipped damage-source attribution on the game-over screen; the buffered-frames replay loop was deferred.
+- [ ] 192. Boss intro skip. [#46](#46) shipped the cinematic; some replayers want a hold-ESC / hold-B skip after first encounter per save.
+- [ ] 193. HUD layout presets. [#169](#169) ships per-config layouts. Add "Save preset" / "Load preset" + shareable string export so the community can swap layouts.
+
+---
+
+## Quick-win shortlist (refreshed 2026-05-16)
+
+Top open items after the 2026-05-10 + 2026-05-15/16 passes shipped 60+ items.
+
+1. [#171](#171) ESM migration completion — unlocks tree-shake + removes the `window.*` back-compat shim layer
+2. [#173](#173) game.js update/draw split — blocker for [#5](#5-ecs), [#180](#180), and server simulation cleanup
+3. [#11](#11) RunState extraction — unblocks server-reuse + ECS path; large but high-leverage
+4. [#188](#188) lint baseline cleanup — make new warnings visible
+5. [#185](#185) map workshop moderation — required before upload volume scales
+6. [#181](#181) JWT_SECRET fail-secure — closes the last admin-auth gap from the 2026-05-16 hardening pass
+7. [#54](#54) co-op hero synergies — biggest co-op perceived-quality bump
+8. [#41](#41) per-enemy-type death animations — biggest visual polish win
+9. [#35](#35) post-processing stack (bloom / chromatic aberration / vignette) — biggest single visual upgrade
+10. [#5](#5) / [#6](#6) ECS + Actor base — biggest code-health unlock; pair with [#173](#173)
 
 ---
 
@@ -262,3 +308,39 @@ Networking polish (all 4):
 - `_sessionScores` map sweep is hourly; for sustained traffic, switch to LRU instead of TTL.
 - Crash reporting uses an in-house endpoint, not Sentry. Swap `CrashReporter._baseUrl` to point at a Sentry-compatible DSN if/when a paid account is provisioned.
 - TLS support is server-only; the desktop Electron app's local server still runs plain HTTP. That's fine since traffic doesn't cross the network there.
+
+### 2026-05-16 — Revision pass after 65-commit sprint
+
+Sprint between 2026-05-10 and 2026-05-16 closed **44 more items** (now ~96 of 170 done) across architecture, performance, content, accessibility, and multiplayer.
+
+**Shipped since the last review:**
+
+Code structure / arch:
+- [#1](#1) game.js → 5-module split (Phase A-E) · [#3](#3) JSDoc schema typedefs + jsconfig · [#4](#4) GameContext singleton + 5-session window-globals migration · [#7](#7) BiomeRegistry shape enforcement · [#9](#9) Platform.js Electron carve · [#13](#13) ESLint `no-foreach-splice` rule · [#14](#14) flat ESLint config + CI lint job · [#15](#15) lazy audio preload · [#16](#16) GAMEPLAY constants block · [#17](#17) `structuredClone` swap · [#18](#18) `applyDamage` pipeline helper
+
+Performance (P1-P9 pass arc):
+- [#19](#19) phase 2 invert projectile×enemy · [#20](#20) Projectile + MeleeSwipe + GoldDrop pools · [#21](#21) static-obstacle offscreen bake · [#22](#22) 15-site gradient cache · [#25](#25) Particle sprite cache · [#27](#27) off-camera particle cull · [#28](#28) per-enemy biome-zone cache · [#29](#29) phase 3 on-demand DLC load primitives · [#31](#31) `getHeroStats` memoization · [#32](#32) snapshot dx/dy deltas · [#34](#34) Web Audio fast path for hot SFX
+
+Visuals / polish:
+- [#38](#38) shake taxonomy · [#39](#39) hit-stop on boss kill · [#40](#40) crit float animations · [#46](#46) boss intro cinematic · [#159](#159) pause-menu rework · [#166](#166) crash recovery · [#167](#167) music low-pass on pause · [#168](#168) death feedback line
+
+Content / gameplay:
+- Story Speedrun mode (per-hero PB, HUD timer, splits, leaderboard tab) · directional lean animation · trap visual modernization · thematic projectile visuals for Smoke/Mirror/Psycho · Mindscape EEG redesign · custom-map biome respect across all waves · Radiance of Ruin character pack DLC (full) · Reliquary biome scenery pass · Dream / Thorn biome expansions
+
+Multiplayer / server:
+- [#83](#83) reconnect grace window · [#84](#84) WebRTC voice chat · [#85](#85) friends + invites · [#86](#86) cloud-save conflict UI · [#91](#91) lag compensation · [#96](#96) world events · [#98](#98) telemetry pipeline · [#102](#102) map editor + Arena.generateFromMap + community workshop · [#126](#126) audio ducking / sidechain · [#161](#161) hero balance admin tab · admin-dashboard bcrypt + JWT hardening (715f03e)
+
+Tooling:
+- [#145](#145) Vite dev server HMR · [#146](#146) nightly headless harness · [#148](#148) F1 debug overlay · [#149](#149) cheat console · [#153](#153) drop accidental `install` devDep · [#154](#154) CONTRIBUTING + ARCHITECTURE docs
+
+UI / settings:
+- [#127](#127) per-channel audio sliders · [#128](#128) subtitles + ARIA · [#165](#165) in-game changelog modal · [#169](#169) drag-to-customize HUD layout (P1 + P2, mouse + keyboard + controller) · [#170](#170) minimap
+
+**Revision changes this pass:**
+- Flipped [#46](#46) to done with `e386a79` annotation.
+- Added 23 follow-up items (171-193) capturing residual scope of [x] items: ESM completion, lazy-DLC select screen, update/draw split, DLC stub layer, DLC version stamps, enemy/pickup atlas, hero-specific applyDamage wiring, gradient long-tail, melee-vs-projectile hash, photo-mode freeze, JWT_SECRET fail-secure, admin audit log, sessionScores LRU, Sentry swap, workshop moderation, daily-seed audit, hitbox debug overlay, lint baseline, no-foreach-splice fixes, sqlite native-build dev pain, death replay, boss-intro skip, HUD presets.
+- Refreshed quick-win shortlist; most of the 2026-05-10 list shipped.
+
+**Cross-cutting blockers worth calling out:**
+- [#11](#11) (539 globals → RunState) and [#173](#173) (update/draw split) together unblock [#5](#5-ecs) ECS, [#180](#180) photo-mode freeze, [#172](#172) full lazy DLC mode, and would simplify server-side simulation. These two are the highest-leverage open items not on the quick-win list because each is multi-session by itself.
+- [#171](#171) ESM completion is the dual prerequisite for retiring the `window.*` back-compat shim layer that #4 had to keep in place.
