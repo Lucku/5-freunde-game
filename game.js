@@ -5900,6 +5900,40 @@ function _updateDebugOverlay(frameMs) {
 
 // Per-fixed-frame body. Invoked by the GameLoop harness once every ~16.6 ms.
 // The rAF dispatch + dt-gate now live in GameLoop.js.
+// #173 phase 1 — scene helpers extracted from masterFrame for clarity. Each
+// returns `true` when it owns the frame (caller should bail) or `false` to let
+// normal gameplay update/draw proceed.
+//
+// Phase 2 (next) will split the remaining gameplay block in masterFrame into
+// `_updateGameplay(dt)` + `_drawGameplay(ctx)` and gate the update half with
+// `isPhotoMode()` so the photo-mode freeze flips on with a one-line change.
+function _renderMuseumScene() {
+    if (uiState === 'MUSEUM' && window.museum) {
+        window.museum.update();
+        window.museum.draw(ctx);
+        return true;
+    }
+    return false;
+}
+function _renderGlobalLobbyScene() {
+    if ((uiState === 'GLOBAL_LOBBY' || uiState === 'GLOBAL_LOBBY_MENU') && window.globalLobbyScene) {
+        window.globalLobbyScene.update();
+        window.globalLobbyScene.draw(ctx);
+        return true;
+    }
+    return false;
+}
+function _renderBigGambleScene() {
+    if (typeof window.isBigGambleActive !== 'undefined' && window.isBigGambleActive) {
+        if (window.HERO_LOGIC && window.HERO_LOGIC['chance']) {
+            window.HERO_LOGIC['chance'].updateBigGamble(player);
+            window.HERO_LOGIC['chance'].drawBigGamble(ctx);
+        }
+        return true;
+    }
+    return false;
+}
+
 function masterFrame(deltaTime, timestamp) {
     // #10 P10 — measure actual frame work time, not the rAF delta. Wrap the
     // body in try/finally so timing covers every return path (museum skip,
@@ -5912,28 +5946,10 @@ function masterFrame(deltaTime, timestamp) {
         handleGamepadMenu();
         handleCoopP2Gamepad();
 
-        // --- MUSEUM STATE ---
-        if (uiState === 'MUSEUM' && window.museum) {
-            window.museum.update();
-            window.museum.draw(ctx);
-            return; // Skip normal game loop
-        }
-
-        // --- GLOBAL LOBBY STATE (also draw during lobby menu so canvas stays live) ---
-        if ((uiState === 'GLOBAL_LOBBY' || uiState === 'GLOBAL_LOBBY_MENU') && window.globalLobbyScene) {
-            window.globalLobbyScene.update();
-            window.globalLobbyScene.draw(ctx);
-            return;
-        }
-
-        // --- BIG GAMBLE STATE (FROZEN CONTEXT) ---
-        if (typeof window.isBigGambleActive !== 'undefined' && window.isBigGambleActive) {
-            if (window.HERO_LOGIC && window.HERO_LOGIC['chance']) {
-                window.HERO_LOGIC['chance'].updateBigGamble(player);
-                window.HERO_LOGIC['chance'].drawBigGamble(ctx);
-            }
-            return; // Skip normal update/draw
-        }
+        // ── Standalone-scene early returns (#173 phase 1) ───────────────────
+        if (_renderMuseumScene())      return;
+        if (_renderGlobalLobbyScene()) return;
+        if (_renderBigGambleScene())   return;
 
         // #51 — photo mode runs even while paused so the camera can pan.
         if (isPhotoMode()) tickPhotoMode();
