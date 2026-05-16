@@ -6383,10 +6383,12 @@ ctx.restore();
 return true; // Prevent normal game render
 }
 
-function _runGameplayFrame(deltaTime) {
-    const _isHitStopped = _hitStopFrames > 0;
-    if (_hitStopFrames > 0) _hitStopFrames--;
-
+// #173 phase 4 — UPDATE phase prefix. Pure state mutation: hit-stop tick
+// (caller owns), evil-mode boss-end check, chaos shuffle objective, camera
+// update, heatwave wobble, arena.update, objective logic, boss-intro / death /
+// choice cinematic delegations (return true here = caller bails), weather
+// logic, spawning. Returns true if a cinematic owns the frame.
+function _updateGameplayPre(deltaTime) {
     // Evil Mode — check if all enemy heroes are dead → boss-defeated cinematic then advance
     if (isEvilMode && typeof EvilMode !== 'undefined' && EvilMode.checkWaveEnd()) {
         EvilMode.onWaveCleared(); // cleanup + sets waveJustCleared
@@ -6524,16 +6526,16 @@ function _runGameplayFrame(deltaTime) {
 
     // Boss Intro Cinematic — see `_renderBossIntroCinematic`. Owns the
     // frame while bossIntroTimer > 0; bail out for the rest of master loop.
-    if (_renderBossIntroCinematic()) return;
+    if (_renderBossIntroCinematic()) return true;
 
     // Boss Death Cinematic — see `_renderBossDeathCinematic`. Owns the
     // frame while bossDeathTimer > 0; invokes `_finalizeBossDeathCinematic`
     // when the timer just hit 0 (handles daily/weekly win, tutorial /
     // evil hooks, or opens the boss-choice screen).
-    if (_renderBossDeathCinematic()) return;
+    if (_renderBossDeathCinematic()) return true;
 
     // Boss-Defeated Choice Screen (runs after cinematic, before next wave)
-        if (_renderBossChoiceScreen()) return;
+        if (_renderBossChoiceScreen()) return true;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any accumulated transform corruption
@@ -7095,6 +7097,192 @@ function _runGameplayFrame(deltaTime) {
     }
 
     if (frame % 600 === 0) powerUps.push(new PowerUp());
+    return false;
+}
+
+// #173 phase 4 — DRAW phase suffix. Pure rendering: weather particles, HUD,
+// player death cinematic. Caller responsibility: pass ctx, do not modify
+// state. Player-death block decrements playerDeathTimer (mutation) — TODO
+// for phase 5 hoist outside this helper.
+function _drawGameplayPost() {
+    // ── Weather Particle Render (screen-space) ─────────────────────────
+    if (weatherParticles.length > 0 && !isReducedMotion()) {
+        ctx.save();
+        const wid = currentWeather?.id;
+        for (const p of weatherParticles) {
+            ctx.globalAlpha = p.alpha;
+            if (p.rain) {
+                ctx.strokeStyle = '#8ab4d8';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.vx / p.vy * p.len, p.y + p.len);
+                ctx.stroke();
+            } else if (p.sand) {
+                ctx.strokeStyle = p.color || '#c8924a';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.len, p.y + p.vy * 2);
+                ctx.stroke();
+            } else if (p.gale) {
+                ctx.strokeStyle = '#d0e8ff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.len, p.y + p.vy * 3);
+                ctx.stroke();
+            } else if (p.fog) {
+                ctx.fillStyle = '#55cc55';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (wid === 'BLIZZARD') {
+                ctx.fillStyle = '#dff0ff';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (wid === 'HEATWAVE') {
+                ctx.fillStyle = p.color || '#ff6b2b';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1;
+        ctx.restore();
+    }
+
+    // Thunderstorm flash + bolts (screen-space)
+    if (_weatherFlash > 0) {
+        ctx.save();
+        ctx.globalAlpha = _weatherFlash;
+        ctx.fillStyle = '#c8d8ff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+    }
+    if (_weatherBolts.length > 0) {
+        ctx.save();
+        for (const bolt of _weatherBolts) {
+            const progress = bolt.life / bolt.maxLife;
+            ctx.globalAlpha = progress;
+            ctx.strokeStyle = '#e8f4ff';
+            ctx.shadowColor = '#a0c8ff';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            if (bolt.segs && bolt.segs.length > 0) {
+                ctx.moveTo(bolt.segs[0].x, bolt.segs[0].y);
+                for (let si = 1; si < bolt.segs.length; si++) ctx.lineTo(bolt.segs[si].x, bolt.segs[si].y);
+            }
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+        ctx.restore();
+    }
+    // DLC custom weather draw hook (screen-space, after all base weather)
+    if (currentWeather && window._weatherDrawHooks[currentWeather.id]) {
+        const _dhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
+        const _dhDlc = _dhLock && _dhLock.dlcId;
+        const _dhOk = !_dhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_dhDlc));
+        if (_dhOk) {
+            const _wFIForDraw = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
+            window._weatherDrawHooks[currentWeather.id](ctx, _wFIForDraw, frame);
+        }
+    }
+    // ──────────────────────────────────────────────────────────────────
+
+    updateUI();
+
+    // Player Death Logic
+    // Guard with !player.isDead: once the revival marker is placed we must not
+    // re-enter this block on subsequent frames (hp stays 0 while dead).
+    if (player.hp <= 0 && !player.isDead) {
+        if (!isVersusMode && (isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+            // Co-op / AI companion: P1 dies but P2 is alive — drop revival marker
+            player.isDead = true;
+            player.hp = 0;
+            player.isInvincible = true;
+            player.isDashing = false;
+            player.moveInput = { x: 0, y: 0 };
+            p1RevivalMarker = { x: player.x, y: player.y, progress: 0, maxProgress: 240 };
+            createExplosion(player.x, player.y, '#ffffff');
+            showNotification(isAICompanionMode ? 'You\'re down! Ally is coming to revive you.' : 'P1 down! Stand on marker to revive.');
+        } else if (!isPlayerDying && !isOnlineGuest) {
+            isPlayerDying = true;
+            playerDeathTimer = 180; // 3 seconds animation
+            createExplosion(player.x, player.y, '#c0392b');
+            // Death — maximum rumble
+            triggerImpact(14, 30, 0.70, 1.0, 800);
+
+            // Force Stop Movement
+            player.isDashing = false;
+            player.moveInput = { x: 0, y: 0 };
+            player.isInvincible = true; // Prevent further damage (negative HP)
+
+            // Sound
+            if (typeof audioManager !== 'undefined') {
+                // Play Death Sound
+                try { audioManager.play('death'); } catch (e) { }
+                audioManager.playHeroExclamation(player.type, 'failure');
+            }
+        }
+    }
+
+    // Co-op: both players dead → game over (separate check needed because the
+    // revival-marker path sets player.isDead=true, which blocks the block above).
+    if (!isPlayerDying && !isOnlineGuest &&
+        !isVersusMode && (isCoopMode || isAICompanionMode) &&
+        player.isDead && player2 && player2.isDead) {
+        isPlayerDying = true;
+        playerDeathTimer = 180;
+        createExplosion(player.x, player.y, '#c0392b');
+        triggerImpact(14, 30, 0.70, 1.0, 800);
+        player.isDashing = false;
+        player.moveInput = { x: 0, y: 0 };
+        if (typeof audioManager !== 'undefined') {
+            try { audioManager.play('death'); } catch (e) { }
+            audioManager.playHeroExclamation(player.type, 'failure');
+        }
+    }
+
+    if (isPlayerDying) {
+        playerDeathTimer--;
+
+        // Slow Motion / Freeze Frame Effect Logic could go here
+
+        // Visuals: Fade to Black + Text
+        ctx.save();
+        ctx.fillStyle = `rgba(0, 0, 0, ${(180 - playerDeathTimer) / 200})`; // Slow fade
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Blood Explosions
+        if (playerDeathTimer % 15 === 0) {
+            createExplosion(player.x + (Math.random() - 0.5) * 60, player.y + (Math.random() - 0.5) * 60, '#c0392b');
+        }
+
+        // Shake Screen
+        const shake = (playerDeathTimer / 180) * 5;
+        ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+
+        ctx.restore();
+
+        // Finish
+        if (playerDeathTimer <= 0) {
+            isPlayerDying = false;
+            gameOver();
+        }
+        return; // Stop processing frame
+    }
+}
+
+function _runGameplayFrame(deltaTime) {
+    const _isHitStopped = _hitStopFrames > 0;
+    if (_hitStopFrames > 0) _hitStopFrames--;
+
+    if (_updateGameplayPre(deltaTime)) return;
 
     // --- Updates ---
 
@@ -8665,177 +8853,7 @@ function _runGameplayFrame(deltaTime) {
         ctx.restore();
     }
 
-    // ── Weather Particle Render (screen-space) ─────────────────────────
-    if (weatherParticles.length > 0 && !isReducedMotion()) {
-        ctx.save();
-        const wid = currentWeather?.id;
-        for (const p of weatherParticles) {
-            ctx.globalAlpha = p.alpha;
-            if (p.rain) {
-                ctx.strokeStyle = '#8ab4d8';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(p.x + p.vx / p.vy * p.len, p.y + p.len);
-                ctx.stroke();
-            } else if (p.sand) {
-                ctx.strokeStyle = p.color || '#c8924a';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(p.x + p.len, p.y + p.vy * 2);
-                ctx.stroke();
-            } else if (p.gale) {
-                ctx.strokeStyle = '#d0e8ff';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(p.x + p.len, p.y + p.vy * 3);
-                ctx.stroke();
-            } else if (p.fog) {
-                ctx.fillStyle = '#55cc55';
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (wid === 'BLIZZARD') {
-                ctx.fillStyle = '#dff0ff';
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (wid === 'HEATWAVE') {
-                ctx.fillStyle = p.color || '#ff6b2b';
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-        ctx.globalAlpha = 1;
-        ctx.restore();
-    }
-
-    // Thunderstorm flash + bolts (screen-space)
-    if (_weatherFlash > 0) {
-        ctx.save();
-        ctx.globalAlpha = _weatherFlash;
-        ctx.fillStyle = '#c8d8ff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.globalAlpha = 1;
-        ctx.restore();
-    }
-    if (_weatherBolts.length > 0) {
-        ctx.save();
-        for (const bolt of _weatherBolts) {
-            const progress = bolt.life / bolt.maxLife;
-            ctx.globalAlpha = progress;
-            ctx.strokeStyle = '#e8f4ff';
-            ctx.shadowColor = '#a0c8ff';
-            ctx.shadowBlur = 12;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            if (bolt.segs && bolt.segs.length > 0) {
-                ctx.moveTo(bolt.segs[0].x, bolt.segs[0].y);
-                for (let si = 1; si < bolt.segs.length; si++) ctx.lineTo(bolt.segs[si].x, bolt.segs[si].y);
-            }
-            ctx.stroke();
-        }
-        ctx.globalAlpha = 1;
-        ctx.shadowBlur = 0;
-        ctx.restore();
-    }
-    // DLC custom weather draw hook (screen-space, after all base weather)
-    if (currentWeather && window._weatherDrawHooks[currentWeather.id]) {
-        const _dhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
-        const _dhDlc = _dhLock && _dhLock.dlcId;
-        const _dhOk = !_dhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_dhDlc));
-        if (_dhOk) {
-            const _wFIForDraw = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
-            window._weatherDrawHooks[currentWeather.id](ctx, _wFIForDraw, frame);
-        }
-    }
-    // ──────────────────────────────────────────────────────────────────
-
-    updateUI();
-
-    // Player Death Logic
-    // Guard with !player.isDead: once the revival marker is placed we must not
-    // re-enter this block on subsequent frames (hp stays 0 while dead).
-    if (player.hp <= 0 && !player.isDead) {
-        if (!isVersusMode && (isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
-            // Co-op / AI companion: P1 dies but P2 is alive — drop revival marker
-            player.isDead = true;
-            player.hp = 0;
-            player.isInvincible = true;
-            player.isDashing = false;
-            player.moveInput = { x: 0, y: 0 };
-            p1RevivalMarker = { x: player.x, y: player.y, progress: 0, maxProgress: 240 };
-            createExplosion(player.x, player.y, '#ffffff');
-            showNotification(isAICompanionMode ? 'You\'re down! Ally is coming to revive you.' : 'P1 down! Stand on marker to revive.');
-        } else if (!isPlayerDying && !isOnlineGuest) {
-            isPlayerDying = true;
-            playerDeathTimer = 180; // 3 seconds animation
-            createExplosion(player.x, player.y, '#c0392b');
-            // Death — maximum rumble
-            triggerImpact(14, 30, 0.70, 1.0, 800);
-
-            // Force Stop Movement
-            player.isDashing = false;
-            player.moveInput = { x: 0, y: 0 };
-            player.isInvincible = true; // Prevent further damage (negative HP)
-
-            // Sound
-            if (typeof audioManager !== 'undefined') {
-                // Play Death Sound
-                try { audioManager.play('death'); } catch (e) { }
-                audioManager.playHeroExclamation(player.type, 'failure');
-            }
-        }
-    }
-
-    // Co-op: both players dead → game over (separate check needed because the
-    // revival-marker path sets player.isDead=true, which blocks the block above).
-    if (!isPlayerDying && !isOnlineGuest &&
-        !isVersusMode && (isCoopMode || isAICompanionMode) &&
-        player.isDead && player2 && player2.isDead) {
-        isPlayerDying = true;
-        playerDeathTimer = 180;
-        createExplosion(player.x, player.y, '#c0392b');
-        triggerImpact(14, 30, 0.70, 1.0, 800);
-        player.isDashing = false;
-        player.moveInput = { x: 0, y: 0 };
-        if (typeof audioManager !== 'undefined') {
-            try { audioManager.play('death'); } catch (e) { }
-            audioManager.playHeroExclamation(player.type, 'failure');
-        }
-    }
-
-    if (isPlayerDying) {
-        playerDeathTimer--;
-
-        // Slow Motion / Freeze Frame Effect Logic could go here
-
-        // Visuals: Fade to Black + Text
-        ctx.save();
-        ctx.fillStyle = `rgba(0, 0, 0, ${(180 - playerDeathTimer) / 200})`; // Slow fade
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Blood Explosions
-        if (playerDeathTimer % 15 === 0) {
-            createExplosion(player.x + (Math.random() - 0.5) * 60, player.y + (Math.random() - 0.5) * 60, '#c0392b');
-        }
-
-        // Shake Screen
-        const shake = (playerDeathTimer / 180) * 5;
-        ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
-
-        ctx.restore();
-
-        // Finish
-        if (playerDeathTimer <= 0) {
-            isPlayerDying = false;
-            gameOver();
-        }
-        return; // Stop processing frame
-    }
+    _drawGameplayPost();
 }
 
 function masterFrame(deltaTime, timestamp) {
