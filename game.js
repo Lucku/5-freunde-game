@@ -58,6 +58,7 @@ import {
 } from './Wave.js';
 import { createRunStats } from './RunState.js';
 import { createGameLoop } from './GameLoop.js';
+import { _drawGameplayPost } from './core/drawGameplayPost.js';
 
 // #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
 const isElectron   = !!(window.Platform && window.Platform.isElectron);
@@ -2377,6 +2378,13 @@ Object.defineProperties(window, {
     isOnlineMode:        { get: () => isOnlineMode,        set: v => { isOnlineMode        = v; }, configurable: true, enumerable: true },
     gameRunning:         { get: () => gameRunning,         set: v => { gameRunning         = v; }, configurable: true, enumerable: true },
     isStoryOpen:         { get: () => isStoryOpen,         set: v => { isStoryOpen         = v; }, configurable: true, enumerable: true },
+    // #173 phase 10 — additional mirrors so `core/drawGameplayPost.js`
+    // (and future leaf modules) can read this state via `globalThis.X`
+    // without coupling to game.js's module scope.
+    weatherDuration:     { get: () => weatherDuration,     set: v => { weatherDuration     = v; }, configurable: true, enumerable: true },
+    _weatherFlash:       { get: () => _weatherFlash,       set: v => { _weatherFlash       = v; }, configurable: true, enumerable: true },
+    _weatherBolts:       { get: () => _weatherBolts,       set: v => { _weatherBolts       = v; }, configurable: true, enumerable: true },
+    playerDeathTimer:    { get: () => playerDeathTimer,    set: v => { playerDeathTimer    = v; }, configurable: true, enumerable: true },
 });
 
 // Weather
@@ -3103,6 +3111,10 @@ function createDeathBurst(x, y, color) {
 
 let _hudPrevHp = null, _hudPrevXp = null, _hudPrevMeleeReady = null;
 
+// Exposed for `core/drawGameplayPost.js` to call via globalThis.updateUI.
+// updateUI itself is renderer-only (DOM access) — server bridge's no-op
+// stub for _drawGameplayPost never reaches the leaf module, so this is
+// only relevant to browser builds.
 function updateUI() {
     document.getElementById('scoreVal').innerText = score;
     document.getElementById('waveVal').innerText = wave;
@@ -7008,111 +7020,6 @@ function _updateGameplayPre(deltaTime) {
 // player death cinematic. Caller responsibility: pass ctx, do not modify
 // state. Player-death block decrements playerDeathTimer (mutation) — TODO
 // for phase 5 hoist outside this helper.
-function _drawGameplayPost() {
-    // ── Weather Particle Render (screen-space) ─────────────────────────
-    if (weatherParticles.length > 0 && !isReducedMotion()) {
-        ctx.save();
-        const wid = currentWeather?.id;
-        for (const p of weatherParticles) {
-            ctx.globalAlpha = p.alpha;
-            if (p.rain) {
-                ctx.strokeStyle = '#8ab4d8';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(p.x + p.vx / p.vy * p.len, p.y + p.len);
-                ctx.stroke();
-            } else if (p.sand) {
-                ctx.strokeStyle = p.color || '#c8924a';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(p.x + p.len, p.y + p.vy * 2);
-                ctx.stroke();
-            } else if (p.gale) {
-                ctx.strokeStyle = '#d0e8ff';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(p.x + p.len, p.y + p.vy * 3);
-                ctx.stroke();
-            } else if (p.fog) {
-                ctx.fillStyle = '#55cc55';
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (wid === 'BLIZZARD') {
-                ctx.fillStyle = '#dff0ff';
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (wid === 'HEATWAVE') {
-                ctx.fillStyle = p.color || '#ff6b2b';
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-        ctx.globalAlpha = 1;
-        ctx.restore();
-    }
-
-    // Thunderstorm flash + bolts (screen-space)
-    if (_weatherFlash > 0) {
-        ctx.save();
-        ctx.globalAlpha = _weatherFlash;
-        ctx.fillStyle = '#c8d8ff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.globalAlpha = 1;
-        ctx.restore();
-    }
-    if (_weatherBolts.length > 0) {
-        ctx.save();
-        for (const bolt of _weatherBolts) {
-            const progress = bolt.life / bolt.maxLife;
-            ctx.globalAlpha = progress;
-            ctx.strokeStyle = '#e8f4ff';
-            ctx.shadowColor = '#a0c8ff';
-            ctx.shadowBlur = 12;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            if (bolt.segs && bolt.segs.length > 0) {
-                ctx.moveTo(bolt.segs[0].x, bolt.segs[0].y);
-                for (let si = 1; si < bolt.segs.length; si++) ctx.lineTo(bolt.segs[si].x, bolt.segs[si].y);
-            }
-            ctx.stroke();
-        }
-        ctx.globalAlpha = 1;
-        ctx.shadowBlur = 0;
-        ctx.restore();
-    }
-    // DLC custom weather draw hook (screen-space, after all base weather)
-    if (currentWeather && window._weatherDrawHooks[currentWeather.id]) {
-        const _dhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
-        const _dhDlc = _dhLock && _dhLock.dlcId;
-        const _dhOk = !_dhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_dhDlc));
-        if (_dhOk) {
-            const _wFIForDraw = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
-            window._weatherDrawHooks[currentWeather.id](ctx, _wFIForDraw, frame);
-        }
-    }
-    // ──────────────────────────────────────────────────────────────────
-
-    updateUI();
-
-    // #173 phase 9 — player-death cinematic: pure overlay render driven by the
-    // isPlayerDying flag + playerDeathTimer (both owned by _updateGameplayMid).
-    // No state writes here; the timer ticks in update so photo mode freezes
-    // the death sequence with the rest of the world.
-    if (isPlayerDying) {
-        ctx.save();
-        ctx.fillStyle = `rgba(0, 0, 0, ${(180 - playerDeathTimer) / 200})`; // Slow fade
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const shake = (playerDeathTimer / 180) * 5;
-        ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
-        ctx.restore();
-    }
-}
 
 // #173 phase 6 — mixed middle. Update + draw still interleaved by entity
 // system; phase 7 (next) splits each forEach into a pure-update pass then a
@@ -9051,6 +8958,11 @@ setInterval(() => {
         saveGame();
     }
 }, 30000);
+
+// #173 phase 10 — expose updateUI on window so the extracted leaf module
+// `core/drawGameplayPost.js` can call it via `globalThis.updateUI`. Renderer-
+// only path; server bridge's no-op stub never reaches the leaf.
+if (typeof window !== 'undefined') window.updateUI = updateUI;
 
 // #173 phase 9 follow-up — named exports for the four pure update/draw helpers
 // so a server-side adapter (server/simulation/RendererBridge.js) can call them

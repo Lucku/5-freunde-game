@@ -48,48 +48,48 @@
  *   server-sim behaviour with zero risk; the bridge module is purely additive.
  */
 
-let _cachedUpdatePre = null;
-let _cachedUpdateMid = null;
-let _attempted = false;
+// Per-helper lazy-load cache. Each helper has its own try/catch so a single
+// missing leaf module doesn't block the others.
+const _cache = { pre: null, mid: null, drawMid: null, drawPost: null };
+const _attempted = { pre: false, mid: false, drawMid: false, drawPost: false };
+
+function _tryLoad(key, modulePath, exportName) {
+    if (_attempted[key]) return _cache[key];
+    _attempted[key] = true;
+    try {
+        const m = require(modulePath);
+        _cache[key] = m[exportName] || null;
+    } catch (e) {
+        _cache[key] = null;
+    }
+    return _cache[key];
+}
 
 /**
- * Lazily try to load the renderer helpers. Returns an object with `pre` / `mid`
- * function references, or `{ pre: null, mid: null }` when the renderer module
- * can't be loaded in the current Node environment.
+ * Lazily try to load the renderer helpers. Returns an object with the four
+ * function references; each may be null if its leaf module isn't yet split
+ * out of game.js. Today: `drawPost` resolves to the extracted leaf module
+ * `core/drawGameplayPost.js`; the other three are still in game.js and
+ * remain null until phase 11+ extracts them too.
  */
 function _tryLoadHelpers() {
-    if (_attempted) return { pre: _cachedUpdatePre, mid: _cachedUpdateMid };
-    _attempted = true;
-    try {
-        // Note: `require()` of an ESM file works on Node 22.12+. game.js still
-        // throws on import because its dependency graph reaches DOM globals
-        // before reaching the helpers; once phase 10 splits the helpers out
-        // into a server-loadable leaf module this require() target switches.
-        const mod = require('../../game.js');
-        _cachedUpdatePre = mod._updateGameplayPre || null;
-        _cachedUpdateMid = mod._updateGameplayMid || null;
-    } catch (e) {
-        // Expected today — game.js dependency graph isn't server-loadable yet.
-        _cachedUpdatePre = null;
-        _cachedUpdateMid = null;
-    }
-    return { pre: _cachedUpdatePre, mid: _cachedUpdateMid };
+    return {
+        pre:      _tryLoad('pre',      '../../game.js', '_updateGameplayPre'),
+        mid:      _tryLoad('mid',      '../../game.js', '_updateGameplayMid'),
+        // Phase 10: extracted leaf module. Future helpers follow same pattern.
+        drawMid:  _tryLoad('drawMid',  '../../game.js', '_drawGameplayMid'),
+        drawPost: _tryLoad('drawPost', '../../core/drawGameplayPost.js', '_drawGameplayPost'),
+    };
 }
 
 /**
  * Returns the renderer's `_updateGameplayPre` if loadable, else null. Callers
  * should fall back to the existing GameSession tick when null.
  */
-function getUpdatePre() {
-    return _tryLoadHelpers().pre;
-}
-
-/**
- * Returns the renderer's `_updateGameplayMid` if loadable, else null.
- */
-function getUpdateMid() {
-    return _tryLoadHelpers().mid;
-}
+function getUpdatePre()  { return _tryLoadHelpers().pre; }
+function getUpdateMid()  { return _tryLoadHelpers().mid; }
+function getDrawMid()    { return _tryLoadHelpers().drawMid; }
+function getDrawPost()   { return _tryLoadHelpers().drawPost; }
 
 /**
  * Run one tick of the renderer's update half against the given session world.
@@ -126,6 +126,8 @@ const drawPostNoop = () => {};
 module.exports = {
     getUpdatePre,
     getUpdateMid,
+    getDrawMid,
+    getDrawPost,
     runUpdate,
     drawMidNoop,
     drawPostNoop,

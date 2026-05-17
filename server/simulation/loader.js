@@ -63,6 +63,47 @@ global.document = {
     }),
 };
 global.Image = class { set src(_) {} };
+// Audio constructor stub — AudioManager uses `new Audio(path)` for SFX preload.
+// Server never plays audio so all methods are no-ops.
+global.Audio = class {
+    constructor(_src) {}
+    play() { return Promise.resolve(); }
+    pause() {}
+    load() {}
+    cloneNode() { return new global.Audio(); }
+    addEventListener() {}
+    removeEventListener() {}
+    get currentTime() { return 0; }
+    set currentTime(_) {}
+    get duration() { return 0; }
+    get paused() { return true; }
+    get volume() { return 0; }
+    set volume(_) {}
+    get muted() { return true; }
+    set muted(_) {}
+    get loop() { return false; }
+    set loop(_) {}
+    get readyState() { return 4; }
+    get error() { return null; }
+};
+
+// localStorage / sessionStorage shims so Config.js, SaveManager, etc. can
+// `getItem`/`setItem` without crashing. In-memory map per process — survives
+// across require() calls but doesn't persist across server restarts (server
+// gameplay doesn't need persistence; renderer paths are unreachable here).
+const _makeStorage = () => {
+    const data = new Map();
+    return {
+        getItem: (k) => data.has(k) ? data.get(k) : null,
+        setItem: (k, v) => data.set(k, String(v)),
+        removeItem: (k) => data.delete(k),
+        clear: () => data.clear(),
+        get length() { return data.size; },
+        key: (i) => [...data.keys()][i] ?? null,
+    };
+};
+global.localStorage   = _makeStorage();
+global.sessionStorage = _makeStorage();
 
 // ── 2. Game constants (Node-safe server constants, not browser Constants.js) ──
 const {
