@@ -233,3 +233,12 @@ if (global.TimeHero)      global.HERO_LOGIC['time']      = global.TimeHero;
 // LightningHero.js sets window.LightningHero but then overwrites HERO_LOGIC['lightning']
 // with only { applyUpgrade }; restore the full class so Player.init() finds init().
 if (global.LightningHero) global.HERO_LOGIC['lightning'] = global.LightningHero;
+
+// ── 9. Renderer helper stubs (#173) ──────────────────────────────────────────
+// game.js exports _updateGameplayPre / _updateGameplayMid / _drawGameplayMid /
+// _drawGameplayPost as the four pure halves of a frame. The server simulation
+// drives the update halves via RendererBridge.js and never wants the draws.
+// These no-ops let any future code path that calls the draw helpers (e.g. if
+// the renderer is fully bridged in) early-return cleanly with no canvas work.
+global._drawGameplayMid  = () => {};
+global._drawGameplayPost = () => {};

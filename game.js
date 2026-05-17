@@ -9052,6 +9052,19 @@ setInterval(() => {
     }
 }, 30000);
 
+// #173 phase 9 follow-up — named exports for the four pure update/draw helpers
+// so a server-side adapter (server/simulation/RendererBridge.js) can call them
+// directly with no-op stubs for the draw halves. The renderer keeps using its
+// usual side-effect-only module load path; these exports are the explicit API
+// surface for the server bridge + future ECS tooling.
+export {
+    _updateGameplayPre,
+    _updateGameplayMid,
+    _drawGameplayMid,
+    _drawGameplayPost,
+    _runGameplayFrame,
+};
+
 // Expose module-scoped functions as globals so HTML onclick handlers can reach them.
 window.skipTutorialPrompt  = skipTutorialPrompt;
 window.acceptTutorialPrompt = acceptTutorialPrompt;
