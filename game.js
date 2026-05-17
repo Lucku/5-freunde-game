@@ -7100,85 +7100,17 @@ function _drawGameplayPost() {
 
     updateUI();
 
-    // Player Death Logic
-    // Guard with !player.isDead: once the revival marker is placed we must not
-    // re-enter this block on subsequent frames (hp stays 0 while dead).
-    if (player.hp <= 0 && !player.isDead) {
-        if (!isVersusMode && (isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
-            // Co-op / AI companion: P1 dies but P2 is alive — drop revival marker
-            player.isDead = true;
-            player.hp = 0;
-            player.isInvincible = true;
-            player.isDashing = false;
-            player.moveInput = { x: 0, y: 0 };
-            p1RevivalMarker = { x: player.x, y: player.y, progress: 0, maxProgress: 240 };
-            createExplosion(player.x, player.y, '#ffffff');
-            showNotification(isAICompanionMode ? 'You\'re down! Ally is coming to revive you.' : 'P1 down! Stand on marker to revive.');
-        } else if (!isPlayerDying && !isOnlineGuest) {
-            isPlayerDying = true;
-            playerDeathTimer = 180; // 3 seconds animation
-            createExplosion(player.x, player.y, '#c0392b');
-            // Death — maximum rumble
-            triggerImpact(14, 30, 0.70, 1.0, 800);
-
-            // Force Stop Movement
-            player.isDashing = false;
-            player.moveInput = { x: 0, y: 0 };
-            player.isInvincible = true; // Prevent further damage (negative HP)
-
-            // Sound
-            if (typeof audioManager !== 'undefined') {
-                // Play Death Sound
-                try { audioManager.play('death'); } catch (e) { }
-                audioManager.playHeroExclamation(player.type, 'failure');
-            }
-        }
-    }
-
-    // Co-op: both players dead → game over (separate check needed because the
-    // revival-marker path sets player.isDead=true, which blocks the block above).
-    if (!isPlayerDying && !isOnlineGuest &&
-        !isVersusMode && (isCoopMode || isAICompanionMode) &&
-        player.isDead && player2 && player2.isDead) {
-        isPlayerDying = true;
-        playerDeathTimer = 180;
-        createExplosion(player.x, player.y, '#c0392b');
-        triggerImpact(14, 30, 0.70, 1.0, 800);
-        player.isDashing = false;
-        player.moveInput = { x: 0, y: 0 };
-        if (typeof audioManager !== 'undefined') {
-            try { audioManager.play('death'); } catch (e) { }
-            audioManager.playHeroExclamation(player.type, 'failure');
-        }
-    }
-
+    // #173 phase 9 — player-death cinematic: pure overlay render driven by the
+    // isPlayerDying flag + playerDeathTimer (both owned by _updateGameplayMid).
+    // No state writes here; the timer ticks in update so photo mode freezes
+    // the death sequence with the rest of the world.
     if (isPlayerDying) {
-        playerDeathTimer--;
-
-        // Slow Motion / Freeze Frame Effect Logic could go here
-
-        // Visuals: Fade to Black + Text
         ctx.save();
         ctx.fillStyle = `rgba(0, 0, 0, ${(180 - playerDeathTimer) / 200})`; // Slow fade
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Blood Explosions
-        if (playerDeathTimer % 15 === 0) {
-            createExplosion(player.x + (Math.random() - 0.5) * 60, player.y + (Math.random() - 0.5) * 60, '#c0392b');
-        }
-
-        // Shake Screen
         const shake = (playerDeathTimer / 180) * 5;
         ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
-
         ctx.restore();
-
-        // Finish
-        if (playerDeathTimer <= 0) {
-            isPlayerDying = false;
-            gameOver();
-        }
-        return; // Stop processing frame
     }
 }
 
@@ -8933,6 +8865,65 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     }
     _recordPhase('enemies', performance.now() - _enemiesT0); // #24 P10
 
+    // #173 phase 9 — player-death cinematic state machine. Trigger detection
+    // (hp ≤ 0), co-op revive marker drop, isPlayerDying flag flip, timer
+    // decrement, and gameOver() call. Pure state mutation — the visual fade
+    // + screen shake lives in _drawGameplayPost (driven by isPlayerDying +
+    // playerDeathTimer). Photo mode skips this entirely (caller-side gate)
+    // so the death sequence pauses with the rest of the world.
+    if (player.hp <= 0 && !player.isDead) {
+        if (!isVersusMode && (isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+            // Co-op / AI companion: P1 dies but P2 is alive — drop revival marker.
+            player.isDead = true;
+            player.hp = 0;
+            player.isInvincible = true;
+            player.isDashing = false;
+            player.moveInput = { x: 0, y: 0 };
+            p1RevivalMarker = { x: player.x, y: player.y, progress: 0, maxProgress: 240 };
+            createExplosion(player.x, player.y, '#ffffff');
+            showNotification(isAICompanionMode ? 'You\'re down! Ally is coming to revive you.' : 'P1 down! Stand on marker to revive.');
+        } else if (!isPlayerDying && !isOnlineGuest) {
+            isPlayerDying = true;
+            playerDeathTimer = 180; // 3 seconds animation
+            createExplosion(player.x, player.y, '#c0392b');
+            triggerImpact(14, 30, 0.70, 1.0, 800); // Death — maximum rumble
+            player.isDashing = false;
+            player.moveInput = { x: 0, y: 0 };
+            player.isInvincible = true; // Prevent further damage (negative HP)
+            if (typeof audioManager !== 'undefined') {
+                try { audioManager.play('death'); } catch (e) { }
+                audioManager.playHeroExclamation(player.type, 'failure');
+            }
+        }
+    }
+    // Co-op: both players dead → game over (separate check needed because the
+    // revival-marker path sets player.isDead=true, which blocks the block above).
+    if (!isPlayerDying && !isOnlineGuest &&
+        !isVersusMode && (isCoopMode || isAICompanionMode) &&
+        player.isDead && player2 && player2.isDead) {
+        isPlayerDying = true;
+        playerDeathTimer = 180;
+        createExplosion(player.x, player.y, '#c0392b');
+        triggerImpact(14, 30, 0.70, 1.0, 800);
+        player.isDashing = false;
+        player.moveInput = { x: 0, y: 0 };
+        if (typeof audioManager !== 'undefined') {
+            try { audioManager.play('death'); } catch (e) { }
+            audioManager.playHeroExclamation(player.type, 'failure');
+        }
+    }
+    // Cinematic timer tick — spawns blood-burst particles at regular intervals
+    // and ends the run when the timer hits 0.
+    if (isPlayerDying) {
+        playerDeathTimer--;
+        if (playerDeathTimer % 15 === 0) {
+            createExplosion(player.x + (Math.random() - 0.5) * 60, player.y + (Math.random() - 0.5) * 60, '#c0392b');
+        }
+        if (playerDeathTimer <= 0) {
+            isPlayerDying = false;
+            gameOver();
+        }
+    }
 }
 
 function _runGameplayFrame(deltaTime) {
