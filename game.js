@@ -56,7 +56,7 @@ import {
     isWaveCleared, buildBiomePool, pickRandomBiome,
     pickSeededBiome, isStoryBossWave, notifyWaveAdvance,
 } from './Wave.js';
-import { createRunStats } from './RunState.js';
+import { createRunStats, createRunState } from './RunState.js';
 import { createGameLoop } from './GameLoop.js';
 import { _drawGameplayPost } from './core/drawGameplayPost.js';
 import { _drawGameplayMid } from './core/drawGameplayMid.js';
@@ -1909,7 +1909,7 @@ function continueRun() {
     player.critMultiplier = state.player.critMultiplier;
 
     // Restore Companions
-    companions = [];
+    companions.length = 0;
     state.companions.forEach(cData => {
         companions.push(new Companion(cData.type, player));
     });
@@ -2242,11 +2242,11 @@ function _resetGameState() {
     p2LevelUpPending = false;
     isPlayerDying = false;
     playerDeathTimer = 0;
-    enemies = [];
-    projectiles = [];
-    powerUps = [];
-    floatingTexts = [];
-    particles = [];
+    enemies.length = 0;
+    projectiles.length = 0;
+    powerUps.length = 0;
+    floatingTexts.length = 0;
+    particles.length = 0;
     if (window._world) {
         window._world.enemies = enemies; window._world.projectiles = projectiles;
         window._world.floatingTexts = floatingTexts; window._world.particles = particles;
@@ -2413,28 +2413,36 @@ window._weatherLogicHooks = {};
 
 // GLOBAL VARIABLES (Window Scope for DLC Access)
 let player;
-var projectiles = [];
-var enemies = [];
-var particles = [];
-var floatingTexts = [];
-let meleeAttacks = [];
+
+// #11 phase 2 — entity arrays migrated into runState container. Destructured
+// const aliases preserve the bare-name idiom (~330 refs in this file) while
+// routing array identity through `runState.X`. Arrays are mutated in place
+// (push / splice / `.length = 0`) and never reassigned, so the local aliases
+// stay valid for the lifetime of the session.
+const runState = createRunState();
+const {
+    enemies, projectiles, particles, floatingTexts, meleeAttacks,
+    holyMasks, goldDrops, cardDrops, memoryShards, powerUps, companions,
+} = runState;
+
+// Replace an array's contents in place. Preserves identity so const aliases +
+// `window.X` exports + `_world.X` resyncs stay valid after a filter/map pass.
+function _replaceArrInPlace(target, src) {
+    target.length = 0;
+    for (let i = 0; i < src.length; i++) target.push(src[i]);
+}
 
 window.player = player;
 window.meleeAttacks = meleeAttacks;
 window.arena = arena; // Expose Arena to Window for DLCs
 // Live array references shared with extracted modules (Spawner.js, RunState.js).
-// Arrays are reference types so module mutations propagate.
+// Arrays are reference types so module mutations propagate. After #11 phase 2
+// these all alias the single `runState.X` ref, so the one-time exports stay
+// valid forever and `window._world.X = X` resyncs become idempotent no-ops.
 window.projectiles  = projectiles;
 window.enemies      = enemies;
 window.particles    = particles;
 window.floatingTexts = floatingTexts;
-let powerUps = [];
-// obstacles and biomeZones moved to Arena class
-let holyMasks = [];
-let goldDrops = [];
-let cardDrops = [];
-let memoryShards = [];
-let companions = [];
 // obstacles and biomeZones moved to Arena class.
 // Cross-module references via window — these arrays are mutated (push / splice)
 // but never reassigned, so a one-time window export keeps Arena.js,
@@ -2493,9 +2501,9 @@ inputManager.onKeyDown = e => {
         }
         // DEBUG: Next Wave with 'N'
         if (e.code === 'KeyN' && gameRunning && !gamePaused) {
-            enemies = [];
+            enemies.length = 0;
             bossActive = false;
-            projectiles = [];
+            projectiles.length = 0;
             if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
 
             if (wave % 2 === 0) {
@@ -2538,9 +2546,9 @@ inputManager.onKeyDown = e => {
             const targetWave = parseInt(input);
             if (!isNaN(targetWave) && targetWave > 0) {
                 // Reset State
-                enemies = [];
-                projectiles = [];
-                powerUps = [];
+                enemies.length = 0;
+                projectiles.length = 0;
+                powerUps.length = 0;
                 bossActive = false;
                 currentObjective = null;
                 if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
@@ -2648,8 +2656,8 @@ inputManager.onKeyDown = e => {
 
         // DEBUG: [N] Instantly complete current wave (triggers boss-defeated cinematic)
         if (e.code === 'KeyN' && gameRunning && !isLevelingUp && !gamePaused && bossDeathTimer === 0 && !_bossChoiceScreen) {
-            enemies = [];
-            projectiles = [];
+            enemies.length = 0;
+            projectiles.length = 0;
             bossActive = false;
             if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
             bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
@@ -3831,13 +3839,12 @@ Object.defineProperties(window, {
     currentWeather:      { get: () => currentWeather,      set: v => { currentWeather      = v; }, configurable: true, enumerable: true },
     currentObjective:    { get: () => currentObjective,    set: v => { currentObjective    = v; }, configurable: true, enumerable: true },
     activeMutators:      { get: () => activeMutators,      set: v => { activeMutators      = v; }, configurable: true, enumerable: true },
-    companions:          { get: () => companions,          set: v => { companions          = v; }, configurable: true, enumerable: true },
-    projectiles:         { get: () => projectiles,         set: v => { projectiles         = v; }, configurable: true, enumerable: true },
-    particles:           { get: () => particles,           set: v => { particles           = v; }, configurable: true, enumerable: true },
-    enemies:             { get: () => enemies,             set: v => { enemies             = v; }, configurable: true, enumerable: true },
-    floatingTexts:       { get: () => floatingTexts,       set: v => { floatingTexts       = v; }, configurable: true, enumerable: true },
-    holyMasks:           { get: () => holyMasks,           set: v => { holyMasks           = v; }, configurable: true, enumerable: true },
-    goldDrops:           { get: () => goldDrops,           set: v => { goldDrops           = v; }, configurable: true, enumerable: true },
+    // #11 phase 2 — entity arrays now live on runState with stable identity
+    // (mutate-in-place via `arr.length = 0` and push/splice). The one-time
+    // `window.X = X` exports above bind directly to the runState refs, so
+    // defineProperty bridges are no longer needed for these fields.
+    //   companions, projectiles, particles, enemies, floatingTexts,
+    //   holyMasks, goldDrops — handled by plain `window.X = X` at init.
     waveTimer:           { get: () => waveTimer,           set: v => { waveTimer           = v; }, configurable: true, enumerable: true },
 });
 
@@ -4029,7 +4036,7 @@ function advanceWave() {
     }
     enemiesKilledInWave = 0;
     masksDroppedInWave = 0; // Reset mask cap
-    enemies = [];
+    enemies.length = 0;
     if (window._world) window._world.enemies = enemies;
     bossActive = false;
     notifyWaveAdvance(wave);
@@ -4632,18 +4639,18 @@ async function startGame(mode = 'NORMAL') {
     bossIntroTimer = 0; bossIntroName = ''; bossIntroSkippable = false;
     _bossChoiceScreen = false;
     _bossChoiceFrame = 0;
-    enemies = [];
-    projectiles = [];
-    particles = [];
-    floatingTexts = [];
-    meleeAttacks = [];
+    enemies.length = 0;
+    projectiles.length = 0;
+    particles.length = 0;
+    floatingTexts.length = 0;
+    meleeAttacks.length = 0;
     window.meleeAttacks = meleeAttacks;
-    powerUps = [];
-    holyMasks = [];
-    goldDrops = [];
-    cardDrops = [];
-    memoryShards = [];
-    companions = [];
+    powerUps.length = 0;
+    holyMasks.length = 0;
+    goldDrops.length = 0;
+    cardDrops.length = 0;
+    memoryShards.length = 0;
+    companions.length = 0;
     isPlayerDying = false;
     playerDeathTimer = 0;
     forcedEnemyType = null;
@@ -5429,7 +5436,7 @@ function _onlineApplySnapshot(s) {
     // Rebuild ghost enemy array from snapshot
     const _now = Date.now();
     const _prevMap = new Map(enemies.filter(e => e._ghost).map(e => [e._id, e]));
-    enemies = s.enemies.map(ed => {
+    _replaceArrInPlace(enemies, s.enemies.map(ed => {
         // Reuse existing ghost object if possible (avoids GC churn)
         let e = _prevMap.get(ed._id);
         if (!e) {
@@ -5471,7 +5478,7 @@ function _onlineApplySnapshot(s) {
         if (ed.sides   !== undefined) e.sides   = ed.sides;
         if (ed.radius  !== undefined) { if (e.radius !== ed.radius) e._bodyGradient = null; e.radius = ed.radius; }
         return e;
-    });
+    }));
     if (window._world) window._world.enemies = enemies;
 
     // Rebuild ghost projectile array (reuse existing objects to reduce GC pressure).
@@ -5482,7 +5489,7 @@ function _onlineApplySnapshot(s) {
     // with their last buffered position, so they finish their visible flight path.
     const _prevProjMap = new Map(projectiles.filter(p => p._ghost).map(p => [p._id, p]));
     const _newProjIds  = new Set(s.projectiles.map(pd => pd._id));
-    projectiles = s.projectiles.map(pd => {
+    _replaceArrInPlace(projectiles, s.projectiles.map(pd => {
         let p = _prevProjMap.get(pd._id);
         if (!p) {
             p = Object.create(Projectile ? Projectile.prototype : Object.prototype);
@@ -5514,7 +5521,7 @@ function _onlineApplySnapshot(s) {
         if (pd.isCrit      !== undefined) p.isCrit      = pd.isCrit;
         if (pd.type        !== undefined) p.type        = pd.type;
         return p;
-    });
+    }));
     // Carry forward orphans (in last frame's array, gone from this snapshot) so the
     // render loop can interpolate them to their final position before they vanish.
     for (const [id, p] of _prevProjMap) {
@@ -5772,8 +5779,8 @@ function _cheatExec(raw) {
             const n = parseInt(parts[2], 10);
             if (Number.isFinite(n) && n > 0) {
                 wave = n - 1;
-                enemies = [];
-                projectiles = [];
+                enemies.length = 0;
+                projectiles.length = 0;
                 bossActive = false;
                 if (typeof advanceWave === 'function') advanceWave();
                 _cheatLog(`wave → ${n}`);
@@ -7017,7 +7024,7 @@ function _updateGameplayPre(deltaTime) {
         const nonBoss = enemies.filter(e => !(e instanceof Boss));
         if (nonBoss.length > 8) {
             const excess = new Set(nonBoss.slice(8));
-            enemies = enemies.filter(e => !excess.has(e));
+            _replaceArrInPlace(enemies, enemies.filter(e => !excess.has(e)));
         }
     }
 
@@ -7199,11 +7206,11 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         // Drop orphan projectiles once render time has passed their last buffered
         // server position — they've finished their visible flight to impact.
         if (projectiles.some(p => p._orphanAt !== undefined)) {
-            projectiles = projectiles.filter(p => {
+            _replaceArrInPlace(projectiles, projectiles.filter(p => {
                 if (p._orphanAt === undefined) return true;
                 const lastT = p._snapBuf && p._snapBuf.length ? p._snapBuf[p._snapBuf.length - 1].t : 0;
                 return _renderTime <= lastT;
-            });
+            }));
             if (window._world) window._world.projectiles = projectiles;
         }
 
@@ -7613,8 +7620,8 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
                                 // Clear any remaining enemies/projectiles
                                 enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
-                                enemies = [];
-                                projectiles = [];
+                                enemies.length = 0;
+                                projectiles.length = 0;
                                 if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
                             }
                         }
@@ -7732,8 +7739,8 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                                         bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
                                         triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
                                         enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
-                                        enemies = [];
-                                        projectiles = [];
+                                        enemies.length = 0;
+                                        projectiles.length = 0;
                                         if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
                                     }
                                 }
@@ -8356,8 +8363,8 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
                     // Clear all other enemies instantly for dramatic effect
                     enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
-                    enemies = [];
-                    projectiles = []; // Clear projectiles too
+                    enemies.length = 0;
+                    projectiles.length = 0; // Clear projectiles too
                     if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
                 }
             } else {

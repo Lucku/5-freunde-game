@@ -157,10 +157,11 @@ const TutorialMode = {
         }
 
         // Reset wave-level state so closeStory() → advanceWave() restarts cleanly.
-        window.enemies = [];
-        window.projectiles = [];
-        window.particles = [];
-        window.floatingTexts = [];
+        // #11 phase 2 — mutate-in-place keeps runState.X identity stable.
+        window.enemies.length = 0;
+        window.projectiles.length = 0;
+        window.particles.length = 0;
+        window.floatingTexts.length = 0;
         window.wave = 0;
         window.bossActive = false;
         window.bossDeathTimer = 0;
