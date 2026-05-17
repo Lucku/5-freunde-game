@@ -6537,102 +6537,6 @@ function _updateGameplayPre(deltaTime) {
     // Boss-Defeated Choice Screen (runs after cinematic, before next wave)
         if (_renderBossChoiceScreen()) return true;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any accumulated transform corruption
-
-    // Apply Camera Transform
-    ctx.save();
-
-    // Queasy Cam Chaos Effect
-    if (saveData.chaos && saveData.chaos.active && saveData.chaos.active.includes('DRUNK_CAM')) {
-        const cx = (canvas.width / 2);
-        const cy = (canvas.height / 2);
-        const angle = Math.sin(frame * 0.05) * 0.1; // Sway
-        const scale = 1 + Math.sin(frame * 0.03) * 0.05; // Breathe
-
-        ctx.translate(cx, cy);
-        ctx.rotate(angle);
-        ctx.scale(scale, scale);
-        ctx.translate(-cx, -cy);
-    }
-
-    // Screen shake (state owned by Camera.js).
-    applyScreenShake(ctx);
-
-    if (isCoopMode && coopZoom !== 1.0) ctx.scale(coopZoom, coopZoom);
-    ctx.translate(-arena.camera.x, -arena.camera.y);
-
-    // Draw World
-    // Background follows Biome Type
-    const themeType = currentBiomeType;
-    if (arena) arena.biomeType = themeType;
-
-    arena.draw(ctx, getHeroTheme(themeType));
-
-
-    // Draw Objective Elements
-    if (currentObjective && currentObjective.state === 'ACTIVE') {
-        const objDisplay = document.getElementById('objective-display');
-        const objText = document.getElementById('objective-text');
-        const objBar = document.getElementById('objective-bar-container');
-        const objFill = document.getElementById('objective-bar-fill');
-
-        objDisplay.style.display = 'block';
-        objBar.style.display = 'block';
-
-        if (currentObjective.type === 'INFERNO') {
-            objText.innerText = `COMBO TIME: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
-            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
-            objFill.style.backgroundColor = '#e74c3c';
-        } else if (currentObjective.type === 'DEFENSE') {
-            const s = currentObjective.data.sapling;
-            objText.innerText = `SAPLING HP: ${Math.floor(s.hp)}`;
-            objFill.style.width = `${(s.hp / s.maxHp) * 100}%`;
-            objFill.style.backgroundColor = '#2ecc71';
-
-            // Draw Sapling in World
-            ctx.save();
-            ctx.translate(s.x - arena.camera.x, s.y - arena.camera.y);
-            ctx.fillStyle = '#2ecc71';
-            ctx.beginPath(); ctx.arc(0, 0, s.radius, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 20; ctx.shadowColor = '#2ecc71'; ctx.stroke();
-            ctx.restore();
-        } else if (currentObjective.type === 'EYE_OF_STORM') {
-            const eye = currentObjective.data.stormEye;
-            objText.innerText = `TIME IN EYE: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
-            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
-            objFill.style.backgroundColor = '#ecf0f1';
-
-            // Draw Eye
-            ctx.save();
-            ctx.translate(eye.x - arena.camera.x, eye.y - arena.camera.y);
-
-            // Safe Zone
-            ctx.beginPath();
-            ctx.arc(0, 0, eye.radius, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(52, 152, 219, 0.2)';
-            ctx.fill();
-            ctx.lineWidth = 5;
-            ctx.strokeStyle = '#ecf0f1';
-            ctx.stroke();
-            ctx.restore();
-        } else if (currentObjective.type === 'UNTOUCHABLE') {
-            objText.innerText = `HITS TAKEN: ${currentObjective.current} / ${currentObjective.target}`;
-            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
-            objFill.style.backgroundColor = '#3498db';
-        } else if (currentObjective.type === 'IRON_WILL') {
-            objText.innerText = `SURVIVE: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
-            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
-            objFill.style.backgroundColor = '#95a5a6';
-        }
-
-        // DLC Hook: Draw UI
-        if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawObjectiveUI) {
-            window.HERO_LOGIC[player.type].drawObjectiveUI(currentObjective, objText, objFill);
-        }
-    } else {
-        document.getElementById('objective-display').style.display = 'none';
-    }
 
     frame++;
     window.frame = frame; // Expose for DLCs
@@ -7297,6 +7201,105 @@ function _drawGameplayMid() {
     const _camR = arena.camera.x + arena.camera.width  + _cullMargin;
     const _camB = arena.camera.y + arena.camera.height + _cullMargin;
 
+    // ═══ phase 8 — lifted from _updateGameplayPre. Camera transform setup,
+    // arena render, objective DOM + sapling/eye draws.
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any accumulated transform corruption
+
+    // Apply Camera Transform
+    ctx.save();
+
+    // Queasy Cam Chaos Effect
+    if (saveData.chaos && saveData.chaos.active && saveData.chaos.active.includes('DRUNK_CAM')) {
+        const cx = (canvas.width / 2);
+        const cy = (canvas.height / 2);
+        const angle = Math.sin(frame * 0.05) * 0.1; // Sway
+        const scale = 1 + Math.sin(frame * 0.03) * 0.05; // Breathe
+
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        ctx.scale(scale, scale);
+        ctx.translate(-cx, -cy);
+    }
+
+    // Screen shake (state owned by Camera.js).
+    applyScreenShake(ctx);
+
+    if (isCoopMode && coopZoom !== 1.0) ctx.scale(coopZoom, coopZoom);
+    ctx.translate(-arena.camera.x, -arena.camera.y);
+
+    // Draw World
+    // Background follows Biome Type
+    const themeType = currentBiomeType;
+    if (arena) arena.biomeType = themeType;
+
+    arena.draw(ctx, getHeroTheme(themeType));
+
+
+    // Draw Objective Elements
+    if (currentObjective && currentObjective.state === 'ACTIVE') {
+        const objDisplay = document.getElementById('objective-display');
+        const objText = document.getElementById('objective-text');
+        const objBar = document.getElementById('objective-bar-container');
+        const objFill = document.getElementById('objective-bar-fill');
+
+        objDisplay.style.display = 'block';
+        objBar.style.display = 'block';
+
+        if (currentObjective.type === 'INFERNO') {
+            objText.innerText = `COMBO TIME: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
+            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+            objFill.style.backgroundColor = '#e74c3c';
+        } else if (currentObjective.type === 'DEFENSE') {
+            const s = currentObjective.data.sapling;
+            objText.innerText = `SAPLING HP: ${Math.floor(s.hp)}`;
+            objFill.style.width = `${(s.hp / s.maxHp) * 100}%`;
+            objFill.style.backgroundColor = '#2ecc71';
+
+            // Draw Sapling in World
+            ctx.save();
+            ctx.translate(s.x - arena.camera.x, s.y - arena.camera.y);
+            ctx.fillStyle = '#2ecc71';
+            ctx.beginPath(); ctx.arc(0, 0, s.radius, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 20; ctx.shadowColor = '#2ecc71'; ctx.stroke();
+            ctx.restore();
+        } else if (currentObjective.type === 'EYE_OF_STORM') {
+            const eye = currentObjective.data.stormEye;
+            objText.innerText = `TIME IN EYE: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
+            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+            objFill.style.backgroundColor = '#ecf0f1';
+
+            // Draw Eye
+            ctx.save();
+            ctx.translate(eye.x - arena.camera.x, eye.y - arena.camera.y);
+
+            // Safe Zone
+            ctx.beginPath();
+            ctx.arc(0, 0, eye.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(52, 152, 219, 0.2)';
+            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#ecf0f1';
+            ctx.stroke();
+            ctx.restore();
+        } else if (currentObjective.type === 'UNTOUCHABLE') {
+            objText.innerText = `HITS TAKEN: ${currentObjective.current} / ${currentObjective.target}`;
+            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+            objFill.style.backgroundColor = '#3498db';
+        } else if (currentObjective.type === 'IRON_WILL') {
+            objText.innerText = `SURVIVE: ${Math.floor(currentObjective.current)} / ${currentObjective.target}s`;
+            objFill.style.width = `${(currentObjective.current / currentObjective.target) * 100}%`;
+            objFill.style.backgroundColor = '#95a5a6';
+        }
+
+        // DLC Hook: Draw UI
+        if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawObjectiveUI) {
+            window.HERO_LOGIC[player.type].drawObjectiveUI(currentObjective, objText, objFill);
+        }
+    } else {
+        document.getElementById('objective-display').style.display = 'none';
+    }
+
     // ═══ phase 7 — DRAW PHASE for the entity-loop subsystems. Moved here
     // from each subsystem's section so the draws cluster at the end. Order
     // preserved (companions → memShards → gold → card → holy → powerup
@@ -7374,9 +7377,165 @@ function _drawGameplayMid() {
         });
     }
 
+
+    // ═══ phase 8 — lifted from _runGameplayMid. Camera restore, then
+    // post-camera screen-space HUD draws (DLC biome, hero UI, minimap,
+    // tutorial HUD, testing HUD, boss off-screen arrow).
+    // Restore Camera Transform
+    ctx.restore();
+
+    // DLC Hook: Biome Draw (e.g. Falling Rock Shadows)
+    if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType] && window.BIOME_LOGIC[currentBiomeType].draw) {
+        ctx.save();
+        // Apply camera transform again for biome effects
+        ctx.translate(-arena.camera.x, -arena.camera.y);
+        window.BIOME_LOGIC[currentBiomeType].draw(ctx, arena);
+        ctx.restore();
+    }
+
+    // DLC Hook: Hero UI (e.g. Spirit Meter)
+    if (window.HERO_LOGIC && player && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawUI) {
+        window.HERO_LOGIC[player.type].drawUI(ctx);
+    }
+
+    // #170 — Minimap (rendered into a separate DOM canvas)
+    _renderMinimap();
+
+    // Tutorial HUD
+    if (isTutorialMode) TutorialMode.drawHUD(ctx);
+
+    // Testing Grounds HUD
+    if (isTestingMode) TestingGrounds.drawHUD(ctx);
+
+    // Boss Off-Screen Direction Indicator
+    if (bossActive && enemies.length > 0 && enemies[0] instanceof Boss) {
+        const _boss = enemies[0];
+        const _bsx = _boss.x - arena.camera.x;
+        const _bsy = _boss.y - arena.camera.y;
+        const _br = _boss.radius || 60;
+        const _offScreen = _bsx < -_br || _bsx > canvas.width + _br ||
+                           _bsy < -_br || _bsy > canvas.height + _br;
+        if (_offScreen) {
+            const _cx = canvas.width / 2;
+            const _cy = canvas.height / 2;
+            const _angle = Math.atan2(_bsy - _cy, _bsx - _cx);
+            // Inner margin rectangle – keeps arrow off corners where UI lives
+            const _ml = 52, _mr = canvas.width - 52;
+            const _mt = 76, _mb = canvas.height - 52;
+            const _dx = _bsx - _cx, _dy = _bsy - _cy;
+            let _t = Infinity;
+            if (_dx > 0) { const _ty = (_mr - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
+            if (_dx < 0) { const _ty = (_ml - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
+            if (_dy > 0) { const _tx = (_mb - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
+            if (_dy < 0) { const _tx = (_mt - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
+            if (_t !== Infinity) {
+                const _ax = _cx + _t * _dx, _ay = _cy + _t * _dy;
+                const _pulse = 0.55 + 0.2 * ((Math.sin(frame * 0.08) + 1) / 2);
+                ctx.save();
+                ctx.translate(_ax, _ay);
+                ctx.rotate(_angle);
+                ctx.globalAlpha = _pulse;
+                const _s = 11;
+                // Shadow
+                ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                ctx.shadowBlur = 4;
+                ctx.fillStyle = 'rgba(255, 80, 60, 1)';
+                ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(_s, 0);
+                ctx.lineTo(-_s * 0.55, -_s * 0.6);
+                ctx.lineTo(-_s * 0.15, 0);
+                ctx.lineTo(-_s * 0.55, _s * 0.6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+    }
+
+    // SANDSTORM vision reduction (radial vignette)
+    if (currentWeather && currentWeather.id === 'SANDSTORM') {
+        const _swFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
+        ctx.save();
+        const _sg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 160, canvas.width / 2, canvas.height / 2, 700);
+        _sg.addColorStop(0, 'transparent');
+        _sg.addColorStop(0.5, `rgba(160, 110, 40, ${0.35 * _swFadeIn})`);
+        _sg.addColorStop(1, `rgba(100, 70, 20, ${0.75 * _swFadeIn})`);
+        ctx.fillStyle = _sg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+
+    // ACIDIC FOG green tint vignette
+    if (currentWeather && currentWeather.id === 'ACIDIC_FOG') {
+        const _afFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
+        ctx.save();
+        const _ag = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 100, canvas.width / 2, canvas.height / 2, 600);
+        _ag.addColorStop(0, 'transparent');
+        _ag.addColorStop(1, `rgba(40, 120, 40, ${0.45 * _afFadeIn})`);
+        ctx.fillStyle = _ag;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+
+    // Chaos: Darkness (Fog of War) OR Mutator: Low Visibility
+    const isLowVis = (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'LOW_VISIBILITY'));
+    if ((typeof isChaosActive === 'function' && isChaosActive('DARKNESS')) || isLowVis) {
+        ctx.save();
+        const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 150, canvas.width / 2, canvas.height / 2, 800);
+        gradient.addColorStop(0, 'transparent');
+        gradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.8)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+
+    // Low Health Indicator + injured exclamation (fires once per drop below 20%)
+    if (player.hp / player.maxHp < 0.2) {
+        if (!player._injuredVoicePlayed) {
+            player._injuredVoicePlayed = true;
+            if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player.type, 'injured');
+        }
+    } else {
+        player._injuredVoicePlayed = false; // reset when healed above threshold
+    }
+    // Co-op: P2 injured exclamation
+    if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+        if (player2.hp / player2.maxHp < 0.2) {
+            if (!player2._injuredVoicePlayed) {
+                player2._injuredVoicePlayed = true;
+                if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'injured');
+            }
+        } else {
+            player2._injuredVoicePlayed = false;
+        }
+    }
+    const _hpRatio = player.hp / player.maxHp;
+    if (_hpRatio < 0.25) {
+        ctx.save();
+        const _vigIntensity = Math.min(1, (0.25 - _hpRatio) / 0.25);
+        // Static red vignette
+        const _vg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.35, canvas.width / 2, canvas.height / 2, canvas.height * 0.78);
+        _vg.addColorStop(0, 'transparent');
+        _vg.addColorStop(1, `rgba(255, 0, 0, ${0.45 * _vigIntensity})`);
+        ctx.fillStyle = _vg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Pulse overlay — reduced-motion mode keeps the static vignette
+        // above but skips the time-varying alpha pass entirely.
+        if (!isReducedMotion()) {
+            const _pulseSpeed = 0.06 + _vigIntensity * 0.12;
+            const _pulse = (Math.sin(frame * _pulseSpeed) + 1) / 2;
+            ctx.fillStyle = `rgba(255, 0, 0, ${_pulse * 0.2 * _vigIntensity})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        ctx.restore();
+    }
 }
 
-function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
+function _updateGameplayMid(deltaTime, _isHitStopped) {
     // --- Updates ---
 
     // Biome Effects on Player
@@ -7384,7 +7543,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
 
     // DLC Hook: Biome Update
     if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType]) {
-        if (!_frozen) window.BIOME_LOGIC[currentBiomeType].update(arena, player, enemies);
+        window.BIOME_LOGIC[currentBiomeType].update(arena, player, enemies);
     }
 
     arena.biomeZones.forEach(zone => {
@@ -7443,7 +7602,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
         player.vx = 0;
         player.vy = 0;
     } else {
-        if (!_frozen) player.update();
+        player.update();
     }
     // #173 phase 7 — player.draw + evil overlay relocated to the draw cluster
     // at the end of this function so the player renders ON TOP of enemies
@@ -7453,7 +7612,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
     // Evil Mode hero ability update (overlay draw moved to cluster)
     if (isEvilMode && window.HERO_LOGIC && window.HERO_LOGIC[player.type]) {
         const _hl = window.HERO_LOGIC[player.type];
-        if (_hl.update)      if (!_frozen) _hl.update(player, deltaTime / 1000);
+        if (_hl.update)      _hl.update(player, deltaTime / 1000);
     }
 
     // Co-op / AI companion: update + draw P2
@@ -7461,7 +7620,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
         if (!player2.isDead) {
             // Online guest: P2 is a ghost — skip local physics, position set by network
             if (!player2._ghost) {
-                if (!_frozen) player2.update();
+                player2.update();
                 // Distance enforcement — rubber band above 1800px (skip for online — server handles)
                 if (!isOnlineMode) {
                     const _sep = Math.hypot(player2.x - player.x, player2.y - player.y);
@@ -7594,13 +7753,13 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
     }
 
     // #173 phase 6 — companions split into update + draw passes.
-    companions.forEach(c => { if (!_frozen) c.update(); });
+    companions.forEach(c => { c.update(); });
 
     // Memory Shards — #173 phase 6 split. Update + collection in reverse loop,
     // draw pass over the survivors at the end of this block.
     for (let index = memoryShards.length - 1; index >= 0; index--) {
         const shard = memoryShards[index];
-        if (!_frozen) shard.update();
+        shard.update();
         const dist = Math.hypot(player.x - shard.x, player.y - shard.y);
         if (dist < player.radius + 20) {
             // Collect
@@ -7853,7 +8012,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
     // survivors forward.
     for (let index = powerUps.length - 1; index >= 0; index--) {
         const pup = powerUps[index];
-        if (!_frozen) pup.update();
+        pup.update();
         const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
         if (dist < player.radius + pup.radius) {
             if (pup.type === 'HEAL') {
@@ -7907,7 +8066,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
 
     for (let index = projectiles.length - 1; index >= 0; index--) {
         const proj = projectiles[index];
-        if (!_isHitStopped && !proj._ghost) if (!_frozen) proj.update();
+        if (!_isHitStopped && !proj._ghost) proj.update();
         if (proj.life !== null && proj.life <= 0) {
             Projectile.release(proj); // #20 P3
             projectiles.splice(index, 1);
@@ -8030,7 +8189,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
     // #173 phase 6 — melee swipes: split update + PvP collision from draw.
     for (let index = meleeAttacks.length - 1; index >= 0; index--) {
         const att = meleeAttacks[index];
-        if (!_frozen) att.update();
+        att.update();
 
         // PvP Collision: P1 vs P2 (AI)
         if (att.owner === player && typeof window.additionalPlayers !== 'undefined') {
@@ -8150,7 +8309,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             particles.splice(index, 1);
             continue;
         }
-        if (!_frozen) part.update();
+        part.update();
         if (part.alpha <= 0) {
             Particle.release(part); // #20 return to pool before splice
             particles.splice(index, 1);
@@ -8173,7 +8332,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             floatingTexts.splice(index, 1);
             continue;
         }
-        if (!_frozen) ft.update();
+        ft.update();
         if (ft.life <= 0) {
             FloatingText.release(ft); // #20 return to pool before splice
             floatingTexts.splice(index, 1);
@@ -8185,7 +8344,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
     if (typeof window.additionalPlayers !== 'undefined') {
         window.additionalPlayers.forEach(p2 => {
             if (p2.controller) {
-                if (!_frozen) p2.update();
+                p2.update();
             }
         });
     }
@@ -8306,7 +8465,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             enemy._zoneRefreshAt = frame + 4;
         }
 
-        if (!_isHitStopped && !enemy._ghost) if (!_frozen) enemy.update();
+        if (!_isHitStopped && !enemy._ghost) enemy.update();
         // enemy.draw + hit-flash overlay moved to dedicated draw pass after
         // this loop (#173 phase 6). The hit-flash decrement stays here since
         // it's state mutation; the visual is drawn below at the new flash value.
@@ -8774,159 +8933,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
     }
     _recordPhase('enemies', performance.now() - _enemiesT0); // #24 P10
 
-    _drawGameplayMid();
-    // Restore Camera Transform
-    ctx.restore();
-
-    // DLC Hook: Biome Draw (e.g. Falling Rock Shadows)
-    if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType] && window.BIOME_LOGIC[currentBiomeType].draw) {
-        ctx.save();
-        // Apply camera transform again for biome effects
-        ctx.translate(-arena.camera.x, -arena.camera.y);
-        window.BIOME_LOGIC[currentBiomeType].draw(ctx, arena);
-        ctx.restore();
-    }
-
-    // DLC Hook: Hero UI (e.g. Spirit Meter)
-    if (window.HERO_LOGIC && player && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].drawUI) {
-        window.HERO_LOGIC[player.type].drawUI(ctx);
-    }
-
-    // #170 — Minimap (rendered into a separate DOM canvas)
-    _renderMinimap();
-
-    // Tutorial HUD
-    if (isTutorialMode) TutorialMode.drawHUD(ctx);
-
-    // Testing Grounds HUD
-    if (isTestingMode) TestingGrounds.drawHUD(ctx);
-
-    // Boss Off-Screen Direction Indicator
-    if (bossActive && enemies.length > 0 && enemies[0] instanceof Boss) {
-        const _boss = enemies[0];
-        const _bsx = _boss.x - arena.camera.x;
-        const _bsy = _boss.y - arena.camera.y;
-        const _br = _boss.radius || 60;
-        const _offScreen = _bsx < -_br || _bsx > canvas.width + _br ||
-                           _bsy < -_br || _bsy > canvas.height + _br;
-        if (_offScreen) {
-            const _cx = canvas.width / 2;
-            const _cy = canvas.height / 2;
-            const _angle = Math.atan2(_bsy - _cy, _bsx - _cx);
-            // Inner margin rectangle – keeps arrow off corners where UI lives
-            const _ml = 52, _mr = canvas.width - 52;
-            const _mt = 76, _mb = canvas.height - 52;
-            const _dx = _bsx - _cx, _dy = _bsy - _cy;
-            let _t = Infinity;
-            if (_dx > 0) { const _ty = (_mr - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
-            if (_dx < 0) { const _ty = (_ml - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
-            if (_dy > 0) { const _tx = (_mb - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
-            if (_dy < 0) { const _tx = (_mt - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
-            if (_t !== Infinity) {
-                const _ax = _cx + _t * _dx, _ay = _cy + _t * _dy;
-                const _pulse = 0.55 + 0.2 * ((Math.sin(frame * 0.08) + 1) / 2);
-                ctx.save();
-                ctx.translate(_ax, _ay);
-                ctx.rotate(_angle);
-                ctx.globalAlpha = _pulse;
-                const _s = 11;
-                // Shadow
-                ctx.shadowColor = 'rgba(0,0,0,0.6)';
-                ctx.shadowBlur = 4;
-                ctx.fillStyle = 'rgba(255, 80, 60, 1)';
-                ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-                ctx.lineWidth = 1.2;
-                ctx.beginPath();
-                ctx.moveTo(_s, 0);
-                ctx.lineTo(-_s * 0.55, -_s * 0.6);
-                ctx.lineTo(-_s * 0.15, 0);
-                ctx.lineTo(-_s * 0.55, _s * 0.6);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-                ctx.restore();
-            }
-        }
-    }
-
-    // SANDSTORM vision reduction (radial vignette)
-    if (currentWeather && currentWeather.id === 'SANDSTORM') {
-        const _swFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
-        ctx.save();
-        const _sg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 160, canvas.width / 2, canvas.height / 2, 700);
-        _sg.addColorStop(0, 'transparent');
-        _sg.addColorStop(0.5, `rgba(160, 110, 40, ${0.35 * _swFadeIn})`);
-        _sg.addColorStop(1, `rgba(100, 70, 20, ${0.75 * _swFadeIn})`);
-        ctx.fillStyle = _sg;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.restore();
-    }
-
-    // ACIDIC FOG green tint vignette
-    if (currentWeather && currentWeather.id === 'ACIDIC_FOG') {
-        const _afFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
-        ctx.save();
-        const _ag = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 100, canvas.width / 2, canvas.height / 2, 600);
-        _ag.addColorStop(0, 'transparent');
-        _ag.addColorStop(1, `rgba(40, 120, 40, ${0.45 * _afFadeIn})`);
-        ctx.fillStyle = _ag;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.restore();
-    }
-
-    // Chaos: Darkness (Fog of War) OR Mutator: Low Visibility
-    const isLowVis = (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'LOW_VISIBILITY'));
-    if ((typeof isChaosActive === 'function' && isChaosActive('DARKNESS')) || isLowVis) {
-        ctx.save();
-        const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 150, canvas.width / 2, canvas.height / 2, 800);
-        gradient.addColorStop(0, 'transparent');
-        gradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.8)');
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.restore();
-    }
-
-    // Low Health Indicator + injured exclamation (fires once per drop below 20%)
-    if (player.hp / player.maxHp < 0.2) {
-        if (!player._injuredVoicePlayed) {
-            player._injuredVoicePlayed = true;
-            if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player.type, 'injured');
-        }
-    } else {
-        player._injuredVoicePlayed = false; // reset when healed above threshold
-    }
-    // Co-op: P2 injured exclamation
-    if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
-        if (player2.hp / player2.maxHp < 0.2) {
-            if (!player2._injuredVoicePlayed) {
-                player2._injuredVoicePlayed = true;
-                if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'injured');
-            }
-        } else {
-            player2._injuredVoicePlayed = false;
-        }
-    }
-    const _hpRatio = player.hp / player.maxHp;
-    if (_hpRatio < 0.25) {
-        ctx.save();
-        const _vigIntensity = Math.min(1, (0.25 - _hpRatio) / 0.25);
-        // Static red vignette
-        const _vg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.35, canvas.width / 2, canvas.height / 2, canvas.height * 0.78);
-        _vg.addColorStop(0, 'transparent');
-        _vg.addColorStop(1, `rgba(255, 0, 0, ${0.45 * _vigIntensity})`);
-        ctx.fillStyle = _vg;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        // Pulse overlay — reduced-motion mode keeps the static vignette
-        // above but skips the time-varying alpha pass entirely.
-        if (!isReducedMotion()) {
-            const _pulseSpeed = 0.06 + _vigIntensity * 0.12;
-            const _pulse = (Math.sin(frame * _pulseSpeed) + 1) / 2;
-            ctx.fillStyle = `rgba(255, 0, 0, ${_pulse * 0.2 * _vigIntensity})`;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-        ctx.restore();
-    }
 }
 
 function _runGameplayFrame(deltaTime) {
@@ -8941,9 +8947,14 @@ function _runGameplayFrame(deltaTime) {
     // Photo mode: skip the update prefix entirely (arena.update, weather,
     // spawn, cinematic dispatch are all state mutation). Draws still run.
     if (!_frozen && _updateGameplayPre(deltaTime)) return;
+    if (!_frozen) _updateGameplayMid(deltaTime, _isHitStopped);
 
-    _runGameplayMid(deltaTime, _frozen, _isHitStopped);
-
+    // #173 phase 8 — true update/draw split. _drawGameplayMid owns every
+    // ctx.* write in the gameplay frame: camera transform setup, arena +
+    // objective + entity draws, camera restore, then post-camera HUD draws.
+    // Runs unconditionally so photo mode can re-render the frozen scene from
+    // a panning camera.
+    _drawGameplayMid();
     _drawGameplayPost();
 }
 
