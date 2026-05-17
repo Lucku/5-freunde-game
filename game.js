@@ -7278,19 +7278,12 @@ function _drawGameplayPost() {
     }
 }
 
-function _runGameplayFrame(deltaTime) {
-    // #173 phase 5 — photo-mode true-freeze gate. When isPhotoMode() is true,
-    // every entity.update() in the mixed middle becomes a no-op so the
-    // frozen scene can be re-rendered from a panning camera. Draws run
-    // unconditionally so the camera pan stays visible.
-    const _frozen = isPhotoMode();
-    const _isHitStopped = _hitStopFrames > 0;
-    if (!_frozen && _hitStopFrames > 0) _hitStopFrames--;
-
-    // Photo mode: skip the update prefix entirely (arena.update, weather,
-    // spawn, cinematic dispatch are all state mutation). Draws still run.
-    if (!_frozen && _updateGameplayPre(deltaTime)) return;
-
+// #173 phase 6 — mixed middle. Update + draw still interleaved by entity
+// system; phase 7 (next) splits each forEach into a pure-update pass then a
+// pure-draw pass and lifts the draw sites to a dedicated `_drawGameplayMid(ctx)`.
+// For now this isolates the ~1.5K LOC as a single named function — useful for
+// profiling, server-sim re-use, and bounding future split work.
+function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
     // --- Updates ---
 
     // Biome Effects on Player
@@ -8859,6 +8852,22 @@ function _runGameplayFrame(deltaTime) {
         }
         ctx.restore();
     }
+}
+
+function _runGameplayFrame(deltaTime) {
+    // #173 phase 5 — photo-mode true-freeze gate. When isPhotoMode() is true,
+    // every entity.update() in the mixed middle becomes a no-op so the
+    // frozen scene can be re-rendered from a panning camera. Draws run
+    // unconditionally so the camera pan stays visible.
+    const _frozen = isPhotoMode();
+    const _isHitStopped = _hitStopFrames > 0;
+    if (!_frozen && _hitStopFrames > 0) _hitStopFrames--;
+
+    // Photo mode: skip the update prefix entirely (arena.update, weather,
+    // spawn, cinematic dispatch are all state mutation). Draws still run.
+    if (!_frozen && _updateGameplayPre(deltaTime)) return;
+
+    _runGameplayMid(deltaTime, _frozen, _isHitStopped);
 
     _drawGameplayPost();
 }
