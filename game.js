@@ -7496,17 +7496,15 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
         window.networkManager?.flushInput();
     }
 
-    // Update Companions
-    companions.forEach(c => {
-        if (!_frozen) c.update();
-        c.draw(ctx);
-    });
+    // #173 phase 6 — companions split into update + draw passes.
+    companions.forEach(c => { if (!_frozen) c.update(); });
+    companions.forEach(c => c.draw(ctx));
 
-    // Memory Shards
+    // Memory Shards — #173 phase 6 split. Update + collection in reverse loop,
+    // draw pass over the survivors at the end of this block.
     for (let index = memoryShards.length - 1; index >= 0; index--) {
         const shard = memoryShards[index];
         if (!_frozen) shard.update();
-        shard.draw(ctx);
         const dist = Math.hypot(player.x - shard.x, player.y - shard.y);
         if (dist < player.radius + 20) {
             // Collect
@@ -7602,10 +7600,13 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
         }
     }
 
-    // Gold Drops
+    // Memory Shards draw pass — survivors of the collection sweep above.
+    for (const shard of memoryShards) shard.draw(ctx);
+
+    // Gold Drops — #173 phase 6 split. Pickup + magnet pull in reverse loop,
+    // draw pass over the survivors at the end of this block.
     for (let index = goldDrops.length - 1; index >= 0; index--) {
         const drop = goldDrops[index];
-        drop.draw();
         // Golden Magnet (Chance Convergence)
         const pickupRad = player.pickupRange || (player.radius + 20);
         const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
@@ -7623,11 +7624,12 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             goldDrops.splice(index, 1);
         }
     }
+    // Gold Drops draw pass — survivors of the pickup sweep above.
+    for (const drop of goldDrops) drop.draw();
 
-    // Card Drops
+    // Card Drops — #173 phase 6 split. Same pattern.
     for (let index = cardDrops.length - 1; index >= 0; index--) {
         const drop = cardDrops[index];
-        drop.draw();
         const dist = Math.hypot(player.x - drop.x, player.y - drop.y);
         if (dist < player.radius + 20) {
             const cardKey = drop.cardKey;
@@ -7691,11 +7693,12 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             }
         }
     }
+    // Card Drops draw pass — survivors of the pickup sweep above.
+    for (const drop of cardDrops) drop.draw();
 
-    // Holy Masks
+    // Holy Masks — #173 phase 6 split. Same pattern.
     for (let index = holyMasks.length - 1; index >= 0; index--) {
         const mask = holyMasks[index];
-        mask.draw();
         const dist = Math.hypot(player.x - mask.x, player.y - mask.y);
         if (dist < player.radius + 20) {
             if (mask.isTrueGolden) {
@@ -7754,8 +7757,10 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             }
         }
     }
+    // Holy Masks draw pass — survivors of the pickup sweep above.
+    for (const mask of holyMasks) mask.draw();
 
-    // #173 phase 7 — powerups: split update + collision (mutating splice) from
+    // #173 phase 6 — powerups: split update + collision (mutating splice) from
     // draw. Update pass walks reverse for splice safety; draw pass iterates the
     // survivors forward.
     for (let index = powerUps.length - 1; index >= 0; index--) {
@@ -8050,22 +8055,27 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
     const _camRFar = arena.camera.x + arena.camera.width  + _cullFarMargin;
     const _camBFar = arena.camera.y + arena.camera.height + _cullFarMargin;
 
+    // #173 phase 6 — particles split into update+cull pass + draw pass.
+    // The far-offscreen cull (≥2× margin) releases immediately because those
+    // particles will never re-enter the camera. The on-screen draw check is
+    // recomputed in the draw pass since `part.x/y` may have shifted in update.
     for (let index = particles.length - 1; index >= 0; index--) {
         const part = particles[index];
         const _farOff = part.x < _camLFar || part.x > _camRFar || part.y < _camTFar || part.y > _camBFar;
         if (_farOff) {
-            // Drop and recycle far-offscreen particles immediately.
             Particle.release(part);
             particles.splice(index, 1);
             continue;
         }
         if (!_frozen) part.update();
-        const _onScreen = part.x >= _camL && part.x <= _camR && part.y >= _camT && part.y <= _camB;
-        if (_onScreen) part.draw();
         if (part.alpha <= 0) {
             Particle.release(part); // #20 return to pool before splice
             particles.splice(index, 1);
         }
+    }
+    // Particle draw pass.
+    for (const part of particles) {
+        if (part.x >= _camL && part.x <= _camR && part.y >= _camT && part.y <= _camB) part.draw();
     }
     // #25/#26 — Particle.draw leaves ctx.globalAlpha at the last
     // particle's alpha (the sprite-cache fast path skips save/restore).
@@ -8079,6 +8089,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
         for (let _i = 0; _i < _excess; _i++) FloatingText.release(floatingTexts[_i]);
         floatingTexts.splice(0, _excess);
     }
+    // #173 phase 6 — floating texts split same way as particles.
     for (let index = floatingTexts.length - 1; index >= 0; index--) {
         const ft = floatingTexts[index];
         const _ftFarOff = ft.x < _camLFar || ft.x > _camRFar || ft.y < _camTFar || ft.y > _camBFar;
@@ -8088,12 +8099,14 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             continue;
         }
         if (!_frozen) ft.update();
-        const _ftOnScreen = ft.x >= _camL && ft.x <= _camR && ft.y >= _camT && ft.y <= _camB;
-        if (_ftOnScreen) ft.draw();
         if (ft.life <= 0) {
             FloatingText.release(ft); // #20 return to pool before splice
             floatingTexts.splice(index, 1);
         }
+    }
+    // Floating-text draw pass.
+    for (const ft of floatingTexts) {
+        if (ft.x >= _camL && ft.x <= _camR && ft.y >= _camT && ft.y <= _camB) ft.draw();
     }
 
     // Draw Additional Players (Versus / AI)
