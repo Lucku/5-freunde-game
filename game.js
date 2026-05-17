@@ -7498,7 +7498,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
 
     // #173 phase 6 — companions split into update + draw passes.
     companions.forEach(c => { if (!_frozen) c.update(); });
-    companions.forEach(c => c.draw(ctx));
 
     // Memory Shards — #173 phase 6 split. Update + collection in reverse loop,
     // draw pass over the survivors at the end of this block.
@@ -7600,8 +7599,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
         }
     }
 
-    // Memory Shards draw pass — survivors of the collection sweep above.
-    for (const shard of memoryShards) shard.draw(ctx);
 
     // Gold Drops — #173 phase 6 split. Pickup + magnet pull in reverse loop,
     // draw pass over the survivors at the end of this block.
@@ -7624,8 +7621,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             goldDrops.splice(index, 1);
         }
     }
-    // Gold Drops draw pass — survivors of the pickup sweep above.
-    for (const drop of goldDrops) drop.draw();
 
     // Card Drops — #173 phase 6 split. Same pattern.
     for (let index = cardDrops.length - 1; index >= 0; index--) {
@@ -7693,8 +7688,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             }
         }
     }
-    // Card Drops draw pass — survivors of the pickup sweep above.
-    for (const drop of cardDrops) drop.draw();
 
     // Holy Masks — #173 phase 6 split. Same pattern.
     for (let index = holyMasks.length - 1; index >= 0; index--) {
@@ -7757,8 +7750,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             }
         }
     }
-    // Holy Masks draw pass — survivors of the pickup sweep above.
-    for (const mask of holyMasks) mask.draw();
 
     // #173 phase 6 — powerups: split update + collision (mutating splice) from
     // draw. Update pass walks reverse for splice safety; draw pass iterates the
@@ -7816,8 +7807,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             } else if (pup.timer <= 0) powerUps.splice(index, 1);
         } else if (pup.timer <= 0) powerUps.splice(index, 1);
     }
-    // Powerups draw pass — survivors of the update loop above.
-    for (const pup of powerUps) pup.draw();
 
     for (let index = projectiles.length - 1; index >= 0; index--) {
         const proj = projectiles[index];
@@ -7940,8 +7929,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             projectiles.splice(index, 1);
         }
     }
-    // Projectile draw pass — survivors of the update + collision sweep above.
-    for (const proj of projectiles) proj.draw();
 
     // #173 phase 6 — melee swipes: split update + PvP collision from draw.
     for (let index = meleeAttacks.length - 1; index >= 0; index--) {
@@ -8039,8 +8026,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
 
         if (att.life <= 0) { MeleeSwipe.release(att); meleeAttacks.splice(index, 1); } // #20 P3
     }
-    // Melee swipes draw pass — survivors of the update loop above.
-    for (const att of meleeAttacks) att.draw();
 
     // #27 — camera-bounds culling. Skip draw for off-screen particles +
     // floating text; skip update entirely when far outside (≥2× margin),
@@ -8074,14 +8059,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             particles.splice(index, 1);
         }
     }
-    // Particle draw pass.
-    for (const part of particles) {
-        if (part.x >= _camL && part.x <= _camR && part.y >= _camT && part.y <= _camB) part.draw();
-    }
-    // #25/#26 — Particle.draw leaves ctx.globalAlpha at the last
-    // particle's alpha (the sprite-cache fast path skips save/restore).
-    // Reset once after the loop instead of inside every draw() call.
-    ctx.globalAlpha = 1;
 
     // Update and Draw Floating Texts (cap at 80 — drop oldest when full)
     if (floatingTexts.length > GAMEPLAY.MAX_FLOATING_TEXTS) {
@@ -8104,10 +8081,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             FloatingText.release(ft); // #20 return to pool before splice
             floatingTexts.splice(index, 1);
         }
-    }
-    // Floating-text draw pass.
-    for (const ft of floatingTexts) {
-        if (ft.x >= _camL && ft.x <= _camR && ft.y >= _camT && ft.y <= _camB) ft.draw();
     }
 
     // Draw Additional Players (Versus / AI)
@@ -8715,6 +8688,42 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
         }
     }
     _recordPhase('enemies', performance.now() - _enemiesT0); // #24 P10
+
+    // ═══ phase 7 — DRAW PHASE for the entity-loop subsystems. Moved here
+    // from each subsystem's section so the draws cluster at the end. Order
+    // preserved (companions → memShards → gold → card → holy → powerup
+    // → projectile → melee → particles+fl.texts → enemies). Z-order between
+    // subsystems unchanged; the only visual delta is that companions etc.
+    // now draw AFTER updates of later subsystems in the same frame — which
+    // is invisible because update + draw are both per-frame anyway.
+    companions.forEach(c => c.draw(ctx));
+    // Memory Shards draw pass — survivors of the collection sweep above.
+    for (const shard of memoryShards) shard.draw(ctx);
+    // Gold Drops draw pass — survivors of the pickup sweep above.
+    for (const drop of goldDrops) drop.draw();
+    // Card Drops draw pass — survivors of the pickup sweep above.
+    for (const drop of cardDrops) drop.draw();
+    // Holy Masks draw pass — survivors of the pickup sweep above.
+    for (const mask of holyMasks) mask.draw();
+    // Powerups draw pass — survivors of the update loop above.
+    for (const pup of powerUps) pup.draw();
+    // Projectile draw pass — survivors of the update + collision sweep above.
+    for (const proj of projectiles) proj.draw();
+    // Melee swipes draw pass — survivors of the update loop above.
+    for (const att of meleeAttacks) att.draw();
+
+    // Particle draw pass.
+    for (const part of particles) {
+        if (part.x >= _camL && part.x <= _camR && part.y >= _camT && part.y <= _camB) part.draw();
+    }
+    // #25/#26 — Particle.draw leaves ctx.globalAlpha at the last
+    // particle's alpha (the sprite-cache fast path skips save/restore).
+    // Reset once after the loop instead of inside every draw() call.
+    ctx.globalAlpha = 1;
+    // Floating-text draw pass.
+    for (const ft of floatingTexts) {
+        if (ft.x >= _camL && ft.x <= _camR && ft.y >= _camT && ft.y <= _camB) ft.draw();
+    }
 
     // #173 phase 6 — enemy draw pass. Survivors of the update + collision loop
     // above. Hit-flash overlay (ghost-only) renders on top of the enemy sprite.
