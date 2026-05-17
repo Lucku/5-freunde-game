@@ -7279,10 +7279,17 @@ function _drawGameplayPost() {
 }
 
 function _runGameplayFrame(deltaTime) {
+    // #173 phase 5 — photo-mode true-freeze gate. When isPhotoMode() is true,
+    // every entity.update() in the mixed middle becomes a no-op so the
+    // frozen scene can be re-rendered from a panning camera. Draws run
+    // unconditionally so the camera pan stays visible.
+    const _frozen = isPhotoMode();
     const _isHitStopped = _hitStopFrames > 0;
-    if (_hitStopFrames > 0) _hitStopFrames--;
+    if (!_frozen && _hitStopFrames > 0) _hitStopFrames--;
 
-    if (_updateGameplayPre(deltaTime)) return;
+    // Photo mode: skip the update prefix entirely (arena.update, weather,
+    // spawn, cinematic dispatch are all state mutation). Draws still run.
+    if (!_frozen && _updateGameplayPre(deltaTime)) return;
 
     // --- Updates ---
 
@@ -7291,7 +7298,7 @@ function _runGameplayFrame(deltaTime) {
 
     // DLC Hook: Biome Update
     if (window.BIOME_LOGIC && window.BIOME_LOGIC[currentBiomeType]) {
-        window.BIOME_LOGIC[currentBiomeType].update(arena, player, enemies);
+        if (!_frozen) window.BIOME_LOGIC[currentBiomeType].update(arena, player, enemies);
     }
 
     arena.biomeZones.forEach(zone => {
@@ -7350,14 +7357,14 @@ function _runGameplayFrame(deltaTime) {
         player.vx = 0;
         player.vy = 0;
     } else {
-        player.update();
+        if (!_frozen) player.update();
     }
     player.draw();
 
     // Evil Mode hero ability updates and overlay rendering
     if (isEvilMode && window.HERO_LOGIC && window.HERO_LOGIC[player.type]) {
         const _hl = window.HERO_LOGIC[player.type];
-        if (_hl.update)      _hl.update(player, deltaTime / 1000);
+        if (_hl.update)      if (!_frozen) _hl.update(player, deltaTime / 1000);
         if (_hl.drawOverlay) _hl.drawOverlay(player, ctx);
     }
 
@@ -7366,7 +7373,7 @@ function _runGameplayFrame(deltaTime) {
         if (!player2.isDead) {
             // Online guest: P2 is a ghost — skip local physics, position set by network
             if (!player2._ghost) {
-                player2.update();
+                if (!_frozen) player2.update();
                 // Distance enforcement — rubber band above 1800px (skip for online — server handles)
                 if (!isOnlineMode) {
                     const _sep = Math.hypot(player2.x - player.x, player2.y - player.y);
@@ -7498,14 +7505,14 @@ function _runGameplayFrame(deltaTime) {
 
     // Update Companions
     companions.forEach(c => {
-        c.update();
+        if (!_frozen) c.update();
         c.draw(ctx);
     });
 
     // Memory Shards
     for (let index = memoryShards.length - 1; index >= 0; index--) {
         const shard = memoryShards[index];
-        shard.update();
+        if (!_frozen) shard.update();
         shard.draw(ctx);
         const dist = Math.hypot(player.x - shard.x, player.y - shard.y);
         if (dist < player.radius + 20) {
@@ -7757,7 +7764,7 @@ function _runGameplayFrame(deltaTime) {
 
     for (let index = powerUps.length - 1; index >= 0; index--) {
         const pup = powerUps[index];
-        pup.update(); pup.draw();
+        if (!_frozen) pup.update(); pup.draw();
         const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
         if (dist < player.radius + pup.radius) {
             if (pup.type === 'HEAL') {
@@ -7811,7 +7818,7 @@ function _runGameplayFrame(deltaTime) {
 
     for (let index = projectiles.length - 1; index >= 0; index--) {
         const proj = projectiles[index];
-        if (!_isHitStopped && !proj._ghost) proj.update();
+        if (!_isHitStopped && !proj._ghost) if (!_frozen) proj.update();
         if (proj.life !== null && proj.life <= 0) {
             Projectile.release(proj); // #20 P3
             projectiles.splice(index, 1);
@@ -7934,7 +7941,7 @@ function _runGameplayFrame(deltaTime) {
 
     for (let index = meleeAttacks.length - 1; index >= 0; index--) {
         const att = meleeAttacks[index];
-        att.update(); att.draw();
+        if (!_frozen) att.update(); att.draw();
 
         // PvP Collision: P1 vs P2 (AI)
         if (att.owner === player && typeof window.additionalPlayers !== 'undefined') {
@@ -8051,7 +8058,7 @@ function _runGameplayFrame(deltaTime) {
             particles.splice(index, 1);
             continue;
         }
-        part.update();
+        if (!_frozen) part.update();
         const _onScreen = part.x >= _camL && part.x <= _camR && part.y >= _camT && part.y <= _camB;
         if (_onScreen) part.draw();
         if (part.alpha <= 0) {
@@ -8079,7 +8086,7 @@ function _runGameplayFrame(deltaTime) {
             floatingTexts.splice(index, 1);
             continue;
         }
-        ft.update();
+        if (!_frozen) ft.update();
         const _ftOnScreen = ft.x >= _camL && ft.x <= _camR && ft.y >= _camT && ft.y <= _camB;
         if (_ftOnScreen) ft.draw();
         if (ft.life <= 0) {
@@ -8094,7 +8101,7 @@ function _runGameplayFrame(deltaTime) {
             // Update P2
             if (p2.controller) {
                 // Ensure input context is updated inside update() via controller
-                p2.update();
+                if (!_frozen) p2.update();
             }
 
             p2.draw();
@@ -8226,7 +8233,7 @@ function _runGameplayFrame(deltaTime) {
             enemy._zoneRefreshAt = frame + 4;
         }
 
-        if (!_isHitStopped && !enemy._ghost) enemy.update(); enemy.draw();
+        if (!_isHitStopped && !enemy._ghost) if (!_frozen) enemy.update(); enemy.draw();
         if (enemy._ghost && enemy._hitFlash > 0) {
             enemy._hitFlash--;
             ctx.save();
