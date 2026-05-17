@@ -60,6 +60,7 @@ import { createRunStats } from './RunState.js';
 import { createGameLoop } from './GameLoop.js';
 import { _drawGameplayPost } from './core/drawGameplayPost.js';
 import { _drawGameplayMid } from './core/drawGameplayMid.js';
+import { renderPostFX } from './core/postProcess.js';
 
 // #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
 const isElectron   = !!(window.Platform && window.Platform.isElectron);
@@ -8520,6 +8521,9 @@ function _runGameplayFrame(deltaTime) {
     // a panning camera.
     _drawGameplayMid();
     _drawGameplayPost();
+    // #35 — single WebGL fragment-shader pass (bloom / chromatic / vignette /
+    // biome color grade). No-op when disabled in Options or under reducedMotion.
+    renderPostFX();
 }
 
 function masterFrame(deltaTime, timestamp) {

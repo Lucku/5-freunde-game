@@ -46,6 +46,7 @@ class OptionsUI {
             'damageNumbers':           'opt-dmg-btn',
             'minimapEnabled':          'opt-minimap-btn',
             'screenShake':             'opt-shake-btn',
+            'postFX':                  'opt-postfx-btn',
             'controllerVibration':     'opt-vibration-btn',
             'showIntroScreens':        'opt-intro-btn',
             'subtitlesEnabled':        'opt-subtitles-btn',

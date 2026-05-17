@@ -26,6 +26,7 @@ const defaultConfig = {
     screenShake: true,
     controllerVibration: true,
     particles: true,
+    postFX: true, // #35 — WebGL post-processing pass (bloom / chromatic / vignette / biome grade)
 
     // Gameplay
     autoAim: false, // Accessibility?

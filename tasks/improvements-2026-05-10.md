@@ -45,7 +45,7 @@ Comprehensive idea list from full-codebase scan. 170 items grouped by category. 
 
 ## Visuals
 
-- [ ] 35. ★ Modern post-processing stack (WebGL fragment shaders): bloom on projectiles, chromatic aberration on hit, vignette on low HP, color grade per biome — single full-screen pass.
+- [x] 35. ★ Modern post-processing stack (WebGL fragment shaders): bloom on projectiles, chromatic aberration on hit, vignette on low HP, color grade per biome — single full-screen pass. *(New `core/postProcess.js` leaf module — overlay WebGL canvas samples the 2D `gameCanvas` each frame and runs a single fragment shader (8-tap ring bloom @ 0.75 threshold / 0.6 strength, R/B chromatic offset driven by `_hitStopFrames / 12 * 0.012`, radial smoothstep vignette keyed to `(1 - hp/maxHp) * 0.7` pulsing < 30 % HP, vec3 per-biome grade table for fire/water/ice/plant/metal/black). HTML `#ui-layer` sits above the overlay so HUD stays crisp. New `postFX: true` setting + Options toggle. Auto-off under `reducedMotion`. Server-safe via `_hasDOM` + `_glReady` guards. Context-loss / -restore wired. Photo mode just works (re-samples per frame).)*
 - [ ] 36. 2D normal-map lighting. Cheap radial lights on Fire hero / boss explosions affecting nearby sprites.
 - [ ] 37. Hero animations. Replace procedural-circle look with walk-cycle / attack frames.
 - [x] 38. Camera shake taxonomy. *(Pass B: `SHAKE_PRESETS` + `shake(type)` helper consolidates per-event flavor. Perlin offsets deferred.)*
