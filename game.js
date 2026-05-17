@@ -7283,6 +7283,99 @@ function _drawGameplayPost() {
 // pure-draw pass and lifts the draw sites to a dedicated `_drawGameplayMid(ctx)`.
 // For now this isolates the ~1.5K LOC as a single named function — useful for
 // profiling, server-sim re-use, and bounding future split work.
+// #173 phase 7 — draw helper. Pulls every entity-loop draw pass + the
+// single-instance draws (player, evil overlay, player2, versus AI) into one
+// place. Update logic in _runGameplayMid does NOT touch ctx; this helper
+// is the only ctx writer in the gameplay middle. Server simulation can
+// substitute a no-op helper to skip draws entirely.
+function _drawGameplayMid() {
+    // Camera-bounds for the particle + floating-text on-screen check
+    // (re-derived since _runGameplayMid's locals aren't shared).
+    const _cullMargin = 64;
+    const _camL = arena.camera.x - _cullMargin;
+    const _camT = arena.camera.y - _cullMargin;
+    const _camR = arena.camera.x + arena.camera.width  + _cullMargin;
+    const _camB = arena.camera.y + arena.camera.height + _cullMargin;
+
+    // ═══ phase 7 — DRAW PHASE for the entity-loop subsystems. Moved here
+    // from each subsystem's section so the draws cluster at the end. Order
+    // preserved (companions → memShards → gold → card → holy → powerup
+    // → projectile → melee → particles+fl.texts → enemies). Z-order between
+    // subsystems unchanged; the only visual delta is that companions etc.
+    // now draw AFTER updates of later subsystems in the same frame — which
+    // is invisible because update + draw are both per-frame anyway.
+    companions.forEach(c => c.draw(ctx));
+    // Memory Shards draw pass — survivors of the collection sweep above.
+    for (const shard of memoryShards) shard.draw(ctx);
+    // Gold Drops draw pass — survivors of the pickup sweep above.
+    for (const drop of goldDrops) drop.draw();
+    // Card Drops draw pass — survivors of the pickup sweep above.
+    for (const drop of cardDrops) drop.draw();
+    // Holy Masks draw pass — survivors of the pickup sweep above.
+    for (const mask of holyMasks) mask.draw();
+    // Powerups draw pass — survivors of the update loop above.
+    for (const pup of powerUps) pup.draw();
+    // Projectile draw pass — survivors of the update + collision sweep above.
+    for (const proj of projectiles) proj.draw();
+    // Melee swipes draw pass — survivors of the update loop above.
+    for (const att of meleeAttacks) att.draw();
+
+    // Particle draw pass.
+    for (const part of particles) {
+        if (part.x >= _camL && part.x <= _camR && part.y >= _camT && part.y <= _camB) part.draw();
+    }
+    // #25/#26 — Particle.draw leaves ctx.globalAlpha at the last
+    // particle's alpha (the sprite-cache fast path skips save/restore).
+    // Reset once after the loop instead of inside every draw() call.
+    ctx.globalAlpha = 1;
+    // Floating-text draw pass.
+    for (const ft of floatingTexts) {
+        if (ft.x >= _camL && ft.x <= _camR && ft.y >= _camT && ft.y <= _camB) ft.draw();
+    }
+
+    // #173 phase 6 — enemy draw pass. Survivors of the update + collision loop
+    // above. Hit-flash overlay (ghost-only) renders on top of the enemy sprite.
+    for (const enemy of enemies) {
+        enemy.draw();
+        if (enemy._ghost && enemy._hitFlash > 0) {
+            ctx.save();
+            ctx.globalAlpha = (enemy._hitFlash / 6) * 0.55;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, (enemy.radius || 20) * 1.05, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    // #173 phase 7 — single-instance entity draws (relocated from inline
+    // positions earlier in this function). Renders on top of all list-based
+    // entities so the player is always visible. Z-order:
+    //   enemies → player → evil overlay → player2 → versus AI + HP bars
+    player.draw();
+    if (isEvilMode && window.HERO_LOGIC && window.HERO_LOGIC[player.type]) {
+        const _hl = window.HERO_LOGIC[player.type];
+        if (_hl.drawOverlay) _hl.drawOverlay(player, ctx);
+    }
+    if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+        player2.draw();
+    }
+    if (typeof window.additionalPlayers !== 'undefined') {
+        window.additionalPlayers.forEach(p2 => {
+            p2.draw();
+            // HP bar overlay
+            const percent = Math.max(0, p2.hp / p2.maxHp);
+            ctx.save();
+            ctx.fillStyle = 'red';
+            ctx.fillRect(p2.x - 20, p2.y - 35, 40, 5);
+            ctx.fillStyle = '#2ecc71';
+            ctx.fillRect(p2.x - 20, p2.y - 35, 40 * percent, 5);
+            ctx.restore();
+        });
+    }
+
+}
+
 function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
     // --- Updates ---
 
@@ -7352,13 +7445,15 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
     } else {
         if (!_frozen) player.update();
     }
-    player.draw();
+    // #173 phase 7 — player.draw + evil overlay relocated to the draw cluster
+    // at the end of this function so the player renders ON TOP of enemies
+    // (previous behavior: player drew first → enemies covered the player when
+    // overlapping; new behavior: player always visible).
 
-    // Evil Mode hero ability updates and overlay rendering
+    // Evil Mode hero ability update (overlay draw moved to cluster)
     if (isEvilMode && window.HERO_LOGIC && window.HERO_LOGIC[player.type]) {
         const _hl = window.HERO_LOGIC[player.type];
         if (_hl.update)      if (!_frozen) _hl.update(player, deltaTime / 1000);
-        if (_hl.drawOverlay) _hl.drawOverlay(player, ctx);
     }
 
     // Co-op / AI companion: update + draw P2
@@ -7401,7 +7496,9 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
                 }
             }
         }
-        player2.draw();
+        // #173 phase 7 — player2.draw moved to the draw cluster at the end
+        // of this function. Revival markers stay inline since they need
+        // per-player state set up in this block.
         updateDrawRevivalMarkers(ctx);
     }
 
@@ -8083,25 +8180,13 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
         }
     }
 
-    // Draw Additional Players (Versus / AI)
+    // #173 phase 7 — versus AI: update pass only. Draws moved to the draw
+    // cluster so AI players + HP bars render on top of all entities.
     if (typeof window.additionalPlayers !== 'undefined') {
         window.additionalPlayers.forEach(p2 => {
-            // Update P2
             if (p2.controller) {
-                // Ensure input context is updated inside update() via controller
                 if (!_frozen) p2.update();
             }
-
-            p2.draw();
-
-            // HP Bar for AI
-            const percent = Math.max(0, p2.hp / p2.maxHp);
-            ctx.save();
-            ctx.fillStyle = 'red';
-            ctx.fillRect(p2.x - 20, p2.y - 35, 40, 5);
-            ctx.fillStyle = '#2ecc71';
-            ctx.fillRect(p2.x - 20, p2.y - 35, 40 * percent, 5);
-            ctx.restore();
         });
     }
 
@@ -8689,57 +8774,7 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
     }
     _recordPhase('enemies', performance.now() - _enemiesT0); // #24 P10
 
-    // ═══ phase 7 — DRAW PHASE for the entity-loop subsystems. Moved here
-    // from each subsystem's section so the draws cluster at the end. Order
-    // preserved (companions → memShards → gold → card → holy → powerup
-    // → projectile → melee → particles+fl.texts → enemies). Z-order between
-    // subsystems unchanged; the only visual delta is that companions etc.
-    // now draw AFTER updates of later subsystems in the same frame — which
-    // is invisible because update + draw are both per-frame anyway.
-    companions.forEach(c => c.draw(ctx));
-    // Memory Shards draw pass — survivors of the collection sweep above.
-    for (const shard of memoryShards) shard.draw(ctx);
-    // Gold Drops draw pass — survivors of the pickup sweep above.
-    for (const drop of goldDrops) drop.draw();
-    // Card Drops draw pass — survivors of the pickup sweep above.
-    for (const drop of cardDrops) drop.draw();
-    // Holy Masks draw pass — survivors of the pickup sweep above.
-    for (const mask of holyMasks) mask.draw();
-    // Powerups draw pass — survivors of the update loop above.
-    for (const pup of powerUps) pup.draw();
-    // Projectile draw pass — survivors of the update + collision sweep above.
-    for (const proj of projectiles) proj.draw();
-    // Melee swipes draw pass — survivors of the update loop above.
-    for (const att of meleeAttacks) att.draw();
-
-    // Particle draw pass.
-    for (const part of particles) {
-        if (part.x >= _camL && part.x <= _camR && part.y >= _camT && part.y <= _camB) part.draw();
-    }
-    // #25/#26 — Particle.draw leaves ctx.globalAlpha at the last
-    // particle's alpha (the sprite-cache fast path skips save/restore).
-    // Reset once after the loop instead of inside every draw() call.
-    ctx.globalAlpha = 1;
-    // Floating-text draw pass.
-    for (const ft of floatingTexts) {
-        if (ft.x >= _camL && ft.x <= _camR && ft.y >= _camT && ft.y <= _camB) ft.draw();
-    }
-
-    // #173 phase 6 — enemy draw pass. Survivors of the update + collision loop
-    // above. Hit-flash overlay (ghost-only) renders on top of the enemy sprite.
-    for (const enemy of enemies) {
-        enemy.draw();
-        if (enemy._ghost && enemy._hitFlash > 0) {
-            ctx.save();
-            ctx.globalAlpha = (enemy._hitFlash / 6) * 0.55;
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(enemy.x, enemy.y, (enemy.radius || 20) * 1.05, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-
+    _drawGameplayMid();
     // Restore Camera Transform
     ctx.restore();
 
