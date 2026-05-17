@@ -7917,7 +7917,6 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             if (proj.dead) { Projectile.release(proj); projectiles.splice(index, 1); continue; } // #20 P3
         }
 
-        proj.draw();
         if (arena.checkCollision(proj.x, proj.y, proj.radius)) {
             if (proj.isExplosive) {
                 const _cands = queryEnemiesNear(proj.x, proj.y, 100);
@@ -7941,8 +7940,10 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             projectiles.splice(index, 1);
         }
     }
+    // Projectile draw pass — survivors of the update + collision sweep above.
+    for (const proj of projectiles) proj.draw();
 
-    // #173 phase 7 — melee swipes: split update + PvP collision from draw.
+    // #173 phase 6 — melee swipes: split update + PvP collision from draw.
     for (let index = meleeAttacks.length - 1; index >= 0; index--) {
         const att = meleeAttacks[index];
         if (!_frozen) att.update();
@@ -8247,17 +8248,11 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             enemy._zoneRefreshAt = frame + 4;
         }
 
-        if (!_isHitStopped && !enemy._ghost) if (!_frozen) enemy.update(); enemy.draw();
-        if (enemy._ghost && enemy._hitFlash > 0) {
-            enemy._hitFlash--;
-            ctx.save();
-            ctx.globalAlpha = (enemy._hitFlash / 6) * 0.55;
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(enemy.x, enemy.y, (enemy.radius || 20) * 1.05, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
+        if (!_isHitStopped && !enemy._ghost) if (!_frozen) enemy.update();
+        // enemy.draw + hit-flash overlay moved to dedicated draw pass after
+        // this loop (#173 phase 6). The hit-flash decrement stays here since
+        // it's state mutation; the visual is drawn below at the new flash value.
+        if (enemy._ghost && enemy._hitFlash > 0) enemy._hitFlash--;
         const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
 
         if (dist - enemy.radius - player.radius < 0 && !player.isDashing) {
@@ -8720,6 +8715,21 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
         }
     }
     _recordPhase('enemies', performance.now() - _enemiesT0); // #24 P10
+
+    // #173 phase 6 — enemy draw pass. Survivors of the update + collision loop
+    // above. Hit-flash overlay (ghost-only) renders on top of the enemy sprite.
+    for (const enemy of enemies) {
+        enemy.draw();
+        if (enemy._ghost && enemy._hitFlash > 0) {
+            ctx.save();
+            ctx.globalAlpha = (enemy._hitFlash / 6) * 0.55;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, (enemy.radius || 20) * 1.05, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
 
     // Restore Camera Transform
     ctx.restore();
