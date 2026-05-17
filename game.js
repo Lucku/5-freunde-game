@@ -7755,9 +7755,12 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
         }
     }
 
+    // #173 phase 7 — powerups: split update + collision (mutating splice) from
+    // draw. Update pass walks reverse for splice safety; draw pass iterates the
+    // survivors forward.
     for (let index = powerUps.length - 1; index >= 0; index--) {
         const pup = powerUps[index];
-        if (!_frozen) pup.update(); pup.draw();
+        if (!_frozen) pup.update();
         const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
         if (dist < player.radius + pup.radius) {
             if (pup.type === 'HEAL') {
@@ -7808,6 +7811,8 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
             } else if (pup.timer <= 0) powerUps.splice(index, 1);
         } else if (pup.timer <= 0) powerUps.splice(index, 1);
     }
+    // Powerups draw pass — survivors of the update loop above.
+    for (const pup of powerUps) pup.draw();
 
     for (let index = projectiles.length - 1; index >= 0; index--) {
         const proj = projectiles[index];
@@ -7932,9 +7937,10 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
         }
     }
 
+    // #173 phase 7 — melee swipes: split update + PvP collision from draw.
     for (let index = meleeAttacks.length - 1; index >= 0; index--) {
         const att = meleeAttacks[index];
-        if (!_frozen) att.update(); att.draw();
+        if (!_frozen) att.update();
 
         // PvP Collision: P1 vs P2 (AI)
         if (att.owner === player && typeof window.additionalPlayers !== 'undefined') {
@@ -8027,6 +8033,8 @@ function _runGameplayMid(deltaTime, _frozen, _isHitStopped) {
 
         if (att.life <= 0) { MeleeSwipe.release(att); meleeAttacks.splice(index, 1); } // #20 P3
     }
+    // Melee swipes draw pass — survivors of the update loop above.
+    for (const att of meleeAttacks) att.draw();
 
     // #27 — camera-bounds culling. Skip draw for off-screen particles +
     // floating text; skip update entirely when far outside (≥2× margin),
