@@ -75,6 +75,7 @@ import { initFloatingTexts } from './core/systems/floatingTextSystem.js';
 import { initMemoryShards } from './core/systems/memoryShardSystem.js';
 import { initGoldDrops } from './core/systems/goldDropSystem.js';
 import { initHolyMasks } from './core/systems/holyMaskSystem.js';
+import { initCompanions } from './core/systems/companionSystem.js';
 
 // ───────────────────────────────────────────────────────────────────────────
 // #11 phase 1 — RunState container schema.
@@ -98,7 +99,6 @@ import { initHolyMasks } from './core/systems/holyMaskSystem.js';
  * @property {Array} floatingTexts
  * @property {Array} meleeAttacks
  * @property {Array} cardDrops
- * @property {Array} companions
  * (#5 phase 5.1 — `powerUps` migrated to ECS typed arrays. See
  *  core/systems/powerUpSystem.js.)
  * (#5 phase 5.2 — `cardDrops` migrated to ECS typed arrays. See
@@ -113,6 +113,8 @@ import { initHolyMasks } from './core/systems/holyMaskSystem.js';
  *  core/systems/goldDropSystem.js.)
  * (#5 phase 5.8 — `holyMasks` migrated to ECS typed arrays. See
  *  core/systems/holyMaskSystem.js.)
+ * (#5 phase 5.9 — `companions` migrated to ECS typed arrays + AI tick.
+ *  See core/systems/companionSystem.js.)
  *
  * Phase 3 — run-lifecycle scalars:
  * @property {number}  wave
@@ -204,7 +206,6 @@ export function createRunState() {
         enemies:         [],
         projectiles:     [],
         meleeAttacks:    [],
-        companions:      [],
 
         // Phase 3 — run-lifecycle scalars.
         wave:                1,
@@ -282,6 +283,7 @@ export function createRunState() {
     initMemoryShards(rs);
     initGoldDrops(rs);
     initHolyMasks(rs);
+    initCompanions(rs);
 
     return rs;
 }

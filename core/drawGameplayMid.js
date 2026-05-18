@@ -22,6 +22,7 @@ import { drawFloatingTexts } from './systems/floatingTextSystem.js';
 import { drawMemoryShards } from './systems/memoryShardSystem.js';
 import { drawGoldDrops } from './systems/goldDropSystem.js';
 import { drawHolyMasks } from './systems/holyMaskSystem.js';
+import { drawCompanions } from './systems/companionSystem.js';
 
 export function _drawGameplayMid() {
     // Camera-bounds for the particle + floating-text on-screen check
@@ -138,7 +139,7 @@ export function _drawGameplayMid() {
     // subsystems unchanged; the only visual delta is that companions etc.
     // now draw AFTER updates of later subsystems in the same frame — which
     // is invisible because update + draw are both per-frame anyway.
-    companions.forEach(c => c.draw(ctx));
+    drawCompanions(ctx, runState);
     // Memory Shards draw pass — survivors of the collection sweep above.
     drawMemoryShards(ctx, runState);
     // Gold Drops draw pass — survivors of the pickup sweep above.

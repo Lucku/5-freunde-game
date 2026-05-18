@@ -22,7 +22,7 @@ class World {
         this.particles     = [];
         // floatingTexts migrated to ECS on runState in #5 phase 5.5.
         // goldDrops migrated to ECS on runState in #5 phase 5.7.
-        this.companions    = [];
+        // companions migrated to ECS on runState in #5 phase 5.9.
         // memoryShards migrated to ECS on runState in #5 phase 5.6.
         this.meleeAttacks  = [];
         // powerUps migrated to ECS on runState in #5 phase 5.1.

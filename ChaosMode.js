@@ -1,5 +1,9 @@
 // #194 phase 2 — explicit imports for symbols previously read off window shims.
-import { Companion } from './Companion.js';
+// #5 phase 5.9 — Companion class replaced by ECS system.
+import { runState } from './RunState.js';
+import {
+    spawnCompanion, killCompanion, findCompanionByType,
+} from './core/systems/companionSystem.js';
 
 // ChaosMode.js
 /**
@@ -36,11 +40,10 @@ if (window.dlcManager) {
 }
 
 function spawnChaosCompanion(type) {
-    if (typeof Companion !== 'undefined' && typeof companions !== 'undefined') {
-        companions.push(new Companion(type, player));
+    if (spawnCompanion(runState, type, runState.player) >= 0) {
         showNotification(`${type.toUpperCase()} COMPANION JOINED!`, 'positive');
     } else {
-        console.warn("Companion system not ready");
+        console.warn("Companion cap reached");
     }
 }
 
@@ -277,11 +280,9 @@ function manageAffection(dt) {
         if (type === player.type || state.lostHeroes.includes(type)) continue;
 
         if (state.heroAffection[type] >= 100) {
-            if (typeof companions !== 'undefined') {
-                if (!companions.find(c => c.type === type)) {
-                    spawnChaosCompanion(type);
-                    if (typeof showNotification !== 'undefined') showNotification(`MAX BOND: ${type.toUpperCase()} JOINS PERMANENTLY!`);
-                }
+            if (findCompanionByType(runState, type) < 0) {
+                spawnChaosCompanion(type);
+                if (typeof showNotification !== 'undefined') showNotification(`MAX BOND: ${type.toUpperCase()} JOINS PERMANENTLY!`);
             }
         }
     }
@@ -291,7 +292,7 @@ function manageAffection(dt) {
         for (const type in state.heroAffection) {
             if (type === player.type || state.lostHeroes.includes(type)) continue;
 
-            if (typeof companions !== 'undefined' && companions.find(c => c.type === type)) continue;
+            if (findCompanionByType(runState, type) >= 0) continue;
 
             if (state.heroAffection[type] > 80) {
                 const lastTime = state.affectionCooldowns[type] || 0;
@@ -311,12 +312,10 @@ function manageAffection(dt) {
         const b = state.activeBackups[i];
         if (Date.now() > b.expiry) {
             if (state.heroAffection[b.type] < 100) {
-                if (typeof companions !== 'undefined') {
-                    const idx = companions.findIndex(c => c.type === b.type);
-                    if (idx !== -1) {
-                        companions.splice(idx, 1);
-                        if (typeof showNotification !== 'undefined') showNotification(`${b.type.toUpperCase()} DEPARTS.`);
-                    }
+                const idx = findCompanionByType(runState, b.type);
+                if (idx !== -1) {
+                    killCompanion(runState, idx);
+                    if (typeof showNotification !== 'undefined') showNotification(`${b.type.toUpperCase()} DEPARTS.`);
                 }
             }
             state.activeBackups.splice(i, 1);

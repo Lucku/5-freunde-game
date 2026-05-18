@@ -13,7 +13,7 @@ import { Player } from './Player.js';
 import { Enemy } from './Enemy.js';
 import { Boss } from './Boss.js';
 import { Arena } from './Arena.js';
-import { Companion } from './Companion.js';
+// Companion class removed in #5 phase 5.9 (ECS migration). See core/systems/companionSystem.js.
 import { FloatingText } from './Entities/FloatingText.js';
 import { Particle } from './Entities/Particle.js';
 import { Projectile } from './Entities/Projectile.js';
@@ -70,6 +70,9 @@ import { clearFloatingTexts } from './core/systems/floatingTextSystem.js';
 import { clearMemoryShards } from './core/systems/memoryShardSystem.js';
 import { spawnGoldDrop, clearGoldDrops } from './core/systems/goldDropSystem.js';
 import { spawnHolyMask, clearHolyMasks } from './core/systems/holyMaskSystem.js';
+import {
+    spawnCompanion, clearCompanions, serializeCompanions,
+} from './core/systems/companionSystem.js';
 
 // #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
 const isElectron   = !!(window.Platform && window.Platform.isElectron);
@@ -1771,7 +1774,7 @@ function saveRunState() {
             critChance: runState.player.critChance,
             critMultiplier: runState.player.critMultiplier
         },
-        companions: companions.map(c => ({ type: c.type })),
+        companions: serializeCompanions(runState),
         coopP2Type: runState.isCoopMode && runState.player2 ? runState.player2.type : null,
         player2: runState.isCoopMode && runState.player2 ? {
             type: runState.player2.type,
@@ -1912,9 +1915,9 @@ function continueRun() {
     runState.player.critMultiplier = state.player.critMultiplier;
 
     // Restore Companions
-    companions.length = 0;
+    clearCompanions(runState);
     state.companions.forEach(cData => {
-        companions.push(new Companion(cData.type, runState.player));
+        spawnCompanion(runState, cData.type, runState.player);
     });
 
     // Restore P2 state when continuing a co-op story run
@@ -2455,7 +2458,6 @@ window._weatherLogicHooks = {};
 // powerUps migrated to ECS in #5 phase 5.1 — see core/systems/powerUpSystem.js.
 const {
     enemies, projectiles, meleeAttacks,
-    companions,
 } = runState;
 
 // Replace an array's contents in place. Preserves identity so const aliases +
@@ -2485,7 +2487,7 @@ window.enemies      = enemies;
 // goldDrops no longer on window — migrated to ECS in #5 phase 5.7.
 // cardDrops no longer on window — migrated to ECS in #5 phase 5.2.
 // memoryShards no longer on window — migrated to ECS in #5 phase 5.6.
-window.companions   = companions;
+// companions no longer on window — migrated to ECS in #5 phase 5.9.
 
 // Story Manager
 const storyManager = new StoryManager();
@@ -4313,18 +4315,21 @@ function resumeWaveGeneration() {
             // Base game story fallback: classic orbiting Companion
             let availableTypes = ['fire', 'water', 'ice', 'plant', 'metal'];
             if (runState.player) availableTypes = availableTypes.filter(t => t !== runState.player.type);
-            companions.forEach(c => { availableTypes = availableTypes.filter(t => t !== c.type); });
+            for (let _ci = 0; _ci < runState.companionCount; _ci++) {
+                const _ct = runState.companionType[_ci];
+                availableTypes = availableTypes.filter(t => t !== _ct);
+            }
 
             if (availableTypes.length > 0) {
                 let pickedType = availableTypes[0];
-                if (companions.length === 0) {
+                if (runState.companionCount === 0) {
                     if (runState.player.type === 'ice' && availableTypes.includes('fire')) pickedType = 'fire';
                     else if (runState.player.type === 'fire' && availableTypes.includes('ice')) pickedType = 'ice';
                     else if (runState.player.type === 'metal' && availableTypes.includes('plant')) pickedType = 'plant';
                     else if (runState.player.type === 'plant' && availableTypes.includes('metal')) pickedType = 'metal';
                     else if (runState.player.type === 'water' && availableTypes.includes('plant')) pickedType = 'plant';
                 }
-                companions.push(new Companion(pickedType, runState.player));
+                spawnCompanion(runState, pickedType, runState.player);
                 showNotification(`${pickedType.toUpperCase()} FRIEND JOINED!`);
             }
         }
@@ -4673,7 +4678,7 @@ async function startGame(mode = 'NORMAL') {
     clearGoldDrops(runState);
     clearCardDrops(runState);
     clearMemoryShards(runState);
-    companions.length = 0;
+    clearCompanions(runState);
     runState.isPlayerDying = false;
     runState.playerDeathTimer = 0;
     forcedEnemyType = null;
@@ -4705,7 +4710,7 @@ async function startGame(mode = 'NORMAL') {
         // goldDrops now ECS — runState.goldDrop* typed arrays, no _world mirror.
         // cardDrops now ECS — runState.cardDrop* typed arrays, no _world mirror.
         // memoryShards now ECS — runState.memoryShard* typed arrays, no _world mirror.
-        _w.companions    = companions;
+        // companions now ECS — runState.companion* typed arrays, no _world mirror.
         _w.saveData        = saveData;
         _w.currentRunStats = runState.currentRunStats;
         _w.gameRunning  = true;
@@ -6709,7 +6714,8 @@ window.GAME_API = {
     get holyMaskCount()         { return runState.holyMaskCount; },
     // goldDrops now ECS — see runState.goldDrop* / runState.goldDropCount.
     get goldDropCount()         { return runState.goldDropCount; },
-    get companions()            { return companions; },
+    // companions now ECS — see runState.companion* / runState.companionCount.
+    get companionCount()        { return runState.companionCount; },
 
     // ── Core actors ──
     get player()                { return runState.player; },

@@ -34,7 +34,7 @@ import './Managers/StoryManager.js';
 import './Player.js';
 import './Enemy.js';
 import './Boss.js';
-import './Companion.js';
+// Companion.js removed in #5 phase 5.9 — replaced by core/systems/companionSystem.js.
 import './MemoryStories.js';
 // MemoryShard.js removed in #5 phase 5.6 — replaced by core/systems/memoryShardSystem.js.
 import './CompletionMenu.js';

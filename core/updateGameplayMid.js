@@ -23,6 +23,7 @@ import { killFloatingText, updateFloatingTexts } from './systems/floatingTextSys
 import { killMemoryShard, getMemoryShardColor, MEMORYSHARD_RADIUS } from './systems/memoryShardSystem.js';
 import { spawnGoldDrop, killGoldDrop } from './systems/goldDropSystem.js';
 import { spawnHolyMask, killHolyMask, HOLYMASK_RADIUS } from './systems/holyMaskSystem.js';
+import { updateCompanions } from './systems/companionSystem.js';
 
 export
 function _updateGameplayMid(deltaTime, _isHitStopped) {
@@ -241,8 +242,8 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         window.networkManager?.flushInput();
     }
 
-    // #173 phase 6 — companions split into update + draw passes.
-    companions.forEach(c => { c.update(); });
+    // #173 phase 6 / #5 phase 5.9 — companions update via ECS system.
+    updateCompanions(runState);
 
     // Memory Shards — #173 phase 6 / #5 phase 5.6 ECS. floatOffset animation
     // is computed in drawMemoryShards (global per frame, not per slot), so

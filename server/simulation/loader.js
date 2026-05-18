@@ -151,7 +151,7 @@ global.projectiles      = [];
 global.particles        = [];
 global.floatingTexts    = [];
 // goldDrops removed in #5 phase 5.7 — now lives on runState as typed arrays.
-global.companions       = [];
+// companions removed in #5 phase 5.9 — now lives on runState as typed arrays.
 // memoryShards removed in #5 phase 5.6 — now lives on runState as typed arrays.
 global.meleeAttacks     = [];
 // powerUps removed in #5 phase 5.1 — now lives on runState as typed arrays.
