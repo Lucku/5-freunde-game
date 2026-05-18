@@ -128,7 +128,7 @@ function _doBossContinue() {
     window._bossContinueBtn = null;
     window._bossQuitBtn = null;
     ctx.clearRect(0, 0, canvas.width, canvas.height); // clear frozen boss-choice frame before story opens
-    triggerStory(wave);
+    triggerStory(runState.wave);
 }
 const buffContainer = document.getElementById('buff-container');
 
@@ -199,7 +199,7 @@ let coopP2MenuIndex = 0;
 let coopP2Debounce = 0;
 let coopP2HeroLocked = false; // True when resuming a co-op save — P2 hero cannot be changed
 let player2 = null;
-let coopZoom = 1.0;
+// coopZoom migrated to runState (#11 phase 3).
 let p1RevivalMarker = null; // { x, y, progress, maxProgress }
 let p2RevivalMarker = null;
 let p2LevelUpPending = false;
@@ -1166,7 +1166,7 @@ function getCoopTarget(ex, ey) {
 }
 
 function drawCoopDistanceWarning(ctx, farPlayer, dist) {
-    const alpha = Math.min(1.0, (dist - 650) / 100) * (0.5 + 0.5 * Math.sin(frame * 0.15));
+    const alpha = Math.min(1.0, (dist - 650) / 100) * (0.5 + 0.5 * Math.sin(runState.frame * 0.15));
     ctx.save();
     ctx.strokeStyle = `rgba(255, 80, 80, ${alpha})`;
     ctx.lineWidth = 3;
@@ -1177,7 +1177,7 @@ function drawCoopDistanceWarning(ctx, farPlayer, dist) {
 }
 
 function processRevivalMarker(ctx, marker, reviver, onComplete) {
-    const pulse = 0.6 + 0.4 * Math.sin(frame * 0.1);
+    const pulse = 0.6 + 0.4 * Math.sin(runState.frame * 0.1);
     ctx.save();
     ctx.globalAlpha = pulse;
     ctx.strokeStyle = '#f1c40f';
@@ -1730,7 +1730,7 @@ function renderDLCList() {
 // --- Run Saving System ---
 
 function saveRunState() {
-    if (!gameRunning || wave <= 0) return;
+    if (!runState.gameRunning || runState.wave <= 0) return;
 
     let currentMode = 'NORMAL';
     if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) currentMode = 'SHUFFLE';
@@ -1738,8 +1738,8 @@ function saveRunState() {
 
     const runState = {
         mode: currentMode,
-        wave: wave,
-        score: score,
+        wave: runState.wave,
+        score: runState.score,
         chaos: (currentMode === 'SHUFFLE' && window.chaosState) ? {
             heroAffection: window.chaosState.heroAffection || {},
             chaosObjectiveStreak: window.chaosState.chaosObjectiveStreak || 0,
@@ -1788,7 +1788,7 @@ function saveRunState() {
     saveData.savedRun = runState;
     saveGame();
     _markRunActive(); // #166 — flag a run in progress for crash recovery
-    console.log("Run saved at Wave " + wave);
+    console.log("Run saved at Wave " + runState.wave);
 }
 
 function clearSavedRun() {
@@ -1809,7 +1809,7 @@ function _markRunInactive() {
 }
 window.addEventListener('beforeunload', () => {
     // Clean exit — clear the flag so re-launch won't show the recovery prompt.
-    if (typeof gameRunning !== 'undefined' && !gameRunning) _markRunInactive();
+    if (typeof runState.gameRunning !== 'undefined' && !runState.gameRunning) _markRunInactive();
 });
 function _maybeOfferCrashRecovery() {
     try {
@@ -1876,9 +1876,9 @@ function continueRun() {
     }
 
     // Restore Wave & Score
-    wave = state.wave - 1; // advanceWave() will increment it back to correct wave
-    score = state.score;
-    document.getElementById('scoreVal').innerText = score;
+    runState.wave = state.wave - 1; // advanceWave() will increment it back to correct wave
+    runState.score = state.score;
+    document.getElementById('scoreVal').innerText = runState.score;
 
     // Restore Player
     // Re-create player with correct type (startGame does this, but let's be safe)
@@ -1936,8 +1936,8 @@ function continueRun() {
     bossIntroTimer = 0; bossIntroName = ''; bossIntroSkippable = false;
     _bossChoiceScreen = false;
     _bossChoiceFrame = 0;
-    bossActive = false;
-    enemiesKilledInWave = 0; // Reset kill count for the wave we are about to start
+    runState.bossActive = false;
+    runState.enemiesKilledInWave = 0; // Reset kill count for the wave we are about to start
     // The save was made at the start of state.wave (after story/shop already ran for the previous wave).
     // Just advance directly to restart that wave — no story or shop re-trigger needed.
     advanceWave();
@@ -2025,8 +2025,8 @@ function startOnlineGame(msg) {
     nm.on('PARTNER_LEVELING',()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(true); });
     nm.on('LEVEL_UP_DONE',   ()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
 
-    nm.on('PARTNER_RECONNECTING', (msg) => { if (gameRunning) _onlineShowReconnectOverlay(true, msg.timeoutSec || 30); });
-    nm.on('PARTNER_DISCONNECTED', () => { if (gameRunning) _onlineShowReconnectOverlay(true, 0); });
+    nm.on('PARTNER_RECONNECTING', (msg) => { if (runState.gameRunning) _onlineShowReconnectOverlay(true, msg.timeoutSec || 30); });
+    nm.on('PARTNER_DISCONNECTED', () => { if (runState.gameRunning) _onlineShowReconnectOverlay(true, 0); });
     nm.on('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
     nm.on('GAME_OVER', () => { if (isOnlineMode) gameOver(false); });
     nm.on('STORY_CONTINUE', () => { if (isOnlineMode && isStoryOpen) _onlinePartnerContinueStory(); });
@@ -2191,9 +2191,9 @@ function quitGame() {
 function saveAndQuit() {
     // Save the run pointing at the next wave (wave+1), so continueRun() resumes there.
     // continueRun() does: wave = savedRun.wave - 1, then advanceWave() → wave becomes savedRun.wave.
-    wave++;
+    runState.wave++;
     saveRunState();
-    wave--;
+    runState.wave--;
     _resetGameState();
     initMenu();
 }
@@ -2222,7 +2222,7 @@ function _resetGameState() {
     _stopWeather();
     // Reset online interpolation state so a new session starts with a fresh clock-offset lock
     _onlineClockOffset = null;
-    gameRunning = false;
+    runState.gameRunning = false;
     isTutorialMode = false;
     isTestingMode = false;
     isCoopMode = false;
@@ -2238,7 +2238,7 @@ function _resetGameState() {
     window.player2 = null;
     p1RevivalMarker = null;
     p2RevivalMarker = null;
-    coopZoom = 1.0;
+    runState.coopZoom = 1.0;
     p2LevelUpPending = false;
     isPlayerDying = false;
     playerDeathTimer = 0;
@@ -2252,11 +2252,11 @@ function _resetGameState() {
         window._world.floatingTexts = floatingTexts; window._world.particles = particles;
         window._world.powerUps = powerUps;
     }
-    bossActive = false;
-    wave = 1;
-    score = 0;
-    isLevelingUp = false;
-    gamePaused = false;
+    runState.bossActive = false;
+    runState.wave = 1;
+    runState.score = 0;
+    runState.isLevelingUp = false;
+    runState.gamePaused = false;
     document.getElementById('pause-screen').style.display = 'none';
     document.getElementById('levelup-screen').style.display = 'none';
     document.getElementById('shop-screen').style.display = 'none';
@@ -2316,24 +2316,19 @@ function closeAltar() {
 
 // --- Game State ---
 let arena; // Arena Instance
-// GLOBAL VARIABLES (Window Scope for UI Access)
-var gameRunning = false;
-var gamePaused = false;
-var isLevelingUp = false;
-let isShopping = false;
+// #11 phase 3 — run-lifecycle scalars migrated to runState.X:
+//   wave, score, frame, gameRunning, gamePaused, isLevelingUp, isShopping,
+//   bossActive, enemiesKilledInWave, coopZoom, _hitStopFrames.
+// All bare references in game.js were rewritten to `runState.X`. DLC + leaf
+// modules still read via `window.X` — defineProperty bridges below now read
+// from / write to `runState.X` (see the block ~3830).
 const isStatsOpen = false;
 
-let score = 0;
-var wave = 1; // Exposed for DLC — window getter/setter below keeps DLC writes in sync
-let frame = 0;
 // _shakeIntensity / _shakeDuration moved to Camera.js (Phase A of #1 split).
-let _hitStopFrames = 0;
 let _comboMilestoneTimer = 0;
 let _prevCombo = 0;
-var enemiesKilledInWave = 0; // Exposed for DLC
 let masksDroppedInWave = 0;  // Cap holy-mask drops per wave
 let waveTimer = 0;           // Sentinel used by versus mode to disable wave timer
-var bossActive = false;      // Exposed for DLC
 let bossDeathTimer = 0; // Timer for slow-mo effect
 let bossIntroTimer = 0;
 let bossIntroName = '';
@@ -2355,13 +2350,13 @@ let playerDeathTimer = 0; // Timer for player death animation
 // anything outside reads `window.X`, the corresponding `let X = …` line has
 // already executed.
 Object.defineProperties(window, {
-    wave:                { get: () => wave,                set: v => { wave                = v; }, configurable: true, enumerable: true },
-    bossActive:          { get: () => bossActive,          set: v => { bossActive          = v; }, configurable: true, enumerable: true },
-    enemiesKilledInWave: { get: () => enemiesKilledInWave, set: v => { enemiesKilledInWave = v; }, configurable: true, enumerable: true },
+    wave:                { get: () => runState.wave,                set: v => { runState.wave                = v; }, configurable: true, enumerable: true },
+    bossActive:          { get: () => runState.bossActive,          set: v => { runState.bossActive          = v; }, configurable: true, enumerable: true },
+    enemiesKilledInWave: { get: () => runState.enemiesKilledInWave, set: v => { runState.enemiesKilledInWave = v; }, configurable: true, enumerable: true },
     isPlayerDying:       { get: () => isPlayerDying,       set: v => { isPlayerDying       = v; }, configurable: true, enumerable: true },
-    isLevelingUp:        { get: () => isLevelingUp,        set: v => { isLevelingUp        = v; }, configurable: true, enumerable: true },
-    isShopping:          { get: () => isShopping,          set: v => { isShopping          = v; }, configurable: true, enumerable: true },
-    gamePaused:          { get: () => gamePaused,          set: v => { gamePaused          = v; }, configurable: true, enumerable: true },
+    isLevelingUp:        { get: () => runState.isLevelingUp,        set: v => { runState.isLevelingUp        = v; }, configurable: true, enumerable: true },
+    isShopping:          { get: () => runState.isShopping,          set: v => { runState.isShopping          = v; }, configurable: true, enumerable: true },
+    gamePaused:          { get: () => runState.gamePaused,          set: v => { runState.gamePaused          = v; }, configurable: true, enumerable: true },
     isTutorialMode:      { get: () => isTutorialMode,      set: v => { isTutorialMode      = v; }, configurable: true, enumerable: true },
     // #194 follow-up — these are re-assigned at multiple sites in game.js
     // (`activeMutators = getDailyMutators()`, `weatherParticles = []`,
@@ -2378,7 +2373,7 @@ Object.defineProperties(window, {
     isChaosShuffleMode:  { get: () => isChaosShuffleMode,  set: v => { isChaosShuffleMode  = v; }, configurable: true, enumerable: true },
     isEvilMode:          { get: () => isEvilMode,          set: v => { isEvilMode          = v; }, configurable: true, enumerable: true },
     isOnlineMode:        { get: () => isOnlineMode,        set: v => { isOnlineMode        = v; }, configurable: true, enumerable: true },
-    gameRunning:         { get: () => gameRunning,         set: v => { gameRunning         = v; }, configurable: true, enumerable: true },
+    gameRunning:         { get: () => runState.gameRunning,         set: v => { runState.gameRunning         = v; }, configurable: true, enumerable: true },
     isStoryOpen:         { get: () => isStoryOpen,         set: v => { isStoryOpen         = v; }, configurable: true, enumerable: true },
     // #173 phase 10 — additional mirrors so `core/drawGameplayPost.js`
     // (and future leaf modules) can read this state via `globalThis.X`
@@ -2387,9 +2382,10 @@ Object.defineProperties(window, {
     _weatherFlash:       { get: () => _weatherFlash,       set: v => { _weatherFlash       = v; }, configurable: true, enumerable: true },
     _weatherBolts:       { get: () => _weatherBolts,       set: v => { _weatherBolts       = v; }, configurable: true, enumerable: true },
     playerDeathTimer:    { get: () => playerDeathTimer,    set: v => { playerDeathTimer    = v; }, configurable: true, enumerable: true },
-    coopZoom:            { get: () => coopZoom,            set: v => { coopZoom            = v; }, configurable: true, enumerable: true },
-    score:               { get: () => score,               set: v => { score               = v; }, configurable: true, enumerable: true },
-    frame:               { get: () => frame,               set: v => { frame               = v; }, configurable: true, enumerable: true },
+    coopZoom:            { get: () => runState.coopZoom,            set: v => { runState.coopZoom            = v; }, configurable: true, enumerable: true },
+    score:               { get: () => runState.score,               set: v => { runState.score               = v; }, configurable: true, enumerable: true },
+    frame:               { get: () => runState.frame,               set: v => { runState.frame               = v; }, configurable: true, enumerable: true },
+    _hitStopFrames:      { get: () => runState._hitStopFrames,      set: v => { runState._hitStopFrames      = v; }, configurable: true, enumerable: true },
 });
 // #173 phase 10 — class + helper references exposed for leaf modules.
 window.Boss             = Boss;
@@ -2479,41 +2475,41 @@ inputManager.onKeyDown = e => {
         e.preventDefault?.();
         return;
     }
-    if ((im.eventMatches('pause', e) || e.code === 'Escape') && gameRunning && !isLevelingUp && !isShopping) {
+    if ((im.eventMatches('pause', e) || e.code === 'Escape') && runState.gameRunning && !runState.isLevelingUp && !runState.isShopping) {
         togglePause();
     }
-    if ((im.eventMatches('melee', e) || e.code === 'Space') && gameRunning && !gamePaused && !isLevelingUp && !isShopping) {
+    if ((im.eventMatches('melee', e) || e.code === 'Space') && runState.gameRunning && !runState.gamePaused && !runState.isLevelingUp && !runState.isShopping) {
         player.melee();
     }
-    if ((im.eventMatches('dash', e) || e.code === 'ShiftLeft' || e.code === 'ShiftRight') && gameRunning && !gamePaused && !isShopping) {
+    if ((im.eventMatches('dash', e) || e.code === 'ShiftLeft' || e.code === 'ShiftRight') && runState.gameRunning && !runState.gamePaused && !runState.isShopping) {
         player.dash();
     }
-    if ((im.eventMatches('special', e) || e.code === 'KeyE') && gameRunning && !gamePaused && !isShopping) {
+    if ((im.eventMatches('special', e) || e.code === 'KeyE') && runState.gameRunning && !runState.gamePaused && !runState.isShopping) {
         player.useSpecial();
     }
 
     // --- DEBUG KEYS (Disabled in Electron) ---
     if (!isElectron) {
         // DEBUG: Kill Player with 'K'
-        if (e.code === 'KeyK' && gameRunning && !gamePaused) {
+        if (e.code === 'KeyK' && runState.gameRunning && !runState.gamePaused) {
             player.hp = -999;
             showNotification("DEBUG: SUICIDE");
         }
         // DEBUG: Next Wave with 'N'
-        if (e.code === 'KeyN' && gameRunning && !gamePaused) {
+        if (e.code === 'KeyN' && runState.gameRunning && !runState.gamePaused) {
             enemies.length = 0;
-            bossActive = false;
+            runState.bossActive = false;
             projectiles.length = 0;
             if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
 
-            if (wave % 2 === 0) {
+            if (runState.wave % 2 === 0) {
                 openShop();
             } else {
-                wave++;
-                enemiesKilledInWave = 0;
+                runState.wave++;
+                runState.enemiesKilledInWave = 0;
                 const types = ['fire', 'water', 'ice', 'plant', 'metal'];
                 currentBiomeType = types[Math.floor(Math.random() * types.length)];
-                showNotification(`DEBUG: SKIPPED TO WAVE ${wave}`);
+                showNotification(`DEBUG: SKIPPED TO WAVE ${runState.wave}`);
                 arena.generate(currentBiomeType);
                 if (player) {
                     player.x = arena.width / 2;
@@ -2523,25 +2519,25 @@ inputManager.onKeyDown = e => {
         }
 
         // DEBUG: Spawn Boss with 'B'
-        if (e.code === 'KeyB' && gameRunning && !gamePaused && !bossActive) {
-            enemiesKilledInWave = ENEMIES_PER_WAVE * wave;
+        if (e.code === 'KeyB' && runState.gameRunning && !runState.gamePaused && !runState.bossActive) {
+            runState.enemiesKilledInWave = ENEMIES_PER_WAVE * runState.wave;
             showNotification("DEBUG: BOSS SPAWNED");
         }
 
         // DEBUG: Toggle Invincibility with 'I'
-        if (e.code === 'KeyI' && gameRunning && !gamePaused) {
+        if (e.code === 'KeyI' && runState.gameRunning && !runState.gamePaused) {
             player.isInvincible = !player.isInvincible;
             showNotification(`DEBUG: INVINCIBILITY ${player.isInvincible ? 'ON' : 'OFF'}`);
         }
 
         // DEBUG: Level Up with 'L'
-        if (e.code === 'KeyL' && gameRunning && !gamePaused) {
+        if (e.code === 'KeyL' && runState.gameRunning && !runState.gamePaused) {
             player.levelUp();
             showNotification("DEBUG: LEVEL UP");
         }
 
         // DEBUG: Jump to Wave/Chapter with 'J'
-        if (e.code === 'KeyJ' && gameRunning && !gamePaused) {
+        if (e.code === 'KeyJ' && runState.gameRunning && !runState.gamePaused) {
             const input = prompt("Jump to Wave (Story Chapter):", wave + 1);
             const targetWave = parseInt(input);
             if (!isNaN(targetWave) && targetWave > 0) {
@@ -2549,22 +2545,22 @@ inputManager.onKeyDown = e => {
                 enemies.length = 0;
                 projectiles.length = 0;
                 powerUps.length = 0;
-                bossActive = false;
+                runState.bossActive = false;
                 currentObjective = null;
                 if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
 
                 // Set wave to previous so triggerStory/advanceWave works correctly
-                wave = targetWave - 1;
+                runState.wave = targetWave - 1;
 
                 showNotification(`DEBUG: JUMPING TO WAVE ${targetWave}`);
 
                 // Trigger Story Logic for the target wave
-                triggerStory(wave);
+                triggerStory(runState.wave);
             }
         }
 
         // DEBUG: Activate Ultimate Form with 'U'
-        if ((e.code === 'KeyU' || e.key === 'u') && gameRunning && !gamePaused && player) {
+        if ((e.code === 'KeyU' || e.key === 'u') && runState.gameRunning && !runState.gamePaused && player) {
             if (player.getFormName) {
                 player.transformActive = true;
                 player.currentForm = player.getFormName();
@@ -2630,7 +2626,7 @@ inputManager.onKeyDown = e => {
         }
 
         // DEBUG: Open Testing Grounds with 'D' in Menu (only when menu overlay is actually visible)
-        if (e.code === 'KeyD' && uiState === 'MENU' && !gameRunning) {
+        if (e.code === 'KeyD' && uiState === 'MENU' && !runState.gameRunning) {
             const menuOverlay = document.getElementById('menu-overlay');
             if (menuOverlay && menuOverlay.style.display !== 'none') {
                 document.getElementById('tg-mode-overlay').style.display = 'flex';
@@ -2644,21 +2640,21 @@ inputManager.onKeyDown = e => {
         }
 
         // Testing Grounds controls
-        if (isTestingMode && gameRunning && !isLevelingUp) {
+        if (isTestingMode && runState.gameRunning && !runState.isLevelingUp) {
             if (e.code === 'Tab') {
                 e.preventDefault();
                 TestingGrounds.toggleSpawnMenu();
             }
-            if (e.code === 'KeyC' && !gamePaused) {
+            if (e.code === 'KeyC' && !runState.gamePaused) {
                 TestingGrounds.clearAll();
             }
         }
 
         // DEBUG: [N] Instantly complete current wave (triggers boss-defeated cinematic)
-        if (e.code === 'KeyN' && gameRunning && !isLevelingUp && !gamePaused && bossDeathTimer === 0 && !_bossChoiceScreen) {
+        if (e.code === 'KeyN' && runState.gameRunning && !runState.isLevelingUp && !runState.gamePaused && bossDeathTimer === 0 && !_bossChoiceScreen) {
             enemies.length = 0;
             projectiles.length = 0;
-            bossActive = false;
+            runState.bossActive = false;
             if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
             bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
             if (typeof audioManager !== 'undefined') audioManager.play('wave_completed');
@@ -2683,7 +2679,7 @@ function renderPauseMenu() {
         const mm = Math.floor(timeSec / 60).toString().padStart(2, '0');
         const ss = (timeSec % 60).toString().padStart(2, '0');
         const stats = [
-            { label: 'Wave',  value: (typeof wave !== 'undefined') ? wave : 0 },
+            { label: 'Wave',  value: (typeof runState.wave !== 'undefined') ? runState.wave : 0 },
             { label: 'Level', value: (player && player.level) ? player.level : 1 },
             { label: 'Gold',  value: (player && Math.floor(player.gold || 0)) || 0 },
             { label: 'Time',  value: `${mm}:${ss}` },
@@ -2727,21 +2723,21 @@ function renderPauseMenu() {
 window.renderPauseMenu = renderPauseMenu;
 
 function togglePause() {
-    gamePaused = !gamePaused;
-    document.getElementById('pause-screen').style.display = gamePaused ? 'flex' : 'none';
-    setUIState(gamePaused ? 'PAUSE' : 'GAME');
+    runState.gamePaused = !runState.gamePaused;
+    document.getElementById('pause-screen').style.display = runState.gamePaused ? 'flex' : 'none';
+    setUIState(runState.gamePaused ? 'PAUSE' : 'GAME');
     _syncSoundBiomeMusic();
     // Stop hero-specific loops on pause; hero update() will restart them on resume.
-    if (gamePaused && typeof audioManager !== 'undefined') {
+    if (runState.gamePaused && typeof audioManager !== 'undefined') {
         audioManager.stopLoop('attack_earth_roll');
         audioManager.stopLoop('special_spirit_charging');
     }
     // #167 — apply low-pass on the music bus while paused.
     if (typeof audioManager !== 'undefined' && typeof audioManager.setPauseFilter === 'function') {
-        audioManager.setPauseFilter(!!gamePaused);
+        audioManager.setPauseFilter(!!runState.gamePaused);
     }
     // #159 — refresh pause-menu run summary contents.
-    if (gamePaused && typeof window.renderPauseMenu === 'function') window.renderPauseMenu();
+    if (runState.gamePaused && typeof window.renderPauseMenu === 'function') window.renderPauseMenu();
 }
 
 function toggleLobbyMenu() {
@@ -2774,7 +2770,7 @@ function _syncSoundBiomeMusic() {
     if (typeof audioManager === 'undefined' || !audioManager.tracks) return;
     const track = audioManager.tracks['battle_sound_sync'];
     if (!track) return;
-    if (gamePaused || isLevelingUp) {
+    if (runState.gamePaused || runState.isLevelingUp) {
         if (!track.paused) track.pause();
     } else {
         if (track.paused && track.currentTime > 0) track.play().catch(() => { });
@@ -3026,7 +3022,7 @@ function isReducedMotion() {
 window.isReducedMotion = isReducedMotion;
 
 function triggerHitStop(frames) {
-    _hitStopFrames = Math.max(_hitStopFrames, frames);
+    runState._hitStopFrames = Math.max(runState._hitStopFrames, frames);
 }
 window.triggerHitStop = triggerHitStop;
 
@@ -3133,8 +3129,8 @@ let _hudPrevHp = null, _hudPrevXp = null, _hudPrevMeleeReady = null;
 // stub for _drawGameplayPost never reaches the leaf module, so this is
 // only relevant to browser builds.
 function updateUI() {
-    document.getElementById('scoreVal').innerText = score;
-    document.getElementById('waveVal').innerText = wave;
+    document.getElementById('scoreVal').innerText = runState.score;
+    document.getElementById('waveVal').innerText = runState.wave;
     document.getElementById('goldVal').innerText = player.gold;
 
     // Hard Mode Indicator
@@ -3257,7 +3253,7 @@ function updateUI() {
     _hudPrevMeleeReady = meleeReady;
 
     const bossContainer = document.getElementById('boss-hp-container');
-    if (bossActive && enemies.length > 0 && enemies[0] instanceof Boss) {
+    if (runState.bossActive && enemies.length > 0 && enemies[0] instanceof Boss) {
         bossContainer.style.display = 'block';
         const boss = enemies[0];
         const bossHpPercent = Math.max(0, (boss.hp / boss.maxHp) * 100);
@@ -3343,7 +3339,7 @@ function chooseUpgrade(type) {
     try {
         window.TelemetryManager?.track('level_up', {
             hero:          target?.type || null,
-            wave:          wave,
+            wave:          runState.wave,
             upgradePicked: String(type || '').slice(0, 64),
         });
     } catch (_) { /* swallow */ }
@@ -3385,13 +3381,13 @@ function chooseUpgrade(type) {
     }
 
     window.levelingUpPlayer = null;
-    isLevelingUp = false;
+    runState.isLevelingUp = false;
     document.getElementById('levelup-screen').style.display = 'none';
 
     // Co-op / AI companion: dequeue P2 level-up if pending
     if ((isCoopMode || isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
         p2LevelUpPending = false;
-        isLevelingUp = true;
+        runState.isLevelingUp = true;
         window.levelingUpPlayer = window.player2;
         window.levelUpUI.showLevelUp(window.player2, p2LevelUpOptions);
         return;
@@ -3406,7 +3402,7 @@ window._afterUpgradeChosen = function () {
     window.levelingUpPlayer = null;
     if ((isCoopMode || isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
         p2LevelUpPending = false;
-        isLevelingUp = true;
+        runState.isLevelingUp = true;
         window.levelingUpPlayer = window.player2;
         window.levelUpUI.showLevelUp(window.player2, p2LevelUpOptions);
     } else {
@@ -3439,7 +3435,7 @@ function _showSpeedrunHud(show) {
 }
 
 function _updateSpeedrunHud() {
-    if (!isSpeedrunMode || !gameRunning) return;
+    if (!isSpeedrunMode || !runState.gameRunning) return;
     const timerEl = document.getElementById('speedrun-timer');
     if (!timerEl) return;
     const start = (currentRunStats && currentRunStats.startTime) || Date.now();
@@ -3493,7 +3489,7 @@ function triggerStory(completedWave) {
     // Check if story mode is enabled or if it's daily/weekly mode
     if ((saveData.story && saveData.story.enabled === false) || isDailyMode || isWeeklyMode) {
         // Skip story
-        if (wave % 4 === 0) {
+        if (runState.wave % 4 === 0) {
             openShop();
         } else {
             advanceWave();
@@ -3737,7 +3733,7 @@ function _finishStoryEvent(event) {
         if (isSpeedrunMode) {
             const splits = currentRunStats && currentRunStats.splits;
             const lastWave = splits && splits.length ? splits[splits.length - 1].wave : 0;
-            if (lastWave !== wave) _recordSpeedrunSplit(wave);
+            if (lastWave !== runState.wave) _recordSpeedrunSplit(runState.wave);
         }
         gameOver(true);
         return;
@@ -3756,9 +3752,9 @@ function _finishStoryEvent(event) {
     // Special case: If wave is 0 (Intro), always advance to Wave 1
     // Maze node events skip the shop entirely — the maze has its own reward flow
     const _isMazeEvent = event && event.id && event.id.startsWith('maze_');
-    if (wave === 0 || isTutorialMode || isEvilMode) {
+    if (runState.wave === 0 || isTutorialMode || isEvilMode) {
         advanceWave();
-    } else if (!_isMazeEvent && wave % 4 === 0) {
+    } else if (!_isMazeEvent && runState.wave % 4 === 0) {
         openShop();
     } else {
         advanceWave();
@@ -3991,14 +3987,14 @@ function advanceWave() {
 
     // Telemetry (#98) — fire wave_completed for the wave that was just cleared.
     // Skip the initial transition (wave 0 → 1) since no wave was actually played.
-    if (wave > 0) {
+    if (runState.wave > 0) {
         try {
             const startMs = currentRunStats?.startTime || 0;
             window.TelemetryManager?.track('wave_completed', {
                 hero:    player?.type || null,
                 mode:    isDailyMode ? 'daily' : isWeeklyMode ? 'weekly' : isVersusMode ? 'versus' : isEvilMode ? 'evil' : isSpeedrunMode ? 'speedrun' : isTutorialMode ? 'tutorial' : 'normal',
                 biome:   currentBiomeType || null,
-                wave:    wave,
+                wave:    runState.wave,
                 timeSec: startMs ? Math.floor((Date.now() - startMs) / 1000) : null,
             });
         } catch (_) { /* swallow */ }
@@ -4008,7 +4004,7 @@ function advanceWave() {
 
     // No-hit wave tracking for wind_no_hit achievement
     // Uses currentRunStats._noHitBaseline (resets per run) instead of a function property (persists across runs)
-    if (player?.type === 'air' && typeof saveData !== 'undefined' && wave > 0) {
+    if (player?.type === 'air' && typeof saveData !== 'undefined' && runState.wave > 0) {
         const dmgThisWave = currentRunStats.damageTaken - (currentRunStats._noHitBaseline || 0);
         if (dmgThisWave === 0) {
             saveData.global.no_hit_wind = (saveData.global.no_hit_wind || 0) + 1;
@@ -4018,28 +4014,28 @@ function advanceWave() {
 
     // Workshop: end game when configured wave count is reached
     if (isWorkshopMode && window.pendingCustomMap?.waveConfig?.waveCount > 0) {
-        if (wave >= window.pendingCustomMap.waveConfig.waveCount) {
+        if (runState.wave >= window.pendingCustomMap.waveConfig.waveCount) {
             gameOver(true);
             return;
         }
     }
 
-    wave++;
+    runState.wave++;
     // Speedrun split: a wave is "cleared" the moment advanceWave runs for the
     // next one. Record on every 10-wave boundary; the final win-wave split is
     // pushed by _finishStoryEvent when THE_END fires.
     if (isSpeedrunMode) {
-        const justCleared = wave - 1;
+        const justCleared = runState.wave - 1;
         if (justCleared > 0 && justCleared % 10 === 0) {
             _recordSpeedrunSplit(justCleared);
         }
     }
-    enemiesKilledInWave = 0;
+    runState.enemiesKilledInWave = 0;
     masksDroppedInWave = 0; // Reset mask cap
     enemies.length = 0;
     if (window._world) window._world.enemies = enemies;
-    bossActive = false;
-    notifyWaveAdvance(wave);
+    runState.bossActive = false;
+    notifyWaveAdvance(runState.wave);
 
     // Maze of Time: reset per-wave enemy pool
     if (window.MazeOfTime) window.MazeOfTime.clearEnemyPool();
@@ -4065,7 +4061,7 @@ function advanceWave() {
     if (isTutorialMode) TutorialMode.startObjective();
 
     // CHAOS GAMBLE
-    if (isChaosShuffleMode && wave > 1) {
+    if (isChaosShuffleMode && runState.wave > 1) {
         openChaosGamble(); // Pause & Wait
     } else {
         resumeWaveGeneration();
@@ -4077,19 +4073,19 @@ function resumeWaveGeneration() {
     const isStoryMode = (saveData.story && saveData.story.enabled !== false) &&
         !isDailyMode && !isWeeklyMode && !isChaosShuffleMode && !isVersusMode;
 
-    if (isStoryMode && wave === 90) {
+    if (isStoryMode && runState.wave === 90) {
         // Spawn in center
         holyMasks.push(new HolyMask(arena.width / 2, arena.height / 2, true));
         showNotification("THE GOLDEN MASK APPEARS!");
         createExplosion(arena.width / 2, arena.height / 2, '#f1c40f');
     }
 
-    if (isChaosShuffleMode && wave > 0) generateChaosObjective();
+    if (isChaosShuffleMode && runState.wave > 0) generateChaosObjective();
 
     // Evil Mode — delegate entirely to EvilMode.setupWave; skip all normal spawning
     if (isEvilMode && typeof EvilMode !== 'undefined') {
         setUIState('GAME'); // Must set before early return — normal path sets it at the end
-        EvilMode.setupWave(wave);
+        EvilMode.setupWave(runState.wave);
         return;
     }
 
@@ -4099,14 +4095,14 @@ function resumeWaveGeneration() {
         const heroType = (player && player.type) || 'fire';
         const types = buildBiomePool(isStoryRun, heroType);
 
-        if (wave === 1 && player && player.type !== 'black') {
+        if (runState.wave === 1 && player && player.type !== 'black') {
             currentBiomeType = (isOnlineMode && window._onlineStoryHero)
                 ? window._onlineStoryHero : player.type;
         } else if (currentStoryEvent && currentStoryEvent.data && currentStoryEvent.data.biome) {
             currentBiomeType = currentStoryEvent.data.biome === 'HERO'
                 ? player.type : currentStoryEvent.data.biome;
         } else if (isOnlineMode && window._onlineBiomeSeed !== undefined) {
-            currentBiomeType = pickSeededBiome(wave, window._onlineBiomeSeed);
+            currentBiomeType = pickSeededBiome(runState.wave, window._onlineBiomeSeed);
         } else {
             currentBiomeType = pickRandomBiome(types);
         }
@@ -4146,12 +4142,12 @@ function resumeWaveGeneration() {
     }
 
     // Default Makuta check (Wave.js helper)
-    if (!storyBossId && isStoryBossWave(wave, saveData, { isDailyMode, isWeeklyMode })) {
+    if (!storyBossId && isStoryBossWave(runState.wave, saveData, { isDailyMode, isWeeklyMode })) {
         storyBossId = 'MAKUTA';
     }
 
     if (storyBossId) {
-        bossActive = true;
+        runState.bossActive = true;
         triggerImpact(9, 22, 0.45, 0.90, 550);
         let pName = storyBossId;
         if (storyBossId === 'MAKUTA') {
@@ -4195,7 +4191,7 @@ function resumeWaveGeneration() {
     // generate identical arena layouts for the same wave + lobby code.
     let _savedRandom = null;
     if (isOnlineMode && window._onlineBiomeSeed !== undefined) {
-        let _ms = ((wave * 2654435761) ^ (window._onlineBiomeSeed * 1664525)) >>> 0;
+        let _ms = ((runState.wave * 2654435761) ^ (window._onlineBiomeSeed * 1664525)) >>> 0;
         _savedRandom = Math.random;
         Math.random = function() {
             _ms = (_ms + 0x6D2B79F5) | 0;
@@ -4371,7 +4367,7 @@ window.showAchievementNotif = showAchievementNotif;
 function checkAchievements() {
     saveData.global.totalKills++;
     saveData.global.totalGold = (saveData.global.totalGold || 0) + 1;
-    if (wave > saveData.global.maxWave) saveData.global.maxWave = wave;
+    if (runState.wave > saveData.global.maxWave) saveData.global.maxWave = runState.wave;
     if (currentRunStats.maxCombo > (saveData.global.maxCombo || 0)) saveData.global.maxCombo = currentRunStats.maxCombo;
 
     // Calculate Dynamic Stats
@@ -4629,11 +4625,11 @@ async function startGame(mode = 'NORMAL') {
         p2RevivalMarker = null;
     }
 
-    score = 0;
-    wave = 0; // Start at 0, advanceWave will increment to 1
-    enemiesKilledInWave = 0;
+    runState.score = 0;
+    runState.wave = 0; // Start at 0, advanceWave will increment to 1
+    runState.enemiesKilledInWave = 0;
     masksDroppedInWave = 0; // Cap mask drops
-    bossActive = false;
+    runState.bossActive = false;
     isPlayerDying = false;
     bossDeathTimer = 0;
     bossIntroTimer = 0; bossIntroName = ''; bossIntroSkippable = false;
@@ -4656,10 +4652,10 @@ async function startGame(mode = 'NORMAL') {
     forcedEnemyType = null;
     currentObjective = null; // Reset Objective
     currentStoryEvent = null; // Reset Story Event to prevent leaks
-    gameRunning = true;
-    gamePaused = false;
-    isLevelingUp = false;
-    isShopping = false;
+    runState.gameRunning = true;
+    runState.gamePaused = false;
+    runState.isLevelingUp = false;
+    runState.isShopping = false;
     _stopWeather();
 
     // Reset Stats — shape lives in RunState.js.
@@ -4701,12 +4697,12 @@ async function startGame(mode = 'NORMAL') {
         player._world = _w;
 
         // ── Phase 5: complete world state ────────────────────────────────────
-        _w.frame            = frame;
-        _w.wave             = wave;
-        _w.score            = score;
+        _w.frame            = runState.frame;
+        _w.wave             = runState.wave;
+        _w.score            = runState.score;
         _w.currentWeather   = currentWeather;
         _w.currentObjective = currentObjective;
-        _w.bossActive       = bossActive;
+        _w.bossActive       = runState.bossActive;
         _w.createExplosion  = createExplosion;
         _w.showNotification = showNotification;
         if (typeof audioManager !== 'undefined') _w.audioManager = audioManager;
@@ -4755,7 +4751,7 @@ async function startGame(mode = 'NORMAL') {
         isDailyMode = false;
         isWeeklyMode = false;
         activeMutators = [];
-        wave = 1;
+        runState.wave = 1;
         currentBiomeType = selectedHeroType === 'black' ? 'chaos' : selectedHeroType;
         arena.generate(currentBiomeType);
         player.x = arena.width / 2;
@@ -4820,7 +4816,7 @@ function gameOver(isVictory = false) {
             mode:        isDailyMode ? 'daily' : isWeeklyMode ? 'weekly' : wasVersusMode ? 'versus' : wasEvilMode ? 'evil' : isSpeedrunMode ? 'speedrun' : isTutorialMode ? 'tutorial' : 'normal',
             biome:       currentBiomeType || null,
             outcome:     isVictory ? 'win' : 'death',
-            wave:        wave,
+            wave:        runState.wave,
             timeSec:     totalTimeSec,
             deathSource: (!isVictory && player && player._lastDamageSource) ? String(player._lastDamageSource.label).slice(0, 64) : null,
         });
@@ -4853,7 +4849,7 @@ function gameOver(isVictory = false) {
     if (typeof EvilMode !== 'undefined') EvilMode.stop();
     isEvilMode = false;
 
-    gameRunning = false;
+    runState.gameRunning = false;
     isTutorialMode = false;
     isTestingMode = false;
     const wasSpeedrunMode = isSpeedrunMode;
@@ -4873,7 +4869,7 @@ function gameOver(isVictory = false) {
     window.player2 = null;
     p1RevivalMarker = null;
     p2RevivalMarker = null;
-    coopZoom = 1.0;
+    runState.coopZoom = 1.0;
     p2LevelUpPending = false;
     const _p2hudEl = document.getElementById('p2-hud');
     if (_p2hudEl) _p2hudEl.style.display = 'none';
@@ -4955,7 +4951,7 @@ function gameOver(isVictory = false) {
     }
 
     // DLC story completion achievements (fires on any victory in story mode at wave ≥ 50)
-    if (isVictory && player && wave >= 50) {
+    if (isVictory && player && runState.wave >= 50) {
         const isStoryRun = (saveData.story && saveData.story.enabled !== false) &&
             !isDailyMode && !isWeeklyMode && !isChaosShuffleMode && !isVersusMode;
         if (isStoryRun) {
@@ -4998,7 +4994,7 @@ function gameOver(isVictory = false) {
     // Online co-op stat tracking
     if (isOnlineMode) {
         saveData.global.onlineGamesPlayed = (saveData.global.onlineGamesPlayed || 0) + 1;
-        if (wave > (saveData.global.onlineMaxWave || 0)) saveData.global.onlineMaxWave = wave;
+        if (runState.wave > (saveData.global.onlineMaxWave || 0)) saveData.global.onlineMaxWave = runState.wave;
     }
 
     // ── Speedrun: best-time persistence + leaderboard submit ──────────────────
@@ -5039,7 +5035,7 @@ function gameOver(isVictory = false) {
                 body: JSON.stringify({
                     hero: player.type,
                     timeSec: finalTimeSec,
-                    finalWave: wave,
+                    finalWave: runState.wave,
                     splits: (currentRunStats && currentRunStats.splits) || [],
                     sessionToken: _srSession,
                 }),
@@ -5076,8 +5072,8 @@ function gameOver(isVictory = false) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_lbToken}` },
                 body: JSON.stringify({
-                    hero: player.type, mode: _rhMode, wave: Math.max(0, wave - 1),
-                    score, outcome: isVictory ? 'victory' : 'death',
+                    hero: player.type, mode: _rhMode, wave: Math.max(0, runState.wave - 1),
+                    score: runState.score, outcome: isVictory ? 'victory' : 'death',
                     timeSec: _rhTimeSec,
                     sessionToken: _sessionToken, // anti-cheat: server clamps to authoritative state
                     dailySeed: _seed,            // null for non-seeded modes
@@ -5097,8 +5093,8 @@ function gameOver(isVictory = false) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_lbToken}` },
                 body: JSON.stringify({
                     hero: player.type,
-                    wave: Math.max(0, wave - 1),
-                    score: Math.floor(score),
+                    wave: Math.max(0, runState.wave - 1),
+                    score: Math.floor(runState.score),
                     timeSec: _rhTimeSec,
                 }),
             }).catch(() => {});
@@ -5111,8 +5107,8 @@ function gameOver(isVictory = false) {
         hero: player.type,
         mode: _rhMode,
         online: !!isOnlineMode,
-        wave: Math.max(0, wave - 1),
-        score: score,
+        wave: Math.max(0, runState.wave - 1),
+        score: runState.score,
         outcome: isVictory ? 'victory' : 'death',
         enemiesKilled: currentRunStats.enemiesKilled || 0,
         damageDealt: Math.floor(currentRunStats.damageDealt || 0),
@@ -5140,10 +5136,10 @@ function gameOver(isVictory = false) {
     // 1. Header & Score
     const pfx = isVictory ? 'vc' : 'go';
     const heroData = saveData[player.type];
-    const isHighScore = score > heroData.highScore;
-    if (isHighScore) heroData.highScore = score;
+    const isHighScore = runState.score > heroData.highScore;
+    if (isHighScore) heroData.highScore = runState.score;
 
-    document.getElementById(`${pfx}-score-val`).innerText = score.toLocaleString();
+    document.getElementById(`${pfx}-score-val`).innerText = runState.score.toLocaleString();
     document.getElementById(`${pfx}-highscore-msg`).style.display = isHighScore ? 'block' : 'none';
 
     // 2. Prepare Stats Data
@@ -5153,7 +5149,7 @@ function gameOver(isVictory = false) {
 
     const runStatsList = [
         { label: "Time Survived", val: fmtTime(timeSurvivedSec), key: 'timeSurvived', raw: timeSurvivedSec },
-        { label: "Waves Cleared", val: wave - 1, key: 'wavesCleared', raw: wave - 1 },
+        { label: "Waves Cleared", val: runState.wave - 1, key: 'wavesCleared', raw: runState.wave - 1 },
         { label: "Level Reached", val: player.level, key: 'levelReached', raw: player.level },
         { label: "Enemies Killed", val: currentRunStats.enemiesKilled, key: 'enemiesKilled', raw: currentRunStats.enemiesKilled },
         { label: "Damage Dealt", val: Math.floor(currentRunStats.damageDealt).toLocaleString(), key: 'damageDealt', raw: currentRunStats.damageDealt },
@@ -5374,7 +5370,7 @@ function _onlineHandleSnapshot(s) {
 
 /** GUEST: apply a state snapshot received from the host. */
 function _onlineApplySnapshot(s) {
-    if (!s || !gameRunning) return;
+    if (!s || !runState.gameRunning) return;
     const _snapTime = Date.now();
     // Server-side timestamp: use this for interpolation buffers so spacing reflects
     // actual server tick cadence, not jittery packet receipt times.
@@ -5532,9 +5528,9 @@ function _onlineApplySnapshot(s) {
     if (window._world) window._world.projectiles = projectiles;
 
     // Game state
-    if (s.wave     !== undefined) wave      = s.wave;
-    if (s.score    !== undefined) score     = s.score;
-    if (s.bossActive !== undefined) bossActive = s.bossActive;
+    if (s.wave     !== undefined) runState.wave      = s.wave;
+    if (s.score    !== undefined) runState.score     = s.score;
+    if (s.bossActive !== undefined) runState.bossActive = s.bossActive;
 
     // Process events
     if (s.events) s.events.forEach(_onlineProcessGuestEvent);
@@ -5551,7 +5547,7 @@ function _onlineProcessGuestEvent(ev) {
             goldDrops.push(GoldDrop.acquire(ev.x, ev.y));
             break;
         case 'wave_start':
-            wave = ev.wave;
+            runState.wave = ev.wave;
             showNotification(`WAVE ${ev.wave}`);
             break;
         case 'notification':
@@ -5573,7 +5569,7 @@ function _onlineHandleLevelUpChoice(_choice) {}
 /** GUEST: display the level-up screen for their own character (choice relayed to host via LevelUp.js). */
 function _onlineShowLevelUpForGuest(ev) {
     if (!ev.options || !player) return;
-    isLevelingUp = true;
+    runState.isLevelingUp = true;
     if (window.levelUpUI) window.levelUpUI.showLevelUp(player, ev.options);
 }
 
@@ -5611,11 +5607,11 @@ function _onlineShowReconnectOverlay(show, timeoutSec = 90) {
     if (!ov) return;
     ov.style.display = show ? 'flex' : 'none';
     if (show) {
-        gamePaused = true;
+        runState.gamePaused = true;
         clearInterval(ov._iv);
         if (timeoutSec <= 0) {
             // Partner already hard-disconnected — let game logic decide next step
-            gamePaused = false;
+            runState.gamePaused = false;
             abortOnlineGame();
             return;
         }
@@ -5631,7 +5627,7 @@ function _onlineShowReconnectOverlay(show, timeoutSec = 90) {
         ov._iv = iv;
     } else {
         clearInterval(ov._iv);
-        gamePaused = false;
+        runState.gamePaused = false;
     }
 }
 
@@ -5656,7 +5652,7 @@ function _renderMinimap() {
                    || (typeof isVersusMode  !== 'undefined' && isVersusMode)
                    || (typeof isOnlineMode  !== 'undefined' && isOnlineMode);
     const shouldShow = (typeof gameConfig !== 'undefined' && gameConfig.minimapEnabled)
-        && (typeof gameRunning !== 'undefined' && gameRunning)
+        && (typeof runState.gameRunning !== 'undefined' && runState.gameRunning)
         && (typeof arena !== 'undefined' && arena)
         && !twoPlayer;
     if (!shouldShow) {
@@ -5778,10 +5774,10 @@ function _cheatExec(raw) {
         } else if (verb === 'set' && parts[1] === 'wave') {
             const n = parseInt(parts[2], 10);
             if (Number.isFinite(n) && n > 0) {
-                wave = n - 1;
+                runState.wave = n - 1;
                 enemies.length = 0;
                 projectiles.length = 0;
-                bossActive = false;
+                runState.bossActive = false;
                 if (typeof advanceWave === 'function') advanceWave();
                 _cheatLog(`wave → ${n}`);
             }
@@ -5791,7 +5787,7 @@ function _cheatExec(raw) {
                 const b = new Boss(id);
                 if (player) { b.x = player.x + 200; b.y = player.y; }
                 enemies.push(b);
-                bossActive = true;
+                runState.bossActive = true;
                 _cheatLog(`spawned boss ${id}`);
             }
         } else if (verb === 'kill') {
@@ -5899,8 +5895,8 @@ function _updateDebugOverlay(frameMs) {
     const _ph = window._projectileSpatialHash;
     const _ehStats = _eh && _eh.stats ? _eh.stats() : { buckets: 0, maxBucket: 0 };
     const _phStats = _ph && _ph.stats ? _ph.stats() : { buckets: 0, maxBucket: 0 };
-    const hitStop  = _hitStopFrames;
-    const wv       = (typeof wave !== 'undefined') ? wave : 0;
+    const hitStop  = runState._hitStopFrames;
+    const wv       = (typeof runState.wave !== 'undefined') ? runState.wave : 0;
     // #24/#30 P10 — phase breakdown. `frameWork` is total main-thread time
     // in masterFrame body; `enemies` is the per-frame enemy update + draw +
     // collision phase. Used to gate the speculative #24 (worker AI) /
@@ -5974,7 +5970,7 @@ function _finalizeBossDeathCinematic() {
     }
 
     // Daily Challenge Win Condition
-    if (isDailyMode && wave === 10) {
+    if (isDailyMode && runState.wave === 10) {
         showNotification("DAILY CHALLENGE COMPLETE!");
         saveData.daily.lastCompleted = getDailySeed();
         saveData.global.totalVoidGoldSpent += 0; // Just to ensure field exists
@@ -6000,7 +5996,7 @@ function _finalizeBossDeathCinematic() {
     }
 
     // Weekly Challenge Win Condition
-    if (isWeeklyMode && wave === 20) {
+    if (isWeeklyMode && runState.wave === 20) {
         showNotification("WEEKLY CHALLENGE COMPLETE!");
         saveData.weekly.lastCompleted = getWeeklySeed();
         // Reward (Bigger than Daily)
@@ -6114,7 +6110,7 @@ function _renderBossDeathCinematic() {
         ctx.shadowBlur = 10;
         ctx.fillStyle = '#f1c40f';
         ctx.font = '13px Arial';
-        ctx.fillText(`— WAVE ${wave} CLEARED —`, canvas.width / 2, canvas.height / 2 + 48);
+        ctx.fillText(`— WAVE ${runState.wave} CLEARED —`, canvas.width / 2, canvas.height / 2 + 48);
         ctx.restore();
     }
 
@@ -6327,7 +6323,7 @@ ctx.shadowColor = '#f1c40f';
 ctx.shadowBlur = 10;
 ctx.fillStyle = '#f1c40f';
 ctx.font = '13px Arial';
-ctx.fillText(`\u2014 WAVE ${wave} CLEARED \u2014`, canvas.width / 2, canvas.height / 2 + 48);
+ctx.fillText(`\u2014 WAVE ${runState.wave} CLEARED \u2014`, canvas.width / 2, canvas.height / 2 + 48);
 ctx.restore();
 
 // Buttons
@@ -6435,10 +6431,10 @@ function _updateGameplayPre(deltaTime) {
         if (isCoopMode && player2) {
             const ref1 = !player.isDead ? player : player2;
             const ref2 = player2 && !player2.isDead ? player2 : player;
-            coopZoom = arena.updateCameraForTwo(ref1, ref2, canvas.width, canvas.height);
+            runState.coopZoom = arena.updateCameraForTwo(ref1, ref2, canvas.width, canvas.height);
         } else {
             arena.updateCamera(player, canvas.width, canvas.height);
-            coopZoom = 1.0;
+            runState.coopZoom = 1.0;
         }
     } else {
         // Need camera dimensions for draw clipping.
@@ -6448,8 +6444,8 @@ function _updateGameplayPre(deltaTime) {
 
     // Heatwave Mirage Effect (Camera Wobble)
     if (currentWeather && currentWeather.id === 'HEATWAVE') {
-        const wobbleX = Math.sin(frame * 0.05) * 15;
-        const wobbleY = Math.cos(frame * 0.03) * 15;
+        const wobbleX = Math.sin(runState.frame * 0.05) * 15;
+        const wobbleY = Math.cos(runState.frame * 0.03) * 15;
         arena.camera.x += wobbleX;
         arena.camera.y += wobbleY;
     }
@@ -6465,7 +6461,7 @@ function _updateGameplayPre(deltaTime) {
             if (currentObjective.current >= currentObjective.target) {
                 currentObjective.state = 'COMPLETED';
                 showNotification("OBJECTIVE COMPLETE!");
-                triggerStory(wave); // Advance
+                triggerStory(runState.wave); // Advance
             }
         } else if (currentObjective.type === 'DEFENSE') {
             // Sapling Logic handled in draw/enemy loop
@@ -6475,10 +6471,10 @@ function _updateGameplayPre(deltaTime) {
             }
             // Survival Condition: Kill all enemies or survive time?
             // Let's say kill count for now, or just standard wave clear
-            if (isWaveCleared(wave, enemiesKilledInWave)) {
+            if (isWaveCleared(runState.wave, runState.enemiesKilledInWave)) {
                 currentObjective.state = 'COMPLETED';
                 showNotification("SAPLING SAVED!");
-                triggerStory(wave);
+                triggerStory(runState.wave);
             }
         } else if (currentObjective.type === 'EYE_OF_STORM') {
             const eye = currentObjective.data.stormEye;
@@ -6500,7 +6496,7 @@ function _updateGameplayPre(deltaTime) {
                 currentObjective.current += 1 / 60;
             } else {
                 // Damage if outside
-                if (frame % 60 === 0) {
+                if (runState.frame % 60 === 0) {
                     if (!player.isInvincible) {
                         player.hp -= 5;
                         try { audioManager.play('damage'); } catch (e) { }
@@ -6514,21 +6510,21 @@ function _updateGameplayPre(deltaTime) {
             if (currentObjective.current >= currentObjective.target) {
                 currentObjective.state = 'COMPLETED';
                 showNotification("STORM SURVIVED!");
-                triggerStory(wave);
+                triggerStory(runState.wave);
             }
         } else if (currentObjective.type === 'UNTOUCHABLE') {
             if (currentObjective.current >= currentObjective.target) {
                 currentObjective.state = 'FAILED';
                 gameOver();
             }
-            if (isWaveCleared(wave, enemiesKilledInWave)) {
+            if (isWaveCleared(runState.wave, runState.enemiesKilledInWave)) {
                 currentObjective.state = 'COMPLETED';
                 showNotification("UNTOUCHABLE!");
-                triggerStory(wave);
+                triggerStory(runState.wave);
             }
         } else if (currentObjective.type === 'IRON_WILL') {
             // Decay HP
-            if (frame % 60 === 0) {
+            if (runState.frame % 60 === 0) {
                 if (!player.isInvincible) {
                     player.hp -= 2; // Lose 2 HP per second
                     audioManager.play('damage');
@@ -6542,13 +6538,13 @@ function _updateGameplayPre(deltaTime) {
             if (currentObjective.current >= currentObjective.target) {
                 currentObjective.state = 'COMPLETED';
                 showNotification("SURVIVED!");
-                triggerStory(wave);
+                triggerStory(runState.wave);
             }
         }
 
         // DLC Hook: Check Completion
         if (window.HERO_LOGIC && window.HERO_LOGIC[player.type] && window.HERO_LOGIC[player.type].checkObjectiveCompletion) {
-            window.HERO_LOGIC[player.type].checkObjectiveCompletion(currentObjective, wave);
+            window.HERO_LOGIC[player.type].checkObjectiveCompletion(currentObjective, runState.wave);
         }
     }
 
@@ -6566,18 +6562,18 @@ function _updateGameplayPre(deltaTime) {
         if (_renderBossChoiceScreen()) return true;
 
 
-    frame++;
-    window.frame = frame; // Expose for DLCs
+    runState.frame++;
+    window.frame = runState.frame; // Expose for DLCs
     if (window._world) {
-        window._world.frame            = frame;
-        window._world.wave             = wave;
-        window._world.score            = score;
-        window._world.gamePaused       = gamePaused;
-        window._world.isLevelingUp     = isLevelingUp;
-        window._world.isShopping       = isShopping;
+        window._world.frame            = runState.frame;
+        window._world.wave             = runState.wave;
+        window._world.score            = runState.score;
+        window._world.gamePaused       = runState.gamePaused;
+        window._world.isLevelingUp     = runState.isLevelingUp;
+        window._world.isShopping       = runState.isShopping;
         window._world.currentWeather   = currentWeather;
         window._world.currentObjective = currentObjective;
-        window._world.bossActive       = bossActive;
+        window._world.bossActive       = runState.bossActive;
         window._world.enemies          = enemies;
     }
 
@@ -6585,7 +6581,7 @@ function _updateGameplayPre(deltaTime) {
     if (currentWeather) {
         weatherDuration--;
         // Update duration bar width every 6 frames (no need every frame)
-        if (frame % 6 === 0) {
+        if (runState.frame % 6 === 0) {
             const _wbf = document.getElementById('weather-bar-fill');
             if (_wbf) _wbf.style.width = Math.max(0, (weatherDuration / currentWeather.duration) * 100) + '%';
         }
@@ -6732,7 +6728,7 @@ function _updateGameplayPre(deltaTime) {
                     });
                 }
                 // DoT: 1% max HP every 4s
-                if (frame % 240 === 0 && wFadeIn >= 1) {
+                if (runState.frame % 240 === 0 && wFadeIn >= 1) {
                     const acidDmg = Math.ceil(player.maxHp * 0.01);
                     applyDamage(player, acidDmg, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null }); // #18
                 }
@@ -6762,7 +6758,7 @@ function _updateGameplayPre(deltaTime) {
                 const _lhLock = window._weatherBiomeLocks && window._weatherBiomeLocks[currentWeather.id];
                 const _lhDlc = _lhLock && _lhLock.dlcId;
                 const _lhOk = !_lhDlc || (window.dlcManager && window.dlcManager.isDLCActive(_lhDlc));
-                if (_lhOk) window._weatherLogicHooks[currentWeather.id](wFadeIn, frame);
+                if (_lhOk) window._weatherLogicHooks[currentWeather.id](wFadeIn, runState.frame);
             }
 
             // Tick all weather particles
@@ -6808,7 +6804,7 @@ function _updateGameplayPre(deltaTime) {
                 currentWeather = _weatherPool[Math.floor(Math.random() * _weatherPool.length)];
             }
             // Wave scaling: +1% duration per wave, capped at 2×
-            const _waveDurationMult = Math.min(2.0, 1 + wave * 0.01);
+            const _waveDurationMult = Math.min(2.0, 1 + runState.wave * 0.01);
             weatherDuration = Math.floor(currentWeather.duration * _waveDurationMult);
             document.getElementById('weather-overlay').style.backgroundColor = currentWeather.color;
             const wDisplay = document.getElementById('weather-display');
@@ -6827,7 +6823,7 @@ function _updateGameplayPre(deltaTime) {
         }
     }
     // ── Weather stacking (wave 30+): run a second concurrent weather ──
-    if (wave >= 30) {
+    if (runState.wave >= 30) {
         if (currentWeather2) {
             weatherDuration2--;
             if (weatherDuration2 <= 0) {
@@ -6848,7 +6844,7 @@ function _updateGameplayPre(deltaTime) {
             });
             if (_stackPool.length > 0) {
                 currentWeather2 = _stackPool[Math.floor(Math.random() * _stackPool.length)];
-                const _waveMult2 = Math.min(2.0, 1 + wave * 0.01);
+                const _waveMult2 = Math.min(2.0, 1 + runState.wave * 0.01);
                 weatherDuration2 = Math.floor(currentWeather2.duration * _waveMult2 * 0.6); // shorter than primary
                 if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + currentWeather2.id.toLowerCase());
                 showNotification(`⚠ ${currentWeather2.name} STACKS WITH ${currentWeather.name}!`);
@@ -6868,7 +6864,7 @@ function _updateGameplayPre(deltaTime) {
             } else if (currentWeather2.id === 'BLIZZARD') {
                 if (Math.random() < 0.5 * _wFI2) weatherParticles.push({ x: Math.random() * canvas.width, y: -8, vx: (Math.random() - 0.5) * 1.2 - 0.5, vy: 1.2 + Math.random() * 2.0, r: 1.0 + Math.random() * 2.2, alpha: 0.55 + Math.random() * 0.4, wobble: Math.random() * Math.PI * 2 });
             } else if (currentWeather2.id === 'ACIDIC_FOG') {
-                if (frame % 240 === 0 && _wFI2 >= 1) {
+                if (runState.frame % 240 === 0 && _wFI2 >= 1) {
                     const _ad2 = Math.ceil(player.maxHp * 0.01);
                     applyDamage(player, _ad2, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null }); // #18
                 }
@@ -6880,14 +6876,14 @@ function _updateGameplayPre(deltaTime) {
 
     // --- Spawning Logic ---
     // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
-    if (!bossActive && bossDeathTimer === 0 && !isTestingMode && !isEvilMode && isWaveCleared(wave, enemiesKilledInWave) && (!isTutorialMode || TutorialMode.bossForced)) {
+    if (!runState.bossActive && bossDeathTimer === 0 && !isTestingMode && !isEvilMode && isWaveCleared(runState.wave, runState.enemiesKilledInWave) && (!isTutorialMode || TutorialMode.bossForced)) {
         if (currentObjective && currentObjective.state === 'ACTIVE') {
             // Do nothing, wait for objective completion logic
         } else if (isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType === 'none') {
             // Workshop: no boss configured — advance wave directly
             advanceWave();
         } else {
-            bossActive = true;
+            runState.bossActive = true;
             // Boss spawn — heavy ground-pound rumble
             triggerImpact(9, 22, 0.45, 0.90, 550);
             if (isTutorialMode) {
@@ -6927,8 +6923,8 @@ function _updateGameplayPre(deltaTime) {
     }
 
     if (!isVersusMode && !isTestingMode && !isEvilMode) {
-        if (!bossActive && bossDeathTimer === 0) {
-            let spawnRate = Math.max(10, 45 - (wave * 1.3));
+        if (!runState.bossActive && bossDeathTimer === 0) {
+            let spawnRate = Math.max(10, 45 - (runState.wave * 1.3));
             let forcedType = null;
 
             // Workshop waveConfig overrides
@@ -6936,7 +6932,7 @@ function _updateGameplayPre(deltaTime) {
                 const _wc = window.pendingCustomMap.waveConfig;
                 const _base  = _wc.spawnRateBase         ?? 45;
                 const _decay = _wc.spawnRateDecayPerWave ?? 1.3;
-                spawnRate = Math.max(10, _base - (wave * _decay));
+                spawnRate = Math.max(10, _base - (runState.wave * _decay));
                 if (_wc.enemyPool && _wc.enemyPool.length > 0) {
                     forcedType = _wc.enemyPool[Math.floor(Math.random() * _wc.enemyPool.length)];
                 }
@@ -6958,8 +6954,8 @@ function _updateGameplayPre(deltaTime) {
             }
 
             const nonBossCount = enemies.filter(e => !(e instanceof Boss) && e.hp > 0).length;
-            const enemyCap = Math.min(22, 5 + wave) + ((isCoopMode || isAICompanionMode) ? 4 : 0);
-            if (frame % Math.floor(spawnRate) === 0 && nonBossCount < enemyCap) {
+            const enemyCap = Math.min(22, 5 + runState.wave) + ((isCoopMode || isAICompanionMode) ? 4 : 0);
+            if (runState.frame % Math.floor(spawnRate) === 0 && nonBossCount < enemyCap) {
                 let loops = 1;
                 if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
 
@@ -6968,7 +6964,7 @@ function _updateGameplayPre(deltaTime) {
                         enemies.push(new Enemy(false, forcedType));
                     } else {
                         // Swarm Logic
-                        if (wave > 2 && Math.random() < 0.1) {
+                        if (runState.wave > 2 && Math.random() < 0.1) {
                             for (let i = 0; i < 5; i++) {
                                 const swarm = new Enemy(false, 'SWARM');
                                 // Offset slightly
@@ -6987,7 +6983,7 @@ function _updateGameplayPre(deltaTime) {
             if (currentStoryEvent && currentStoryEvent.data && currentStoryEvent.data.suppressMinions) {
                 suppress = true;
             }
-            if (!suppress && frame % 150 === 0) enemies.push(new Enemy(true));
+            if (!suppress && runState.frame % 150 === 0) enemies.push(new Enemy(true));
         }
     }
 
@@ -7028,7 +7024,7 @@ function _updateGameplayPre(deltaTime) {
         }
     }
 
-    if (frame % 600 === 0) powerUps.push(new PowerUp());
+    if (runState.frame % 600 === 0) powerUps.push(new PowerUp());
     return false;
 }
 
@@ -7077,7 +7073,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 if (zone.type === 'ICE') biomeSpeedMod = 1.3; // Slide faster
                 if (zone.type === 'WATER') biomeSpeedMod = 0.7;
 
-                if (zone.type === 'LAVA' && frame % 60 === 0) {
+                if (zone.type === 'LAVA' && runState.frame % 60 === 0) {
                     applyDamage(player, 5, { label: 'LAVA' }); // #18
                     createExplosion(player.x, player.y, '#e74c3c');
                     showNotification("BURNING!");
@@ -7175,7 +7171,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     }
 
     // Online: interpolate ghost entities between buffered snapshots; reconcile own player; flush input
-    if (isOnlineMode && gameRunning && !gamePaused) {
+    if (isOnlineMode && runState.gameRunning && !runState.gamePaused) {
         _onlineFrame++;
 
         // Interpolate ghost entities between buffered snapshots for smooth rendering
@@ -7612,9 +7608,9 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                             if (isVersusMode && window.additionalPlayers.length === 0) {
                                 audioManager.playHeroExclamation(player.type, 'boss_win');
                                 setTimeout(() => gameOver(true), 2000);
-                            } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
+                            } else if (!isVersusMode && runState.bossActive && window.additionalPlayers.length === 0) {
                                 // Story Mode Duel Victory
-                                bossActive = false;
+                                runState.bossActive = false;
                                 bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds for dramatic effect
                                 triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
 
@@ -7734,8 +7730,8 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                                     if (isVersusMode && window.additionalPlayers.length === 0) {
                                         audioManager.playHeroExclamation(player.type, 'boss_win');
                                         setTimeout(() => gameOver(true), 2000);
-                                    } else if (!isVersusMode && bossActive && window.additionalPlayers.length === 0) {
-                                        bossActive = false;
+                                    } else if (!isVersusMode && runState.bossActive && window.additionalPlayers.length === 0) {
+                                        runState.bossActive = false;
                                         bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
                                         triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
                                         enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
@@ -7958,7 +7954,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         // the cached speed mod every 4 frames, or whenever LAVA DPS could
         // fire (frame % 60 === 0). Enemies move ~3–5 px/frame and zones
         // are 200–800 px wide, so staleness is invisible.
-        if (enemy._zoneRefreshAt === undefined || frame >= enemy._zoneRefreshAt || frame % 60 === 0) {
+        if (enemy._zoneRefreshAt === undefined || runState.frame >= enemy._zoneRefreshAt || runState.frame % 60 === 0) {
             let enemySpeedMod = 1;
             arena.biomeZones.forEach(zone => {
                 if (enemy.x > zone.x && enemy.x < zone.x + zone.w &&
@@ -7968,14 +7964,14 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     if (zone.type === 'ICE') enemySpeedMod = 1.3;
                     if (zone.type === 'WATER') enemySpeedMod = 0.7;
 
-                    if (zone.type === 'LAVA' && frame % 60 === 0) {
+                    if (zone.type === 'LAVA' && runState.frame % 60 === 0) {
                         enemy.hp -= 5;
                         createExplosion(enemy.x, enemy.y, '#e74c3c');
                     }
                 }
             });
             enemy.biomeSpeedMod = enemySpeedMod;
-            enemy._zoneRefreshAt = frame + 4;
+            enemy._zoneRefreshAt = runState.frame + 4;
         }
 
         if (!_isHitStopped && !enemy._ghost) enemy.update();
@@ -8298,7 +8294,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
             if (enemy instanceof Boss) {
                 // Makuta Achievement Check
-                if (enemy.type === 'MAKUTA' && wave >= 100) {
+                if (enemy.type === 'MAKUTA' && runState.wave >= 100) {
                     unlockAchievement('MAKUTA_SLAYER'); // Base Achievement
 
                     // Hard Mode Achievements (1-10)
@@ -8314,9 +8310,9 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
                 if (currentRunStats.keyMoments) {
                     const _km_t = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
-                    currentRunStats.keyMoments.push({ wave, timeSec: _km_t, kind: 'boss_kill', label: enemy.bossType || 'Boss' });
+                    currentRunStats.keyMoments.push({ wave: runState.wave, timeSec: _km_t, kind: 'boss_kill', label: enemy.bossType || 'Boss' });
                 }
-                score += 1000; player.gainXp(500);
+                runState.score += 1000; player.gainXp(500);
                 if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) player2.gainXp(500);
                 createExplosion(enemy.x, enemy.y, '#c0392b');
                 checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
@@ -8325,7 +8321,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 if (typeof checkChaosEvent === 'function') checkChaosEvent('BOSS_KILL', enemy.type);
 
                 // Unlock Hero Story Achievement
-                if (enemy.type === 'MAKUTA' && wave >= 100) {
+                if (enemy.type === 'MAKUTA' && runState.wave >= 100) {
                     // True Golden Mask moved to Wave 90 start
 
                     if (player.type === 'fire') unlockAchievement('STORY_FIRE');
@@ -8343,7 +8339,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 enemies.splice(eIndex, 1);
                 const remainingBosses = enemies.filter(e => e instanceof Boss).length;
                 if (remainingBosses === 0) {
-                    bossActive = false;
+                    runState.bossActive = false;
 
                     // Start Boss Death Sequence
                     bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds at 60 FPS
@@ -8389,14 +8385,14 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 saveData.stats[killKey]++;
 
                 const _eventXpMult = window.worldEvents?.getXpMultiplier?.() ?? 1;
-                const _xpMod = (bossActive ? 0.15 : 1) * _eventXpMult;
+                const _xpMod = (runState.bossActive ? 0.15 : 1) * _eventXpMult;
                 const _killer = (isCoopMode && enemy.killer) ? enemy.killer : player;
-                score += 10; _killer.gainXp(Math.round(20 * _xpMod));
+                runState.score += 10; _killer.gainXp(Math.round(20 * _xpMod));
                 createExplosion(enemy.x, enemy.y, '#aaa');
 
                 // Elite Logic on Death
                 if (enemy.isElite) {
-                    score += 500;
+                    runState.score += 500;
                     _killer.gainXp(Math.round(200 * _xpMod));
                     createExplosion(enemy.x, enemy.y, enemy.eliteType.color);
 
@@ -8440,7 +8436,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 checkDrop(enemy.subType || 'BASIC', enemy.x, enemy.y);
 
                 enemies.splice(eIndex, 1);
-                if (!bossActive) enemiesKilledInWave++;
+                if (!runState.bossActive) runState.enemiesKilledInWave++;
             }
         }
     }
@@ -8513,8 +8509,8 @@ function _runGameplayFrame(deltaTime) {
     // frozen scene can be re-rendered from a panning camera. Draws run
     // unconditionally so the camera pan stays visible.
     const _frozen = isPhotoMode();
-    const _isHitStopped = _hitStopFrames > 0;
-    if (!_frozen && _hitStopFrames > 0) _hitStopFrames--;
+    const _isHitStopped = runState._hitStopFrames > 0;
+    if (!_frozen && runState._hitStopFrames > 0) runState._hitStopFrames--;
 
     // Photo mode: skip the update prefix entirely (arena.update, weather,
     // spawn, cinematic dispatch are all state mutation). Draws still run.
@@ -8553,7 +8549,7 @@ function masterFrame(deltaTime, timestamp) {
         // #51 — photo mode runs even while paused so the camera can pan.
         if (isPhotoMode()) tickPhotoMode();
 
-        if (gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen) {
+        if (runState.gameRunning && !runState.gamePaused && !runState.isLevelingUp && !runState.isShopping && !isStoryOpen) {
             _runGameplayFrame(deltaTime);
         }
     } finally {
@@ -8631,7 +8627,7 @@ if (gameConfig.showIntroScreens) {
 
 // OPTIONAL: Auto-save every 30 seconds
 setInterval(() => {
-    if (gameRunning && !gamePaused) {
+    if (runState.gameRunning && !runState.gamePaused) {
         saveGame();
     }
 }, 30000);
@@ -8718,12 +8714,12 @@ window.GAME_API = {
     version: APP_VERSION,
 
     // ── Live game state ──
-    get wave()                  { return wave; },
-    set wave(v)                 { wave = v; },
-    get bossActive()            { return bossActive; },
-    set bossActive(v)           { bossActive = v; },
-    get enemiesKilledInWave()   { return enemiesKilledInWave; },
-    set enemiesKilledInWave(v)  { enemiesKilledInWave = v; },
+    get wave()                  { return runState.wave; },
+    set wave(v)                 { runState.wave = v; },
+    get bossActive()            { return runState.bossActive; },
+    set bossActive(v)           { runState.bossActive = v; },
+    get enemiesKilledInWave()   { return runState.enemiesKilledInWave; },
+    set enemiesKilledInWave(v)  { runState.enemiesKilledInWave = v; },
     get isPlayerDying()         { return isPlayerDying; },
     set isPlayerDying(v)        { isPlayerDying = v; },
     get currentObjective()      { return currentObjective; },
