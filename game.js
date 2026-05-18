@@ -18,7 +18,7 @@ import { FloatingText } from './Entities/FloatingText.js';
 import { Particle } from './Entities/Particle.js';
 import { Projectile } from './Entities/Projectile.js';
 import { GoldDrop } from './Entities/GoldDrop.js';
-import { CardDrop } from './Entities/CardDrop.js';
+// CardDrop class removed in #5 phase 5.2 (ECS migration). See core/systems/cardDropSystem.js.
 import { HolyMask } from './Entities/HolyMask.js';
 // PowerUp class removed in #5 phase 5.1 (ECS migration). See core/systems/powerUpSystem.js.
 import { SaveManager } from './Managers/SaveManager.js';
@@ -64,6 +64,7 @@ import { _updateGameplayPre } from './core/updateGameplayPre.js';
 import { _updateGameplayMid } from './core/updateGameplayMid.js';
 import { renderPostFX } from './core/postProcess.js';
 import { clearPowerUps } from './core/systems/powerUpSystem.js';
+import { spawnCardDrop, clearCardDrops } from './core/systems/cardDropSystem.js';
 
 // #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
 const isElectron   = !!(window.Platform && window.Platform.isElectron);
@@ -625,7 +626,7 @@ window.checkDrop = function (enemyType, x, y) {
 
         if (Math.random() < card.chance) {
             // Spawn a physical drop instead of instant collection
-            cardDrops.push(new CardDrop(x, y, cardKey));
+            spawnCardDrop(runState, x, y, cardKey);
 
             // Only one card per kill to avoid spam
             return;
@@ -2449,7 +2450,7 @@ window._weatherLogicHooks = {};
 // powerUps migrated to ECS in #5 phase 5.1 — see core/systems/powerUpSystem.js.
 const {
     enemies, projectiles, particles, floatingTexts, meleeAttacks,
-    holyMasks, goldDrops, cardDrops, memoryShards, companions,
+    holyMasks, goldDrops, memoryShards, companions,
 } = runState;
 
 // Replace an array's contents in place. Preserves identity so const aliases +
@@ -2477,7 +2478,7 @@ window.floatingTexts = floatingTexts;
 // powerUps no longer on window — migrated to ECS in #5 phase 5.1.
 window.holyMasks    = holyMasks;
 window.goldDrops    = goldDrops;
-window.cardDrops    = cardDrops;
+// cardDrops no longer on window — migrated to ECS in #5 phase 5.2.
 window.memoryShards = memoryShards;
 window.companions   = companions;
 
@@ -3035,7 +3036,7 @@ function closeDailyInfo() {
 // Expose Classes for DLC
 window.FloatingText = FloatingText;
 window.Particle = Particle;
-window.CardDrop = CardDrop;
+// CardDrop removed in #5 phase 5.2 (ECS migration).
 // createExplosion / spawnLevelUpAura moved to Spawner.js (Phase B of #1 split).
 // MAX_PARTICLES kept for createDeathBurst below (which still lives in game.js).
 const MAX_PARTICLES = GAMEPLAY.MAX_PARTICLES;
@@ -4664,7 +4665,7 @@ async function startGame(mode = 'NORMAL') {
     clearPowerUps(runState);
     holyMasks.length = 0;
     goldDrops.length = 0;
-    cardDrops.length = 0;
+    clearCardDrops(runState);
     memoryShards.length = 0;
     companions.length = 0;
     runState.isPlayerDying = false;
@@ -4696,7 +4697,7 @@ async function startGame(mode = 'NORMAL') {
         // powerUps now ECS — runState.powerUp* typed arrays, no _world mirror.
         _w.holyMasks     = holyMasks;
         _w.goldDrops     = goldDrops;
-        _w.cardDrops     = cardDrops;
+        // cardDrops now ECS — runState.cardDrop* typed arrays, no _world mirror.
         _w.memoryShards  = memoryShards;
         _w.companions    = companions;
         _w.saveData        = saveData;

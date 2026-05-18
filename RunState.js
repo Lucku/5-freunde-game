@@ -69,6 +69,7 @@ export function logKeyMoment(rs, wave, timeSec, kind, label) {
 // fields (entity types not yet migrated) and ECS typed arrays for the
 // migrated ones.
 import { initPowerUps } from './core/systems/powerUpSystem.js';
+import { initCardDrops } from './core/systems/cardDropSystem.js';
 
 // ───────────────────────────────────────────────────────────────────────────
 // #11 phase 1 — RunState container schema.
@@ -96,9 +97,10 @@ import { initPowerUps } from './core/systems/powerUpSystem.js';
  * @property {Array} cardDrops
  * @property {Array} memoryShards
  * @property {Array} companions
- * (#5 phase 5.1 — `powerUps` migrated to ECS typed arrays: `powerUpX`,
- *  `powerUpY`, `powerUpType`, `powerUpTimer`, `powerUpOscill`, `powerUpCount`.
- *  See core/systems/powerUpSystem.js.)
+ * (#5 phase 5.1 — `powerUps` migrated to ECS typed arrays. See
+ *  core/systems/powerUpSystem.js.)
+ * (#5 phase 5.2 — `cardDrops` migrated to ECS typed arrays. See
+ *  core/systems/cardDropSystem.js.)
  *
  * Phase 3 — run-lifecycle scalars:
  * @property {number}  wave
@@ -180,6 +182,7 @@ export function createRunState() {
     const rs = {
         // Phase 2 — entity arrays.
         // PowerUp migrated to ECS in #5 phase 5.1 — see initPowerUps below.
+        // CardDrop migrated to ECS in #5 phase 5.2 — see initCardDrops below.
         enemies:         [],
         projectiles:     [],
         particles:       [],
@@ -187,7 +190,6 @@ export function createRunState() {
         meleeAttacks:    [],
         holyMasks:       [],
         goldDrops:       [],
-        cardDrops:       [],
         memoryShards:    [],
         companions:      [],
 
@@ -261,6 +263,7 @@ export function createRunState() {
 
     // ECS system inits — see tasks/ecs-design.md.
     initPowerUps(rs);
+    initCardDrops(rs);
 
     return rs;
 }

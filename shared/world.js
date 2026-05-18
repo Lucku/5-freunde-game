@@ -27,7 +27,7 @@ class World {
         this.meleeAttacks  = [];
         // powerUps migrated to ECS on runState in #5 phase 5.1.
         this.holyMasks     = [];
-        this.cardDrops     = [];
+        // cardDrops migrated to ECS on runState in #5 phase 5.2.
 
         // ── Players ───────────────────────────────────────────────────────────
         this.player  = null;

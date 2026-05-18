@@ -16,6 +16,7 @@
 // (PowerUp draw moved to systems/powerUpSystem.js drawPowerUps in #5 phase 5.1.)
 import { runState } from '../RunState.js';
 import { drawPowerUps } from './systems/powerUpSystem.js';
+import { drawCardDrops } from './systems/cardDropSystem.js';
 
 export function _drawGameplayMid() {
     // Camera-bounds for the particle + floating-text on-screen check
@@ -138,7 +139,7 @@ export function _drawGameplayMid() {
     // Gold Drops draw pass — survivors of the pickup sweep above.
     for (const drop of goldDrops) drop.draw();
     // Card Drops draw pass — survivors of the pickup sweep above.
-    for (const drop of cardDrops) drop.draw();
+    drawCardDrops(ctx, runState);
     // Holy Masks draw pass — survivors of the pickup sweep above.
     for (const mask of holyMasks) mask.draw();
     // Powerups draw pass — survivors of the update loop above.

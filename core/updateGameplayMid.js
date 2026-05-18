@@ -17,6 +17,7 @@ import { runState } from '../RunState.js';
 import {
     updatePowerUps, killPowerUp, getPowerUpType, POWERUP_RADIUS,
 } from './systems/powerUpSystem.js';
+import { killCardDrop, CARDDROP_RADIUS } from './systems/cardDropSystem.js';
 
 export
 function _updateGameplayMid(deltaTime, _isHitStopped) {
@@ -361,12 +362,14 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
     }
 
-    // Card Drops — #173 phase 6 split. Same pattern.
-    for (let index = cardDrops.length - 1; index >= 0; index--) {
-        const drop = cardDrops[index];
-        const dist = Math.hypot(runState.player.x - drop.x, player.y - drop.y);
-        if (dist < runState.player.radius + 20) {
-            const cardKey = drop.cardKey;
+    // Card Drops — #173 phase 6 split / #5 phase 5.2 ECS. Reverse iter for
+    // killCardDrop's swap-with-last safety.
+    for (let index = runState.cardDropCount - 1; index >= 0; index--) {
+        const dx = runState.cardDropX[index];
+        const dy = runState.cardDropY[index];
+        const cardKey = runState.cardDropKey[index];
+        const dist = Math.hypot(runState.player.x - dx, runState.player.y - dy);
+        if (dist < runState.player.radius + CARDDROP_RADIUS) {
             const card = COLLECTOR_CARDS[cardKey];
 
             if (card && !saveData.collection.includes(cardKey)) {
@@ -398,11 +401,10 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 }, 4000);
             }
 
-            cardDrops.splice(index, 1);
+            killCardDrop(runState, index);
         } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2.isDead) {
-            const distP2 = Math.hypot(runState.player2.x - drop.x, player2.y - drop.y);
-            if (distP2 < runState.player2.radius + 20) {
-                const cardKey = drop.cardKey;
+            const distP2 = Math.hypot(runState.player2.x - dx, runState.player2.y - dy);
+            if (distP2 < runState.player2.radius + CARDDROP_RADIUS) {
                 const card = COLLECTOR_CARDS[cardKey];
                 if (card && !saveData.collection.includes(cardKey)) {
                     saveData.collection.push(cardKey);
@@ -423,7 +425,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     setTimeout(() => notif.classList.add('show'), 10);
                     setTimeout(() => { notif.classList.remove('show'); setTimeout(() => notif.remove(), 1000); }, 4000);
                 }
-                cardDrops.splice(index, 1);
+                killCardDrop(runState, index);
             }
         }
     }
