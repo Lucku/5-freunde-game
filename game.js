@@ -1907,7 +1907,6 @@ function continueRun() {
     state.companions.forEach(cData => {
         companions.push(new Companion(cData.type, runState.player));
     });
-    if (window._world) window._world.companions = companions;
 
     // Restore P2 state when continuing a co-op story run
     if (state.player2 && runState.isCoopMode && runState.player2 && runState.player2.type === state.coopP2Type) {
@@ -2229,7 +2228,6 @@ function _resetGameState() {
     coopP1GamepadIndex = -1;
     coopP2GamepadIndex = -1;
     runState.player2 = null;
-    window.player2 = null;
     runState.p1RevivalMarker = null;
     runState.p2RevivalMarker = null;
     runState.coopZoom = 1.0;
@@ -2241,11 +2239,6 @@ function _resetGameState() {
     powerUps.length = 0;
     floatingTexts.length = 0;
     particles.length = 0;
-    if (window._world) {
-        window._world.enemies = enemies; window._world.projectiles = projectiles;
-        window._world.floatingTexts = floatingTexts; window._world.particles = particles;
-        window._world.powerUps = powerUps;
-    }
     runState.bossActive = false;
     runState.wave = 1;
     runState.score = 0;
@@ -2501,7 +2494,6 @@ inputManager.onKeyDown = e => {
             enemies.length = 0;
             runState.bossActive = false;
             projectiles.length = 0;
-            if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
 
             if (runState.wave % 2 === 0) {
                 openShop();
@@ -2548,7 +2540,6 @@ inputManager.onKeyDown = e => {
                 powerUps.length = 0;
                 runState.bossActive = false;
                 runState.currentObjective = null;
-                if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
 
                 // Set wave to previous so triggerStory/advanceWave works correctly
                 runState.wave = targetWave - 1;
@@ -2656,7 +2647,6 @@ inputManager.onKeyDown = e => {
             enemies.length = 0;
             projectiles.length = 0;
             runState.bossActive = false;
-            if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
             runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
             if (typeof audioManager !== 'undefined') audioManager.play('wave_completed');
             showNotification('DEBUG: Wave skipped');
@@ -3813,7 +3803,6 @@ function changeHeroInGame(newType) {
     const oldBuffs = runState.player.buffs;
 
     runState.player = new Player(newType);
-    window.player = runState.player;
     if (window._world) { runState.player._world = window._world; window._world.player = runState.player; }
     runState.player.x = arena.width / 2;
     runState.player.y = arena.height / 2;
@@ -3976,7 +3965,6 @@ function shuffleHero(targetHeroType = null) {
 
     // 8. Swap
     runState.player = newPlayer;
-    window.player = runState.player;
 
     showNotification(`CHAOS SHUFFLE: ${nextHero.toUpperCase()}!`);
     createExplosion(runState.player.x, runState.player.y, '#fff', 20);
@@ -4034,7 +4022,6 @@ function advanceWave() {
     runState.enemiesKilledInWave = 0;
     masksDroppedInWave = 0; // Reset mask cap
     enemies.length = 0;
-    if (window._world) window._world.enemies = enemies;
     runState.bossActive = false;
     notifyWaveAdvance(runState.wave);
 
@@ -4273,7 +4260,6 @@ function resumeWaveGeneration() {
             runState.player2.x = runState.player.x + 120;
             runState.player2.y = runState.player.y;
             runState.player2.isDead = false;
-            window.player2 = runState.player2;
             runState.p1RevivalMarker = null;
             runState.p2RevivalMarker = null;
             runState.isAICompanionMode = true;
@@ -4533,7 +4519,6 @@ async function startGame(mode = 'NORMAL') {
 
     if (runState.isEvilMode) heroType = 'green_goblin';
     runState.player = new Player(heroType);
-    window.player = runState.player;
     // Center Player in Arena
     runState.player.x = arena.width / 2;
     runState.player.y = arena.height / 2;
@@ -4621,7 +4606,6 @@ async function startGame(mode = 'NORMAL') {
         runState.player2.x = runState.isVersusMode ? arena.width / 2 + 800 : arena.width / 2 + 100;
         runState.player2.y = arena.height / 2;
         runState.player2.isDead = false;
-        window.player2 = runState.player2;
         runState.p1RevivalMarker = null;
         runState.p2RevivalMarker = null;
     }
@@ -4641,7 +4625,6 @@ async function startGame(mode = 'NORMAL') {
     particles.length = 0;
     floatingTexts.length = 0;
     meleeAttacks.length = 0;
-    window.meleeAttacks = meleeAttacks;
     powerUps.length = 0;
     holyMasks.length = 0;
     goldDrops.length = 0;
@@ -4867,7 +4850,6 @@ function gameOver(isVictory = false) {
     coopP1GamepadIndex = -1;
     coopP2GamepadIndex = -1;
     runState.player2 = null;
-    window.player2 = null;
     runState.p1RevivalMarker = null;
     runState.p2RevivalMarker = null;
     runState.coopZoom = 1.0;
@@ -5476,7 +5458,6 @@ function _onlineApplySnapshot(s) {
         if (ed.radius  !== undefined) { if (e.radius !== ed.radius) e._bodyGradient = null; e.radius = ed.radius; }
         return e;
     }));
-    if (window._world) window._world.enemies = enemies;
 
     // Rebuild ghost projectile array (reuse existing objects to reduce GC pressure).
     // When the server removes a projectile (it hit an enemy or expired), the client
@@ -5526,7 +5507,6 @@ function _onlineApplySnapshot(s) {
         if (p._orphanAt === undefined) p._orphanAt = _serverT;
         projectiles.push(p);
     }
-    if (window._world) window._world.projectiles = projectiles;
 
     // Game state
     if (s.wave     !== undefined) runState.wave      = s.wave;
@@ -6564,7 +6544,6 @@ function _updateGameplayPre(deltaTime) {
 
 
     runState.frame++;
-    window.frame = runState.frame; // Expose for DLCs
     if (window._world) {
         window._world.frame            = runState.frame;
         window._world.wave             = runState.wave;
@@ -6575,7 +6554,6 @@ function _updateGameplayPre(deltaTime) {
         window._world.currentWeather   = runState.currentWeather;
         window._world.currentObjective = runState.currentObjective;
         window._world.bossActive       = runState.bossActive;
-        window._world.enemies          = enemies;
     }
 
     // ── Weather Logic ─────────────────────────────────────────────────
@@ -7208,7 +7186,6 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 const lastT = p._snapBuf && p._snapBuf.length ? p._snapBuf[p._snapBuf.length - 1].t : 0;
                 return _renderTime <= lastT;
             }));
-            if (window._world) window._world.projectiles = projectiles;
         }
 
         // Own-player reconciliation. Trust client prediction whenever the
@@ -7619,7 +7596,6 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                                 enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
                                 enemies.length = 0;
                                 projectiles.length = 0;
-                                if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
                             }
                         }
                     }
@@ -7738,7 +7714,6 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                                         enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
                                         enemies.length = 0;
                                         projectiles.length = 0;
-                                        if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
                                     }
                                 }
                             }
@@ -8362,7 +8337,6 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
                     enemies.length = 0;
                     projectiles.length = 0; // Clear projectiles too
-                    if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
                 }
             } else {
                 // Swarm Explosion (Tier 4)
