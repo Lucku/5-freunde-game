@@ -4,20 +4,27 @@ import { MeleeSwipe } from '../Entities/MeleeSwipe.js';
 // #5 phase 5.7 — GoldDrop class removed; pool semantics replaced by ECS
 // slot allocation in `core/systems/goldDropSystem.js`. Tests below assert
 // against `runState.goldDrop*` typed arrays directly.
+// #5 phase 5.10b — Projectile pool semantics likewise replaced by ECS slot
+// allocation in `core/systems/projectileSystem.js`. The pool block was
+// rewritten to assert on slot reuse + field-reset semantics through the
+// compat-shim proxy.
 import { runState } from '../RunState.js';
 import {
     spawnGoldDrop, killGoldDrop, clearGoldDrops, MAX_GOLDDROPS,
 } from '../core/systems/goldDropSystem.js';
+import {
+    clearProjectiles, MAX_PROJECTILES,
+} from '../core/systems/projectileSystem.js';
 
 // #20 P3 — verify strict reset of every pool acquire. The release/acquire
 // round-trip MUST yield an instance indistinguishable from a fresh `new`
 // constructor call for every documented field, including optional callsite-
 // set fields (shooterType / onHit / altar flags / DLC marks).
 
-describe('Projectile pool', () => {
-    beforeEach(() => { Projectile._pool.length = 0; });
+describe('Projectile ECS slots', () => {
+    beforeEach(() => { clearProjectiles(runState); });
 
-    it('acquire returns a constructor-equivalent instance when pool empty', () => {
+    it('acquire returns a proxy with constructor-equivalent field reads', () => {
         const p = Projectile.acquire(10, 20, { x: 1, y: 2 }, 5, '#fff', 6, 'fire', 3, false);
         expect(p.x).toBe(10);
         expect(p.y).toBe(20);
@@ -30,49 +37,49 @@ describe('Projectile pool', () => {
         expect(p.pierce).toBe(0); // fire, not ice
     });
 
-    it('release + reacquire clears all optional fields', () => {
+    it('kill + spawn re-uses the freed slot with fresh field values', () => {
         const p1 = Projectile.acquire(0, 0, { x: 0, y: 0 }, 1, '#000', 4, 'metal', 2, false);
-        // Caller-attached optional fields
         p1.shooterType = 'SHOOTER';
         p1.onHit = () => 'STOP';
         p1.isWildfire = true;
         p1.isCryo = true;
-        p1._ghost = true;
-        p1.dead = true;
         p1.life = 30;
         p1.owner = { foo: 'bar' };
         p1.pierce = 5;
         p1.outlineColor = '#abc';
 
-        Projectile.release(p1);
-        const p2 = Projectile.acquire(99, 99, { x: 1, y: 1 }, 7, '#0f0', 5, 'plant', 1, false);
+        const slot1 = p1._slotIdx();
+        expect(slot1).toBe(0);
+        // killProjectile(runState, 0) — swap-with-last on a single-slot run
+        // simply decrements count.
+        clearProjectiles(runState);
 
-        expect(p2).toBe(p1); // same instance reused
+        const p2 = Projectile.acquire(99, 99, { x: 1, y: 1 }, 7, '#0f0', 5, 'plant', 1, false);
+        expect(p2._slotIdx()).toBe(0); // same slot reused
+
+        // Fresh slot has none of p1's mutations.
         expect(p2.shooterType).toBeUndefined();
-        expect(p2.onHit).toBeUndefined();
+        expect(p2.onHit).toBe(null);
         expect(p2.isWildfire).toBe(false);
         expect(p2.isCryo).toBe(false);
-        expect(p2._ghost).toBe(false);
-        expect(p2.dead).toBe(false);
         expect(p2.life).toBe(null);
         expect(p2.owner).toBe(null);
         expect(p2.pierce).toBe(0); // plant, not ice
-        expect(p2.outlineColor).toBeUndefined();
+        expect(p2.outlineColor).toBe(null);
         expect(p2.x).toBe(99);
         expect(p2.damage).toBe(7);
         expect(p2.type).toBe('plant');
     });
 
-    it('crit radius re-derives correctly on reuse (no double multiplication)', () => {
+    it('crit radius applies once at spawn, no double multiplication on slot reuse', () => {
         const p1 = Projectile.acquire(0, 0, { x: 0, y: 0 }, 1, '#000', 10, 'fire', 1, false, false, true);
         expect(p1.radius).toBeCloseTo(15); // 10 * 1.5
-        Projectile.release(p1);
+        clearProjectiles(runState);
         const p2 = Projectile.acquire(0, 0, { x: 0, y: 0 }, 1, '#000', 10, 'fire', 1, false, false, true);
-        expect(p2).toBe(p1);
-        expect(p2.radius).toBeCloseTo(15); // not 22.5
-        Projectile.release(p2);
+        expect(p2._slotIdx()).toBe(0);
+        expect(p2.radius).toBeCloseTo(15); // not 22.5 — base radius re-read, not previous
+        clearProjectiles(runState);
         const p3 = Projectile.acquire(0, 0, { x: 0, y: 0 }, 1, '#000', 10, 'fire', 1, false, false, false);
-        expect(p3).toBe(p1);
         expect(p3.radius).toBe(10); // crit cleared, base radius
     });
 
@@ -86,12 +93,14 @@ describe('Projectile pool', () => {
         expect(p.pierce).toBe(0);
     });
 
-    it('POOL_MAX bounds the pool size', () => {
-        for (let i = 0; i < Projectile.POOL_MAX + 10; i++) {
-            const p = Projectile.acquire(0, 0, { x: 0, y: 0 }, 1, '#fff', 4, 'fire', 1, false);
-            Projectile.release(p);
+    it('MAX_PROJECTILES cap returns dead-slot sentinel on overflow', () => {
+        for (let i = 0; i < MAX_PROJECTILES; i++) {
+            Projectile.acquire(0, 0, { x: 0, y: 0 }, 1, '#fff', 4, 'fire', 1, false);
         }
-        expect(Projectile._pool.length).toBeLessThanOrEqual(Projectile.POOL_MAX);
+        expect(runState.projectileCount).toBe(MAX_PROJECTILES);
+        const dead = Projectile.acquire(0, 0, { x: 0, y: 0 }, 1, '#fff', 4, 'fire', 1, false);
+        // _DEAD sentinel: every read returns 0/null, _slot is -1.
+        expect(dead._slot).toBe(-1);
     });
 });
 

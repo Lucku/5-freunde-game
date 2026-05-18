@@ -2457,8 +2457,12 @@ window._weatherLogicHooks = {};
 // (`core/updateGameplay*.js`) can read it without coupling to game.js.
 // powerUps migrated to ECS in #5 phase 5.1 — see core/systems/powerUpSystem.js.
 const {
-    enemies, projectiles, meleeAttacks,
+    enemies, meleeAttacks,
 } = runState;
+// #5 phase 5.10b — `projectiles` is the smart Proxy sentinel installed by
+// Entities/Projectile.js (loaded via main.js side-effect). Looks like an
+// Array but routes all access to the ECS slots on runState.projectile*.
+const projectiles = window.projectiles;
 
 // Replace an array's contents in place. Preserves identity so const aliases +
 // `window.X` exports + `_world.X` resyncs stay valid after a filter/map pass.
@@ -2474,7 +2478,7 @@ window.arena = arena; // Expose Arena to Window for DLCs
 // Arrays are reference types so module mutations propagate. After #11 phase 2
 // these all alias the single `runState.X` ref, so the one-time exports stay
 // valid forever and `window._world.X = X` resyncs become idempotent no-ops.
-window.projectiles  = projectiles;
+// projectiles now ECS — see Entities/Projectile.js compat shim for window.projectiles sentinel.
 window.enemies      = enemies;
 // particles now ECS — see Entities/Particle.js compat shim for window.particles sentinel.
 // floatingTexts now ECS — see Entities/FloatingText.js compat shim for window.floatingTexts sentinel.
@@ -4701,6 +4705,7 @@ async function startGame(mode = 'NORMAL') {
         window._world = World.createClientWorld();
         const _w = window._world;
         _w.enemies       = enemies;
+        // projectiles now ECS sentinel — see runState.projectile* typed arrays + Entities/Projectile.js shim.
         _w.projectiles   = projectiles;
         // particles now ECS — runState.particle* typed arrays, no _world mirror.
         // floatingTexts now ECS — runState.floatingText* typed arrays, no _world mirror.

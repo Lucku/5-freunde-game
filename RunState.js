@@ -76,6 +76,7 @@ import { initMemoryShards } from './core/systems/memoryShardSystem.js';
 import { initGoldDrops } from './core/systems/goldDropSystem.js';
 import { initHolyMasks } from './core/systems/holyMaskSystem.js';
 import { initCompanions } from './core/systems/companionSystem.js';
+import { initProjectiles } from './core/systems/projectileSystem.js';
 
 // ───────────────────────────────────────────────────────────────────────────
 // #11 phase 1 — RunState container schema.
@@ -94,7 +95,6 @@ import { initCompanions } from './core/systems/companionSystem.js';
  *
  * Phase 2 — entity arrays (mutated in place by spawners + entity loops):
  * @property {Array} enemies
- * @property {Array} projectiles
  * @property {Array} particles
  * @property {Array} floatingTexts
  * @property {Array} meleeAttacks
@@ -115,6 +115,9 @@ import { initCompanions } from './core/systems/companionSystem.js';
  *  core/systems/holyMaskSystem.js.)
  * (#5 phase 5.9 — `companions` migrated to ECS typed arrays + AI tick.
  *  See core/systems/companionSystem.js.)
+ * (#5 phase 5.10 — `projectiles` migrated to ECS typed arrays + hybrid
+ *  hook layout. See core/systems/projectileSystem.js + compat shim in
+ *  Entities/Projectile.js.)
  *
  * Phase 3 — run-lifecycle scalars:
  * @property {number}  wave
@@ -203,8 +206,9 @@ export function createRunState() {
         //    ParticleSlot proxy.)
         // FloatingText migrated to ECS in #5 phase 5.5 — see initFloatingTexts
         // below. Same compat-shim pattern as Particle.
+        // Projectile migrated to ECS in #5 phase 5.10 — see initProjectiles
+        // below. Compat shim in Entities/Projectile.js.
         enemies:         [],
-        projectiles:     [],
         meleeAttacks:    [],
 
         // Phase 3 — run-lifecycle scalars.
@@ -284,6 +288,7 @@ export function createRunState() {
     initGoldDrops(rs);
     initHolyMasks(rs);
     initCompanions(rs);
+    initProjectiles(rs);
 
     return rs;
 }
