@@ -37,6 +37,11 @@ function loadClass(relPath, namedExport) {
 
 // ── 1. Window / browser shim ──────────────────────────────────────────────────
 global.window   = global;
+// Camera.js + others call `window.addEventListener`/`document.addEventListener`
+// at module-load to bind keyboard / gamepad input. Server stubs them as no-ops
+// — the simulation drives input via `gs.applyInput(...)`, not events.
+global.window.addEventListener    = () => {};
+global.window.removeEventListener = () => {};
 global.canvas   = { width: 3000, height: 3000, getContext: () => _noopCtx };
 // No-op canvas context: DLC heroes mix rendering into update(); swallow all
 // canvas calls. The Proxy returns itself for every property access so chained

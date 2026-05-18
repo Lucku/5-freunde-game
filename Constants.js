@@ -333,8 +333,16 @@ export {
     UPGRADE_POOL, PERM_UPGRADES, GAMEPLAY,
 };
 if (typeof window !== 'undefined') {
+    // Server-sim loader.js pre-seeds `window.BASE_HERO_STATS` with the full
+    // DLC-expanded hero table (server/simulation/constants.js). If we
+    // blindly `Object.assign(window, {BASE_HERO_STATS})` the renderer's
+    // 8-hero base table would clobber that, hiding DLC heroes from
+    // `getHeroStats(type)`. Skip the BASE_HERO_STATS key if the server has
+    // already set a richer version.
+    const _serverPreSeeded = window.BASE_HERO_STATS
+        && Object.keys(window.BASE_HERO_STATS).length > Object.keys(BASE_HERO_STATS).length;
     Object.assign(window, {
-        APP_VERSION, BASE_HERO_STATS,
+        APP_VERSION,
         POWERUP_TYPES, BOSS_TYPES, ENEMY_TYPES,
         ENEMIES_PER_WAVE, SKILL_TREE_SIZE,
         WEATHER_TYPES, ELITE_TYPES,
@@ -342,5 +350,6 @@ if (typeof window !== 'undefined') {
         CHAOS_EFFECTS, CHAOS_OBJECTIVES, CHAOS_REWARDS,
         UPGRADE_POOL, PERM_UPGRADES, GAMEPLAY,
     });
+    if (!_serverPreSeeded) window.BASE_HERO_STATS = BASE_HERO_STATS;
     // ACHIEVEMENTS already comes from window.ACHIEVEMENTS — don't overwrite.
 }
