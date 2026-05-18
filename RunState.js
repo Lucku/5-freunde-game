@@ -70,6 +70,7 @@ export function logKeyMoment(rs, wave, timeSec, kind, label) {
 // migrated ones.
 import { initPowerUps } from './core/systems/powerUpSystem.js';
 import { initCardDrops } from './core/systems/cardDropSystem.js';
+import { initParticles } from './core/systems/particleSystem.js';
 
 // ───────────────────────────────────────────────────────────────────────────
 // #11 phase 1 — RunState container schema.
@@ -101,6 +102,8 @@ import { initCardDrops } from './core/systems/cardDropSystem.js';
  *  core/systems/powerUpSystem.js.)
  * (#5 phase 5.2 — `cardDrops` migrated to ECS typed arrays. See
  *  core/systems/cardDropSystem.js.)
+ * (#5 phase 5.4 — `particles` migrated to ECS typed arrays + palette
+ *  interning. See core/systems/particleSystem.js.)
  *
  * Phase 3 — run-lifecycle scalars:
  * @property {number}  wave
@@ -183,9 +186,12 @@ export function createRunState() {
         // Phase 2 — entity arrays.
         // PowerUp migrated to ECS in #5 phase 5.1 — see initPowerUps below.
         // CardDrop migrated to ECS in #5 phase 5.2 — see initCardDrops below.
+        // Particle migrated to ECS in #5 phase 5.4 — see initParticles below.
+        //   (Entities/Particle.js stays as a compat shim for the ~115 existing
+        //    `Particle.acquire` callers; they route to spawnParticle via a
+        //    ParticleSlot proxy.)
         enemies:         [],
         projectiles:     [],
-        particles:       [],
         floatingTexts:   [],
         meleeAttacks:    [],
         holyMasks:       [],
@@ -264,6 +270,7 @@ export function createRunState() {
     // ECS system inits — see tasks/ecs-design.md.
     initPowerUps(rs);
     initCardDrops(rs);
+    initParticles(rs);
 
     return rs;
 }

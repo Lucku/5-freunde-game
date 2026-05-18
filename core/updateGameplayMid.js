@@ -18,6 +18,7 @@ import {
     updatePowerUps, killPowerUp, getPowerUpType, POWERUP_RADIUS,
 } from './systems/powerUpSystem.js';
 import { killCardDrop, CARDDROP_RADIUS } from './systems/cardDropSystem.js';
+import { killParticle, updateParticles } from './systems/particleSystem.js';
 
 export
 function _updateGameplayMid(deltaTime, _isHitStopped) {
@@ -786,20 +787,17 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     // The far-offscreen cull (≥2× margin) releases immediately because those
     // particles will never re-enter the camera. The on-screen draw check is
     // recomputed in the draw pass since `part.x/y` may have shifted in update.
-    for (let index = particles.length - 1; index >= 0; index--) {
-        const part = particles[index];
-        const _farOff = part.x < _camLFar || part.x > _camRFar || part.y < _camTFar || part.y > _camBFar;
-        if (_farOff) {
-            Particle.release(part);
-            particles.splice(index, 1);
-            continue;
-        }
-        part.update();
-        if (part.alpha <= 0) {
-            Particle.release(part); // #20 return to pool before splice
-            particles.splice(index, 1);
+    // #5 phase 5.4 — ECS particle tick. Far-offscreen cull first (slots will
+    // never re-enter camera bounds), then physics step + alpha decay via
+    // updateParticles which handles kill-on-zero-alpha internally.
+    for (let index = runState.particleCount - 1; index >= 0; index--) {
+        const px = runState.particleX[index];
+        const py = runState.particleY[index];
+        if (px < _camLFar || px > _camRFar || py < _camTFar || py > _camBFar) {
+            killParticle(runState, index);
         }
     }
+    updateParticles(runState);
 
     // Update and Draw Floating Texts (cap at 80 — drop oldest when full)
     if (floatingTexts.length > GAMEPLAY.MAX_FLOATING_TEXTS) {

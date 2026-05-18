@@ -17,6 +17,7 @@
 import { runState } from '../RunState.js';
 import { drawPowerUps } from './systems/powerUpSystem.js';
 import { drawCardDrops } from './systems/cardDropSystem.js';
+import { drawParticles } from './systems/particleSystem.js';
 
 export function _drawGameplayMid() {
     // Camera-bounds for the particle + floating-text on-screen check
@@ -149,13 +150,11 @@ export function _drawGameplayMid() {
     // Melee swipes draw pass — survivors of the update loop above.
     for (const att of meleeAttacks) att.draw();
 
-    // Particle draw pass.
-    for (const part of particles) {
-        if (part.x >= _camL && part.x <= _camR && part.y >= _camT && part.y <= _camB) part.draw();
-    }
-    // #25/#26 — Particle.draw leaves ctx.globalAlpha at the last
-    // particle's alpha (the sprite-cache fast path skips save/restore).
-    // Reset once after the loop instead of inside every draw() call.
+    // Particle draw pass (#5 phase 5.4 — ECS). drawParticles internally
+    // skips off-screen culling per slot by setting globalAlpha + drawImage;
+    // for now we draw all live slots (kill pass already culled far-offscreen
+    // in update). The leaf-module no longer has per-slot camera bounds.
+    drawParticles(ctx, runState);
     ctx.globalAlpha = 1;
     // Floating-text draw pass.
     for (const ft of floatingTexts) {

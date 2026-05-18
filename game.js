@@ -65,6 +65,7 @@ import { _updateGameplayMid } from './core/updateGameplayMid.js';
 import { renderPostFX } from './core/postProcess.js';
 import { clearPowerUps } from './core/systems/powerUpSystem.js';
 import { spawnCardDrop, clearCardDrops } from './core/systems/cardDropSystem.js';
+import { spawnParticle, clearParticles } from './core/systems/particleSystem.js';
 
 // #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
 const isElectron   = !!(window.Platform && window.Platform.isElectron);
@@ -2242,7 +2243,7 @@ function _resetGameState() {
     projectiles.length = 0;
     clearPowerUps(runState);
     floatingTexts.length = 0;
-    particles.length = 0;
+    clearParticles(runState);
     runState.bossActive = false;
     runState.wave = 1;
     runState.score = 0;
@@ -2449,7 +2450,7 @@ window._weatherLogicHooks = {};
 // (`core/updateGameplay*.js`) can read it without coupling to game.js.
 // powerUps migrated to ECS in #5 phase 5.1 — see core/systems/powerUpSystem.js.
 const {
-    enemies, projectiles, particles, floatingTexts, meleeAttacks,
+    enemies, projectiles, floatingTexts, meleeAttacks,
     holyMasks, goldDrops, memoryShards, companions,
 } = runState;
 
@@ -2469,7 +2470,7 @@ window.arena = arena; // Expose Arena to Window for DLCs
 // valid forever and `window._world.X = X` resyncs become idempotent no-ops.
 window.projectiles  = projectiles;
 window.enemies      = enemies;
-window.particles    = particles;
+// particles now ECS — see Entities/Particle.js compat shim for window.particles sentinel.
 window.floatingTexts = floatingTexts;
 // obstacles and biomeZones moved to Arena class.
 // Cross-module references via window — these arrays are mutated (push / splice)
@@ -3038,8 +3039,8 @@ window.FloatingText = FloatingText;
 window.Particle = Particle;
 // CardDrop removed in #5 phase 5.2 (ECS migration).
 // createExplosion / spawnLevelUpAura moved to Spawner.js (Phase B of #1 split).
-// MAX_PARTICLES kept for createDeathBurst below (which still lives in game.js).
-const MAX_PARTICLES = GAMEPLAY.MAX_PARTICLES;
+// MAX_PARTICLES no longer needed in game.js — cap enforced by spawnParticle
+// in core/systems/particleSystem.js after #5 phase 5.4.
 
 // #38/#51/#168 — screen-shake, shake taxonomy, gamepad vibration, photo mode
 // moved to Camera.js. Re-exposed via window shims from Camera.js for DLCs.
@@ -3129,16 +3130,17 @@ function applyDamage(target, dmg, opts = {}) {
 window.applyDamage = applyDamage;
 
 function createDeathBurst(x, y, color) {
-    if (particles.length >= MAX_PARTICLES) return;
+    // #5 phase 5.4 — direct ECS spawn. spawnParticle enforces MAX_PARTICLES.
     const count = 8;
     for (let i = 0; i < count; i++) {
-        const p = Particle.acquire(x, y, color); // #20
         const speed = 1.5 + Math.random() * 2.5;
         const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-        p.velocity.x = Math.cos(angle) * speed;
-        p.velocity.y = Math.sin(angle) * speed;
-        p.life = 0.015 + Math.random() * 0.02;
-        particles.push(p);
+        spawnParticle(
+            runState, x, y, color,
+            Math.cos(angle) * speed,
+            Math.sin(angle) * speed,
+            0.015 + Math.random() * 0.02,
+        );
     }
 }
 
@@ -4659,7 +4661,7 @@ async function startGame(mode = 'NORMAL') {
     runState._bossChoiceFrame = 0;
     enemies.length = 0;
     projectiles.length = 0;
-    particles.length = 0;
+    clearParticles(runState);
     floatingTexts.length = 0;
     meleeAttacks.length = 0;
     clearPowerUps(runState);
@@ -4691,7 +4693,7 @@ async function startGame(mode = 'NORMAL') {
         const _w = window._world;
         _w.enemies       = enemies;
         _w.projectiles   = projectiles;
-        _w.particles     = particles;
+        // particles now ECS — runState.particle* typed arrays, no _world mirror.
         _w.floatingTexts = floatingTexts;
         _w.meleeAttacks  = meleeAttacks;
         // powerUps now ECS — runState.powerUp* typed arrays, no _world mirror.
@@ -5905,7 +5907,7 @@ function _updateDebugOverlay(frameMs) {
     const fps = p50 > 0 ? (1000 / p50).toFixed(1) : '–';
     const enemiesN = (typeof enemies !== 'undefined') ? enemies.length : 0;
     const projN    = (typeof projectiles !== 'undefined') ? projectiles.length : 0;
-    const partN    = (typeof particles !== 'undefined') ? particles.length : 0;
+    const partN    = runState.particleCount;
     const ftN      = (typeof floatingTexts !== 'undefined') ? floatingTexts.length : 0;
     const px       = (typeof runState.player !== 'undefined' && runState.player) ? Math.round(runState.player.x) : 0;
     const py       = (typeof runState.player !== 'undefined' && runState.player) ? Math.round(runState.player.y) : 0;
@@ -6695,7 +6697,8 @@ window.GAME_API = {
     // ── Entity arrays (live references) ──
     get enemies()               { return enemies; },
     get projectiles()           { return projectiles; },
-    get particles()             { return particles; },
+    // particles now ECS — see runState.particle* / runState.particleCount.
+    get particleCount()         { return runState.particleCount; },
     get floatingTexts()         { return floatingTexts; },
     get holyMasks()             { return holyMasks; },
     get goldDrops()             { return goldDrops; },
