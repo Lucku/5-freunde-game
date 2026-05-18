@@ -72,6 +72,8 @@ import { initPowerUps } from './core/systems/powerUpSystem.js';
 import { initCardDrops } from './core/systems/cardDropSystem.js';
 import { initParticles } from './core/systems/particleSystem.js';
 import { initFloatingTexts } from './core/systems/floatingTextSystem.js';
+import { initMemoryShards } from './core/systems/memoryShardSystem.js';
+import { initGoldDrops } from './core/systems/goldDropSystem.js';
 
 // ───────────────────────────────────────────────────────────────────────────
 // #11 phase 1 — RunState container schema.
@@ -95,9 +97,7 @@ import { initFloatingTexts } from './core/systems/floatingTextSystem.js';
  * @property {Array} floatingTexts
  * @property {Array} meleeAttacks
  * @property {Array} holyMasks
- * @property {Array} goldDrops
  * @property {Array} cardDrops
- * @property {Array} memoryShards
  * @property {Array} companions
  * (#5 phase 5.1 — `powerUps` migrated to ECS typed arrays. See
  *  core/systems/powerUpSystem.js.)
@@ -107,6 +107,10 @@ import { initFloatingTexts } from './core/systems/floatingTextSystem.js';
  *  interning. See core/systems/particleSystem.js.)
  * (#5 phase 5.5 — `floatingTexts` migrated to ECS typed arrays + palette
  *  interning + string side-table. See core/systems/floatingTextSystem.js.)
+ * (#5 phase 5.6 — `memoryShards` migrated to ECS typed arrays + palette
+ *  interning + heroType side-table. See core/systems/memoryShardSystem.js.)
+ * (#5 phase 5.7 — `goldDrops` migrated to ECS typed arrays. See
+ *  core/systems/goldDropSystem.js.)
  *
  * Phase 3 — run-lifecycle scalars:
  * @property {number}  wave
@@ -199,8 +203,6 @@ export function createRunState() {
         projectiles:     [],
         meleeAttacks:    [],
         holyMasks:       [],
-        goldDrops:       [],
-        memoryShards:    [],
         companions:      [],
 
         // Phase 3 — run-lifecycle scalars.
@@ -276,6 +278,8 @@ export function createRunState() {
     initCardDrops(rs);
     initParticles(rs);
     initFloatingTexts(rs);
+    initMemoryShards(rs);
+    initGoldDrops(rs);
 
     return rs;
 }
@@ -287,8 +291,10 @@ export function createRunState() {
 export const runState = createRunState();
 if (typeof window !== 'undefined') window.runState = runState;
 
-window.RunState = {
-    createRunStats, resetRunStats, bumpDamageSource,
-    logUpgradePick, logKeyMoment,
-    createRunState,
-};
+if (typeof window !== 'undefined') {
+    window.RunState = {
+        createRunStats, resetRunStats, bumpDamageSource,
+        logUpgradePick, logKeyMoment,
+        createRunState,
+    };
+}

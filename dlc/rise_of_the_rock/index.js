@@ -4,7 +4,7 @@ import { Boss } from '../../Boss.js';
 import { Enemy } from '../../Enemy.js';
 import { FloatingText } from '../../Entities/FloatingText.js';
 import { Projectile } from '../../Entities/Projectile.js';
-import { MemoryShard } from '../../MemoryShard.js';
+// MemoryShard class removed in #5 phase 5.6 — color overrides via window._MEMORY_SHARD_COLORS.
 import { MEMORY_STORIES } from '../../MemoryStories.js';
 
 // The Rise of the Rock - DLC Manifest
@@ -104,14 +104,11 @@ const RISE_OF_THE_ROCK = {
             ];
         }
 
-        // Extensibility: Hook into MemoryShard color
-        if (typeof MemoryShard !== 'undefined') {
-            const originalGetColor = MemoryShard.prototype.getColorByType;
-            MemoryShard.prototype.getColorByType = function (type) {
-                if (type === 'earth') return '#8d6e63';
-                return originalGetColor.call(this, type);
-            }
-        }
+        // Extensibility: Hook into MemoryShard color (#5 phase 5.6 — ECS
+        // registry instead of prototype patch). Color already matches the
+        // fallback switch; kept for explicit DLC ownership.
+        window._MEMORY_SHARD_COLORS = window._MEMORY_SHARD_COLORS || {};
+        window._MEMORY_SHARD_COLORS.earth = '#8d6e63';
 
         // Extensibility: Hook into Museum artifact spawning
         if (typeof Museum !== 'undefined') {

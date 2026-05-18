@@ -36,7 +36,7 @@ import './Enemy.js';
 import './Boss.js';
 import './Companion.js';
 import './MemoryStories.js';
-import './MemoryShard.js';
+// MemoryShard.js removed in #5 phase 5.6 — replaced by core/systems/memoryShardSystem.js.
 import './CompletionMenu.js';
 
 // Managers
@@ -86,7 +86,7 @@ import './scripts/VersusTest.js';
 import './Utils.js';
 import './Entities/Projectile.js';
 import './Entities/MeleeSwipe.js';
-import './Entities/GoldDrop.js';
+// Entities/GoldDrop.js removed in #5 phase 5.7 — replaced by core/systems/goldDropSystem.js.
 // Entities/CardDrop.js removed in #5 phase 5.2 — replaced by core/systems/cardDropSystem.js.
 import './Entities/HolyMask.js';
 // Entities/PowerUp.js removed in #5 phase 5.1 — replaced by core/systems/powerUpSystem.js.

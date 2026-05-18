@@ -18,16 +18,19 @@ const POWERUP_TYPES = ['HEAL', 'MAXHP', 'SPEED', 'MULTI', 'AUTOAIM'];
 const BOSS_TYPES = ['TANK', 'SPEEDSTER', 'SUMMONER', 'NOVA', 'RHINO', 'HYDRA'];
 const ENEMY_TYPES = ['BASIC', 'SHOOTER', 'BRUTE', 'SPEEDSTER', 'SWARM', 'SUMMONER', 'GHOST', 'SNIPER', 'BOMBER', 'TOXIC', 'SHIELDER'];
 const ENEMIES_PER_WAVE = 30;
-window.ENEMIES_PER_WAVE = ENEMIES_PER_WAVE; // Expose for DLC
+// Expose for DLC — guarded so Constants.js is import-safe in Node (tests).
+if (typeof window !== 'undefined') window.ENEMIES_PER_WAVE = ENEMIES_PER_WAVE;
 const SKILL_TREE_SIZE = 100;
 
 
 // --- ACHIEVEMENTS GENERATOR ---
-window.ACHIEVEMENTS = [];
-const ACHIEVEMENTS = window.ACHIEVEMENTS;
+// Local array first so the module is Node-safe (tests import Constants
+// transitively via RunState.js → systems). Mirrored to `window.ACHIEVEMENTS`
+// at the bottom of the file for legacy DLC bare-name access.
+const ACHIEVEMENTS = [];
 
 function addAch(id, title, desc, req, stat, type, val, text, hidden = false) {
-    window.ACHIEVEMENTS.push({ id, title, desc, req, stat, bonus: { type, val, text }, hidden });
+    ACHIEVEMENTS.push({ id, title, desc, req, stat, bonus: { type, val, text }, hidden });
 }
 
 // 1. Kills (Total)

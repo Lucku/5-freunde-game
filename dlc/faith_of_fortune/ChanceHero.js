@@ -1,6 +1,8 @@
 // #194 — explicit renderer imports (was: window-shim lookup).
 import { FloatingText } from '../../Entities/FloatingText.js';
-import { GoldDrop } from '../../Entities/GoldDrop.js';
+// GoldDrop class removed in #5 phase 5.7 — replaced by spawnGoldDrop ECS helper.
+import { runState } from '../../RunState.js';
+import { spawnGoldDrop } from '../../core/systems/goldDropSystem.js';
 
 // Chance (Magenta) Hero Logic
 // Playstyle: High Risk, RNG, Luck Manipulation
@@ -83,7 +85,7 @@ class ChanceHero {
             player.jackpotTimer = 600;
             if (typeof createExplosion !== 'undefined') createExplosion(player.x, player.y, '#ff00ff', 60);
             if (typeof goldDrops !== 'undefined') {
-                for (let i = 0; i < 20; i++) goldDrops.push(GoldDrop.acquire(player.x, player.y, 25));
+                for (let i = 0; i < 20; i++) spawnGoldDrop(runState, player.x, player.y);
             }
             if (typeof showNotification === 'function') showNotification("ALL IN — JACKPOT FORM!", "#ff00ff");
             return true;
@@ -359,7 +361,7 @@ class ChanceHero {
             // Heal Full + Gold
             player.hp = player.maxHp;
             if (typeof goldDrops !== 'undefined') {
-                for (let i = 0; i < 50; i++) goldDrops.push(GoldDrop.acquire(player.x, player.y, 50));
+                for (let i = 0; i < 50; i++) spawnGoldDrop(runState, player.x, player.y);
             }
         }
         else if (outcome === 'DIAMOND') {
@@ -424,7 +426,7 @@ class ChanceHero {
             player.hp = Math.min(player.maxHp, player.hp + 50);
             // Drop Gold
             if (typeof goldDrops !== 'undefined') {
-                for (let i = 0; i < 10; i++) goldDrops.push(GoldDrop.acquire(player.x, player.y, 10));
+                for (let i = 0; i < 10; i++) spawnGoldDrop(runState, player.x, player.y);
             }
         }
         else if (outcome === 'DIAMOND') {

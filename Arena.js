@@ -1,7 +1,9 @@
 // #194 phase 2 — explicit imports for symbols previously read off window shims.
 import { FloatingText } from './Entities/FloatingText.js';
 import { Projectile } from './Entities/Projectile.js';
-import { MemoryShard } from './MemoryShard.js';
+// MemoryShard class removed in #5 phase 5.6 — ECS via core/systems/memoryShardSystem.js.
+import { runState } from './RunState.js';
+import { spawnMemoryShard } from './core/systems/memoryShardSystem.js';
 
 /**
  * @typedef {import('./types/schemas.js').ArenaCamera}   ArenaCamera
@@ -292,29 +294,25 @@ class Arena {
                 // Determine type based on player or random?
                 // "Uniqueness: Each hero sees different memories."
                 // So we spawn a shard for the CURRENT hero.
-                const shard = new MemoryShard(pos.x, pos.y, player.type);
-                memoryShards.push(shard);
+                spawnMemoryShard(runState, pos.x, pos.y, player.type);
             }
 
             // Special Black Shard Drop (Very Rare - 0.5% chance)
             if (Math.random() < 0.005) {
                 const pos = this.getRandomSafePosition(20);
-                const shard = new MemoryShard(pos.x, pos.y, 'black');
-                memoryShards.push(shard);
+                spawnMemoryShard(runState, pos.x, pos.y, 'black');
             }
 
             // Special Makuta Shard Drop (Very Rare - 0.5% chance)
             if (Math.random() < 0.005) {
                 const pos = this.getRandomSafePosition(20);
-                const shard = new MemoryShard(pos.x, pos.y, 'makuta');
-                memoryShards.push(shard);
+                spawnMemoryShard(runState, pos.x, pos.y, 'makuta');
             }
 
             // Special Goblin Shard Drop (Very Rare - 0.5% chance)
             if (Math.random() < 0.005) {
                 const pos = this.getRandomSafePosition(20);
-                const shard = new MemoryShard(pos.x, pos.y, 'goblin');
-                memoryShards.push(shard);
+                spawnMemoryShard(runState, pos.x, pos.y, 'goblin');
             }
         }
 

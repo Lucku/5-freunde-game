@@ -150,9 +150,9 @@ global.enemies          = [];
 global.projectiles      = [];
 global.particles        = [];
 global.floatingTexts    = [];
-global.goldDrops        = [];
+// goldDrops removed in #5 phase 5.7 — now lives on runState as typed arrays.
 global.companions       = [];
-global.memoryShards     = [];
+// memoryShards removed in #5 phase 5.6 — now lives on runState as typed arrays.
 global.meleeAttacks     = [];
 // powerUps removed in #5 phase 5.1 — now lives on runState as typed arrays.
 global.keys             = null;
@@ -238,7 +238,7 @@ global.World = loadClass('shared/world', 'World');
 // ── 6. Load entity classes (ESM since 2026-05-11; unwrap default export) ─────
 global.Projectile   = loadClass('Entities/Projectile',   'Projectile');
 global.FloatingText = loadClass('Entities/FloatingText', 'FloatingText');
-global.GoldDrop     = loadClass('Entities/GoldDrop',     'GoldDrop');
+// GoldDrop class removed in #5 phase 5.7 — see core/systems/goldDropSystem.js.
 global.Particle     = loadClass('Entities/Particle',     'Particle');
 global.MeleeSwipe   = loadClass('Entities/MeleeSwipe',   'MeleeSwipe');
 

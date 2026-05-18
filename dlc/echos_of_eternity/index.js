@@ -2,7 +2,7 @@
 import { ALTAR_TREE } from '../../AltarData.js';
 import { Boss } from '../../Boss.js';
 
-import { MemoryShard } from '../../MemoryShard.js';
+// MemoryShard class removed in #5 phase 5.6 — color overrides via window._MEMORY_SHARD_COLORS.
 import { MEMORY_STORIES } from '../../MemoryStories.js';
 
 // Echos of Eternity — DLC Manifest
@@ -615,14 +615,11 @@ const ECHOS_OF_ETERNITY = {
             ];
         }
 
-        // Hook MemoryShard color
-        if (typeof MemoryShard !== 'undefined') {
-            const orig = MemoryShard.prototype.getColorByType;
-            MemoryShard.prototype.getColorByType = function (type) {
-                if (type === 'time') return '#c8aa6e';
-                return orig.call(this, type);
-            };
-        }
+        // Hook MemoryShard color (#5 phase 5.6 — ECS registry instead of
+        // prototype patch). Color already matches the fallback switch;
+        // kept for explicit DLC ownership.
+        window._MEMORY_SHARD_COLORS = window._MEMORY_SHARD_COLORS || {};
+        window._MEMORY_SHARD_COLORS.time = '#c8aa6e';
 
         // Museum artifact
         if (typeof Museum !== 'undefined') {

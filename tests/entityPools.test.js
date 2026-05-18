@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Projectile } from '../Entities/Projectile.js';
 import { MeleeSwipe } from '../Entities/MeleeSwipe.js';
-import { GoldDrop } from '../Entities/GoldDrop.js';
+// #5 phase 5.7 — GoldDrop class removed; pool semantics replaced by ECS
+// slot allocation in `core/systems/goldDropSystem.js`. Tests below assert
+// against `runState.goldDrop*` typed arrays directly.
+import { runState } from '../RunState.js';
+import {
+    spawnGoldDrop, killGoldDrop, clearGoldDrops, MAX_GOLDDROPS,
+} from '../core/systems/goldDropSystem.js';
 
 // #20 P3 — verify strict reset of every pool acquire. The release/acquire
 // round-trip MUST yield an instance indistinguishable from a fresh `new`
@@ -117,35 +123,36 @@ describe('MeleeSwipe pool', () => {
     });
 });
 
-describe('GoldDrop pool', () => {
-    beforeEach(() => { GoldDrop._pool.length = 0; });
+describe('GoldDrop ECS slots', () => {
+    beforeEach(() => { clearGoldDrops(runState); });
 
-    it('acquire returns instance with random value + tier', () => {
-        const g = GoldDrop.acquire(100, 200);
-        expect(g.x).toBe(100);
-        expect(g.y).toBe(200);
-        expect(g.radius).toBe(10);
-        expect(g.value).toBeGreaterThanOrEqual(5);
-        expect(g.value).toBeLessThanOrEqual(14);
-        expect(g._tier).toBeGreaterThanOrEqual(0);
-        expect(g._tier).toBeLessThanOrEqual(2);
+    it('spawn allocates a slot with random value + tier', () => {
+        const i = spawnGoldDrop(runState, 100, 200);
+        expect(i).toBe(0);
+        expect(runState.goldDropX[i]).toBe(100);
+        expect(runState.goldDropY[i]).toBe(200);
+        expect(runState.goldDropValue[i]).toBeGreaterThanOrEqual(5);
+        expect(runState.goldDropValue[i]).toBeLessThanOrEqual(14);
+        expect(runState.goldDropTier[i]).toBeGreaterThanOrEqual(0);
+        expect(runState.goldDropTier[i]).toBeLessThanOrEqual(2);
+        expect(runState.goldDropCount).toBe(1);
     });
 
-    it('release + reacquire re-rolls value and position', () => {
-        const g1 = GoldDrop.acquire(0, 0);
-        const oldValue = g1.value;
-        const oldAngle = g1._angle;
-        GoldDrop.release(g1);
-        const g2 = GoldDrop.acquire(500, 600);
-        expect(g2).toBe(g1);
-        expect(g2.x).toBe(500);
-        expect(g2.y).toBe(600);
-        // value + _angle should be re-rolled (not strictly required to differ,
-        // but tier must match value range)
-        expect(g2._tier).toBe(g2.value >= 12 ? 2 : g2.value >= 8 ? 1 : 0);
-        // sanity: assert it was actually re-rolled by checking the re-roll path
-        // ran (value field was overwritten — verify radius reset to canonical)
-        expect(g2.radius).toBe(10);
-        void oldValue; void oldAngle;
+    it('kill + spawn re-uses the freed slot (swap-with-last semantics)', () => {
+        const i1 = spawnGoldDrop(runState, 0, 0);
+        killGoldDrop(runState, i1);
+        const i2 = spawnGoldDrop(runState, 500, 600);
+        expect(i2).toBe(i1); // same slot reused
+        expect(runState.goldDropX[i2]).toBe(500);
+        expect(runState.goldDropY[i2]).toBe(600);
+        // tier consistent with new value
+        const v = runState.goldDropValue[i2];
+        expect(runState.goldDropTier[i2]).toBe(v >= 12 ? 2 : v >= 8 ? 1 : 0);
+    });
+
+    it('MAX_GOLDDROPS cap returns -1 on overflow', () => {
+        for (let i = 0; i < MAX_GOLDDROPS; i++) spawnGoldDrop(runState, 0, 0);
+        expect(runState.goldDropCount).toBe(MAX_GOLDDROPS);
+        expect(spawnGoldDrop(runState, 0, 0)).toBe(-1);
     });
 });

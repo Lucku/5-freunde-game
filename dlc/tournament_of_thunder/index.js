@@ -1,7 +1,7 @@
 // #194 — explicit renderer imports (was: window-shim lookup).
 import { ALTAR_TREE } from '../../AltarData.js';
 import { Boss } from '../../Boss.js';
-import { MemoryShard } from '../../MemoryShard.js';
+// MemoryShard class removed in #5 phase 5.6 — color overrides via window._MEMORY_SHARD_COLORS.
 import { MEMORY_STORIES } from '../../MemoryStories.js';
 
 // The Tournament of Thunder - DLC Manifest
@@ -329,14 +329,10 @@ const TOURNAMENT_OF_THUNDER = {
             ];
         }
 
-        // Extensibility: Hook into MemoryShard color
-        if (typeof MemoryShard !== 'undefined') {
-            const originalGetColor = MemoryShard.prototype.getColorByType;
-            MemoryShard.prototype.getColorByType = function (type) {
-                if (type === 'lightning') return '#ffeb3b';
-                return originalGetColor.call(this, type);
-            }
-        }
+        // Extensibility: Hook into MemoryShard color (#5 phase 5.6 — ECS
+        // registry instead of prototype patch).
+        window._MEMORY_SHARD_COLORS = window._MEMORY_SHARD_COLORS || {};
+        window._MEMORY_SHARD_COLORS.lightning = '#ffeb3b';
 
         // Extensibility: Hook into Museum artifact spawning
         if (typeof Museum !== 'undefined') {

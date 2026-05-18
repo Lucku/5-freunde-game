@@ -20,6 +20,8 @@ import {
 import { killCardDrop, CARDDROP_RADIUS } from './systems/cardDropSystem.js';
 import { killParticle, updateParticles } from './systems/particleSystem.js';
 import { killFloatingText, updateFloatingTexts } from './systems/floatingTextSystem.js';
+import { killMemoryShard, getMemoryShardColor, MEMORYSHARD_RADIUS } from './systems/memoryShardSystem.js';
+import { spawnGoldDrop, killGoldDrop } from './systems/goldDropSystem.js';
 
 export
 function _updateGameplayMid(deltaTime, _isHitStopped) {
@@ -241,22 +243,23 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     // #173 phase 6 — companions split into update + draw passes.
     companions.forEach(c => { c.update(); });
 
-    // Memory Shards — #173 phase 6 split. Update + collection in reverse loop,
-    // draw pass over the survivors at the end of this block.
-    for (let index = memoryShards.length - 1; index >= 0; index--) {
-        const shard = memoryShards[index];
-        shard.update();
-        const dist = Math.hypot(runState.player.x - shard.x, player.y - shard.y);
-        if (dist < runState.player.radius + 20) {
+    // Memory Shards — #173 phase 6 / #5 phase 5.6 ECS. floatOffset animation
+    // is computed in drawMemoryShards (global per frame, not per slot), so
+    // no per-tick update step is needed here.
+    for (let index = runState.memoryShardCount - 1; index >= 0; index--) {
+        const sx = runState.memoryShardX[index];
+        const sy = runState.memoryShardY[index];
+        const shardType = runState.memoryShardHeroType[index];
+        const dist = Math.hypot(runState.player.x - sx, runState.player.y - sy);
+        if (dist < runState.player.radius + MEMORYSHARD_RADIUS) {
             // Collect
-            memoryShards.splice(index, 1);
+            const color = getMemoryShardColor(runState, index);
+            killMemoryShard(runState, index);
             showNotification("MEMORY RECOVERED!");
-            createExplosion(shard.x, shard.y, shard.color);
+            createExplosion(sx, sy, color);
 
             // Save Memory
             if (!saveData.memories) saveData.memories = {};
-
-            const shardType = shard.heroType;
 
             // Migration: Convert number to array if needed
             if (typeof saveData.memories[shardType] === 'number') {
@@ -307,14 +310,14 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 }
             }
         } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2.isDead) {
-            const distP2 = Math.hypot(runState.player2.x - shard.x, player2.y - shard.y);
-            if (distP2 < runState.player2.radius + 20) {
-                memoryShards.splice(index, 1);
+            const distP2 = Math.hypot(runState.player2.x - sx, runState.player2.y - sy);
+            if (distP2 < runState.player2.radius + MEMORYSHARD_RADIUS) {
+                const color = getMemoryShardColor(runState, index);
+                killMemoryShard(runState, index);
                 showNotification("MEMORY RECOVERED!");
-                createExplosion(shard.x, shard.y, shard.color);
+                createExplosion(sx, sy, color);
 
                 if (!saveData.memories) saveData.memories = {};
-                const shardType = shard.heroType;
                 if (typeof saveData.memories[shardType] === 'number') {
                     const count = saveData.memories[shardType];
                     saveData.memories[shardType] = [];
@@ -342,25 +345,26 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     }
 
 
-    // Gold Drops — #173 phase 6 split. Pickup + magnet pull in reverse loop,
-    // draw pass over the survivors at the end of this block.
-    for (let index = goldDrops.length - 1; index >= 0; index--) {
-        const drop = goldDrops[index];
-        // Golden Magnet (Chance Convergence)
-        const pickupRad = runState.player.pickupRange || (runState.player.radius + 20);
-        const dist = Math.hypot(runState.player.x - drop.x, player.y - drop.y);
-        if (dist < pickupRad) {
-            const amount = Math.floor(drop.value * runState.player.goldMultiplier);
-            if (runState.player.gainGold) runState.player.gainGold(amount); // Use new method
-            else runState.player.gold += amount; // Fallback
+    // Gold Drops — #173 phase 6 / #5 phase 5.7 ECS. Pickup is plain
+    // pickup-range collision (despite the legacy "Golden Magnet" comment, no
+    // actual magnet pull). Reverse iter for killGoldDrop swap-with-last safety.
+    const _gdPickupRad = runState.player.pickupRange || (runState.player.radius + 20);
+    for (let index = runState.goldDropCount - 1; index >= 0; index--) {
+        const gx = runState.goldDropX[index];
+        const gy = runState.goldDropY[index];
+        const dist = Math.hypot(runState.player.x - gx, runState.player.y - gy);
+        if (dist < _gdPickupRad) {
+            const value = runState.goldDropValue[index];
+            const amount = Math.floor(value * runState.player.goldMultiplier);
+            if (runState.player.gainGold) runState.player.gainGold(amount);
+            else runState.player.gold += amount;
 
             if (runState.isChaosShuffleMode) checkChaosEvent('GOLD', amount);
             if (runState.isTutorialMode) TutorialMode.onGold();
-            runState.currentRunStats.moneyGained += amount; // Track Gold
-            saveData.global.totalGold += drop.value; // Track for achievement
+            runState.currentRunStats.moneyGained += amount;
+            saveData.global.totalGold += value;
             if (typeof audioManager !== 'undefined') audioManager.play('pickup_gold');
-            GoldDrop.release(drop); // #20 P3 — return to pool before splice
-            goldDrops.splice(index, 1);
+            killGoldDrop(runState, index);
         }
     }
 
@@ -1383,7 +1387,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
                 // Mutator: No Regen (No Health Drops)
                 if (!((runState.isDailyMode || runState.isWeeklyMode) && runState.activeMutators.some(m => m.id === 'NO_REGEN'))) {
-                    if (Math.random() < 0.3) goldDrops.push(GoldDrop.acquire(enemy.x, enemy.y)); // Gold Drop
+                    if (Math.random() < 0.3) spawnGoldDrop(runState, enemy.x, enemy.y); // Gold Drop
                 } else {
                     // Still drop gold, but maybe less? Or just no health potions if they existed as drops.
                     // Wait, GoldDrop is money. Health is usually from Shop or Skills.
@@ -1394,7 +1398,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     // Since we don't have health drops yet (only shop potions), let's make it block Gold Drops instead for now?
                     // Or better: Block Shop Healing.
                 }
-                if (Math.random() < 0.3) goldDrops.push(GoldDrop.acquire(enemy.x, enemy.y));
+                if (Math.random() < 0.3) spawnGoldDrop(runState, enemy.x, enemy.y);
 
                 // Check for Card Drop
                 checkDrop(enemy.subType || 'BASIC', enemy.x, enemy.y);

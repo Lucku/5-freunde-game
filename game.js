@@ -17,7 +17,7 @@ import { Companion } from './Companion.js';
 import { FloatingText } from './Entities/FloatingText.js';
 import { Particle } from './Entities/Particle.js';
 import { Projectile } from './Entities/Projectile.js';
-import { GoldDrop } from './Entities/GoldDrop.js';
+// GoldDrop class removed in #5 phase 5.7 (ECS migration). See core/systems/goldDropSystem.js.
 // CardDrop class removed in #5 phase 5.2 (ECS migration). See core/systems/cardDropSystem.js.
 import { HolyMask } from './Entities/HolyMask.js';
 // PowerUp class removed in #5 phase 5.1 (ECS migration). See core/systems/powerUpSystem.js.
@@ -67,6 +67,8 @@ import { clearPowerUps } from './core/systems/powerUpSystem.js';
 import { spawnCardDrop, clearCardDrops } from './core/systems/cardDropSystem.js';
 import { spawnParticle, clearParticles } from './core/systems/particleSystem.js';
 import { clearFloatingTexts } from './core/systems/floatingTextSystem.js';
+import { clearMemoryShards } from './core/systems/memoryShardSystem.js';
+import { spawnGoldDrop, clearGoldDrops } from './core/systems/goldDropSystem.js';
 
 // #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
 const isElectron   = !!(window.Platform && window.Platform.isElectron);
@@ -2422,7 +2424,7 @@ window._renderBossDeathCinematic  = _renderBossDeathCinematic;
 window._renderBossChoiceScreen    = _renderBossChoiceScreen;
 window.EvilMode                 = EvilMode;
 window.Projectile               = Projectile;
-window.GoldDrop                 = GoldDrop;
+// GoldDrop removed in #5 phase 5.7 (ECS migration).
 window.HolyMask                 = HolyMask;
 window._SPATIAL_HASH_MIN        = _SPATIAL_HASH_MIN;
 window._recordPhase             = _recordPhase;
@@ -2452,7 +2454,7 @@ window._weatherLogicHooks = {};
 // powerUps migrated to ECS in #5 phase 5.1 — see core/systems/powerUpSystem.js.
 const {
     enemies, projectiles, meleeAttacks,
-    holyMasks, goldDrops, memoryShards, companions,
+    holyMasks, companions,
 } = runState;
 
 // Replace an array's contents in place. Preserves identity so const aliases +
@@ -2479,9 +2481,9 @@ window.enemies      = enemies;
 // EvilMode.js, ChaosMode.js, Museum.js, etc. in sync without needing imports.
 // powerUps no longer on window — migrated to ECS in #5 phase 5.1.
 window.holyMasks    = holyMasks;
-window.goldDrops    = goldDrops;
+// goldDrops no longer on window — migrated to ECS in #5 phase 5.7.
 // cardDrops no longer on window — migrated to ECS in #5 phase 5.2.
-window.memoryShards = memoryShards;
+// memoryShards no longer on window — migrated to ECS in #5 phase 5.6.
 window.companions   = companions;
 
 // Story Manager
@@ -4667,9 +4669,9 @@ async function startGame(mode = 'NORMAL') {
     meleeAttacks.length = 0;
     clearPowerUps(runState);
     holyMasks.length = 0;
-    goldDrops.length = 0;
+    clearGoldDrops(runState);
     clearCardDrops(runState);
-    memoryShards.length = 0;
+    clearMemoryShards(runState);
     companions.length = 0;
     runState.isPlayerDying = false;
     runState.playerDeathTimer = 0;
@@ -4699,9 +4701,9 @@ async function startGame(mode = 'NORMAL') {
         _w.meleeAttacks  = meleeAttacks;
         // powerUps now ECS — runState.powerUp* typed arrays, no _world mirror.
         _w.holyMasks     = holyMasks;
-        _w.goldDrops     = goldDrops;
+        // goldDrops now ECS — runState.goldDrop* typed arrays, no _world mirror.
         // cardDrops now ECS — runState.cardDrop* typed arrays, no _world mirror.
-        _w.memoryShards  = memoryShards;
+        // memoryShards now ECS — runState.memoryShard* typed arrays, no _world mirror.
         _w.companions    = companions;
         _w.saveData        = saveData;
         _w.currentRunStats = runState.currentRunStats;
@@ -5565,7 +5567,7 @@ function _onlineProcessGuestEvent(ev) {
             createExplosion(ev.x, ev.y, ev.color || '#fff');
             break;
         case 'gold_drop':
-            goldDrops.push(GoldDrop.acquire(ev.x, ev.y));
+            spawnGoldDrop(runState, ev.x, ev.y);
             break;
         case 'wave_start':
             runState.wave = ev.wave;
@@ -6703,7 +6705,8 @@ window.GAME_API = {
     // floatingTexts now ECS — see runState.floatingText* / runState.floatingTextCount.
     get floatingTextCount()     { return runState.floatingTextCount; },
     get holyMasks()             { return holyMasks; },
-    get goldDrops()             { return goldDrops; },
+    // goldDrops now ECS — see runState.goldDrop* / runState.goldDropCount.
+    get goldDropCount()         { return runState.goldDropCount; },
     get companions()            { return companions; },
 
     // ── Core actors ──

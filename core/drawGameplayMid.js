@@ -19,6 +19,8 @@ import { drawPowerUps } from './systems/powerUpSystem.js';
 import { drawCardDrops } from './systems/cardDropSystem.js';
 import { drawParticles } from './systems/particleSystem.js';
 import { drawFloatingTexts } from './systems/floatingTextSystem.js';
+import { drawMemoryShards } from './systems/memoryShardSystem.js';
+import { drawGoldDrops } from './systems/goldDropSystem.js';
 
 export function _drawGameplayMid() {
     // Camera-bounds for the particle + floating-text on-screen check
@@ -137,9 +139,9 @@ export function _drawGameplayMid() {
     // is invisible because update + draw are both per-frame anyway.
     companions.forEach(c => c.draw(ctx));
     // Memory Shards draw pass — survivors of the collection sweep above.
-    for (const shard of memoryShards) shard.draw(ctx);
+    drawMemoryShards(ctx, runState);
     // Gold Drops draw pass — survivors of the pickup sweep above.
-    for (const drop of goldDrops) drop.draw();
+    drawGoldDrops(ctx, runState);
     // Card Drops draw pass — survivors of the pickup sweep above.
     drawCardDrops(ctx, runState);
     // Holy Masks draw pass — survivors of the pickup sweep above.
