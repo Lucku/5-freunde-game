@@ -10,6 +10,7 @@
 // `_replaceArrInPlace`) resolve via bare-name global lookup — `window.X`
 // bridges in the renderer, `global.X` stubs in `server/simulation/loader.js`.
 import { runState } from '../RunState.js';
+import { isPhotoMode } from '../Camera.js';
 
 export
 function _updateGameplayPre(deltaTime) {

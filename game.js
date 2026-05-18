@@ -1732,7 +1732,7 @@ function saveRunState() {
     if (typeof runState.isChaosShuffleMode !== 'undefined' && runState.isChaosShuffleMode) currentMode = 'SHUFFLE';
     else if (saveData.story && saveData.story.enabled) currentMode = 'STORY';
 
-    const runState = {
+    const payload = {
         mode: currentMode,
         wave: runState.wave,
         score: runState.score,
@@ -1781,10 +1781,10 @@ function saveRunState() {
         // We don't save enemies, projectiles, etc. as we restart at wave start
     };
 
-    saveData.savedRun = runState;
+    saveData.savedRun = payload;
     saveGame();
     _markRunActive(); // #166 — flag a run in progress for crash recovery
-    console.log("Run saved at Wave " + runState.wave);
+    console.log("Run saved at Wave " + payload.wave);
 }
 
 function clearSavedRun() {
@@ -2411,6 +2411,21 @@ window.isWaveCleared    = isWaveCleared;
 window.drawCoopDistanceWarning  = drawCoopDistanceWarning;
 window.updateDrawRevivalMarkers = updateDrawRevivalMarkers;
 window.createDeathBurst         = createDeathBurst;
+window.Enemy                    = Enemy;
+window._replaceArrInPlace       = _replaceArrInPlace;
+window._renderBossIntroCinematic  = _renderBossIntroCinematic;
+window._renderBossDeathCinematic  = _renderBossDeathCinematic;
+window._renderBossChoiceScreen    = _renderBossChoiceScreen;
+window.EvilMode                 = EvilMode;
+window.Projectile               = Projectile;
+window.GoldDrop                 = GoldDrop;
+window.HolyMask                 = HolyMask;
+window._SPATIAL_HASH_MIN        = _SPATIAL_HASH_MIN;
+window._recordPhase             = _recordPhase;
+window.getCollectionBonuses     = getCollectionBonuses;
+window._onlineInterpBuf         = _onlineInterpBuf;
+window._onlineRenderTime        = _onlineRenderTime;
+window._renderMinimap           = _renderMinimap;
 
 // Weather state migrated to runState (#11 phase 5):
 //   currentWeather, weatherTimer, weatherDuration, weatherParticles,
