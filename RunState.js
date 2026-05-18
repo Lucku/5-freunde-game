@@ -251,6 +251,13 @@ export function createRunState() {
     };
 }
 
+// #173 phase 10 — singleton instance. game.js no longer owns the canonical
+// `runState`; leaf modules `import { runState } from './RunState.js'` to read
+// run-scoped state without coupling to game.js's module scope. The renderer
+// + DLC also see it via `window.runState` (set below) for bare-name access.
+export const runState = createRunState();
+if (typeof window !== 'undefined') window.runState = runState;
+
 window.RunState = {
     createRunStats, resetRunStats, bumpDamageSource,
     logUpgradePick, logKeyMoment,

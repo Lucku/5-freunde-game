@@ -8,23 +8,25 @@
  * `game.js`. Closes #173 phase 9's stated unlock — "server simulation can swap
  * the draw halves for no-op stubs and drive only the update helpers."
  *
- * ── Status as of 2026-05-17 ───────────────────────────────────────────────────
+ * ── Status as of 2026-05-18 (#173 phase 10 complete) ─────────────────────────
  *
- *   ✅ `game.js` exports the four pure halves
- *      (`_updateGameplayPre / _updateGameplayMid / _drawGameplayMid /
- *      _drawGameplayPost`) — see the named-export block near the bottom of the
- *      file.
+ *   ✅ All four pure halves now live in `core/*.js` leaf modules:
+ *        core/updateGameplayPre.js
+ *        core/updateGameplayMid.js
+ *        core/drawGameplayMid.js
+ *        core/drawGameplayPost.js
+ *      Each reads run-scoped state via the singleton
+ *      `runState` exported from `RunState.js`. Module-scope renderer globals
+ *      (arena, canvas, audioManager, classes, helpers) still resolve via
+ *      bare-name global lookup — `window.X` in the renderer,
+ *      `global.X` stubs in `server/simulation/loader.js`.
  *   ✅ `loader.js` installs `global._drawGameplayMid` and
  *      `global._drawGameplayPost` as no-op stubs so any code path that ends up
  *      calling them server-side does nothing (no canvas writes, no crashes).
- *   ⚠️ `game.js` itself cannot yet be `require()`'d from Node — its module
- *      graph reaches into ~60 renderer files (UI/*, Managers/AudioManager.js,
- *      Managers/NetworkManager.js, etc.) that hard-depend on DOM globals.
- *      Loading the full file blows up before the helpers ever run.
- *      Phase 10 of the #173 arc is to extract the four helpers + their direct
- *      module-scope state into a leaf module (`core/Gameplay.js` or similar)
- *      that BOTH the renderer entry (`main.js`) and this bridge can pull in.
- *      That refactor unblocks the swap below.
+ *   ⚠️ Driving the update halves from this bridge still requires the loader
+ *      to stub every bare-name global the helpers reach (arena, canvas,
+ *      classes, audio etc.). That work continues — the bridge below returns
+ *      the function refs but the caller still has to set up the globals.
  *
  * ── The intended swap (post phase-10) ─────────────────────────────────────────
  *
@@ -74,11 +76,10 @@ function _tryLoad(key, modulePath, exportName) {
  */
 function _tryLoadHelpers() {
     return {
-        pre:      _tryLoad('pre',      '../../game.js', '_updateGameplayPre'),
-        mid:      _tryLoad('mid',      '../../game.js', '_updateGameplayMid'),
-        // Phase 10: extracted leaf module. Future helpers follow same pattern.
-        drawMid:  _tryLoad('drawMid',  '../../game.js', '_drawGameplayMid'),
-        drawPost: _tryLoad('drawPost', '../../core/drawGameplayPost.js', '_drawGameplayPost'),
+        pre:      _tryLoad('pre',      '../../core/updateGameplayPre.js', '_updateGameplayPre'),
+        mid:      _tryLoad('mid',      '../../core/updateGameplayMid.js', '_updateGameplayMid'),
+        drawMid:  _tryLoad('drawMid',  '../../core/drawGameplayMid.js',   '_drawGameplayMid'),
+        drawPost: _tryLoad('drawPost', '../../core/drawGameplayPost.js',  '_drawGameplayPost'),
     };
 }
 
