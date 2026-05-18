@@ -19,7 +19,7 @@ import { Particle } from './Entities/Particle.js';
 import { Projectile } from './Entities/Projectile.js';
 // GoldDrop class removed in #5 phase 5.7 (ECS migration). See core/systems/goldDropSystem.js.
 // CardDrop class removed in #5 phase 5.2 (ECS migration). See core/systems/cardDropSystem.js.
-import { HolyMask } from './Entities/HolyMask.js';
+// HolyMask class removed in #5 phase 5.8 (ECS migration). See core/systems/holyMaskSystem.js.
 // PowerUp class removed in #5 phase 5.1 (ECS migration). See core/systems/powerUpSystem.js.
 import { SaveManager } from './Managers/SaveManager.js';
 import { CloudSaveManager } from './Managers/CloudSaveManager.js';
@@ -69,6 +69,7 @@ import { spawnParticle, clearParticles } from './core/systems/particleSystem.js'
 import { clearFloatingTexts } from './core/systems/floatingTextSystem.js';
 import { clearMemoryShards } from './core/systems/memoryShardSystem.js';
 import { spawnGoldDrop, clearGoldDrops } from './core/systems/goldDropSystem.js';
+import { spawnHolyMask, clearHolyMasks } from './core/systems/holyMaskSystem.js';
 
 // #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
 const isElectron   = !!(window.Platform && window.Platform.isElectron);
@@ -2425,7 +2426,7 @@ window._renderBossChoiceScreen    = _renderBossChoiceScreen;
 window.EvilMode                 = EvilMode;
 window.Projectile               = Projectile;
 // GoldDrop removed in #5 phase 5.7 (ECS migration).
-window.HolyMask                 = HolyMask;
+// HolyMask removed in #5 phase 5.8 (ECS migration).
 window._SPATIAL_HASH_MIN        = _SPATIAL_HASH_MIN;
 window._recordPhase             = _recordPhase;
 window.getCollectionBonuses     = getCollectionBonuses;
@@ -2454,7 +2455,7 @@ window._weatherLogicHooks = {};
 // powerUps migrated to ECS in #5 phase 5.1 — see core/systems/powerUpSystem.js.
 const {
     enemies, projectiles, meleeAttacks,
-    holyMasks, companions,
+    companions,
 } = runState;
 
 // Replace an array's contents in place. Preserves identity so const aliases +
@@ -2480,7 +2481,7 @@ window.enemies      = enemies;
 // but never reassigned, so a one-time window export keeps Arena.js,
 // EvilMode.js, ChaosMode.js, Museum.js, etc. in sync without needing imports.
 // powerUps no longer on window — migrated to ECS in #5 phase 5.1.
-window.holyMasks    = holyMasks;
+// holyMasks no longer on window — migrated to ECS in #5 phase 5.8.
 // goldDrops no longer on window — migrated to ECS in #5 phase 5.7.
 // cardDrops no longer on window — migrated to ECS in #5 phase 5.2.
 // memoryShards no longer on window — migrated to ECS in #5 phase 5.6.
@@ -4105,7 +4106,7 @@ function resumeWaveGeneration() {
 
     if (isStoryMode && runState.wave === 90) {
         // Spawn in center
-        holyMasks.push(new HolyMask(arena.width / 2, arena.height / 2, true));
+        spawnHolyMask(runState, arena.width / 2, arena.height / 2, true);
         showNotification("THE GOLDEN MASK APPEARS!");
         createExplosion(arena.width / 2, arena.height / 2, '#f1c40f');
     }
@@ -4668,7 +4669,7 @@ async function startGame(mode = 'NORMAL') {
     clearFloatingTexts(runState);
     meleeAttacks.length = 0;
     clearPowerUps(runState);
-    holyMasks.length = 0;
+    clearHolyMasks(runState);
     clearGoldDrops(runState);
     clearCardDrops(runState);
     clearMemoryShards(runState);
@@ -4700,7 +4701,7 @@ async function startGame(mode = 'NORMAL') {
         // floatingTexts now ECS — runState.floatingText* typed arrays, no _world mirror.
         _w.meleeAttacks  = meleeAttacks;
         // powerUps now ECS — runState.powerUp* typed arrays, no _world mirror.
-        _w.holyMasks     = holyMasks;
+        // holyMasks now ECS — runState.holyMask* typed arrays, no _world mirror.
         // goldDrops now ECS — runState.goldDrop* typed arrays, no _world mirror.
         // cardDrops now ECS — runState.cardDrop* typed arrays, no _world mirror.
         // memoryShards now ECS — runState.memoryShard* typed arrays, no _world mirror.
@@ -6704,7 +6705,8 @@ window.GAME_API = {
     get particleCount()         { return runState.particleCount; },
     // floatingTexts now ECS — see runState.floatingText* / runState.floatingTextCount.
     get floatingTextCount()     { return runState.floatingTextCount; },
-    get holyMasks()             { return holyMasks; },
+    // holyMasks now ECS — see runState.holyMask* / runState.holyMaskCount.
+    get holyMaskCount()         { return runState.holyMaskCount; },
     // goldDrops now ECS — see runState.goldDrop* / runState.goldDropCount.
     get goldDropCount()         { return runState.goldDropCount; },
     get companions()            { return companions; },

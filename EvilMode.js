@@ -1,7 +1,9 @@
 // #194 phase 2 — explicit imports for symbols previously read off window shims.
 import { Player } from './Player.js';
 
-import { HolyMask } from './Entities/HolyMask.js';
+// HolyMask class removed in #5 phase 5.8 — ECS via spawnHolyMask helper.
+import { runState } from './RunState.js';
+import { spawnHolyMask } from './core/systems/holyMaskSystem.js';
 
 // EvilMode.js
 // Manages Evil Mode wave sequencing, enemy hero spawning, biome routing,
@@ -281,9 +283,7 @@ const EvilMode = (() => {
         // After wave 10: spawn the True Golden Mask as a reward before wave 11
         if (currentWave === 10) {
             setTimeout(() => {
-                if (typeof holyMasks !== 'undefined' && typeof HolyMask !== 'undefined') {
-                    holyMasks.push(new HolyMask(arena.width / 2, arena.height / 2, true));
-                }
+                spawnHolyMask(runState, arena.width / 2, arena.height / 2, true);
                 if (typeof showNotification !== 'undefined') showNotification('THE GOLDEN MASK APPEARS! CLAIM IT!', '#f1c40f');
                 if (typeof createExplosion !== 'undefined')  createExplosion(arena.width / 2, arena.height / 2, '#f1c40f');
                 if (typeof triggerImpact !== 'undefined')    triggerImpact(5, 14, 0.3, 0.6, 400);

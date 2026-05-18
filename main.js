@@ -88,7 +88,7 @@ import './Entities/Projectile.js';
 import './Entities/MeleeSwipe.js';
 // Entities/GoldDrop.js removed in #5 phase 5.7 — replaced by core/systems/goldDropSystem.js.
 // Entities/CardDrop.js removed in #5 phase 5.2 — replaced by core/systems/cardDropSystem.js.
-import './Entities/HolyMask.js';
+// Entities/HolyMask.js removed in #5 phase 5.8 — replaced by core/systems/holyMaskSystem.js.
 // Entities/PowerUp.js removed in #5 phase 5.1 — replaced by core/systems/powerUpSystem.js.
 import './Entities/Particle.js';
 import './Entities/FloatingText.js';

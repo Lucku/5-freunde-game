@@ -21,6 +21,7 @@ import { drawParticles } from './systems/particleSystem.js';
 import { drawFloatingTexts } from './systems/floatingTextSystem.js';
 import { drawMemoryShards } from './systems/memoryShardSystem.js';
 import { drawGoldDrops } from './systems/goldDropSystem.js';
+import { drawHolyMasks } from './systems/holyMaskSystem.js';
 
 export function _drawGameplayMid() {
     // Camera-bounds for the particle + floating-text on-screen check
@@ -145,7 +146,7 @@ export function _drawGameplayMid() {
     // Card Drops draw pass — survivors of the pickup sweep above.
     drawCardDrops(ctx, runState);
     // Holy Masks draw pass — survivors of the pickup sweep above.
-    for (const mask of holyMasks) mask.draw();
+    drawHolyMasks(ctx, runState);
     // Powerups draw pass — survivors of the update loop above.
     drawPowerUps(ctx, runState);
     // Projectile draw pass — survivors of the update + collision sweep above.

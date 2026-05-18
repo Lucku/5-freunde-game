@@ -22,6 +22,7 @@ import { killParticle, updateParticles } from './systems/particleSystem.js';
 import { killFloatingText, updateFloatingTexts } from './systems/floatingTextSystem.js';
 import { killMemoryShard, getMemoryShardColor, MEMORYSHARD_RADIUS } from './systems/memoryShardSystem.js';
 import { spawnGoldDrop, killGoldDrop } from './systems/goldDropSystem.js';
+import { spawnHolyMask, killHolyMask, HOLYMASK_RADIUS } from './systems/holyMaskSystem.js';
 
 export
 function _updateGameplayMid(deltaTime, _isHitStopped) {
@@ -436,30 +437,27 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
     }
 
-    // Holy Masks — #173 phase 6 split. Same pattern.
-    for (let index = holyMasks.length - 1; index >= 0; index--) {
-        const mask = holyMasks[index];
-        const dist = Math.hypot(runState.player.x - mask.x, player.y - mask.y);
-        if (dist < runState.player.radius + 20) {
-            if (mask.isTrueGolden) {
+    // Holy Masks — #173 phase 6 / #5 phase 5.8 ECS.
+    for (let index = runState.holyMaskCount - 1; index >= 0; index--) {
+        const mx = runState.holyMaskX[index];
+        const my = runState.holyMaskY[index];
+        const isTrueGolden = !!runState.holyMaskIsTrueGolden[index];
+        const dist = Math.hypot(runState.player.x - mx, runState.player.y - my);
+        if (dist < runState.player.radius + HOLYMASK_RADIUS) {
+            if (isTrueGolden) {
                 // True Golden Mask Effect
                 runState.player.damageMultiplier += 0.5; // +50% Damage
                 runState.player.speedMultiplier += 0.2; // +20% Speed
                 runState.player.maxHp += 50;
                 runState.player.hp += 50;
                 runState.player.cooldownMultiplier *= 0.8; // -20% Cooldown
-
-                // Visual Flag
                 runState.player.isGolden = true;
-
                 showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
                 createExplosion(runState.player.x, runState.player.y, '#fff');
                 if (typeof audioManager !== 'undefined') {
                     audioManager.play('pickup_mask');
                     audioManager.playHeroExclamation(runState.player.type, 'found');
                 }
-
-                // Unlock Achievement if exists?
             } else {
                 saveData[runState.player.type].level++;
                 saveGame();
@@ -470,11 +468,11 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 showNotification("PERMANENT LEVEL UP!");
                 createExplosion(runState.player.x, runState.player.y, '#f1c40f');
             }
-            holyMasks.splice(index, 1);
+            killHolyMask(runState, index);
         } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2.isDead) {
-            const distP2 = Math.hypot(runState.player2.x - mask.x, player2.y - mask.y);
-            if (distP2 < runState.player2.radius + 20) {
-                if (mask.isTrueGolden) {
+            const distP2 = Math.hypot(runState.player2.x - mx, runState.player2.y - my);
+            if (distP2 < runState.player2.radius + HOLYMASK_RADIUS) {
+                if (isTrueGolden) {
                     runState.player2.damageMultiplier += 0.5;
                     runState.player2.speedMultiplier += 0.2;
                     runState.player2.maxHp += 50;
@@ -493,7 +491,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     audioManager.play('pickup_mask');
                     audioManager.playHeroExclamation(runState.player2.type, 'found');
                 }
-                holyMasks.splice(index, 1);
+                killHolyMask(runState, index);
             }
         }
     }
@@ -1381,7 +1379,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
                 // Mask Drop Logic (Capped at 5 per wave)
                 if (masksDroppedInWave < 5 && Math.random() < runState.player.maskChance) {
-                    holyMasks.push(new HolyMask(enemy.x, enemy.y));
+                    spawnHolyMask(runState, enemy.x, enemy.y);
                     masksDroppedInWave++;
                 }
 

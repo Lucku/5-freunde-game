@@ -26,7 +26,7 @@ class World {
         // memoryShards migrated to ECS on runState in #5 phase 5.6.
         this.meleeAttacks  = [];
         // powerUps migrated to ECS on runState in #5 phase 5.1.
-        this.holyMasks     = [];
+        // holyMasks migrated to ECS on runState in #5 phase 5.8.
         // cardDrops migrated to ECS on runState in #5 phase 5.2.
 
         // ── Players ───────────────────────────────────────────────────────────
