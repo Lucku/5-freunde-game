@@ -20,7 +20,7 @@ import { Projectile } from './Entities/Projectile.js';
 import { GoldDrop } from './Entities/GoldDrop.js';
 import { CardDrop } from './Entities/CardDrop.js';
 import { HolyMask } from './Entities/HolyMask.js';
-import { PowerUp } from './Entities/PowerUp.js';
+// PowerUp class removed in #5 phase 5.1 (ECS migration). See core/systems/powerUpSystem.js.
 import { SaveManager } from './Managers/SaveManager.js';
 import { CloudSaveManager } from './Managers/CloudSaveManager.js';
 import { UIManager } from './Managers/UIManager.js';
@@ -63,6 +63,7 @@ import { _drawGameplayMid } from './core/drawGameplayMid.js';
 import { _updateGameplayPre } from './core/updateGameplayPre.js';
 import { _updateGameplayMid } from './core/updateGameplayMid.js';
 import { renderPostFX } from './core/postProcess.js';
+import { clearPowerUps } from './core/systems/powerUpSystem.js';
 
 // #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
 const isElectron   = !!(window.Platform && window.Platform.isElectron);
@@ -2238,7 +2239,7 @@ function _resetGameState() {
     runState.playerDeathTimer = 0;
     enemies.length = 0;
     projectiles.length = 0;
-    powerUps.length = 0;
+    clearPowerUps(runState);
     floatingTexts.length = 0;
     particles.length = 0;
     runState.bossActive = false;
@@ -2402,7 +2403,7 @@ window.Boss             = Boss;
 window.applyScreenShake = applyScreenShake;
 window.TutorialMode     = TutorialMode;
 window.MeleeSwipe       = MeleeSwipe;
-window.PowerUp          = PowerUp;
+// PowerUp removed in #5 phase 5.1 (ECS migration).
 window.MEMORY_STORIES   = MEMORY_STORIES;
 window.updateChaosObjective = updateChaosObjective;
 window.checkChaosEvent  = checkChaosEvent;
@@ -2445,9 +2446,10 @@ window._weatherLogicHooks = {};
 // stay valid for the lifetime of the session.
 // #173 phase 10 — `runState` is now imported from RunState.js so leaf modules
 // (`core/updateGameplay*.js`) can read it without coupling to game.js.
+// powerUps migrated to ECS in #5 phase 5.1 — see core/systems/powerUpSystem.js.
 const {
     enemies, projectiles, particles, floatingTexts, meleeAttacks,
-    holyMasks, goldDrops, cardDrops, memoryShards, powerUps, companions,
+    holyMasks, goldDrops, cardDrops, memoryShards, companions,
 } = runState;
 
 // Replace an array's contents in place. Preserves identity so const aliases +
@@ -2472,7 +2474,7 @@ window.floatingTexts = floatingTexts;
 // Cross-module references via window — these arrays are mutated (push / splice)
 // but never reassigned, so a one-time window export keeps Arena.js,
 // EvilMode.js, ChaosMode.js, Museum.js, etc. in sync without needing imports.
-window.powerUps     = powerUps;
+// powerUps no longer on window — migrated to ECS in #5 phase 5.1.
 window.holyMasks    = holyMasks;
 window.goldDrops    = goldDrops;
 window.cardDrops    = cardDrops;
@@ -2571,7 +2573,7 @@ inputManager.onKeyDown = e => {
                 // Reset State
                 enemies.length = 0;
                 projectiles.length = 0;
-                powerUps.length = 0;
+                clearPowerUps(runState);
                 runState.bossActive = false;
                 runState.currentObjective = null;
 
@@ -4659,7 +4661,7 @@ async function startGame(mode = 'NORMAL') {
     particles.length = 0;
     floatingTexts.length = 0;
     meleeAttacks.length = 0;
-    powerUps.length = 0;
+    clearPowerUps(runState);
     holyMasks.length = 0;
     goldDrops.length = 0;
     cardDrops.length = 0;
@@ -4691,7 +4693,7 @@ async function startGame(mode = 'NORMAL') {
         _w.particles     = particles;
         _w.floatingTexts = floatingTexts;
         _w.meleeAttacks  = meleeAttacks;
-        _w.powerUps      = powerUps;
+        // powerUps now ECS — runState.powerUp* typed arrays, no _world mirror.
         _w.holyMasks     = holyMasks;
         _w.goldDrops     = goldDrops;
         _w.cardDrops     = cardDrops;

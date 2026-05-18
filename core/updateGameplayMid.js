@@ -14,6 +14,9 @@
 // `window.X` bridges in the renderer, `global.X` stubs in
 // `server/simulation/loader.js`.
 import { runState } from '../RunState.js';
+import {
+    updatePowerUps, killPowerUp, getPowerUpType, POWERUP_RADIUS,
+} from './systems/powerUpSystem.js';
 
 export
 function _updateGameplayMid(deltaTime, _isHitStopped) {
@@ -487,36 +490,38 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
     }
 
-    // #173 phase 6 — powerups: split update + collision (mutating splice) from
-    // draw. Update pass walks reverse for splice safety; draw pass iterates the
-    // survivors forward.
-    for (let index = powerUps.length - 1; index >= 0; index--) {
-        const pup = powerUps[index];
-        pup.update();
-        const dist = Math.hypot(runState.player.x - pup.x, player.y - pup.y);
-        if (dist < runState.player.radius + pup.radius) {
-            if (pup.type === 'HEAL') {
+    // #173 phase 6 / #5 phase 5.1 — powerups: timers tick first, then a
+    // reverse-iter pickup-collision pass. ECS slot allocation means killPowerUp
+    // does swap-with-last, so the reverse iteration stays correct.
+    updatePowerUps(runState);
+    for (let index = runState.powerUpCount - 1; index >= 0; index--) {
+        const px = runState.powerUpX[index];
+        const py = runState.powerUpY[index];
+        const ptype = getPowerUpType(runState, index);
+        const dist = Math.hypot(runState.player.x - px, runState.player.y - py);
+        if (dist < runState.player.radius + POWERUP_RADIUS) {
+            if (ptype === 'HEAL') {
                 runState.player.hp = Math.min(runState.player.hp + 30, runState.player.maxHp);
                 if (runState.isChaosShuffleMode) checkChaosEvent('HEAL');
                 createExplosion(runState.player.x, runState.player.y, '#2ecc71');
                 if (typeof audioManager !== 'undefined') audioManager.play('pickup_heal');
             }
-            else if (pup.type === 'MAXHP') {
+            else if (ptype === 'MAXHP') {
                 runState.player.maxHp += 20; runState.player.hp += 20;
                 createExplosion(runState.player.x, runState.player.y, '#e74c3c');
                 if (typeof audioManager !== 'undefined') audioManager.play('pickup_maxhp');
             }
-            else if (pup.type === 'SPEED') {
+            else if (ptype === 'SPEED') {
                 runState.player.buffs.speed = 600;
                 createExplosion(runState.player.x, runState.player.y, '#f1c40f');
                 if (typeof audioManager !== 'undefined') audioManager.play('pickup_speed');
             }
-            else if (pup.type === 'MULTI') {
+            else if (ptype === 'MULTI') {
                 runState.player.buffs.multi = 600;
                 createExplosion(runState.player.x, runState.player.y, '#3498db');
                 if (typeof audioManager !== 'undefined') audioManager.play('pickup_multi');
             }
-            else if (pup.type === 'AUTOAIM') {
+            else if (ptype === 'AUTOAIM') {
                 if (runState.player.heroType === 'EARTH') {
                     // Earth Hero: Temporary Ram Damage Boost
                     runState.player.stats.ramDmgMult = (runState.player.stats.ramDmgMult || 1) + 1.0; // +100% Ram Damage
@@ -529,19 +534,19 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 }
                 if (typeof audioManager !== 'undefined') audioManager.play('pickup_autoaim');
             }
-            powerUps.splice(index, 1);
+            killPowerUp(runState, index);
         } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2.isDead) {
             // Co-op: P2 collects power-ups
-            const distP2 = Math.hypot(runState.player2.x - pup.x, player2.y - pup.y);
-            if (distP2 < runState.player2.radius + pup.radius) {
-                if (pup.type === 'HEAL') { runState.player2.hp = Math.min(runState.player2.hp + 30, runState.player2.maxHp); createExplosion(runState.player2.x, runState.player2.y, '#2ecc71'); }
-                else if (pup.type === 'MAXHP') { runState.player2.maxHp += 20; runState.player2.hp += 20; }
-                else if (pup.type === 'SPEED') { runState.player2.buffs.speed = 600; }
-                else if (pup.type === 'MULTI') { runState.player2.buffs.multi = 600; }
-                else if (pup.type === 'AUTOAIM') { runState.player2.buffs.autoaim = 600; }
-                powerUps.splice(index, 1);
-            } else if (pup.timer <= 0) powerUps.splice(index, 1);
-        } else if (pup.timer <= 0) powerUps.splice(index, 1);
+            const distP2 = Math.hypot(runState.player2.x - px, runState.player2.y - py);
+            if (distP2 < runState.player2.radius + POWERUP_RADIUS) {
+                if (ptype === 'HEAL') { runState.player2.hp = Math.min(runState.player2.hp + 30, runState.player2.maxHp); createExplosion(runState.player2.x, runState.player2.y, '#2ecc71'); }
+                else if (ptype === 'MAXHP') { runState.player2.maxHp += 20; runState.player2.hp += 20; }
+                else if (ptype === 'SPEED') { runState.player2.buffs.speed = 600; }
+                else if (ptype === 'MULTI') { runState.player2.buffs.multi = 600; }
+                else if (ptype === 'AUTOAIM') { runState.player2.buffs.autoaim = 600; }
+                killPowerUp(runState, index);
+            } else if (runState.powerUpTimer[index] <= 0) killPowerUp(runState, index);
+        } else if (runState.powerUpTimer[index] <= 0) killPowerUp(runState, index);
     }
 
     for (let index = projectiles.length - 1; index >= 0; index--) {

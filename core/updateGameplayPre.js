@@ -11,6 +11,7 @@
 // bridges in the renderer, `global.X` stubs in `server/simulation/loader.js`.
 import { runState } from '../RunState.js';
 import { isPhotoMode } from '../Camera.js';
+import { spawnPowerUp } from './systems/powerUpSystem.js';
 
 export
 function _updateGameplayPre(deltaTime) {
@@ -623,7 +624,7 @@ function _updateGameplayPre(deltaTime) {
         }
     }
 
-    if (runState.frame % 600 === 0) powerUps.push(new PowerUp());
+    if (runState.frame % 600 === 0) spawnPowerUp(runState);
     return false;
 }
 // — end #173 phase 10 leaf module —

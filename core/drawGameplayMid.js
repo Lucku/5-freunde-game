@@ -8,11 +8,15 @@
 //
 // Identifiers used: ctx, canvas, arena, player, player2, enemies,
 // projectiles, particles, floatingTexts, companions, memoryShards,
-// goldDrops, cardDrops, holyMasks, powerUps, meleeAttacks, frame, score,
+// goldDrops, cardDrops, holyMasks, meleeAttacks, frame, score,
 // currentBiomeType, currentObjective, currentWeather, coopZoom, saveData,
 // audioManager, getHeroTheme, showNotification, isCoopMode,
 // isAICompanionMode, isEvilMode, isVersusMode, applyScreenShake, Boss,
 // BIOME_LOGIC, HERO_LOGIC, TutorialMode, TestingGrounds.
+// (PowerUp draw moved to systems/powerUpSystem.js drawPowerUps in #5 phase 5.1.)
+import { runState } from '../RunState.js';
+import { drawPowerUps } from './systems/powerUpSystem.js';
+
 export function _drawGameplayMid() {
     // Camera-bounds for the particle + floating-text on-screen check
     // (re-derived since _runGameplayMid's locals aren't shared).
@@ -138,7 +142,7 @@ export function _drawGameplayMid() {
     // Holy Masks draw pass — survivors of the pickup sweep above.
     for (const mask of holyMasks) mask.draw();
     // Powerups draw pass — survivors of the update loop above.
-    for (const pup of powerUps) pup.draw();
+    drawPowerUps(ctx, runState);
     // Projectile draw pass — survivors of the update + collision sweep above.
     for (const proj of projectiles) proj.draw();
     // Melee swipes draw pass — survivors of the update loop above.

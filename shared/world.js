@@ -25,7 +25,7 @@ class World {
         this.companions    = [];
         this.memoryShards  = [];
         this.meleeAttacks  = [];
-        this.powerUps      = [];
+        // powerUps migrated to ECS on runState in #5 phase 5.1.
         this.holyMasks     = [];
         this.cardDrops     = [];
 

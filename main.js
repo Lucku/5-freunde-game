@@ -89,7 +89,7 @@ import './Entities/MeleeSwipe.js';
 import './Entities/GoldDrop.js';
 import './Entities/CardDrop.js';
 import './Entities/HolyMask.js';
-import './Entities/PowerUp.js';
+// Entities/PowerUp.js removed in #5 phase 5.1 — replaced by core/systems/powerUpSystem.js.
 import './Entities/Particle.js';
 import './Entities/FloatingText.js';
 

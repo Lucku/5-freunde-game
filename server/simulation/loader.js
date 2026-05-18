@@ -154,7 +154,7 @@ global.goldDrops        = [];
 global.companions       = [];
 global.memoryShards     = [];
 global.meleeAttacks     = [];
-global.powerUps         = [];
+// powerUps removed in #5 phase 5.1 — now lives on runState as typed arrays.
 global.keys             = null;
 global.mouse            = null;
 global.bossActive       = false;

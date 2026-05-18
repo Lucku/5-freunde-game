@@ -63,6 +63,13 @@ export function logKeyMoment(rs, wave, timeSec, kind, label) {
     rs.keyMoments.push({ wave, timeSec, kind, label });
 }
 
+// #5 phase 5.1+ — ECS systems init bridge. Each component-array system
+// owns a per-runState `init<Entity>(rs)` that allocates typed arrays. The
+// container calls them so a fresh `runState` has both legacy class-array
+// fields (entity types not yet migrated) and ECS typed arrays for the
+// migrated ones.
+import { initPowerUps } from './core/systems/powerUpSystem.js';
+
 // ───────────────────────────────────────────────────────────────────────────
 // #11 phase 1 — RunState container schema.
 //
@@ -88,8 +95,10 @@ export function logKeyMoment(rs, wave, timeSec, kind, label) {
  * @property {Array} goldDrops
  * @property {Array} cardDrops
  * @property {Array} memoryShards
- * @property {Array} powerUps
  * @property {Array} companions
+ * (#5 phase 5.1 — `powerUps` migrated to ECS typed arrays: `powerUpX`,
+ *  `powerUpY`, `powerUpType`, `powerUpTimer`, `powerUpOscill`, `powerUpCount`.
+ *  See core/systems/powerUpSystem.js.)
  *
  * Phase 3 — run-lifecycle scalars:
  * @property {number}  wave
@@ -168,8 +177,9 @@ export function logKeyMoment(rs, wave, timeSec, kind, label) {
  * @returns {RunState}
  */
 export function createRunState() {
-    return {
+    const rs = {
         // Phase 2 — entity arrays.
+        // PowerUp migrated to ECS in #5 phase 5.1 — see initPowerUps below.
         enemies:         [],
         projectiles:     [],
         particles:       [],
@@ -179,7 +189,6 @@ export function createRunState() {
         goldDrops:       [],
         cardDrops:       [],
         memoryShards:    [],
-        powerUps:        [],
         companions:      [],
 
         // Phase 3 — run-lifecycle scalars.
@@ -249,6 +258,11 @@ export function createRunState() {
         p2RevivalMarker: null,
         currentRunStats: createRunStats({ startTime: 0 }),
     };
+
+    // ECS system inits — see tasks/ecs-design.md.
+    initPowerUps(rs);
+
+    return rs;
 }
 
 // #173 phase 10 — singleton instance. game.js no longer owns the canonical

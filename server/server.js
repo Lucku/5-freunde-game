@@ -260,7 +260,8 @@ app.use(cors({
         if (!_ALLOWED_HTTP_ORIGINS.length) return cb(null, true);
         if (_ALLOWED_HTTP_ORIGINS.includes(origin)) return cb(null, true);
         return cb(new Error(`CORS: origin "${origin}" not allowed`));
-    }
+    },
+    credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
 
