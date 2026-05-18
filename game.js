@@ -107,7 +107,7 @@ window.gameContext.ctx    = ctx;
 
 // Canvas click handler for boss-defeated choice screen buttons
 canvas.addEventListener('click', function (e) {
-    if (!_bossChoiceScreen || _bossChoiceFrame < 20) return;
+    if (!runState._bossChoiceScreen || runState._bossChoiceFrame < 20) return;
     const r = canvas.getBoundingClientRect();
     const mx = (e.clientX - r.left) * (canvas.width / r.width);
     const my = (e.clientY - r.top) * (canvas.height / r.height);
@@ -121,10 +121,10 @@ canvas.addEventListener('click', function (e) {
 });
 
 function _doBossContinue() {
-    _bossChoiceScreen = false;
-    _bossChoiceFrame = 0;
-    _bossChoiceFocus = 0;
-    _bossChoiceGpPrev = {};
+    runState._bossChoiceScreen = false;
+    runState._bossChoiceFrame = 0;
+    runState._bossChoiceFocus = 0;
+    runState._bossChoiceGpPrev = {};
     window._bossContinueBtn = null;
     window._bossQuitBtn = null;
     ctx.clearRect(0, 0, canvas.width, canvas.height); // clear frozen boss-choice frame before story opens
@@ -969,8 +969,8 @@ function handleGamepadMenu() {
     if (b && !lastGamepadState.b) {
         // #192 — boss intro skip via controller B. Same gate as keyboard ESC:
         // only skippable once the player has seen this boss before on this save.
-        if (bossIntroTimer > 0 && bossIntroSkippable) {
-            bossIntroTimer = 0;
+        if (runState.bossIntroTimer > 0 && runState.bossIntroSkippable) {
+            runState.bossIntroTimer = 0;
             lastGamepadState.b = b;
             return;
         }
@@ -1926,10 +1926,10 @@ function continueRun() {
     currentRunStats = state.currentRunStats;
 
     // Reset Boss Timer
-    bossDeathTimer = 0;
-    bossIntroTimer = 0; bossIntroName = ''; bossIntroSkippable = false;
-    _bossChoiceScreen = false;
-    _bossChoiceFrame = 0;
+    runState.bossDeathTimer = 0;
+    runState.bossIntroTimer = 0; runState.bossIntroName = ''; runState.bossIntroSkippable = false;
+    runState._bossChoiceScreen = false;
+    runState._bossChoiceFrame = 0;
     runState.bossActive = false;
     runState.enemiesKilledInWave = 0; // Reset kill count for the wave we are about to start
     // The save was made at the start of state.wave (after story/shop already ran for the previous wave).
@@ -2234,8 +2234,8 @@ function _resetGameState() {
     p2RevivalMarker = null;
     runState.coopZoom = 1.0;
     p2LevelUpPending = false;
-    isPlayerDying = false;
-    playerDeathTimer = 0;
+    runState.isPlayerDying = false;
+    runState.playerDeathTimer = 0;
     enemies.length = 0;
     projectiles.length = 0;
     powerUps.length = 0;
@@ -2323,19 +2323,13 @@ let _comboMilestoneTimer = 0;
 let _prevCombo = 0;
 let masksDroppedInWave = 0;  // Cap holy-mask drops per wave
 let waveTimer = 0;           // Sentinel used by versus mode to disable wave timer
-let bossDeathTimer = 0; // Timer for slow-mo effect
-let bossIntroTimer = 0;
-let bossIntroName = '';
-let bossIntroSkippable = false; // #192 — true when this boss has been seen on this save before
-let bossIntroCamStartX = 0, bossIntroCamStartY = 0;
-let bossIntroCamTargetX = 0, bossIntroCamTargetY = 0;
-let _bossChoiceScreen = false;  // Choice screen active after cinematic ends
-let _bossChoiceFrame = 0;       // Frame counter for live animations on choice screen
+// #11 phase 6 — combat/cinematic state migrated to runState.X:
+//   bossDeathTimer, bossIntroTimer, bossIntroName, bossIntroSkippable,
+//   bossIntroCamStart{X,Y}, bossIntroCamTarget{X,Y}, _bossChoiceScreen,
+//   _bossChoiceFrame, _bossChoiceFocus, _bossChoiceGpPrev, isPlayerDying,
+//   playerDeathTimer. _bossChoiceGpConsumed stays local — never referenced
+//   externally and not on Phase 6 schema list.
 let _bossChoiceGpConsumed = false; // Gamepad debounce
-let _bossChoiceFocus = 0;       // 0 = Continue focused, 1 = Save & Quit focused
-let _bossChoiceGpPrev = {};     // Edge-detection state for D-pad navigation
-var isPlayerDying = false; // Player death animation flag - Exposed for Player.js
-let playerDeathTimer = 0; // Timer for player death animation
 
 // Bidirectional window bindings for DLC-exposed vars.
 // Getters return the live module variable; setters update it so DLC writes
@@ -2347,7 +2341,7 @@ Object.defineProperties(window, {
     wave:                { get: () => runState.wave,                set: v => { runState.wave                = v; }, configurable: true, enumerable: true },
     bossActive:          { get: () => runState.bossActive,          set: v => { runState.bossActive          = v; }, configurable: true, enumerable: true },
     enemiesKilledInWave: { get: () => runState.enemiesKilledInWave, set: v => { runState.enemiesKilledInWave = v; }, configurable: true, enumerable: true },
-    isPlayerDying:       { get: () => isPlayerDying,       set: v => { isPlayerDying       = v; }, configurable: true, enumerable: true },
+    isPlayerDying:       { get: () => runState.isPlayerDying,       set: v => { runState.isPlayerDying       = v; }, configurable: true, enumerable: true },
     isLevelingUp:        { get: () => runState.isLevelingUp,        set: v => { runState.isLevelingUp        = v; }, configurable: true, enumerable: true },
     isShopping:          { get: () => runState.isShopping,          set: v => { runState.isShopping          = v; }, configurable: true, enumerable: true },
     gamePaused:          { get: () => runState.gamePaused,          set: v => { runState.gamePaused          = v; }, configurable: true, enumerable: true },
@@ -2379,6 +2373,8 @@ Object.defineProperties(window, {
     isSpeedrunMode:      { get: () => runState.isSpeedrunMode,      set: v => { runState.isSpeedrunMode      = v; }, configurable: true, enumerable: true },
     // #11 phase 5 — story/weather bridge for DLC use (MazeUI.js sets currentStoryEvent).
     currentStoryEvent:   { get: () => runState.currentStoryEvent,   set: v => { runState.currentStoryEvent   = v; }, configurable: true, enumerable: true },
+    // #11 phase 6 — bossDeathTimer bridge (TestingGrounds.js writes bare).
+    bossDeathTimer:      { get: () => runState.bossDeathTimer,      set: v => { runState.bossDeathTimer      = v; }, configurable: true, enumerable: true },
     gameRunning:         { get: () => runState.gameRunning,         set: v => { runState.gameRunning         = v; }, configurable: true, enumerable: true },
     isStoryOpen:         { get: () => runState.isStoryOpen,         set: v => { runState.isStoryOpen         = v; }, configurable: true, enumerable: true },
     // #173 phase 10 — additional mirrors so `core/drawGameplayPost.js`
@@ -2387,7 +2383,7 @@ Object.defineProperties(window, {
     weatherDuration:     { get: () => runState.weatherDuration,     set: v => { runState.weatherDuration     = v; }, configurable: true, enumerable: true },
     _weatherFlash:       { get: () => runState._weatherFlash,       set: v => { runState._weatherFlash       = v; }, configurable: true, enumerable: true },
     _weatherBolts:       { get: () => runState._weatherBolts,       set: v => { runState._weatherBolts       = v; }, configurable: true, enumerable: true },
-    playerDeathTimer:    { get: () => playerDeathTimer,    set: v => { playerDeathTimer    = v; }, configurable: true, enumerable: true },
+    playerDeathTimer:    { get: () => runState.playerDeathTimer,    set: v => { runState.playerDeathTimer    = v; }, configurable: true, enumerable: true },
     coopZoom:            { get: () => runState.coopZoom,            set: v => { runState.coopZoom            = v; }, configurable: true, enumerable: true },
     score:               { get: () => runState.score,               set: v => { runState.score               = v; }, configurable: true, enumerable: true },
     frame:               { get: () => runState.frame,               set: v => { runState.frame               = v; }, configurable: true, enumerable: true },
@@ -2469,8 +2465,8 @@ inputManager.onKeyDown = e => {
     // #192 — boss intro skip: ESC during a re-encounter cinematic ends it
     // immediately. Must run before the pause handler so the same key doesn't
     // also pause the game. First-encounter cinematics ignore the key entirely.
-    if (bossIntroTimer > 0 && bossIntroSkippable && (im.eventMatches('pause', e) || e.code === 'Escape')) {
-        bossIntroTimer = 0;
+    if (runState.bossIntroTimer > 0 && runState.bossIntroSkippable && (im.eventMatches('pause', e) || e.code === 'Escape')) {
+        runState.bossIntroTimer = 0;
         e.preventDefault?.();
         return;
     }
@@ -2650,12 +2646,12 @@ inputManager.onKeyDown = e => {
         }
 
         // DEBUG: [N] Instantly complete current wave (triggers boss-defeated cinematic)
-        if (e.code === 'KeyN' && runState.gameRunning && !runState.isLevelingUp && !runState.gamePaused && bossDeathTimer === 0 && !_bossChoiceScreen) {
+        if (e.code === 'KeyN' && runState.gameRunning && !runState.isLevelingUp && !runState.gamePaused && runState.bossDeathTimer === 0 && !runState._bossChoiceScreen) {
             enemies.length = 0;
             projectiles.length = 0;
             runState.bossActive = false;
             if (window._world) { window._world.enemies = enemies; window._world.projectiles = projectiles; }
-            bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
+            runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
             if (typeof audioManager !== 'undefined') audioManager.play('wave_completed');
             showNotification('DEBUG: Wave skipped');
         }
@@ -4167,12 +4163,12 @@ function resumeWaveGeneration() {
             showNotification(`BOSS WARNING: ${storyBossId}!`);
         }
         enemies.unshift(new Boss(storyBossId));
-        bossIntroTimer = GAMEPLAY.BOSS_INTRO_FRAMES;
-        bossIntroName = pName;
+        runState.bossIntroTimer = GAMEPLAY.BOSS_INTRO_FRAMES;
+        runState.bossIntroName = pName;
         // #192 — only allow skip if this boss has been seen before on this save.
         // Stamp the flag AFTER reading it so the first encounter always plays full.
         if (!saveData.global.bossesSeen) saveData.global.bossesSeen = {};
-        bossIntroSkippable = !!saveData.global.bossesSeen[storyBossId];
+        runState.bossIntroSkippable = !!saveData.global.bossesSeen[storyBossId];
         saveData.global.bossesSeen[storyBossId] = true;
         if (typeof audioManager !== 'undefined') {
             // Villain taunts when they spawn as a boss; hero reacts otherwise
@@ -4629,11 +4625,11 @@ async function startGame(mode = 'NORMAL') {
     runState.enemiesKilledInWave = 0;
     masksDroppedInWave = 0; // Cap mask drops
     runState.bossActive = false;
-    isPlayerDying = false;
-    bossDeathTimer = 0;
-    bossIntroTimer = 0; bossIntroName = ''; bossIntroSkippable = false;
-    _bossChoiceScreen = false;
-    _bossChoiceFrame = 0;
+    runState.isPlayerDying = false;
+    runState.bossDeathTimer = 0;
+    runState.bossIntroTimer = 0; runState.bossIntroName = ''; runState.bossIntroSkippable = false;
+    runState._bossChoiceScreen = false;
+    runState._bossChoiceFrame = 0;
     enemies.length = 0;
     projectiles.length = 0;
     particles.length = 0;
@@ -4646,8 +4642,8 @@ async function startGame(mode = 'NORMAL') {
     cardDrops.length = 0;
     memoryShards.length = 0;
     companions.length = 0;
-    isPlayerDying = false;
-    playerDeathTimer = 0;
+    runState.isPlayerDying = false;
+    runState.playerDeathTimer = 0;
     forcedEnemyType = null;
     runState.currentObjective = null; // Reset Objective
     runState.currentStoryEvent = null; // Reset Story Event to prevent leaks
@@ -5414,8 +5410,8 @@ function _onlineApplySnapshot(s) {
 
         // Revival: host revived us (isDead went true→false) — cancel any local death state
         if (prevDead && !player.isDead) {
-            isPlayerDying   = false;
-            playerDeathTimer = 0;
+            runState.isPlayerDying   = false;
+            runState.playerDeathTimer = 0;
         }
 
         // Sync Air Hero objective from server (authoritative) so HUD renders correctly
@@ -6023,11 +6019,11 @@ function _finalizeBossDeathCinematic() {
     if (runState.isEvilMode && typeof EvilMode !== 'undefined') { EvilMode.onBossScreenDone(); return true; }
 
     // Open choice screen — player picks Continue or Save & Quit
-    _bossChoiceScreen = true;
-    _bossChoiceFrame = 0;
+    runState._bossChoiceScreen = true;
+    runState._bossChoiceFrame = 0;
     _bossChoiceGpConsumed = false;
-    _bossChoiceFocus = 0;
-    _bossChoiceGpPrev = {};
+    runState._bossChoiceFocus = 0;
+    runState._bossChoiceGpPrev = {};
     return false;
 }
 
@@ -6035,10 +6031,10 @@ function _finalizeBossDeathCinematic() {
 // fade-out. Returns `true` while bossDeathTimer > 0 so caller bails out;
 // invokes the finalizer when the timer just hit 0.
 function _renderBossDeathCinematic() {
-    if (bossDeathTimer <= 0) return false;
-    bossDeathTimer--;
+    if (runState.bossDeathTimer <= 0) return false;
+    runState.bossDeathTimer--;
 
-    const _progress = 1 - bossDeathTimer / 180;
+    const _progress = 1 - runState.bossDeathTimer / 180;
 
     // --- Cinematic frame drawn every frame (no strobe) ---
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -6119,7 +6115,7 @@ function _renderBossDeathCinematic() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    if (bossDeathTimer === 0) _finalizeBossDeathCinematic();
+    if (runState.bossDeathTimer === 0) _finalizeBossDeathCinematic();
     return true;
 }
 
@@ -6127,30 +6123,30 @@ function _renderBossDeathCinematic() {
 // `bossIntroTimer/Name/Skippable/CamStart{X,Y}/CamTarget{X,Y}` from module
 // scope, writes back the same. Self-contained — returns `true` while active.
 function _renderBossIntroCinematic() {
-    if (bossIntroTimer <= 0) return false;
+    if (runState.bossIntroTimer <= 0) return false;
     const _ITOTAL = GAMEPLAY.BOSS_INTRO_FRAMES;
-    if (bossIntroTimer === _ITOTAL) {
-        bossIntroCamStartX = arena.camera.x;
-        bossIntroCamStartY = arena.camera.y;
+    if (runState.bossIntroTimer === _ITOTAL) {
+        runState.bossIntroCamStartX = arena.camera.x;
+        runState.bossIntroCamStartY = arena.camera.y;
         const _ib = enemies.find(e => e instanceof Boss);
         if (_ib) {
-            bossIntroCamTargetX = Math.max(0, Math.min(_ib.x - canvas.width / 2, arena.width - canvas.width));
-            bossIntroCamTargetY = Math.max(0, Math.min(_ib.y - canvas.height / 2, arena.height - canvas.height));
+            runState.bossIntroCamTargetX = Math.max(0, Math.min(_ib.x - canvas.width / 2, arena.width - canvas.width));
+            runState.bossIntroCamTargetY = Math.max(0, Math.min(_ib.y - canvas.height / 2, arena.height - canvas.height));
         } else {
-            bossIntroCamTargetX = bossIntroCamStartX;
-            bossIntroCamTargetY = bossIntroCamStartY;
+            runState.bossIntroCamTargetX = runState.bossIntroCamStartX;
+            runState.bossIntroCamTargetY = runState.bossIntroCamStartY;
         }
     }
-    bossIntroTimer--;
-    const _ip = 1 - bossIntroTimer / _ITOTAL;
+    runState.bossIntroTimer--;
+    const _ip = 1 - runState.bossIntroTimer / _ITOTAL;
 
     const _iEaseOut = t => 1 - Math.pow(1 - Math.min(1, t), 3);
     const _iEaseIn  = t => Math.min(1, t) * Math.min(1, t);
 
     // Camera pan toward boss over first 55%
     const _iCamT = _iEaseOut(Math.min(1, _ip / 0.55));
-    const _iCamX = bossIntroCamStartX + (bossIntroCamTargetX - bossIntroCamStartX) * _iCamT;
-    const _iCamY = bossIntroCamStartY + (bossIntroCamTargetY - bossIntroCamStartY) * _iCamT;
+    const _iCamX = runState.bossIntroCamStartX + (runState.bossIntroCamTargetX - runState.bossIntroCamStartX) * _iCamT;
+    const _iCamY = runState.bossIntroCamStartY + (runState.bossIntroCamTargetY - runState.bossIntroCamStartY) * _iCamT;
 
     // Zoom 1.0→1.45 during pan, hold, then back to 1.0
     let _iZoom;
@@ -6222,21 +6218,21 @@ function _renderBossIntroCinematic() {
         ctx.shadowBlur = 60;
         ctx.fillStyle = '#e74c3c';
         ctx.font = 'bold 72px Arial';
-        ctx.fillText(bossIntroName, canvas.width / 2, canvas.height / 2 - 4);
+        ctx.fillText(runState.bossIntroName, canvas.width / 2, canvas.height / 2 - 4);
 
         // Boss name — crisp white pass
         ctx.globalAlpha = _iba;
         ctx.shadowBlur = 18;
         ctx.shadowColor = 'rgba(231,76,60,0.85)';
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(bossIntroName, canvas.width / 2, canvas.height / 2 - 4);
+        ctx.fillText(runState.bossIntroName, canvas.width / 2, canvas.height / 2 - 4);
 
         ctx.restore();
     }
 
     // #192 — skip hint, only on re-encounters. Fades in after the banner is
     // fully visible (≥0.34) and fades back out alongside the banner.
-    if (bossIntroSkippable && _ip > 0.34) {
+    if (runState.bossIntroSkippable && _ip > 0.34) {
         const _isa = _ip > 0.88 ? Math.max(0, 1 - (_ip - 0.88) / 0.12) : 1.0;
         ctx.save();
         ctx.globalAlpha = _isa * 0.55;
@@ -6268,8 +6264,8 @@ function _renderBossIntroCinematic() {
 // "Continue / Save & Quit" overlay and handles mouse + gamepad navigation.
 // Returns `true` while the screen owns the frame so the caller bails out.
 function _renderBossChoiceScreen() {
-    if (!_bossChoiceScreen) return false;
-_bossChoiceFrame++;
+    if (!runState._bossChoiceScreen) return false;
+runState._bossChoiceFrame++;
 const _fi = Math.min(1, _bossChoiceFrame / 25); // fade-in over ~0.4 s
 
 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -6288,8 +6284,8 @@ ctx.fillRect(0, 0, canvas.width, canvas.height);
 ctx.save();
 for (let _i = 0; _i < 28; _i++) {
     const _px = ((_i * 1.618 * 97) % 1) * canvas.width;
-    const _py = (((_i * 2.236 * 83 + 40) % 1) * canvas.height + _bossChoiceFrame * (1.0 + (_i % 5) * 0.5) * 2.2) % canvas.height;
-    ctx.globalAlpha = (0.35 + 0.65 * Math.abs(Math.sin(_bossChoiceFrame * 0.05 + _i * 0.9))) * 0.5;
+    const _py = (((_i * 2.236 * 83 + 40) % 1) * canvas.height + runState._bossChoiceFrame * (1.0 + (_i % 5) * 0.5) * 2.2) % canvas.height;
+    ctx.globalAlpha = (0.35 + 0.65 * Math.abs(Math.sin(runState._bossChoiceFrame * 0.05 + _i * 0.9))) * 0.5;
     ctx.fillStyle = _i % 3 === 0 ? '#ffffff' : '#f1c40f';
     ctx.beginPath();
     ctx.arc(_px, _py, 1.5 + (_i % 4) * 1.2, 0, Math.PI * 2);
@@ -6334,41 +6330,41 @@ const _quitX = _bcx + _btGap / 2;
 
 // Detect gamepad to decide hint text and update focus via D-pad/stick
 let _gpActive = false;
-if (_bossChoiceFrame > 20) {
+if (runState._bossChoiceFrame > 20) {
     const _gpads = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const _gp of _gpads) {
         if (!_gp || !isRealGamepad(_gp)) continue;
         _gpActive = true;
-        const _gpPressed = (idx) => _gp.buttons[idx]?.pressed && !_bossChoiceGpPrev[idx];
+        const _gpPressed = (idx) => _gp.buttons[idx]?.pressed && !runState._bossChoiceGpPrev[idx];
         const _stickX = _gp.axes[0] || 0;
-        const _dRight = _gpPressed(15) || (_stickX > 0.45 && !_bossChoiceGpPrev.sR);
-        const _dLeft = _gpPressed(14) || (_stickX < -0.45 && !_bossChoiceGpPrev.sL);
-        if (_dRight) _bossChoiceFocus = 1;
-        if (_dLeft) _bossChoiceFocus = 0;
+        const _dRight = _gpPressed(15) || (_stickX > 0.45 && !runState._bossChoiceGpPrev.sR);
+        const _dLeft = _gpPressed(14) || (_stickX < -0.45 && !runState._bossChoiceGpPrev.sL);
+        if (_dRight) runState._bossChoiceFocus = 1;
+        if (_dLeft) runState._bossChoiceFocus = 0;
         // A confirms focused button; B shortcuts to Save & Quit
         if (!_bossChoiceGpConsumed) {
-            if (_gpPressed(0)) { _bossChoiceGpConsumed = true; _bossChoiceFocus === 0 ? _doBossContinue() : saveAndQuit(); break; }
+            if (_gpPressed(0)) { _bossChoiceGpConsumed = true; runState._bossChoiceFocus === 0 ? _doBossContinue() : saveAndQuit(); break; }
             if (_gpPressed(1)) { _bossChoiceGpConsumed = true; saveAndQuit(); break; }
         }
         const _anyHeld = _gp.buttons[0]?.pressed || _gp.buttons[1]?.pressed;
         if (!_anyHeld) _bossChoiceGpConsumed = false;
         // Store prev state
-        for (let _bi = 0; _bi < _gp.buttons.length; _bi++) _bossChoiceGpPrev[_bi] = _gp.buttons[_bi]?.pressed;
-        _bossChoiceGpPrev.sR = _stickX > 0.45;
-        _bossChoiceGpPrev.sL = _stickX < -0.45;
+        for (let _bi = 0; _bi < _gp.buttons.length; _bi++) runState._bossChoiceGpPrev[_bi] = _gp.buttons[_bi]?.pressed;
+        runState._bossChoiceGpPrev.sR = _stickX > 0.45;
+        runState._bossChoiceGpPrev.sL = _stickX < -0.45;
         break; // only first connected gamepad
     }
 }
 
 // If a gamepad action dismissed the screen this frame, stop rendering it
-if (!_bossChoiceScreen) return;
+if (!runState._bossChoiceScreen) return;
 
 ctx.save();
 ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 ctx.font = 'bold 11px Arial';
 
 // Continue button
-const _contFocused = (_bossChoiceFocus === 0);
+const _contFocused = (runState._bossChoiceFocus === 0);
 ctx.globalAlpha = _fi * (_contFocused ? 1.0 : 0.72);
 ctx.strokeStyle = _contFocused ? '#f1c40f' : 'rgba(241,196,15,0.55)';
 ctx.lineWidth = _contFocused ? 2.5 : 1.5;
@@ -6381,7 +6377,7 @@ ctx.shadowBlur = 0;
 window._bossContinueBtn = { x: _contX, y: _btY - _btH / 2, w: _btW, h: _btH };
 
 // Save & Quit button
-const _quitFocused = (_bossChoiceFocus === 1);
+const _quitFocused = (runState._bossChoiceFocus === 1);
 ctx.globalAlpha = _fi * (_quitFocused ? 0.95 : 0.55);
 ctx.strokeStyle = _quitFocused ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)';
 ctx.lineWidth = _quitFocused ? 2.5 : 1;
@@ -6419,7 +6415,7 @@ function _updateGameplayPre(deltaTime) {
             audioManager.play('wave_completed');
             if (player) audioManager.playHeroExclamation(player.type, 'boss_win');
         }
-        bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
+        runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
         triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
     }
 
@@ -6875,7 +6871,7 @@ function _updateGameplayPre(deltaTime) {
 
     // --- Spawning Logic ---
     // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
-    if (!runState.bossActive && bossDeathTimer === 0 && !runState.isTestingMode && !runState.isEvilMode && isWaveCleared(runState.wave, runState.enemiesKilledInWave) && (!runState.isTutorialMode || TutorialMode.bossForced)) {
+    if (!runState.bossActive && runState.bossDeathTimer === 0 && !runState.isTestingMode && !runState.isEvilMode && isWaveCleared(runState.wave, runState.enemiesKilledInWave) && (!runState.isTutorialMode || TutorialMode.bossForced)) {
         if (runState.currentObjective && runState.currentObjective.state === 'ACTIVE') {
             // Do nothing, wait for objective completion logic
         } else if (runState.isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType === 'none') {
@@ -6922,7 +6918,7 @@ function _updateGameplayPre(deltaTime) {
     }
 
     if (!runState.isVersusMode && !runState.isTestingMode && !runState.isEvilMode) {
-        if (!runState.bossActive && bossDeathTimer === 0) {
+        if (!runState.bossActive && runState.bossDeathTimer === 0) {
             let spawnRate = Math.max(10, 45 - (runState.wave * 1.3));
             let forcedType = null;
 
@@ -7105,7 +7101,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     });
     player.biomeSpeedMod = biomeSpeedMod;
 
-    if (isPlayerDying) {
+    if (runState.isPlayerDying) {
         // Freeze player during death sequence
         player.vx = 0;
         player.vy = 0;
@@ -7610,7 +7606,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                             } else if (!runState.isVersusMode && runState.bossActive && window.additionalPlayers.length === 0) {
                                 // Story Mode Duel Victory
                                 runState.bossActive = false;
-                                bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds for dramatic effect
+                                runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds for dramatic effect
                                 triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
 
                                 // Clear any remaining enemies/projectiles
@@ -7731,7 +7727,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                                         setTimeout(() => gameOver(true), 2000);
                                     } else if (!runState.isVersusMode && runState.bossActive && window.additionalPlayers.length === 0) {
                                         runState.bossActive = false;
-                                        bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
+                                        runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
                                         triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
                                         enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
                                         enemies.length = 0;
@@ -8341,7 +8337,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     runState.bossActive = false;
 
                     // Start Boss Death Sequence
-                    bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds at 60 FPS
+                    runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds at 60 FPS
                     triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
                     if (typeof audioManager !== 'undefined') {
                         audioManager.play('wave_completed');
@@ -8458,9 +8454,9 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             p1RevivalMarker = { x: player.x, y: player.y, progress: 0, maxProgress: 240 };
             createExplosion(player.x, player.y, '#ffffff');
             showNotification(runState.isAICompanionMode ? 'You\'re down! Ally is coming to revive you.' : 'P1 down! Stand on marker to revive.');
-        } else if (!isPlayerDying && !runState.isOnlineGuest) {
-            isPlayerDying = true;
-            playerDeathTimer = 180; // 3 seconds animation
+        } else if (!runState.isPlayerDying && !runState.isOnlineGuest) {
+            runState.isPlayerDying = true;
+            runState.playerDeathTimer = 180; // 3 seconds animation
             createExplosion(player.x, player.y, '#c0392b');
             triggerImpact(14, 30, 0.70, 1.0, 800); // Death — maximum rumble
             player.isDashing = false;
@@ -8474,11 +8470,11 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     }
     // Co-op: both players dead → game over (separate check needed because the
     // revival-marker path sets player.isDead=true, which blocks the block above).
-    if (!isPlayerDying && !runState.isOnlineGuest &&
+    if (!runState.isPlayerDying && !runState.isOnlineGuest &&
         !runState.isVersusMode && (runState.isCoopMode || runState.isAICompanionMode) &&
         player.isDead && player2 && player2.isDead) {
-        isPlayerDying = true;
-        playerDeathTimer = 180;
+        runState.isPlayerDying = true;
+        runState.playerDeathTimer = 180;
         createExplosion(player.x, player.y, '#c0392b');
         triggerImpact(14, 30, 0.70, 1.0, 800);
         player.isDashing = false;
@@ -8490,13 +8486,13 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     }
     // Cinematic timer tick — spawns blood-burst particles at regular intervals
     // and ends the run when the timer hits 0.
-    if (isPlayerDying) {
-        playerDeathTimer--;
-        if (playerDeathTimer % 15 === 0) {
+    if (runState.isPlayerDying) {
+        runState.playerDeathTimer--;
+        if (runState.playerDeathTimer % 15 === 0) {
             createExplosion(player.x + (Math.random() - 0.5) * 60, player.y + (Math.random() - 0.5) * 60, '#c0392b');
         }
-        if (playerDeathTimer <= 0) {
-            isPlayerDying = false;
+        if (runState.playerDeathTimer <= 0) {
+            runState.isPlayerDying = false;
             gameOver();
         }
     }
@@ -8719,8 +8715,8 @@ window.GAME_API = {
     set bossActive(v)           { runState.bossActive = v; },
     get enemiesKilledInWave()   { return runState.enemiesKilledInWave; },
     set enemiesKilledInWave(v)  { runState.enemiesKilledInWave = v; },
-    get isPlayerDying()         { return isPlayerDying; },
-    set isPlayerDying(v)        { isPlayerDying = v; },
+    get isPlayerDying()         { return runState.isPlayerDying; },
+    set isPlayerDying(v)        { runState.isPlayerDying = v; },
     get currentObjective()      { return runState.currentObjective; },
     set currentObjective(v)     { runState.currentObjective = v; },
     get currentWeather()        { return runState.currentWeather; },
