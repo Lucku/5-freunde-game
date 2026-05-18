@@ -66,12 +66,21 @@ class GameSession {
         this._world.audioManager = {
             play: () => {}, playAttack: () => {}, stopLoop: () => {}, startLoop: () => {},
         };
-        // Flat arena — no obstacles on the server (pure collision boundary)
+        // Flat arena — no obstacles on the server (pure collision boundary).
+        // Leaf modules (`core/updateGameplayPre.js` via RendererBridge) call
+        // `arena.update(player)` / `arena.updateCamera(player, w, h)` / etc.
+        // Stub them as no-ops; the camera has zero meaning server-side.
         this._world.arena = {
             width:          ARENA_WIDTH,
             height:         ARENA_HEIGHT,
-            camera:         { x: 0, y: 0 },
+            camera:         { x: 0, y: 0, width: ARENA_WIDTH, height: ARENA_HEIGHT },
             checkCollision: () => false,
+            update:             () => {},
+            updateCamera:       () => {},
+            updateCameraForTwo: () => 1.0,
+            draw:               () => {},
+            obstacles:          [],
+            biomeZones:         [],
         };
 
         // ── Session state ──────────────────────────────────────────────────────

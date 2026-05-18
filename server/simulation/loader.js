@@ -252,6 +252,7 @@ global.MeleeSwipe   = loadClass('Entities/MeleeSwipe',   'MeleeSwipe');
 // this becomes global.getHeroStats, which is required by the Player constructor.
 global.Player = loadClass('Player', 'Player');
 global.Enemy  = loadClass('Enemy',  'Enemy');
+global.Boss   = loadClass('Boss',   'Boss');
 global.Arena  = loadClass('Arena',  'Arena');
 
 // ── 8. Load DLC HERO_LOGIC registries ─────────────────────────────────────────
@@ -288,3 +289,81 @@ if (global.LightningHero) global.HERO_LOGIC['lightning'] = global.LightningHero;
 // the renderer is fully bridged in) early-return cleanly with no canvas work.
 global._drawGameplayMid  = () => {};
 global._drawGameplayPost = () => {};
+
+// ── 10. Bare-name helper stubs reached by core/updateGameplay*.js leaf modules.
+// The leaf modules read these via bare-name global lookup — renderer-side they
+// resolve through `window.X = …` bridges set up in game.js. Server-side, no
+// game.js means no bridges, so loader supplies no-op stubs. Functions that
+// affect mutation paths the server actually cares about (`applyDamage`,
+// `createExplosion`) are wired more thoroughly elsewhere (GameSession owns
+// damage authority); the rest are visual / non-authoritative.
+const _noop = () => {};
+const _false = () => false;
+// Boss cinematic helpers — return false so the helper falls through to the
+// normal update path (true would mean "cinematic owns this frame, bail out").
+global._renderBossIntroCinematic   = _false;
+global._renderBossDeathCinematic   = _false;
+global._renderBossChoiceScreen     = _false;
+global._renderMinimap              = _noop;
+// FX + camera-mode helpers — visual side effects only, server skips.
+global.triggerHitStop              = _noop;
+global.triggerImpact               = _noop;
+global.triggerScreenShake          = _noop;
+global.triggerVibration            = _noop;
+global.applyScreenShake            = _noop;
+global.isPhotoMode                 = _false;
+global.isReducedMotion             = _false;
+global.isChaosActive               = _false;
+// Notifications + UI side-effects.
+global.showNotification            = _noop;
+global.updateDrawRevivalMarkers    = _noop;
+global.drawCoopDistanceWarning     = _noop;
+global.createDeathBurst            = _noop;
+// Story / wave-flow helpers — server has its own wave manager so the leaf
+// module's calls into these are advisory; no-ops are safe for smoke.
+global.triggerStory                = _noop;
+global.advanceWave                 = _noop;
+global.notifyWaveAdvance           = _noop;
+global.updateChaosObjective        = _noop;
+global.checkChaosEvent             = _noop;
+global.isStoryBossWave             = _false;
+global.isWaveCleared               = _false;
+global.gameOver                    = _noop;
+global.getDecoyTarget              = () => null;
+global.getCoopTarget               = (x, y) => ({ x, y });
+global.getHeroTheme                = () => null;
+// `applyDamage(target, dmg)` — server-side damage is owned by GameSession;
+// the leaf-module fallback to bare `target.hp -= dmg` is acceptable for
+// smoke and matches the renderer behaviour when applyDamage isn't bridged.
+global.applyDamage                 = (target, dmg) => {
+    if (target && typeof target.hp === 'number') target.hp -= dmg;
+    return dmg;
+};
+global.createExplosion             = _noop;
+global.recordPlayerDamage          = _noop;
+global.getCollectionBonuses        = () => ({ damageMult: 1, specials: [] });
+global._recordPhase                = _noop;
+// Online net-sync globals — server is the authority; client interp fields
+// stay at safe defaults.
+global._onlineFrame                = 0;
+global._onlineInterpBuf            = [];
+global._onlineRenderTime           = 0;
+// Spatial hash globals — broad-phase collision optimization on the renderer
+// (#173 leaf modules read these). Server skips the hash entirely; stubs
+// return empty arrays for any `queryEnemiesNear` / `queryProjectilesNear`
+// calls so the fall-back linear-scan path inside the helpers runs unhindered.
+global._SPATIAL_HASH_MIN     = 30;
+global._enemySpatialHash     = null;
+global._projectileSpatialHash = null;
+global._enemyHashActive      = false;
+global._projectileHashActive = false;
+// Return empty arrays (NOT null) so callers' `_cands.length` reads don't
+// crash when the hash is inactive on the server side.
+global.queryEnemiesNear      = () => [];
+global.queryProjectilesNear  = () => [];
+// Spawner helpers reached by core/updateGameplayMid.js boss-kill / wave-end paths.
+global.spawnEnemy            = _noop;
+global.spawnBoss             = _noop;
+// `masksDroppedInWave` is a per-wave counter; ECS-fied in #11 phase 3 but
+// the leaf module reads it bare. Init to 0.
+global.masksDroppedInWave    = 0;
