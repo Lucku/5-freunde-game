@@ -178,18 +178,12 @@ const defaultSaveData = {
 window.gameContext.defaultSaveData = defaultSaveData; // #4 session 4 — owned by GameContext, mirrored to window._defaultSaveData
 
 let currentBiomeType = 'fire'; // Default, updated in startGame
-let isVersusMode = false;
-let isChaosShuffleMode = false;
-let isTutorialMode = false;
-let isTestingMode = false;
-let isEvilMode = false;
-let isCoopMode = false;
-let isSpeedrunMode = false; // Story Speedrun: skip modals/audio, run timer + splits
-let isAICompanionMode = false; // Story companion: full Player driven by AIController
-let isWorkshopMode = false;
-let isOnlineMode  = false;  // true when an online co-op session is active (host or guest)
-let isOnlineHost  = false;  // this client runs the authoritative simulation
-let isOnlineGuest = false;  // this client receives state snapshots
+// #11 phase 4 — mode flags migrated to runState.X (isVersusMode,
+// isChaosShuffleMode, isTutorialMode, isTestingMode, isEvilMode, isCoopMode,
+// isSpeedrunMode, isAICompanionMode, isWorkshopMode, isOnlineMode,
+// isOnlineHost, isOnlineGuest, isDailyMode, isWeeklyMode). Bare references
+// rewritten throughout game.js. DLC + leaf modules still read via window.X
+// — defineProperty bridges below route to runState.X.
 let _onlineFrame  = 0;      // frame counter for throttling network sends
 let _onlineEvents = [];     // event queue flushed with each host snapshot
 let coopP2HeroType = null;
@@ -657,7 +651,7 @@ function handleGamepadMenu() {
 
     // Determine which gamepad drives menu input
     let gpIndex = -1;
-    if (isCoopMode) {
+    if (runState.isCoopMode) {
         if (uiState === 'PAUSE' && window.pausedByGamepadIndex !== undefined && window.pausedByGamepadIndex !== -1) {
             gpIndex = window.pausedByGamepadIndex; // Pause menu → whoever paused
         } else if (uiState === 'LEVELUP' && window.levelingUpPlayer && window.levelingUpPlayer.controller && window.levelingUpPlayer.controller.gamepadIndex !== undefined) {
@@ -1111,13 +1105,13 @@ function handleGamepadMenu() {
 }
 
 function toggleCoopMode() {
-    isCoopMode = !isCoopMode;
-    window.isCoopMode = isCoopMode;
+    runState.isCoopMode = !runState.isCoopMode;
+    window.isCoopMode = runState.isCoopMode;
 
     const btn = document.getElementById('coop-mode-btn');
-    if (btn) btn.classList.toggle('active', isCoopMode);
+    if (btn) btn.classList.toggle('active', runState.isCoopMode);
 
-    if (isCoopMode) {
+    if (runState.isCoopMode) {
         const heroes = Object.keys(BASE_HERO_STATS).filter(h => h !== 'black' && (h !== 'love' || (saveData && saveData['love'] && saveData['love'].unlocked)));
         const p1Idx = heroes.indexOf(window.selectedHeroType || 'fire');
         coopP2MenuIndex = p1Idx === 0 ? 1 : 0;
@@ -1150,7 +1144,7 @@ function toggleCoopMode() {
     const restrictedBtns = ['btn-chaos-mode', 'btn-tutorial-mode', 'btn-evil-mode'];
     restrictedBtns.forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.classList.toggle('coop-disabled', isCoopMode);
+        if (el) el.classList.toggle('coop-disabled', runState.isCoopMode);
     });
 
     updateCoopUI();
@@ -1158,7 +1152,7 @@ function toggleCoopMode() {
 }
 
 function getCoopTarget(ex, ey) {
-    if (!(isCoopMode || isAICompanionMode) || !player2 || player2.isDead) return player;
+    if (!(runState.isCoopMode || runState.isAICompanionMode) || !player2 || player2.isDead) return player;
     if (player.isDead) return player2;
     const d1 = Math.hypot(player.x - ex, player.y - ey);
     const d2 = Math.hypot(player2.x - ex, player2.y - ey);
@@ -1240,7 +1234,7 @@ function updateCoopUI() {
     const bar = document.getElementById('coop-status-bar');
     if (!bar) return;
 
-    if (!isCoopMode) {
+    if (!runState.isCoopMode) {
         bar.style.display = 'none';
         const storyBtn = document.getElementById('btn-story-mode');
         if (storyBtn) storyBtn.classList.remove('coop-disabled');
@@ -1310,7 +1304,7 @@ function updateCoopUI() {
 }
 
 function handleCoopP2Gamepad() {
-    if (!isCoopMode || uiState !== 'MENU') return;
+    if (!runState.isCoopMode || uiState !== 'MENU') return;
     if (coopP2GamepadIndex === -1) return;
     if (coopP2HeroLocked) return; // Hero is fixed from saved co-op run
 
@@ -1371,7 +1365,7 @@ function handleCoopP2Gamepad() {
 
 window.addEventListener('gamepadconnected', e => {
     if (!window.isRealGamepad(e.gamepad)) return; // Ignore USB receivers / non-controller HID devices
-    if (isCoopMode) {
+    if (runState.isCoopMode) {
         if (coopP1GamepadIndex === -1) {
             coopP1GamepadIndex = e.gamepad.index;
         } else if (coopP2GamepadIndex === -1 && e.gamepad.index !== coopP1GamepadIndex) {
@@ -1385,10 +1379,10 @@ window.addEventListener('gamepadconnected', e => {
 window.addEventListener('gamepaddisconnected', e => {
     if (e.gamepad.index === coopP1GamepadIndex) {
         coopP1GamepadIndex = -1;
-        if (isCoopMode) updateCoopUI();
+        if (runState.isCoopMode) updateCoopUI();
     } else if (e.gamepad.index === coopP2GamepadIndex) {
         coopP2GamepadIndex = -1;
-        if (isCoopMode) updateCoopUI();
+        if (runState.isCoopMode) updateCoopUI();
     }
 });
 
@@ -1418,7 +1412,7 @@ function startTutorialGame() {
 }
 
 function startTestingGrounds() {
-    isTestingMode = true;
+    runState.isTestingMode = true;
     startGame('TESTING');
 }
 
@@ -1475,7 +1469,7 @@ async function startOnlineTestArena() {
 
         sub('GAME_START', msg => {
             cleanup();
-            isTestingMode = true;
+            runState.isTestingMode = true;
             if (typeof window.startOnlineGame === 'function') window.startOnlineGame(msg);
             setTimeout(() => showNotification('[TAB] Spawn Menu  [C] Clear All  — server simulation active'), 800);
         });
@@ -1514,12 +1508,12 @@ function startStoryGame() {
 }
 
 function startSpeedrunGame() {
-    if (isCoopMode || isOnlineMode) return; // solo only
+    if (runState.isCoopMode || runState.isOnlineMode) return; // solo only
     const hero = window.selectedHeroType || 'fire';
     if (!(window.isSpeedrunUnlocked && window.isSpeedrunUnlocked(hero))) return;
     if (!saveData.story) saveData.story = { unlockedChapters: [], enabled: true };
     saveData.story.enabled = true;
-    isSpeedrunMode = true;
+    runState.isSpeedrunMode = true;
     window.isSpeedrunMode = true;
     startGame('SPEEDRUN');
     _showSpeedrunHud(true);
@@ -1733,7 +1727,7 @@ function saveRunState() {
     if (!runState.gameRunning || runState.wave <= 0) return;
 
     let currentMode = 'NORMAL';
-    if (typeof isChaosShuffleMode !== 'undefined' && isChaosShuffleMode) currentMode = 'SHUFFLE';
+    if (typeof runState.isChaosShuffleMode !== 'undefined' && runState.isChaosShuffleMode) currentMode = 'SHUFFLE';
     else if (saveData.story && saveData.story.enabled) currentMode = 'STORY';
 
     const runState = {
@@ -1769,8 +1763,8 @@ function saveRunState() {
             critMultiplier: player.critMultiplier
         },
         companions: companions.map(c => ({ type: c.type })),
-        coopP2Type: isCoopMode && player2 ? player2.type : null,
-        player2: isCoopMode && player2 ? {
+        coopP2Type: runState.isCoopMode && player2 ? player2.type : null,
+        player2: runState.isCoopMode && player2 ? {
             type: player2.type,
             hp: player2.hp, maxHp: player2.maxHp,
             level: player2.level, xp: player2.xp, maxXp: player2.maxXp,
@@ -1857,7 +1851,7 @@ function continueRun() {
     saveData.story.enabled = (state.mode === 'STORY');
 
     // If this was a co-op save and co-op is currently active, lock P2's hero to the saved type
-    if (state.coopP2Type && isCoopMode) {
+    if (state.coopP2Type && runState.isCoopMode) {
         coopP2HeroType = state.coopP2Type;
         window.coopP2HeroType = coopP2HeroType;
         coopP2HeroLocked = true;
@@ -1916,7 +1910,7 @@ function continueRun() {
     if (window._world) window._world.companions = companions;
 
     // Restore P2 state when continuing a co-op story run
-    if (state.player2 && isCoopMode && player2 && player2.type === state.coopP2Type) {
+    if (state.player2 && runState.isCoopMode && player2 && player2.type === state.coopP2Type) {
         const p2s = state.player2;
         player2.hp = p2s.hp; player2.maxHp = p2s.maxHp;
         player2.level = p2s.level; player2.xp = p2s.xp; player2.maxXp = p2s.maxXp;
@@ -1960,9 +1954,9 @@ function startOnlineGame(msg) {
     const nm = window.networkManager;
 
     // Both clients are now symmetric guests — the server runs the simulation.
-    isOnlineMode  = true;
-    isOnlineHost  = false;  // no client hosts the simulation any more
-    isOnlineGuest = true;   // both receive snapshots and send inputs
+    runState.isOnlineMode  = true;
+    runState.isOnlineHost  = false;  // no client hosts the simulation any more
+    runState.isOnlineGuest = true;   // both receive snapshots and send inputs
     window.isOnlineMode  = true;
     window.isOnlineHost  = false;
     window.isOnlineGuest = true;
@@ -1978,11 +1972,11 @@ function startOnlineGame(msg) {
     const isVersusOnline = msg.mode === 'VERSUS';
 
     // Set co-op/versus flags
-    isCoopMode = !isVersusOnline;
-    window.isCoopMode = isCoopMode;
+    runState.isCoopMode = !isVersusOnline;
+    window.isCoopMode = runState.isCoopMode;
     if (isVersusOnline) {
         window.is2PlayerVersus = true;
-        isVersusMode = true;
+        runState.isVersusMode = true;
         window.isVersusMode = true;
     }
 
@@ -2020,18 +2014,18 @@ function startOnlineGame(msg) {
     }
 
     // Both clients handle server-pushed messages directly (no RELAY wrapper in-game)
-    nm.on('SNAPSHOT',        (s)  => { if (isOnlineMode) _onlineHandleSnapshot(s); });
-    nm.on('LEVEL_UP',        (ev) => { if (isOnlineMode) _onlineShowLevelUpForGuest(ev); });
-    nm.on('PARTNER_LEVELING',()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(true); });
-    nm.on('LEVEL_UP_DONE',   ()   => { if (isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
+    nm.on('SNAPSHOT',        (s)  => { if (runState.isOnlineMode) _onlineHandleSnapshot(s); });
+    nm.on('LEVEL_UP',        (ev) => { if (runState.isOnlineMode) _onlineShowLevelUpForGuest(ev); });
+    nm.on('PARTNER_LEVELING',()   => { if (runState.isOnlineMode) _onlineShowPartnerLevelingOverlay(true); });
+    nm.on('LEVEL_UP_DONE',   ()   => { if (runState.isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
 
     nm.on('PARTNER_RECONNECTING', (msg) => { if (runState.gameRunning) _onlineShowReconnectOverlay(true, msg.timeoutSec || 30); });
     nm.on('PARTNER_DISCONNECTED', () => { if (runState.gameRunning) _onlineShowReconnectOverlay(true, 0); });
     nm.on('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
-    nm.on('GAME_OVER', () => { if (isOnlineMode) gameOver(false); });
-    nm.on('STORY_CONTINUE', () => { if (isOnlineMode && isStoryOpen) _onlinePartnerContinueStory(); });
+    nm.on('GAME_OVER', () => { if (runState.isOnlineMode) gameOver(false); });
+    nm.on('STORY_CONTINUE', () => { if (runState.isOnlineMode && isStoryOpen) _onlinePartnerContinueStory(); });
     nm.on('MAZE_NODE_SELECTED', (msg) => {
-        if (!isOnlineMode) return;
+        if (!runState.isOnlineMode) return;
         // Close the read-only spectator maze UI
         if (window.mazeIsOpen && window.mazeUI) window.mazeUI.close();
         // Apply host's node selection so wave generation uses the correct enemy pool/modifiers
@@ -2054,9 +2048,9 @@ function startOnlineGame(msg) {
 window.startOnlineGame = startOnlineGame;
 
 function _onlineCleanup() {
-    isOnlineMode  = false;
-    isOnlineHost  = false;
-    isOnlineGuest = false;
+    runState.isOnlineMode  = false;
+    runState.isOnlineHost  = false;
+    runState.isOnlineGuest = false;
     window.isOnlineMode  = false;
     window.isOnlineHost  = false;
     window.isOnlineGuest = false;
@@ -2134,9 +2128,9 @@ function saveServerConfig() {
 window.saveServerConfig = saveServerConfig;
 
 function checkNewGame(mode) {
-    if (mode === 'SPEEDRUN' && (isCoopMode || isOnlineMode)) return; // solo only
-    if (isCoopMode && mode !== 'STANDARD' && mode !== 'STORY' && mode !== 'DAILY' && mode !== 'WEEKLY') return; // co-op supports Standard, Story, Daily, Weekly
-    if (isCoopMode && coopP2GamepadIndex === -1) return; // P2 controller not yet connected
+    if (mode === 'SPEEDRUN' && (runState.isCoopMode || runState.isOnlineMode)) return; // solo only
+    if (runState.isCoopMode && mode !== 'STANDARD' && mode !== 'STORY' && mode !== 'DAILY' && mode !== 'WEEKLY') return; // co-op supports Standard, Story, Daily, Weekly
+    if (runState.isCoopMode && coopP2GamepadIndex === -1) return; // P2 controller not yet connected
     if (saveData.savedRun) {
         pendingGameMode = mode;
         document.getElementById('confirm-dialog').style.display = 'flex';
@@ -2171,7 +2165,7 @@ function closeConfirmDialog() {
 
 function quitGame() {
     clearSavedRun();
-    if (isOnlineMode) {
+    if (runState.isOnlineMode) {
         // quit=true: clears nm.lobbyCode so partner can't RETURN_TO_LOBBY to quitter
         window.networkManager?.signalGameOver(true);
         window.networkManager?.leaveLobby(); // clean up lobby on server immediately
@@ -2223,11 +2217,11 @@ function _resetGameState() {
     // Reset online interpolation state so a new session starts with a fresh clock-offset lock
     _onlineClockOffset = null;
     runState.gameRunning = false;
-    isTutorialMode = false;
-    isTestingMode = false;
-    isCoopMode = false;
+    runState.isTutorialMode = false;
+    runState.isTestingMode = false;
+    runState.isCoopMode = false;
     window.isCoopMode = false;
-    isAICompanionMode = false;
+    runState.isAICompanionMode = false;
     window.isAICompanionMode = false;
     coopP2HeroType = null;
     window.coopP2HeroType = null;
@@ -2357,7 +2351,7 @@ Object.defineProperties(window, {
     isLevelingUp:        { get: () => runState.isLevelingUp,        set: v => { runState.isLevelingUp        = v; }, configurable: true, enumerable: true },
     isShopping:          { get: () => runState.isShopping,          set: v => { runState.isShopping          = v; }, configurable: true, enumerable: true },
     gamePaused:          { get: () => runState.gamePaused,          set: v => { runState.gamePaused          = v; }, configurable: true, enumerable: true },
-    isTutorialMode:      { get: () => isTutorialMode,      set: v => { isTutorialMode      = v; }, configurable: true, enumerable: true },
+    isTutorialMode:      { get: () => runState.isTutorialMode,      set: v => { runState.isTutorialMode      = v; }, configurable: true, enumerable: true },
     // #194 follow-up — these are re-assigned at multiple sites in game.js
     // (`activeMutators = getDailyMutators()`, `weatherParticles = []`,
     // `currentWeather = pickWeather()`, etc.) so a one-time write would go
@@ -2370,9 +2364,19 @@ Object.defineProperties(window, {
     currentObjective:    { get: () => currentObjective,    set: v => { currentObjective    = v; }, configurable: true, enumerable: true },
     currentBiomeType:    { get: () => currentBiomeType,    set: v => { currentBiomeType    = v; }, configurable: true, enumerable: true },
     currentRunStats:     { get: () => currentRunStats,     set: v => { currentRunStats     = v; }, configurable: true, enumerable: true },
-    isChaosShuffleMode:  { get: () => isChaosShuffleMode,  set: v => { isChaosShuffleMode  = v; }, configurable: true, enumerable: true },
-    isEvilMode:          { get: () => isEvilMode,          set: v => { isEvilMode          = v; }, configurable: true, enumerable: true },
-    isOnlineMode:        { get: () => isOnlineMode,        set: v => { isOnlineMode        = v; }, configurable: true, enumerable: true },
+    isChaosShuffleMode:  { get: () => runState.isChaosShuffleMode,  set: v => { runState.isChaosShuffleMode  = v; }, configurable: true, enumerable: true },
+    isEvilMode:          { get: () => runState.isEvilMode,          set: v => { runState.isEvilMode          = v; }, configurable: true, enumerable: true },
+    isOnlineMode:        { get: () => runState.isOnlineMode,        set: v => { runState.isOnlineMode        = v; }, configurable: true, enumerable: true },
+    // #11 phase 4 — mode flag bridges (DLC + leaf modules read these via
+    // bare-name global lookup or `window.X` / `globalThis.X`).
+    isCoopMode:          { get: () => runState.isCoopMode,          set: v => { runState.isCoopMode          = v; }, configurable: true, enumerable: true },
+    isAICompanionMode:   { get: () => runState.isAICompanionMode,   set: v => { runState.isAICompanionMode   = v; }, configurable: true, enumerable: true },
+    isOnlineHost:        { get: () => runState.isOnlineHost,        set: v => { runState.isOnlineHost        = v; }, configurable: true, enumerable: true },
+    isOnlineGuest:       { get: () => runState.isOnlineGuest,       set: v => { runState.isOnlineGuest       = v; }, configurable: true, enumerable: true },
+    isVersusMode:        { get: () => runState.isVersusMode,        set: v => { runState.isVersusMode        = v; }, configurable: true, enumerable: true },
+    isWorkshopMode:      { get: () => runState.isWorkshopMode,      set: v => { runState.isWorkshopMode      = v; }, configurable: true, enumerable: true },
+    isTestingMode:       { get: () => runState.isTestingMode,       set: v => { runState.isTestingMode       = v; }, configurable: true, enumerable: true },
+    isSpeedrunMode:      { get: () => runState.isSpeedrunMode,      set: v => { runState.isSpeedrunMode      = v; }, configurable: true, enumerable: true },
     gameRunning:         { get: () => runState.gameRunning,         set: v => { runState.gameRunning         = v; }, configurable: true, enumerable: true },
     isStoryOpen:         { get: () => isStoryOpen,         set: v => { isStoryOpen         = v; }, configurable: true, enumerable: true },
     // #173 phase 10 — additional mirrors so `core/drawGameplayPost.js`
@@ -2640,7 +2644,7 @@ inputManager.onKeyDown = e => {
         }
 
         // Testing Grounds controls
-        if (isTestingMode && runState.gameRunning && !runState.isLevelingUp) {
+        if (runState.isTestingMode && runState.gameRunning && !runState.isLevelingUp) {
             if (e.code === 'Tab') {
                 e.preventDefault();
                 TestingGrounds.toggleSpawnMenu();
@@ -2841,7 +2845,7 @@ function showNotification(text, type = 'info') {
 
 // --- Daily Challenge Logic ---
 let activeMutators = [];
-let isDailyMode = false;
+// isDailyMode migrated to runState (#11 phase 4).
 let forcedEnemyType = null;
 
 function getDailySeed() {
@@ -2880,7 +2884,7 @@ if (typeof window !== 'undefined') {
     window.clearSeededRng = clearSeededRng;
 }
 
-let isWeeklyMode = false;
+// isWeeklyMode migrated to runState (#11 phase 4).
 
 function getWeeklySeed() {
     const now = new Date();
@@ -2924,8 +2928,8 @@ function startWeeklyChallenge() {
     }
 
     activeMutators = getWeeklyMutators();
-    isWeeklyMode = true;
-    isDailyMode = false;
+    runState.isWeeklyMode = true;
+    runState.isDailyMode = false;
 
     const title = document.querySelector('#daily-info-modal h1');
     if (title) title.innerText = "WEEKLY CHALLENGE";
@@ -2959,8 +2963,8 @@ function startDailyChallenge() {
     }
 
     activeMutators = getDailyMutators();
-    isDailyMode = true;
-    isWeeklyMode = false;
+    runState.isDailyMode = true;
+    runState.isWeeklyMode = false;
 
     const title = document.querySelector('#daily-info-modal h1');
     if (title) title.innerText = "DAILY CHALLENGE";
@@ -3309,7 +3313,7 @@ function updateUI() {
     }
 
     // Co-op / AI companion: P2 HUD
-    if ((isCoopMode || isAICompanionMode) && player2) {
+    if ((runState.isCoopMode || runState.isAICompanionMode) && player2) {
         const p2hud = document.getElementById('p2-hud');
         if (p2hud) {
             p2hud.style.display = player2.isDead ? 'none' : 'flex';
@@ -3385,7 +3389,7 @@ function chooseUpgrade(type) {
     document.getElementById('levelup-screen').style.display = 'none';
 
     // Co-op / AI companion: dequeue P2 level-up if pending
-    if ((isCoopMode || isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
+    if ((runState.isCoopMode || runState.isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
         p2LevelUpPending = false;
         runState.isLevelingUp = true;
         window.levelingUpPlayer = window.player2;
@@ -3400,7 +3404,7 @@ function chooseUpgrade(type) {
 // Called by LevelUpUI after any upgrade is chosen — handles P2 dequeue
 window._afterUpgradeChosen = function () {
     window.levelingUpPlayer = null;
-    if ((isCoopMode || isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
+    if ((runState.isCoopMode || runState.isAICompanionMode) && p2LevelUpPending && window.player2 && window.levelUpUI) {
         p2LevelUpPending = false;
         runState.isLevelingUp = true;
         window.levelingUpPlayer = window.player2;
@@ -3435,7 +3439,7 @@ function _showSpeedrunHud(show) {
 }
 
 function _updateSpeedrunHud() {
-    if (!isSpeedrunMode || !runState.gameRunning) return;
+    if (!runState.isSpeedrunMode || !runState.gameRunning) return;
     const timerEl = document.getElementById('speedrun-timer');
     if (!timerEl) return;
     const start = (currentRunStats && currentRunStats.startTime) || Date.now();
@@ -3453,7 +3457,7 @@ function _updateSpeedrunHud() {
 // Record a split and flash the delta in the HUD. Called from advanceWave for
 // every 10-wave boundary, and from _finishStoryEvent for the final win wave.
 function _recordSpeedrunSplit(forWave) {
-    if (!isSpeedrunMode || !currentRunStats) return;
+    if (!runState.isSpeedrunMode || !currentRunStats) return;
     const start = currentRunStats.startTime || Date.now();
     const elapsed = (Date.now() - start) / 1000;
     const splits = currentRunStats.splits || (currentRunStats.splits = []);
@@ -3473,7 +3477,7 @@ function _recordSpeedrunSplit(forWave) {
 // --- Story Logic ---
 function triggerStory(completedWave) {
     // Evil Mode has its own story pipeline
-    if (isEvilMode && typeof EvilMode !== 'undefined') {
+    if (runState.isEvilMode && typeof EvilMode !== 'undefined') {
         const nextWave = completedWave + 1;
         const evilStory = EvilMode.getStoryForWave(nextWave);
         if (evilStory) {
@@ -3487,7 +3491,7 @@ function triggerStory(completedWave) {
     }
 
     // Check if story mode is enabled or if it's daily/weekly mode
-    if ((saveData.story && saveData.story.enabled === false) || isDailyMode || isWeeklyMode) {
+    if ((saveData.story && saveData.story.enabled === false) || runState.isDailyMode || runState.isWeeklyMode) {
         // Skip story
         if (runState.wave % 4 === 0) {
             openShop();
@@ -3499,12 +3503,12 @@ function triggerStory(completedWave) {
 
     // Maze of Time: intercept for Time/Love hero in story mode.
     // In online mode use the host hero (_onlineStoryHero) so both clients trigger together.
-    const _mazeTriggerHero = (isOnlineMode && window._onlineStoryHero)
+    const _mazeTriggerHero = (runState.isOnlineMode && window._onlineStoryHero)
         ? window._onlineStoryHero : (player && player.type);
     if ((_mazeTriggerHero === 'time' || _mazeTriggerHero === 'love') &&
         window.MazeUI && window.MazeOfTime) {
         // Only the host (or single-player) manages localStorage maze progress
-        const _mazeIsHost = !isOnlineMode || window.networkManager?.isHost();
+        const _mazeIsHost = !runState.isOnlineMode || window.networkManager?.isHost();
         if (completedWave === 0) {
             window.mazeCurrentNode = null;
             window.mazeCurrentNodeId = null;
@@ -3515,7 +3519,7 @@ function triggerStory(completedWave) {
         }
 
         // Online guest: open read-only map and wait for MAZE_NODE_SELECTED relay
-        if (isOnlineMode && !window.networkManager?.isHost()) {
+        if (runState.isOnlineMode && !window.networkManager?.isHost()) {
             window.mazeUI.open(_mazeTriggerHero, null, true);
             return;
         }
@@ -3533,7 +3537,7 @@ function triggerStory(completedWave) {
 
     // Pass player type (uppercase) to get specific story events.
     // In online mode the guest runs the host's hero story so both see the same narrative.
-    const heroType = (isOnlineGuest && window._onlineStoryHero)
+    const heroType = (runState.isOnlineGuest && window._onlineStoryHero)
         ? window._onlineStoryHero.toUpperCase()
         : (player ? player.type.toUpperCase() : 'ALL');
     const nextWave = completedWave + 1;
@@ -3598,7 +3602,7 @@ function openStory(story) {
     // Speedrun fast-path: skip the modal + audio entirely. Mechanics (boss spawn,
     // companion join, wave overrides, hero swap, THE_END victory, shop/advance)
     // are owned by _finishStoryEvent + the wave generator that runs after.
-    if (isSpeedrunMode && story && !story.fromTutorial) {
+    if (runState.isSpeedrunMode && story && !story.fromTutorial) {
         currentStoryEvent = story;
         if (saveData.story && Array.isArray(saveData.story.unlockedChapters) &&
             !saveData.story.unlockedChapters.includes(story.id)) {
@@ -3690,7 +3694,7 @@ function openStory(story) {
     } else {
         continueBtn.style.display = 'block';
         continueBtn.textContent = 'CONTINUE →';
-        continueBtn.onclick = isOnlineMode ? _onlineLocalStoryContinue : closeStory;
+        continueBtn.onclick = runState.isOnlineMode ? _onlineLocalStoryContinue : closeStory;
     }
 
     setUIState('STORY');
@@ -3730,7 +3734,7 @@ function _finishStoryEvent(event) {
     if (event && event.type === 'THE_END') {
         // Speedrun: push the final split before gameOver clears the flag so the
         // splits array always ends with the win wave (base 101, DLC 51, etc.).
-        if (isSpeedrunMode) {
+        if (runState.isSpeedrunMode) {
             const splits = currentRunStats && currentRunStats.splits;
             const lastWave = splits && splits.length ? splits[splits.length - 1].wave : 0;
             if (lastWave !== runState.wave) _recordSpeedrunSplit(runState.wave);
@@ -3741,7 +3745,7 @@ function _finishStoryEvent(event) {
 
     // Force Hero Swap to match Narrative (Generic Logic for Chaos/Fortune/etc)
     // Skip in Evil Mode — villain hero is managed exclusively by EvilMode.setupWave()
-    if (!isEvilMode && event && event.hero) {
+    if (!runState.isEvilMode && event && event.hero) {
         const requiredHero = event.hero.toLowerCase();
         if (requiredHero !== 'all' && player.type !== requiredHero) {
             changeHeroInGame(requiredHero);
@@ -3752,7 +3756,7 @@ function _finishStoryEvent(event) {
     // Special case: If wave is 0 (Intro), always advance to Wave 1
     // Maze node events skip the shop entirely — the maze has its own reward flow
     const _isMazeEvent = event && event.id && event.id.startsWith('maze_');
-    if (runState.wave === 0 || isTutorialMode || isEvilMode) {
+    if (runState.wave === 0 || runState.isTutorialMode || runState.isEvilMode) {
         advanceWave();
     } else if (!_isMazeEvent && runState.wave % 4 === 0) {
         openShop();
@@ -3829,9 +3833,9 @@ let currentObjective = null;
 // Second batch of bidirectional window bindings — declared after the first block.
 // Same getter/setter pattern: DLC reads see live values; DLC writes propagate back.
 Object.defineProperties(window, {
-    isChaosShuffleMode:  { get: () => isChaosShuffleMode,  set: v => { isChaosShuffleMode  = v; }, configurable: true, enumerable: true },
-    isDailyMode:         { get: () => isDailyMode,         set: v => { isDailyMode         = v; }, configurable: true, enumerable: true },
-    isWeeklyMode:        { get: () => isWeeklyMode,        set: v => { isWeeklyMode        = v; }, configurable: true, enumerable: true },
+    isChaosShuffleMode:  { get: () => runState.isChaosShuffleMode,  set: v => { runState.isChaosShuffleMode  = v; }, configurable: true, enumerable: true },
+    isDailyMode:         { get: () => runState.isDailyMode,         set: v => { runState.isDailyMode         = v; }, configurable: true, enumerable: true },
+    isWeeklyMode:        { get: () => runState.isWeeklyMode,        set: v => { runState.isWeeklyMode        = v; }, configurable: true, enumerable: true },
     currentWeather:      { get: () => currentWeather,      set: v => { currentWeather      = v; }, configurable: true, enumerable: true },
     currentObjective:    { get: () => currentObjective,    set: v => { currentObjective    = v; }, configurable: true, enumerable: true },
     activeMutators:      { get: () => activeMutators,      set: v => { activeMutators      = v; }, configurable: true, enumerable: true },
@@ -3983,7 +3987,7 @@ function shuffleHero(targetHeroType = null) {
 }
 
 function advanceWave() {
-    if (isTestingMode) return; // Testing Grounds: no wave progression
+    if (runState.isTestingMode) return; // Testing Grounds: no wave progression
 
     // Telemetry (#98) — fire wave_completed for the wave that was just cleared.
     // Skip the initial transition (wave 0 → 1) since no wave was actually played.
@@ -3992,7 +3996,7 @@ function advanceWave() {
             const startMs = currentRunStats?.startTime || 0;
             window.TelemetryManager?.track('wave_completed', {
                 hero:    player?.type || null,
-                mode:    isDailyMode ? 'daily' : isWeeklyMode ? 'weekly' : isVersusMode ? 'versus' : isEvilMode ? 'evil' : isSpeedrunMode ? 'speedrun' : isTutorialMode ? 'tutorial' : 'normal',
+                mode:    runState.isDailyMode ? 'daily' : runState.isWeeklyMode ? 'weekly' : runState.isVersusMode ? 'versus' : runState.isEvilMode ? 'evil' : runState.isSpeedrunMode ? 'speedrun' : runState.isTutorialMode ? 'tutorial' : 'normal',
                 biome:   currentBiomeType || null,
                 wave:    runState.wave,
                 timeSec: startMs ? Math.floor((Date.now() - startMs) / 1000) : null,
@@ -4013,7 +4017,7 @@ function advanceWave() {
     currentRunStats._noHitBaseline = currentRunStats.damageTaken;
 
     // Workshop: end game when configured wave count is reached
-    if (isWorkshopMode && window.pendingCustomMap?.waveConfig?.waveCount > 0) {
+    if (runState.isWorkshopMode && window.pendingCustomMap?.waveConfig?.waveCount > 0) {
         if (runState.wave >= window.pendingCustomMap.waveConfig.waveCount) {
             gameOver(true);
             return;
@@ -4024,7 +4028,7 @@ function advanceWave() {
     // Speedrun split: a wave is "cleared" the moment advanceWave runs for the
     // next one. Record on every 10-wave boundary; the final win-wave split is
     // pushed by _finishStoryEvent when THE_END fires.
-    if (isSpeedrunMode) {
+    if (runState.isSpeedrunMode) {
         const justCleared = runState.wave - 1;
         if (justCleared > 0 && justCleared % 10 === 0) {
             _recordSpeedrunSplit(justCleared);
@@ -4041,7 +4045,7 @@ function advanceWave() {
     if (window.MazeOfTime) window.MazeOfTime.clearEnemyPool();
 
     // Co-op / AI companion: revive dead player at wave start (they died before the final enemy)
-    if (isCoopMode || isAICompanionMode) {
+    if (runState.isCoopMode || runState.isAICompanionMode) {
         if (player.isDead) {
             player.isDead = false;
             player.hp = Math.floor(player.maxHp * 0.5);
@@ -4058,10 +4062,10 @@ function advanceWave() {
         }
     }
 
-    if (isTutorialMode) TutorialMode.startObjective();
+    if (runState.isTutorialMode) TutorialMode.startObjective();
 
     // CHAOS GAMBLE
-    if (isChaosShuffleMode && runState.wave > 1) {
+    if (runState.isChaosShuffleMode && runState.wave > 1) {
         openChaosGamble(); // Pause & Wait
     } else {
         resumeWaveGeneration();
@@ -4071,7 +4075,7 @@ function advanceWave() {
 function resumeWaveGeneration() {
     // True Golden Mask Spawn (Wave 90 Narrative Event) - STORY MODE ONLY
     const isStoryMode = (saveData.story && saveData.story.enabled !== false) &&
-        !isDailyMode && !isWeeklyMode && !isChaosShuffleMode && !isVersusMode;
+        !runState.isDailyMode && !runState.isWeeklyMode && !runState.isChaosShuffleMode && !runState.isVersusMode;
 
     if (isStoryMode && runState.wave === 90) {
         // Spawn in center
@@ -4080,28 +4084,28 @@ function resumeWaveGeneration() {
         createExplosion(arena.width / 2, arena.height / 2, '#f1c40f');
     }
 
-    if (isChaosShuffleMode && runState.wave > 0) generateChaosObjective();
+    if (runState.isChaosShuffleMode && runState.wave > 0) generateChaosObjective();
 
     // Evil Mode — delegate entirely to EvilMode.setupWave; skip all normal spawning
-    if (isEvilMode && typeof EvilMode !== 'undefined') {
+    if (runState.isEvilMode && typeof EvilMode !== 'undefined') {
         setUIState('GAME'); // Must set before early return — normal path sets it at the end
         EvilMode.setupWave(runState.wave);
         return;
     }
 
     // Randomize Biome (Skip in Versus Mode) — biome-pool & roll moved to Wave.js.
-    if (!isVersusMode && !isWorkshopMode) {
-        const isStoryRun = (saveData.story && saveData.story.enabled !== false) && !isDailyMode && !isWeeklyMode;
+    if (!runState.isVersusMode && !runState.isWorkshopMode) {
+        const isStoryRun = (saveData.story && saveData.story.enabled !== false) && !runState.isDailyMode && !runState.isWeeklyMode;
         const heroType = (player && player.type) || 'fire';
         const types = buildBiomePool(isStoryRun, heroType);
 
         if (runState.wave === 1 && player && player.type !== 'black') {
-            currentBiomeType = (isOnlineMode && window._onlineStoryHero)
+            currentBiomeType = (runState.isOnlineMode && window._onlineStoryHero)
                 ? window._onlineStoryHero : player.type;
         } else if (currentStoryEvent && currentStoryEvent.data && currentStoryEvent.data.biome) {
             currentBiomeType = currentStoryEvent.data.biome === 'HERO'
                 ? player.type : currentStoryEvent.data.biome;
-        } else if (isOnlineMode && window._onlineBiomeSeed !== undefined) {
+        } else if (runState.isOnlineMode && window._onlineBiomeSeed !== undefined) {
             currentBiomeType = pickSeededBiome(runState.wave, window._onlineBiomeSeed);
         } else {
             currentBiomeType = pickRandomBiome(types);
@@ -4142,7 +4146,7 @@ function resumeWaveGeneration() {
     }
 
     // Default Makuta check (Wave.js helper)
-    if (!storyBossId && isStoryBossWave(runState.wave, saveData, { isDailyMode, isWeeklyMode })) {
+    if (!storyBossId && isStoryBossWave(runState.wave, saveData, { isDailyMode: runState.isDailyMode, isWeeklyMode: runState.isWeeklyMode })) {
         storyBossId = 'MAKUTA';
     }
 
@@ -4190,7 +4194,7 @@ function resumeWaveGeneration() {
     // Online: temporarily replace Math.random with a seeded PRNG so both clients
     // generate identical arena layouts for the same wave + lobby code.
     let _savedRandom = null;
-    if (isOnlineMode && window._onlineBiomeSeed !== undefined) {
+    if (runState.isOnlineMode && window._onlineBiomeSeed !== undefined) {
         let _ms = ((runState.wave * 2654435761) ^ (window._onlineBiomeSeed * 1664525)) >>> 0;
         _savedRandom = Math.random;
         Math.random = function() {
@@ -4201,13 +4205,13 @@ function resumeWaveGeneration() {
         };
     }
 
-    if (isWorkshopMode && window.pendingCustomMap) {
+    if (runState.isWorkshopMode && window.pendingCustomMap) {
         arena.generateFromMap(window.pendingCustomMap);
     } else {
         arena.generate(currentBiomeType, layoutOverride, trapOverride);
 
         // Versus Mode Override: Force 1v1 Layout if somehow called here
-        if (isVersusMode) {
+        if (runState.isVersusMode) {
             arena.generate(currentBiomeType, 'VERSUS_1V1');
         }
     }
@@ -4216,7 +4220,7 @@ function resumeWaveGeneration() {
 
     // Reset Player Position to Center
     if (player) {
-        if (isVersusMode) {
+        if (runState.isVersusMode) {
             player.x = arena.width / 2 - 800; // Left Spawn
             player.y = arena.height / 2;
 
@@ -4240,7 +4244,7 @@ function resumeWaveGeneration() {
     }
 
     // Story Mode Companion Spawning
-    if (currentStoryEvent && currentStoryEvent.type === 'COMPANION_JOIN' && !isCoopMode) {
+    if (currentStoryEvent && currentStoryEvent.type === 'COMPANION_JOIN' && !runState.isCoopMode) {
         const _evData = currentStoryEvent.data;
 
         if (_evData && _evData.companionType && typeof CompanionAIController !== 'undefined') {
@@ -4275,7 +4279,7 @@ function resumeWaveGeneration() {
             window.player2 = player2;
             p1RevivalMarker = null;
             p2RevivalMarker = null;
-            isAICompanionMode = true;
+            runState.isAICompanionMode = true;
             window.isAICompanionMode = true;
 
             showNotification(`${compType.toUpperCase()} ALLY JOINED!`);
@@ -4458,23 +4462,23 @@ async function startGame(mode = 'NORMAL') {
     arena = new Arena(3000, 3000);
     window.arena = arena; // Expose to window for DLCs
 
-    isChaosShuffleMode = (mode === 'SHUFFLE');
-    isVersusMode = (mode === 'VERSUS');
-    isTutorialMode = (mode === 'TUTORIAL');
-    isEvilMode = (mode === 'EVIL');
-    isWorkshopMode = (mode === 'WORKSHOP');
+    runState.isChaosShuffleMode = (mode === 'SHUFFLE');
+    runState.isVersusMode = (mode === 'VERSUS');
+    runState.isTutorialMode = (mode === 'TUTORIAL');
+    runState.isEvilMode = (mode === 'EVIL');
+    runState.isWorkshopMode = (mode === 'WORKSHOP');
     // Clear custom map state on any non-workshop start so stale data never leaks in
-    if (!isWorkshopMode) { window.pendingCustomMap = null; window.currentCustomMapId = null; }
-    window._customEnemiesPerWave = (isWorkshopMode && window.pendingCustomMap?.waveConfig?.enemiesPerWave)
+    if (!runState.isWorkshopMode) { window.pendingCustomMap = null; window.currentCustomMapId = null; }
+    window._customEnemiesPerWave = (runState.isWorkshopMode && window.pendingCustomMap?.waveConfig?.enemiesPerWave)
         ? window.pendingCustomMap.waveConfig.enemiesPerWave : null;
     // Speedrun flag is owned by startSpeedrunGame() (set before this runs).
     // Defend against stale state from a prior run: clear it for any non-SPEEDRUN
     // entry path and force solo when SPEEDRUN.
     if (mode !== 'SPEEDRUN') {
-        isSpeedrunMode = false;
+        runState.isSpeedrunMode = false;
         window.isSpeedrunMode = false;
     } else {
-        isCoopMode = false;
+        runState.isCoopMode = false;
         window.isCoopMode = false;
     }
 
@@ -4484,14 +4488,14 @@ async function startGame(mode = 'NORMAL') {
     if (mode === 'DAILY')      initSeededRng(getDailySeed());
     else if (mode === 'WEEKLY') initSeededRng(getWeeklySeed());
     else                        clearSeededRng();
-    if (isEvilMode && typeof EvilMode !== 'undefined') EvilMode.start();
+    if (runState.isEvilMode && typeof EvilMode !== 'undefined') EvilMode.start();
 
     // Always reset the chaos HUD so "CHALLENGE FAILED" text from a previous run never bleeds in
     const _chaosHud = document.getElementById('chaos-challenge-hud');
     if (_chaosHud) { _chaosHud.style.display = 'none'; _chaosHud.innerHTML = ''; }
 
     // Handle Versus Biome Selection
-    if (isVersusMode && window.selectedBiome) {
+    if (runState.isVersusMode && window.selectedBiome) {
         if (window.selectedBiome === 'random') {
             const biomes = ['fire', 'water', 'ice', 'plant', 'metal', 'rock', 'cloud', 'chaos'];
             currentBiomeType = biomes[Math.floor(Math.random() * biomes.length)];
@@ -4505,12 +4509,12 @@ async function startGame(mode = 'NORMAL') {
     }
 
     // Evil Mode: force Green Goblin as starting hero
-    if (isEvilMode) {
+    if (runState.isEvilMode) {
         currentBiomeType = 'fire'; // wave 1 biome; EvilMode.setupWave will override per wave
     }
 
     // Workshop Mode: apply custom map data and override biome
-    if (isWorkshopMode && window.pendingCustomMap) {
+    if (runState.isWorkshopMode && window.pendingCustomMap) {
         arena.generateFromMap(window.pendingCustomMap);
         currentBiomeType = window.pendingCustomMap.biomeType || currentBiomeType;
     }
@@ -4520,7 +4524,7 @@ async function startGame(mode = 'NORMAL') {
     if ((mode === 'DAILY' || mode === 'WEEKLY') && activeMutators.some(m => m.id === 'SHADOW_FORM')) {
         heroType = 'black';
         // In co-op, P2 also plays as black
-        if (isCoopMode) {
+        if (runState.isCoopMode) {
             coopP2HeroType = 'black';
             window.coopP2HeroType = 'black';
         }
@@ -4530,7 +4534,7 @@ async function startGame(mode = 'NORMAL') {
     // "Shuffles the current hero... Result in shuffling the 5 main game heroes... and DLC"
     // Let's start with the selected hero, then shuffle next wave.
 
-    if (isEvilMode) heroType = 'green_goblin';
+    if (runState.isEvilMode) heroType = 'green_goblin';
     player = new Player(heroType);
     window.player = player;
     // Center Player in Arena
@@ -4552,11 +4556,11 @@ async function startGame(mode = 'NORMAL') {
     // Clear old AI / Additional Players from previous runs
     if (typeof window.additionalPlayers !== 'undefined') window.additionalPlayers = [];
 
-    if (isVersusMode) {
+    if (runState.isVersusMode) {
         if (window.is2PlayerVersus) {
             // 2P Human vs Human: activate co-op so the block below spawns P2 with gamepad.
             window.is2PlayerVersus = false;
-            isCoopMode = true;
+            runState.isCoopMode = true;
             window.isCoopMode = true;
             waveTimer = 999999;
             const p2Hero = (coopP2HeroType || 'water').toUpperCase();
@@ -4585,8 +4589,8 @@ async function startGame(mode = 'NORMAL') {
         }
     }
 
-    if (isCoopMode && (CoopGamepadController || isOnlineMode)) {
-        if (!isOnlineMode) {
+    if (runState.isCoopMode && (CoopGamepadController || runState.isOnlineMode)) {
+        if (!runState.isOnlineMode) {
             // Local co-op: P1 uses dedicated gamepad
             player.controller = new CoopGamepadController(coopP1GamepadIndex);
         }
@@ -4598,7 +4602,7 @@ async function startGame(mode = 'NORMAL') {
         player2 = new Player(coopP2HeroType || 'water');
         if (window._world) { window._world.player2 = player2; player2._world = window._world; }
 
-        if (isOnlineMode) {
+        if (runState.isOnlineMode) {
             // P2 is a ghost — no controller, positions come from server snapshots
             player2.controller = null;
             player2._ghost = true;
@@ -4617,7 +4621,7 @@ async function startGame(mode = 'NORMAL') {
             _p1IconEl.innerText = _p1IconTxt;
         }
 
-        player2.x = isVersusMode ? arena.width / 2 + 800 : arena.width / 2 + 100;
+        player2.x = runState.isVersusMode ? arena.width / 2 + 800 : arena.width / 2 + 100;
         player2.y = arena.height / 2;
         player2.isDead = false;
         window.player2 = player2;
@@ -4685,12 +4689,12 @@ async function startGame(mode = 'NORMAL') {
         _w.gamePaused   = false;
         _w.isLevelingUp = false;
         _w.isShopping   = false;
-        _w.isCoopMode        = isCoopMode;
-        _w.isAICompanionMode = isAICompanionMode;
-        _w.isEvilMode        = isEvilMode;
-        _w.isVersusMode      = isVersusMode;
-        _w.isOnlineMode      = isOnlineMode;
-        _w.isOnlineGuest     = isOnlineGuest;
+        _w.isCoopMode        = runState.isCoopMode;
+        _w.isAICompanionMode = runState.isAICompanionMode;
+        _w.isEvilMode        = runState.isEvilMode;
+        _w.isVersusMode      = runState.isVersusMode;
+        _w.isOnlineMode      = runState.isOnlineMode;
+        _w.isOnlineGuest     = runState.isOnlineGuest;
         _w.arena  = arena;    // created before array resets above
         _w.player = player;   // created before array resets above
         // player2 is set later in this function (co-op branch); synced there
@@ -4723,8 +4727,8 @@ async function startGame(mode = 'NORMAL') {
 
     // Mode Handling
     if (mode === 'NORMAL') {
-        isDailyMode = false;
-        isWeeklyMode = false;
+        runState.isDailyMode = false;
+        runState.isWeeklyMode = false;
         activeMutators = [];
 
         // Trigger Story Intro if enabled
@@ -4735,8 +4739,8 @@ async function startGame(mode = 'NORMAL') {
     }
 
     if (mode === 'TUTORIAL') {
-        isDailyMode = false;
-        isWeeklyMode = false;
+        runState.isDailyMode = false;
+        runState.isWeeklyMode = false;
         activeMutators = [];
         TutorialMode.init();
         return;
@@ -4748,8 +4752,8 @@ async function startGame(mode = 'NORMAL') {
     }
 
     if (mode === 'TESTING') {
-        isDailyMode = false;
-        isWeeklyMode = false;
+        runState.isDailyMode = false;
+        runState.isWeeklyMode = false;
         activeMutators = [];
         runState.wave = 1;
         currentBiomeType = selectedHeroType === 'black' ? 'chaos' : selectedHeroType;
@@ -4763,7 +4767,7 @@ async function startGame(mode = 'NORMAL') {
     // Daily/Weekly mode is set in startDailyChallenge/startWeeklyChallenge
 
     // Apply Mutators (Initial)
-    if (isDailyMode || isWeeklyMode) {
+    if (runState.isDailyMode || runState.isWeeklyMode) {
         if (activeMutators.some(m => m.id === 'FRAGILE')) {
             player.maxHp = 1;
             player.hp = 1;
@@ -4775,7 +4779,7 @@ async function startGame(mode = 'NORMAL') {
         }
         if (activeMutators.some(m => m.id === 'ONE_TYPE')) {
             // Deterministic selection based on seed
-            const seed = isWeeklyMode ? getWeeklySeed() : getDailySeed();
+            const seed = runState.isWeeklyMode ? getWeeklySeed() : getDailySeed();
             const rand = Math.sin(seed + 999) * 10000;
             const index = Math.floor((rand - Math.floor(rand)) * ENEMY_TYPES.length);
             forcedEnemyType = ENEMY_TYPES[index];
@@ -4791,7 +4795,7 @@ async function startGame(mode = 'NORMAL') {
             hero:      player?.type || window.selectedHeroType || null,
             mode:      String(mode || 'NORMAL').toLowerCase(),
             biome:     currentBiomeType || null,
-            dailySeed: isDailyMode ? getDailySeed() : (isWeeklyMode ? getWeeklySeed() : null),
+            dailySeed: runState.isDailyMode ? getDailySeed() : (runState.isWeeklyMode ? getWeeklySeed() : null),
         });
     } catch (_) { /* never let telemetry break a run start */ }
 
@@ -4801,9 +4805,9 @@ async function startGame(mode = 'NORMAL') {
 
 function gameOver(isVictory = false) {
     // Capture before any resets so the Play Again button can reference it
-    const wasEvilMode   = isEvilMode;
-    const wasVersusMode = isVersusMode;
-    const wasOnlineMode = isOnlineMode;
+    const wasEvilMode   = runState.isEvilMode;
+    const wasVersusMode = runState.isVersusMode;
+    const wasOnlineMode = runState.isOnlineMode;
 
     // Telemetry (#98) — anonymous run_end event. Fire before resets so we
     // still have hero / mode / wave / damage source intact. Flush right after
@@ -4813,7 +4817,7 @@ function gameOver(isVictory = false) {
         const totalTimeSec = startMs ? Math.floor((Date.now() - startMs) / 1000) : 0;
         window.TelemetryManager?.track('run_end', {
             hero:        player?.type || null,
-            mode:        isDailyMode ? 'daily' : isWeeklyMode ? 'weekly' : wasVersusMode ? 'versus' : wasEvilMode ? 'evil' : isSpeedrunMode ? 'speedrun' : isTutorialMode ? 'tutorial' : 'normal',
+            mode:        runState.isDailyMode ? 'daily' : runState.isWeeklyMode ? 'weekly' : wasVersusMode ? 'versus' : wasEvilMode ? 'evil' : runState.isSpeedrunMode ? 'speedrun' : runState.isTutorialMode ? 'tutorial' : 'normal',
             biome:       currentBiomeType || null,
             outcome:     isVictory ? 'win' : 'death',
             wave:        runState.wave,
@@ -4842,23 +4846,23 @@ function gameOver(isVictory = false) {
     _stopWeather();
 
     // Evil Mode — unlock achievement on first clear
-    if (isEvilMode && isVictory) {
+    if (runState.isEvilMode && isVictory) {
         if (saveData.global) saveData.global.evil_mode_beaten = (saveData.global.evil_mode_beaten || 0) + 1;
         unlockAchievement('EVIL_MODE_BEATEN');
     }
     if (typeof EvilMode !== 'undefined') EvilMode.stop();
-    isEvilMode = false;
+    runState.isEvilMode = false;
 
     runState.gameRunning = false;
-    isTutorialMode = false;
-    isTestingMode = false;
-    const wasSpeedrunMode = isSpeedrunMode;
+    runState.isTutorialMode = false;
+    runState.isTestingMode = false;
+    const wasSpeedrunMode = runState.isSpeedrunMode;
     if (wasSpeedrunMode) _showSpeedrunHud(false);
-    isSpeedrunMode = false;
+    runState.isSpeedrunMode = false;
     window.isSpeedrunMode = false;
-    isCoopMode = false;
+    runState.isCoopMode = false;
     window.isCoopMode = false;
-    isAICompanionMode = false;
+    runState.isAICompanionMode = false;
     window.isAICompanionMode = false;
     coopP2HeroType = null;
     window.coopP2HeroType = null;
@@ -4873,7 +4877,7 @@ function gameOver(isVictory = false) {
     p2LevelUpPending = false;
     const _p2hudEl = document.getElementById('p2-hud');
     if (_p2hudEl) _p2hudEl.style.display = 'none';
-    if (isOnlineMode) {
+    if (runState.isOnlineMode) {
         // signal(false) = natural game end; lobby stays alive for RETURN_TO_LOBBY
         window.networkManager?.signalGameOver(false);
         ['online-reconnect-overlay', 'online-partner-leveling-overlay', 'online-wait-overlay', 'online-name-bar'].forEach(id => {
@@ -4953,7 +4957,7 @@ function gameOver(isVictory = false) {
     // DLC story completion achievements (fires on any victory in story mode at wave ≥ 50)
     if (isVictory && player && runState.wave >= 50) {
         const isStoryRun = (saveData.story && saveData.story.enabled !== false) &&
-            !isDailyMode && !isWeeklyMode && !isChaosShuffleMode && !isVersusMode;
+            !runState.isDailyMode && !runState.isWeeklyMode && !runState.isChaosShuffleMode && !runState.isVersusMode;
         if (isStoryRun) {
             const dlcStoryMap = {
                 earth: 'rock_story', lightning: 'thunder_story',
@@ -4992,7 +4996,7 @@ function gameOver(isVictory = false) {
     }
 
     // Online co-op stat tracking
-    if (isOnlineMode) {
+    if (runState.isOnlineMode) {
         saveData.global.onlineGamesPlayed = (saveData.global.onlineGamesPlayed || 0) + 1;
         if (runState.wave > (saveData.global.onlineMaxWave || 0)) saveData.global.onlineMaxWave = runState.wave;
     }
@@ -5048,25 +5052,25 @@ function gameOver(isVictory = false) {
     // Save run history (last 5 runs) for Museum run-history wall
     if (!saveData.global.runHistory) saveData.global.runHistory = [];
     const _rhTimeSec = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
-    const _rhMode = isDailyMode ? 'daily'
-        : isWeeklyMode ? 'weekly'
-            : isVersusMode && isCoopMode ? '2p_versus'
-                : isVersusMode ? 'versus'
-                    : isChaosShuffleMode ? 'shuffle'
-                        : isTutorialMode ? 'tutorial'
-                            : isEvilMode ? 'evil'
+    const _rhMode = runState.isDailyMode ? 'daily'
+        : runState.isWeeklyMode ? 'weekly'
+            : runState.isVersusMode && runState.isCoopMode ? '2p_versus'
+                : runState.isVersusMode ? 'versus'
+                    : runState.isChaosShuffleMode ? 'shuffle'
+                        : runState.isTutorialMode ? 'tutorial'
+                            : runState.isEvilMode ? 'evil'
                                 : (saveData.story && saveData.story.enabled) ? 'story'
                                     : 'standard';
     // Submit to global leaderboard when playing online
-    if (isOnlineMode) {
+    if (runState.isOnlineMode) {
         const _lbToken = window.gameConfig?.account?.token;
         const _lbUrl   = (typeof CloudSaveManager !== 'undefined') ? CloudSaveManager._baseUrl() : null;
         if (_lbToken && _lbUrl) {
             const _sessionToken = window.networkManager?._gameSessionToken || null;
             // Tag daily/weekly runs with their seed so the server can build
             // per-seed leaderboards (same-day scoreboard).
-            const _seed = isDailyMode ? getDailySeed()
-                : isWeeklyMode ? getWeeklySeed()
+            const _seed = runState.isDailyMode ? getDailySeed()
+                : runState.isWeeklyMode ? getWeeklySeed()
                     : null;
             fetch(`${_lbUrl}/api/leaderboard`, {
                 method: 'POST',
@@ -5106,7 +5110,7 @@ function gameOver(isVictory = false) {
     saveData.global.runHistory.unshift({
         hero: player.type,
         mode: _rhMode,
-        online: !!isOnlineMode,
+        online: !!runState.isOnlineMode,
         wave: Math.max(0, runState.wave - 1),
         score: runState.score,
         outcome: isVictory ? 'victory' : 'death',
@@ -5232,10 +5236,10 @@ function gameOver(isVictory = false) {
                     else initMenu();
                 }
             };
-        } else if (isDailyMode) {
+        } else if (runState.isDailyMode) {
             playAgainBtn.textContent = '▶ PLAY AGAIN';
             playAgainBtn.onclick = function () { startGame('DAILY'); };
-        } else if (isWeeklyMode) {
+        } else if (runState.isWeeklyMode) {
             playAgainBtn.textContent = '▶ PLAY AGAIN';
             playAgainBtn.onclick = function () { startGame('WEEKLY'); };
         } else if (wasEvilMode) {
@@ -5619,7 +5623,7 @@ function _onlineShowReconnectOverlay(show, timeoutSec = 90) {
         const timer = document.getElementById('online-reconnect-timer');
         if (timer) timer.textContent = `Giving up in ${secs}s…`;
         const iv = setInterval(() => {
-            if (!isOnlineMode || ov.style.display === 'none') { clearInterval(iv); return; }
+            if (!runState.isOnlineMode || ov.style.display === 'none') { clearInterval(iv); return; }
             secs--;
             if (timer) timer.textContent = `Giving up in ${secs}s…`;
             if (secs <= 0) { clearInterval(iv); abortOnlineGame(); }
@@ -5648,9 +5652,9 @@ function _renderMinimap() {
     // Auto-hide in any 2-player mode: P2 HUD takes the right edge in co-op,
     // versus uses dynamic zoom-out so a minimap adds no info, and online co-op
     // is identical to local co-op visually.
-    const twoPlayer = (typeof isCoopMode    !== 'undefined' && isCoopMode)
-                   || (typeof isVersusMode  !== 'undefined' && isVersusMode)
-                   || (typeof isOnlineMode  !== 'undefined' && isOnlineMode);
+    const twoPlayer = (typeof runState.isCoopMode    !== 'undefined' && runState.isCoopMode)
+                   || (typeof runState.isVersusMode  !== 'undefined' && runState.isVersusMode)
+                   || (typeof runState.isOnlineMode  !== 'undefined' && runState.isOnlineMode);
     const shouldShow = (typeof gameConfig !== 'undefined' && gameConfig.minimapEnabled)
         && (typeof runState.gameRunning !== 'undefined' && runState.gameRunning)
         && (typeof arena !== 'undefined' && arena)
@@ -5964,13 +5968,13 @@ function _renderBigGambleScene() {
 // short-circuit (game-over scheduled, mode-specific hook routed elsewhere)
 // or `false` if the boss-choice screen will take over on the next frame.
 function _finalizeBossDeathCinematic() {
-    if (isTestingMode) {
+    if (runState.isTestingMode) {
         showNotification('Boss defeated — [TAB] to spawn another');
         return false;
     }
 
     // Daily Challenge Win Condition
-    if (isDailyMode && runState.wave === 10) {
+    if (runState.isDailyMode && runState.wave === 10) {
         showNotification("DAILY CHALLENGE COMPLETE!");
         saveData.daily.lastCompleted = getDailySeed();
         saveData.global.totalVoidGoldSpent += 0; // Just to ensure field exists
@@ -5996,7 +6000,7 @@ function _finalizeBossDeathCinematic() {
     }
 
     // Weekly Challenge Win Condition
-    if (isWeeklyMode && runState.wave === 20) {
+    if (runState.isWeeklyMode && runState.wave === 20) {
         showNotification("WEEKLY CHALLENGE COMPLETE!");
         saveData.weekly.lastCompleted = getWeeklySeed();
         // Reward (Bigger than Daily)
@@ -6020,8 +6024,8 @@ function _finalizeBossDeathCinematic() {
         return true;
     }
 
-    if (isTutorialMode) { TutorialMode.onBossDefeated(); return true; }
-    if (isEvilMode && typeof EvilMode !== 'undefined') { EvilMode.onBossScreenDone(); return true; }
+    if (runState.isTutorialMode) { TutorialMode.onBossDefeated(); return true; }
+    if (runState.isEvilMode && typeof EvilMode !== 'undefined') { EvilMode.onBossScreenDone(); return true; }
 
     // Open choice screen — player picks Continue or Save & Quit
     _bossChoiceScreen = true;
@@ -6414,7 +6418,7 @@ return true; // Prevent normal game render
 // logic, spawning. Returns true if a cinematic owns the frame.
 function _updateGameplayPre(deltaTime) {
     // Evil Mode — check if all enemy heroes are dead → boss-defeated cinematic then advance
-    if (isEvilMode && typeof EvilMode !== 'undefined' && EvilMode.checkWaveEnd()) {
+    if (runState.isEvilMode && typeof EvilMode !== 'undefined' && EvilMode.checkWaveEnd()) {
         EvilMode.onWaveCleared(); // cleanup + sets waveJustCleared
         if (typeof audioManager !== 'undefined') {
             audioManager.play('wave_completed');
@@ -6424,11 +6428,11 @@ function _updateGameplayPre(deltaTime) {
         triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
     }
 
-    if (isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
+    if (runState.isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
 
     // Update Camera — skipped during photo mode so manual pan sticks (#51).
     if (!isPhotoMode()) {
-        if (isCoopMode && player2) {
+        if (runState.isCoopMode && player2) {
             const ref1 = !player.isDead ? player : player2;
             const ref2 = player2 && !player2.isDead ? player2 : player;
             runState.coopZoom = arena.updateCameraForTwo(ref1, ref2, canvas.width, canvas.height);
@@ -6876,29 +6880,29 @@ function _updateGameplayPre(deltaTime) {
 
     // --- Spawning Logic ---
     // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
-    if (!runState.bossActive && bossDeathTimer === 0 && !isTestingMode && !isEvilMode && isWaveCleared(runState.wave, runState.enemiesKilledInWave) && (!isTutorialMode || TutorialMode.bossForced)) {
+    if (!runState.bossActive && bossDeathTimer === 0 && !runState.isTestingMode && !runState.isEvilMode && isWaveCleared(runState.wave, runState.enemiesKilledInWave) && (!runState.isTutorialMode || TutorialMode.bossForced)) {
         if (currentObjective && currentObjective.state === 'ACTIVE') {
             // Do nothing, wait for objective completion logic
-        } else if (isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType === 'none') {
+        } else if (runState.isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType === 'none') {
             // Workshop: no boss configured — advance wave directly
             advanceWave();
         } else {
             runState.bossActive = true;
             // Boss spawn — heavy ground-pound rumble
             triggerImpact(9, 22, 0.45, 0.90, 550);
-            if (isTutorialMode) {
+            if (runState.isTutorialMode) {
                 // Tutorial: one plain boss (no type modifier), reduced HP, no minions
                 const tutBoss = new Boss('BASIC');
                 tutBoss.hp = tutBoss.maxHp = Math.max(1, Math.floor(tutBoss.maxHp * 0.4));
                 enemies.unshift(tutBoss);
             } else {
                 // Standard Boss Spawning
-                const _workshopBossType = (isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType)
+                const _workshopBossType = (runState.isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType)
                     ? window.pendingCustomMap.waveConfig.bossType : null;
                 const _bossArg = (_workshopBossType && _workshopBossType !== 'random') ? _workshopBossType : undefined;
 
-                const _isStoryMode = (saveData.story && saveData.story.enabled !== false) && !isDailyMode && !isWeeklyMode && !isChaosShuffleMode && !isVersusMode;
-                if (!isWorkshopMode && !_isStoryMode && Math.random() < 0.05) {
+                const _isStoryMode = (saveData.story && saveData.story.enabled !== false) && !runState.isDailyMode && !runState.isWeeklyMode && !runState.isChaosShuffleMode && !runState.isVersusMode;
+                if (!runState.isWorkshopMode && !_isStoryMode && Math.random() < 0.05) {
                     document.getElementById('event-text').style.display = 'block';
                     setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
                     if (typeof audioManager !== 'undefined') {
@@ -6908,7 +6912,7 @@ function _updateGameplayPre(deltaTime) {
                     enemies.unshift(new Boss(), new Boss());
                 } else {
                     // Mutator: Double Boss
-                    if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'DOUBLE_BOSS')) {
+                    if ((runState.isDailyMode || runState.isWeeklyMode) && activeMutators.some(m => m.id === 'DOUBLE_BOSS')) {
                         enemies.unshift(new Boss(), new Boss());
                         showNotification("DOUBLE BOSS SPAWN!");
                     } else {
@@ -6922,13 +6926,13 @@ function _updateGameplayPre(deltaTime) {
         }
     }
 
-    if (!isVersusMode && !isTestingMode && !isEvilMode) {
+    if (!runState.isVersusMode && !runState.isTestingMode && !runState.isEvilMode) {
         if (!runState.bossActive && bossDeathTimer === 0) {
             let spawnRate = Math.max(10, 45 - (runState.wave * 1.3));
             let forcedType = null;
 
             // Workshop waveConfig overrides
-            if (isWorkshopMode && window.pendingCustomMap?.waveConfig) {
+            if (runState.isWorkshopMode && window.pendingCustomMap?.waveConfig) {
                 const _wc = window.pendingCustomMap.waveConfig;
                 const _base  = _wc.spawnRateBase         ?? 45;
                 const _decay = _wc.spawnRateDecayPerWave ?? 1.3;
@@ -6954,7 +6958,7 @@ function _updateGameplayPre(deltaTime) {
             }
 
             const nonBossCount = enemies.filter(e => !(e instanceof Boss) && e.hp > 0).length;
-            const enemyCap = Math.min(22, 5 + runState.wave) + ((isCoopMode || isAICompanionMode) ? 4 : 0);
+            const enemyCap = Math.min(22, 5 + runState.wave) + ((runState.isCoopMode || runState.isAICompanionMode) ? 4 : 0);
             if (runState.frame % Math.floor(spawnRate) === 0 && nonBossCount < enemyCap) {
                 let loops = 1;
                 if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'SWARM')) loops = 2;
@@ -6988,7 +6992,7 @@ function _updateGameplayPre(deltaTime) {
     }
 
     // Co-op / AI companion: scale new non-boss enemy HP up
-    if (isCoopMode || isAICompanionMode) {
+    if (runState.isCoopMode || runState.isAICompanionMode) {
         enemies.forEach(e => {
             if (!(e instanceof Boss) && !e._coopScaled) {
                 e._coopScaled = true;
@@ -7010,7 +7014,7 @@ function _updateGameplayPre(deltaTime) {
     }
 
     // Tutorial: scale new non-boss enemy HP to 40% and cap count at 8
-    if (isTutorialMode) {
+    if (runState.isTutorialMode) {
         enemies.forEach(e => {
             if (!(e instanceof Boss) && !e._tutorialScaled) {
                 e._tutorialScaled = true;
@@ -7119,19 +7123,19 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     // overlapping; new behavior: player always visible).
 
     // Evil Mode hero ability update (overlay draw moved to cluster)
-    if (isEvilMode && window.HERO_LOGIC && window.HERO_LOGIC[player.type]) {
+    if (runState.isEvilMode && window.HERO_LOGIC && window.HERO_LOGIC[player.type]) {
         const _hl = window.HERO_LOGIC[player.type];
         if (_hl.update)      _hl.update(player, deltaTime / 1000);
     }
 
     // Co-op / AI companion: update + draw P2
-    if ((isCoopMode || isAICompanionMode) && player2) {
+    if ((runState.isCoopMode || runState.isAICompanionMode) && player2) {
         if (!player2.isDead) {
             // Online guest: P2 is a ghost — skip local physics, position set by network
             if (!player2._ghost) {
                 player2.update();
                 // Distance enforcement — rubber band above 1800px (skip for online — server handles)
-                if (!isOnlineMode) {
+                if (!runState.isOnlineMode) {
                     const _sep = Math.hypot(player2.x - player.x, player2.y - player.y);
                     if (_sep > 1800) {
                         const _force = (_sep - 1800) * 0.06;
@@ -7171,7 +7175,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     }
 
     // Online: interpolate ghost entities between buffered snapshots; reconcile own player; flush input
-    if (isOnlineMode && runState.gameRunning && !runState.gamePaused) {
+    if (runState.isOnlineMode && runState.gameRunning && !runState.gamePaused) {
         _onlineFrame++;
 
         // Interpolate ghost entities between buffered snapshots for smooth rendering
@@ -7329,7 +7333,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     saveGame();
                 }
             }
-        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+        } else if ((runState.isCoopMode || runState.isAICompanionMode) && player2 && !player2.isDead) {
             const distP2 = Math.hypot(player2.x - shard.x, player2.y - shard.y);
             if (distP2 < player2.radius + 20) {
                 memoryShards.splice(index, 1);
@@ -7377,8 +7381,8 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             if (player.gainGold) player.gainGold(amount); // Use new method
             else player.gold += amount; // Fallback
 
-            if (isChaosShuffleMode) checkChaosEvent('GOLD', amount);
-            if (isTutorialMode) TutorialMode.onGold();
+            if (runState.isChaosShuffleMode) checkChaosEvent('GOLD', amount);
+            if (runState.isTutorialMode) TutorialMode.onGold();
             currentRunStats.moneyGained += amount; // Track Gold
             saveData.global.totalGold += drop.value; // Track for achievement
             if (typeof audioManager !== 'undefined') audioManager.play('pickup_gold');
@@ -7425,7 +7429,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             }
 
             cardDrops.splice(index, 1);
-        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+        } else if ((runState.isCoopMode || runState.isAICompanionMode) && player2 && !player2.isDead) {
             const distP2 = Math.hypot(player2.x - drop.x, player2.y - drop.y);
             if (distP2 < player2.radius + 20) {
                 const cardKey = drop.cardKey;
@@ -7489,7 +7493,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 createExplosion(player.x, player.y, '#f1c40f');
             }
             holyMasks.splice(index, 1);
-        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+        } else if ((runState.isCoopMode || runState.isAICompanionMode) && player2 && !player2.isDead) {
             const distP2 = Math.hypot(player2.x - mask.x, player2.y - mask.y);
             if (distP2 < player2.radius + 20) {
                 if (mask.isTrueGolden) {
@@ -7526,7 +7530,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         if (dist < player.radius + pup.radius) {
             if (pup.type === 'HEAL') {
                 player.hp = Math.min(player.hp + 30, player.maxHp);
-                if (isChaosShuffleMode) checkChaosEvent('HEAL');
+                if (runState.isChaosShuffleMode) checkChaosEvent('HEAL');
                 createExplosion(player.x, player.y, '#2ecc71');
                 if (typeof audioManager !== 'undefined') audioManager.play('pickup_heal');
             }
@@ -7559,7 +7563,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 if (typeof audioManager !== 'undefined') audioManager.play('pickup_autoaim');
             }
             powerUps.splice(index, 1);
-        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+        } else if ((runState.isCoopMode || runState.isAICompanionMode) && player2 && !player2.isDead) {
             // Co-op: P2 collects power-ups
             const distP2 = Math.hypot(player2.x - pup.x, player2.y - pup.y);
             if (distP2 < player2.radius + pup.radius) {
@@ -7595,7 +7599,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     proj.dead = true; // Mark dead
                     createExplosion(proj.x, proj.y, proj.color);
                     if (p2.hp <= 0) {
-                        if (typeof isEvilMode !== 'undefined' && isEvilMode) {
+                        if (typeof runState.isEvilMode !== 'undefined' && runState.isEvilMode) {
                             // Evil Mode: mark dead so checkWaveEnd() sees it — don't splice yet
                             p2.isDead = true;
                             createExplosion(p2.x, p2.y, '#fff');
@@ -7605,10 +7609,10 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                             createExplosion(p2.x, p2.y, '#fff');
                             showNotification("OPPONENT KO!");
 
-                            if (isVersusMode && window.additionalPlayers.length === 0) {
+                            if (runState.isVersusMode && window.additionalPlayers.length === 0) {
                                 audioManager.playHeroExclamation(player.type, 'boss_win');
                                 setTimeout(() => gameOver(true), 2000);
-                            } else if (!isVersusMode && runState.bossActive && window.additionalPlayers.length === 0) {
+                            } else if (!runState.isVersusMode && runState.bossActive && window.additionalPlayers.length === 0) {
                                 // Story Mode Duel Victory
                                 runState.bossActive = false;
                                 bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds for dramatic effect
@@ -7643,7 +7647,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
 
         // 2P Versus PvP: projectile hits between P1 and P2
-        if (isVersusMode && isCoopMode && player2 && !player2.isDead && !proj.isEnemy) {
+        if (runState.isVersusMode && runState.isCoopMode && player2 && !player2.isDead && !proj.isEnemy) {
             if (proj.owner === player) {
                 // P1 projectile → P2
                 if (Math.hypot(player2.x - proj.x, player2.y - proj.y) < player2.radius + proj.radius) {
@@ -7717,7 +7721,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                             createExplosion(p2.x, p2.y, att.color);
                             floatingTexts.push(FloatingText.acquire(p2.x, p2.y - 40, att.damage.toFixed(0), "#ff0000", 25));
                             if (p2.hp <= 0) {
-                                if (typeof isEvilMode !== 'undefined' && isEvilMode) {
+                                if (typeof runState.isEvilMode !== 'undefined' && runState.isEvilMode) {
                                     // Evil Mode: mark dead so checkWaveEnd() sees it — don't splice yet
                                     p2.isDead = true;
                                     createExplosion(p2.x, p2.y, '#fff');
@@ -7727,10 +7731,10 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                                     createExplosion(p2.x, p2.y, '#fff');
                                     showNotification("OPPONENT KO!");
 
-                                    if (isVersusMode && window.additionalPlayers.length === 0) {
+                                    if (runState.isVersusMode && window.additionalPlayers.length === 0) {
                                         audioManager.playHeroExclamation(player.type, 'boss_win');
                                         setTimeout(() => gameOver(true), 2000);
-                                    } else if (!isVersusMode && runState.bossActive && window.additionalPlayers.length === 0) {
+                                    } else if (!runState.isVersusMode && runState.bossActive && window.additionalPlayers.length === 0) {
                                         runState.bossActive = false;
                                         bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
                                         triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
@@ -7748,7 +7752,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
 
         // 2P Versus: P1 melee → P2
-        if (isVersusMode && isCoopMode && player2 && !player2.isDead && att.owner === player) {
+        if (runState.isVersusMode && runState.isCoopMode && player2 && !player2.isDead && att.owner === player) {
             const pid = 'PLAYER_2';
             if (!att.hitList.includes(pid) && Math.hypot(player2.x - att.x, player2.y - att.y) < att.radius + player2.radius) {
                 const angleTo = Math.atan2(player2.y - att.y, player2.x - att.x);
@@ -7908,7 +7912,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 player.currentForm = 'NONE';
                 showNotification("FORM BROKEN!");
             }
-        } else if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
+        } else if ((runState.isCoopMode || runState.isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
             const _pDistP2 = Math.hypot(_proj.x - player2.x, _proj.y - player2.y);
             if (_pDistP2 < player2.radius + _proj.radius) {
                 const _p2Dmg = _proj.damage * (1 - player2.damageReduction);
@@ -7923,7 +7927,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
                     createExplosion(player2.x, player2.y, '#3b82f6');
                     if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'failure');
-                    showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
+                    showNotification(runState.isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
                 }
             }
         }
@@ -8048,7 +8052,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     player.hp -= dmgTaken;
                     recordPlayerDamage(player, enemy.subType || 'ENEMY', dmgTaken); // #168
                     audioManager.play('damage');
-                    if (isChaosShuffleMode) checkChaosEvent('HIT');
+                    if (runState.isChaosShuffleMode) checkChaosEvent('HIT');
                     floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
                     currentRunStats.damageTaken += dmgTaken; // Track Damage
                     player.resetCombo(); // Reset Combo on Damage
@@ -8069,7 +8073,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
 
         // Co-op: P2 enemy body contact damage
-        if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
+        if ((runState.isCoopMode || runState.isAICompanionMode) && player2 && !player2.isDead && !player2.isInvincible) {
             const distP2 = Math.hypot(player2.x - enemy.x, player2.y - enemy.y);
             if (distP2 - enemy.radius - player2.radius < 0 && !player2.isDashing) {
                 let p2Dmg = 1 * (1 - player2.damageReduction);
@@ -8086,7 +8090,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     p2RevivalMarker = { x: player2.x, y: player2.y, progress: 0, maxProgress: 240 };
                     createExplosion(player2.x, player2.y, '#3b82f6');
                     if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player2.type, 'failure');
-                    showNotification(isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
+                    showNotification(runState.isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
                 }
             }
         }
@@ -8245,7 +8249,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                         enemy.lastHitBy = 'MELEE';
                         enemy.killer = att.owner || player;
                     }
-                    if (isTutorialMode) TutorialMode.onMelee();
+                    if (runState.isTutorialMode) TutorialMode.onMelee();
 
                     // Melee impact — heavier thud
                     const isCrit = att.isCrit;
@@ -8273,8 +8277,8 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         if (enemy.hp <= 0) {
             enemy.dead = true; // Prevent double-processing if forEach+splice skips this enemy
             if (!(enemy instanceof Boss)) createDeathBurst(enemy.x, enemy.y, enemy.color || '#e74c3c');
-            if (isChaosShuffleMode) checkChaosEvent('KILL', { isMelee: (enemy.lastHitBy === 'MELEE') });
-            if (isTutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
+            if (runState.isChaosShuffleMode) checkChaosEvent('KILL', { isMelee: (enemy.lastHitBy === 'MELEE') });
+            if (runState.isTutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
             // Boss Minion Logic
             if (enemy.isSummonedMinion && enemy.parentBoss) {
                 enemy.parentBoss.minionsToKill--;
@@ -8285,7 +8289,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             checkAchievements(); // Check achievements on kill
 
             // Mutator: Explosive Personality
-            if ((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'EXPLOSIVE')) {
+            if ((runState.isDailyMode || runState.isWeeklyMode) && activeMutators.some(m => m.id === 'EXPLOSIVE')) {
                 createExplosion(enemy.x, enemy.y, '#e74c3c');
                 if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 100) {
                     applyDamage(player, 10, { label: 'EXPLOSION' }); // #18
@@ -8313,7 +8317,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     currentRunStats.keyMoments.push({ wave: runState.wave, timeSec: _km_t, kind: 'boss_kill', label: enemy.bossType || 'Boss' });
                 }
                 runState.score += 1000; player.gainXp(500);
-                if ((isCoopMode || isAICompanionMode) && player2 && !player2.isDead) player2.gainXp(500);
+                if ((runState.isCoopMode || runState.isAICompanionMode) && player2 && !player2.isDead) player2.gainXp(500);
                 createExplosion(enemy.x, enemy.y, '#c0392b');
                 checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
 
@@ -8386,7 +8390,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
                 const _eventXpMult = window.worldEvents?.getXpMultiplier?.() ?? 1;
                 const _xpMod = (runState.bossActive ? 0.15 : 1) * _eventXpMult;
-                const _killer = (isCoopMode && enemy.killer) ? enemy.killer : player;
+                const _killer = (runState.isCoopMode && enemy.killer) ? enemy.killer : player;
                 runState.score += 10; _killer.gainXp(Math.round(20 * _xpMod));
                 createExplosion(enemy.x, enemy.y, '#aaa');
 
@@ -8418,7 +8422,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 }
 
                 // Mutator: No Regen (No Health Drops)
-                if (!((isDailyMode || isWeeklyMode) && activeMutators.some(m => m.id === 'NO_REGEN'))) {
+                if (!((runState.isDailyMode || runState.isWeeklyMode) && activeMutators.some(m => m.id === 'NO_REGEN'))) {
                     if (Math.random() < 0.3) goldDrops.push(GoldDrop.acquire(enemy.x, enemy.y)); // Gold Drop
                 } else {
                     // Still drop gold, but maybe less? Or just no health potions if they existed as drops.
@@ -8449,7 +8453,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     // playerDeathTimer). Photo mode skips this entirely (caller-side gate)
     // so the death sequence pauses with the rest of the world.
     if (player.hp <= 0 && !player.isDead) {
-        if (!isVersusMode && (isCoopMode || isAICompanionMode) && player2 && !player2.isDead) {
+        if (!runState.isVersusMode && (runState.isCoopMode || runState.isAICompanionMode) && player2 && !player2.isDead) {
             // Co-op / AI companion: P1 dies but P2 is alive — drop revival marker.
             player.isDead = true;
             player.hp = 0;
@@ -8458,8 +8462,8 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             player.moveInput = { x: 0, y: 0 };
             p1RevivalMarker = { x: player.x, y: player.y, progress: 0, maxProgress: 240 };
             createExplosion(player.x, player.y, '#ffffff');
-            showNotification(isAICompanionMode ? 'You\'re down! Ally is coming to revive you.' : 'P1 down! Stand on marker to revive.');
-        } else if (!isPlayerDying && !isOnlineGuest) {
+            showNotification(runState.isAICompanionMode ? 'You\'re down! Ally is coming to revive you.' : 'P1 down! Stand on marker to revive.');
+        } else if (!isPlayerDying && !runState.isOnlineGuest) {
             isPlayerDying = true;
             playerDeathTimer = 180; // 3 seconds animation
             createExplosion(player.x, player.y, '#c0392b');
@@ -8475,8 +8479,8 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     }
     // Co-op: both players dead → game over (separate check needed because the
     // revival-marker path sets player.isDead=true, which blocks the block above).
-    if (!isPlayerDying && !isOnlineGuest &&
-        !isVersusMode && (isCoopMode || isAICompanionMode) &&
+    if (!isPlayerDying && !runState.isOnlineGuest &&
+        !runState.isVersusMode && (runState.isCoopMode || runState.isAICompanionMode) &&
         player.isDead && player2 && player2.isDead) {
         isPlayerDying = true;
         playerDeathTimer = 180;
@@ -8730,21 +8734,21 @@ window.GAME_API = {
     set activeMutators(v)       { activeMutators = v; },
 
     // ── Mode flags ──
-    get isCoopMode()            { return isCoopMode; },
-    get isAICompanionMode()     { return isAICompanionMode; },
-    get isOnlineMode()          { return isOnlineMode; },
-    get isOnlineGuest()         { return isOnlineGuest; },
-    get isOnlineHost()          { return isOnlineHost; },
-    get isVersusMode()          { return isVersusMode; },
-    get isDailyMode()           { return isDailyMode; },
-    set isDailyMode(v)          { isDailyMode = v; },
-    get isWeeklyMode()          { return isWeeklyMode; },
-    set isWeeklyMode(v)         { isWeeklyMode = v; },
-    get isChaosShuffleMode()    { return isChaosShuffleMode; },
-    set isChaosShuffleMode(v)   { isChaosShuffleMode = v; },
-    get isEvilMode()            { return isEvilMode; },
-    get isTutorialMode()        { return isTutorialMode; },
-    get isTestingMode()         { return isTestingMode; },
+    get isCoopMode()            { return runState.isCoopMode; },
+    get isAICompanionMode()     { return runState.isAICompanionMode; },
+    get isOnlineMode()          { return runState.isOnlineMode; },
+    get isOnlineGuest()         { return runState.isOnlineGuest; },
+    get isOnlineHost()          { return runState.isOnlineHost; },
+    get isVersusMode()          { return runState.isVersusMode; },
+    get isDailyMode()           { return runState.isDailyMode; },
+    set isDailyMode(v)          { runState.isDailyMode = v; },
+    get isWeeklyMode()          { return runState.isWeeklyMode; },
+    set isWeeklyMode(v)         { runState.isWeeklyMode = v; },
+    get isChaosShuffleMode()    { return runState.isChaosShuffleMode; },
+    set isChaosShuffleMode(v)   { runState.isChaosShuffleMode = v; },
+    get isEvilMode()            { return runState.isEvilMode; },
+    get isTutorialMode()        { return runState.isTutorialMode; },
+    get isTestingMode()         { return runState.isTestingMode; },
 
     // ── Entity arrays (live references) ──
     get enemies()               { return enemies; },
