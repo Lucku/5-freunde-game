@@ -66,6 +66,7 @@ import { renderPostFX } from './core/postProcess.js';
 import { clearPowerUps } from './core/systems/powerUpSystem.js';
 import { spawnCardDrop, clearCardDrops } from './core/systems/cardDropSystem.js';
 import { spawnParticle, clearParticles } from './core/systems/particleSystem.js';
+import { clearFloatingTexts } from './core/systems/floatingTextSystem.js';
 
 // #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
 const isElectron   = !!(window.Platform && window.Platform.isElectron);
@@ -2242,7 +2243,7 @@ function _resetGameState() {
     enemies.length = 0;
     projectiles.length = 0;
     clearPowerUps(runState);
-    floatingTexts.length = 0;
+    clearFloatingTexts(runState);
     clearParticles(runState);
     runState.bossActive = false;
     runState.wave = 1;
@@ -2450,7 +2451,7 @@ window._weatherLogicHooks = {};
 // (`core/updateGameplay*.js`) can read it without coupling to game.js.
 // powerUps migrated to ECS in #5 phase 5.1 — see core/systems/powerUpSystem.js.
 const {
-    enemies, projectiles, floatingTexts, meleeAttacks,
+    enemies, projectiles, meleeAttacks,
     holyMasks, goldDrops, memoryShards, companions,
 } = runState;
 
@@ -2471,7 +2472,7 @@ window.arena = arena; // Expose Arena to Window for DLCs
 window.projectiles  = projectiles;
 window.enemies      = enemies;
 // particles now ECS — see Entities/Particle.js compat shim for window.particles sentinel.
-window.floatingTexts = floatingTexts;
+// floatingTexts now ECS — see Entities/FloatingText.js compat shim for window.floatingTexts sentinel.
 // obstacles and biomeZones moved to Arena class.
 // Cross-module references via window — these arrays are mutated (push / splice)
 // but never reassigned, so a one-time window export keeps Arena.js,
@@ -4662,7 +4663,7 @@ async function startGame(mode = 'NORMAL') {
     enemies.length = 0;
     projectiles.length = 0;
     clearParticles(runState);
-    floatingTexts.length = 0;
+    clearFloatingTexts(runState);
     meleeAttacks.length = 0;
     clearPowerUps(runState);
     holyMasks.length = 0;
@@ -4694,7 +4695,7 @@ async function startGame(mode = 'NORMAL') {
         _w.enemies       = enemies;
         _w.projectiles   = projectiles;
         // particles now ECS — runState.particle* typed arrays, no _world mirror.
-        _w.floatingTexts = floatingTexts;
+        // floatingTexts now ECS — runState.floatingText* typed arrays, no _world mirror.
         _w.meleeAttacks  = meleeAttacks;
         // powerUps now ECS — runState.powerUp* typed arrays, no _world mirror.
         _w.holyMasks     = holyMasks;
@@ -5908,7 +5909,7 @@ function _updateDebugOverlay(frameMs) {
     const enemiesN = (typeof enemies !== 'undefined') ? enemies.length : 0;
     const projN    = (typeof projectiles !== 'undefined') ? projectiles.length : 0;
     const partN    = runState.particleCount;
-    const ftN      = (typeof floatingTexts !== 'undefined') ? floatingTexts.length : 0;
+    const ftN      = runState.floatingTextCount;
     const px       = (typeof runState.player !== 'undefined' && runState.player) ? Math.round(runState.player.x) : 0;
     const py       = (typeof runState.player !== 'undefined' && runState.player) ? Math.round(runState.player.y) : 0;
     const _eh = window._enemySpatialHash;
@@ -6699,7 +6700,8 @@ window.GAME_API = {
     get projectiles()           { return projectiles; },
     // particles now ECS — see runState.particle* / runState.particleCount.
     get particleCount()         { return runState.particleCount; },
-    get floatingTexts()         { return floatingTexts; },
+    // floatingTexts now ECS — see runState.floatingText* / runState.floatingTextCount.
+    get floatingTextCount()     { return runState.floatingTextCount; },
     get holyMasks()             { return holyMasks; },
     get goldDrops()             { return goldDrops; },
     get companions()            { return companions; },

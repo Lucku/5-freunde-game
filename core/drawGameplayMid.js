@@ -18,6 +18,7 @@ import { runState } from '../RunState.js';
 import { drawPowerUps } from './systems/powerUpSystem.js';
 import { drawCardDrops } from './systems/cardDropSystem.js';
 import { drawParticles } from './systems/particleSystem.js';
+import { drawFloatingTexts } from './systems/floatingTextSystem.js';
 
 export function _drawGameplayMid() {
     // Camera-bounds for the particle + floating-text on-screen check
@@ -156,10 +157,8 @@ export function _drawGameplayMid() {
     // in update). The leaf-module no longer has per-slot camera bounds.
     drawParticles(ctx, runState);
     ctx.globalAlpha = 1;
-    // Floating-text draw pass.
-    for (const ft of floatingTexts) {
-        if (ft.x >= _camL && ft.x <= _camR && ft.y >= _camT && ft.y <= _camB) ft.draw();
-    }
+    // Floating-text draw pass (#5 phase 5.5 — ECS).
+    drawFloatingTexts(ctx, runState);
 
     // #173 phase 6 — enemy draw pass. Survivors of the update + collision loop
     // above. Hit-flash overlay (ghost-only) renders on top of the enemy sprite.

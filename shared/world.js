@@ -20,7 +20,7 @@ class World {
         this.enemies       = [];
         this.projectiles   = [];
         this.particles     = [];
-        this.floatingTexts = [];
+        // floatingTexts migrated to ECS on runState in #5 phase 5.5.
         this.goldDrops     = [];
         this.companions    = [];
         this.memoryShards  = [];

@@ -1,87 +1,80 @@
-class FloatingText {
-    constructor(x, y, text, color, size, world = null) {
-        this.x = x; this.y = y;
-        this.text = text;
-        this.color = color;
-        this.size = size;
-        this.life = 60;
-        this.maxLife = 60;
-        // #40 — crit heuristic: '!' suffix or large size triggers polish.
-        this.isCrit = FloatingText._detectCrit(text, size);
-        this.velocity = FloatingText._initialVelocity(this.isCrit);
-        this._world = world ?? (typeof window !== 'undefined' ? window._world : null) ?? null;
+// #5 phase 5.5 — FloatingText compat shim.
+//
+// Real storage lives on `runState.floatingText*` typed arrays — see
+// `core/systems/floatingTextSystem.js`. This file used to host the class +
+// pool; now it's a thin wrapper so the ~155 existing `FloatingText.acquire(...)`
+// + `floatingTexts.push(ft)` patterns across game.js / Player.js / Enemy.js /
+// Boss.js / Companion.js / Arena.js / EvilHeroes.js / 4+ DLCs keep working
+// unchanged.
+//
+// `acquire` spawns a slot in the ECS arrays and returns a FloatingTextSlot
+// proxy whose setters write back to the slot. `floatingTexts.push(ft)` is a
+// no-op via the `window.floatingTexts` sentinel (see below). `release` is a
+// no-op too — slots die automatically when life hits 0 in `updateFloatingTexts`.
+
+import { runState } from '../RunState.js';
+import { spawnFloatingText, detectCrit } from '../core/systems/floatingTextSystem.js';
+
+class FloatingTextSlot {
+    constructor(slot) {
+        this._slot = slot;
+        const self = this;
+        this._velocityProxy = {
+            get x() { return self._slot >= 0 ? runState.floatingTextVX[self._slot] : 0; },
+            set x(v) { if (self._slot >= 0) runState.floatingTextVX[self._slot] = v; },
+            get y() { return self._slot >= 0 ? runState.floatingTextVY[self._slot] : 0; },
+            set y(v) { if (self._slot >= 0) runState.floatingTextVY[self._slot] = v; },
+        };
     }
-
-    static _detectCrit(text, size) {
-        if (typeof text === 'string' && text.length > 0 && text.indexOf('!') !== -1) return true;
-        if (typeof size === 'number' && size >= 25) return true;
-        return false;
+    get velocity() { return this._velocityProxy; }
+    set velocity(v) {
+        if (this._slot < 0 || !v) return;
+        if ('x' in v) runState.floatingTextVX[this._slot] = v.x;
+        if ('y' in v) runState.floatingTextVY[this._slot] = v.y;
     }
-
-    static _initialVelocity(isCrit) {
-        if (isCrit) {
-            // Larger arc + horizontal kick for visual flair.
-            return { x: (Math.random() - 0.5) * 5, y: -4 };
-        }
-        return { x: (Math.random() - 0.5) * 2, y: -2 };
-    }
-
-    update() {
-        this.x += this.velocity.x;
-        this.y += this.velocity.y;
-        this.life--;
-        this.velocity.y *= 0.9; // Gravity-ish drag
-        // Crit arc — extra gravity so the kick falls back faster.
-        if (this.isCrit) this.velocity.y += 0.18;
-    }
-
-    draw() {
-        if (typeof gameConfig !== 'undefined' && !gameConfig.damageNumbers) return;
-
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
-        const scaleCfg = (typeof gameConfig !== 'undefined' && Number(gameConfig.fontScale)) || 1;
-
-        // #40 — crit scale-pulse: starts ~1.6× and eases to 1× over life.
-        const t = 1 - (this.life / this.maxLife);
-        const scaleCrit = this.isCrit ? (1 + 0.6 * (1 - Math.min(1, t * 2))) : 1;
-        const finalSize = this.size * scaleCfg * scaleCrit;
-
-        // Color shift: crits alternate between stored color and white flash.
-        const flash = this.isCrit && ((this.life | 0) % 4 === 0);
-        ctx.fillStyle = flash ? '#ffffff' : this.color;
-
-        ctx.font = `bold ${finalSize}px Arial`;
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = this.isCrit ? 4 : 3;
-        ctx.strokeText(this.text, this.x, this.y);
-        ctx.fillText(this.text, this.x, this.y);
-        ctx.restore();
-    }
-
-    // #20 — object pool. Reuses retired FloatingText instances to cut GC churn.
-    static _pool = [];
-    static POOL_MAX = 128;
-    static acquire(x, y, text, color, size, world = null) {
-        const ft = FloatingText._pool.pop();
-        if (!ft) return new FloatingText(x, y, text, color, size, world);
-        ft.x = x; ft.y = y;
-        ft.text = text;
-        ft.color = color;
-        ft.size = size;
-        ft.life = 60;
-        ft.maxLife = 60;
-        ft.isCrit = FloatingText._detectCrit(text, size);
-        const v = FloatingText._initialVelocity(ft.isCrit);
-        ft.velocity.x = v.x;
-        ft.velocity.y = v.y;
-        ft._world = world ?? (typeof window !== 'undefined' ? window._world : null) ?? null;
-        return ft;
-    }
-    static release(ft) {
-        if (FloatingText._pool.length >= FloatingText.POOL_MAX) return;
-        FloatingText._pool.push(ft);
-    }
+    get life()    { return this._slot >= 0 ? runState.floatingTextLife[this._slot]    : 0; }
+    set life(v)   { if (this._slot >= 0) runState.floatingTextLife[this._slot] = v; }
+    get maxLife() { return this._slot >= 0 ? runState.floatingTextMaxLife[this._slot] : 0; }
+    set maxLife(v){ if (this._slot >= 0) runState.floatingTextMaxLife[this._slot] = v; }
+    get size()    { return this._slot >= 0 ? runState.floatingTextSize[this._slot]    : 0; }
+    set size(v)   { if (this._slot >= 0) runState.floatingTextSize[this._slot] = v; }
+    get isCrit()  { return this._slot >= 0 ? !!runState.floatingTextIsCrit[this._slot] : false; }
+    set isCrit(v) { if (this._slot >= 0) runState.floatingTextIsCrit[this._slot] = v ? 1 : 0; }
+    get text()    { return this._slot >= 0 ? runState.floatingTextText[this._slot] : ''; }
+    set text(v)   { if (this._slot >= 0) runState.floatingTextText[this._slot] = v; }
+    get x()       { return this._slot >= 0 ? runState.floatingTextX[this._slot] : 0; }
+    set x(v)      { if (this._slot >= 0) runState.floatingTextX[this._slot] = v; }
+    get y()       { return this._slot >= 0 ? runState.floatingTextY[this._slot] : 0; }
+    set y(v)      { if (this._slot >= 0) runState.floatingTextY[this._slot] = v; }
 }
+
+const _DEAD = new FloatingTextSlot(-1);
+
+const FloatingText = {
+    acquire(x, y, text, color, size) {
+        const i = spawnFloatingText(runState, x, y, text, color, size);
+        if (i < 0) return _DEAD;
+        return new FloatingTextSlot(i);
+    },
+    // Pool deprecation — life decay kills slots automatically.
+    release() {},
+    POOL_MAX: 0,
+    _pool: [],
+    _detectCrit: detectCrit,
+};
+
 export { FloatingText };
 export default FloatingText;
+
+if (typeof window !== 'undefined') {
+    const _ftShim = {
+        push() {},
+        forEach() {},
+        splice() {},
+        get length() { return runState.floatingTextCount; },
+    };
+    if (!('floatingTexts' in window) || Array.isArray(window.floatingTexts)) {
+        window.floatingTexts = _ftShim;
+    }
+    window.FloatingText = FloatingText;
+}

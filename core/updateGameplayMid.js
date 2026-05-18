@@ -19,6 +19,7 @@ import {
 } from './systems/powerUpSystem.js';
 import { killCardDrop, CARDDROP_RADIUS } from './systems/cardDropSystem.js';
 import { killParticle, updateParticles } from './systems/particleSystem.js';
+import { killFloatingText, updateFloatingTexts } from './systems/floatingTextSystem.js';
 
 export
 function _updateGameplayMid(deltaTime, _isHitStopped) {
@@ -799,28 +800,18 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     }
     updateParticles(runState);
 
-    // Update and Draw Floating Texts (cap at 80 — drop oldest when full)
-    if (floatingTexts.length > GAMEPLAY.MAX_FLOATING_TEXTS) {
-        // #20 release the dropped slice into the pool before truncating.
-        const _excess = floatingTexts.length - GAMEPLAY.MAX_FLOATING_TEXTS;
-        for (let _i = 0; _i < _excess; _i++) FloatingText.release(floatingTexts[_i]);
-        floatingTexts.splice(0, _excess);
-    }
-    // #173 phase 6 — floating texts split same way as particles.
-    for (let index = floatingTexts.length - 1; index >= 0; index--) {
-        const ft = floatingTexts[index];
-        const _ftFarOff = ft.x < _camLFar || ft.x > _camRFar || ft.y < _camTFar || ft.y > _camBFar;
-        if (_ftFarOff) {
-            FloatingText.release(ft);
-            floatingTexts.splice(index, 1);
-            continue;
-        }
-        ft.update();
-        if (ft.life <= 0) {
-            FloatingText.release(ft); // #20 return to pool before splice
-            floatingTexts.splice(index, 1);
+    // #5 phase 5.5 — ECS floating-text tick. Cap is enforced at spawn time
+    // (spawnFloatingText returns -1 when at MAX). Far-offscreen cull first
+    // then physics step + life decay via updateFloatingTexts (which handles
+    // kill-on-zero-life internally).
+    for (let index = runState.floatingTextCount - 1; index >= 0; index--) {
+        const fx = runState.floatingTextX[index];
+        const fy = runState.floatingTextY[index];
+        if (fx < _camLFar || fx > _camRFar || fy < _camTFar || fy > _camBFar) {
+            killFloatingText(runState, index);
         }
     }
+    updateFloatingTexts(runState);
 
     // #173 phase 7 — versus AI: update pass only. Draws moved to the draw
     // cluster so AI players + HP bars render on top of all entities.

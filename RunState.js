@@ -71,6 +71,7 @@ export function logKeyMoment(rs, wave, timeSec, kind, label) {
 import { initPowerUps } from './core/systems/powerUpSystem.js';
 import { initCardDrops } from './core/systems/cardDropSystem.js';
 import { initParticles } from './core/systems/particleSystem.js';
+import { initFloatingTexts } from './core/systems/floatingTextSystem.js';
 
 // ───────────────────────────────────────────────────────────────────────────
 // #11 phase 1 — RunState container schema.
@@ -104,6 +105,8 @@ import { initParticles } from './core/systems/particleSystem.js';
  *  core/systems/cardDropSystem.js.)
  * (#5 phase 5.4 — `particles` migrated to ECS typed arrays + palette
  *  interning. See core/systems/particleSystem.js.)
+ * (#5 phase 5.5 — `floatingTexts` migrated to ECS typed arrays + palette
+ *  interning + string side-table. See core/systems/floatingTextSystem.js.)
  *
  * Phase 3 — run-lifecycle scalars:
  * @property {number}  wave
@@ -190,9 +193,10 @@ export function createRunState() {
         //   (Entities/Particle.js stays as a compat shim for the ~115 existing
         //    `Particle.acquire` callers; they route to spawnParticle via a
         //    ParticleSlot proxy.)
+        // FloatingText migrated to ECS in #5 phase 5.5 — see initFloatingTexts
+        // below. Same compat-shim pattern as Particle.
         enemies:         [],
         projectiles:     [],
-        floatingTexts:   [],
         meleeAttacks:    [],
         holyMasks:       [],
         goldDrops:       [],
@@ -271,6 +275,7 @@ export function createRunState() {
     initPowerUps(rs);
     initCardDrops(rs);
     initParticles(rs);
+    initFloatingTexts(rs);
 
     return rs;
 }
