@@ -335,6 +335,57 @@ function testRendererBridge() {
     gs.stop();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 10 — RendererBridge.runUpdate end-to-end on a live session.
+//   Advances a session 30 ticks legacy-path, then calls bridge.runUpdate(gs, dt).
+//   Verifies the call completes, state stays consistent, and snapshot output
+//   remains schema-valid afterwards.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testBridgeRunUpdateLive() {
+    console.log('\n── 10 RendererBridge.runUpdate live (post-ticks invocation) ───');
+
+    const bridge = require('./RendererBridge');
+    const { gs, snapsHost } = makeSession('fire', 'water');
+    gs._waveManager._lastSpawnMs = 0;
+
+    // Warm up with some enemies + projectiles via legacy tick.
+    gs.applyInput('host', { x: 1, y: 0, aimAngle: 0 });
+    tick(gs, 30);
+
+    const enemyCountBefore = gs.enemies.length;
+    const frameBefore = gs._frame;
+    const wave0 = gs.wave;
+
+    let ranSucceeded = false;
+    let didThrow = null;
+    try {
+        ranSucceeded = bridge.runUpdate(gs, 1000 / 60);
+    } catch (e) {
+        didThrow = e;
+    }
+
+    if (didThrow) {
+        process.stderr.write(`  FAIL  runUpdate threw: ${didThrow.message}\n`);
+        process.stderr.write(`        ${didThrow.stack.split('\n').slice(0, 3).join(' | ')}\n`);
+        failed++;
+    } else {
+        assert(ranSucceeded === true, 'runUpdate returned true (helpers loaded + ran)');
+        assert(gs._world.frame >= frameBefore, 'session world.frame did not regress');
+        assert(gs.wave === wave0, 'wave did not regress mid-call');
+        // Snapshot path still works after the bridge tick.
+        gs._sendSnapshot();
+        const lastSnap = snapsHost[snapsHost.length - 1];
+        assert(lastSnap && lastSnap.type === 'SNAPSHOT',
+            `snapshot emitted after bridge runUpdate (got type ${lastSnap?.type})`);
+        assert(typeof lastSnap.wave === 'number', 'snapshot.wave is still a number');
+        assert(Array.isArray(lastSnap.enemies), 'snapshot.enemies still an array');
+        process.stderr.write(`  info  enemies pre=${enemyCountBefore} post=${gs.enemies.length}\n`);
+    }
+
+    gs.stop();
+}
+
 // ─── Run all tests ─────────────────────────────────────────────────────────────
 
 testSessionIsolation();
@@ -346,6 +397,7 @@ testDeltaCompression();
 testDlcHeroSmoke();
 testLevelUpFlow();
 testRendererBridge();
+testBridgeRunUpdateLive();
 
 const total = passed + failed;
 console.log(`\n${'─'.repeat(56)}`);

@@ -93,28 +93,92 @@ function getDrawMid()    { return _tryLoadHelpers().drawMid; }
 function getDrawPost()   { return _tryLoadHelpers().drawPost; }
 
 /**
- * Run one tick of the renderer's update half against the given session world.
- * Returns `true` if any update happened (the renderer was loadable AND the
- * caller should skip its own per-tick logic), `false` if the caller should
- * fall back to the existing GameSession._tick() implementation.
+ * Sync a session's world state onto the Node `global` namespace so the
+ * extracted leaf modules' bare-name reads (`arena`, `player`, `enemies`,
+ * `frame`, etc.) resolve to this session's data. Mirror of game.js's
+ * client-side `window.X = …` bridge block.
  *
- * Implementation note: the helpers read/write `arena`, `player`, `enemies`,
- * `projectiles`, etc. from their module-scope closure. The expected pattern is
- * for the caller to alias its session state onto `global.X` before calling and
- * read scalars back after — handled by the matching syncWorldToGlobals /
- * syncGlobalsToWorld helpers in the same file (TODO).
- *
- * Currently always returns false (helpers not loadable).
+ * Called by `runUpdate` before each `pre/mid` invocation. Safe to call
+ * repeatedly — overwrites with current session values each tick.
  */
-function runUpdate(_session, _dt) {
+function syncWorldToGlobals(session) {
+    const w = session._world;
+    global.arena         = w.arena;
+    global.player        = session.players[0];
+    global.player2       = session.players[1];
+    global.frame         = w.frame;
+    global.wave          = w.wave;
+    global.score         = w.score;
+    global.bossActive    = !!w.bossActive;
+    global.saveData      = w.saveData || { global: {} };
+    global.HERO_LOGIC    = w.HERO_LOGIC  || global.HERO_LOGIC  || {};
+    global.ENEMY_LOGIC   = w.ENEMY_LOGIC || global.ENEMY_LOGIC || {};
+
+    // runState singleton mirrors the same fields — leaf modules read both
+    // bare `player` AND `runState.player` depending on the code path.
+    const rs = global.runState;
+    if (rs) {
+        rs.frame       = w.frame;
+        rs.wave        = w.wave;
+        rs.score       = w.score;
+        rs.gameRunning = true;
+        rs.gamePaused  = false;
+        rs.isVersusMode = !!w.isVersusMode;
+        rs.isCoopMode   = !!w.isCoopMode;
+        rs.bossActive   = !!w.bossActive;
+        rs.player       = session.players[0];
+        rs.player2      = session.players[1];
+        rs.currentWeather = w.currentWeather || null;
+        rs.currentObjective = w.currentObjective || null;
+        rs.activeMutators = w.activeMutators || [];
+    }
+}
+
+/**
+ * Pull scalar mutations the helpers wrote back onto the session world. The
+ * leaf modules increment `runState.frame`, may set `runState.bossActive`,
+ * etc. — the session needs to observe these before the next snapshot.
+ */
+function syncGlobalsToWorld(session) {
+    const w  = session._world;
+    const rs = global.runState;
+    if (!rs) return;
+    w.frame        = rs.frame;
+    w.wave         = rs.wave;
+    w.score        = rs.score;
+    w.bossActive   = !!rs.bossActive;
+}
+
+/**
+ * Run one tick of the extracted renderer update halves against a session's
+ * world. Sync state in, call `pre(dt)` (bail if a cinematic-equivalent gate
+ * fires), call `mid(dt, isHitStopped)`, sync state out.
+ *
+ * Returns `true` if the helpers ran. `false` if either helper failed to
+ * load (caller should fall back).
+ *
+ * ⚠️ **Not a drop-in replacement for `GameSession._tick()`.** GameSession
+ * owns damage authority via `_processMeleeAttacks` / `_updateProjectiles` /
+ * `_applyEnemyContactDamage` — those paths apply real HP mutation server-
+ * authoritatively. The leaf modules from `core/*.js` execute their own
+ * collision passes against ECS state, but their `applyDamage` / explosion
+ * helpers go through loader.js stubs that are intentionally lossy server-
+ * side (smoke-test grade, not parity grade). Drive this from inside
+ * `_tick()` only after the damage authority has been migrated to the
+ * leaf modules' ECS-read path. For now: callable for smoke + parity tests
+ * + future renderer-server parity validation.
+ */
+function runUpdate(session, dt) {
     const pre = getUpdatePre();
     const mid = getUpdateMid();
-    if (!pre || !mid) return false; // phase 10 not done yet
-    // TODO phase 10: syncWorldToGlobals(_session._world);
-    // TODO phase 10: if (pre(_dt)) return true;
-    // TODO phase 10: mid(_dt, _session._isHitStopped);
-    // TODO phase 10: syncGlobalsToWorld(_session._world);
-    return false;
+    if (!pre || !mid) return false;
+    syncWorldToGlobals(session);
+    const cinematicTookOver = pre(dt);
+    if (!cinematicTookOver) {
+        mid(dt, !!session._isHitStopped);
+    }
+    syncGlobalsToWorld(session);
+    return true;
 }
 
 // Re-export the no-op draw stubs that `loader.js` installs on `global`. Having
@@ -130,6 +194,8 @@ module.exports = {
     getDrawMid,
     getDrawPost,
     runUpdate,
+    syncWorldToGlobals,
+    syncGlobalsToWorld,
     drawMidNoop,
     drawPostNoop,
 };
