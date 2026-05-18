@@ -2457,12 +2457,16 @@ window._weatherLogicHooks = {};
 // (`core/updateGameplay*.js`) can read it without coupling to game.js.
 // powerUps migrated to ECS in #5 phase 5.1 — see core/systems/powerUpSystem.js.
 const {
-    enemies, meleeAttacks,
+    meleeAttacks,
 } = runState;
 // #5 phase 5.10b — `projectiles` is the smart Proxy sentinel installed by
 // Entities/Projectile.js (loaded via main.js side-effect). Looks like an
 // Array but routes all access to the ECS slots on runState.projectile*.
 const projectiles = window.projectiles;
+// #5 phase 5.11b — `enemies` is the mixed-storage sentinel installed by
+// Enemy.js. Iterates ECS Enemy slots + runState.bossInstances Boss class
+// instances side-by-side.
+const enemies = window.enemies;
 
 // Replace an array's contents in place. Preserves identity so const aliases +
 // `window.X` exports + `_world.X` resyncs stay valid after a filter/map pass.
@@ -2479,7 +2483,7 @@ window.arena = arena; // Expose Arena to Window for DLCs
 // these all alias the single `runState.X` ref, so the one-time exports stay
 // valid forever and `window._world.X = X` resyncs become idempotent no-ops.
 // projectiles now ECS — see Entities/Projectile.js compat shim for window.projectiles sentinel.
-window.enemies      = enemies;
+// enemies now ECS — see Enemy.js compat shim for window.enemies sentinel.
 // particles now ECS — see Entities/Particle.js compat shim for window.particles sentinel.
 // floatingTexts now ECS — see Entities/FloatingText.js compat shim for window.floatingTexts sentinel.
 // obstacles and biomeZones moved to Arena class.

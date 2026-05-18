@@ -77,6 +77,7 @@ import { initGoldDrops } from './core/systems/goldDropSystem.js';
 import { initHolyMasks } from './core/systems/holyMaskSystem.js';
 import { initCompanions } from './core/systems/companionSystem.js';
 import { initProjectiles } from './core/systems/projectileSystem.js';
+import { initEnemies } from './core/systems/enemySystem.js';
 
 // ───────────────────────────────────────────────────────────────────────────
 // #11 phase 1 — RunState container schema.
@@ -94,7 +95,6 @@ import { initProjectiles } from './core/systems/projectileSystem.js';
  * @typedef {Object} RunState
  *
  * Phase 2 — entity arrays (mutated in place by spawners + entity loops):
- * @property {Array} enemies
  * @property {Array} particles
  * @property {Array} floatingTexts
  * @property {Array} meleeAttacks
@@ -118,6 +118,9 @@ import { initProjectiles } from './core/systems/projectileSystem.js';
  * (#5 phase 5.10 — `projectiles` migrated to ECS typed arrays + hybrid
  *  hook layout. See core/systems/projectileSystem.js + compat shim in
  *  Entities/Projectile.js.)
+ * (#5 phase 5.11b — `enemies` migrated to ECS typed arrays + slot proxy
+ *  via Enemy.js compat-ctor pattern. Mixed-storage sentinel iterates
+ *  ECS Enemy slots + Boss class instances side-by-side.)
  *
  * Phase 3 — run-lifecycle scalars:
  * @property {number}  wave
@@ -208,7 +211,8 @@ export function createRunState() {
         // below. Same compat-shim pattern as Particle.
         // Projectile migrated to ECS in #5 phase 5.10 — see initProjectiles
         // below. Compat shim in Entities/Projectile.js.
-        enemies:         [],
+        // Enemy migrated to ECS in #5 phase 5.11b — see initEnemies +
+        // mixed-storage sentinel in Enemy.js.
         meleeAttacks:    [],
 
         // Phase 3 — run-lifecycle scalars.
@@ -289,6 +293,10 @@ export function createRunState() {
     initHolyMasks(rs);
     initCompanions(rs);
     initProjectiles(rs);
+    // #5 phase 5.11 skeleton — typed-array storage allocated, no
+    // consumers wired yet. Enemy class still owns instances; ECS
+    // storage migrates in 5.11b.
+    initEnemies(rs);
 
     return rs;
 }

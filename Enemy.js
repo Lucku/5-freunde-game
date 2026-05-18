@@ -1,8 +1,31 @@
 // #194 phase 2 — explicit imports for symbols previously read off window shims.
+// #5 phase 5.11b — `new Enemy(...)` now allocates an ECS slot and returns a
+// slot proxy. The constructor body writes to `this` (a throwaway class
+// instance); at the end, all own props are copied into the typed-array slot
+// via `copyToEnemySlot`. Subsequent reads/writes via the returned proxy
+// route to `runState.enemy*` typed arrays + the per-slot extras dictionary.
+// `update()` / `draw()` methods stay on `Enemy.prototype` — proxy
+// `getPrototypeOf` returns `Enemy.prototype` so method dispatch works.
 import { FloatingText } from './Entities/FloatingText.js';
 import { Particle } from './Entities/Particle.js';
 import { Projectile } from './Entities/Projectile.js';
 import { shadeColor } from './Utils.js';
+import { runState } from './RunState.js';
+import {
+    allocEnemySlot, copyToEnemySlot, registerEnemyPrototype, acquireEnemySlot, MAX_ENEMIES,
+} from './core/systems/enemySystem.js';
+
+// Sentinel returned when MAX_ENEMIES cap is hit — every read returns 0,
+// every write is no-op. Callers' subsequent mutations vanish harmlessly.
+const _DEAD_ENEMY = new Proxy({}, {
+    get(_t, prop) {
+        if (prop === '_slot') return -1;
+        if (prop === 'eliteType' || prop === '_world' || prop === 'parentBoss') return null;
+        if (prop === 'subType') return '';
+        return 0;
+    },
+    set() { return true; },
+});
 
 class Enemy {
     constructor(isBossMinion = false, forcedType = null, world = null) {
@@ -193,6 +216,14 @@ class Enemy {
         this._ghost = false;
         this._world = world;
         this.hitFlashTimer = 0;
+
+        // #5 phase 5.11b — allocate ECS slot, copy all own props (including
+        // any `_*` extras the DLC `init()` hook added), return slot proxy.
+        // Callers see the proxy; method dispatch routes through
+        // Enemy.prototype via the proxy's getPrototypeOf trap.
+        const slot = allocEnemySlot(runState);
+        if (slot < 0) return _DEAD_ENEMY;
+        return copyToEnemySlot(runState, slot, this);
     }
 
     update() {
@@ -585,6 +616,187 @@ class Enemy {
     }
 }
 Enemy._nextId = 0;
+
+// #5 phase 5.11b — register prototype so the slot proxy's
+// `getPrototypeOf` trap returns it, making `slot.update()` / `slot.draw()`
+// resolve to the class methods above.
+registerEnemyPrototype(Enemy.prototype);
+void acquireEnemySlot; void MAX_ENEMIES; // re-exported for callers
+
+// ── Mixed-storage `window.enemies` sentinel ───────────────────────────────
+//
+// Looks like an Array. Iterates ECS Enemy slots [0..enemyCount) first,
+// then `runState.bossInstances` (Boss class instances, until phase 5.12).
+// All standard array methods routed through the system fns + Boss list.
+
+import { killEnemy, clearEnemies } from './core/systems/enemySystem.js';
+
+// Iteration order: bosses first, then ECS Enemy slots. Matches the legacy
+// `enemies.unshift(boss)` semantics where bosses landed at index 0 so
+// `enemies[0] instanceof Boss` boss-active checks resolve correctly.
+function _enemyByIndex(i) {
+    const bn = runState.bossInstances.length;
+    if (i < bn) return runState.bossInstances[i];
+    return acquireEnemySlot(runState, i - bn);
+}
+function _totalLength() {
+    return runState.enemyCount + runState.bossInstances.length;
+}
+
+const _enemiesSentinel = new Proxy({}, {
+    get(_t, prop) {
+        if (typeof prop === 'string' && /^\d+$/.test(prop)) {
+            const i = Number(prop);
+            if (i < 0 || i >= _totalLength()) return undefined;
+            return _enemyByIndex(i);
+        } else if (typeof prop === 'number') {
+            if (prop < 0 || prop >= _totalLength()) return undefined;
+            return _enemyByIndex(prop);
+        }
+        switch (prop) {
+            case 'length':           return _totalLength();
+            case Symbol.iterator:    return _eIter;
+            case 'forEach':          return _eForEach;
+            case 'some':             return _eSome;
+            case 'every':            return _eEvery;
+            case 'find':             return _eFind;
+            case 'findIndex':        return _eFindIndex;
+            case 'filter':           return _eFilter;
+            case 'map':              return _eMap;
+            case 'indexOf':          return _eIndexOf;
+            case 'includes':         return _eIncludes;
+            case 'slice':            return _eSlice;
+            case 'splice':           return _eSplice;
+            case 'push':             return _ePush;
+            case 'unshift':          return _eUnshift;
+            case 'constructor':      return Array;
+            default:                 return undefined;
+        }
+    },
+    set(_t, prop, value) {
+        if (prop === 'length') {
+            if (value === 0 || value === '0') clearEnemies(runState);
+            return true;
+        }
+        return true;
+    },
+    has(_t, prop) {
+        if (typeof prop === 'string' && /^\d+$/.test(prop)) {
+            return Number(prop) < _totalLength();
+        }
+        return prop in Array.prototype;
+    },
+});
+
+function* _eIter() {
+    const n = _totalLength();
+    for (let i = 0; i < n; i++) yield _enemyByIndex(i);
+}
+function _eForEach(cb, thisArg) {
+    const n = _totalLength();
+    for (let i = 0; i < n; i++) cb.call(thisArg, _enemyByIndex(i), i, _enemiesSentinel);
+}
+function _eSome(pred, thisArg) {
+    const n = _totalLength();
+    for (let i = 0; i < n; i++) if (pred.call(thisArg, _enemyByIndex(i), i, _enemiesSentinel)) return true;
+    return false;
+}
+function _eEvery(pred, thisArg) {
+    const n = _totalLength();
+    for (let i = 0; i < n; i++) if (!pred.call(thisArg, _enemyByIndex(i), i, _enemiesSentinel)) return false;
+    return true;
+}
+function _eFind(pred, thisArg) {
+    const n = _totalLength();
+    for (let i = 0; i < n; i++) {
+        const e = _enemyByIndex(i);
+        if (pred.call(thisArg, e, i, _enemiesSentinel)) return e;
+    }
+    return undefined;
+}
+function _eFindIndex(pred, thisArg) {
+    const n = _totalLength();
+    for (let i = 0; i < n; i++) if (pred.call(thisArg, _enemyByIndex(i), i, _enemiesSentinel)) return i;
+    return -1;
+}
+function _eFilter(pred, thisArg) {
+    const out = [];
+    const n = _totalLength();
+    for (let i = 0; i < n; i++) {
+        const e = _enemyByIndex(i);
+        if (pred.call(thisArg, e, i, _enemiesSentinel)) out.push(e);
+    }
+    return out;
+}
+function _eMap(cb, thisArg) {
+    const n = _totalLength();
+    const out = new Array(n);
+    for (let i = 0; i < n; i++) out[i] = cb.call(thisArg, _enemyByIndex(i), i, _enemiesSentinel);
+    return out;
+}
+function _eIndexOf(searchEl) {
+    // Boss instances live in [0..bossInstances.length).
+    const bi = runState.bossInstances.indexOf(searchEl);
+    if (bi >= 0) return bi;
+    // Enemy slot proxies — offset by bossInstances.length.
+    if (searchEl && typeof searchEl === 'object' && typeof searchEl._slotIdx === 'function') {
+        const s = searchEl._slotIdx();
+        return (s >= 0 && s < runState.enemyCount) ? runState.bossInstances.length + s : -1;
+    }
+    return -1;
+}
+function _eIncludes(searchEl) { return _eIndexOf(searchEl) >= 0; }
+function _eSlice(begin = 0, end) {
+    const n = _totalLength();
+    if (end === undefined) end = n;
+    const out = [];
+    for (let i = begin; i < Math.min(end, n); i++) out.push(_enemyByIndex(i));
+    return out;
+}
+function _eSplice(start, deleteCount, ...inserts) {
+    if (inserts.length > 0) return [];
+    const removed = [];
+    const dc = (deleteCount === undefined) ? _totalLength() - start : deleteCount;
+    for (let k = 0; k < dc; k++) {
+        if (start >= _totalLength()) break;
+        removed.push(_enemyByIndex(start));
+        const bn = runState.bossInstances.length;
+        if (start < bn) {
+            runState.bossInstances.splice(start, 1);
+        } else {
+            killEnemy(runState, start - bn);
+        }
+    }
+    return removed;
+}
+function _ePush(...items) {
+    for (const it of items) {
+        if (it && typeof it === 'object' && typeof it._slotIdx === 'function') {
+            // Enemy slot proxy — already in ECS.
+        } else {
+            // Boss instance (or any non-proxy object).
+            runState.bossInstances.push(it);
+        }
+    }
+    return _totalLength();
+}
+function _eUnshift(...items) {
+    // Bosses go to front of bossInstances list (preserves spawn-first semantic
+    // within the Boss segment, though Enemy slots still iterate first).
+    for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        if (it && typeof it === 'object' && typeof it._slotIdx === 'function') {
+            // Enemy proxy — no-op (ECS dense head, no prepend).
+        } else {
+            runState.bossInstances.unshift(it);
+        }
+    }
+    return _totalLength();
+}
+
+if (typeof window !== 'undefined') {
+    window.enemies = _enemiesSentinel;
+}
 
 // ESM exports — server/loader.js unwraps via `.default`.
 export { Enemy };
