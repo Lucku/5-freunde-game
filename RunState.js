@@ -314,7 +314,34 @@ export function createRunState() {
 // `runState`; leaf modules `import { runState } from './RunState.js'` to read
 // run-scoped state without coupling to game.js's module scope. The renderer
 // + DLC also see it via `window.runState` (set below) for bare-name access.
-export const runState = createRunState();
+//
+// #195 (step 4, post step-3 server-sim arc) — per-session indirection. The
+// renderer uses a single `runState` per process; the server runs multiple
+// `GameSession` instances concurrently and each needs its own state. The
+// exported `runState` is now a Proxy that forwards every read/write to
+// whichever object `_activeState` points at. Server-side `bridge.runUpdate`
+// (via `GameSession._tick`) sets the active state to the session's own
+// `createRunState()` instance for the duration of the tick, then restores
+// the previous active state. Renderer-side: `_activeState` stays pointed
+// at the default singleton — `import { runState }` reads behave identically
+// to pre-Proxy. Performance: Proxy.get adds one indirection per access.
+// Per-tick hot loops (`runState.enemyCount`, typed-array index reads) take
+// the hit once per attribute access; V8 caches the Proxy handler so cost
+// is small in steady state.
+let _activeState = createRunState();
+export function setActiveRunState(rs) {
+    const prev = _activeState;
+    _activeState = rs;
+    return prev;
+}
+export const runState = new Proxy({}, {
+    get(_t, prop) { return _activeState[prop]; },
+    set(_t, prop, val) { _activeState[prop] = val; return true; },
+    has(_t, prop) { return prop in _activeState; },
+    ownKeys() { return Reflect.ownKeys(_activeState); },
+    getOwnPropertyDescriptor(_t, prop) { return Object.getOwnPropertyDescriptor(_activeState, prop); },
+    deleteProperty(_t, prop) { return delete _activeState[prop]; },
+});
 if (typeof window !== 'undefined') window.runState = runState;
 
 if (typeof window !== 'undefined') {

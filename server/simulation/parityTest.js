@@ -1187,6 +1187,61 @@ function testBridgeWaveAdvance() {
     delete global.window.pendingCustomMap;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 27 — #195 — Concurrent-session isolation (per-session runState).
+//   Two sessions ticking alternately must NOT share entity state. Earlier
+//   the `runState` singleton meant `gs1.enemies` and `gs2.enemies` both
+//   pointed at the same sentinel reading the same `runState.enemyCount`.
+//   #195 introduced a Proxy + `setActiveRunState(rs)` per-tick activation
+//   so each session owns its own ECS slot pools.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testConcurrentSessionIsolation() {
+    console.log('\n── 27 #195 — Concurrent-session isolation (per-session runState) ───');
+
+    const { gs: gsA } = makeSession('fire',  'water');
+    gsA._waveManager._lastSpawnMs = Date.now() + 1e9; // suppress spawn in legacy paths
+    // Tick A enough times for the leaf-module spawn block to fire (frame ≥ 43).
+    for (let i = 0; i < 25; i++) gsA._tick();
+    const aEnemiesAfter = gsA._runState.enemyCount;
+    const aWaveAfter    = gsA._runState.wave;
+    const aFrameAfter   = gsA._runState.frame;
+
+    // Make a second session AFTER A's ticks. With per-session runState,
+    // gsB starts fresh (enemyCount=0, frame=0, wave=1) regardless of
+    // anything gsA accumulated.
+    const { gs: gsB } = makeSession('metal', 'plant');
+    gsB._waveManager._lastSpawnMs = Date.now() + 1e9;
+    const bEnemiesPre = gsB._runState.enemyCount;
+    const bFramePre   = gsB._runState.frame;
+    const bWavePre    = gsB._runState.wave;
+
+    assert(gsA._runState !== gsB._runState,
+        'Each session owns a distinct runState instance');
+    assert(bEnemiesPre === 0,
+        `gsB starts with 0 enemies (got ${bEnemiesPre}) — gsA's spawns don't leak`);
+    assert(bFramePre === 0,
+        `gsB starts at frame=0 (got ${bFramePre}) — gsA's frame doesn't leak`);
+    assert(bWavePre === 1,
+        `gsB starts at wave=1 (got ${bWavePre}) — gsA's wave progression doesn't leak`);
+
+    // Now tick gsB; ensure gsA's state stays intact.
+    for (let i = 0; i < 5; i++) gsB._tick();
+    const aEnemiesPost = gsA._runState.enemyCount;
+    const aWavePost    = gsA._runState.wave;
+    const aFramePost   = gsA._runState.frame;
+
+    assert(aEnemiesPost === aEnemiesAfter,
+        `gsA enemyCount unchanged by ticking gsB (was ${aEnemiesAfter}, now ${aEnemiesPost})`);
+    assert(aWavePost === aWaveAfter,
+        `gsA wave unchanged by ticking gsB (was ${aWaveAfter}, now ${aWavePost})`);
+    assert(aFramePost === aFrameAfter,
+        `gsA frame unchanged by ticking gsB (was ${aFrameAfter}, now ${aFramePost})`);
+
+    gsA.stop();
+    gsB.stop();
+}
+
 // ─── Run all tests ─────────────────────────────────────────────────────────────
 
 testSessionIsolation();
@@ -1214,6 +1269,7 @@ testKillIncrementsWaveCounterOnBridge();
 testKillSpawnsGoldDropOnBridge();
 testDeterministicSpawnParity();
 testBridgeWaveAdvance();
+testConcurrentSessionIsolation();
 
 const total = passed + failed;
 console.log(`\n${'─'.repeat(56)}`);

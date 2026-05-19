@@ -3,15 +3,16 @@ import { Enemy } from './Enemy.js';
 import { FloatingText } from './Entities/FloatingText.js';
 import { Projectile } from './Entities/Projectile.js';
 import { shadeColor } from './Utils.js';
+import { runState } from './RunState.js';
 
 
 class Boss {
     constructor(type) {
         this.isBoss = true; // Flag for special interactions (e.g. Void Biome)
-        this.type = type || BOSS_TYPES[Math.floor(Math.random() * BOSS_TYPES.length)];
+        this.type = type || BOSS_TYPES[Math.floor(runState.rng() * BOSS_TYPES.length)];
         const cam = arena.camera;
         // Spawn near player but ensure inside map
-        this.x = cam.x + cam.width / 2 + (Math.random() * 100 - 50);
+        this.x = cam.x + cam.width / 2 + (runState.rng() * 100 - 50);
         this.y = cam.y - 100;
 
         // Clamp to map bounds
@@ -21,8 +22,8 @@ class Boss {
         // Collision Check (Ensure boss doesn't spawn in wall)
         let attempts = 0;
         while (attempts < 10 && arena.checkCollision(this.x, this.y, 60)) {
-            this.x = Math.random() * (arena.width - 120) + 60;
-            this.y = Math.random() * (arena.height - 120) + 60;
+            this.x = runState.rng() * (arena.width - 120) + 60;
+            this.y = runState.rng() * (arena.height - 120) + 60;
             attempts++;
         }
 
@@ -168,10 +169,10 @@ class Boss {
             }
 
             // Random lightning strikes around boss
-            if (Math.random() < 0.05) {
+            if (runState.rng() < 0.05) {
                 // Assuming createProjectile exists or similiar.
                 // For now, just explosions
-                createExplosion(this.x + (Math.random() * 400 - 200), this.y + (Math.random() * 400 - 200), '#ffff00');
+                createExplosion(this.x + (runState.rng() * 400 - 200), this.y + (runState.rng() * 400 - 200), '#ffff00');
             }
         }
 
@@ -416,8 +417,8 @@ class Boss {
             if (this.mkTeleportCd <= 0) {
                 createExplosion(this.x, this.y, '#220022');
                 if (typeof audioManager !== 'undefined') audioManager.play('boss_makuta_teleport');
-                const tOff = Math.random() * Math.PI * 2;
-                const tDist = 220 + Math.random() * 120;
+                const tOff = runState.rng() * Math.PI * 2;
+                const tDist = 220 + runState.rng() * 120;
                 this.x = Math.max(this.radius, Math.min(arena.width - this.radius, _bossTarget.x + Math.cos(tOff) * tDist));
                 this.y = Math.max(this.radius, Math.min(arena.height - this.radius, _bossTarget.y + Math.sin(tOff) * tDist));
                 createExplosion(this.x, this.y, '#330033');
@@ -529,7 +530,7 @@ class Boss {
                 }
             } else if (this.attackCooldown <= 0) {
                 // Choose next attack based on phase + randomness
-                const roll = Math.random();
+                const roll = runState.rng();
                 if (this.phase >= 2 && roll < 0.35) {
                     // Sweep (phase 2+)
                     this.mkState = 'SWEEP';
@@ -555,7 +556,7 @@ class Boss {
                 if (this.mkMinionCd <= 0) {
                     const mc = this.phase >= 3 ? 3 : 2;
                     for (let i = 0; i < mc; i++) {
-                        const ma = (Math.PI * 2 / mc) * i + Math.random();
+                        const ma = (Math.PI * 2 / mc) * i + runState.rng();
                         const mn = new Enemy(true);
                         mn.x = this.x + Math.cos(ma) * 100;
                         mn.y = this.y + Math.sin(ma) * 100;
@@ -651,7 +652,7 @@ class Boss {
         if (this.type !== 'RHINO') { // Rhino handles cooldown in movement
             if (this.attackCooldown <= 0) {
                 // Telegraphed Attacks
-                if (this.type === 'TANK' && this.phase === 2 && Math.random() < 0.3) {
+                if (this.type === 'TANK' && this.phase === 2 && runState.rng() < 0.3) {
                     // Big Slam
                     this.telegraphData = { x: this.x, y: this.y, radius: 150, type: 'CIRCLE' };
                     this.telegraphTimer = 60;
@@ -730,8 +731,8 @@ class Boss {
                         const lx = _ct2.x + (_ct2.vx || 0) * lead;
                         const ly = _ct2.y + (_ct2.vy || 0) * lead;
                         // Add jitter on extra bombs
-                        const jx = i > 0 ? (Math.random() - 0.5) * 140 : 0;
-                        const jy = i > 0 ? (Math.random() - 0.5) * 140 : 0;
+                        const jx = i > 0 ? (runState.rng() - 0.5) * 140 : 0;
+                        const jy = i > 0 ? (runState.rng() - 0.5) * 140 : 0;
                         const delay = i * 18;
                         this.pendingBombs.push({
                             x: lx + jx, y: ly + jy,
@@ -892,7 +893,7 @@ class Boss {
                 ctx.lineWidth = 2;
                 for (let i = -3; i <= 3; i++) {
                     const yoff = i * 10;
-                    const len = 28 + Math.random() * 28;
+                    const len = 28 + runState.rng() * 28;
                     ctx.beginPath();
                     ctx.moveTo(r + 4, yoff);
                     ctx.lineTo(r + 4 + len, yoff);

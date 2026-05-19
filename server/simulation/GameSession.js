@@ -28,6 +28,16 @@ const {
 } = require('./constants');
 const WaveManager = require('./WaveManager');
 
+// #195 — per-session `runState`. RunState.js exports a Proxy that forwards
+// to whichever object `setActiveRunState(rs)` last installed. GameSession
+// creates its own instance on construct, then activates it for the
+// duration of each `_tick` so the leaf modules' `runState.X` accesses
+// resolve to this session's state — required for >1 concurrent match
+// on the same server process. ESM-from-CJS require works because Node
+// 24+ honors `__esModule` interop on the cached module.
+const { createRunState: _createRunState, setActiveRunState: _setActiveRunState }
+    = require(require('path').join(__dirname, '..', '..', 'RunState.js'));
+
 /**
  * GameSession — authoritative server-side game simulation.
  *
@@ -144,6 +154,12 @@ class GameSession {
         this._HIGH_LOAD_EXIT  = 140;
         this._SLOW_TICK_MS    = 50; // 20 Hz
 
+        // #195 — per-session `runState`. Own typed-array pools + scalars
+        // so concurrent sessions don't share entity slots / wave counters
+        // / RNG state. Activated for the duration of each `_tick` via
+        // `setActiveRunState`; the leaf-module Proxy read from
+        // RunState.js forwards to whichever session is currently active.
+        this._runState = _createRunState();
     }
 
     _adjustTickRate() {
@@ -166,13 +182,19 @@ class GameSession {
         this._world.isVersusMode = this._isVersusMode;
         this._world.isCoopMode   = !this._isVersusMode;
 
-        // Reset the runState singleton's ECS slot counts so this session
-        // starts clean. Without this, slot data from a previous session
+        // #195 — activate this session's runState for the duration of init().
+        // Player constructor + DLC hero init hooks read `runState.X` during
+        // construction (e.g. assigning the player ref onto runState, reading
+        // current biome). Without activation those reads + writes target the
+        // default singleton state — leaks into other sessions.
+        const _prevRunState = _setActiveRunState(this._runState);
+
+        // Reset slot counts on this session's runState so a fresh init is
+        // clean. Without this, slot data from a hot-reload or prior init
         // (typed-array x/y/hp from `enemies.push` / `Projectile.acquire`)
         // remains addressable via `runState.<thing>Count > 0` and gets
         // iterated by leaf-module collision loops the next time
-        // `bridge.runUpdate` fires — manifests as an extra projectile hit
-        // landing on tick 1 instead of tick 6.
+        // `bridge.runUpdate` fires.
         this._resetEcsState();
 
         // Sync canvas dimensions so Player constructor gets correct spawn coords
@@ -199,6 +221,14 @@ class GameSession {
             }, this._currentTickMs);
         };
         scheduleNext();
+
+        // #195 — leave this session's runState ACTIVE after init() returns.
+        // Tests + external callers between ticks expect `global.runState`
+        // (which is the Proxy) to forward to the most-recently-initialized
+        // session's state. `_tick` does its own activate+restore per
+        // invocation, so concurrent sessions still alternate cleanly.
+        // `_prevRunState` retained for diagnostics; not restored.
+        void _prevRunState;
     }
 
     /**
@@ -273,45 +303,56 @@ class GameSession {
     _tick() {
         if (this.isLevelingUp) return;
 
-        // Phase 3h.2 — bridge is the only path. `core/updateGameplayPre.js` +
-        // `core/updateGameplayMid.js` drive the whole game-state update via
-        // `bridge.runUpdate`. Snapshot + tick-rate hysteresis + anti-cheat
-        // hand-off stay outside the bridge (server-only concerns).
-        //
-        // Sub-step `bridge.runUpdate` to match the renderer's per-frame pacing
-        // (`proj.update()` / `enemy.update()` / `player.update()` advance by
-        // one frame per call; one 33 ms server tick = ~2 renderer frames at
-        // 60 fps, so `_currentTickFrames` sub-steps keep entity speeds in
-        // sync with the browser-side renderer).
-        //
-        // Frame-counter handoff: the leaf module owns `runState.frame` and
-        // increments it inside pre(). `_syncWorld()` runs first to push
-        // `gs._frame → w.frame → rs.frame` via `bridge.syncWorldToGlobals`;
-        // after sub-steps we read `gs._frame = w.frame` back so the snapshot
-        // + next tick observe the authoritative count.
-        this._syncWorld();
-        const bridge = require('./RendererBridge');
-        const SUB_STEPS = Math.max(1, Math.round(this._currentTickFrames));
-        for (let s = 0; s < SUB_STEPS; s++) {
-            bridge.runUpdate(this, 1000 / 60);
-        }
-        this._frame = this._world.frame;
+        // #195 — activate this session's per-session `runState` for the
+        // duration of the tick. RunState.js's exported `runState` Proxy
+        // forwards every property access to whichever object was last
+        // installed via `setActiveRunState`. Restore the prior state in
+        // a `finally` block so a thrown exception doesn't leave another
+        // session's tick reading this session's typed arrays.
+        const _prevRunState = _setActiveRunState(this._runState);
+        try {
+            // Phase 3h.2 — bridge is the only path. `core/updateGameplayPre.js` +
+            // `core/updateGameplayMid.js` drive the whole game-state update via
+            // `bridge.runUpdate`. Snapshot + tick-rate hysteresis + anti-cheat
+            // hand-off stay outside the bridge (server-only concerns).
+            //
+            // Sub-step `bridge.runUpdate` to match the renderer's per-frame pacing
+            // (`proj.update()` / `enemy.update()` / `player.update()` advance by
+            // one frame per call; one 33 ms server tick = ~2 renderer frames at
+            // 60 fps, so `_currentTickFrames` sub-steps keep entity speeds in
+            // sync with the browser-side renderer).
+            //
+            // Frame-counter handoff: the leaf module owns `runState.frame` and
+            // increments it inside pre(). `_syncWorld()` runs first to push
+            // `gs._frame → w.frame → rs.frame` via `bridge.syncWorldToGlobals`;
+            // after sub-steps we read `gs._frame = w.frame` back so the snapshot
+            // + next tick observe the authoritative count.
+            this._syncWorld();
+            const bridge = require('./RendererBridge');
+            const SUB_STEPS = Math.max(1, Math.round(this._currentTickFrames));
+            for (let s = 0; s < SUB_STEPS; s++) {
+                bridge.runUpdate(this, 1000 / 60);
+            }
+            this._frame = this._world.frame;
 
-        // Leaf-module spawn pushes through `enemies.push(new Enemy())` — the
-        // `window.enemies` sentinel installed by Enemy.js (`_enemiesSentinel`
-        // reads from `runState.enemyCount`). Same for `gs.projectiles`. Point
-        // session refs at the sentinels so the snapshot path indexes through
-        // the proxy's numeric getter and observes bridge-spawned entities.
-        this.enemies     = global.enemies     || this._world.enemies;
-        this.projectiles = global.projectiles || this._world.projectiles;
-        this._world.enemies     = this.enemies;
-        this._world.projectiles = this.projectiles;
+            // Leaf-module spawn pushes through `enemies.push(new Enemy())` — the
+            // `window.enemies` sentinel installed by Enemy.js (`_enemiesSentinel`
+            // reads from `runState.enemyCount`). Same for `gs.projectiles`. Point
+            // session refs at the sentinels so the snapshot path indexes through
+            // the proxy's numeric getter and observes bridge-spawned entities.
+            this.enemies     = global.enemies     || this._world.enemies;
+            this.projectiles = global.projectiles || this._world.projectiles;
+            this._world.enemies     = this.enemies;
+            this._world.projectiles = this.projectiles;
 
-        this._sendSnapshot();
-        this._adjustTickRate();
-        if (this._onTickStats) {
-            const elapsedSec = Math.round((Date.now() - this._startedAt) / 1000);
-            this._onTickStats(this.wave, this.score, elapsedSec);
+            this._sendSnapshot();
+            this._adjustTickRate();
+            if (this._onTickStats) {
+                const elapsedSec = Math.round((Date.now() - this._startedAt) / 1000);
+                this._onTickStats(this.wave, this.score, elapsedSec);
+            }
+        } finally {
+            _setActiveRunState(_prevRunState);
         }
     }
 
@@ -327,7 +368,13 @@ class GameSession {
      * also cleared.
      */
     _resetEcsState() {
-        const rs = global.runState;
+        // Phase 3h.2 + #195 — mutate THIS session's runState directly. Earlier
+        // singleton-only code path read through `global.runState` (still valid,
+        // since the Proxy forwards to the session's state during a tick) — but
+        // `_resetEcsState` runs from `init()` BEFORE the first tick, so no
+        // `setActiveRunState` swap is in effect yet. Target `this._runState`
+        // explicitly.
+        const rs = this._runState;
         if (!rs) return;
         rs.enemyCount       = 0;
         rs.projectileCount  = 0;
