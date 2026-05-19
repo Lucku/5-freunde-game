@@ -342,14 +342,38 @@ class ProjectileSlotInternal {
     get onHit()  { return this._slot >= 0 ? this._rs.projectileOnHitFn[this._slot] : null; }
     set onHit(v) { if (this._slot >= 0) this._rs.projectileOnHitFn[this._slot] = v || null; }
 
-    // update/draw setters write to the override fn ref. The DLC pattern
-    // `p.update = function() { ... }` lands here.
+    // DLC pattern `p.update = function() { ... }` lands here via the setter.
+    // `proj.update()` getter returns a callable: the override fn if set,
+    // otherwise a closure that runs the base tick. Closure allocation is
+    // hot-path-acceptable because update is called once per projectile per
+    // frame and the closure body is small.
     set update(v) { if (this._slot >= 0) this._rs.projectileUpdateFn[this._slot] = v || null; }
-    get update()  { return this._slot >= 0 ? this._rs.projectileUpdateFn[this._slot] : null; }
+    get update()  {
+        if (this._slot < 0) return _noopFn;
+        const fn = this._rs.projectileUpdateFn[this._slot];
+        if (fn) return fn;
+        return _baseUpdateBound(this);
+    }
     set draw(v)   { if (this._slot >= 0) this._rs.projectileDrawFn[this._slot] = v || null; }
     get draw()    { return this._slot >= 0 ? this._rs.projectileDrawFn[this._slot] : null; }
 
     _slotIdx() { return this._slot; }
+}
+
+// Module-private helpers for the `proj.update` getter fallback. `_baseUpdateBound`
+// returns a closure bound to a specific slot proxy that runs position += velocity,
+// life-- on each call.
+function _noopFn() {}
+function _baseUpdateBound(proxy) {
+    return function _baseTick() {
+        const i = proxy._slot;
+        if (i < 0) return;
+        const rs = proxy._rs;
+        rs.projectileX[i] += rs.projectileVX[i];
+        rs.projectileY[i] += rs.projectileVY[i];
+        const life = rs.projectileLife[i];
+        if (!Number.isNaN(life)) rs.projectileLife[i] = life - 1;
+    };
 }
 
 // Property fallback for `_*` custom DLC fields — store on per-slot extras

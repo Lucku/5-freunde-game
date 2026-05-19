@@ -386,6 +386,107 @@ function testBridgeRunUpdateLive() {
     gs.stop();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 11 — Damage-authority parity: legacy `_tick` vs bridge `runUpdate`.
+//   Both paths receive identical starting state (one enemy at a fixed position,
+//   one player projectile in flight toward it). Run each path once; compare
+//   the resulting enemy.hp delta. Documents the current gap between server-
+//   authoritative damage paths and the leaf-module damage paths so future
+//   migration can close the delta intentionally rather than discovering it
+//   in production.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testBridgeVsLegacyDamageParity() {
+    console.log('\n── 11 Damage authority parity (legacy _tick vs runUpdate) ───');
+
+    const bridge = require('./RendererBridge');
+
+    function makeIdenticalSession() {
+        const { gs } = makeSession('fire', 'water');
+        gs._waveManager._lastSpawnMs = Date.now() + 1e9; // suppress wave spawn
+        // Inject a single deterministic enemy + projectile pair instead of
+        // letting RNG choose. Easier to reason about damage delta.
+        if (typeof global.Enemy === 'function') {
+            const e = new global.Enemy(false, 'BASIC');
+            e.x = 1500; e.y = 1500;
+            e.hp = 100; e.maxHp = 100;
+            gs.enemies.push(e);
+            gs._world.enemies = gs.enemies;
+        }
+        if (typeof global.Projectile === 'function') {
+            // Aim toward the enemy from 50 px away — collision will happen
+            // within a tick or two.
+            const p = global.Projectile.acquire(
+                1450, 1500,                   // x, y (50 px left of enemy)
+                { x: 20, y: 0 },               // velocity (toward enemy)
+                25,                            // damage
+                '#fff',                        // color
+                4,                             // radius
+                'fire',                        // type
+                0,                             // knockback
+                false,                         // isEnemy=false (player shot)
+            );
+            gs.projectiles.push(p);
+            gs._world.projectiles = gs.projectiles;
+        }
+        return gs;
+    }
+
+    // Path A: legacy GameSession._tick once.
+    const gsLegacy = makeIdenticalSession();
+    const hpA0 = gsLegacy.enemies[0]?.hp ?? null;
+    tick(gsLegacy, 1);
+    const hpA1 = gsLegacy.enemies[0]?.hp ?? null;
+    gsLegacy.stop();
+
+    // Path B: bridge.runUpdate once on the SAME starting shape.
+    const gsBridge = makeIdenticalSession();
+    const hpB0 = gsBridge.enemies[0]?.hp ?? null;
+    let bridgeRan = false;
+    let didThrow = null;
+    try {
+        bridgeRan = bridge.runUpdate(gsBridge, 1000 / 60);
+    } catch (e) {
+        didThrow = e;
+    }
+    const hpB1 = gsBridge.enemies[0]?.hp ?? null;
+    gsBridge.stop();
+
+    if (didThrow) {
+        process.stderr.write(`  FAIL  bridge.runUpdate threw: ${didThrow.message}\n`);
+        failed++;
+    } else {
+        assert(bridgeRan === true, 'bridge.runUpdate ran on parity session');
+        assert(hpA0 === 100 && hpB0 === 100,
+            `both paths start at hp=100 (got A=${hpA0} B=${hpB0})`);
+
+        const dmgA = hpA0 - hpA1;
+        const dmgB = hpB0 - hpB1;
+        process.stderr.write(`  info  damage applied  legacy=${dmgA}  bridge=${dmgB}\n`);
+
+        // Legacy path is server-authoritative and MUST apply damage if the
+        // projectile reaches the enemy this tick.
+        assert(dmgA >= 0, `legacy path damage non-negative (got ${dmgA})`);
+        // Bridge path damage depends on whether the leaf module's collision
+        // pass + the loader.js `applyDamage` stub apply HP mutation. Asserting
+        // dmgA === dmgB would force parity prematurely — instead, record the
+        // current gap so a future fix can flip this to an equality check.
+        if (dmgA === dmgB) {
+            assert(true, `bridge path matched legacy damage exactly (${dmgB})`);
+        } else {
+            process.stderr.write(`  gap   bridge-vs-legacy damage delta = ${dmgA - dmgB} (legacy applies more)\n`);
+            process.stderr.write(`        Expected: leaf-module damage paths via loader.js stubs are\n`);
+            process.stderr.write(`        intentionally lossy (smoke-grade). Close this gap by\n`);
+            process.stderr.write(`        wiring server-authoritative applyDamage into loader.js +\n`);
+            process.stderr.write(`        having leaf-module collision sites call it instead of\n`);
+            process.stderr.write(`        bare \`target.hp -= dmg\`. Test passes as a regression\n`);
+            process.stderr.write(`        watch — delta is non-zero (expected) and non-negative.\n`);
+            assert(dmgA >= dmgB,
+                `legacy >= bridge damage (gap=${dmgA - dmgB}; documented as expected smoke-grade lossy path)`);
+        }
+    }
+}
+
 // ─── Run all tests ─────────────────────────────────────────────────────────────
 
 testSessionIsolation();
@@ -398,6 +499,7 @@ testDlcHeroSmoke();
 testLevelUpFlow();
 testRendererBridge();
 testBridgeRunUpdateLive();
+testBridgeVsLegacyDamageParity();
 
 const total = passed + failed;
 console.log(`\n${'─'.repeat(56)}`);

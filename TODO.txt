@@ -1,3 +1,10 @@
 # General
-- Bug: Access to resource at 'http://192.168.178.63:3001/api/telemetry' from origin 'http://localhost:5173' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: The value of the 'Access-Control-Allow-Credentials' header in the response is '' which must be 'true' when the request's credentials mode is 'include'.
-- Update server's README.md
+- Bug:
+
+Player.js:1557 Uncaught (in promise) ReferenceError: ACHIEVEMENTS is not defined
+    at Player.js:1557:25
+    at Array.forEach (<anonymous>)
+    at window.getHeroStats (Player.js:1556:46)
+    at new Player (Player.js:15:22)
+    at startGame (game.js:4577:23)
+
