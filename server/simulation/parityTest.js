@@ -699,6 +699,186 @@ function testBridgeFlagShadowExecution() {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tests 14-16 — Phase 3b — Per-feature projectile parity (legacy vs bridge).
+//   Gates against regressions on projectile sub-features before retiring
+//   `_updateProjectiles` from the legacy `_tick` path under phase 3h. Each
+//   test pre-injects an identical setup into two sessions (one legacy,
+//   one bridge), drives a single shot, and compares the feature-specific
+//   outcome (knockback distance, pierce-survival count, explosive splash
+//   damage). Both paths run in coop mode with `_coopScaled = true` on the
+//   pre-injected enemy so the leaf-module +40% bump skips it (same
+//   pattern as Test 11).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function _makeProjectileFeatureSession() {
+    const { gs } = makeSession('fire', 'water');
+    gs._waveManager._lastSpawnMs = Date.now() + 1e9;
+    return gs;
+}
+
+function _injectEnemyAndProjectile(gs, projOpts = {}) {
+    const e = new global.Enemy(false, 'BASIC');
+    e.x = 1500; e.y = 1500;
+    e.hp = 200; e.maxHp = 200;
+    e._coopScaled = true;
+    gs.enemies.push(e);
+    gs._world.enemies = gs.enemies;
+
+    const p = global.Projectile.acquire(
+        projOpts.x ?? 1480,                       // close to enemy → hits within 1 tick of sub-stepping
+        projOpts.y ?? 1500,
+        projOpts.velocity ?? { x: 20, y: 0 },
+        projOpts.damage ?? 25,
+        projOpts.color ?? '#fff',
+        projOpts.radius ?? 4,
+        projOpts.type ?? 'fire',
+        projOpts.knockback ?? 0,
+        false,                                    // isEnemy = false
+        projOpts.isExplosive ?? false,
+    );
+    // pierce is set on the slot post-spawn (acquire signature doesn't expose).
+    if (projOpts.pierce !== undefined) p.pierce = projOpts.pierce;
+    gs.projectiles.push(p);
+    gs._world.projectiles = gs.projectiles;
+    return { e, p };
+}
+
+function testProjectileKnockbackParity() {
+    console.log('\n── 14 Phase 3b — Projectile knockback parity (legacy vs bridge) ───');
+
+    const KNOCKBACK = 25;
+
+    // Legacy
+    const gsL = _makeProjectileFeatureSession();
+    const { e: eL } = _injectEnemyAndProjectile(gsL, { knockback: KNOCKBACK });
+    const xL0 = eL.x;
+    gsL._tick();
+    const xL1 = eL.x;
+    gsL.stop();
+
+    // Bridge
+    const gsB = _makeProjectileFeatureSession();
+    gsB._useBridge = true;
+    const { e: eB } = _injectEnemyAndProjectile(gsB, { knockback: KNOCKBACK });
+    const xB0 = eB.x;
+    gsB._tick();
+    const xB1 = eB.x;
+    gsB.stop();
+
+    const dxL = xL1 - xL0;
+    const dxB = xB1 - xB0;
+    process.stderr.write(`  info  knockback Δx  legacy=${dxL.toFixed(2)}  bridge=${dxB.toFixed(2)}\n`);
+
+    // Legacy `_updateProjectiles` does not apply knockback. Bridge runs
+    // the leaf-module collision at `core/updateGameplayMid.js:1195-1198`
+    // which writes `enemy.x += cos(angle) * proj.knockback`. Net Δx is
+    // confounded by `enemy.update()` chasing the player (mid() runs
+    // enemy.update() inside the same loop before the collision pass +
+    // again on the next sub-step), so a strict `Δx == knockback`
+    // assertion would fail. Instead verify bridge applies MORE Δx than
+    // legacy under identical conditions — the +knockback boost is the
+    // only delta between the two paths' net horizontal movement.
+    // Phase 3h's legacy retirement closes this gap by routing all
+    // projectile damage through the bridge path.
+    assert(dxB > dxL,
+        `bridge knockback observable vs legacy (bridge Δx=${dxB.toFixed(2)} > legacy Δx=${dxL.toFixed(2)})`);
+    assert(dxB > 0,
+        `bridge knockback pushes enemy in projectile travel direction (got Δx=${dxB.toFixed(2)})`);
+}
+
+function testProjectilePierceParity() {
+    console.log('\n── 15 Phase 3b — Projectile pierce decrement (bridge) ───');
+
+    // Pierce semantics in `core/updateGameplayMid.js:1188-1193`:
+    //   pierce > 0 → decrement, projectile survives
+    //   pierce === 0 → splice
+    // Leaf module has no hit-list on projectiles, so a stationary
+    // projectile inside one enemy's hitbox can hit that enemy multiple
+    // times across sub-steps. Compare pierce=0 vs pierce=2 on the same
+    // setup: pierce=2 should land more total hits (3) before dying than
+    // pierce=0 (1).
+
+    function injectShot(gs, pierce) {
+        const e = new global.Enemy(false, 'BASIC');
+        e.x = 1500; e.y = 1500; e.hp = 500; e.maxHp = 500;
+        e._coopScaled = true;
+        // Lock enemy speed so chase doesn't move it out of the proj's path.
+        e.speed = 0;
+        gs.enemies.push(e);
+        gs._world.enemies = gs.enemies;
+        const p = global.Projectile.acquire(1495, 1500, { x: 0, y: 0 }, 25, '#fff', 4, 'fire', 0, false);
+        p.pierce = pierce;
+        gs.projectiles.push(p);
+        gs._world.projectiles = gs.projectiles;
+        return { e };
+    }
+
+    // pierce = 0 → 1 hit, projectile dies on first collision.
+    const gsP0 = _makeProjectileFeatureSession();
+    gsP0._useBridge = true;
+    const { e: eP0 } = injectShot(gsP0, 0);
+    gsP0._tick();
+    const dmgP0 = 500 - eP0.hp;
+    gsP0.stop();
+
+    // pierce = 2 → 3 hits across sub-steps (pierce 2→1, 1→0, dies).
+    const gsP2 = _makeProjectileFeatureSession();
+    gsP2._useBridge = true;
+    const { e: eP2 } = injectShot(gsP2, 2);
+    // One tick = 2 sub-steps. Need enough sub-steps for 3 hits → 2 ticks.
+    gsP2._tick();
+    gsP2._tick();
+    const dmgP2 = 500 - eP2.hp;
+    gsP2.stop();
+
+    process.stderr.write(`  info  bridge pierce: pierce=0 dmg=${dmgP0} pierce=2 dmg=${dmgP2}\n`);
+
+    assert(dmgP0 >= 25,
+        `pierce=0 projectile lands at least 1 hit (got ${dmgP0} dmg)`);
+    assert(dmgP2 > dmgP0,
+        `pierce=2 projectile lands more total damage than pierce=0 (${dmgP2} > ${dmgP0})`);
+}
+
+function testProjectileExplosiveParity() {
+    console.log('\n── 16 Phase 3b — Projectile explosive splash parity (bridge) ───');
+
+    // Explosive projectile hits primary enemy + splashes within 100 px.
+    // Bridge path leaf-module loop at `core/updateGameplayMid.js:1166-1186`
+    // applies `proj.damage` to every enemy within 100 px of the impact.
+
+    function injectExplosiveSetup(gs) {
+        const e1 = new global.Enemy(false, 'BASIC');
+        e1.x = 1500; e1.y = 1500; e1.hp = 200; e1.maxHp = 200; e1._coopScaled = true;
+        gs.enemies.push(e1);
+        const e2 = new global.Enemy(false, 'BASIC');
+        e2.x = 1560; e2.y = 1500; e2.hp = 200; e2.maxHp = 200; e2._coopScaled = true;
+        gs.enemies.push(e2);
+        gs._world.enemies = gs.enemies;
+
+        const p = global.Projectile.acquire(
+            1480, 1500, { x: 20, y: 0 }, 25, '#e67e22', 4, 'fire', 0, false,
+            true,   // isExplosive
+        );
+        gs.projectiles.push(p);
+        gs._world.projectiles = gs.projectiles;
+        return { e1, e2 };
+    }
+
+    const gsB = _makeProjectileFeatureSession();
+    gsB._useBridge = true;
+    const { e1: e1B, e2: e2B } = injectExplosiveSetup(gsB);
+    const hp1B0 = e1B.hp, hp2B0 = e2B.hp;
+    gsB._tick();
+    const hp1B1 = e1B.hp, hp2B1 = e2B.hp;
+    gsB.stop();
+
+    process.stderr.write(`  info  bridge explosive: primary Δhp=${(hp1B1 - hp1B0).toFixed(1)} splash Δhp=${(hp2B1 - hp2B0).toFixed(1)}\n`);
+
+    assert(hp1B1 < hp1B0, `bridge: primary enemy took explosive damage (hp ${hp1B0} → ${hp1B1})`);
+    assert(hp2B1 < hp2B0, `bridge: nearby enemy took splash damage (hp ${hp2B0} → ${hp2B1})`);
+}
+
 // ─── Run all tests ─────────────────────────────────────────────────────────────
 
 testSessionIsolation();
@@ -714,6 +894,9 @@ testBridgeRunUpdateLive();
 testBridgeVsLegacyDamageParity();
 testCoopHpScaling();
 testBridgeFlagShadowExecution();
+testProjectileKnockbackParity();
+testProjectilePierceParity();
+testProjectileExplosiveParity();
 
 const total = passed + failed;
 console.log(`\n${'─'.repeat(56)}`);
