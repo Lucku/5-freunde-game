@@ -160,6 +160,19 @@ class GameSession {
         this._world.isVersusMode = this._isVersusMode;
         this._world.isCoopMode   = !this._isVersusMode;
 
+        // Reset the runState singleton's ECS slot counts so this session
+        // starts clean. Without this, slot data from a previous session
+        // (typed-array x/y/hp from `enemies.push` / `Projectile.acquire`)
+        // remains addressable via `runState.<thing>Count > 0` and gets
+        // iterated by leaf-module collision loops the next time
+        // `bridge.runUpdate` fires — manifests as an extra projectile hit
+        // landing on tick 1 instead of tick 6 (Test 13 phase-3a.1 bug).
+        // The legacy `_tick` path uses session-owned `gs.enemies` /
+        // `gs.projectiles` arrays directly and was immune to this. After
+        // `_useBridge=true` the leaf-module sentinel array reads through
+        // runState's typed arrays, so cross-session leak is observable.
+        this._resetEcsState();
+
         // Sync canvas dimensions so Player constructor gets correct spawn coords
         global.canvas = { width: ARENA_WIDTH, height: ARENA_HEIGHT };
 
@@ -267,9 +280,21 @@ class GameSession {
         // (section 7) + tick rate (section 8) + anti-cheat (section 9) stay
         // outside. Expect divergence vs the legacy path until phase 3f closes
         // the deterministic-spawn gap — see tasks/server-sim-step-3.md.
+        //
+        // Sub-step `bridge.runUpdate` to match the renderer's per-frame
+        // pacing. Leaf-module entity updates (`proj.update()`, `enemy.update()`,
+        // `player.update()`) advance state by 1 frame per call, so a single
+        // server tick (33 ms = ~2 renderer frames) needs ~2 sub-steps to
+        // keep projectile flight time + enemy speed in sync with the
+        // browser-side renderer. Legacy `_tick` does the equivalent via
+        // section 1's `_PLAYER_SUB_STEPS` loop + section 3's
+        // `_updateProjectiles` `* TICK_FRAMES` scaling.
         if (this._useBridge) {
             const bridge = require('./RendererBridge');
-            bridge.runUpdate(this, 1000 / 60);
+            const SUB_STEPS = Math.max(1, Math.round(this._currentTickFrames));
+            for (let s = 0; s < SUB_STEPS; s++) {
+                bridge.runUpdate(this, 1000 / 60);
+            }
             // Re-aliases world arrays in case the leaf module's spawn block
             // mutated them via the sentinel `unshift` / `push` traps.
             this.enemies     = this._world.enemies;
@@ -401,6 +426,43 @@ class GameSession {
         if (this._onTickStats) {
             const elapsedSec = Math.round((Date.now() - this._startedAt) / 1000);
             this._onTickStats(this.wave, this.score, elapsedSec);
+        }
+    }
+
+    /**
+     * Zero out the ECS slot counts on the runState singleton so a new
+     * session doesn't inherit leftover slot data from a prior session.
+     * `runState` is a process-wide singleton (`export const runState =
+     * createRunState()`); without this reset, two sequential
+     * `gs.init(...)` calls share enemy / projectile / particle /
+     * floatingText / goldDrop / cardDrop / memoryShard / holyMask /
+     * powerUp / companion slot data through the typed-array stores.
+     * Boss instances (separate plain-array on `runState.bossInstances`)
+     * also cleared.
+     */
+    _resetEcsState() {
+        const rs = global.runState;
+        if (!rs) return;
+        rs.enemyCount       = 0;
+        rs.projectileCount  = 0;
+        rs.particleCount    = 0;
+        rs.floatingTextCount = 0;
+        rs.goldDropCount    = 0;
+        rs.cardDropCount    = 0;
+        rs.memoryShardCount = 0;
+        rs.holyMaskCount    = 0;
+        rs.powerUpCount     = 0;
+        rs.companionCount   = 0;
+        if (rs.bossInstances && rs.bossInstances.length) {
+            rs.bossInstances.length = 0;
+        }
+        // Slot proxies cached on the typed arrays — null out so future
+        // `_acquireSlot` calls don't return a stale ref. Cheap.
+        if (rs.enemySlotProxy) {
+            for (let i = 0; i < rs.enemySlotProxy.length; i++) {
+                if (rs.enemySlotProxy[i]) rs.enemySlotProxy[i]._slot = -1;
+                rs.enemySlotProxy[i] = null;
+            }
         }
     }
 

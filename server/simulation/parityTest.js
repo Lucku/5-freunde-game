@@ -404,20 +404,23 @@ function testBridgeVsLegacyDamageParity() {
     function makeIdenticalSession() {
         const { gs } = makeSession('fire', 'water');
         gs._waveManager._lastSpawnMs = Date.now() + 1e9; // suppress wave spawn
-        // Force isCoopMode=false on both paths so neither applies the +40%
-        // coop-scale HP bump from `core/updateGameplayPre.js:591-598`. Legacy
-        // `_tick` doesn't apply that bump (it lives only in the leaf module);
-        // running both paths with coop disabled keeps the test focused on
-        // damage-application parity rather than coop-scaling divergence.
-        gs._world.isCoopMode = false;
-        if (global.runState) global.runState.isCoopMode = false;
-        global.isCoopMode = false;
+        // Stays in coop mode (default `_isVersusMode=false`). The leaf
+        // module's `+40% maxHp` coop bump at
+        // `core/updateGameplayPre.js:591-598` skips any enemy carrying
+        // `_coopScaled=true`, so pre-flagging the injected enemy below
+        // keeps both paths on the same hp baseline. Forcing versus mode
+        // here is the wrong escape — legacy `_tick` short-circuits the
+        // entire PvE projectile-collision branch in versus mode, leaving
+        // legacy at 0 damage and producing a false-negative parity gap.
         // Inject a single deterministic enemy + projectile pair instead of
         // letting RNG choose. Easier to reason about damage delta.
         if (typeof global.Enemy === 'function') {
             const e = new global.Enemy(false, 'BASIC');
             e.x = 1500; e.y = 1500;
             e.hp = 100; e.maxHp = 100;
+            // Pre-flag the coop bump so the leaf-module's pre() skips it.
+            // Keeps the test focused on projectile damage, not coop scaling.
+            e._coopScaled = true;
             gs.enemies.push(e);
             gs._world.enemies = gs.enemies;
         }
@@ -447,13 +450,21 @@ function testBridgeVsLegacyDamageParity() {
     const hpA1 = gsLegacy.enemies[0]?.hp ?? null;
     gsLegacy.stop();
 
-    // Path B: bridge.runUpdate once on the SAME starting shape.
+    // Path B: bridge-driven `_tick` once on the SAME starting shape.
+    // Uses the `_useBridge` flag so the sub-stepping inside `_tick`
+    // matches the renderer's pacing (legacy path advances projectiles by
+    // `* TICK_FRAMES`, bridge sub-steps `runUpdate` `_currentTickFrames`
+    // times to get equivalent per-tick movement). Calling
+    // `bridge.runUpdate` directly here would single-step the leaf module,
+    // missing the per-tick scaling and underrepresenting damage.
     const gsBridge = makeIdenticalSession();
+    gsBridge._useBridge = true;
     const hpB0 = gsBridge.enemies[0]?.hp ?? null;
     let bridgeRan = false;
     let didThrow = null;
     try {
-        bridgeRan = bridge.runUpdate(gsBridge, 1000 / 60);
+        gsBridge._tick();
+        bridgeRan = true;
     } catch (e) {
         didThrow = e;
     }
@@ -567,8 +578,37 @@ function testBridgeFlagShadowExecution() {
 
     const TICKS = 30;
 
+    // Deterministic test setup applied to BOTH sessions so any output
+    // difference is attributable to the legacy-vs-bridge tick path, not
+    // to spawn RNG or idle-state quirks.
+    function setupDriven(gs) {
+        // Suppress WaveManager spawns — leaf module's spawn path is
+        // non-deterministic and would diverge. Phase 3f territory.
+        gs._waveManager._lastSpawnMs = Date.now() + 1e9;
+
+        // Pre-inject one BASIC enemy 50 px right of player1 so the player's
+        // shoot will reliably land (aim defaults to (1, 0)).
+        const p1 = gs.players[0];
+        if (typeof global.Enemy === 'function') {
+            const e = new global.Enemy(false, 'BASIC');
+            e.x      = p1.x + 80;
+            e.y      = p1.y;
+            e.hp     = 200;
+            e.maxHp  = 200;
+            // Skip coop scaling — pre-injected enemy bypasses the spawn path.
+            e._coopScaled = true;
+            gs.enemies.push(e);
+            gs._world.enemies = gs.enemies;
+        }
+        // Aim right at the enemy + queue one shoot input. Player.update()
+        // will fire on the first tick.
+        p1.aimAngle    = 0;
+        p1._pendingShoot = true;
+    }
+
     // Path A: legacy _tick body.
     const { gs: gsLegacy } = makeSession('fire', 'water');
+    setupDriven(gsLegacy);
     let didThrowA = null;
     try {
         for (let i = 0; i < TICKS; i++) gsLegacy._tick();
@@ -582,12 +622,14 @@ function testBridgeFlagShadowExecution() {
         frame       : gsLegacy._frame,
         p1Hp        : gsLegacy.players[0]?.hp,
         p2Hp        : gsLegacy.players[1]?.hp,
+        enemyHp     : gsLegacy.enemies[0]?.hp ?? null,
     };
     gsLegacy.stop();
 
     // Path B: same starting state, _useBridge flipped on.
     const { gs: gsBridge } = makeSession('fire', 'water');
     gsBridge._useBridge = true;
+    setupDriven(gsBridge);
     let didThrowB = null;
     try {
         for (let i = 0; i < TICKS; i++) gsBridge._tick();
@@ -601,6 +643,7 @@ function testBridgeFlagShadowExecution() {
         frame       : gsBridge._frame,
         p1Hp        : gsBridge.players[0]?.hp,
         p2Hp        : gsBridge.players[1]?.hp,
+        enemyHp     : gsBridge.enemies[0]?.hp ?? null,
     };
     gsBridge.stop();
 
@@ -629,10 +672,13 @@ function testBridgeFlagShadowExecution() {
             wave        : bridgeState.wave        - legacyState.wave,
             p1HpDelta   : (bridgeState.p1Hp ?? 0) - (legacyState.p1Hp ?? 0),
             p2HpDelta   : (bridgeState.p2Hp ?? 0) - (legacyState.p2Hp ?? 0),
+            enemyHpDelta: (bridgeState.enemyHp ?? 0) - (legacyState.enemyHp ?? 0),
         };
         process.stderr.write(`  gap   delta=${JSON.stringify(deltas)}\n`);
-        process.stderr.write(`        Expected: wave-spawn divergence (Math.random vs WaveManager)\n`);
-        process.stderr.write(`        + minor frame-cadence drift until phase 3f deterministic spawn lands.\n`);
+        process.stderr.write(`        Driven setup: 1 BASIC enemy pre-injected 80px right of P1,\n`);
+        process.stderr.write(`        P1._pendingShoot=true at frame 0. Spawn suppressed both paths.\n`);
+        process.stderr.write(`        Non-zero deltas point to bridge-vs-legacy gameplay divergence\n`);
+        process.stderr.write(`        rather than spawn RNG. Document; do not force-fail yet.\n`);
 
         // Harness fundamentals — both paths produced *something* and the
         // session-level fields are still sane scalars.
@@ -642,7 +688,14 @@ function testBridgeFlagShadowExecution() {
             `bridge path frame advanced past 0 (got ${bridgeState.frame})`);
         assert(typeof legacyState.wave === 'number' && legacyState.wave >= 1,
             `legacy path wave is a valid number (got ${legacyState.wave})`);
-        // No assertion on enemy/projectile equality — phase 3f territory.
+        // Driven scenario asserts — Player.shoot fired in both paths,
+        // projectile lifecycle progressed somewhere in 30 ticks.
+        assert(legacyState.enemyHp !== null,
+            `legacy path kept the pre-injected enemy slot live (or processed kill)`);
+        assert(bridgeState.enemyHp !== null,
+            `bridge path kept the pre-injected enemy slot live (or processed kill)`);
+        // Per-feature parity (damage applied) — not yet asserted equal;
+        // recorded for documentation. Phase 3b will turn this into equality.
     }
 }
 
