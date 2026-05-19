@@ -879,6 +879,433 @@ function testProjectileExplosiveParity() {
     assert(hp2B1 < hp2B0, `bridge: nearby enemy took splash damage (hp ${hp2B0} → ${hp2B1})`);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tests 17-19 — Phase 3c — Per-feature melee parity (bridge path).
+//   Gates against leaf-module regressions before retiring
+//   `_processMeleeAttacks` from the legacy `_tick` path under phase 3h.
+//   Melee swipes live in `runState.meleeAttacks` / `_world.meleeAttacks`
+//   / `global.meleeAttacks` (shared plain array — Enemy.js installs no
+//   sentinel for melee). Bridge path reads via bare-name global lookup
+//   inside `core/updateGameplayMid.js:1201`.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function _injectMeleeSwipe(gs, opts = {}) {
+    // MeleeSwipe.update() snaps the swipe to its owner's (x,y) every
+    // frame — so the swipe always sits on P1. Enemy must be placed
+    // near P1's spawn (ARENA_WIDTH/2 - 300 = 1200, ARENA_HEIGHT/2 = 1500)
+    // so the post-update swipe overlaps it.
+    const p1 = gs.players[0];
+    const e = new global.Enemy(false, 'BASIC');
+    e.x = opts.enemyX ?? (p1.x + 20);
+    e.y = opts.enemyY ?? p1.y;
+    e.hp = opts.enemyHp ?? 200; e.maxHp = opts.enemyHp ?? 200;
+    e._coopScaled = true;
+    e.speed = 0;  // lock enemy so it doesn't wander out of swipe range
+    gs.enemies.push(e);
+    gs._world.enemies = gs.enemies;
+
+    const swipe = new global.MeleeSwipe(
+        p1.x,                              // swipe spawns on owner; update() snaps anyway
+        p1.y,
+        opts.angle ?? 0,                   // cone faces +x (toward enemy at p1.x+20)
+        opts.damage ?? 40,
+        opts.color ?? '#fff',
+        opts.radius ?? 60,
+        false,                             // isCrit
+        p1,                                // owner = P1 (swipe follows)
+    );
+    // Wire swipe into every reference path the leaf module consults.
+    gs._world.meleeAttacks = gs._world.meleeAttacks || [];
+    gs._world.meleeAttacks.push(swipe);
+    global.meleeAttacks = gs._world.meleeAttacks;
+    if (global.runState) global.runState.meleeAttacks = gs._world.meleeAttacks;
+    return { e, swipe };
+}
+
+function testMeleeDamageOnBridge() {
+    console.log('\n── 17 Phase 3c — Melee damage on bridge ───');
+
+    const gs = _makeProjectileFeatureSession();
+    gs._useBridge = true;
+    const { e, swipe } = _injectMeleeSwipe(gs, { damage: 40 });
+    const hp0 = e.hp;
+    gs._tick();
+    const hp1 = e.hp;
+    gs.stop();
+
+    process.stderr.write(`  info  bridge melee dmg=${(hp0 - hp1).toFixed(1)} swipe.hitList.length=${swipe.hitList.length}\n`);
+
+    assert(hp1 < hp0,
+        `bridge: enemy took melee damage (hp ${hp0} → ${hp1})`);
+    assert(swipe.hitList.length > 0,
+        `bridge: swipe recorded enemy in hitList (length=${swipe.hitList.length})`);
+}
+
+function testMeleeHitListPreventsDoubleHit() {
+    console.log('\n── 18 Phase 3c — Melee hitList prevents double-hit (bridge) ───');
+
+    // Swipe.life = 15 frames; bridge sub-steps ≈ 2 mid() calls per tick.
+    // Without hitList, a swipe parked on an enemy would hit every
+    // sub-step until expiry → 15+ hits @ 40 dmg = 600+ dmg. With
+    // hitList, only the first sub-step lands; subsequent sub-steps
+    // hit the `att.hitList.includes(eIndex) return` guard at line 1202.
+    // Tick enough times that the swipe expires, then assert damage
+    // ≈ one hit's worth.
+
+    const gs = _makeProjectileFeatureSession();
+    gs._useBridge = true;
+    const { e, swipe } = _injectMeleeSwipe(gs, { damage: 40, enemyHp: 5000 });
+    const hp0 = e.hp;
+    // 8 ticks × 2 sub-steps = 16 frames — outlives the 15-frame swipe.
+    for (let i = 0; i < 8; i++) gs._tick();
+    const hp1 = e.hp;
+    const totalDmg = hp0 - hp1;
+    gs.stop();
+
+    process.stderr.write(`  info  bridge melee total dmg over swipe life=${totalDmg.toFixed(1)} (single-hit baseline = 40)\n`);
+
+    // Loose bound — 1 hit lands (40 dmg), maybe a 2nd if hitList key
+    // mismatch across sub-steps (eIndex can reassign after enemy swap).
+    // Total should stay << 15 × 40 (= 600) the no-hitList ceiling.
+    assert(totalDmg >= 40,
+        `at least one melee hit landed (got ${totalDmg} dmg)`);
+    assert(totalDmg < 200,
+        `hitList caps total damage well under no-hitList ceiling (got ${totalDmg} dmg, ceiling 600)`);
+    // Suppress unused-warning on swipe — hitList state is the parity
+    // we care about and was captured via totalDmg above.
+    void swipe;
+}
+
+function testMeleeKnockbackOnBridge() {
+    console.log('\n── 19 Phase 3c — Melee knockback (bridge) ───');
+
+    // Leaf module pushes the enemy 50 px in the direction of the hit
+    // (`core/updateGameplayMid.js:1236`):
+    //   if (!(enemy instanceof Boss)) {
+    //     enemy.x += Math.cos(angleToEnemy) * 50;
+    //     enemy.y += Math.sin(angleToEnemy) * 50;
+    //   }
+    // Swipe at (1500, 1500) with angle 0, enemy at (1520, 1500) ⇒
+    // angleToEnemy = 0, push +50 on x. Enemy locked (speed=0) so the
+    // post-hit position is observable without chase noise.
+
+    const gs = _makeProjectileFeatureSession();
+    gs._useBridge = true;
+    // Default helper places enemy at p1.x+20, swipe follows p1.
+    // angleToEnemy from swipe (≈p1) to enemy = atan2(0, +20) = 0.
+    // Knockback writes enemy.x += cos(0) * 50 = +50.
+    const { e } = _injectMeleeSwipe(gs, {
+        damage: 40,
+        angle: 0,
+        radius: 60,
+    });
+    const x0 = e.x;
+    gs._tick();
+    const x1 = e.x;
+    gs.stop();
+
+    const dx = x1 - x0;
+    process.stderr.write(`  info  bridge melee knockback Δx=${dx.toFixed(2)} (expected ≈+50)\n`);
+
+    assert(dx > 40,
+        `bridge melee knockback pushed enemy ≈+50 px (got Δx=${dx.toFixed(2)})`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tests 20-21 — Phase 3d — Per-feature enemy-contact-damage parity (bridge).
+//   Gates against leaf-module regressions before retiring
+//   `_applyEnemyContactDamage` from the legacy `_tick` path under phase
+//   3h. Contact-damage logic lives at `core/updateGameplayMid.js:952-1037`:
+//   when an enemy overlaps the player's radius AND the player is not
+//   dashing, deal `1 * (1 - damageReduction)` damage (gated by
+//   `!isInvincible` at line 1008).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function _injectContactEnemy(gs, opts = {}) {
+    const p1 = gs.players[0];
+    // Place enemy on top of P1 so the overlap check fires
+    // (`dist - enemy.radius - player.radius < 0`).
+    const e = new global.Enemy(false, 'BASIC');
+    e.x = p1.x; e.y = p1.y;
+    e.hp = 200; e.maxHp = 200;
+    e._coopScaled = true;
+    e.speed = 0;                    // lock — no chase noise
+    gs.enemies.push(e);
+    gs._world.enemies = gs.enemies;
+    // Ensure not dashing — Player default state but make explicit.
+    p1.isDashing      = false;
+    p1.isInvincible   = opts.isInvincible ?? false;
+    p1.invincibleTimer = opts.invincibleTimer ?? 0;
+    return { e, p1 };
+}
+
+function testEnemyContactDamageOnBridge() {
+    console.log('\n── 20 Phase 3d — Enemy contact damage on bridge ───');
+
+    const gs = _makeProjectileFeatureSession();
+    gs._useBridge = true;
+    const { p1 } = _injectContactEnemy(gs);
+    const hp0 = p1.hp;
+    gs._tick();
+    const hp1 = p1.hp;
+    gs.stop();
+
+    process.stderr.write(`  info  bridge contact dmg=${(hp0 - hp1).toFixed(2)} (expected ≈1 per overlap, sub-stepped ×2)\n`);
+
+    // Base contact damage is `1 * (1 - damageReduction)` per overlap
+    // check. Bridge sub-steps mid() twice per tick, so up to 2 hits land
+    // before the enemy gets pushed out of overlap range. Assert hp dropped.
+    assert(hp1 < hp0,
+        `bridge: player took contact damage (hp ${hp0} → ${hp1.toFixed(2)})`);
+}
+
+function testEnemyContactDamageBlockedByInvincible() {
+    console.log('\n── 21 Phase 3d — isInvincible blocks contact damage (bridge) ───');
+
+    const gs = _makeProjectileFeatureSession();
+    gs._useBridge = true;
+    const { p1 } = _injectContactEnemy(gs, {
+        isInvincible: true,
+        invincibleTimer: 60,         // 1 sec of i-frames
+    });
+    const hp0 = p1.hp;
+    gs._tick();
+    const hp1 = p1.hp;
+    gs.stop();
+
+    process.stderr.write(`  info  bridge invincible contact dmg=${(hp0 - hp1).toFixed(2)} (expected 0)\n`);
+
+    // Leaf module's `if (!runState.player.isInvincible)` gate at
+    // `core/updateGameplayMid.js:1008` should skip the hp mutation.
+    // Knockback push at :1036 (`enemy.x += cos(angle) * 20`) still
+    // fires — that's outside the isInvincible gate. Only HP is gated.
+    assert(hp1 === hp0,
+        `bridge: invincible player took NO contact damage (hp ${hp0} → ${hp1})`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tests 22-24 — Phase 3e — Kill-reward parity (bridge path).
+//   Gates against leaf-module regressions before retiring
+//   `_onEnemyKilled` from the legacy `_tick` damage helpers under
+//   phase 3h. Bridge kills run through the leaf-module's per-enemy
+//   `if (enemy.hp <= 0)` branch at `core/updateGameplayMid.js:1241+`:
+//   XP grant (`_killer.gainXp(20)`) at :1357, gold drop at :1389/1400,
+//   wave-kill counter increment at :1406, card/mask drop checks at
+//   :1382/1403, achievement / combo / onKill hooks at :1251-1253.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function _injectKillScenario(gs) {
+    // Place enemy with 1 hp so a single projectile hit kills it. Lock
+    // speed so the chase doesn't move the enemy out of the projectile's
+    // path before collision lands.
+    const p1 = gs.players[0];
+    const e = new global.Enemy(false, 'BASIC');
+    e.x = p1.x + 50; e.y = p1.y;
+    e.hp = 1; e.maxHp = 1;
+    e._coopScaled = true;
+    e.speed = 0;
+    e.xpValue = 20;  // explicit baseline (Enemy default varies by subtype)
+    gs.enemies.push(e);
+    gs._world.enemies = gs.enemies;
+
+    // Projectile aimed straight at enemy from 30 px left.
+    const proj = global.Projectile.acquire(p1.x + 20, p1.y, { x: 20, y: 0 }, 25, '#fff', 4, 'fire', 0, false);
+    proj.owner = p1;
+    gs.projectiles.push(proj);
+    gs._world.projectiles = gs.projectiles;
+    return { e, proj, p1 };
+}
+
+function testKillGrantsXpOnBridge() {
+    console.log('\n── 22 Phase 3e — Kill grants XP on bridge ───');
+
+    const gs = _makeProjectileFeatureSession();
+    gs._useBridge = true;
+    const { p1 } = _injectKillScenario(gs);
+    const xp0 = p1.xp;
+    gs._tick();
+    gs._tick();
+    const xp1 = p1.xp;
+    gs.stop();
+
+    process.stderr.write(`  info  bridge kill XP delta=${xp1 - xp0} (leaf-module baseline = 20)\n`);
+
+    assert(xp1 > xp0,
+        `bridge: kill granted XP to player (xp ${xp0} → ${xp1})`);
+}
+
+function testKillIncrementsWaveCounterOnBridge() {
+    console.log('\n── 23 Phase 3e — Kill increments enemiesKilledInWave (bridge) ───');
+
+    const gs = _makeProjectileFeatureSession();
+    gs._useBridge = true;
+    _injectKillScenario(gs);
+    const killed0 = global.runState.enemiesKilledInWave ?? 0;
+    gs._tick();
+    gs._tick();
+    const killed1 = global.runState.enemiesKilledInWave ?? 0;
+    gs.stop();
+
+    process.stderr.write(`  info  bridge enemiesKilledInWave: ${killed0} → ${killed1}\n`);
+
+    // Leaf module increments at `:1406` after non-boss kill.
+    assert(killed1 > killed0,
+        `bridge: kill incremented runState.enemiesKilledInWave (${killed0} → ${killed1})`);
+}
+
+function testKillSpawnsGoldDropOnBridge() {
+    console.log('\n── 24 Phase 3e — Kill spawns gold drop (bridge) ───');
+
+    // Two 30%-chance spawn calls at `:1389` + `:1400` → ~51% chance of
+    // at least one gold drop per kill. To make the test deterministic,
+    // run many kills in a loop and assert at least one gold drop landed.
+    // Each session is a fresh _resetEcsState, so goldDropCount starts at 0.
+
+    const N_TRIALS = 10;
+    let trialsWithDrop = 0;
+
+    for (let trial = 0; trial < N_TRIALS; trial++) {
+        const gs = _makeProjectileFeatureSession();
+        gs._useBridge = true;
+        _injectKillScenario(gs);
+        gs._tick();
+        gs._tick();
+        const drops = global.runState.goldDropCount ?? 0;
+        if (drops > 0) trialsWithDrop++;
+        gs.stop();
+    }
+
+    process.stderr.write(`  info  bridge gold drops landed in ${trialsWithDrop}/${N_TRIALS} kill trials (expected ≥ 1 from ~51% per kill)\n`);
+
+    // Statistical floor: P(no drops across 10 trials) = (1 - 0.51)^10 ≈ 0.08%.
+    // If trialsWithDrop === 0 across 10 kills, gold drop path is broken.
+    assert(trialsWithDrop > 0,
+        `bridge: at least 1 of ${N_TRIALS} kills spawned a gold drop (got ${trialsWithDrop})`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 25 — Phase 3f — Deterministic spawn (same seed → same spawn output).
+//   Phase 3f.1 wires `runState.rng = mulberry32(seed)` through
+//   `GameSession._resetEcsState()` + migrates the 5 `Math.random()`
+//   sites in `core/updateGameplayPre.js:477-588` (twin-boss event,
+//   workshop enemyPool pick, swarm trigger, swarm x/y offset) to
+//   `runState.rng()`. With identical seeds two sessions should now
+//   produce identical spawn counts after the same number of bridge
+//   ticks. Enemy-constructor RNG (subType + position) is NOT yet
+//   migrated — phase 3f.2 territory — so spawned-enemy *positions* may
+//   still diverge; this test asserts on *count* + spawn-trigger
+//   determinism only.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testDeterministicSpawnParity() {
+    console.log('\n── 25 Phase 3f — Deterministic spawn (seeded rng) ───');
+
+    const SEED  = 12345;
+    const TICKS = 60;
+
+    function runWithSeed(seed) {
+        const { gs } = makeSession('fire', 'water');
+        gs._waveManager._lastSpawnMs = 0;
+        gs._useBridge = true;
+        gs._rngSeed = seed;
+        const rs = global.runState;
+        // Bit-identical to GameSession._mulberry32 — re-install with the
+        // requested seed since _resetEcsState() already ran during init()
+        // with the default (wall-clock) seed.
+        let s = seed >>> 0;
+        rs.rng = function () {
+            s |= 0; s = (s + 0x6D2B79F5) | 0;
+            let t = Math.imul(s ^ (s >>> 15), 1 | s);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+        for (let i = 0; i < TICKS; i++) gs._tick();
+        // Snapshot the first 2 enemies (positions + subTypes) — Enemy
+        // ctor RNG (radius / hp / speed / spawn-position / subType
+        // selection) is migrated to `runState.rng()` in phase 3f.2, so
+        // same-seed runs are bit-identical across these fields, and
+        // diff-seed runs flip at least one of them.
+        const fingerprints = [];
+        for (let i = 0; i < Math.min(2, gs.enemies.length); i++) {
+            const e = gs.enemies[i];
+            fingerprints.push(`${e.subType}@${e.x.toFixed(1)},${e.y.toFixed(1)}r${e.radius.toFixed(1)}`);
+        }
+        const out = {
+            enemyCount: gs.enemies.length,
+            bossActive: !!gs.bossActive,
+            wave:       gs.wave,
+            fingerprints,
+        };
+        gs.stop();
+        return out;
+    }
+
+    const a = runWithSeed(SEED);
+    const b = runWithSeed(SEED);
+
+    process.stderr.write(`  info  seeded run A: ${JSON.stringify(a)}\n`);
+    process.stderr.write(`  info  seeded run B: ${JSON.stringify(b)}\n`);
+
+    assert(a.enemyCount === b.enemyCount,
+        `same-seed runs produced same enemy count (A=${a.enemyCount} B=${b.enemyCount})`);
+    assert(a.bossActive === b.bossActive,
+        `same-seed runs produced same bossActive (A=${a.bossActive} B=${b.bossActive})`);
+    assert(a.wave === b.wave,
+        `same-seed runs produced same wave (A=${a.wave} B=${b.wave})`);
+    assert(JSON.stringify(a.fingerprints) === JSON.stringify(b.fingerprints),
+        `same-seed runs produced identical enemy fingerprints (A=${JSON.stringify(a.fingerprints)} B=${JSON.stringify(b.fingerprints)})`);
+
+    // Diff seed → at least one fingerprint should flip (Enemy ctor RNG
+    // governs subType + position + radius). Phase 3f.2 deliverable.
+    const c = runWithSeed(SEED + 1);
+    process.stderr.write(`  info  diff-seed run C: ${JSON.stringify(c)}\n`);
+    assert(JSON.stringify(c.fingerprints) !== JSON.stringify(a.fingerprints),
+        `diff-seed run produced different fingerprints (A=${JSON.stringify(a.fingerprints)} C=${JSON.stringify(c.fingerprints)})`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 26 — Phase 3g — Wave advance on threshold (bridge).
+//   Verifies the loader's `global.isWaveCleared` + `global.advanceWave`
+//   stubs (wired in phase 3g) advance `runState.wave` when the
+//   per-wave kill threshold (30 × wave) is reached. The leaf-module
+//   path at `core/updateGameplayPre.js:479` checks `isWaveCleared(...)`
+//   inside the boss-spawn gate; workshop-mode with `bossType: 'none'`
+//   shortcuts to `advanceWave()` directly at `:484`.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testBridgeWaveAdvance() {
+    console.log('\n── 26 Phase 3g — Wave advance on bridge ───');
+
+    const { gs } = makeSession('fire', 'water');
+    gs._waveManager._lastSpawnMs = Date.now() + 1e9;
+    gs._useBridge = true;
+
+    const rs = global.runState;
+    // Force the leaf-module's "wave cleared → no boss → advanceWave"
+    // shortcut at `core/updateGameplayPre.js:482-484`. Workshop mode
+    // with bossType:'none' bypasses the boss spawn.
+    rs.isWorkshopMode = true;
+    global.window.pendingCustomMap = { waveConfig: { bossType: 'none' } };
+    rs.enemiesKilledInWave = 30; // satisfies isWaveCleared(1, 30) === true
+
+    const wave0 = rs.wave;
+    gs._tick();
+    const wave1 = rs.wave;
+    const killed1 = rs.enemiesKilledInWave;
+    gs.stop();
+
+    process.stderr.write(`  info  bridge wave: ${wave0} → ${wave1}, enemiesKilledInWave reset to ${killed1}\n`);
+
+    assert(wave1 === wave0 + 1,
+        `bridge: wave incremented (${wave0} → ${wave1})`);
+    assert(killed1 === 0,
+        `bridge: enemiesKilledInWave reset to 0 after advance (got ${killed1})`);
+
+    // Clean up — workshop flag is on the singleton runState.
+    rs.isWorkshopMode = false;
+    delete global.window.pendingCustomMap;
+}
+
 // ─── Run all tests ─────────────────────────────────────────────────────────────
 
 testSessionIsolation();
@@ -897,6 +1324,16 @@ testBridgeFlagShadowExecution();
 testProjectileKnockbackParity();
 testProjectilePierceParity();
 testProjectileExplosiveParity();
+testMeleeDamageOnBridge();
+testMeleeHitListPreventsDoubleHit();
+testMeleeKnockbackOnBridge();
+testEnemyContactDamageOnBridge();
+testEnemyContactDamageBlockedByInvincible();
+testKillGrantsXpOnBridge();
+testKillIncrementsWaveCounterOnBridge();
+testKillSpawnsGoldDropOnBridge();
+testDeterministicSpawnParity();
+testBridgeWaveAdvance();
 
 const total = passed + failed;
 console.log(`\n${'─'.repeat(56)}`);

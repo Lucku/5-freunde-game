@@ -228,6 +228,15 @@ export function createRunState() {
         coopZoom:            1.0,
         _hitStopFrames:      0,
 
+        // Phase 3 — deterministic RNG. Default fallback to `Math.random` so
+        // the renderer's existing behaviour is unchanged when no seed is
+        // installed. Server-sim re-points `rs.rng` to a `mulberry32` instance
+        // in `GameSession._resetEcsState()` for per-session reproducibility.
+        // Leaf-module spawn code at `core/updateGameplayPre.js:477-588`
+        // reads `runState.rng()` instead of `Math.random()` so seeded
+        // sessions roll identical spawns / mutator events / drop rolls.
+        rng: Math.random,
+
         // Phase 4 — mode flags.
         isCoopMode:         false,
         isAICompanionMode:  false,

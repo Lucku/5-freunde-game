@@ -40,23 +40,23 @@ class Enemy {
             if (_arena?.camera?.width) {
                 // Browser: spawn just off-screen around camera viewport
                 const cam = _arena.camera;
-                if (Math.random() < 0.5) {
-                    this.x = Math.random() < 0.5 ? cam.x - 30 : cam.x + cam.width + 30;
-                    this.y = cam.y + Math.random() * cam.height;
+                if (runState.rng() < 0.5) {
+                    this.x = runState.rng() < 0.5 ? cam.x - 30 : cam.x + cam.width + 30;
+                    this.y = cam.y + runState.rng() * cam.height;
                 } else {
-                    this.x = cam.x + Math.random() * cam.width;
-                    this.y = Math.random() < 0.5 ? cam.y - 30 : cam.y + cam.height + 30;
+                    this.x = cam.x + runState.rng() * cam.width;
+                    this.y = runState.rng() < 0.5 ? cam.y - 30 : cam.y + cam.height + 30;
                 }
             } else {
                 // Server: spawn just outside visible range around reference player
                 const cx = _player?.x ?? ((_arena?.width  ?? 3000) / 2);
                 const cy = _player?.y ?? ((_arena?.height ?? 3000) / 2);
                 const viewHalfW = 1000, viewHalfH = 580;
-                const side = Math.floor(Math.random() * 4);
-                if (side === 0)      { this.x = cx - viewHalfW - 40; this.y = cy + (Math.random() - 0.5) * viewHalfH * 2; }
-                else if (side === 1) { this.x = cx + viewHalfW + 40; this.y = cy + (Math.random() - 0.5) * viewHalfH * 2; }
-                else if (side === 2) { this.x = cx + (Math.random() - 0.5) * viewHalfW * 2; this.y = cy - viewHalfH - 40; }
-                else                 { this.x = cx + (Math.random() - 0.5) * viewHalfW * 2; this.y = cy + viewHalfH + 40; }
+                const side = Math.floor(runState.rng() * 4);
+                if (side === 0)      { this.x = cx - viewHalfW - 40; this.y = cy + (runState.rng() - 0.5) * viewHalfH * 2; }
+                else if (side === 1) { this.x = cx + viewHalfW + 40; this.y = cy + (runState.rng() - 0.5) * viewHalfH * 2; }
+                else if (side === 2) { this.x = cx + (runState.rng() - 0.5) * viewHalfW * 2; this.y = cy - viewHalfH - 40; }
+                else                 { this.x = cx + (runState.rng() - 0.5) * viewHalfW * 2; this.y = cy + viewHalfH + 40; }
                 const aw = _arena?.width ?? 3000, ah = _arena?.height ?? 3000;
                 this.x = Math.max(20, Math.min(aw - 20, this.x));
                 this.y = Math.max(20, Math.min(ah - 20, this.y));
@@ -83,7 +83,7 @@ class Enemy {
         }
 
         if (!this.subType) {
-            const rand = Math.random();
+            const rand = runState.rng();
             if (_wave > 10 && rand < 0.05) this.subType = 'SNIPER';
             else if (_wave > 8 && rand < 0.1) this.subType = 'BOMBER';
             else if (_wave > 6 && rand < 0.15) this.subType = 'GHOST';
@@ -96,10 +96,10 @@ class Enemy {
             else this.subType = 'BASIC';
         }
 
-        this.radius = 15 + Math.random() * 10;
+        this.radius = 15 + runState.rng() * 10;
         // Adjusted Scaling: More HP, Less Speed
-        this.hp = (25 + Math.random() * 25) * (1 + (_wave * 0.38)) * (1 + (prestige * 0.5));
-        this.speed = (1 + Math.random() * 1.5) * (1 + (_wave * 0.018));
+        this.hp = (25 + runState.rng() * 25) * (1 + (_wave * 0.38)) * (1 + (prestige * 0.5));
+        this.speed = (1 + runState.rng() * 1.5) * (1 + (_wave * 0.018));
 
         // Mutator: Fast Enemies
         if (typeof activeMutators !== 'undefined' && activeMutators.some(m => m.id === 'FAST_ENEMIES')) {
@@ -114,9 +114,9 @@ class Enemy {
         this.isSummonedMinion = false;
         this.parentBoss = null;
 
-        if (_wave > 15 && Math.random() < 0.03) { // 3% chance after wave 15
+        if (_wave > 15 && runState.rng() < 0.03) { // 3% chance after wave 15
             this.isElite = true;
-            this.eliteType = ELITE_TYPES[Math.floor(Math.random() * ELITE_TYPES.length)];
+            this.eliteType = ELITE_TYPES[Math.floor(runState.rng() * ELITE_TYPES.length)];
             this.hp *= 3;
             this.radius *= 1.2;
             this.xpValue = 50; // High XP
@@ -141,7 +141,7 @@ class Enemy {
         }
         this.color = '#555';
         this.damage = 20 * difficultyMult;
-        this.sides = Math.floor(Math.random() * 3) + 4;
+        this.sides = Math.floor(runState.rng() * 3) + 4;
         this.shootCooldown = 0;
         this.summonCooldown = 0;
         this.frozenTimer = 0;
@@ -265,7 +265,7 @@ class Enemy {
         if (typeof currentObjective !== 'undefined' && currentObjective && currentObjective.type === 'DEFENSE' && currentObjective.data.sapling) {
             // 50% chance to target sapling
             // We can store this preference on the enemy instance if we want consistency
-            if (!this.targetPreference) this.targetPreference = Math.random() < 0.5 ? 'SAPLING' : 'PLAYER';
+            if (!this.targetPreference) this.targetPreference = runState.rng() < 0.5 ? 'SAPLING' : 'PLAYER';
 
             if (this.targetPreference === 'SAPLING') {
                 targetX = currentObjective.data.sapling.x;

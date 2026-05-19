@@ -322,12 +322,26 @@ global.createDeathBurst            = _noop;
 // Story / wave-flow helpers — server has its own wave manager so the leaf
 // module's calls into these are advisory; no-ops are safe for smoke.
 global.triggerStory                = _noop;
-global.advanceWave                 = _noop;
+// Phase 3g — wire wave-flow stubs to mutate runState. Leaf-module path
+// (`core/updateGameplayPre.js:484`) calls `advanceWave()` when a wave is
+// cleared or workshop has no boss; without a real implementation the
+// bridge-driven session never advances past wave 1. `isWaveCleared`
+// mirrors `Wave.js:35` (30 kills per wave × current wave).
+global.advanceWave = function () {
+    const rs = global.runState;
+    if (!rs) return;
+    rs.wave++;
+    rs.enemiesKilledInWave = 0;
+    rs.bossDeathTimer = 0;
+    rs.bossActive = false;
+};
 global.notifyWaveAdvance           = _noop;
 global.updateChaosObjective        = _noop;
 global.checkChaosEvent             = _noop;
 global.isStoryBossWave             = _false;
-global.isWaveCleared               = _false;
+global.isWaveCleared = function (wave, killed) {
+    return killed >= 30 * wave;
+};
 global.gameOver                    = _noop;
 global.getDecoyTarget              = () => null;
 global.getCoopTarget               = (x, y) => ({ x, y });
@@ -381,3 +395,17 @@ global.spawnBoss             = _noop;
 // `masksDroppedInWave` is a per-wave counter; ECS-fied in #11 phase 3 but
 // the leaf module reads it bare. Init to 0.
 global.masksDroppedInWave    = 0;
+// Achievement + card-drop hooks reached by the kill-rewards branch in
+// `core/updateGameplayMid.js:1241+`. Server-sim doesn't persist
+// achievements / collector cards, so these are no-ops here.
+global.checkAchievements     = _noop;
+global.unlockAchievement     = _noop;
+global.checkDrop             = _noop;
+// `window.DLC_STORY_ACHIEVEMENTS` — bare-name map read by `:1303`.
+global.DLC_STORY_ACHIEVEMENTS = {};
+global.window.DLC_STORY_ACHIEVEMENTS = global.DLC_STORY_ACHIEVEMENTS;
+// World-events XP multiplier — `window.worldEvents.getXpMultiplier()` at
+// `:1354`. Provide a stub that returns 1 (no multiplier).
+global.window.worldEvents    = global.window.worldEvents || {
+    getXpMultiplier: () => 1,
+};

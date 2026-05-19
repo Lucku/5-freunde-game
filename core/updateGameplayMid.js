@@ -280,7 +280,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             }
 
             if (availableIndices.length > 0) {
-                const newIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+                const newIndex = availableIndices[Math.floor(runState.rng() * availableIndices.length)];
                 saveData.memories[shardType].push(newIndex);
 
                 // Show Story Text
@@ -333,7 +333,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     if (!unlockedIndices.includes(i)) availableIndices.push(i);
                 }
                 if (availableIndices.length > 0) {
-                    const newIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+                    const newIndex = availableIndices[Math.floor(runState.rng() * availableIndices.length)];
                     saveData.memories[shardType].push(newIndex);
                     const storyText = allStories[newIndex];
                     showNotification(`MEMORY: "${storyText}"`);
@@ -839,7 +839,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         if (_pDist < runState.player.radius + _proj.radius) {
             const _bonuses = getCollectionBonuses(_proj.shooterType);
 
-            if (_proj.shooterType === 'SHOOTER' && _bonuses.specials.includes('SHOOTER_DODGE') && Math.random() < 0.15) {
+            if (_proj.shooterType === 'SHOOTER' && _bonuses.specials.includes('SHOOTER_DODGE') && runState.rng() < 0.15) {
                 floatingTexts.push(FloatingText.acquire(runState.player.x, runState.player.y - 40, "DODGE", "#f1c40f", 20));
                 Projectile.release(_proj); // #20 P3
                 projectiles.splice(_pi, 1);
@@ -1119,7 +1119,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             finalDamage *= bonuses.damageMult;
 
             let isCrit = proj.isCrit;
-            if (!isCrit && Math.random() < (runState.player.critChance + bonuses.critChance)) {
+            if (!isCrit && runState.rng() < (runState.player.critChance + bonuses.critChance)) {
                 isCrit = true;
                 finalDamage *= runState.player.critMultiplier;
             }
@@ -1379,14 +1379,14 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 }
 
                 // Mask Drop Logic (Capped at 5 per wave)
-                if (masksDroppedInWave < 5 && Math.random() < runState.player.maskChance) {
+                if (masksDroppedInWave < 5 && runState.rng() < runState.player.maskChance) {
                     spawnHolyMask(runState, enemy.x, enemy.y);
                     masksDroppedInWave++;
                 }
 
                 // Mutator: No Regen (No Health Drops)
                 if (!((runState.isDailyMode || runState.isWeeklyMode) && runState.activeMutators.some(m => m.id === 'NO_REGEN'))) {
-                    if (Math.random() < 0.3) spawnGoldDrop(runState, enemy.x, enemy.y); // Gold Drop
+                    if (runState.rng() < 0.3) spawnGoldDrop(runState, enemy.x, enemy.y); // Gold Drop
                 } else {
                     // Still drop gold, but maybe less? Or just no health potions if they existed as drops.
                     // Wait, GoldDrop is money. Health is usually from Shop or Skills.
@@ -1397,7 +1397,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     // Since we don't have health drops yet (only shop potions), let's make it block Gold Drops instead for now?
                     // Or better: Block Shop Healing.
                 }
-                if (Math.random() < 0.3) spawnGoldDrop(runState, enemy.x, enemy.y);
+                if (runState.rng() < 0.3) spawnGoldDrop(runState, enemy.x, enemy.y);
 
                 // Check for Card Drop
                 checkDrop(enemy.subType || 'BASIC', enemy.x, enemy.y);
@@ -1461,7 +1461,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     if (runState.isPlayerDying) {
         runState.playerDeathTimer--;
         if (runState.playerDeathTimer % 15 === 0) {
-            createExplosion(runState.player.x + (Math.random() - 0.5) * 60, runState.player.y + (Math.random() - 0.5) * 60, '#c0392b');
+            createExplosion(runState.player.x + (runState.rng() - 0.5) * 60, runState.player.y + (runState.rng() - 0.5) * 60, '#c0392b');
         }
         if (runState.playerDeathTimer <= 0) {
             runState.isPlayerDying = false;

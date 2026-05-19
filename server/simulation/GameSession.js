@@ -3,6 +3,20 @@
 // Load real game classes into global scope (runs once; subsequent requires are cached).
 require('./loader');
 
+// Local copy of `mulberry32` from `Utils.js` — that module is ESM and can't
+// be `require()`'d from this CJS file without an adapter. Bit-for-bit
+// identical so renderer-side seed + server-side seed produce the same
+// stream when phase 3f wires netplay determinism end-to-end.
+function _mulberry32(seed) {
+    let s = seed >>> 0;
+    return function () {
+        s |= 0; s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
 const World = global.World;
 const NetworkInputController = require('./NetworkInputController');
 const {
@@ -271,9 +285,6 @@ class GameSession {
     _tick() {
         if (this.isLevelingUp) return;
 
-        this._frame += this._currentTickFrames;
-        this._syncWorld();
-
         // Server-sim step 3a — bridge-driven path. Skips legacy sections 1-6
         // and lets `core/updateGameplayPre.js` + `core/updateGameplayMid.js`
         // drive the whole game-state update via `bridge.runUpdate`. Snapshot
@@ -289,16 +300,41 @@ class GameSession {
         // browser-side renderer. Legacy `_tick` does the equivalent via
         // section 1's `_PLAYER_SUB_STEPS` loop + section 3's
         // `_updateProjectiles` `* TICK_FRAMES` scaling.
+        //
+        // Phase 3f.2 — frame-counter handoff. In bridge mode the leaf module
+        // owns `runState.frame` and increments it by +1 per pre()/mid() pass
+        // (`core/updateGameplayPre.js:167` does `runState.frame++`).
+        // Previously we bumped `gs._frame` and then `_syncWorld()` wrote
+        // `w.frame = gs._frame` — clobbering the bridge's per-call
+        // increments at the top of every tick. Now in bridge mode we
+        // sync TO the leaf module before runUpdate, then read frame back
+        // FROM the leaf module after, so `gs._frame` tracks the bridge's
+        // authoritative count. Spawn-timing gates (`runState.frame %
+        // floor(spawnRate) === 0`) finally fire as designed.
         if (this._useBridge) {
+            this._syncWorld();
             const bridge = require('./RendererBridge');
             const SUB_STEPS = Math.max(1, Math.round(this._currentTickFrames));
             for (let s = 0; s < SUB_STEPS; s++) {
                 bridge.runUpdate(this, 1000 / 60);
             }
-            // Re-aliases world arrays in case the leaf module's spawn block
-            // mutated them via the sentinel `unshift` / `push` traps.
-            this.enemies     = this._world.enemies;
-            this.projectiles = this._world.projectiles;
+            // Bridge mutated `runState.frame` → `world.frame` via
+            // `syncGlobalsToWorld`. Pull it back into `gs._frame` so the
+            // snapshot + next tick observe the true count.
+            this._frame = this._world.frame;
+            // Leaf-module spawn pushes through `enemies.push(new Enemy())`,
+            // which is the `window.enemies` sentinel (`_enemiesSentinel`
+            // installed by Enemy.js — reads from `runState.enemyCount`,
+            // not from `gs.enemies` / `_world.enemies`). Point gs.enemies
+            // + world.enemies at the sentinel so the snapshot path
+            // (`_sendSnapshot` reads `gs.enemies.length`, indexes through
+            // the proxy's numeric getter) observes the bridge-spawned
+            // entities. Same shape for `gs.projectiles` (Entities/Projectile.js
+            // installs `window.projectiles = _projectilesSentinel`).
+            this.enemies     = global.enemies     || this._world.enemies;
+            this.projectiles = global.projectiles || this._world.projectiles;
+            this._world.enemies     = this.enemies;
+            this._world.projectiles = this.projectiles;
 
             this._sendSnapshot();
             this._adjustTickRate();
@@ -308,6 +344,10 @@ class GameSession {
             }
             return;
         }
+
+        // Legacy path — gs owns frame counter. Bump first, sync after.
+        this._frame += this._currentTickFrames;
+        this._syncWorld();
 
         // 1. Update players via real Player.update()
         //    NetworkInputController feeds moveInput + _pendingXxx into Player's
@@ -464,6 +504,16 @@ class GameSession {
                 rs.enemySlotProxy[i] = null;
             }
         }
+        // Phase 3f — install a deterministic seeded RNG for this session.
+        // Leaf-module spawn block (`core/updateGameplayPre.js:477-588`)
+        // reads `runState.rng()` for spawn-chance rolls / twin-boss
+        // event / swarm trigger / workshop enemyPool pick. Default seed
+        // is `this._rngSeed` (set by tests via `gs._rngSeed = N`) or
+        // a wall-clock derivation otherwise. Identical seeds across two
+        // sessions yield identical spawn output — parity gate for
+        // `parityTest` Test 25.
+        const seed = (this._rngSeed | 0) || ((Date.now() ^ this._frame) | 0);
+        rs.rng = _mulberry32(seed);
     }
 
     /** Keep the world object in sync with mutable session state every tick. */

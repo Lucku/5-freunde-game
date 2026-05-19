@@ -85,8 +85,8 @@ function _updateGameplayPre(deltaTime) {
             const dy = eye.ty - eye.y;
             const distToTarget = Math.hypot(dx, dy);
             if (distToTarget < 10) {
-                eye.tx = Math.random() * arena.width;
-                eye.ty = Math.random() * arena.height;
+                eye.tx = runState.rng() * arena.width;
+                eye.ty = runState.rng() * arena.height;
             } else {
                 eye.x += (dx / distToTarget) * 1.5; // Speed
                 eye.y += (dy / distToTarget) * 1.5;
@@ -196,7 +196,7 @@ function _updateGameplayPre(deltaTime) {
             document.getElementById('weather-display').style.display = 'none';
             const _wbw = document.getElementById('weather-bar-wrap');
             if (_wbw) _wbw.style.display = 'none';
-            runState.weatherTimer = 3600 + Math.random() * 2400;
+            runState.weatherTimer = 3600 + runState.rng() * 2400;
         } else {
             const wProg = runState.weatherDuration / runState.currentWeather.duration; // 1→0 as weather fades
             const wFadeIn = Math.min(1, (runState.currentWeather.duration - runState.weatherDuration) / 120);
@@ -206,13 +206,13 @@ function _updateGameplayPre(deltaTime) {
                 const spawnCount = Math.floor(4 * wFadeIn) + 1;
                 for (let _s = 0; _s < spawnCount; _s++) {
                     runState.weatherParticles.push({
-                        x: Math.random() * canvas.width,
+                        x: runState.rng() * canvas.width,
                         y: -8,
-                        vx: (Math.random() - 0.5) * 1.2 - 0.5,
-                        vy: 1.2 + Math.random() * 2.0,
-                        r: 1.0 + Math.random() * 2.2,
-                        alpha: 0.55 + Math.random() * 0.4,
-                        wobble: Math.random() * Math.PI * 2,
+                        vx: (runState.rng() - 0.5) * 1.2 - 0.5,
+                        vy: 1.2 + runState.rng() * 2.0,
+                        r: 1.0 + runState.rng() * 2.2,
+                        alpha: 0.55 + runState.rng() * 0.4,
+                        wobble: runState.rng() * Math.PI * 2,
                     });
                 }
                 // Projectile drag — wind resistance slows shots mid-air
@@ -223,15 +223,15 @@ function _updateGameplayPre(deltaTime) {
 
             } else if (runState.currentWeather.id === 'HEATWAVE') {
                 // ── Rising ember / shimmer particles ─────────────────────────
-                if (Math.random() < 0.35 * wFadeIn) {
+                if (runState.rng() < 0.35 * wFadeIn) {
                     runState.weatherParticles.push({
-                        x: Math.random() * canvas.width,
+                        x: runState.rng() * canvas.width,
                         y: canvas.height + 5,
-                        vx: (Math.random() - 0.5) * 0.8,
-                        vy: -(0.6 + Math.random() * 1.4),
-                        r: 1.2 + Math.random() * 2.5,
-                        alpha: 0.3 + Math.random() * 0.35,
-                        wobble: Math.random() * Math.PI * 2,
+                        vx: (runState.rng() - 0.5) * 0.8,
+                        vy: -(0.6 + runState.rng() * 1.4),
+                        r: 1.2 + runState.rng() * 2.5,
+                        alpha: 0.3 + runState.rng() * 0.35,
+                        wobble: runState.rng() * Math.PI * 2,
                         ember: true,
                     });
                 }
@@ -241,12 +241,12 @@ function _updateGameplayPre(deltaTime) {
                 const rainCount = Math.floor(6 * wFadeIn) + 1;
                 for (let _r = 0; _r < rainCount; _r++) {
                     runState.weatherParticles.push({
-                        x: Math.random() * (canvas.width + 100) - 50,
+                        x: runState.rng() * (canvas.width + 100) - 50,
                         y: -10,
                         vx: -1.5,
-                        vy: 14 + Math.random() * 6,
-                        len: 12 + Math.random() * 10,
-                        alpha: 0.25 + Math.random() * 0.25,
+                        vy: 14 + runState.rng() * 6,
+                        len: 12 + runState.rng() * 10,
+                        alpha: 0.25 + runState.rng() * 0.25,
                         wobble: 0,
                         rain: true,
                     });
@@ -257,32 +257,32 @@ function _updateGameplayPre(deltaTime) {
 
                 // Chance to strike a bolt each frame
                 const strikeChance = 0.018 + (1 - wProg) * 0.012; // ramps up over time
-                if (Math.random() < strikeChance * wFadeIn) {
+                if (runState.rng() < strikeChance * wFadeIn) {
                     runState._weatherFlash = 0.55;
                     if (typeof audioManager !== 'undefined') audioManager.play('weather_thunder_crack');
 
                     // Pick a random target point — bias toward enemies
                     let tx, ty;
-                    if (enemies.length > 0 && Math.random() < 0.65) {
-                        const target = enemies[Math.floor(Math.random() * enemies.length)];
+                    if (enemies.length > 0 && runState.rng() < 0.65) {
+                        const target = enemies[Math.floor(runState.rng() * enemies.length)];
                         tx = target.x - arena.camera.x;
                         ty = target.y - arena.camera.y;
                         // Damage the struck enemy
                         target.hp -= (runState.player.rangeDmg || 20) * 1.8;
                         createExplosion(target.x, target.y, '#ffffaa', 6);
                     } else {
-                        tx = Math.random() * canvas.width;
-                        ty = Math.random() * canvas.height;
+                        tx = runState.rng() * canvas.width;
+                        ty = runState.rng() * canvas.height;
                     }
 
                     // Build jagged bolt segments from top of screen down to target
                     const segs = [];
-                    let bx = tx + (Math.random() - 0.5) * 200;
-                    const steps = 8 + Math.floor(Math.random() * 5);
+                    let bx = tx + (runState.rng() - 0.5) * 200;
+                    const steps = 8 + Math.floor(runState.rng() * 5);
                     for (let _i = 0; _i <= steps; _i++) {
                         const progress = _i / steps;
                         segs.push({
-                            x: bx + (Math.random() - 0.5) * 60,
+                            x: bx + (runState.rng() - 0.5) * 60,
                             y: progress * ty
                         });
                         bx += (tx - bx) * 0.25;
@@ -302,28 +302,28 @@ function _updateGameplayPre(deltaTime) {
                 for (let _s = 0; _s < sandCount; _s++) {
                     runState.weatherParticles.push({
                         x: -20,
-                        y: Math.random() * canvas.height,
-                        vx: 8 + Math.random() * 6,
-                        vy: (Math.random() - 0.5) * 1.5,
-                        len: 18 + Math.random() * 20,
-                        alpha: 0.2 + Math.random() * 0.3,
+                        y: runState.rng() * canvas.height,
+                        vx: 8 + runState.rng() * 6,
+                        vy: (runState.rng() - 0.5) * 1.5,
+                        len: 18 + runState.rng() * 20,
+                        alpha: 0.2 + runState.rng() * 0.3,
                         wobble: 0,
                         sand: true,
-                        color: `hsl(${30 + Math.random() * 20}, 70%, ${50 + Math.random() * 20}%)`,
+                        color: `hsl(${30 + runState.rng() * 20}, 70%, ${50 + runState.rng() * 20}%)`,
                     });
                 }
 
             } else if (runState.currentWeather.id === 'ACIDIC_FOG') {
                 // ── Drifting acid mist particles ─────────────────────────────
-                if (Math.random() < 0.25 * wFadeIn) {
+                if (runState.rng() < 0.25 * wFadeIn) {
                     runState.weatherParticles.push({
-                        x: Math.random() * canvas.width,
-                        y: Math.random() * canvas.height,
-                        vx: (Math.random() - 0.5) * 0.4,
-                        vy: (Math.random() - 0.5) * 0.4,
-                        r: 30 + Math.random() * 40,
-                        alpha: 0.04 + Math.random() * 0.06,
-                        wobble: Math.random() * Math.PI * 2,
+                        x: runState.rng() * canvas.width,
+                        y: runState.rng() * canvas.height,
+                        vx: (runState.rng() - 0.5) * 0.4,
+                        vy: (runState.rng() - 0.5) * 0.4,
+                        r: 30 + runState.rng() * 40,
+                        alpha: 0.04 + runState.rng() * 0.06,
+                        wobble: runState.rng() * Math.PI * 2,
                         fog: true,
                     });
                 }
@@ -335,14 +335,14 @@ function _updateGameplayPre(deltaTime) {
 
             } else if (runState.currentWeather.id === 'GALE') {
                 // ── Wind streak particles ─────────────────────────────────────
-                if (Math.random() < 0.4 * wFadeIn) {
+                if (runState.rng() < 0.4 * wFadeIn) {
                     runState.weatherParticles.push({
                         x: -10,
-                        y: Math.random() * canvas.height,
-                        vx: 12 + Math.random() * 8,
-                        vy: (Math.random() - 0.5) * 1.0,
-                        len: 30 + Math.random() * 30,
-                        alpha: 0.1 + Math.random() * 0.15,
+                        y: runState.rng() * canvas.height,
+                        vx: 12 + runState.rng() * 8,
+                        vy: (runState.rng() - 0.5) * 1.0,
+                        len: 30 + runState.rng() * 30,
+                        alpha: 0.1 + runState.rng() * 0.15,
                         wobble: 0,
                         gale: true,
                     });
@@ -401,7 +401,7 @@ function _updateGameplayPre(deltaTime) {
                     const weight = (w.id === _biomeBoost) ? 3 : 1;
                     for (let _wi = 0; _wi < weight; _wi++) _weatherPool.push(w);
                 }
-                runState.currentWeather = _weatherPool[Math.floor(Math.random() * _weatherPool.length)];
+                runState.currentWeather = _weatherPool[Math.floor(runState.rng() * _weatherPool.length)];
             }
             // Wave scaling: +1% duration per wave, capped at 2×
             const _waveDurationMult = Math.min(2.0, 1 + runState.wave * 0.01);
@@ -431,7 +431,7 @@ function _updateGameplayPre(deltaTime) {
                 runState.currentWeather2 = null;
                 runState.weatherDuration2 = 0;
             }
-        } else if (runState.currentWeather && Math.random() < 0.0003) {
+        } else if (runState.currentWeather && runState.rng() < 0.0003) {
             // Small chance each frame to stack a second weather (different from first, biome/DLC eligible)
             const _stackPool = WEATHER_TYPES.filter(w => {
                 if (w.id === runState.currentWeather.id) return false;
@@ -443,7 +443,7 @@ function _updateGameplayPre(deltaTime) {
                     && _biomes.includes(runState.currentBiomeType);
             });
             if (_stackPool.length > 0) {
-                runState.currentWeather2 = _stackPool[Math.floor(Math.random() * _stackPool.length)];
+                runState.currentWeather2 = _stackPool[Math.floor(runState.rng() * _stackPool.length)];
                 const _waveMult2 = Math.min(2.0, 1 + runState.wave * 0.01);
                 runState.weatherDuration2 = Math.floor(runState.currentWeather2.duration * _waveMult2 * 0.6); // shorter than primary
                 if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + runState.currentWeather2.id.toLowerCase());
@@ -460,9 +460,9 @@ function _updateGameplayPre(deltaTime) {
                     if (_pp2.velocity) _pp2.velocity.x += 0.18 * _wFI2;
                     else if (_pp2.vx !== undefined) _pp2.vx += 0.18 * _wFI2;
                 }
-                if (Math.random() < 0.4 * _wFI2) runState.weatherParticles.push({ x: -10, y: Math.random() * canvas.height, vx: 12 + Math.random() * 8, vy: (Math.random() - 0.5), len: 30 + Math.random() * 30, alpha: 0.1 + Math.random() * 0.15, wobble: 0, gale: true });
+                if (runState.rng() < 0.4 * _wFI2) runState.weatherParticles.push({ x: -10, y: runState.rng() * canvas.height, vx: 12 + runState.rng() * 8, vy: (runState.rng() - 0.5), len: 30 + runState.rng() * 30, alpha: 0.1 + runState.rng() * 0.15, wobble: 0, gale: true });
             } else if (runState.currentWeather2.id === 'BLIZZARD') {
-                if (Math.random() < 0.5 * _wFI2) runState.weatherParticles.push({ x: Math.random() * canvas.width, y: -8, vx: (Math.random() - 0.5) * 1.2 - 0.5, vy: 1.2 + Math.random() * 2.0, r: 1.0 + Math.random() * 2.2, alpha: 0.55 + Math.random() * 0.4, wobble: Math.random() * Math.PI * 2 });
+                if (runState.rng() < 0.5 * _wFI2) runState.weatherParticles.push({ x: runState.rng() * canvas.width, y: -8, vx: (runState.rng() - 0.5) * 1.2 - 0.5, vy: 1.2 + runState.rng() * 2.0, r: 1.0 + runState.rng() * 2.2, alpha: 0.55 + runState.rng() * 0.4, wobble: runState.rng() * Math.PI * 2 });
             } else if (runState.currentWeather2.id === 'ACIDIC_FOG') {
                 if (runState.frame % 240 === 0 && _wFI2 >= 1) {
                     const _ad2 = Math.ceil(runState.player.maxHp * 0.01);
@@ -498,9 +498,14 @@ function _updateGameplayPre(deltaTime) {
                 const _bossArg = (_workshopBossType && _workshopBossType !== 'random') ? _workshopBossType : undefined;
 
                 const _isStoryMode = (saveData.story && saveData.story.enabled !== false) && !runState.isDailyMode && !runState.isWeeklyMode && !runState.isChaosShuffleMode && !runState.isVersusMode;
-                if (!runState.isWorkshopMode && !_isStoryMode && Math.random() < 0.05) {
-                    document.getElementById('event-text').style.display = 'block';
-                    setTimeout(() => document.getElementById('event-text').style.display = 'none', 3000);
+                if (!runState.isWorkshopMode && !_isStoryMode && runState.rng() < 0.05) {
+                    if (typeof document !== 'undefined') {
+                        const _evt = document.getElementById('event-text');
+                        if (_evt) {
+                            _evt.style.display = 'block';
+                            setTimeout(() => { _evt.style.display = 'none'; }, 3000);
+                        }
+                    }
                     if (typeof audioManager !== 'undefined') {
                         audioManager.play('twin_event');
                         audioManager.playHeroExclamation(runState.player.type, 'twin_event');
@@ -534,7 +539,7 @@ function _updateGameplayPre(deltaTime) {
                 const _decay = _wc.spawnRateDecayPerWave ?? 1.3;
                 spawnRate = Math.max(10, _base - (runState.wave * _decay));
                 if (_wc.enemyPool && _wc.enemyPool.length > 0) {
-                    forcedType = _wc.enemyPool[Math.floor(Math.random() * _wc.enemyPool.length)];
+                    forcedType = _wc.enemyPool[Math.floor(runState.rng() * _wc.enemyPool.length)];
                 }
             }
 
@@ -564,12 +569,12 @@ function _updateGameplayPre(deltaTime) {
                         enemies.push(new Enemy(false, forcedType));
                     } else {
                         // Swarm Logic
-                        if (runState.wave > 2 && Math.random() < 0.1) {
+                        if (runState.wave > 2 && runState.rng() < 0.1) {
                             for (let i = 0; i < 5; i++) {
                                 const swarm = new Enemy(false, 'SWARM');
                                 // Offset slightly
-                                swarm.x += (Math.random() - 0.5) * 50;
-                                swarm.y += (Math.random() - 0.5) * 50;
+                                swarm.x += (runState.rng() - 0.5) * 50;
+                                swarm.y += (runState.rng() - 0.5) * 50;
                                 enemies.push(swarm);
                             }
                         } else {
