@@ -128,6 +128,16 @@ class GameSession {
         this._HIGH_LOAD_ENTER = 180; // enemies + projectiles
         this._HIGH_LOAD_EXIT  = 140;
         this._SLOW_TICK_MS    = 50; // 20 Hz
+
+        // Server-sim step 3a — feature flag for bridge-driven tick. When true,
+        // `_tick` replaces legacy sections 1-6 (player update, melee, projectile
+        // collision, enemy AI + contact, wave spawn, wave advance) with a
+        // single `bridge.runUpdate(this, dt)` call. Snapshot + tick-rate +
+        // anti-cheat stay outside the bridge. See tasks/server-sim-step-3.md.
+        // Default OFF so production behaviour is unchanged; opt in via:
+        //   process.env.GAMESESSION_USE_BRIDGE === '1'   (server boot)
+        //   gs._useBridge = true                          (per-session test)
+        this._useBridge = process.env.GAMESESSION_USE_BRIDGE === '1';
     }
 
     _adjustTickRate() {
@@ -250,6 +260,29 @@ class GameSession {
 
         this._frame += this._currentTickFrames;
         this._syncWorld();
+
+        // Server-sim step 3a — bridge-driven path. Skips legacy sections 1-6
+        // and lets `core/updateGameplayPre.js` + `core/updateGameplayMid.js`
+        // drive the whole game-state update via `bridge.runUpdate`. Snapshot
+        // (section 7) + tick rate (section 8) + anti-cheat (section 9) stay
+        // outside. Expect divergence vs the legacy path until phase 3f closes
+        // the deterministic-spawn gap — see tasks/server-sim-step-3.md.
+        if (this._useBridge) {
+            const bridge = require('./RendererBridge');
+            bridge.runUpdate(this, 1000 / 60);
+            // Re-aliases world arrays in case the leaf module's spawn block
+            // mutated them via the sentinel `unshift` / `push` traps.
+            this.enemies     = this._world.enemies;
+            this.projectiles = this._world.projectiles;
+
+            this._sendSnapshot();
+            this._adjustTickRate();
+            if (this._onTickStats) {
+                const elapsedSec = Math.round((Date.now() - this._startedAt) / 1000);
+                this._onTickStats(this.wave, this.score, elapsedSec);
+            }
+            return;
+        }
 
         // 1. Update players via real Player.update()
         //    NetworkInputController feeds moveInput + _pendingXxx into Player's

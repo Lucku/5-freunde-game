@@ -9,6 +9,10 @@ class CompletionMenu {
         this.container = document.getElementById('completion-content');
     }
 
+    resetFilter() {
+        _completionHideCompleted = false;
+    }
+
     toggleFilter() {
         _completionHideCompleted = !_completionHideCompleted;
         const btn = document.getElementById('completion-filter-btn');

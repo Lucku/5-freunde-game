@@ -546,6 +546,106 @@ function testCoopHpScaling() {
     gsVs.stop();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 13 — Step 3a — feature-flag `_useBridge` shadow execution.
+//   Runs two sessions side-by-side: one with `_useBridge=false` (legacy
+//   `_tick` body), one with `_useBridge=true` (bridge.runUpdate body). Both
+//   receive identical inputs over N ticks. Records output deltas and asserts
+//   the harness fundamentals — both paths complete without throwing, both
+//   emit a snapshot of the expected shape.
+//
+//   Strict equality is **NOT** asserted here. Wave-spawn divergence between
+//   the two paths is expected until phase 3f closes the deterministic-spawn
+//   gap (see tasks/server-sim-step-3.md). This test exists to (a) prove the
+//   bridge path is non-throwing, (b) capture the current gap as documented
+//   stderr output, and (c) gate against runtime regressions when the bridge
+//   path itself starts throwing.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testBridgeFlagShadowExecution() {
+    console.log('\n── 13 Step 3a — _useBridge shadow execution (legacy vs bridge) ───');
+
+    const TICKS = 30;
+
+    // Path A: legacy _tick body.
+    const { gs: gsLegacy } = makeSession('fire', 'water');
+    let didThrowA = null;
+    try {
+        for (let i = 0; i < TICKS; i++) gsLegacy._tick();
+    } catch (e) {
+        didThrowA = e;
+    }
+    const legacyState = {
+        enemies     : gsLegacy.enemies.length,
+        projectiles : gsLegacy.projectiles.length,
+        wave        : gsLegacy.wave,
+        frame       : gsLegacy._frame,
+        p1Hp        : gsLegacy.players[0]?.hp,
+        p2Hp        : gsLegacy.players[1]?.hp,
+    };
+    gsLegacy.stop();
+
+    // Path B: same starting state, _useBridge flipped on.
+    const { gs: gsBridge } = makeSession('fire', 'water');
+    gsBridge._useBridge = true;
+    let didThrowB = null;
+    try {
+        for (let i = 0; i < TICKS; i++) gsBridge._tick();
+    } catch (e) {
+        didThrowB = e;
+    }
+    const bridgeState = {
+        enemies     : gsBridge.enemies.length,
+        projectiles : gsBridge.projectiles.length,
+        wave        : gsBridge.wave,
+        frame       : gsBridge._frame,
+        p1Hp        : gsBridge.players[0]?.hp,
+        p2Hp        : gsBridge.players[1]?.hp,
+    };
+    gsBridge.stop();
+
+    if (didThrowA) {
+        process.stderr.write(`  FAIL  legacy path threw: ${didThrowA.message}\n`);
+        process.stderr.write(`        ${didThrowA.stack.split('\n').slice(0, 3).join('\n        ')}\n`);
+        failed++;
+    } else {
+        assert(true, 'legacy _tick body completed 30 ticks without throwing');
+    }
+
+    if (didThrowB) {
+        process.stderr.write(`  FAIL  bridge path threw: ${didThrowB.message}\n`);
+        process.stderr.write(`        ${didThrowB.stack.split('\n').slice(0, 3).join('\n        ')}\n`);
+        failed++;
+    } else {
+        assert(true, 'bridge path (_useBridge=true) completed 30 ticks without throwing');
+    }
+
+    if (!didThrowA && !didThrowB) {
+        process.stderr.write(`  info  legacy=${JSON.stringify(legacyState)}\n`);
+        process.stderr.write(`  info  bridge=${JSON.stringify(bridgeState)}\n`);
+        const deltas = {
+            enemies     : bridgeState.enemies     - legacyState.enemies,
+            projectiles : bridgeState.projectiles - legacyState.projectiles,
+            wave        : bridgeState.wave        - legacyState.wave,
+            p1HpDelta   : (bridgeState.p1Hp ?? 0) - (legacyState.p1Hp ?? 0),
+            p2HpDelta   : (bridgeState.p2Hp ?? 0) - (legacyState.p2Hp ?? 0),
+        };
+        process.stderr.write(`  gap   delta=${JSON.stringify(deltas)}\n`);
+        process.stderr.write(`        Expected: wave-spawn divergence (Math.random vs WaveManager)\n`);
+        process.stderr.write(`        + minor frame-cadence drift until phase 3f deterministic spawn lands.\n`);
+
+        // Harness fundamentals — both paths produced *something* and the
+        // session-level fields are still sane scalars.
+        assert(typeof bridgeState.wave === 'number' && bridgeState.wave >= 1,
+            `bridge path wave is a valid number (got ${bridgeState.wave})`);
+        assert(typeof bridgeState.frame === 'number' && bridgeState.frame > 0,
+            `bridge path frame advanced past 0 (got ${bridgeState.frame})`);
+        assert(typeof legacyState.wave === 'number' && legacyState.wave >= 1,
+            `legacy path wave is a valid number (got ${legacyState.wave})`);
+        // No assertion on enemy/projectile equality — phase 3f territory.
+    }
+}
+
 // ─── Run all tests ─────────────────────────────────────────────────────────────
 
 testSessionIsolation();
@@ -560,6 +660,7 @@ testRendererBridge();
 testBridgeRunUpdateLive();
 testBridgeVsLegacyDamageParity();
 testCoopHpScaling();
+testBridgeFlagShadowExecution();
 
 const total = passed + failed;
 console.log(`\n${'─'.repeat(56)}`);
