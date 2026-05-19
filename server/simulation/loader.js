@@ -343,6 +343,9 @@ global.createExplosion             = _noop;
 global.recordPlayerDamage          = _noop;
 global.getCollectionBonuses        = () => ({ damageMult: 1, specials: [] });
 global._recordPhase                = _noop;
+global.bumpDamageSource            = _noop;
+global.logUpgradePick              = _noop;
+global.logKeyMoment                = _noop;
 // Online net-sync globals — server is the authority; client interp fields
 // stay at safe defaults.
 global._onlineFrame                = 0;
@@ -357,10 +360,21 @@ global._enemySpatialHash     = null;
 global._projectileSpatialHash = null;
 global._enemyHashActive      = false;
 global._projectileHashActive = false;
-// Return empty arrays (NOT null) so callers' `_cands.length` reads don't
-// crash when the hash is inactive on the server side.
-global.queryEnemiesNear      = () => [];
-global.queryProjectilesNear  = () => [];
+// Hash is never built server-side. Fall back to the full live arrays —
+// matches the renderer's `queryProjectilesNear` definition in game.js
+// (`return (typeof projectiles !== 'undefined') ? projectiles : []`),
+// so leaf-module collision passes see every live projectile / enemy.
+global.queryEnemiesNear      = () => (typeof global.enemies     !== 'undefined' && global.enemies)     ? global.enemies     : [];
+global.queryProjectilesNear  = () => (typeof global.projectiles !== 'undefined' && global.projectiles) ? global.projectiles : [];
+
+// `audioManager` is per-session on the renderer; server stubs it once at
+// module load so any bare-name `audioManager.play(...)` call inside leaf
+// modules (collision hit-sound, damage SFX) becomes a no-op instead of
+// crashing on undefined.
+global.audioManager = global.audioManager || {
+    play: () => {}, playAttack: () => {}, stopLoop: () => {}, startLoop: () => {},
+    playHeroExclamation: () => {}, playVoice: () => {},
+};
 // Spawner helpers reached by core/updateGameplayMid.js boss-kill / wave-end paths.
 global.spawnEnemy            = _noop;
 global.spawnBoss             = _noop;

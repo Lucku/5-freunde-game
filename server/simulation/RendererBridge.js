@@ -114,6 +114,33 @@ function syncWorldToGlobals(session) {
     global.HERO_LOGIC    = w.HERO_LOGIC  || global.HERO_LOGIC  || {};
     global.ENEMY_LOGIC   = w.ENEMY_LOGIC || global.ENEMY_LOGIC || {};
 
+    // Wire server-authoritative damage. Leaf-module collision sites call
+    // `applyDamage(target, dmg, opts)` — route to GameSession's
+    // `_damageEnemy` / `_damagePlayer` so kill processing, XP awarding,
+    // gold drops, invincibility frames, and damage-reduction multipliers
+    // all run through the canonical server paths instead of the loader's
+    // smoke-grade `target.hp -= dmg` fallback. Restored to the loader's
+    // stub in `syncGlobalsToWorld` so cross-tick state stays clean.
+    _prevApplyDamage = global.applyDamage;
+    global.applyDamage = (target, dmg, opts) => {
+        if (!target || typeof dmg !== 'number') return 0;
+        // Player ref? (matches either P1 or P2 instance pointer)
+        const pIdx = session.players.indexOf(target);
+        if (pIdx >= 0) {
+            session._damagePlayer(target, pIdx, dmg);
+            return dmg;
+        }
+        // Enemy ref (default)
+        session._damageEnemy(target, dmg);
+        if (opts && opts.label && session._events) {
+            session._events.push({
+                type: 'damage_text', x: target.x, y: target.y,
+                label: opts.label, color: opts.color, size: opts.size,
+            });
+        }
+        return dmg;
+    };
+
     // runState singleton mirrors the same fields — leaf modules read both
     // bare `player` AND `runState.player` depending on the code path.
     const rs = global.runState;
@@ -142,12 +169,23 @@ function syncWorldToGlobals(session) {
 function syncGlobalsToWorld(session) {
     const w  = session._world;
     const rs = global.runState;
-    if (!rs) return;
-    w.frame        = rs.frame;
-    w.wave         = rs.wave;
-    w.score        = rs.score;
-    w.bossActive   = !!rs.bossActive;
+    if (rs) {
+        w.frame        = rs.frame;
+        w.wave         = rs.wave;
+        w.score        = rs.score;
+        w.bossActive   = !!rs.bossActive;
+    }
+    // Restore the loader.js smoke-grade `applyDamage` stub so the global
+    // doesn't stay session-bound after the tick completes. Any non-bridge
+    // require()-driven code path that calls `applyDamage` between ticks
+    // gets the deterministic stub behavior.
+    if (_prevApplyDamage) {
+        global.applyDamage = _prevApplyDamage;
+        _prevApplyDamage = null;
+    }
 }
+
+let _prevApplyDamage = null;
 
 /**
  * Run one tick of the extracted renderer update halves against a session's
