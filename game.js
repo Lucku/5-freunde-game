@@ -4528,6 +4528,27 @@ async function startGame(mode = 'NORMAL') {
     if (mode === 'DAILY')      initSeededRng(getDailySeed());
     else if (mode === 'WEEKLY') initSeededRng(getWeeklySeed());
     else                        clearSeededRng();
+
+    // #196 — install `runState.rng` for the leaf-module RNG migration
+    // (phase 3f). Every `runState.rng()` call inside `core/updateGameplay*.js`
+    // + `Enemy.js` now routes through the seeded `mulberry32` instance below,
+    // so two clients on the same seed roll identical enemy positions /
+    // subtypes / crit chances / spawn timing. DAILY/WEEKLY reuse the same
+    // seed as `getDailySeed()` / `getWeeklySeed()` so the per-run determinism
+    // already promised by those modes extends to spawns. Other modes derive
+    // a fresh wall-clock seed per run so single-player runs stay varied
+    // session-to-session but bit-identical within a single run.
+    let _runSeed;
+    if (mode === 'DAILY')       _runSeed = getDailySeed();
+    else if (mode === 'WEEKLY') _runSeed = getWeeklySeed();
+    else if (runState.isOnlineMode && window._onlineRunSeed != null) {
+        // Online lobby seed — set by lobby handshake (server-authoritative).
+        _runSeed = window._onlineRunSeed | 0;
+    } else {
+        _runSeed = (Date.now() ^ (Math.random() * 0x7fffffff)) | 0;
+    }
+    runState.rng = mulberry32(_runSeed);
+    window._runSeed = _runSeed; // diagnostics + lobby relay
     if (runState.isEvilMode && typeof EvilMode !== 'undefined') EvilMode.start();
 
     // Always reset the chaos HUD so "CHALLENGE FAILED" text from a previous run never bleeds in
