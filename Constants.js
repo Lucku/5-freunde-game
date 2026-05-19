@@ -345,11 +345,11 @@ if (typeof window !== 'undefined') {
         APP_VERSION,
         POWERUP_TYPES, BOSS_TYPES, ENEMY_TYPES,
         ENEMIES_PER_WAVE, SKILL_TREE_SIZE,
+        ACHIEVEMENTS,
         WEATHER_TYPES, ELITE_TYPES,
         COLLECTOR_CARDS, MUTATORS,
         CHAOS_EFFECTS, CHAOS_OBJECTIVES, CHAOS_REWARDS,
         UPGRADE_POOL, PERM_UPGRADES, GAMEPLAY,
     });
     if (!_serverPreSeeded) window.BASE_HERO_STATS = BASE_HERO_STATS;
-    // ACHIEVEMENTS already comes from window.ACHIEVEMENTS — don't overwrite.
 }

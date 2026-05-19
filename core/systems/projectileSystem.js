@@ -355,7 +355,12 @@ class ProjectileSlotInternal {
         return _baseUpdateBound(this);
     }
     set draw(v)   { if (this._slot >= 0) this._rs.projectileDrawFn[this._slot] = v || null; }
-    get draw()    { return this._slot >= 0 ? this._rs.projectileDrawFn[this._slot] : null; }
+    get draw()    {
+        if (this._slot < 0) return _noopFn;
+        const fn = this._rs.projectileDrawFn[this._slot];
+        if (fn) return fn;
+        return _baseDrawBound(this);
+    }
 
     _slotIdx() { return this._slot; }
 }
@@ -373,6 +378,13 @@ function _baseUpdateBound(proxy) {
         rs.projectileY[i] += rs.projectileVY[i];
         const life = rs.projectileLife[i];
         if (!Number.isNaN(life)) rs.projectileLife[i] = life - 1;
+    };
+}
+function _baseDrawBound(proxy) {
+    return function _baseDraw() {
+        const i = proxy._slot;
+        if (i < 0) return;
+        _drawProjectileSlot(globalThis.ctx, proxy._rs, i);
     };
 }
 
