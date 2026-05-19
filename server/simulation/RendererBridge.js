@@ -195,16 +195,15 @@ let _prevApplyDamage = null;
  * Returns `true` if the helpers ran. `false` if either helper failed to
  * load (caller should fall back).
  *
- * ⚠️ **Not a drop-in replacement for `GameSession._tick()`.** GameSession
- * owns damage authority via `_processMeleeAttacks` / `_updateProjectiles` /
- * `_applyEnemyContactDamage` — those paths apply real HP mutation server-
- * authoritatively. The leaf modules from `core/*.js` execute their own
- * collision passes against ECS state, but their `applyDamage` / explosion
- * helpers go through loader.js stubs that are intentionally lossy server-
- * side (smoke-test grade, not parity grade). Drive this from inside
- * `_tick()` only after the damage authority has been migrated to the
- * leaf modules' ECS-read path. For now: callable for smoke + parity tests
- * + future renderer-server parity validation.
+ * Phase 3h.2 — this IS the production `GameSession._tick` body now.
+ * Legacy server-authoritative damage helpers (`_processMeleeAttacks` /
+ * `_updateProjectiles` / `_applyEnemyContactDamage` / `_checkWaveAdvance`)
+ * retired. The leaf modules from `core/*.js` execute every collision +
+ * damage + wave-advance path server-side via the `runState` ECS layer.
+ * `applyDamage` calls inside the leaf modules route through the per-tick
+ * `global.applyDamage` swap below (writes session-aware closure on entry,
+ * restores loader stub on exit) so HP mutation lands through
+ * `session._damageEnemy` / `session._damagePlayer`.
  */
 function runUpdate(session, dt) {
     const pre = getUpdatePre();

@@ -44,7 +44,8 @@ const WaveManager = require('./WaveManager');
  *     and combat actions (shoot/melee/dash/special) are dispatched via
  *     NetworkInputController reading player.moveInput / _pendingXxx.
  *   - Player.shoot() and Player.melee() create real Projectile/MeleeSwipe
- *     objects; _updateProjectiles() and _processMeleeAttacks() handle them.
+ *     objects; the leaf-module bridge (`core/updateGameplayMid.js`) handles
+ *     their movement, collision, and damage application server-side.
  *   - Snapshot schema is unchanged — client-side _onlineApplySnapshot() works
  *     with zero modifications.
  *
@@ -143,15 +144,6 @@ class GameSession {
         this._HIGH_LOAD_EXIT  = 140;
         this._SLOW_TICK_MS    = 50; // 20 Hz
 
-        // Server-sim step 3a — feature flag for bridge-driven tick. When true,
-        // `_tick` replaces legacy sections 1-6 (player update, melee, projectile
-        // collision, enemy AI + contact, wave spawn, wave advance) with a
-        // single `bridge.runUpdate(this, dt)` call. Snapshot + tick-rate +
-        // anti-cheat stay outside the bridge. See tasks/server-sim-step-3.md.
-        // Default OFF so production behaviour is unchanged; opt in via:
-        //   process.env.GAMESESSION_USE_BRIDGE === '1'   (server boot)
-        //   gs._useBridge = true                          (per-session test)
-        this._useBridge = process.env.GAMESESSION_USE_BRIDGE === '1';
     }
 
     _adjustTickRate() {
@@ -180,11 +172,7 @@ class GameSession {
         // remains addressable via `runState.<thing>Count > 0` and gets
         // iterated by leaf-module collision loops the next time
         // `bridge.runUpdate` fires — manifests as an extra projectile hit
-        // landing on tick 1 instead of tick 6 (Test 13 phase-3a.1 bug).
-        // The legacy `_tick` path uses session-owned `gs.enemies` /
-        // `gs.projectiles` arrays directly and was immune to this. After
-        // `_useBridge=true` the leaf-module sentinel array reads through
-        // runState's typed arrays, so cross-session leak is observable.
+        // landing on tick 1 instead of tick 6.
         this._resetEcsState();
 
         // Sync canvas dimensions so Player constructor gets correct spawn coords
@@ -285,184 +273,42 @@ class GameSession {
     _tick() {
         if (this.isLevelingUp) return;
 
-        // Server-sim step 3a — bridge-driven path. Skips legacy sections 1-6
-        // and lets `core/updateGameplayPre.js` + `core/updateGameplayMid.js`
-        // drive the whole game-state update via `bridge.runUpdate`. Snapshot
-        // (section 7) + tick rate (section 8) + anti-cheat (section 9) stay
-        // outside. Expect divergence vs the legacy path until phase 3f closes
-        // the deterministic-spawn gap — see tasks/server-sim-step-3.md.
+        // Phase 3h.2 — bridge is the only path. `core/updateGameplayPre.js` +
+        // `core/updateGameplayMid.js` drive the whole game-state update via
+        // `bridge.runUpdate`. Snapshot + tick-rate hysteresis + anti-cheat
+        // hand-off stay outside the bridge (server-only concerns).
         //
-        // Sub-step `bridge.runUpdate` to match the renderer's per-frame
-        // pacing. Leaf-module entity updates (`proj.update()`, `enemy.update()`,
-        // `player.update()`) advance state by 1 frame per call, so a single
-        // server tick (33 ms = ~2 renderer frames) needs ~2 sub-steps to
-        // keep projectile flight time + enemy speed in sync with the
-        // browser-side renderer. Legacy `_tick` does the equivalent via
-        // section 1's `_PLAYER_SUB_STEPS` loop + section 3's
-        // `_updateProjectiles` `* TICK_FRAMES` scaling.
+        // Sub-step `bridge.runUpdate` to match the renderer's per-frame pacing
+        // (`proj.update()` / `enemy.update()` / `player.update()` advance by
+        // one frame per call; one 33 ms server tick = ~2 renderer frames at
+        // 60 fps, so `_currentTickFrames` sub-steps keep entity speeds in
+        // sync with the browser-side renderer).
         //
-        // Phase 3f.2 — frame-counter handoff. In bridge mode the leaf module
-        // owns `runState.frame` and increments it by +1 per pre()/mid() pass
-        // (`core/updateGameplayPre.js:167` does `runState.frame++`).
-        // Previously we bumped `gs._frame` and then `_syncWorld()` wrote
-        // `w.frame = gs._frame` — clobbering the bridge's per-call
-        // increments at the top of every tick. Now in bridge mode we
-        // sync TO the leaf module before runUpdate, then read frame back
-        // FROM the leaf module after, so `gs._frame` tracks the bridge's
-        // authoritative count. Spawn-timing gates (`runState.frame %
-        // floor(spawnRate) === 0`) finally fire as designed.
-        if (this._useBridge) {
-            this._syncWorld();
-            const bridge = require('./RendererBridge');
-            const SUB_STEPS = Math.max(1, Math.round(this._currentTickFrames));
-            for (let s = 0; s < SUB_STEPS; s++) {
-                bridge.runUpdate(this, 1000 / 60);
-            }
-            // Bridge mutated `runState.frame` → `world.frame` via
-            // `syncGlobalsToWorld`. Pull it back into `gs._frame` so the
-            // snapshot + next tick observe the true count.
-            this._frame = this._world.frame;
-            // Leaf-module spawn pushes through `enemies.push(new Enemy())`,
-            // which is the `window.enemies` sentinel (`_enemiesSentinel`
-            // installed by Enemy.js — reads from `runState.enemyCount`,
-            // not from `gs.enemies` / `_world.enemies`). Point gs.enemies
-            // + world.enemies at the sentinel so the snapshot path
-            // (`_sendSnapshot` reads `gs.enemies.length`, indexes through
-            // the proxy's numeric getter) observes the bridge-spawned
-            // entities. Same shape for `gs.projectiles` (Entities/Projectile.js
-            // installs `window.projectiles = _projectilesSentinel`).
-            this.enemies     = global.enemies     || this._world.enemies;
-            this.projectiles = global.projectiles || this._world.projectiles;
-            this._world.enemies     = this.enemies;
-            this._world.projectiles = this.projectiles;
-
-            this._sendSnapshot();
-            this._adjustTickRate();
-            if (this._onTickStats) {
-                const elapsedSec = Math.round((Date.now() - this._startedAt) / 1000);
-                this._onTickStats(this.wave, this.score, elapsedSec);
-            }
-            return;
-        }
-
-        // Legacy path — gs owns frame counter. Bump first, sync after.
-        this._frame += this._currentTickFrames;
+        // Frame-counter handoff: the leaf module owns `runState.frame` and
+        // increments it inside pre(). `_syncWorld()` runs first to push
+        // `gs._frame → w.frame → rs.frame` via `bridge.syncWorldToGlobals`;
+        // after sub-steps we read `gs._frame = w.frame` back so the snapshot
+        // + next tick observe the authoritative count.
         this._syncWorld();
-
-        // 1. Update players via real Player.update()
-        //    NetworkInputController feeds moveInput + _pendingXxx into Player's
-        //    controller path, which dispatches movement, DLC hooks, and actions.
-        const prevProjCount   = this.projectiles.length;
-        const prevMeleeCount  = (this._world.meleeAttacks || []).length;
-
-        // Sub-step Player.update() so server-simulated player advances at the same
-        // real-world speed as the 60-fps client. Without this, server runs one update
-        // per tick (30 Hz) while the client predicts at 60 fps — client position
-        // drifts ahead by ~120 px/sec, eventually triggering hard-snap reconciliation
-        // and yanking the player back. Action latches (_pendingShoot etc.) are
-        // cleared on the first sub-step's getInput() so abilities never double-fire;
-        // subsequent sub-steps only apply movement and cooldown decrements.
-        const _PLAYER_SUB_STEPS = Math.max(1, Math.round(this._currentTickFrames));
-        this.players.forEach(p => {
-            if (p && !p.isDead) {
-                for (let _s = 0; _s < _PLAYER_SUB_STEPS; _s++) {
-                    if (p.isDead) break;
-                    p.update();
-                }
-                // invincibleTimer is decremented by Player.update() but only isInvincible is
-                // checked for hit prevention — clear it when the timer expires.
-                if ((p.invincibleTimer || 0) <= 0) p.isInvincible = false;
-            }
-        });
-
-        // Assign IDs to new projectiles spawned by Player.shoot() / DLC hooks
-        for (let i = prevProjCount; i < this._world.projectiles.length; i++) {
-            const proj = this._world.projectiles[i];
-            if (!proj._id) proj._id = this._nextProjId++;
+        const bridge = require('./RendererBridge');
+        const SUB_STEPS = Math.max(1, Math.round(this._currentTickFrames));
+        for (let s = 0; s < SUB_STEPS; s++) {
+            bridge.runUpdate(this, 1000 / 60);
         }
-        // Keep session reference in sync (player.shoot pushed to world array)
-        this.projectiles        = this._world.projectiles;
+        this._frame = this._world.frame;
 
-        // 2. Process MeleeSwipe objects created by Player.melee() / DLC melee hooks
-        this._processMeleeAttacks(prevMeleeCount);
+        // Leaf-module spawn pushes through `enemies.push(new Enemy())` — the
+        // `window.enemies` sentinel installed by Enemy.js (`_enemiesSentinel`
+        // reads from `runState.enemyCount`). Same for `gs.projectiles`. Point
+        // session refs at the sentinels so the snapshot path indexes through
+        // the proxy's numeric getter and observes bridge-spawned entities.
+        this.enemies     = global.enemies     || this._world.enemies;
+        this.projectiles = global.projectiles || this._world.projectiles;
+        this._world.enemies     = this.enemies;
+        this._world.projectiles = this.projectiles;
 
-        // 3. Move projectiles + collision vs enemies/players
-        this._updateProjectiles();
-
-        if (!this._isVersusMode) {
-            // 4. Move enemies (full AI via Enemy.update()) + contact damage
-            const prevEnemyCount   = this.enemies.length;
-            const prevEnemyProjCount = this.projectiles.length;
-
-            if (this.players.some(p => p && !p.isDead)) {
-                this.enemies.forEach(enemy => {
-                    if (enemy.hp <= 0) return;
-                    enemy.update();
-                });
-            }
-
-            // Assign IDs to projectiles spawned by enemy.update() (real Projectile objects)
-            for (let i = prevEnemyProjCount; i < this.projectiles.length; i++) {
-                const proj = this.projectiles[i];
-                if (!proj._id) proj._id = this._nextProjId++;
-            }
-
-            // Assign IDs to minions spawned by SUMMONER during update
-            for (let i = prevEnemyCount; i < this.enemies.length; i++) {
-                const e = this.enemies[i];
-                if (!e._id) e._id = this._nextEnemyId++;
-            }
-
-            // Contact damage — Enemy.update() handles movement only, not player collision
-            this._applyEnemyContactDamage();
-
-            // Prune dead enemies, awarding kill rewards exactly once per enemy
-            this.enemies = this.enemies.filter(e => {
-                if (e.hp > 0) return true;
-                if (!e._killProcessed) this._onEnemyKilled(e);
-                return false;
-            });
-            this._world.enemies = this.enemies;
-
-            // 5. Spawn enemies
-            const refP    = this.players.find(p => p && !p.isDead);
-            const spawned = this._waveManager.spawnIfReady(
-                this.wave, this.bossActive, this.enemies, refP, Date.now(), this._world
-            );
-            if (spawned.length) {
-                // Co-op scaling parity with `core/updateGameplayPre.js:591-598`.
-                // In coop / AI-companion mode the leaf module bumps every newly
-                // spawned non-boss enemy by +40% maxHp. Server is authoritative
-                // for enemy HP in real netplay, so the bump has to land here
-                // too — otherwise the server's hp number drifts below the
-                // renderer's expectation and the leaf-module path applies the
-                // bump a second time when bridge.runUpdate eventually runs.
-                const Boss = global.Boss;
-                if (!this._isVersusMode) {
-                    for (const e of spawned) {
-                        if (Boss && e instanceof Boss) continue;
-                        if (e._coopScaled) continue;
-                        e._coopScaled = true;
-                        e.hp     *= 1.4;
-                        e.maxHp   = e.hp;
-                    }
-                }
-                this.enemies.push(...spawned);
-                this._world.enemies = this.enemies;
-            }
-
-            // 6. Wave advancement
-            this._checkWaveAdvance();
-        }
-
-        // 7. Push snapshot to both clients
         this._sendSnapshot();
-
-        // 8. Re-evaluate tick rate for the next iteration (entity-count proxy
-        //    for CPU pressure). The self-rescheduler reads _currentTickMs.
         this._adjustTickRate();
-
-        // 9. Hand authoritative wave/score back to server.js for anti-cheat use.
         if (this._onTickStats) {
             const elapsedSec = Math.round((Date.now() - this._startedAt) / 1000);
             this._onTickStats(this.wave, this.score, elapsedSec);
@@ -535,130 +381,6 @@ class GameSession {
      * Process MeleeSwipe objects that were pushed by Player.melee() / DLC hooks.
      * MeleeSwipe.update() only repositions the swipe — damage must be applied here.
      */
-    _processMeleeAttacks(prevCount) {
-        if (!this._world.meleeAttacks) return;
-        const swipes = this._world.meleeAttacks;
-
-        swipes.forEach(swipe => {
-            swipe.update(); // reposition following owner
-
-            if (this._isVersusMode) {
-                // Versus: melee hits the opposing player
-                this.players.forEach((player, playerIdx) => {
-                    if (!player || player.isDead || player.isInvincible) return;
-                    if (swipe.owner === player) return;
-                    if (swipe.hitList && swipe.hitList.includes(player)) return;
-                    const dist = Math.hypot(player.x - swipe.x, player.y - swipe.y);
-                    if (dist < (swipe.radius || 60) + (player.radius || 20)) {
-                        if (swipe.hitList) swipe.hitList.push(player);
-                        this._damagePlayer(player, playerIdx, swipe.damage || 20);
-                    }
-                });
-            } else {
-                this.enemies.forEach(enemy => {
-                    if (enemy.hp <= 0) return;
-                    if (swipe.hitList && swipe.hitList.includes(enemy)) return;
-                    const dist = Math.hypot(enemy.x - swipe.x, enemy.y - swipe.y);
-                    if (dist < swipe.radius + enemy.radius) {
-                        if (swipe.hitList) swipe.hitList.push(enemy);
-                        this._damageEnemy(enemy, swipe.damage);
-                    }
-                });
-            }
-        });
-
-        // Prune expired swipes
-        this._world.meleeAttacks = swipes.filter(s => s.life > 0);
-    }
-
-    // ─── Projectiles ─────────────────────────────────────────────────────────────
-
-    _updateProjectiles() {
-        const TF     = TICK_FRAMES;
-        const remove = new Set();
-
-        this.projectiles.forEach((proj, pi) => {
-            // Support both real Projectile (velocity.x/y) and plain objects (vx/vy)
-            const vx = proj.vx ?? proj.velocity?.x ?? 0;
-            const vy = proj.vy ?? proj.velocity?.y ?? 0;
-            proj.x += vx * TF;
-            proj.y += vy * TF;
-
-            // life = null means infinite lifetime (real Projectile default)
-            if (proj.life !== null && proj.life !== undefined) {
-                proj.life -= TF;
-                if (proj.life <= 0) { remove.add(pi); return; }
-            }
-
-            // Boundary cull
-            if (proj.x < -50 || proj.x > ARENA_WIDTH  + 50 ||
-                proj.y < -50 || proj.y > ARENA_HEIGHT + 50) {
-                remove.add(pi); return;
-            }
-
-            if (!proj.isEnemy) {
-                if (this._isVersusMode) {
-                    // Versus: player projectiles hit the opposing player
-                    this.players.forEach((player, playerIdx) => {
-                        if (remove.has(pi) || !player || player.isDead || player.isInvincible) return;
-                        if (proj.owner === player) return; // no self-damage
-                        const dist = Math.hypot(proj.x - player.x, proj.y - player.y);
-                        if (dist < (proj.radius || 10) + (player.radius || 20)) {
-                            this._damagePlayer(player, playerIdx, proj.damage || 10);
-                            if ((proj.pierce || 0) <= 0) remove.add(pi);
-                            else proj.pierce--;
-                        }
-                    });
-                } else {
-                    // Co-op: player projectile vs enemies.
-                    // +18px rollback tolerance compensates for ~100ms input-to-hit latency —
-                    // enemies typically move <9px per tick so this covers ~2 server ticks.
-                    const ROLLBACK_PX = 18;
-                    this.enemies.forEach(enemy => {
-                        if (remove.has(pi) || enemy.hp <= 0) return;
-                        const dist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
-                        if (dist < proj.radius + enemy.radius + ROLLBACK_PX) {
-                            this._damageEnemy(enemy, proj.damage);
-                            if ((proj.pierce || 0) <= 0) remove.add(pi);
-                            else proj.pierce--;
-                        }
-                    });
-                }
-            } else {
-                // Enemy projectile vs players
-                this.players.forEach((player, playerIdx) => {
-                    if (remove.has(pi) || !player || player.isDead || player.isInvincible) return;
-                    const dist = Math.hypot(proj.x - player.x, proj.y - player.y);
-                    if (dist < proj.radius + player.radius) {
-                        this._damagePlayer(player, playerIdx, proj.damage);
-                        remove.add(pi);
-                    }
-                });
-            }
-        });
-
-        this.projectiles = this.projectiles.filter((_, i) => !remove.has(i));
-        this._world.projectiles = this.projectiles;
-    }
-
-    // ─── Enemies ─────────────────────────────────────────────────────────────────
-
-    _applyEnemyContactDamage() {
-        this.enemies.forEach(enemy => {
-            if (enemy.hp <= 0) return;
-            this.players.forEach((player, pIdx) => {
-                if (!player || player.isDead || player.isInvincible) return;
-                const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
-                if (dist < player.radius + enemy.radius) {
-                    this._damagePlayer(player, pIdx, enemy.damage);
-                    const ang = Math.atan2(player.y - enemy.y, player.x - enemy.x);
-                    player.x = Math.max(player.radius, Math.min(ARENA_WIDTH  - player.radius, player.x + Math.cos(ang) * 8));
-                    player.y = Math.max(player.radius, Math.min(ARENA_HEIGHT - player.radius, player.y + Math.sin(ang) * 8));
-                }
-            });
-        });
-    }
-
     // ─── Damage helpers ──────────────────────────────────────────────────────────
 
     _onEnemyKilled(enemy) {
@@ -788,29 +510,6 @@ class GameSession {
                 player.critMultiplier = (player.critMultiplier || 1.5) + 0.2;
                 break;
         }
-    }
-
-    // ─── Wave logic ───────────────────────────────────────────────────────────────
-
-    _checkWaveAdvance() {
-        if (this._world.objectiveLocked) return; // Air Hero objective not yet complete
-        if (this._enemiesKilledInWave < this._waveKillTarget) return;
-
-        this.wave++;
-        this._enemiesKilledInWave = 0;
-        this._waveKillTarget      = Math.round(30 * this.wave);
-        this.enemies              = [];
-        this._world.enemies       = this.enemies;
-
-        this.players.forEach(p => {
-            if (!p || !p.isDead) return;
-            p.isDead          = false;
-            p.hp              = Math.floor(p.maxHp * 0.5);
-            p.isInvincible    = false;
-            p.invincibleTimer = 0;
-        });
-
-        this._events.push({ type: 'wave_start', wave: this.wave });
     }
 
     // ─── Snapshot ─────────────────────────────────────────────────────────────────

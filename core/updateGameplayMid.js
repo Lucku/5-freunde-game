@@ -1185,12 +1185,24 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 const _eIdx = projectiles.indexOf(proj);
                 if (_eIdx >= 0) { Projectile.release(proj); projectiles.splice(_eIdx, 1); } // #20 P3
             } else {
+                // Phase 3h.2 — snapshot proj fields BEFORE the splice below.
+                // The non-explosive branch may splice (swap-with-last on the
+                // ECS pool zeroes the slot's typed-array fields), so reading
+                // `proj.x` / `proj.knockback` afterwards in the knockback
+                // block would return 0. Renderer-side this was masked because
+                // visual feedback is per-frame; server-side parity caught it.
+                const _proj_x = proj.x, _proj_y = proj.y, _proj_kb = proj.knockback;
                 if (proj.pierce > 0) {
                     proj.pierce--;
                 } else {
                     const _nIdx = projectiles.indexOf(proj);
                     if (_nIdx >= 0) { Projectile.release(proj); projectiles.splice(_nIdx, 1); } // #20 P3
                 }
+                if (!(enemy instanceof Boss)) {
+                    const angle = Math.atan2(enemy.y - _proj_y, enemy.x - _proj_x);
+                    enemy.x += Math.cos(angle) * _proj_kb; enemy.y += Math.sin(angle) * _proj_kb;
+                }
+                continue;
             }
             if (!(enemy instanceof Boss)) {
                 const angle = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);

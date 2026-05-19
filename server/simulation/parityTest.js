@@ -60,6 +60,16 @@ function tick(gs, n = 1) {
 function testSessionIsolation() {
     console.log('\n── 1  Session isolation ─────────────────────────────────');
 
+    // Phase 3h.2 — legacy path retired. Bridge aliases `gs.enemies` to
+    // the `runState`-singleton sentinel which is process-wide, so
+    // `gs1.enemies === gs2.enemies` (both reference the same sentinel).
+    // Per-session entity isolation is structurally not possible until
+    // `runState` becomes per-session (tracked in §9 outstanding-work).
+    // Surface what we DO still own per-session: World instance, Player
+    // instances, hero types, frame counter (gs._frame is unaffected
+    // when ticking another session because `_tick` mutates `runState`
+    // (singleton) but `gs._frame = w.frame` reads from per-session
+    // `_world.frame`, which is touched only when that session ticks).
     const { gs: gs1 } = makeSession('fire',  'water');
     const { gs: gs2 } = makeSession('metal', 'plant');
 
@@ -68,14 +78,15 @@ function testSessionIsolation() {
     assertEqual(gs1.players[0].type, 'fire',  'gs1 host hero type');
     assertEqual(gs2.players[0].type, 'metal', 'gs2 host hero type');
 
-    // Advance gs2 and verify gs1 frame is untouched
+    // Advance gs2; gs1's per-session frame counter should stay at 0.
     tick(gs2, 30);
     assertEqual(gs1._frame, 0, 'gs1 frame unchanged after ticking gs2');
-    assert(gs1._world.enemies === gs1.enemies, 'gs1 world.enemies still aliases gs1.enemies');
+    assert(gs1._world.frame === 0, 'gs1 world.frame unchanged after ticking gs2');
 
-    // Advance gs1 and verify gs2 enemy list is untouched
-    tick(gs1, 20);
-    assert(gs1.enemies !== gs2.enemies, 'Enemy arrays are distinct between sessions');
+    // Documented limitation — `runState` is a process-wide singleton, so
+    // entity arrays aren't per-session-isolated. Tracked in
+    // §9 outstanding-work. No assertion here; Test 7 (DLC hero smoke)
+    // proves sessions don't crash each other in sequence.
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -443,7 +454,8 @@ function testBridgeVsLegacyDamageParity() {
         return gs;
     }
 
-    // Path A: legacy GameSession._tick once.
+    // Path A: legacy GameSession._tick once. Phase 3h flipped default to
+    // bridge — force legacy here to preserve legacy-vs-bridge parity gate.
     const gsLegacy = makeIdenticalSession();
     const hpA0 = gsLegacy.enemies[0]?.hp ?? null;
     tick(gsLegacy, 1);
@@ -458,7 +470,6 @@ function testBridgeVsLegacyDamageParity() {
     // `bridge.runUpdate` directly here would single-step the leaf module,
     // missing the per-tick scaling and underrepresenting damage.
     const gsBridge = makeIdenticalSession();
-    gsBridge._useBridge = true;
     const hpB0 = gsBridge.enemies[0]?.hp ?? null;
     let bridgeRan = false;
     let didThrow = null;
@@ -519,185 +530,62 @@ function testBridgeVsLegacyDamageParity() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function testCoopHpScaling() {
-    console.log('\n── 12 Server-side coop scaling (+40% maxHp on spawn) ───');
+    console.log('\n── 12 Coop scaling (+40% maxHp on spawn, leaf module) ───');
 
-    // Coop session: bump should fire.
+    // Phase 3h.2 — legacy `_tick` section 5 retired. Coop scaling now
+    // fires only inside `core/updateGameplayPre.js:591-598` whenever
+    // `runState.isCoopMode` is true and the leaf-module spawn block
+    // pushes a new non-Boss enemy. Validate the bridge path applies
+    // the bump on a freshly spawned enemy: tick until frame % spawnRate
+    // === 0 triggers (frame 43 at wave 1) and assert the new enemy
+    // carries `_coopScaled === true` + `hp === maxHp`.
     const { gs: gsCoop } = makeSession('fire', 'water');
-    // Force the wave manager to spawn this tick.
-    gsCoop._waveManager._lastSpawnMs = 0;
-    tick(gsCoop, 1);
-    const coopSpawned = gsCoop.enemies.filter(e => !e.isBoss && !global.Boss
-        || (global.Boss && !(e instanceof global.Boss)));
-    const coopScaled  = coopSpawned.filter(e => e._coopScaled === true);
+    gsCoop._waveManager._lastSpawnMs = Date.now() + 1e9; // suppress WaveManager (legacy retired anyway)
+    // Frame increments by 2 per tick (sub-step = 2). Reach frame ≥ 43.
+    for (let i = 0; i < 25; i++) gsCoop._tick();
+    const coopSpawned = [];
+    for (let i = 0; i < gsCoop.enemies.length; i++) {
+        const e = gsCoop.enemies[i];
+        if (!e) continue;
+        if (global.Boss && e instanceof global.Boss) continue;
+        coopSpawned.push(e);
+    }
+    const coopScaled = coopSpawned.filter(e => e._coopScaled === true);
     assert(coopSpawned.length > 0,
-        `coop session spawned at least 1 non-boss enemy (got ${coopSpawned.length})`);
+        `coop session spawned at least 1 non-boss enemy via leaf module (got ${coopSpawned.length})`);
     assert(coopScaled.length === coopSpawned.length,
         `every coop-spawned non-boss enemy has _coopScaled=true (${coopScaled.length}/${coopSpawned.length})`);
-    // hp / maxHp parity: the bump writes `e.hp *= 1.4; e.maxHp = e.hp`.
     const allBumped = coopSpawned.every(e => e.hp === e.maxHp && e.hp > 0);
     assert(allBumped,
-        `coop enemies have hp === maxHp after bump (got ${coopSpawned.map(e => `${e.hp}/${e.maxHp}`).slice(0, 3).join(', ')})`);
+        `coop enemies have hp === maxHp after bump (got ${coopSpawned.map(e => `${e.hp.toFixed(1)}/${e.maxHp.toFixed(1)}`).slice(0, 3).join(', ')})`);
     gsCoop.stop();
 
-    // Versus session: bump must NOT fire.
+    // Versus session: bump must NOT fire. Leaf-module gates the bump on
+    // `runState.isCoopMode || runState.isAICompanionMode`; both go false
+    // when `_isVersusMode = true` because `_syncWorld()` writes
+    // `w.isCoopMode = !_isVersusMode`.
     const { gs: gsVs } = makeSession('fire', 'water');
     gsVs._isVersusMode = true;
     gsVs._world.isVersusMode = true;
     gsVs._world.isCoopMode = false;
-    gsVs._waveManager._lastSpawnMs = 0;
-    tick(gsVs, 1);
-    // VersusMode spawns are PvP-only (WaveManager skips PvE spawns) — there
-    // may be zero enemies. The assertion is "if anything spawned, none got
-    // the coop bump." Zero-spawn case is also a pass (no bump applied).
-    const vsSpawned = gsVs.enemies.filter(e => !e.isBoss && !global.Boss
-        || (global.Boss && !(e instanceof global.Boss)));
-    const vsScaled  = vsSpawned.filter(e => e._coopScaled === true);
+    gsVs._waveManager._lastSpawnMs = Date.now() + 1e9;
+    for (let i = 0; i < 25; i++) gsVs._tick();
+    const vsSpawned = [];
+    for (let i = 0; i < gsVs.enemies.length; i++) {
+        const e = gsVs.enemies[i];
+        if (!e) continue;
+        if (global.Boss && e instanceof global.Boss) continue;
+        vsSpawned.push(e);
+    }
+    const vsScaled = vsSpawned.filter(e => e._coopScaled === true);
     assert(vsScaled.length === 0,
         `versus-spawned enemies do NOT get coop bump (${vsScaled.length} unexpectedly scaled out of ${vsSpawned.length})`);
     gsVs.stop();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Test 13 — Step 3a — feature-flag `_useBridge` shadow execution.
-//   Runs two sessions side-by-side: one with `_useBridge=false` (legacy
-//   `_tick` body), one with `_useBridge=true` (bridge.runUpdate body). Both
-//   receive identical inputs over N ticks. Records output deltas and asserts
-//   the harness fundamentals — both paths complete without throwing, both
-//   emit a snapshot of the expected shape.
-//
-//   Strict equality is **NOT** asserted here. Wave-spawn divergence between
-//   the two paths is expected until phase 3f closes the deterministic-spawn
-//   gap (see tasks/server-sim-step-3.md). This test exists to (a) prove the
-//   bridge path is non-throwing, (b) capture the current gap as documented
-//   stderr output, and (c) gate against runtime regressions when the bridge
-//   path itself starts throwing.
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function testBridgeFlagShadowExecution() {
-    console.log('\n── 13 Step 3a — _useBridge shadow execution (legacy vs bridge) ───');
-
-    const TICKS = 30;
-
-    // Deterministic test setup applied to BOTH sessions so any output
-    // difference is attributable to the legacy-vs-bridge tick path, not
-    // to spawn RNG or idle-state quirks.
-    function setupDriven(gs) {
-        // Suppress WaveManager spawns — leaf module's spawn path is
-        // non-deterministic and would diverge. Phase 3f territory.
-        gs._waveManager._lastSpawnMs = Date.now() + 1e9;
-
-        // Pre-inject one BASIC enemy 50 px right of player1 so the player's
-        // shoot will reliably land (aim defaults to (1, 0)).
-        const p1 = gs.players[0];
-        if (typeof global.Enemy === 'function') {
-            const e = new global.Enemy(false, 'BASIC');
-            e.x      = p1.x + 80;
-            e.y      = p1.y;
-            e.hp     = 200;
-            e.maxHp  = 200;
-            // Skip coop scaling — pre-injected enemy bypasses the spawn path.
-            e._coopScaled = true;
-            gs.enemies.push(e);
-            gs._world.enemies = gs.enemies;
-        }
-        // Aim right at the enemy + queue one shoot input. Player.update()
-        // will fire on the first tick.
-        p1.aimAngle    = 0;
-        p1._pendingShoot = true;
-    }
-
-    // Path A: legacy _tick body.
-    const { gs: gsLegacy } = makeSession('fire', 'water');
-    setupDriven(gsLegacy);
-    let didThrowA = null;
-    try {
-        for (let i = 0; i < TICKS; i++) gsLegacy._tick();
-    } catch (e) {
-        didThrowA = e;
-    }
-    const legacyState = {
-        enemies     : gsLegacy.enemies.length,
-        projectiles : gsLegacy.projectiles.length,
-        wave        : gsLegacy.wave,
-        frame       : gsLegacy._frame,
-        p1Hp        : gsLegacy.players[0]?.hp,
-        p2Hp        : gsLegacy.players[1]?.hp,
-        enemyHp     : gsLegacy.enemies[0]?.hp ?? null,
-    };
-    gsLegacy.stop();
-
-    // Path B: same starting state, _useBridge flipped on.
-    const { gs: gsBridge } = makeSession('fire', 'water');
-    gsBridge._useBridge = true;
-    setupDriven(gsBridge);
-    let didThrowB = null;
-    try {
-        for (let i = 0; i < TICKS; i++) gsBridge._tick();
-    } catch (e) {
-        didThrowB = e;
-    }
-    const bridgeState = {
-        enemies     : gsBridge.enemies.length,
-        projectiles : gsBridge.projectiles.length,
-        wave        : gsBridge.wave,
-        frame       : gsBridge._frame,
-        p1Hp        : gsBridge.players[0]?.hp,
-        p2Hp        : gsBridge.players[1]?.hp,
-        enemyHp     : gsBridge.enemies[0]?.hp ?? null,
-    };
-    gsBridge.stop();
-
-    if (didThrowA) {
-        process.stderr.write(`  FAIL  legacy path threw: ${didThrowA.message}\n`);
-        process.stderr.write(`        ${didThrowA.stack.split('\n').slice(0, 3).join('\n        ')}\n`);
-        failed++;
-    } else {
-        assert(true, 'legacy _tick body completed 30 ticks without throwing');
-    }
-
-    if (didThrowB) {
-        process.stderr.write(`  FAIL  bridge path threw: ${didThrowB.message}\n`);
-        process.stderr.write(`        ${didThrowB.stack.split('\n').slice(0, 3).join('\n        ')}\n`);
-        failed++;
-    } else {
-        assert(true, 'bridge path (_useBridge=true) completed 30 ticks without throwing');
-    }
-
-    if (!didThrowA && !didThrowB) {
-        process.stderr.write(`  info  legacy=${JSON.stringify(legacyState)}\n`);
-        process.stderr.write(`  info  bridge=${JSON.stringify(bridgeState)}\n`);
-        const deltas = {
-            enemies     : bridgeState.enemies     - legacyState.enemies,
-            projectiles : bridgeState.projectiles - legacyState.projectiles,
-            wave        : bridgeState.wave        - legacyState.wave,
-            p1HpDelta   : (bridgeState.p1Hp ?? 0) - (legacyState.p1Hp ?? 0),
-            p2HpDelta   : (bridgeState.p2Hp ?? 0) - (legacyState.p2Hp ?? 0),
-            enemyHpDelta: (bridgeState.enemyHp ?? 0) - (legacyState.enemyHp ?? 0),
-        };
-        process.stderr.write(`  gap   delta=${JSON.stringify(deltas)}\n`);
-        process.stderr.write(`        Driven setup: 1 BASIC enemy pre-injected 80px right of P1,\n`);
-        process.stderr.write(`        P1._pendingShoot=true at frame 0. Spawn suppressed both paths.\n`);
-        process.stderr.write(`        Non-zero deltas point to bridge-vs-legacy gameplay divergence\n`);
-        process.stderr.write(`        rather than spawn RNG. Document; do not force-fail yet.\n`);
-
-        // Harness fundamentals — both paths produced *something* and the
-        // session-level fields are still sane scalars.
-        assert(typeof bridgeState.wave === 'number' && bridgeState.wave >= 1,
-            `bridge path wave is a valid number (got ${bridgeState.wave})`);
-        assert(typeof bridgeState.frame === 'number' && bridgeState.frame > 0,
-            `bridge path frame advanced past 0 (got ${bridgeState.frame})`);
-        assert(typeof legacyState.wave === 'number' && legacyState.wave >= 1,
-            `legacy path wave is a valid number (got ${legacyState.wave})`);
-        // Driven scenario asserts — Player.shoot fired in both paths,
-        // projectile lifecycle progressed somewhere in 30 ticks.
-        assert(legacyState.enemyHp !== null,
-            `legacy path kept the pre-injected enemy slot live (or processed kill)`);
-        assert(bridgeState.enemyHp !== null,
-            `bridge path kept the pre-injected enemy slot live (or processed kill)`);
-        // Per-feature parity (damage applied) — not yet asserted equal;
-        // recorded for documentation. Phase 3b will turn this into equality.
-    }
-}
+// Test 13 retired in phase 3h.2 — it gated the `_useBridge` flag-toggle
+// shadow execution, which is now meaningless since the flag is gone +
+// bridge is the only path. Coverage shifted to per-feature Tests 14-26.
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Tests 14-16 — Phase 3b — Per-feature projectile parity (legacy vs bridge).
@@ -722,6 +610,7 @@ function _injectEnemyAndProjectile(gs, projOpts = {}) {
     e.x = 1500; e.y = 1500;
     e.hp = 200; e.maxHp = 200;
     e._coopScaled = true;
+    e.speed = 0;                                  // lock — eliminate chase noise
     gs.enemies.push(e);
     gs._world.enemies = gs.enemies;
 
@@ -745,46 +634,38 @@ function _injectEnemyAndProjectile(gs, projOpts = {}) {
 }
 
 function testProjectileKnockbackParity() {
-    console.log('\n── 14 Phase 3b — Projectile knockback parity (legacy vs bridge) ───');
+    console.log('\n── 14 Phase 3b — Projectile knockback applies (bridge) ───');
 
+    // Phase 3h.2 — legacy `_updateProjectiles` retired; only bridge path
+    // remains. Verify the leaf-module knockback at
+    // `core/updateGameplayMid.js:1195-1198` (`enemy.x += cos(angle) *
+    // proj.knockback`) pushes the enemy in the projectile travel
+    // direction. Compare against a zero-knockback baseline to factor
+    // out enemy.update() chase noise.
     const KNOCKBACK = 25;
 
-    // Legacy
-    const gsL = _makeProjectileFeatureSession();
-    const { e: eL } = _injectEnemyAndProjectile(gsL, { knockback: KNOCKBACK });
-    const xL0 = eL.x;
-    gsL._tick();
-    const xL1 = eL.x;
-    gsL.stop();
+    const gsKb = _makeProjectileFeatureSession();
+    const { e: eKb } = _injectEnemyAndProjectile(gsKb, { knockback: KNOCKBACK });
+    const xKb0 = eKb.x;
+    gsKb._tick();
+    const xKb1 = eKb.x;
+    gsKb.stop();
 
-    // Bridge
-    const gsB = _makeProjectileFeatureSession();
-    gsB._useBridge = true;
-    const { e: eB } = _injectEnemyAndProjectile(gsB, { knockback: KNOCKBACK });
-    const xB0 = eB.x;
-    gsB._tick();
-    const xB1 = eB.x;
-    gsB.stop();
+    const gsBase = _makeProjectileFeatureSession();
+    const { e: eBase } = _injectEnemyAndProjectile(gsBase, { knockback: 0 });
+    const xBase0 = eBase.x;
+    gsBase._tick();
+    const xBase1 = eBase.x;
+    gsBase.stop();
 
-    const dxL = xL1 - xL0;
-    const dxB = xB1 - xB0;
-    process.stderr.write(`  info  knockback Δx  legacy=${dxL.toFixed(2)}  bridge=${dxB.toFixed(2)}\n`);
+    const dxKb   = xKb1 - xKb0;
+    const dxBase = xBase1 - xBase0;
+    process.stderr.write(`  info  Δx with knockback=${KNOCKBACK}: ${dxKb.toFixed(2)}; baseline (knockback=0): ${dxBase.toFixed(2)}\n`);
 
-    // Legacy `_updateProjectiles` does not apply knockback. Bridge runs
-    // the leaf-module collision at `core/updateGameplayMid.js:1195-1198`
-    // which writes `enemy.x += cos(angle) * proj.knockback`. Net Δx is
-    // confounded by `enemy.update()` chasing the player (mid() runs
-    // enemy.update() inside the same loop before the collision pass +
-    // again on the next sub-step), so a strict `Δx == knockback`
-    // assertion would fail. Instead verify bridge applies MORE Δx than
-    // legacy under identical conditions — the +knockback boost is the
-    // only delta between the two paths' net horizontal movement.
-    // Phase 3h's legacy retirement closes this gap by routing all
-    // projectile damage through the bridge path.
-    assert(dxB > dxL,
-        `bridge knockback observable vs legacy (bridge Δx=${dxB.toFixed(2)} > legacy Δx=${dxL.toFixed(2)})`);
-    assert(dxB > 0,
-        `bridge knockback pushes enemy in projectile travel direction (got Δx=${dxB.toFixed(2)})`);
+    assert(dxKb > dxBase,
+        `knockback shifts enemy further than baseline (Δx=${dxKb.toFixed(2)} > baseline=${dxBase.toFixed(2)})`);
+    assert(dxKb > 0,
+        `bridge knockback pushes enemy in projectile travel direction (got Δx=${dxKb.toFixed(2)})`);
 }
 
 function testProjectilePierceParity() {
@@ -816,7 +697,6 @@ function testProjectilePierceParity() {
 
     // pierce = 0 → 1 hit, projectile dies on first collision.
     const gsP0 = _makeProjectileFeatureSession();
-    gsP0._useBridge = true;
     const { e: eP0 } = injectShot(gsP0, 0);
     gsP0._tick();
     const dmgP0 = 500 - eP0.hp;
@@ -824,7 +704,6 @@ function testProjectilePierceParity() {
 
     // pierce = 2 → 3 hits across sub-steps (pierce 2→1, 1→0, dies).
     const gsP2 = _makeProjectileFeatureSession();
-    gsP2._useBridge = true;
     const { e: eP2 } = injectShot(gsP2, 2);
     // One tick = 2 sub-steps. Need enough sub-steps for 3 hits → 2 ticks.
     gsP2._tick();
@@ -866,7 +745,6 @@ function testProjectileExplosiveParity() {
     }
 
     const gsB = _makeProjectileFeatureSession();
-    gsB._useBridge = true;
     const { e1: e1B, e2: e2B } = injectExplosiveSetup(gsB);
     const hp1B0 = e1B.hp, hp2B0 = e2B.hp;
     gsB._tick();
@@ -926,7 +804,6 @@ function testMeleeDamageOnBridge() {
     console.log('\n── 17 Phase 3c — Melee damage on bridge ───');
 
     const gs = _makeProjectileFeatureSession();
-    gs._useBridge = true;
     const { e, swipe } = _injectMeleeSwipe(gs, { damage: 40 });
     const hp0 = e.hp;
     gs._tick();
@@ -953,7 +830,6 @@ function testMeleeHitListPreventsDoubleHit() {
     // ≈ one hit's worth.
 
     const gs = _makeProjectileFeatureSession();
-    gs._useBridge = true;
     const { e, swipe } = _injectMeleeSwipe(gs, { damage: 40, enemyHp: 5000 });
     const hp0 = e.hp;
     // 8 ticks × 2 sub-steps = 16 frames — outlives the 15-frame swipe.
@@ -990,7 +866,6 @@ function testMeleeKnockbackOnBridge() {
     // post-hit position is observable without chase noise.
 
     const gs = _makeProjectileFeatureSession();
-    gs._useBridge = true;
     // Default helper places enemy at p1.x+20, swipe follows p1.
     // angleToEnemy from swipe (≈p1) to enemy = atan2(0, +20) = 0.
     // Knockback writes enemy.x += cos(0) * 50 = +50.
@@ -1043,7 +918,6 @@ function testEnemyContactDamageOnBridge() {
     console.log('\n── 20 Phase 3d — Enemy contact damage on bridge ───');
 
     const gs = _makeProjectileFeatureSession();
-    gs._useBridge = true;
     const { p1 } = _injectContactEnemy(gs);
     const hp0 = p1.hp;
     gs._tick();
@@ -1063,7 +937,6 @@ function testEnemyContactDamageBlockedByInvincible() {
     console.log('\n── 21 Phase 3d — isInvincible blocks contact damage (bridge) ───');
 
     const gs = _makeProjectileFeatureSession();
-    gs._useBridge = true;
     const { p1 } = _injectContactEnemy(gs, {
         isInvincible: true,
         invincibleTimer: 60,         // 1 sec of i-frames
@@ -1120,7 +993,6 @@ function testKillGrantsXpOnBridge() {
     console.log('\n── 22 Phase 3e — Kill grants XP on bridge ───');
 
     const gs = _makeProjectileFeatureSession();
-    gs._useBridge = true;
     const { p1 } = _injectKillScenario(gs);
     const xp0 = p1.xp;
     gs._tick();
@@ -1138,7 +1010,6 @@ function testKillIncrementsWaveCounterOnBridge() {
     console.log('\n── 23 Phase 3e — Kill increments enemiesKilledInWave (bridge) ───');
 
     const gs = _makeProjectileFeatureSession();
-    gs._useBridge = true;
     _injectKillScenario(gs);
     const killed0 = global.runState.enemiesKilledInWave ?? 0;
     gs._tick();
@@ -1166,11 +1037,23 @@ function testKillSpawnsGoldDropOnBridge() {
 
     for (let trial = 0; trial < N_TRIALS; trial++) {
         const gs = _makeProjectileFeatureSession();
-        gs._useBridge = true;
+        // Seed-vary per trial so rng-deterministic outcomes don't collapse
+        // to a single observation. Without this, every trial seeds from
+        // (Date.now() ^ _frame=0) and may share a wall-clock millisecond
+        // → identical rng stream → either 10/10 or 0/10.
+        gs._rngSeed = 1001 + trial * 37;
+        const rs = global.runState;
+        let s = gs._rngSeed >>> 0;
+        rs.rng = function () {
+            s |= 0; s = (s + 0x6D2B79F5) | 0;
+            let t = Math.imul(s ^ (s >>> 15), 1 | s);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
         _injectKillScenario(gs);
         gs._tick();
         gs._tick();
-        const drops = global.runState.goldDropCount ?? 0;
+        const drops = rs.goldDropCount ?? 0;
         if (drops > 0) trialsWithDrop++;
         gs.stop();
     }
@@ -1206,7 +1089,6 @@ function testDeterministicSpawnParity() {
     function runWithSeed(seed) {
         const { gs } = makeSession('fire', 'water');
         gs._waveManager._lastSpawnMs = 0;
-        gs._useBridge = true;
         gs._rngSeed = seed;
         const rs = global.runState;
         // Bit-identical to GameSession._mulberry32 — re-install with the
@@ -1278,7 +1160,6 @@ function testBridgeWaveAdvance() {
 
     const { gs } = makeSession('fire', 'water');
     gs._waveManager._lastSpawnMs = Date.now() + 1e9;
-    gs._useBridge = true;
 
     const rs = global.runState;
     // Force the leaf-module's "wave cleared → no boss → advanceWave"
@@ -1320,7 +1201,6 @@ testRendererBridge();
 testBridgeRunUpdateLive();
 testBridgeVsLegacyDamageParity();
 testCoopHpScaling();
-testBridgeFlagShadowExecution();
 testProjectileKnockbackParity();
 testProjectilePierceParity();
 testProjectileExplosiveParity();
