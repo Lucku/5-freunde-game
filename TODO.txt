@@ -1,10 +1,1 @@
 # General
-- Bug:
-
-Player.js:1557 Uncaught (in promise) ReferenceError: ACHIEVEMENTS is not defined
-    at Player.js:1557:25
-    at Array.forEach (<anonymous>)
-    at window.getHeroStats (Player.js:1556:46)
-    at new Player (Player.js:15:22)
-    at startGame (game.js:4577:23)
-

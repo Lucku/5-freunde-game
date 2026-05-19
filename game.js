@@ -1,6 +1,7 @@
 // #194 phase 2 — explicit imports for symbols previously read off window shims.
 import { MeleeSwipe } from './Entities/MeleeSwipe.js';
 import { World } from './shared/world.js';
+import { ACHIEVEMENTS } from './Constants.js';
 
 // game.js migrated to ESM 2026-05-11 (Phase 8b step 2; explicit-import pass 8b/3).
 // Mutable registries (BIOME_LOGIC, HERO_LOGIC, ENEMY_LOGIC, DLC_REGISTRY,
@@ -6309,7 +6310,7 @@ function _renderBossIntroCinematic() {
 function _renderBossChoiceScreen() {
     if (!runState._bossChoiceScreen) return false;
 runState._bossChoiceFrame++;
-const _fi = Math.min(1, _bossChoiceFrame / 25); // fade-in over ~0.4 s
+const _fi = Math.min(1, runState._bossChoiceFrame / 25); // fade-in over ~0.4 s
 
 ctx.clearRect(0, 0, canvas.width, canvas.height);
 

@@ -78,12 +78,15 @@ function apply() {
         }
         // Always pin via left/top when user has overridden; force position:fixed
         // so coords are viewport-relative regardless of original anchor
-        // (bottom-ui defaults to flex flow inside #ui-layer).
+        // (bottom-ui defaults to flex flow inside #ui-layer). `right`/`bottom`
+        // use `auto` (not '') so stylesheet anchors like `#p2-hud { right: 20px; bottom: 20px; }`
+        // are overridden — empty inline values let those CSS values through,
+        // which would stretch the element between left+right and top+bottom.
         el.style.position = 'fixed';
         el.style.left = `${ov.left}px`;
         el.style.top  = `${ov.top}px`;
-        el.style.right = '';
-        el.style.bottom = '';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
     }
 }
 
@@ -140,8 +143,10 @@ function _writePendingForEl(hudId, el) {
     el.style.position = 'fixed';
     el.style.left = `${rect.left}px`;
     el.style.top  = `${rect.top}px`;
-    el.style.right = '';
-    el.style.bottom = '';
+    // `auto` (not '') so stylesheet right/bottom anchors don't stretch the
+    // element between left+right and top+bottom — see `apply()` comment.
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
 }
 
 function _onPointerDown(e) {
@@ -275,8 +280,8 @@ function _moveFocused(dx, dy) {
     el.style.position = 'fixed';
     el.style.left = `${nx}px`;
     el.style.top  = `${ny}px`;
-    el.style.right = '';
-    el.style.bottom = '';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
     _pendingLayout[f.id] = { left: nx, top: ny };
 }
 
@@ -451,8 +456,8 @@ function enterEditMode() {
             el.style.position = 'fixed';
             el.style.left = `${existing.left}px`;
             el.style.top  = `${existing.top}px`;
-            el.style.right = '';
-            el.style.bottom = '';
+            el.style.right = 'auto';
+            el.style.bottom = 'auto';
         } else {
             // Pin to whatever its computed position is right now.
             _writePendingForEl(id, el);

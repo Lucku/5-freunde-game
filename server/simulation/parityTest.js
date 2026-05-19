@@ -404,6 +404,14 @@ function testBridgeVsLegacyDamageParity() {
     function makeIdenticalSession() {
         const { gs } = makeSession('fire', 'water');
         gs._waveManager._lastSpawnMs = Date.now() + 1e9; // suppress wave spawn
+        // Force isCoopMode=false on both paths so neither applies the +40%
+        // coop-scale HP bump from `core/updateGameplayPre.js:591-598`. Legacy
+        // `_tick` doesn't apply that bump (it lives only in the leaf module);
+        // running both paths with coop disabled keeps the test focused on
+        // damage-application parity rather than coop-scaling divergence.
+        gs._world.isCoopMode = false;
+        if (global.runState) global.runState.isCoopMode = false;
+        global.isCoopMode = false;
         // Inject a single deterministic enemy + projectile pair instead of
         // letting RNG choose. Easier to reason about damage delta.
         if (typeof global.Enemy === 'function') {
@@ -487,6 +495,57 @@ function testBridgeVsLegacyDamageParity() {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 12 — Server-authoritative coop scaling (+40% maxHp) on spawn.
+//   In coop / AI-companion mode the renderer's `core/updateGameplayPre.js`
+//   leaf module applies a one-time `+40% maxHp` bump to every newly spawned
+//   non-boss enemy. The server is authoritative for enemy HP in real
+//   netplay, so `GameSession._tick` has to mirror that bump on its own
+//   spawn path — otherwise the server's HP number drifts below the
+//   renderer's expectation and bridge.runUpdate would bump it a second
+//   time on top. This test verifies the server-side bump fires on a
+//   coop-mode session and stays disabled on a versus-mode session.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testCoopHpScaling() {
+    console.log('\n── 12 Server-side coop scaling (+40% maxHp on spawn) ───');
+
+    // Coop session: bump should fire.
+    const { gs: gsCoop } = makeSession('fire', 'water');
+    // Force the wave manager to spawn this tick.
+    gsCoop._waveManager._lastSpawnMs = 0;
+    tick(gsCoop, 1);
+    const coopSpawned = gsCoop.enemies.filter(e => !e.isBoss && !global.Boss
+        || (global.Boss && !(e instanceof global.Boss)));
+    const coopScaled  = coopSpawned.filter(e => e._coopScaled === true);
+    assert(coopSpawned.length > 0,
+        `coop session spawned at least 1 non-boss enemy (got ${coopSpawned.length})`);
+    assert(coopScaled.length === coopSpawned.length,
+        `every coop-spawned non-boss enemy has _coopScaled=true (${coopScaled.length}/${coopSpawned.length})`);
+    // hp / maxHp parity: the bump writes `e.hp *= 1.4; e.maxHp = e.hp`.
+    const allBumped = coopSpawned.every(e => e.hp === e.maxHp && e.hp > 0);
+    assert(allBumped,
+        `coop enemies have hp === maxHp after bump (got ${coopSpawned.map(e => `${e.hp}/${e.maxHp}`).slice(0, 3).join(', ')})`);
+    gsCoop.stop();
+
+    // Versus session: bump must NOT fire.
+    const { gs: gsVs } = makeSession('fire', 'water');
+    gsVs._isVersusMode = true;
+    gsVs._world.isVersusMode = true;
+    gsVs._world.isCoopMode = false;
+    gsVs._waveManager._lastSpawnMs = 0;
+    tick(gsVs, 1);
+    // VersusMode spawns are PvP-only (WaveManager skips PvE spawns) — there
+    // may be zero enemies. The assertion is "if anything spawned, none got
+    // the coop bump." Zero-spawn case is also a pass (no bump applied).
+    const vsSpawned = gsVs.enemies.filter(e => !e.isBoss && !global.Boss
+        || (global.Boss && !(e instanceof global.Boss)));
+    const vsScaled  = vsSpawned.filter(e => e._coopScaled === true);
+    assert(vsScaled.length === 0,
+        `versus-spawned enemies do NOT get coop bump (${vsScaled.length} unexpectedly scaled out of ${vsSpawned.length})`);
+    gsVs.stop();
+}
+
 // ─── Run all tests ─────────────────────────────────────────────────────────────
 
 testSessionIsolation();
@@ -500,6 +559,7 @@ testLevelUpFlow();
 testRendererBridge();
 testBridgeRunUpdateLive();
 testBridgeVsLegacyDamageParity();
+testCoopHpScaling();
 
 const total = passed + failed;
 console.log(`\n${'─'.repeat(56)}`);

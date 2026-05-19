@@ -332,6 +332,23 @@ class GameSession {
                 this.wave, this.bossActive, this.enemies, refP, Date.now(), this._world
             );
             if (spawned.length) {
+                // Co-op scaling parity with `core/updateGameplayPre.js:591-598`.
+                // In coop / AI-companion mode the leaf module bumps every newly
+                // spawned non-boss enemy by +40% maxHp. Server is authoritative
+                // for enemy HP in real netplay, so the bump has to land here
+                // too — otherwise the server's hp number drifts below the
+                // renderer's expectation and the leaf-module path applies the
+                // bump a second time when bridge.runUpdate eventually runs.
+                const Boss = global.Boss;
+                if (!this._isVersusMode) {
+                    for (const e of spawned) {
+                        if (Boss && e instanceof Boss) continue;
+                        if (e._coopScaled) continue;
+                        e._coopScaled = true;
+                        e.hp     *= 1.4;
+                        e.maxHp   = e.hp;
+                    }
+                }
                 this.enemies.push(...spawned);
                 this._world.enemies = this.enemies;
             }

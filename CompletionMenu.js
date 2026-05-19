@@ -1,5 +1,6 @@
 // #194 phase 2 — explicit imports for symbols previously read off window shims.
 import { ALTAR_TREE } from './AltarData.js';
+import { COLLECTOR_CARDS, CHAOS_EFFECTS } from './Constants.js';
 
 let _completionHideCompleted = false;
 

@@ -1,6 +1,7 @@
 // #194 phase 2 — explicit imports for symbols previously read off window shims.
 // #5 phase 5.9 — Companion class replaced by ECS system.
 import { runState } from './RunState.js';
+import { BASE_HERO_STATS, CHAOS_OBJECTIVES, CHAOS_REWARDS } from './Constants.js';
 import {
     spawnCompanion, killCompanion, findCompanionByType,
 } from './core/systems/companionSystem.js';
