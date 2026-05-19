@@ -145,6 +145,10 @@ export function allocEnemySlot(rs) {
 
 export function killEnemy(rs, i) {
     const last = rs.enemyCount - 1;
+    // Capture the proxy that actually dies BEFORE the swap stomps the slot
+    // ref. When i != last, this is the proxy originally at slot i (the one
+    // whose hp hit zero). When i == last, this is the only proxy involved.
+    const dyingProxy = rs.enemySlotProxy[i];
     if (i !== last) {
         rs.enemyX[i]                = rs.enemyX[last];
         rs.enemyY[i]                = rs.enemyY[last];
@@ -180,8 +184,11 @@ export function killEnemy(rs, i) {
     rs.enemyTargetPreference[last] = null;
     rs.enemyBodyGradient[last]     = null;
     rs.enemyExtras[last]           = null;
-    if (rs.enemySlotProxy[last]) rs.enemySlotProxy[last]._slot = -1;
     rs.enemySlotProxy[last]        = null;
+    // Mark the dying proxy dead — but only if it's not the same object that
+    // we just moved into slot i (when i == last, dyingProxy was the only
+    // proxy and we already nulled rs.enemySlotProxy[last]).
+    if (dyingProxy && dyingProxy !== rs.enemySlotProxy[i]) dyingProxy._slot = -1;
     rs.enemyCount = last;
 }
 

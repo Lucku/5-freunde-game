@@ -164,6 +164,9 @@ export function spawnProjectile(rs, x, y, velocity, damage, color, radius, type,
 
 export function killProjectile(rs, i) {
     const last = rs.projectileCount - 1;
+    // Capture the proxy that actually dies BEFORE the swap stomps the slot
+    // ref. Same shape as enemySystem.killEnemy.
+    const dyingProxy = rs.projectileSlotProxy[i];
     if (i !== last) {
         rs.projectileX[i]            = rs.projectileX[last];
         rs.projectileY[i]            = rs.projectileY[last];
@@ -196,8 +199,10 @@ export function killProjectile(rs, i) {
     rs.projectileDrawFn[last]       = null;
     rs.projectileOnHitFn[last]      = null;
     rs.projectileExtras[last]       = null;
-    if (rs.projectileSlotProxy[last]) rs.projectileSlotProxy[last]._slot = -1;
     rs.projectileSlotProxy[last]    = null;
+    // Mark the dying proxy dead — but only if it's not the same object that
+    // we just moved into slot i.
+    if (dyingProxy && dyingProxy !== rs.projectileSlotProxy[i]) dyingProxy._slot = -1;
     rs.projectileCount = last;
 }
 
