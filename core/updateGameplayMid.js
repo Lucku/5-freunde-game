@@ -181,12 +181,12 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         });
         // Drop orphan projectiles once render time has passed their last buffered
         // server position — they've finished their visible flight to impact.
-        if (projectiles.some(p => p._orphanAt !== undefined)) {
-            _replaceArrInPlace(projectiles, projectiles.filter(p => {
-                if (p._orphanAt === undefined) return true;
-                const lastT = p._snapBuf && p._snapBuf.length ? p._snapBuf[p._snapBuf.length - 1].t : 0;
-                return _renderTime <= lastT;
-            }));
+        // Iterate backwards so splice's swap-with-last doesn't skip a slot.
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            const p = projectiles[i];
+            if (!p || p._orphanAt === undefined) continue;
+            const lastT = p._snapBuf && p._snapBuf.length ? p._snapBuf[p._snapBuf.length - 1].t : 0;
+            if (_renderTime > lastT) projectiles.splice(i, 1);
         }
 
         // Own-player reconciliation. Trust client prediction whenever the

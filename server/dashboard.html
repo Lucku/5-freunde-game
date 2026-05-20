@@ -121,6 +121,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div class="tab" data-tab="balance">Balance</div>
     <div class="tab" data-tab="analytics">Analytics</div>
     <div class="tab" data-tab="events">Events</div>
+    <div class="tab" data-tab="maps">Maps</div>
     <div class="tab" data-tab="technical">Technical</div>
   </nav>
   <div class="content">
@@ -132,6 +133,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div id="tab-balance"      style="display:none"></div>
     <div id="tab-analytics"    style="display:none"></div>
     <div id="tab-events"       style="display:none"></div>
+    <div id="tab-maps"         style="display:none"></div>
     <div id="tab-technical"    style="display:none"></div>
   </div>
 </div>
@@ -161,6 +163,9 @@ let D = {};
 let activeTab = 'overview';
 let expanded = new Set();
 let crashExpanded = new Set();
+let mapsExpanded = new Set();
+let mapsSort = 'reports';
+let mapReportFilter = 'open';
 let timer = null;
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
@@ -212,7 +217,7 @@ async function fetchAll() {
     if (r.status === 401 || r.status === 403) { sawAuthFailure = true; return null; }
     return r.json();
   }).catch(() => null);
-  const [sessions, online, players, stats, saves, balance, events, crashes, telemetry, loginAudit] = await Promise.all([
+  const [sessions, online, players, stats, saves, balance, events, crashes, telemetry, loginAudit, maps, mapReports] = await Promise.all([
     fetch1('/api/admin/sessions'),
     fetch1('/api/admin/online'),
     fetch1('/api/admin/players'),
@@ -223,6 +228,8 @@ async function fetchAll() {
     fetch1('/api/admin/crashes'),
     fetch1('/api/admin/telemetry/summary'),
     fetch1('/api/admin/login-attempts?limit=100'),
+    fetch1(`/api/admin/maps?sort=${encodeURIComponent(mapsSort)}`),
+    fetch1('/api/admin/map-reports?status=open'),
   ]);
   if (sessions) D.sessions  = sessions;
   if (online)   D.online    = online;
@@ -234,6 +241,8 @@ async function fetchAll() {
   if (crashes)  D.crashes   = crashes;
   if (telemetry)  D.telemetry  = telemetry;
   if (loginAudit) D.loginAudit = loginAudit;
+  if (maps)       D.maps       = maps;
+  if (mapReports) D.mapReports = mapReports;
   // If every poll auth-failed, the session is invalid — bounce to login.
   if (sawAuthFailure) logout();
 }
@@ -878,6 +887,185 @@ function renderTechnical() {
   return h;
 }
 
+// ── Maps (TODO #185 — workshop moderation) ────────────────────────────────────
+
+const starsBadge = (avg, count) => {
+  if (!count) return '<span style="color:var(--dim)">no ratings</span>';
+  const v = Number(avg).toFixed(2);
+  return `<span style="color:#ffd966;font-weight:600">★ ${v}</span><span style="color:var(--dim);font-size:0.72rem"> (${count})</span>`;
+};
+const reportPill = c => {
+  if (!c) return '<span style="color:var(--dim)">0</span>';
+  if (c >= 5) return `<span class="pill pill-red">${c}</span>`;
+  if (c >= 2) return `<span class="pill pill-yellow">${c}</span>`;
+  return `<span class="pill pill-dim">${c}</span>`;
+};
+const visibilityPill = hidden => hidden
+  ? '<span class="pill pill-red">Hidden</span>'
+  : '<span class="pill pill-green">Visible</span>';
+
+function renderMaps() {
+  const data    = D.maps || { maps: [], summary: {} };
+  const reports = (D.mapReports?.reports || []);
+  const sum     = data.summary || {};
+
+  let h = `<div class="cards">
+    <div class="card"><div class="lbl">Total Maps</div><div class="val blue">${n(sum.total)}</div></div>
+    <div class="card"><div class="lbl">Hidden</div><div class="val red">${n(sum.hidden)}</div></div>
+    <div class="card"><div class="lbl">Open Reports</div><div class="val yellow">${n(sum.openReports)}</div></div>
+    <div class="card"><div class="lbl">Avg Rating</div><div class="val green">${sum.avgRating ? '★ ' + Number(sum.avgRating).toFixed(2) : '—'}</div></div>
+  </div>`;
+
+  // Open reports — triage at the top so admins see them first.
+  h += `<div class="section"><div class="sec-hd">
+    Open Reports <span class="badge badge-${reports.length ? 'red' : 'dim'}">${reports.length}</span>
+    <div style="float:right;display:flex;gap:0.4rem">
+      <button class="btn-sm" data-mr-filter="open"     ${mapReportFilter==='open'?'style="background:var(--accent);color:#000"':''}>Open</button>
+      <button class="btn-sm" data-mr-filter="resolved" ${mapReportFilter==='resolved'?'style="background:var(--accent);color:#000"':''}>Resolved</button>
+      <button class="btn-sm" data-mr-filter="all"      ${mapReportFilter==='all'?'style="background:var(--accent);color:#000"':''}>All</button>
+    </div>
+  </div>`;
+  if (!reports.length) {
+    h += `<div class="empty">No ${mapReportFilter === 'open' ? 'open ' : ''}reports.</div>`;
+  } else {
+    h += `<table><thead><tr>
+      <th>When</th><th>Map</th><th>Author</th><th>Reporter</th><th>Reason</th><th>Status</th><th></th>
+    </tr></thead><tbody>`;
+    for (const r of reports) {
+      h += `<tr>
+        <td style="color:var(--dim);font-size:0.78rem;white-space:nowrap">${fmtDt(r.createdAt)}</td>
+        <td><strong>${esc(r.mapName || '(deleted)')}</strong> <span style="color:var(--dim);font-size:0.72rem">#${r.mapId}</span>${r.mapHidden ? ' <span class="pill pill-red">hidden</span>' : ''}</td>
+        <td>${esc(r.mapAuthor || '—')}</td>
+        <td>${esc(r.username)}</td>
+        <td style="max-width:340px;word-break:break-word">${esc(r.reason)}</td>
+        <td>${r.resolved ? `<span class="pill pill-green">resolved</span><div style="color:var(--dim);font-size:0.7rem">${fmtDt(r.resolvedAt)}</div>` : '<span class="pill pill-yellow">open</span>'}</td>
+        <td style="white-space:nowrap">
+          ${!r.resolved ? `<button class="btn-sm" data-mr-resolve="${r.id}">Resolve</button>` : ''}
+          <button class="btn-sm" data-mr-delete="${r.id}">Delete</button>
+        </td>
+      </tr>`;
+    }
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+
+  // All maps.
+  const maps = data.maps || [];
+  h += `<div class="section"><div class="sec-hd">
+    All Maps <span class="badge badge-dim">${maps.length}</span>
+    <div style="float:right">
+      <label style="font-size:0.75rem;color:var(--dim);margin-right:0.4rem">Sort</label>
+      <select id="maps-sort" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:0.3rem 0.6rem;font-size:0.82rem">
+        <option value="reports" ${mapsSort==='reports'?'selected':''}>Reports</option>
+        <option value="hidden"  ${mapsSort==='hidden' ?'selected':''}>Hidden first</option>
+        <option value="popular" ${mapsSort==='popular'?'selected':''}>Popular</option>
+        <option value="rating"  ${mapsSort==='rating' ?'selected':''}>Rating</option>
+        <option value="newest"  ${mapsSort==='newest' ?'selected':''}>Newest</option>
+      </select>
+    </div>
+  </div>`;
+  if (!maps.length) {
+    h += '<div class="empty">No maps uploaded yet.</div>';
+  } else {
+    h += `<table><thead><tr>
+      <th>#</th><th>Name</th><th>Author</th><th>Biome</th>
+      <th style="text-align:right">Plays</th><th style="text-align:right">Likes</th>
+      <th style="text-align:right">Rating</th><th style="text-align:right">Reports</th>
+      <th>Status</th><th>Created</th><th></th>
+    </tr></thead><tbody>`;
+    for (const m of maps) {
+      const open = mapsExpanded.has(m.id);
+      h += `<tr>
+        <td style="color:var(--dim)">${m.id}</td>
+        <td><strong>${esc(m.name)}</strong></td>
+        <td>${esc(m.author)}</td>
+        <td><span class="pill pill-blue">${esc(m.biomeType)}</span></td>
+        <td style="text-align:right">${n(m.playCount)}</td>
+        <td style="text-align:right">${n(m.likeCount)}</td>
+        <td style="text-align:right">${starsBadge(m.avgRating, m.ratingCount)}</td>
+        <td style="text-align:right">${reportPill(m.reportCount)}</td>
+        <td>${visibilityPill(m.hidden)}</td>
+        <td style="color:var(--dim);font-size:0.76rem;white-space:nowrap">${fmtDt(m.createdAt)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn-sm map-expand" data-map-id="${m.id}">${open ? 'Hide' : 'View'}</button>
+          ${m.hidden
+            ? `<button class="btn-sm" data-map-unhide="${m.id}">Unhide</button>`
+            : `<button class="btn-sm" data-map-hide="${m.id}">Hide</button>`}
+          <button class="btn-sm" data-map-delete="${m.id}">Delete</button>
+        </td>
+      </tr>`;
+      if (open) {
+        const detail = (D._mapDetail && D._mapDetail[m.id]) || null;
+        h += `<tr><td colspan="11" style="padding:0">
+          <div style="padding:1rem;background:var(--bg)">
+            ${detail
+              ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                  <div class="detail-box">
+                    <h4>Map</h4>
+                    ${kv('Arena', `${detail.map.arenaWidth} × ${detail.map.arenaHeight}`)}
+                    ${kv('Obstacles',   (detail.map.mapData.obstacles  || []).length)}
+                    ${kv('Biome zones', (detail.map.mapData.biomeZones || []).length)}
+                    ${kv('Traps',       (detail.map.mapData.traps      || []).length)}
+                    ${kv('Updated',     fmtDt(detail.map.updatedAt))}
+                  </div>
+                  <div class="detail-box">
+                    <h4>Reports (${detail.reports.length})</h4>
+                    ${detail.reports.length
+                      ? detail.reports.map(r => `<div style="padding:0.3rem 0;border-bottom:1px solid var(--border);font-size:0.78rem">
+                          <div style="display:flex;justify-content:space-between"><strong>${esc(r.username)}</strong><span style="color:var(--dim)">${fmtDt(r.createdAt)}</span></div>
+                          <div style="color:var(--dim);word-break:break-word">${esc(r.reason)}</div>
+                          ${r.resolved ? `<div style="color:var(--green);font-size:0.7rem">resolved ${fmtDt(r.resolvedAt)}</div>` : ''}
+                        </div>`).join('')
+                      : '<div style="color:var(--dim)">No reports.</div>'}
+                  </div>
+                </div>
+                <details style="margin-top:0.75rem"><summary style="cursor:pointer;color:var(--dim);font-size:0.78rem">Raw mapData JSON</summary>
+                  <pre style="font-size:0.7rem;color:var(--dim);white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;margin:0.5rem 0 0 0">${esc(JSON.stringify(detail.map.mapData, null, 2))}</pre>
+                </details>`
+              : '<div class="empty" style="padding:0.5rem">Loading…</div>'}
+          </div>
+        </td></tr>`;
+      }
+    }
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+  return h;
+}
+
+async function _fetchMapDetail(id) {
+  D._mapDetail = D._mapDetail || {};
+  try {
+    const r = await fetch(`/api/admin/maps/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.ok) D._mapDetail[id] = await r.json();
+  } catch (e) { console.warn('map detail:', e); }
+}
+
+async function hideMap(id) {
+  await fetch(`/api/admin/maps/${id}/hide`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+  await refresh();
+}
+async function unhideMap(id) {
+  await fetch(`/api/admin/maps/${id}/unhide`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+  await refresh();
+}
+async function deleteMap(id) {
+  if (!confirm(`Permanently delete map #${id}? This removes its scores, likes, ratings, and reports. Cannot be undone.`)) return;
+  await fetch(`/api/admin/maps/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+  if (D._mapDetail) delete D._mapDetail[id];
+  mapsExpanded.delete(id);
+  await refresh();
+}
+async function resolveReport(id) {
+  await fetch(`/api/admin/map-reports/${id}/resolve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+  await refresh();
+}
+async function deleteReport(id) {
+  if (!confirm('Delete this report? Use this for spam/noise reports — legitimate reports should be Resolved instead.')) return;
+  await fetch(`/api/admin/map-reports/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+  await refresh();
+}
+
 // ── Render ─────────────────────────────────────────────────────────────────────
 
 function render() {
@@ -893,6 +1081,7 @@ function render() {
     balance:     renderBalance,
     analytics:   renderAnalytics,
     events:      renderEvents,
+    maps:        renderMaps,
     technical:   renderTechnical,
   };
   el.innerHTML = (renderers[tab] || (() => ''))();
@@ -916,6 +1105,36 @@ function render() {
       if (crashExpanded.has(idx)) crashExpanded.delete(idx); else crashExpanded.add(idx);
       render();
     });
+  });
+
+  // Maps tab wiring.
+  el.querySelectorAll('.map-expand[data-map-id]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = +btn.dataset.mapId;
+      if (mapsExpanded.has(id)) { mapsExpanded.delete(id); render(); return; }
+      mapsExpanded.add(id);
+      render();             // immediate placeholder
+      await _fetchMapDetail(id);
+      render();
+    });
+  });
+  el.querySelectorAll('[data-map-hide]')  .forEach(b => b.addEventListener('click', () => hideMap(+b.dataset.mapHide)));
+  el.querySelectorAll('[data-map-unhide]').forEach(b => b.addEventListener('click', () => unhideMap(+b.dataset.mapUnhide)));
+  el.querySelectorAll('[data-map-delete]').forEach(b => b.addEventListener('click', () => deleteMap(+b.dataset.mapDelete)));
+  el.querySelectorAll('[data-mr-resolve]').forEach(b => b.addEventListener('click', () => resolveReport(+b.dataset.mrResolve)));
+  el.querySelectorAll('[data-mr-delete]') .forEach(b => b.addEventListener('click', () => deleteReport(+b.dataset.mrDelete)));
+  el.querySelectorAll('[data-mr-filter]') .forEach(b => b.addEventListener('click', async () => {
+    mapReportFilter = b.dataset.mrFilter;
+    const r = await fetch(`/api/admin/map-reports?status=${encodeURIComponent(mapReportFilter)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.ok) D.mapReports = await r.json();
+    render();
+  }));
+  const sortSel = el.querySelector('#maps-sort');
+  if (sortSel) sortSel.addEventListener('change', async () => {
+    mapsSort = sortSel.value;
+    const r = await fetch(`/api/admin/maps?sort=${encodeURIComponent(mapsSort)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.ok) D.maps = await r.json();
+    render();
   });
 }
 

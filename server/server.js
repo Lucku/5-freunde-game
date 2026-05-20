@@ -176,6 +176,10 @@ db.exec(`
         arena_height INTEGER NOT NULL DEFAULT 1500,
         play_count   INTEGER NOT NULL DEFAULT 0,
         like_count   INTEGER NOT NULL DEFAULT 0,
+        hidden       INTEGER NOT NULL DEFAULT 0,
+        rating_sum   INTEGER NOT NULL DEFAULT 0,
+        rating_count INTEGER NOT NULL DEFAULT 0,
+        report_count INTEGER NOT NULL DEFAULT 0,
         created_at   INTEGER NOT NULL,
         updated_at   INTEGER NOT NULL
     );
@@ -202,7 +206,44 @@ db.exec(`
         user_id INTEGER NOT NULL,
         UNIQUE(map_id, user_id)
     );
+
+    CREATE TABLE IF NOT EXISTS custom_map_ratings (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        map_id     INTEGER NOT NULL,
+        user_id    INTEGER NOT NULL,
+        stars      INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        UNIQUE(map_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_mratings_map ON custom_map_ratings(map_id);
+
+    CREATE TABLE IF NOT EXISTS custom_map_reports (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        map_id       INTEGER NOT NULL,
+        user_id      INTEGER NOT NULL,
+        username     TEXT NOT NULL,
+        reason       TEXT NOT NULL,
+        created_at   INTEGER NOT NULL,
+        resolved     INTEGER NOT NULL DEFAULT 0,
+        resolved_at  INTEGER,
+        resolved_by  TEXT,
+        UNIQUE(map_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_mreports_map      ON custom_map_reports(map_id);
+    CREATE INDEX IF NOT EXISTS idx_mreports_resolved ON custom_map_reports(resolved, created_at DESC);
 `);
+
+// Idempotent upgrade for existing DBs predating the moderation columns.
+try {
+    const cols = db.prepare("PRAGMA table_info(custom_maps)").all();
+    const has  = name => cols.some(c => c.name === name);
+    if (!has('hidden'))       db.exec('ALTER TABLE custom_maps ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0');
+    if (!has('rating_sum'))   db.exec('ALTER TABLE custom_maps ADD COLUMN rating_sum INTEGER NOT NULL DEFAULT 0');
+    if (!has('rating_count')) db.exec('ALTER TABLE custom_maps ADD COLUMN rating_count INTEGER NOT NULL DEFAULT 0');
+    if (!has('report_count')) db.exec('ALTER TABLE custom_maps ADD COLUMN report_count INTEGER NOT NULL DEFAULT 0');
+} catch (e) {
+    console.error('Failed to migrate custom_maps moderation columns:', e);
+}
 
 // Seed system-author example maps so the community workshop is never empty.
 // Idempotent: skip any (system_user_id, name) row that already exists.
@@ -778,32 +819,53 @@ app.post('/api/maps',
     }
 );
 
+// Best-effort decode of a Bearer token to a user id. Returns null when missing
+// or invalid — used by listings that optionally surface a viewer's own hidden
+// maps without forcing auth on the general workshop browse path.
+function _tryDecodeUserId(req) {
+    const auth = req.headers.authorization;
+    if (!auth || !auth.startsWith('Bearer ')) return null;
+    try { return require('jsonwebtoken').verify(auth.slice(7), JWT_SECRET).id; }
+    catch { return null; }
+}
+
 app.get('/api/maps', (req, res) => {
-    const sort   = req.query.sort === 'newest' ? 'newest' : 'popular';
+    const sort   = req.query.sort === 'newest' ? 'newest'
+                 : req.query.sort === 'rating' ? 'rating'
+                 : 'popular';
     const limit  = Math.min(Math.max(1, parseInt(req.query.limit)  || 20), 50);
     const offset = Math.max(0, parseInt(req.query.offset) || 0);
     const mine   = req.query.mine === '1' || req.query.mine === 'true';
     const where  = [];
     const params = [];
+    const viewerId = _tryDecodeUserId(req);
     if (mine) {
-        const auth = req.headers.authorization;
-        if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
-        try {
-            const u = require('jsonwebtoken').verify(auth.slice(7), JWT_SECRET);
-            where.push('user_id = ?'); params.push(u.id);
-        } catch { return res.status(401).json({ error: 'Invalid token' }); }
+        if (viewerId == null) return res.status(401).json({ error: 'Unauthorized' });
+        where.push('user_id = ?'); params.push(viewerId);
+    } else {
+        // Hidden maps are invisible in the public listing, but the owner still
+        // sees their own (so they know it was taken down rather than vanished).
+        if (viewerId != null) { where.push('(hidden = 0 OR user_id = ?)'); params.push(viewerId); }
+        else                  { where.push('hidden = 0'); }
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const orderSql = sort === 'newest' ? 'created_at DESC' : 'like_count DESC, play_count DESC';
+    const orderSql = sort === 'newest' ? 'created_at DESC'
+                   : sort === 'rating' ? '(CASE WHEN rating_count = 0 THEN 0 ELSE CAST(rating_sum AS REAL)/rating_count END) DESC, rating_count DESC'
+                   : 'like_count DESC, play_count DESC';
     params.push(limit, offset);
     const rows = db.prepare(`
         SELECT id, name, author, biome_type AS biomeType, arena_width AS arenaWidth,
                arena_height AS arenaHeight, play_count AS playCount, like_count AS likeCount,
+               rating_sum AS ratingSum, rating_count AS ratingCount, hidden,
                created_at AS createdAt
         FROM custom_maps ${whereSql}
         ORDER BY ${orderSql}
         LIMIT ? OFFSET ?
     `).all(...params);
+    for (const r of rows) {
+        r.avgRating = r.ratingCount > 0 ? (r.ratingSum / r.ratingCount) : 0;
+        delete r.ratingSum;
+    }
     res.json({ maps: rows });
 });
 
@@ -813,13 +875,20 @@ app.get('/api/maps/:id', (req, res) => {
     const row = db.prepare(`
         SELECT id, user_id AS userId, name, author, biome_type AS biomeType,
                map_data AS mapData, arena_width AS arenaWidth, arena_height AS arenaHeight,
-               play_count AS playCount, like_count AS likeCount, created_at AS createdAt
+               play_count AS playCount, like_count AS likeCount,
+               rating_sum AS ratingSum, rating_count AS ratingCount, hidden,
+               created_at AS createdAt
         FROM custom_maps WHERE id = ?
     `).get(id);
     if (!row) return res.status(404).json({ error: 'Map not found' });
-    // Increment play count fire-and-forget
-    db.prepare('UPDATE custom_maps SET play_count = play_count + 1 WHERE id = ?').run(id);
+    const viewerId = _tryDecodeUserId(req);
+    // 404 (not 403) when hidden + non-owner — leaks nothing about moderation.
+    if (row.hidden && row.userId !== viewerId) return res.status(404).json({ error: 'Map not found' });
+    // Increment play count fire-and-forget (skip for owner-preview hidden maps).
+    if (!row.hidden) db.prepare('UPDATE custom_maps SET play_count = play_count + 1 WHERE id = ?').run(id);
     try { row.mapData = JSON.parse(row.mapData); } catch { row.mapData = {}; }
+    row.avgRating   = row.ratingCount > 0 ? (row.ratingSum / row.ratingCount) : 0;
+    delete row.ratingSum;
     res.json(row);
 });
 
@@ -857,6 +926,63 @@ app.post('/api/maps/:id/like', requireAuth, (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
+
+// 1-5★ rating. Upserts the caller's row, then recomputes the cached sum/count
+// on `custom_maps` from scratch so a re-rating doesn't double-count.
+app.post('/api/maps/:id/rate',
+    rateLimit({ key: 'map_rate', capacity: 30, refillPerSec: 30 / 3600 }),
+    requireAuth,
+    (req, res) => {
+        const id    = parseInt(req.params.id, 10);
+        if (!id) return res.status(400).json({ error: 'Invalid id' });
+        const stars = parseInt(req.body && req.body.stars, 10);
+        if (!Number.isInteger(stars) || stars < 1 || stars > 5) {
+            return res.status(400).json({ error: 'stars must be an integer 1..5' });
+        }
+        const map = db.prepare('SELECT id, user_id, hidden FROM custom_maps WHERE id = ?').get(id);
+        if (!map || map.hidden) return res.status(404).json({ error: 'Map not found' });
+        if (map.user_id === req.user.id) return res.status(400).json({ error: 'Cannot rate your own map' });
+        db.prepare(`
+            INSERT INTO custom_map_ratings (map_id, user_id, stars, created_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(map_id, user_id) DO UPDATE SET stars = excluded.stars, created_at = excluded.created_at
+        `).run(id, req.user.id, stars, Date.now());
+        const agg = db.prepare('SELECT COALESCE(SUM(stars),0) AS s, COUNT(*) AS c FROM custom_map_ratings WHERE map_id = ?').get(id);
+        db.prepare('UPDATE custom_maps SET rating_sum = ?, rating_count = ? WHERE id = ?').run(agg.s, agg.c, id);
+        res.json({ ok: true, avg: agg.c > 0 ? agg.s / agg.c : 0, count: agg.c, mine: stars });
+    }
+);
+
+// One report per user per map (UNIQUE constraint). 5/h per IP — abuse cap.
+// Hidden maps still accept reports so admins can see additional reasons after
+// initial takedown if needed.
+app.post('/api/maps/:id/report',
+    rateLimit({ key: 'map_report', capacity: 5, refillPerSec: 5 / 3600 }),
+    requireAuth,
+    (req, res) => {
+        const id     = parseInt(req.params.id, 10);
+        if (!id) return res.status(400).json({ error: 'Invalid id' });
+        const reason = (req.body && typeof req.body.reason === 'string') ? req.body.reason.trim().slice(0, 500) : '';
+        if (!reason) return res.status(400).json({ error: 'reason required' });
+        const map = db.prepare('SELECT id, user_id FROM custom_maps WHERE id = ?').get(id);
+        if (!map) return res.status(404).json({ error: 'Map not found' });
+        if (map.user_id === req.user.id) return res.status(400).json({ error: 'Cannot report your own map' });
+        try {
+            db.prepare(`
+                INSERT INTO custom_map_reports (map_id, user_id, username, reason, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            `).run(id, req.user.id, req.user.username, reason, Date.now());
+            db.prepare('UPDATE custom_maps SET report_count = report_count + 1 WHERE id = ?').run(id);
+            res.json({ ok: true });
+        } catch (e) {
+            if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+                return res.status(409).json({ error: 'Already reported' });
+            }
+            console.error('[map report]', e);
+            res.status(500).json({ error: 'Server error' });
+        }
+    }
+);
 
 app.get('/api/maps/:id/leaderboard', (req, res) => {
     const id    = parseInt(req.params.id, 10);
@@ -1232,6 +1358,155 @@ app.get('/api/admin/saves', requireAdmin, (_req, res) => {
         return { userId: u.id, username: u.username, hasData: true, savedAt: meta.savedAt, sizeBytes: stat.size };
     });
     res.json({ saves });
+});
+
+// ── Admin: Map Workshop Moderation (TODO #185) ────────────────────────────────
+
+app.get('/api/admin/maps', requireAdmin, (req, res) => {
+    const sort = (req.query.sort || 'reports');
+    const orderSql = {
+        reports: 'report_count DESC, like_count DESC',
+        newest:  'created_at DESC',
+        popular: 'like_count DESC, play_count DESC',
+        rating:  '(CASE WHEN rating_count = 0 THEN 0 ELSE CAST(rating_sum AS REAL)/rating_count END) DESC, rating_count DESC',
+        hidden:  'hidden DESC, report_count DESC',
+    }[sort] || 'report_count DESC, like_count DESC';
+    const rows = db.prepare(`
+        SELECT id, user_id AS userId, name, author, biome_type AS biomeType,
+               arena_width AS arenaWidth, arena_height AS arenaHeight,
+               play_count AS playCount, like_count AS likeCount,
+               rating_sum AS ratingSum, rating_count AS ratingCount,
+               report_count AS reportCount, hidden,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM custom_maps
+        ORDER BY ${orderSql}
+    `).all();
+    for (const r of rows) {
+        r.avgRating = r.ratingCount > 0 ? (r.ratingSum / r.ratingCount) : 0;
+        delete r.ratingSum;
+    }
+    const totals = db.prepare(`
+        SELECT COUNT(*) AS total,
+               SUM(hidden) AS hidden,
+               SUM(report_count) AS reports,
+               SUM(rating_sum) AS ratingSum,
+               SUM(rating_count) AS ratingCount
+        FROM custom_maps
+    `).get();
+    const openReports = db.prepare('SELECT COUNT(*) AS c FROM custom_map_reports WHERE resolved = 0').get().c;
+    res.json({
+        maps: rows,
+        summary: {
+            total:        totals.total       || 0,
+            hidden:       totals.hidden      || 0,
+            reportCount:  totals.reports     || 0,
+            openReports,
+            avgRating:    totals.ratingCount > 0 ? totals.ratingSum / totals.ratingCount : 0,
+        },
+    });
+});
+
+app.get('/api/admin/maps/:id', requireAdmin, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const row = db.prepare(`
+        SELECT id, user_id AS userId, name, author, biome_type AS biomeType,
+               map_data AS mapData, arena_width AS arenaWidth, arena_height AS arenaHeight,
+               play_count AS playCount, like_count AS likeCount,
+               rating_sum AS ratingSum, rating_count AS ratingCount,
+               report_count AS reportCount, hidden,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM custom_maps WHERE id = ?
+    `).get(id);
+    if (!row) return res.status(404).json({ error: 'Map not found' });
+    try { row.mapData = JSON.parse(row.mapData); } catch { row.mapData = {}; }
+    row.avgRating = row.ratingCount > 0 ? (row.ratingSum / row.ratingCount) : 0;
+    delete row.ratingSum;
+    const reports = db.prepare(`
+        SELECT id, user_id AS userId, username, reason, created_at AS createdAt,
+               resolved, resolved_at AS resolvedAt, resolved_by AS resolvedBy
+        FROM custom_map_reports
+        WHERE map_id = ?
+        ORDER BY created_at DESC
+    `).all(id);
+    res.json({ map: row, reports });
+});
+
+app.post('/api/admin/maps/:id/hide', requireAdmin, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const r = db.prepare('UPDATE custom_maps SET hidden = 1, updated_at = ? WHERE id = ?').run(Date.now(), id);
+    if (!r.changes) return res.status(404).json({ error: 'Map not found' });
+    res.json({ ok: true, hidden: 1 });
+});
+
+app.post('/api/admin/maps/:id/unhide', requireAdmin, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const r = db.prepare('UPDATE custom_maps SET hidden = 0, updated_at = ? WHERE id = ?').run(Date.now(), id);
+    if (!r.changes) return res.status(404).json({ error: 'Map not found' });
+    res.json({ ok: true, hidden: 0 });
+});
+
+// Admin hard delete: removes the map and every dependent row (scores, likes,
+// ratings, reports). Owner check is intentionally skipped — moderation override.
+app.delete('/api/admin/maps/:id', requireAdmin, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const row = db.prepare('SELECT id FROM custom_maps WHERE id = ?').get(id);
+    if (!row) return res.status(404).json({ error: 'Map not found' });
+    const tx = db.transaction(() => {
+        db.prepare('DELETE FROM custom_map_reports WHERE map_id = ?').run(id);
+        db.prepare('DELETE FROM custom_map_ratings WHERE map_id = ?').run(id);
+        db.prepare('DELETE FROM custom_map_likes   WHERE map_id = ?').run(id);
+        db.prepare('DELETE FROM custom_map_scores  WHERE map_id = ?').run(id);
+        db.prepare('DELETE FROM custom_maps        WHERE id = ?').run(id);
+    });
+    tx();
+    res.json({ ok: true });
+});
+
+app.get('/api/admin/map-reports', requireAdmin, (req, res) => {
+    const status = req.query.status === 'resolved' ? 'resolved'
+                 : req.query.status === 'all'      ? 'all'
+                 : 'open';
+    const whereSql = status === 'open'     ? 'WHERE r.resolved = 0'
+                   : status === 'resolved' ? 'WHERE r.resolved = 1'
+                   : '';
+    const rows = db.prepare(`
+        SELECT r.id, r.map_id AS mapId, r.user_id AS userId, r.username,
+               r.reason, r.created_at AS createdAt,
+               r.resolved, r.resolved_at AS resolvedAt, r.resolved_by AS resolvedBy,
+               m.name AS mapName, m.author AS mapAuthor, m.hidden AS mapHidden
+        FROM custom_map_reports r
+        LEFT JOIN custom_maps m ON m.id = r.map_id
+        ${whereSql}
+        ORDER BY r.created_at DESC
+        LIMIT 500
+    `).all();
+    res.json({ reports: rows });
+});
+
+app.post('/api/admin/map-reports/:id/resolve', requireAdmin, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const r = db.prepare(`
+        UPDATE custom_map_reports
+        SET resolved = 1, resolved_at = ?, resolved_by = ?
+        WHERE id = ? AND resolved = 0
+    `).run(Date.now(), 'admin', id);
+    if (!r.changes) return res.status(404).json({ error: 'Report not found or already resolved' });
+    res.json({ ok: true });
+});
+
+app.delete('/api/admin/map-reports/:id', requireAdmin, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const row = db.prepare('SELECT map_id FROM custom_map_reports WHERE id = ?').get(id);
+    if (!row) return res.status(404).json({ error: 'Report not found' });
+    db.prepare('DELETE FROM custom_map_reports WHERE id = ?').run(id);
+    db.prepare('UPDATE custom_maps SET report_count = MAX(0, report_count - 1) WHERE id = ?').run(row.map_id);
+    res.json({ ok: true });
 });
 
 // ── HTTP(S) server + WebSocket ────────────────────────────────────────────────

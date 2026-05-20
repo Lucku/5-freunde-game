@@ -5536,25 +5536,49 @@ function _onlineApplySnapshot(s) {
         return e;
     }));
 
-    // Rebuild ghost projectile array (reuse existing objects to reduce GC pressure).
-    // When the server removes a projectile (it hit an enemy or expired), the client
-    // renders ~100 ms behind via interpolation, so dropping the projectile object
-    // immediately makes it pop out of existence mid-flight before it visually reaches
-    // the target. We keep "orphan" projectiles around until renderTime catches up
-    // with their last buffered position, so they finish their visible flight path.
-    const _prevProjMap = new Map(projectiles.filter(p => p._ghost).map(p => [p._id, p]));
-    const _newProjIds  = new Set(s.projectiles.map(pd => pd._id));
-    _replaceArrInPlace(projectiles, s.projectiles.map(pd => {
-        let p = _prevProjMap.get(pd._id);
+    // Reconcile ghost projectiles by _id against existing ECS slots. Server's
+    // view is authoritative — non-ghost (locally predicted) slots are killed
+    // each snapshot; ghosts matching a known _id are updated in place; new
+    // server-side ids spawn fresh slots via Projectile.acquire. Orphans
+    // (slots whose id dropped from the snapshot) stay alive until renderTime
+    // passes their last buffered point so they finish their visible flight,
+    // then updateGameplayMid's interp loop splices them.
+    //
+    // The previous `_replaceArrInPlace(projectiles, ...)` pattern assumed a
+    // real Array — post-ECS the `projectiles` Proxy sentinel's `length = 0`
+    // wipes ECS slots and `.push(p)` is a no-op, which silently erased every
+    // projectile (local + ghost) on every snapshot.
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        if (p && !p._ghost) projectiles.splice(i, 1);
+    }
+    const _prevSlotById = new Map();
+    for (let i = 0; i < projectiles.length; i++) {
+        const p = projectiles[i];
+        if (p && p._ghost) _prevSlotById.set(p._id, p);
+    }
+    const _newProjIds = new Set();
+    for (const pd of s.projectiles) {
+        _newProjIds.add(pd._id);
+        let p = _prevSlotById.get(pd._id);
         if (!p) {
-            p = Object.create(Projectile ? Projectile.prototype : Object.prototype);
+            p = Projectile.acquire(
+                pd.x ?? 0, pd.y ?? 0,
+                { x: pd.vx || 0, y: pd.vy || 0 },
+                0,                              // damage — guest is render-only
+                pd.color || '#ffffff',
+                pd.radius || 5,
+                pd.type || '',
+                0,                              // knockback
+                !!pd.isEnemy,
+                !!pd.isExplosive,
+                !!pd.isCrit
+            );
+            if (!p || (typeof p._slotIdx === 'function' && p._slotIdx() < 0)) continue;
             p._ghost = true;
-            p.life = 1; p.dead = false; p.pierce = 0; p.owner = null;
-            p.damage = 0; p.knockback = 0; p.type = '';
+            p._id    = pd._id;
         }
-        p._id = pd._id;
-        // #32 P9 — position delta decoding for projectiles (mirrors enemy
-        // path; same keyframe-vs-delta wire shape).
+        // #32 P9 — position delta decoding (keyframe vs delta wire shape).
         let _pax, _pay;
         if (pd.x !== undefined) {
             _pax = pd.x; _pay = pd.y;
@@ -5562,27 +5586,36 @@ function _onlineApplySnapshot(s) {
             _pax = (p._lastSnapX ?? 0) + (pd.dx || 0);
             _pay = (p._lastSnapY ?? 0) + (pd.dy || 0);
         }
-        p._lastSnapX = _pax; p._lastSnapY = _pay;
-        p._sx = _pax; p._sy = _pay;
+        p._lastSnapX  = _pax;
+        p._lastSnapY  = _pay;
+        p._sx         = _pax;
+        p._sy         = _pay;
         p._snapshotAt = _snapTime;
-        p.velocity = { x: pd.vx, y: pd.vy };
-        if (!p._snapBuf) { p._snapBuf = [{ x: _pax, y: _pay, t: _serverT }]; p.x = _pax; p.y = _pay; }
-        else { p._snapBuf.push({ x: _pax, y: _pay, t: _serverT }); if (p._snapBuf.length > _SNAP_BUF_MAX) p._snapBuf.shift(); }
+        p._orphanAt   = undefined;
+        p.velocity    = { x: pd.vx, y: pd.vy };
+        const buf = p._snapBuf;
+        if (!buf) {
+            p._snapBuf = [{ x: _pax, y: _pay, t: _serverT }];
+            p.x = _pax;
+            p.y = _pay;
+        } else {
+            buf.push({ x: _pax, y: _pay, t: _serverT });
+            if (buf.length > _SNAP_BUF_MAX) buf.shift();
+        }
         // Static fields present only on first appearance (delta encoding)
         if (pd.color       !== undefined) p.color       = pd.color;
         if (pd.radius      !== undefined) p.radius      = pd.radius;
-        if (pd.isEnemy     !== undefined) p.isEnemy     = pd.isEnemy;
-        if (pd.isExplosive !== undefined) p.isExplosive = pd.isExplosive;
-        if (pd.isCrit      !== undefined) p.isCrit      = pd.isCrit;
+        if (pd.isEnemy     !== undefined) p.isEnemy     = !!pd.isEnemy;
+        if (pd.isExplosive !== undefined) p.isExplosive = !!pd.isExplosive;
+        if (pd.isCrit      !== undefined) p.isCrit      = !!pd.isCrit;
         if (pd.type        !== undefined) p.type        = pd.type;
-        return p;
-    }));
-    // Carry forward orphans (in last frame's array, gone from this snapshot) so the
-    // render loop can interpolate them to their final position before they vanish.
-    for (const [id, p] of _prevProjMap) {
+    }
+    // Orphans: ghost slots no longer in snapshot — stamp _orphanAt so the
+    // interp loop in updateGameplayMid can splice them once renderTime passes
+    // their last buffered position.
+    for (const [id, p] of _prevSlotById) {
         if (_newProjIds.has(id)) continue;
         if (p._orphanAt === undefined) p._orphanAt = _serverT;
-        projectiles.push(p);
     }
 
     // Game state
