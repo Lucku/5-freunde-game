@@ -1,3 +1,1 @@
 # General
-- [x] 185. Map workshop moderation. Workshop ([#102](#102)) lacks ratings (1-5★), report flag, hidden-flag column, admin takedown. Required before upload volume scales. (admin console + endpoints; client UI follow-up)
-- [ ] 41. Death animations per enemy type: BOMBER fizzle, GHOST dissolve, SHIELDER shatter.

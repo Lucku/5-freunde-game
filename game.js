@@ -3142,8 +3142,68 @@ function applyDamage(target, dmg, opts = {}) {
 }
 window.applyDamage = applyDamage;
 
-function createDeathBurst(x, y, color) {
+function createDeathBurst(x, y, color, subType) {
     // #5 phase 5.4 — direct ECS spawn. spawnParticle enforces MAX_PARTICLES.
+    // #41 — per-subType death FX. BOMBER fizzle, GHOST dissolve, SHIELDER shatter.
+    if (subType === 'BOMBER') {
+        // Fizzle: smoky upward sputter with a few sparks.
+        const emberColors = ['#e67e22', '#f1c40f', '#7f8c8d'];
+        const count = 6;
+        for (let i = 0; i < count; i++) {
+            const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.9;
+            const speed = 0.5 + Math.random() * 1.2;
+            spawnParticle(
+                runState, x, y, emberColors[i % emberColors.length],
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed - 0.4,
+                0.04 + Math.random() * 0.03,
+            );
+        }
+        // One or two stray sparks shoot further.
+        for (let i = 0; i < 2; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 1.5;
+            spawnParticle(
+                runState, x, y, '#f39c12',
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed,
+                0.05 + Math.random() * 0.02,
+            );
+        }
+        return;
+    }
+    if (subType === 'GHOST') {
+        // Dissolve: slow ethereal drift, long fade.
+        const wispColors = [color, '#ecf0f1', '#bdc3c7'];
+        const count = 12;
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+            const speed = 0.2 + Math.random() * 0.6;
+            spawnParticle(
+                runState, x, y, wispColors[i % wispColors.length],
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed - 0.15,
+                0.006 + Math.random() * 0.008,
+            );
+        }
+        return;
+    }
+    if (subType === 'SHIELDER') {
+        // Shatter: sharp radial shard burst.
+        const shardColors = ['#95a5a6', '#bdc3c7', '#7f8c8d', color];
+        const count = 10;
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
+            const speed = 3 + Math.random() * 2;
+            spawnParticle(
+                runState, x, y, shardColors[i % shardColors.length],
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed,
+                0.02 + Math.random() * 0.015,
+            );
+        }
+        return;
+    }
     const count = 8;
     for (let i = 0; i < count; i++) {
         const speed = 1.5 + Math.random() * 2.5;

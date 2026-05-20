@@ -1280,7 +1280,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
         if (enemy.hp <= 0) {
             enemy.dead = true; // Prevent double-processing if forEach+splice skips this enemy
-            if (!(enemy instanceof Boss)) createDeathBurst(enemy.x, enemy.y, enemy.color || '#e74c3c');
+            if (!(enemy instanceof Boss)) createDeathBurst(enemy.x, enemy.y, enemy.color || '#e74c3c', enemy.subType);
             if (runState.isChaosShuffleMode) checkChaosEvent('KILL', { isMelee: (enemy.lastHitBy === 'MELEE') });
             if (runState.isTutorialMode && !(enemy instanceof Boss)) TutorialMode.onKill();
             // Boss Minion Logic
