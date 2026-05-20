@@ -1289,6 +1289,13 @@ class Player {
         const { enemies, projectiles, currentRunStats, audioManager, HERO_LOGIC,
                 isEvilMode } = _w ?? {};
         if (this.rangeCooldown > 0) return;
+        // Tier 1d — snapshot projectile count BEFORE the shot so we can tag
+        // any projectiles added by this call (base + extras + DLC customShoot)
+        // as "predicted" in online mode. Without the tag, _onlineApplySnapshot
+        // wipes them next snapshot and the firing client sees no projectile
+        // until the server one appears ~100ms later through interp delay.
+        const _projectilesLenBefore = (typeof window !== 'undefined' && projectiles)
+            ? projectiles.length : -1;
 
         // Evil Mode villain heroes: delegate to HERO_LOGIC customShoot
         if (isEvilMode && HERO_LOGIC && HERO_LOGIC[this.type] &&
@@ -1422,6 +1429,19 @@ class Player {
         });
 
         this.rangeCooldown = cooldown;
+
+        // Tier 1d — tag any projectiles this call added as predicted so
+        // _onlineApplySnapshot preserves them across the next wipe.
+        if (_projectilesLenBefore >= 0 && typeof window !== 'undefined'
+                && window.runState?.isOnlineMode && this === window.runState.player) {
+            const _now = Date.now();
+            for (let i = _projectilesLenBefore; i < projectiles.length; i++) {
+                const p = projectiles[i];
+                if (!p) continue;
+                p._predicted   = true;
+                p._predictedAt = _now;
+            }
+        }
     }
 
     melee() {

@@ -5548,9 +5548,16 @@ function _onlineApplySnapshot(s) {
     // real Array — post-ECS the `projectiles` Proxy sentinel's `length = 0`
     // wipes ECS slots and `.push(p)` is a no-op, which silently erased every
     // projectile (local + ghost) on every snapshot.
+    // Tier 1d — preserve locally-predicted projectiles (player-fired, tagged
+    // in Player.shoot) for a short TTL so the firing client sees their shot
+    // immediately instead of waiting for server snapshot + 100ms interp delay.
+    // After TTL the snapshot's server-side projectile takes over; brief visual
+    // overlap is acceptable since both start at the player position.
     for (let i = projectiles.length - 1; i >= 0; i--) {
         const p = projectiles[i];
-        if (p && !p._ghost) projectiles.splice(i, 1);
+        if (!p || p._ghost) continue;
+        if (p._predicted && (_now - p._predictedAt) < 140) continue;
+        projectiles.splice(i, 1);
     }
     const _prevSlotById = new Map();
     for (let i = 0; i < projectiles.length; i++) {

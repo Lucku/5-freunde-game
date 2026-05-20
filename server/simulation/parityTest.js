@@ -536,8 +536,10 @@ function testCoopHpScaling() {
     // === 0 triggers (frame 43 at wave 1) and assert the new enemy
     // carries `_coopScaled === true` + `hp === maxHp`.
     const { gs: gsCoop } = makeSession('fire', 'water');
-    // Frame increments by 2 per tick (sub-step = 2). Reach frame ≥ 43.
-    for (let i = 0; i < 25; i++) gsCoop._tick();
+    // Frame increment per tick varies with the adaptive tick rate (60/30/20 Hz
+    // → 1/2/3 frames/tick). Drive until frame ≥ 50 so a wave-1 spawn (frame
+    // 43 trigger) is guaranteed regardless of cadence.
+    for (let i = 0; i < 80 && gsCoop._frame < 50; i++) gsCoop._tick();
     const coopSpawned = [];
     for (let i = 0; i < gsCoop.enemies.length; i++) {
         const e = gsCoop.enemies[i];
@@ -563,7 +565,7 @@ function testCoopHpScaling() {
     gsVs._isVersusMode = true;
     gsVs._world.isVersusMode = true;
     gsVs._world.isCoopMode = false;
-    for (let i = 0; i < 25; i++) gsVs._tick();
+    for (let i = 0; i < 80 && gsVs._frame < 50; i++) gsVs._tick();
     const vsSpawned = [];
     for (let i = 0; i < gsVs.enemies.length; i++) {
         const e = gsVs.enemies[i];

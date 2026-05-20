@@ -159,9 +159,20 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         const _renderTime = _onlineRenderTime();
         enemies.forEach(e => {
             if (!e._ghost) return;
-            if (e._snapBuf && e._snapBuf.length >= 2) {
-                const _ep = _onlineInterpBuf(e._snapBuf, _renderTime);
+            const _buf = e._snapBuf;
+            const _lastT = _buf && _buf.length ? _buf[_buf.length - 1].t : 0;
+            if (_buf && _buf.length >= 2 && _renderTime <= _lastT) {
+                const _ep = _onlineInterpBuf(_buf, _renderTime);
                 e.x = _ep.x; e.y = _ep.y;
+            } else if (_buf && _buf.length && _renderTime > _lastT) {
+                // Tier 1a — past last snapshot: extrapolate via velocity instead
+                // of clamping. Keeps motion smooth across packet stalls; capped
+                // at 150 ms ahead to bound the snap-back when packet arrives.
+                const _last = _buf[_buf.length - 1];
+                const _aheadMs = Math.min(_renderTime - _lastT, 150);
+                const _dt = _aheadMs / (1000 / 60);
+                e.x = _last.x + (e.vx || 0) * _dt;
+                e.y = _last.y + (e.vy || 0) * _dt;
             } else {
                 const _dt = Math.min((_now - (e._snapshotAt || _now)) / 1000 * 60, 12);
                 e.x = (e._sx ?? e.x) + (e.vx || 0) * _dt;
@@ -170,9 +181,20 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         });
         projectiles.forEach(p => {
             if (!p._ghost || !p._snapshotAt) return;
-            if (p._snapBuf && p._snapBuf.length >= 2) {
-                const _pp = _onlineInterpBuf(p._snapBuf, _renderTime);
+            const _buf = p._snapBuf;
+            const _lastT = _buf && _buf.length ? _buf[_buf.length - 1].t : 0;
+            if (_buf && _buf.length >= 2 && _renderTime <= _lastT) {
+                const _pp = _onlineInterpBuf(_buf, _renderTime);
                 p.x = _pp.x; p.y = _pp.y;
+            } else if (_buf && _buf.length && _renderTime > _lastT) {
+                // Tier 1a — past last snapshot: extrapolate via velocity. Tighter
+                // 80 ms cap for projectiles since trajectory deviation reads worse
+                // on fast-moving objects than on enemies.
+                const _last = _buf[_buf.length - 1];
+                const _aheadMs = Math.min(_renderTime - _lastT, 80);
+                const _dt = _aheadMs / (1000 / 60);
+                p.x = _last.x + (p.velocity?.x || 0) * _dt;
+                p.y = _last.y + (p.velocity?.y || 0) * _dt;
             } else {
                 const _dt = Math.min((_now - p._snapshotAt) / 1000 * 60, 12);
                 p.x = p._sx + (p.velocity?.x || 0) * _dt;
@@ -223,9 +245,17 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 const _rdx = runState.player._serverTargetX - runState.player.x;
                 const _rdy = runState.player._serverTargetY - runState.player.y;
                 const _rd2 = _rdx * _rdx + _rdy * _rdy;
-                if (_rd2 > 90000) {                       // > 300 px — teleport / death / extreme lag: hard snap
+                if (_rd2 > 250000) {                      // > 500 px — true teleport (revive / boss arena reset): hard snap
                     runState.player.x = runState.player._serverTargetX;
                     runState.player.y = runState.player._serverTargetY;
+                } else if (_rd2 > 90000) {                // 300–500 px — big desync: fast monotone catchup, no teleport
+                    // Tier 1c — replaces the prior hard-snap at 300 px. Lerp
+                    // factor scales with distance (cap 0.4) so big gaps still
+                    // close quickly but visibly rather than instantly.
+                    const _dist = Math.sqrt(_rd2);
+                    const _k = Math.min(0.4, _dist / 800);
+                    runState.player.x += _rdx * _k;
+                    runState.player.y += _rdy * _k;
                 } else if (!runState.player.isDashing && !runState.player._reconcileGrace
                         && !runState.player._postMoveGrace && !_isInputMoving
                         && _rd2 > 900) {                  // > 30 px idle dead-zone (was 4 px)

@@ -144,15 +144,22 @@ class GameSession {
         this._tickInterval = null;
         this._startedAt    = 0;
 
-        // Variable tick rate — runs at 30 Hz nominally, drops to 20 Hz when
-        // entity count exceeds the threshold (CPU pressure proxy). TICK_FRAMES
-        // scales with tick duration so simulated game speed stays constant.
+        // Variable tick rate — tri-state: 60 Hz at low load, 30 Hz nominal,
+        // 20 Hz under heavy load. TICK_FRAMES scales with tick duration so
+        // simulated game speed stays constant.
         this._currentTickMs     = TICK_MS;
         this._currentTickFrames = TICK_FRAMES;
         // Hysteresis to prevent flapping at the boundary
         this._HIGH_LOAD_ENTER = 180; // enemies + projectiles
         this._HIGH_LOAD_EXIT  = 140;
         this._SLOW_TICK_MS    = 50; // 20 Hz
+        // Tier 1b — bump to 60 Hz when the world is calm. Halves the
+        // authoritative-state gap clients see between snapshots, which is the
+        // main source of rubber-band feel at low entity counts. Bandwidth
+        // cost absorbed by dx/dy deltas (#32) + permessage-deflate (#158).
+        this._LOW_LOAD_ENTER  = 50;  // enemies + projectiles
+        this._LOW_LOAD_EXIT   = 80;
+        this._FAST_TICK_MS    = 16;  // ~60 Hz
 
         // #195 — per-session `runState`. Own typed-array pools + scalars
         // so concurrent sessions don't share entity slots / wave counters
@@ -164,14 +171,25 @@ class GameSession {
 
     _adjustTickRate() {
         const load = this.enemies.length + this.projectiles.length;
-        const wasSlow = this._currentTickMs !== TICK_MS;
-        let nextTickMs = this._currentTickMs;
-        if (!wasSlow && load >= this._HIGH_LOAD_ENTER) nextTickMs = this._SLOW_TICK_MS;
-        else if (wasSlow && load <= this._HIGH_LOAD_EXIT) nextTickMs = TICK_MS;
-        if (nextTickMs !== this._currentTickMs) {
-            this._currentTickMs     = nextTickMs;
-            this._currentTickFrames = nextTickMs / (1000 / 60);
-            console.log(`[GameSession ${this._lobby.code}] tick rate → ${Math.round(1000 / nextTickMs)} Hz (load=${load})`);
+        const cur = this._currentTickMs;
+        let next = cur;
+        // Tier 1b — tri-state: FAST (60 Hz) → NOMINAL (30 Hz) → SLOW (20 Hz).
+        // Each transition has its own enter/exit threshold to prevent flapping
+        // when load hovers around a boundary.
+        if (cur === this._FAST_TICK_MS) {
+            if (load >= this._HIGH_LOAD_ENTER)       next = this._SLOW_TICK_MS;
+            else if (load >= this._LOW_LOAD_EXIT)    next = TICK_MS;
+        } else if (cur === TICK_MS) {
+            if (load >= this._HIGH_LOAD_ENTER)       next = this._SLOW_TICK_MS;
+            else if (load <= this._LOW_LOAD_ENTER)   next = this._FAST_TICK_MS;
+        } else { // SLOW
+            if (load <= this._LOW_LOAD_ENTER)        next = this._FAST_TICK_MS;
+            else if (load <= this._HIGH_LOAD_EXIT)   next = TICK_MS;
+        }
+        if (next !== cur) {
+            this._currentTickMs     = next;
+            this._currentTickFrames = next / (1000 / 60);
+            console.log(`[GameSession ${this._lobby.code}] tick rate → ${Math.round(1000 / next)} Hz (load=${load})`);
         }
     }
 
