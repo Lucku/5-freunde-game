@@ -154,8 +154,6 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
     // Online: interpolate ghost entities between buffered snapshots; reconcile own player; flush input
     if (runState.isOnlineMode && runState.gameRunning && !runState.gamePaused) {
-        _onlineFrame++;
-
         // Interpolate ghost entities between buffered snapshots for smooth rendering
         const _now = Date.now();
         const _renderTime = _onlineRenderTime();

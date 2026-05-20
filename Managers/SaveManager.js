@@ -412,7 +412,7 @@ class SaveManager {
     }
 }
 
-window.SaveManager = SaveManager;
+if (typeof window !== 'undefined') window.SaveManager = SaveManager;
 
 export { SaveManager };
 export default SaveManager;

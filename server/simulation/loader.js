@@ -362,7 +362,6 @@ global.logUpgradePick              = _noop;
 global.logKeyMoment                = _noop;
 // Online net-sync globals — server is the authority; client interp fields
 // stay at safe defaults.
-global._onlineFrame                = 0;
 global._onlineInterpBuf            = [];
 global._onlineRenderTime           = 0;
 // Spatial hash globals — broad-phase collision optimization on the renderer

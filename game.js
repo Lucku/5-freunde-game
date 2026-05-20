@@ -197,7 +197,6 @@ window.gameContext.defaultSaveData = defaultSaveData; // #4 session 4 — owned 
 // isOnlineHost, isOnlineGuest, isDailyMode, isWeeklyMode). Bare references
 // rewritten throughout game.js. DLC + leaf modules still read via window.X
 // — defineProperty bridges below route to runState.X.
-let _onlineFrame  = 0;      // frame counter for throttling network sends
 let _onlineEvents = [];     // event queue flushed with each host snapshot
 let coopP2HeroType = null;
 let coopP1GamepadIndex = -1;
@@ -2010,7 +2009,6 @@ function startOnlineGame(msg) {
     if (myIdx !== -1) window.selectedHeroIndex = myIdx;
     window.selectedHeroType = myHero; // must match index so startGame() builds correct player
 
-    _onlineFrame  = 0;
     _onlineEvents = [];
 
     // Derive a shared numeric seed from the lobby code so both clients generate
