@@ -1488,11 +1488,23 @@ function handleMessage(ws, msg) {
                 userIds: [lobby.host?.userId, lobby.guest?.userId].filter(Boolean),
             });
 
+            // #200 — generate a single 32-bit seed for this match. Server +
+            // both clients install `runState.rng = mulberry32(seed)` from
+            // the same value so spawn / crit / drop / boss-pattern rolls
+            // produce identical outcomes across all three participants.
+            // GameSession reads `_rngSeed` in `_resetEcsState()` (see
+            // server/simulation/GameSession.js); clients read `runSeed`
+            // off the `GAME_START` message and stamp `window._onlineRunSeed`
+            // which `game.js startGame()` consults when installing
+            // `runState.rng`.
+            const runSeed = (Date.now() ^ (Math.random() * 0x7fffffff)) | 0;
+
             const baseStart = {
                 type: 'GAME_START',
                 hostHero: lobby.hostHero, guestHero: lobby.guestHero,
                 hostUsername: lobby.host.username, guestUsername: lobby.guest.username,
                 mode: msg.mode || lobby.hostMode || 'NORMAL',
+                runSeed,
             };
             send(lobby.host.ws,  { ...baseStart, sessionToken: hostToken });
             send(lobby.guest.ws, { ...baseStart, sessionToken: guestToken });
@@ -1507,6 +1519,7 @@ function handleMessage(ws, msg) {
                         if (entry) { entry.wave = wave; entry.score = score; entry.timeSec = timeSec; }
                     },
                 });
+                session._rngSeed = runSeed;
                 session.init(lobby.hostHero, lobby.guestHero, msg.mode || lobby.hostMode || 'NORMAL');
                 lobby.session = session;
             } catch (err) {

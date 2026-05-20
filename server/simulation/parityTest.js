@@ -157,7 +157,6 @@ function testEnemySpawning() {
 
     const { gs, snapsHost } = makeSession('fire', 'water');
     // Force immediate first spawn by resetting the last-spawn timestamp.
-    gs._waveManager._lastSpawnMs = 0;
     tick(gs, 500);
 
     assert(gs.enemies.length > 0, `Enemies present after 500 ticks (${gs.enemies.length})`);
@@ -206,7 +205,6 @@ function testDeltaCompression() {
     console.log('\n── 6  Snapshot delta compression ─────────────────────────');
 
     const { gs, snapsHost } = makeSession('fire', 'water');
-    gs._waveManager._lastSpawnMs = 0;  // force spawn on tick 1
 
     tick(gs, 3);
 
@@ -358,7 +356,6 @@ function testBridgeRunUpdateLive() {
 
     const bridge = require('./RendererBridge');
     const { gs, snapsHost } = makeSession('fire', 'water');
-    gs._waveManager._lastSpawnMs = 0;
 
     // Warm up with some enemies + projectiles via legacy tick.
     gs.applyInput('host', { x: 1, y: 0, aimAngle: 0 });
@@ -414,7 +411,6 @@ function testBridgeVsLegacyDamageParity() {
 
     function makeIdenticalSession() {
         const { gs } = makeSession('fire', 'water');
-        gs._waveManager._lastSpawnMs = Date.now() + 1e9; // suppress wave spawn
         // Stays in coop mode (default `_isVersusMode=false`). The leaf
         // module's `+40% maxHp` coop bump at
         // `core/updateGameplayPre.js:591-598` skips any enemy carrying
@@ -540,7 +536,6 @@ function testCoopHpScaling() {
     // === 0 triggers (frame 43 at wave 1) and assert the new enemy
     // carries `_coopScaled === true` + `hp === maxHp`.
     const { gs: gsCoop } = makeSession('fire', 'water');
-    gsCoop._waveManager._lastSpawnMs = Date.now() + 1e9; // suppress WaveManager (legacy retired anyway)
     // Frame increments by 2 per tick (sub-step = 2). Reach frame ≥ 43.
     for (let i = 0; i < 25; i++) gsCoop._tick();
     const coopSpawned = [];
@@ -568,7 +563,6 @@ function testCoopHpScaling() {
     gsVs._isVersusMode = true;
     gsVs._world.isVersusMode = true;
     gsVs._world.isCoopMode = false;
-    gsVs._waveManager._lastSpawnMs = Date.now() + 1e9;
     for (let i = 0; i < 25; i++) gsVs._tick();
     const vsSpawned = [];
     for (let i = 0; i < gsVs.enemies.length; i++) {
@@ -601,7 +595,6 @@ function testCoopHpScaling() {
 
 function _makeProjectileFeatureSession() {
     const { gs } = makeSession('fire', 'water');
-    gs._waveManager._lastSpawnMs = Date.now() + 1e9;
     return gs;
 }
 
@@ -1088,7 +1081,6 @@ function testDeterministicSpawnParity() {
 
     function runWithSeed(seed) {
         const { gs } = makeSession('fire', 'water');
-        gs._waveManager._lastSpawnMs = 0;
         gs._rngSeed = seed;
         const rs = global.runState;
         // Bit-identical to GameSession._mulberry32 — re-install with the
@@ -1159,7 +1151,6 @@ function testBridgeWaveAdvance() {
     console.log('\n── 26 Phase 3g — Wave advance on bridge ───');
 
     const { gs } = makeSession('fire', 'water');
-    gs._waveManager._lastSpawnMs = Date.now() + 1e9;
 
     const rs = global.runState;
     // Force the leaf-module's "wave cleared → no boss → advanceWave"
@@ -1200,7 +1191,6 @@ function testConcurrentSessionIsolation() {
     console.log('\n── 27 #195 — Concurrent-session isolation (per-session runState) ───');
 
     const { gs: gsA } = makeSession('fire',  'water');
-    gsA._waveManager._lastSpawnMs = Date.now() + 1e9; // suppress spawn in legacy paths
     // Tick A enough times for the leaf-module spawn block to fire (frame ≥ 43).
     for (let i = 0; i < 25; i++) gsA._tick();
     const aEnemiesAfter = gsA._runState.enemyCount;
@@ -1211,7 +1201,6 @@ function testConcurrentSessionIsolation() {
     // gsB starts fresh (enemyCount=0, frame=0, wave=1) regardless of
     // anything gsA accumulated.
     const { gs: gsB } = makeSession('metal', 'plant');
-    gsB._waveManager._lastSpawnMs = Date.now() + 1e9;
     const bEnemiesPre = gsB._runState.enemyCount;
     const bFramePre   = gsB._runState.frame;
     const bWavePre    = gsB._runState.wave;

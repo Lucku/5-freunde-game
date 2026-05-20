@@ -26,7 +26,8 @@ const {
     TICK_FRAMES,
     UPGRADE_POOL,
 } = require('./constants');
-const WaveManager = require('./WaveManager');
+// #198 — WaveManager retired (phase 3h.2 closed step 3; bridge owns spawn).
+// Tests poke `gs._waveManager._lastSpawnMs` removed in this commit.
 
 // #195 — per-session `runState`. RunState.js exports a Proxy that forwards
 // to whichever object `setActiveRunState(rs)` last installed. GameSession
@@ -140,7 +141,6 @@ class GameSession {
         this._snapshotsSinceKeyframe = 0;
         this._KEYFRAME_INTERVAL = 30; // 1s at 30Hz
 
-        this._waveManager  = new WaveManager();
         this._tickInterval = null;
         this._startedAt    = 0;
 
@@ -212,7 +212,6 @@ class GameSession {
         this._world.projectiles = this.projectiles;
 
         this._startedAt = Date.now();
-        this._waveManager._lastSpawnMs = this._startedAt;
         // Self-rescheduling tick — interval adjusts per-iteration via _adjustTickRate
         const scheduleNext = () => {
             this._tickInterval = setTimeout(() => {
