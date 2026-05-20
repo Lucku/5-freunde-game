@@ -1084,7 +1084,34 @@ function render() {
     maps:        renderMaps,
     technical:   renderTechnical,
   };
+  // Snapshot in-progress form input before innerHTML wipes the DOM. Without
+  // this the 5s polling refresh erases anything the operator was typing —
+  // most painful in the Events tab's datetime-local fields, which lose focus
+  // and value mid-keystroke. Keyed by element id so restoration survives a
+  // full DOM rebuild.
+  const _inputSnap = {};
+  const _activeId  = (document.activeElement && document.activeElement.id) || null;
+  const _selStart  = (document.activeElement && 'selectionStart' in document.activeElement) ? document.activeElement.selectionStart : null;
+  const _selEnd    = (document.activeElement && 'selectionEnd'   in document.activeElement) ? document.activeElement.selectionEnd   : null;
+  el.querySelectorAll('input[id], select[id], textarea[id]').forEach(node => {
+    _inputSnap[node.id] = (node.type === 'checkbox' || node.type === 'radio') ? node.checked : node.value;
+  });
   el.innerHTML = (renderers[tab] || (() => ''))();
+  Object.entries(_inputSnap).forEach(([id, val]) => {
+    const node = el.querySelector(`#${CSS.escape(id)}`);
+    if (!node) return;
+    if (node.type === 'checkbox' || node.type === 'radio') node.checked = !!val;
+    else node.value = val;
+  });
+  if (_activeId) {
+    const node = el.querySelector(`#${CSS.escape(_activeId)}`);
+    if (node && typeof node.focus === 'function') {
+      node.focus();
+      if (_selStart !== null && _selEnd !== null && typeof node.setSelectionRange === 'function') {
+        try { node.setSelectionRange(_selStart, _selEnd); } catch { /* unsupported input type */ }
+      }
+    }
+  }
   if (tab === 'analytics') {
     // Canvas exists in the DOM only after innerHTML write — draw after.
     try { _drawDropoffChart(); } catch (e) { console.warn('dropoff chart:', e); }
