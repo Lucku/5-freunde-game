@@ -389,13 +389,13 @@ const LINES = {
 
     light: {
         injured:       "The Mask hurts when it remembers me.",
-        failure_1:     "Mar... bles. Marbles, my cat's name was...",
+        failure_1:     "The shore... I used to know a shore...",
         failure_2:     "The light. It was supposed to protect.",
-        twin_event:    "Two of you. Good. I see twice as clearly.",
+        twin_event:    "Two of you. The current sees both. The light reveals both.",
         boss_moment_1: "You think the dark hides you. I am the morning.",
         boss_moment_2: "Stand still. I want to see you.",
         boss_win_1:    "Revealed. Resolved. Returned.",
-        boss_win_2:    "I told you the Mask was warm.",
+        boss_win_2:    "I told you the Mask was warm. The tide beneath, warmer.",
         found_1:       "It feeds the Mask. The Mask feeds me.",
         found_2:       "I will remember this. For a while.",
         level_up_1:    "Clearer. Brighter. Less of me left.",
