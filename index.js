@@ -30,11 +30,14 @@ function createWindow() {
         icon: path.join(__dirname, 'icon.png')
     });
 
-    // Three load modes:
+    // Two load modes:
     //   1. VITE_DEV=1 → Vite dev server at http://localhost:5173 (hot reload).
-    //   2. dist/game.html exists → packaged or pre-built bundle.
-    //   3. Fallback → load source game.html directly (legacy path; works because
-    //      every <script src> resolves relative to the project root in dev).
+    //   2. dist/game.html → packaged or pre-built bundle.
+    //
+    // Previously a third "fallback" branch loaded raw `game.html` if dist/ was
+    // missing. That silently shipped untransformed source — `import.meta.glob`
+    // in DLCManager.js then threw at runtime, hanging the loading screen at
+    // 88% (the idle-creep cap in game.html). Refuse to launch instead.
     const viteDev = process.env.VITE_DEV === '1';
     const distHtml = path.join(__dirname, 'dist', 'game.html');
     if (viteDev) {
@@ -42,7 +45,9 @@ function createWindow() {
     } else if (fs.existsSync(distHtml)) {
         win.loadFile(distHtml);
     } else {
-        win.loadFile('game.html');
+        throw new Error(
+            'dist/game.html missing — run `npm run build` before launching the packaged app.'
+        );
     }
 
     // Hot reload (dev only) — watch dist/game.html for rebuild touch.
