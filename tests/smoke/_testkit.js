@@ -45,6 +45,30 @@ export function spawnEnemyOfType(ctx, subType) {
     return new globalThis.Enemy(false, subType, ctx.session._world);
 }
 
+// Base boss roster from `Constants.js:18` plus the four "special" types
+// handled by `Boss.js` constructor branches (MAKUTA wave-50+ final,
+// GREEN_GOBLIN evil mode, DARK_GOLEM, ZEUS thunder DLC marker). Defined
+// inline rather than imported because the special types live in
+// Boss.js's if/else chain, not in any exported array.
+export const BOSS_TYPES = Object.freeze([
+    'TANK', 'SPEEDSTER', 'SUMMONER', 'NOVA', 'RHINO', 'HYDRA',
+    'MAKUTA', 'GREEN_GOBLIN', 'DARK_GOLEM', 'ZEUS',
+]);
+
+// Cheat-spawn one boss of a given type. Mirrors
+// `TestingGrounds.spawnBoss` (TestingGrounds.js:267-270). The Boss
+// constructor reads global `arena` / `wave` / `player` / `saveData` —
+// loader.js + session.init populate all four. Also flips
+// `runState.bossActive` so phase-2 transition gating
+// (Boss.js:180) + scaled XP (updateGameplayMid.js:1395) fire.
+export function spawnBossOfType(ctx, type) {
+    const boss = new globalThis.Boss(type);
+    const rs = ctx.session._runState ?? globalThis.runState;
+    if (rs) rs.bossActive = true;
+    ctx.session.bossActive = true;
+    return boss;
+}
+
 // Idle-input template. Every smoke test starts from this and toggles only
 // the field it's exercising.
 export const STUB_INPUT = Object.freeze({
@@ -98,6 +122,17 @@ export function createSmokeSession(hostHero, guestHero = 'fire', mode = 'NORMAL'
         clearTimeout(session._tickInterval);
         session._tickInterval = null;
     }
+
+    // One warmup tick. `server/simulation/RendererBridge.js:104` runs
+    // `syncWorldToGlobals` per tick, populating `global.player`,
+    // `global.arena`, `global.wave`, `global.saveData`, `global.applyDamage`.
+    // Entity classes that read those via bare-name lookup (`Boss.js:32`
+    // `saveData[player.type]`) crash if a test spawns them before any
+    // tick has run. Warming up here trades 1 ms of harness cost for
+    // a much simpler contract: by the time `createSmokeSession`
+    // returns, every global the entity classes reach for is live.
+    session._tick();
+    virtualNow += session._currentTickMs || 33;
 
     const ctx = {
         session,
