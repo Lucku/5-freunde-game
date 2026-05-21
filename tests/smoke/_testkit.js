@@ -69,6 +69,79 @@ export function spawnBossOfType(ctx, type) {
     return boss;
 }
 
+// Load all biome modules + return a deduped roster keyed by the
+// underlying class instance (so 'time' / 'eternity', 'cloud' /
+// 'lightning', 'sound' / 'SOUND_PLAINS' etc. count as one biome).
+//
+// Server `loader.js` doesn't import `Biomes.js` or any DLC biome
+// file — they're browser-only. We `require()` them best-effort
+// here: each module's top-level runs `window.BiomeRegistry.register`
+// or `window.BIOME_LOGIC[id] = ...` side effects, populating the
+// global registry. Files that fail to load (browser-only deps the
+// loader's shim doesn't cover) get logged and skipped — the rest
+// of the suite still runs.
+let _biomesLoaded = false;
+export function loadBiomes() {
+    if (_biomesLoaded) return getBiomeRoster();
+    _biomesLoaded = true;
+
+    const tryRequire = (p) => {
+        try { require(p); }
+        catch (err) {
+            // Surface the failure but don't tank the suite — DLC
+            // biomes that can't load become coverage gaps, not
+            // test crashes.
+            // eslint-disable-next-line no-console
+            console.warn(`[smoke] biome load failed: ${p} — ${err.message}`);
+        }
+    };
+
+    tryRequire('../../Biomes.js'); // base 6
+    // DLC biomes — direct module loads (these self-register on
+    // require). Packs that only register from their `index.js`
+    // bootstrap (waker_of_winds, echos_of_eternity, rise_of_the_rock)
+    // are deferred to phase 4.5; their biomes aren't covered here.
+    tryRequire('../../dlc/champions_of_chaos/ChaosBiome.js');
+    tryRequire('../../dlc/champions_of_chaos/FracturedBiome.js');
+    tryRequire('../../dlc/disciples_of_deception/MindscapeBiome.js');
+    tryRequire('../../dlc/disciples_of_deception/HallOfMirrorsBiome.js');
+    tryRequire('../../dlc/disciples_of_deception/SmogQuarterBiome.js');
+    tryRequire('../../dlc/faith_of_fortune/MadnessBiome.js');
+    tryRequire('../../dlc/faith_of_fortune/TempleBiome.js');
+    tryRequire('../../dlc/radiance_of_ruin/CrimsonGreenhouseBiome.js');
+    tryRequire('../../dlc/radiance_of_ruin/DreamspaceBiome.js');
+    tryRequire('../../dlc/radiance_of_ruin/ReliquaryBiome.js');
+    tryRequire('../../dlc/symphony_of_sickness/PoisonBiome.js');
+    tryRequire('../../dlc/symphony_of_sickness/SoundBiome.js');
+    tryRequire('../../dlc/tournament_of_thunder/CloudBiome.js');
+
+    return getBiomeRoster();
+}
+
+// Returns `{ id, biome }[]` deduped by underlying instance.
+export function getBiomeRoster() {
+    const registry = globalThis.BIOME_LOGIC || {};
+    const seen = new Set();
+    const roster = [];
+    for (const id of Object.keys(registry)) {
+        const biome = registry[id];
+        if (!biome || seen.has(biome)) continue;
+        seen.add(biome);
+        roster.push({ id, biome });
+    }
+    return roster;
+}
+
+// Stub world surface biomes' `update()` reads — `arena` + `player`.
+// Pulls from the active session post-warmup-tick so both are the
+// real Arena + Player instances.
+export function biomeWorldArgs(ctx) {
+    return {
+        arena: ctx.session._world.arena ?? globalThis.arena,
+        player: ctx.session.players[0],
+    };
+}
+
 // Idle-input template. Every smoke test starts from this and toggles only
 // the field it's exercising.
 export const STUB_INPUT = Object.freeze({
