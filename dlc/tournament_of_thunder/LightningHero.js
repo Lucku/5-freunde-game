@@ -1,5 +1,201 @@
 // #194 — explicit renderer imports (was: window-shim lookup).
 import { FloatingText } from '../../Entities/FloatingText.js';
+import { Projectile } from '../../Entities/Projectile.js';
+
+// `projectiles.push(new LightningProjectile(...))` is a no-op on the
+// post-ECS proxy sentinel (same root cause as the Spirit fix in the
+// 2026-05-21 changelog). Spawn through `Projectile.acquire` so the slot
+// actually lands in `runState.projectile*` and the engine collision pass
+// + drawProjectiles pick it up. The class-shaped logic (segment jitter,
+// chain spawn, hit handling) is preserved via free functions invoked from
+// the slot's `update` / `draw` / `onHit` override hooks; underscore
+// extras (`_isSuper`, `_chainsLeft`, ...) route through `projectileExtras`
+// via the slot proxy's `_*` trap.
+function _spawnLightningProjectile(args) {
+    const { x, y, vx, vy, damage, radius, isSuper, chainsLeft, range, ignored = [], canPierce = false } = args;
+    const color = isSuper ? '#00ffff' : '#ffeb3b';
+    const p = Projectile.acquire(
+        x, y,
+        { x: vx, y: vy },
+        damage,
+        color,
+        radius,
+        'LIGHTNING',
+        0,
+        false,
+        false,
+        false
+    );
+    if (!p || (typeof p._slotIdx === 'function' && p._slotIdx() < 0)) return null;
+    p.life = 60;
+    p._isSuper = isSuper;
+    p._chainsLeft = chainsLeft;
+    p._range = range;
+    p._ignored = ignored;
+    p._canPierce = canPierce;
+    p._color = color;
+    p._segments = [];
+    p._world = (typeof window !== 'undefined') ? window._world : null;
+    _lightningGenerateSegments(p);
+    p.update = function () { _lightningUpdate(this); };
+    p.draw   = function () { _lightningDraw(this); };
+    p.onHit  = function (enemy) { return _lightningOnHit(this, enemy); };
+    return p;
+}
+
+function _lightningGenerateSegments(p) {
+    const segs = [];
+    const vx = p.velocity.x, vy = p.velocity.y;
+    const speed = Math.hypot(vx, vy) || 1;
+    const nx = vx / speed;
+    const ny = vy / speed;
+    const len = 40;
+    const steps = 5;
+    for (let i = 0; i < steps; i++) {
+        const t = (i + 1) / steps;
+        const bx = -nx * (len * t);
+        const by = -ny * (len * t);
+        const j = (1 - t) * 10;
+        const jA = Math.random() * j - j / 2;
+        const jB = Math.random() * j - j / 2;
+        segs.push({ x: bx + jA, y: by + jB });
+    }
+    p._segments = segs;
+}
+
+function _lightningUpdate(p) {
+    p.x += p.velocity.x;
+    p.y += p.velocity.y;
+    const l = p.life;
+    if (l !== null) p.life = l - 1;
+    _lightningGenerateSegments(p);
+}
+
+function _lightningOnHit(p, enemy) {
+    const ignored = p._ignored || [];
+    if (ignored.includes(enemy)) return 'STOP';
+    _lightningHit(p, enemy);
+    return 'STOP';
+}
+
+function _lightningHit(p, target) {
+    let dmg = p.damage;
+    const color = p._color || '#ffeb3b';
+
+    // Superconductor (c17): 2× damage on frozen targets
+    if (target.frozenTimer > 0 && typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active && saveData.altar.active.includes('c17')) {
+        dmg *= 2;
+        if (typeof floatingTexts !== 'undefined') floatingTexts.push(FloatingText.acquire(target.x, target.y - 60, 'CONDUCT', '#00ffff', 16));
+    }
+
+    let isCrit = false;
+    const owner = p.owner;
+    if (owner && owner.critChance && Math.random() < owner.critChance) {
+        dmg *= 2;
+        isCrit = true;
+    }
+
+    target.hp -= dmg;
+    if (typeof saveData !== 'undefined') saveData.global.totalDamage += dmg;
+    if (typeof currentRunStats !== 'undefined') currentRunStats.damageDealt += dmg;
+
+    if (typeof createExplosion !== 'undefined') {
+        createExplosion(target.x, target.y, color, 8);
+    }
+    if (typeof floatingTexts !== 'undefined') {
+        const tc = isCrit ? '#ff0000' : '#fff';
+        let txt = Math.floor(dmg);
+        if (isCrit) txt += '!';
+        floatingTexts.push(FloatingText.acquire(target.x, target.y - 20, txt, tc, isCrit ? 20 : 14));
+    }
+
+    // Shock / stun
+    if (p._isSuper || Math.random() < 0.3) {
+        target.frozenTimer = 45;
+        if (typeof floatingTexts !== 'undefined') {
+            floatingTexts.push(FloatingText.acquire(target.x, target.y - 40, 'SHOCK', '#ffff00', 16));
+        }
+    }
+
+    // Chain
+    if ((p._chainsLeft || 0) > 0) {
+        _lightningChain(p, target);
+    }
+
+    // Mark ignored so we don't re-hit
+    const ig = p._ignored || [];
+    ig.push(target);
+    p._ignored = ig;
+
+    if (!p._canPierce) p.life = 0;
+}
+
+function _lightningChain(p, hitEnemy) {
+    const next = _lightningFindNextTarget(p, hitEnemy);
+    if (!next) return;
+    if (typeof audioManager !== 'undefined') audioManager.playAttack('lightning', p._isSuper);
+    const angle = Math.atan2(next.y - p.y, next.x - p.x);
+    const speed = 25;
+    const newIgnored = [...(p._ignored || []), hitEnemy];
+    const child = _spawnLightningProjectile({
+        x: p.x, y: p.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        damage: p.damage * 0.85,
+        radius: p.radius,
+        isSuper: p._isSuper,
+        chainsLeft: (p._chainsLeft || 0) - 1,
+        range: p._range,
+        ignored: newIgnored,
+        canPierce: p._canPierce
+    });
+    if (child && p.owner) child.owner = p.owner;
+    if (typeof saveData !== 'undefined') {
+        saveData.global.lightning_chain_5_count = (saveData.global.lightning_chain_5_count || 0) + 1;
+    }
+}
+
+function _lightningFindNextTarget(p, excludeEnemy) {
+    const world = p._world || (typeof window !== 'undefined' ? window._world : null);
+    const targets = (world && world.enemies) || (typeof window !== 'undefined' ? window.enemies : null) || [];
+    const ignored = p._ignored || [];
+    let best = null;
+    let minDist = 350;
+    for (const e of targets) {
+        if (e === excludeEnemy || e.hp <= 0 || ignored.includes(e)) continue;
+        const d = Math.hypot(e.x - p.x, e.y - p.y);
+        if (d < minDist) { minDist = d; best = e; }
+    }
+    return best;
+}
+
+function _lightningDraw(p) {
+    if (typeof ctx === 'undefined') return;
+    const color = p._color || '#ffeb3b';
+    const segs = p._segments || [];
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.shadowBlur = p._isSuper ? 15 : 10;
+    ctx.shadowColor = color;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    // Core bolt
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    for (const s of segs) ctx.lineTo(s.x, s.y);
+    ctx.stroke();
+    // Outer glow
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    for (const s of segs) ctx.lineTo(s.x, s.y);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+}
 
 class LightningHero {
     static init(player) {
@@ -272,76 +468,41 @@ class LightningHero {
         const chainBonus = (player.stats && player.stats.chainCount) ? player.stats.chainCount : 0;
         const chainCount = (isSuper ? 5 : 2) + chainBonus;
 
-        if (typeof LightningProjectile !== 'undefined') {
-
-            // 1. Main Projectile
-            const mainProj = new LightningProjectile(
-                player.x, player.y,
-                Math.cos(angle) * speed,
-                Math.sin(angle) * speed,
-                finalDmg,
-                isSuper ? 25 : 10,
+        const _spawn = (vx, vy, dmg) => {
+            const proj = _spawnLightningProjectile({
+                x: player.x, y: player.y,
+                vx, vy,
+                damage: dmg,
+                radius: isSuper ? 25 : 10,
                 isSuper,
-                chainCount,
-                isSuper ? 600 : 350,
-                [],
-                hasRailgun
-            );
-            mainProj.owner = player;
-            if (projectiles) projectiles.push(mainProj);
+                chainsLeft: chainCount,
+                range: isSuper ? 600 : 350,
+                ignored: [],
+                canPierce: hasRailgun
+            });
+            if (proj) proj.owner = player;
+            return proj;
+        };
 
-            // 2. Buff Multi-Shot (Powerup)
-            if (player.buffs && player.buffs.multi > 0) {
-                const offsets = [-0.25, 0.25];
-                offsets.forEach(offset => {
-                    const a = angle + offset;
-                    const buffProj = new LightningProjectile(
-                        player.x, player.y,
-                        Math.cos(a) * speed,
-                        Math.sin(a) * speed,
-                        finalDmg,
-                        isSuper ? 25 : 10,
-                        isSuper,
-                        chainCount,
-                        isSuper ? 600 : 350,
-                        [],
-                        hasRailgun
-                    );
-                    buffProj.owner = player;
-                    if (projectiles) projectiles.push(buffProj);
-                });
+        // 1. Main Projectile
+        _spawn(Math.cos(angle) * speed, Math.sin(angle) * speed, finalDmg);
+
+        // 2. Buff Multi-Shot (Powerup)
+        if (player.buffs && player.buffs.multi > 0) {
+            const offsets = [-0.25, 0.25];
+            offsets.forEach(offset => {
+                const a = angle + offset;
+                _spawn(Math.cos(a) * speed, Math.sin(a) * speed, finalDmg);
+            });
+        }
+
+        // Multi-Shot (extraProjectiles from upgrades)
+        if (player.extraProjectiles > 0) {
+            const multiShotDmg = finalDmg;
+            for (let i = 1; i <= player.extraProjectiles; i++) {
+                const spreadAngle = (Math.random() - 0.5) * 0.3;
+                _spawn(Math.cos(angle + spreadAngle) * speed, Math.sin(angle + spreadAngle) * speed, multiShotDmg);
             }
-
-            // --- Multi-Shot Logic (Analogue to Base) ---
-            // If Flash form, extra shots might be overwhelming or desired.
-            // We'll allow it but maybe keep the spread tight.
-            if (player.extraProjectiles > 0) {
-                // No extra reduction here, handled by base stats
-                const multiShotDmg = finalDmg;
-
-                for (let i = 1; i <= player.extraProjectiles; i++) {
-                    const spreadAngle = (Math.random() - 0.5) * 0.3; // Slight spread
-                    const sVelX = Math.cos(angle + spreadAngle) * speed;
-                    const sVelY = Math.sin(angle + spreadAngle) * speed;
-
-                    const extraProj = new LightningProjectile(
-                        player.x, player.y,
-                        sVelX, sVelY,
-                        multiShotDmg, // Standard damage
-                        isSuper ? 25 : 10,
-                        isSuper,
-                        chainCount,
-                        isSuper ? 600 : 350,
-                        [],
-                        hasRailgun
-                    );
-                    extraProj.owner = player;
-                    if (projectiles) projectiles.push(extraProj);
-                }
-            }
-
-        } else {
-            console.error("LightningProjectile class missing!");
         }
 
         // Feedback
@@ -434,15 +595,24 @@ class LightningHero {
 
     static fireFlashOmniBurst(player, world) {
         const _w = world ?? window._world;
-        const { createExplosion, projectiles: worldProjectiles } = _w ?? {};
-        if (typeof LightningProjectile === 'undefined' || !worldProjectiles) return;
+        const { createExplosion } = _w ?? {};
         const speed = 12;
         for (let i = 0; i < 8; i++) {
             const a = (i / 8) * Math.PI * 2;
             const dmg = (player.stats.rangeDmg || 15) * 2.5 * (player.damageMultiplier || 1);
-            const p = new LightningProjectile(player.x, player.y, Math.cos(a) * speed, Math.sin(a) * speed, dmg, 20, true, 5, 600, []);
-            p.owner = player;
-            worldProjectiles.push(p);
+            const proj = _spawnLightningProjectile({
+                x: player.x, y: player.y,
+                vx: Math.cos(a) * speed,
+                vy: Math.sin(a) * speed,
+                damage: dmg,
+                radius: 20,
+                isSuper: true,
+                chainsLeft: 5,
+                range: 600,
+                ignored: [],
+                canPierce: false
+            });
+            if (proj) proj.owner = player;
         }
         if (createExplosion) createExplosion(player.x, player.y, '#00ffff', 30);
     }
@@ -454,261 +624,8 @@ if (typeof window.HERO_LOGIC === 'undefined') window.HERO_LOGIC = {};
 if (!window.HERO_LOGIC['lightning']) window.HERO_LOGIC['lightning'] = {};
 window.HERO_LOGIC['lightning'].applyUpgrade = LightningHero.applyUpgrade.bind(LightningHero);
 
-// ---------------------------------------------------------
-// REVISED PROJECTILE CLASS
-// ---------------------------------------------------------
-class LightningProjectile {
-    constructor(x, y, vx, vy, damage, radius, isSuper, chainsLeft, range, ignored = [], canPierce = false) {
-        this.x = x;
-        this.y = y;
-        this.vx = vx;
-        this.vy = vy;
-        this.damage = damage;
-        this.radius = radius;
-
-        this.isSuper = isSuper;
-        this.chainsLeft = chainsLeft;
-        this.range = range;
-        this.ignored = ignored;
-        this.canPierce = canPierce;
-
-        this.life = 60;
-        this.color = isSuper ? '#00ffff' : '#ffeb3b';
-        this._world = (typeof window !== 'undefined') ? window._world : null;
-
-        // Visuals
-        this.segments = [];
-        this.generateSegments();
-    }
-
-    generateSegments() {
-        this.segments = [];
-        // Generate a jagged line for the current frame
-        const steps = 5;
-        // Vector along velocity
-        const speed = Math.hypot(this.vx, this.vy) || 1;
-        const nx = this.vx / speed;
-        const ny = this.vy / speed;
-
-        const len = 40;
-
-        for (let i = 0; i < steps; i++) {
-            // Move back
-            const t = (i + 1) / steps;
-            const bx = -nx * (len * t);
-            const by = -ny * (len * t);
-
-            // Jitter
-            const j = (1 - t) * 10; // Less jitter at tail
-            const jA = Math.random() * j - j / 2;
-            const jB = Math.random() * j - j / 2;
-
-            this.segments.push({ x: bx + jA, y: by + jB });
-        }
-    }
-
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.life--;
-        this.generateSegments();
-
-        // FAILSAFE: Manual Collision Check
-        this.checkCollisions();
-
-        // Debug: Log position every 30 frames
-        // if (this.life % 30 === 0) console.log(`[L-Proj] Pos: ${Math.floor(this.x)}, ${Math.floor(this.y)}`);
-    }
-
-    checkCollisions() {
-        // Robust Scope Access
-        const targets = this._world?.enemies ?? [];
-
-        let closestDist = 9999;
-        let closestEnemy = null;
-
-        for (const e of targets) {
-            if (e.hp <= 0) continue;
-            if (this.ignored.includes(e)) continue;
-
-            const dist = Math.hypot(e.x - this.x, e.y - this.y);
-            const hitDist = e.radius + this.radius + 25; // Generous
-
-            // Track closest for debug
-            if (dist < closestDist) {
-                closestDist = dist;
-                closestEnemy = e;
-            }
-
-            // HIT CHECK
-            if (dist < hitDist) {
-                // console.log(`[L-Proj] HIT! Dist: ${dist.toFixed(1)} < HitDist: ${hitDist.toFixed(1)}`);
-                this.hit(e);
-                return;
-            }
-        }
-
-        // Debug: Log status if very close to *something* but missed
-        // if (closestDist < 150 && Math.random() < 0.2) {
-        //    console.log(`[L-Proj] Miss. Closest: ${closestDist.toFixed(1)} px. ProjPos: ${Math.floor(this.x)},${Math.floor(this.y)}`);
-        // }
-    }
-
-    onHit(enemy) {
-        // Double-check ignore list (shared with manual check)
-        if (this.ignored.includes(enemy)) return 'STOP';
-
-        this.hit(enemy);
-        return 'STOP';
-    }
-
-    hit(target) {
-        // console.log("[L-Proj] Processing HIT Logic on", target);
-
-        // 1. Damage
-        let dmg = this.damage;
-
-        // CHECK SUPERCONDUCTOR (c17)
-        if (target.frozenTimer > 0 && typeof saveData !== 'undefined' && saveData.altar && saveData.altar.active && saveData.altar.active.includes('c17')) {
-            dmg *= 2;
-            if (typeof FloatingText !== 'undefined' && typeof floatingTexts !== 'undefined') floatingTexts.push(FloatingText.acquire(target.x, target.y - 60, "CONDUCT", "#00ffff", 16));
-        }
-
-        let isCrit = false;
-
-        // Try access globals for Crit
-        if (typeof player !== 'undefined' && player.critChance) {
-            if (Math.random() < player.critChance) {
-                dmg *= 2;
-                isCrit = true;
-            }
-        }
-
-        target.hp -= dmg;
-        if (typeof saveData !== 'undefined') saveData.global.totalDamage += dmg;
-        if (typeof currentRunStats !== 'undefined') currentRunStats.damageDealt += dmg;
-
-        // 2. Visuals
-        if (typeof createExplosion !== 'undefined') {
-            createExplosion(target.x, target.y, this.color, 8); // Sparks
-        }
-        if (typeof FloatingText !== 'undefined' && typeof floatingTexts !== 'undefined') {
-            const color = isCrit ? '#ff0000' : '#fff';
-            let txt = Math.floor(dmg);
-            if (isCrit) txt += "!";
-            floatingTexts.push(FloatingText.acquire(target.x, target.y - 20, txt, color, isCrit ? 20 : 14));
-        }
-
-        // 3. Status Effects (Stun)
-        // Shock/Stun logic
-        if (this.isSuper || Math.random() < 0.3) {
-            target.frozenTimer = 45; // 0.75s stun
-            if (typeof FloatingText !== 'undefined' && typeof floatingTexts !== 'undefined') {
-                floatingTexts.push(FloatingText.acquire(target.x, target.y - 40, "SHOCK", "#ffff00", 16));
-            }
-        }
-
-        // 4. Chain Logic
-        if (this.chainsLeft > 0) {
-            this.chain(target);
-        }
-
-        // Prevent re-hitting this enemy if piercing
-        this.ignored.push(target);
-
-        // 5. Remove Self
-        if (!this.canPierce) this.kill();
-    }
-
-    chain(hitEnemy) {
-        // Find next target
-        const nextTarget = this.findNextTarget(hitEnemy);
-        if (nextTarget) {
-            // Play Chain Sound
-            if (typeof audioManager !== 'undefined') {
-                audioManager.playAttack('lightning', this.isSuper);
-            }
-
-            const angle = Math.atan2(nextTarget.y - this.y, nextTarget.x - this.x);
-            const speed = 25;
-
-            // Add hitEnemy to ignored list for child
-            const newIgnored = [...this.ignored, hitEnemy];
-
-            const nextProj = new LightningProjectile(
-                this.x, this.y,
-                Math.cos(angle) * speed,
-                Math.sin(angle) * speed,
-                this.damage * 0.85, // Decay
-                this.radius,
-                this.isSuper,
-                this.chainsLeft - 1,
-                this.range,
-                newIgnored
-            );
-
-            // Robust Push
-            this._world?.projectiles?.push(nextProj);
-            if (typeof saveData !== 'undefined') {
-                saveData.global.lightning_chain_5_count = (saveData.global.lightning_chain_5_count || 0) + 1;
-            }
-
-        }
-    }
-
-    findNextTarget(excludeEnemy) {
-        let best = null;
-        let minDist = 350; // Chain Range
-        const targets = this._world?.enemies ?? [];
-
-        for (const e of targets) {
-            if (e === excludeEnemy || e.hp <= 0 || this.ignored.includes(e)) continue;
-            const d = Math.hypot(e.x - this.x, e.y - this.y);
-            if (d < minDist) {
-                minDist = d;
-                best = e;
-            }
-        }
-        return best;
-    }
-
-    kill() {
-        // Move off screen to let game.js cleanup
-        this.x = 999999;
-    }
-
-    draw() {
-        if (typeof ctx === 'undefined') return;
-
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        // Rotation removed because segments are already generated in world-space orientation relative to position
-        // ctx.rotate(Math.atan2(this.vy, this.vx));
-
-        // Glow
-        ctx.shadowBlur = this.isSuper ? 15 : 10;
-        ctx.shadowColor = this.color;
-
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
-
-        // Draw Core Bolt
-        ctx.strokeStyle = '#fff'; // Inner white hot core
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        for (const p of this.segments) ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-
-        // Draw Outer Glow
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        for (const p of this.segments) ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-
-        ctx.shadowBlur = 0;
-        ctx.restore();
-    }
-}
+// Legacy `class LightningProjectile` removed — every spawn site now routes
+// through `_spawnLightningProjectile` (defined at top of file). Slots are
+// allocated via `Projectile.acquire`, lifecycle/visuals live in the
+// `_lightning*` free functions, and chain spawns recurse through the same
+// helper. Plain-object `projectiles.push` would be a no-op on the ECS proxy.

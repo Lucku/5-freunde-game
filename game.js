@@ -6613,18 +6613,28 @@ function _runGameplayFrame(deltaTime) {
 
     // Photo mode: skip the update prefix entirely (arena.update, weather,
     // spawn, cinematic dispatch are all state mutation). Draws still run.
-    if (!_frozen && _updateGameplayPre(deltaTime)) return;
-    if (!_frozen) _updateGameplayMid(deltaTime, _isHitStopped);
+    // When a cinematic (intro / death / boss-choice screen) owns the frame,
+    // _updateGameplayPre paints the whole canvas itself and returns true. We
+    // still have to fall through to renderPostFX so the postFxCanvas overlay
+    // re-uploads the new texture — otherwise the WebGL overlay (z-index:2)
+    // keeps showing the previous frame and looks like the game has frozen.
+    const _cinematicOwnsFrame = !_frozen && _updateGameplayPre(deltaTime);
+    if (!_cinematicOwnsFrame) {
+        if (!_frozen) _updateGameplayMid(deltaTime, _isHitStopped);
 
-    // #173 phase 8 — true update/draw split. _drawGameplayMid owns every
-    // ctx.* write in the gameplay frame: camera transform setup, arena +
-    // objective + entity draws, camera restore, then post-camera HUD draws.
-    // Runs unconditionally so photo mode can re-render the frozen scene from
-    // a panning camera.
-    _drawGameplayMid();
-    _drawGameplayPost();
+        // #173 phase 8 — true update/draw split. _drawGameplayMid owns every
+        // ctx.* write in the gameplay frame: camera transform setup, arena +
+        // objective + entity draws, camera restore, then post-camera HUD draws.
+        // Runs unconditionally so photo mode can re-render the frozen scene from
+        // a panning camera.
+        _drawGameplayMid();
+        _drawGameplayPost();
+    }
     // #35 — single WebGL fragment-shader pass (bloom / chromatic / vignette /
     // biome color grade). No-op when disabled in Options or under reducedMotion.
+    // Always called so cinematic frames (boss intro / death / choice screen)
+    // also feed the overlay; skipping this is what made the boss-defeat
+    // screen look frozen — see comment on _cinematicOwnsFrame above.
     renderPostFX();
 }
 
