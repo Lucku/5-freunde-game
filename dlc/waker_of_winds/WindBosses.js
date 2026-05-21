@@ -15,11 +15,21 @@ class WindBosses {
             boss.color  = '#bdc3c7';
             boss.radius = 80;
             boss.maxHp *= 1.5; boss.hp = boss.maxHp;
-            boss.speed *= 0.6;
+            boss.speed *= 0.85;
             boss.knockbackResist = 0.9;
             boss.damage *= 1.2;
-            boss._hailTimer  = 240;
-            boss._stompTimer = 150;
+            boss._hailTimer       = 180;
+            boss._stompTimer      = 150;
+            boss._aimedHailTimer  = 200;
+            boss._lightningTimer  = 360;
+            boss._lightningStrikes = [];
+            boss._chargeTimer     = 420;
+            boss._chargeState     = 'idle';   // 'idle' | 'telegraph' | 'dashing'
+            boss._chargeFrames    = 0;
+            boss._chargeVelX      = 0;
+            boss._chargeVelY      = 0;
+            boss._minionSpawned   = false;
+            boss._phase2Init      = false;
 
         } else if (boss.type === 'STORM_CROW') {
             boss.color  = '#2c3e50';
@@ -62,8 +72,38 @@ class WindBosses {
 
         // ── CLOUD GOLEM ──────────────────────────────────────────────────────
         if (boss.type === 'CLOUD_GOLEM') {
-            boss.x += Math.cos(angle) * boss.speed;
-            boss.y += Math.sin(angle) * boss.speed;
+            const phase2 = boss.phase >= 2;
+
+            // Phase 2 one-shot init — speed surge, minion swarm, faster cycles.
+            if (phase2 && !boss._phase2Init) {
+                boss._phase2Init = true;
+                boss.speed *= 1.4;
+                boss._hailTimer      = Math.min(boss._hailTimer, 60);
+                boss._aimedHailTimer = Math.min(boss._aimedHailTimer, 60);
+                boss._lightningTimer = Math.min(boss._lightningTimer, 90);
+                if (typeof audioManager !== 'undefined') audioManager.play('hailstorm_burst');
+                if (typeof showNotification === 'function') showNotification("STORM RISING!");
+                if (typeof createExplosion === 'function') {
+                    for (let i = 0; i < 10; i++) {
+                        const a = (i / 10) * Math.PI * 2;
+                        createExplosion(boss.x + Math.cos(a) * boss.radius, boss.y + Math.sin(a) * boss.radius, '#aed6f1');
+                    }
+                }
+                if (typeof enemies !== 'undefined' && typeof Enemy !== 'undefined') {
+                    for (let i = 0; i < 2; i++) enemies.push(new Enemy(false));
+                }
+            }
+
+            // Movement — pursuit unless mid-charge.
+            if (boss._chargeState === 'telegraph') {
+                // Hold position while charging.
+            } else if (boss._chargeState === 'dashing') {
+                boss.x += boss._chargeVelX;
+                boss.y += boss._chargeVelY;
+            } else {
+                boss.x += Math.cos(angle) * boss.speed;
+                boss.y += Math.sin(angle) * boss.speed;
+            }
 
             // Gust push (every ~3.3s via frame)
             if (frame % 200 === 0) {
@@ -74,13 +114,14 @@ class WindBosses {
                 if (typeof showNotification === 'function') showNotification("GUST!");
             }
 
-            // Hailstone burst — 8 radial projectiles every 4s
+            // Hailstone burst — radial projectiles, faster in phase 2.
             boss._hailTimer--;
             if (boss._hailTimer <= 0) {
-                boss._hailTimer = 240;
+                boss._hailTimer = phase2 ? 110 : 180;
                 if (typeof projectiles !== 'undefined' && typeof Projectile !== 'undefined') {
-                    for (let i = 0; i < 8; i++) {
-                        const a   = (i / 8) * Math.PI * 2;
+                    const count = phase2 ? 12 : 8;
+                    for (let i = 0; i < count; i++) {
+                        const a   = (i / count) * Math.PI * 2 + frame * 0.02;
                         const vel = { x: Math.cos(a) * 5, y: Math.sin(a) * 5 };
                         const p   = Projectile.acquire(boss.x, boss.y, vel, boss.damage * 0.6, '#aed6f1', 10, 'enemy', 0, true);
                         projectiles.push(p);
@@ -90,10 +131,107 @@ class WindBosses {
                 if (typeof showNotification === 'function') showNotification("HAILSTORM!");
             }
 
+            // Aimed hail volley — 3-shot spread that tracks player.
+            boss._aimedHailTimer--;
+            if (boss._aimedHailTimer <= 0) {
+                boss._aimedHailTimer = phase2 ? 130 : 200;
+                if (typeof projectiles !== 'undefined' && typeof Projectile !== 'undefined') {
+                    for (let i = -1; i <= 1; i++) {
+                        const spread = i * 0.18;
+                        const vel = { x: Math.cos(angle + spread) * 8, y: Math.sin(angle + spread) * 8 };
+                        const p   = Projectile.acquire(boss.x, boss.y, vel, boss.damage * 0.8, '#5dade2', 9, 'enemy', 0, true);
+                        projectiles.push(p);
+                    }
+                }
+                if (typeof audioManager !== 'undefined') audioManager.play('hailstorm_burst');
+            }
+
+            // Lightning strikes — telegraphed AoE at player position.
+            boss._lightningTimer--;
+            if (boss._lightningTimer <= 0) {
+                boss._lightningTimer = phase2 ? 220 : 360;
+                const strikes = phase2 ? 3 : 1;
+                for (let i = 0; i < strikes; i++) {
+                    const offset = (i - (strikes - 1) / 2) * 80;
+                    const perpAng = angle + Math.PI / 2;
+                    boss._lightningStrikes.push({
+                        x: player.x + Math.cos(perpAng) * offset,
+                        y: player.y + Math.sin(perpAng) * offset,
+                        radius: 90,
+                        life: 60,
+                        maxLife: 60,
+                    });
+                }
+                if (typeof audioManager !== 'undefined') audioManager.play('gust_push');
+                if (typeof showNotification === 'function') showNotification("STORM CALLED!");
+            }
+            // Tick telegraphs — detonate at life <= 0.
+            for (let i = boss._lightningStrikes.length - 1; i >= 0; i--) {
+                const s = boss._lightningStrikes[i];
+                s.life--;
+                if (s.life <= 0) {
+                    const pd = Math.hypot(player.x - s.x, player.y - s.y);
+                    if (pd <= s.radius && player.invulnTimer <= 0 && typeof player.takeDamage === 'function') {
+                        player.takeDamage(boss.damage * 0.9);
+                        const kAng = Math.atan2(player.y - s.y, player.x - s.x);
+                        player.vx += Math.cos(kAng) * 18;
+                        player.vy += Math.sin(kAng) * 18;
+                    }
+                    if (typeof createExplosion === 'function') {
+                        createExplosion(s.x, s.y, '#f9e79f');
+                        for (let k = 0; k < 6; k++) {
+                            const a = (k / 6) * Math.PI * 2;
+                            createExplosion(s.x + Math.cos(a) * s.radius * 0.6, s.y + Math.sin(a) * s.radius * 0.6, '#85c1e9');
+                        }
+                    }
+                    if (typeof audioManager !== 'undefined') audioManager.play('cloud_golem_stomp');
+                    boss._lightningStrikes.splice(i, 1);
+                }
+            }
+
+            // Charge attack — telegraph then dash toward last seen player pos.
+            if (boss._chargeState === 'idle') {
+                boss._chargeTimer--;
+                if (boss._chargeTimer <= 0) {
+                    boss._chargeState  = 'telegraph';
+                    boss._chargeFrames = phase2 ? 45 : 60;
+                    boss._chargeVelX   = Math.cos(angle) * boss.speed * 6;
+                    boss._chargeVelY   = Math.sin(angle) * boss.speed * 6;
+                    if (typeof audioManager !== 'undefined') audioManager.play('gust_push');
+                    if (typeof showNotification === 'function') showNotification("CHARGING!");
+                }
+            } else if (boss._chargeState === 'telegraph') {
+                boss._chargeFrames--;
+                if (frame % 4 === 0 && typeof createExplosion === 'function') {
+                    createExplosion(boss.x + Math.cos(Math.atan2(boss._chargeVelY, boss._chargeVelX)) * boss.radius * 1.2,
+                                    boss.y + Math.sin(Math.atan2(boss._chargeVelY, boss._chargeVelX)) * boss.radius * 1.2,
+                                    '#f4d03f');
+                }
+                if (boss._chargeFrames <= 0) {
+                    boss._chargeState  = 'dashing';
+                    boss._chargeFrames = phase2 ? 50 : 40;
+                    if (typeof audioManager !== 'undefined') audioManager.play('cloud_golem_stomp');
+                }
+            } else if (boss._chargeState === 'dashing') {
+                boss._chargeFrames--;
+                if (dist < boss.radius + 30 && player.invulnTimer <= 0 && typeof player.takeDamage === 'function') {
+                    player.takeDamage(boss.damage * 1.1);
+                    const kAng = Math.atan2(player.y - boss.y, player.x - boss.x);
+                    player.vx += Math.cos(kAng) * 40;
+                    player.vy += Math.sin(kAng) * 40;
+                    if (typeof createExplosion === 'function') createExplosion(player.x, player.y, '#fff');
+                    boss._chargeFrames = 0;
+                }
+                if (boss._chargeFrames <= 0) {
+                    boss._chargeState = 'idle';
+                    boss._chargeTimer = phase2 ? 280 : 420;
+                }
+            }
+
             // Stomp — close-range AoE shockwave every 2.5s
             boss._stompTimer--;
             if (boss._stompTimer <= 0 && dist < 220) {
-                boss._stompTimer = 150;
+                boss._stompTimer = phase2 ? 100 : 150;
                 if (typeof audioManager !== 'undefined') audioManager.play('cloud_golem_stomp');
                 const pushAng = Math.atan2(player.y - boss.y, player.x - boss.x);
                 player.vx += Math.cos(pushAng) * 30;
@@ -278,6 +416,11 @@ class WindBosses {
 
     // ─── DRAW ─────────────────────────────────────────────────────────────────
     static draw(ctx, boss) {
+        // Lightning telegraphs render in world space, under the boss sprite.
+        if (boss.type === 'CLOUD_GOLEM' && boss._lightningStrikes?.length) {
+            WindBosses._drawCloudGolemTelegraphs(ctx, boss);
+        }
+
         ctx.save();
         ctx.translate(boss.x, boss.y);
 
@@ -328,7 +471,12 @@ class WindBosses {
         }
         ctx.restore();
 
-        // Stone core — 3D granite sphere
+        // Stone core + eyes — rotated so eye slits track the player.
+        ctx.save();
+        if (typeof player !== 'undefined' && player) {
+            ctx.rotate(Math.atan2(player.y - boss.y, player.x - boss.x) + Math.PI / 2);
+        }
+
         const coreR = r * 0.72;
         const sg = ctx.createRadialGradient(-coreR * 0.3, -coreR * 0.3, coreR * 0.05, 0, 0, coreR);
         sg.addColorStop(0,    '#d0d3d4');
@@ -343,7 +491,7 @@ class WindBosses {
         ctx.beginPath(); ctx.moveTo(-coreR * 0.1, -coreR * 0.4); ctx.lineTo(coreR * 0.2, coreR * 0.3); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(-coreR * 0.3, coreR * 0.1); ctx.lineTo(-coreR * 0.6, coreR * 0.5); ctx.stroke();
 
-        // Lightning eyes — glowing blue-white slits
+        // Lightning eyes — glowing blue-white slits (face player due to outer rotate above)
         const eyeGlow = 0.7 + Math.sin(t * 4) * 0.3;
         ctx.save();
         ctx.shadowColor = '#85c1e9'; ctx.shadowBlur = 14;
@@ -359,6 +507,32 @@ class WindBosses {
         ctx.beginPath(); ctx.moveTo(-coreR*0.35, -coreR*0.18); ctx.lineTo(-coreR*0.12, -coreR*0.28); ctx.stroke();
         ctx.beginPath(); ctx.moveTo( coreR*0.12, -coreR*0.28); ctx.lineTo( coreR*0.35, -coreR*0.18); ctx.stroke();
         ctx.restore();
+
+        ctx.restore();
+    }
+
+    // ── CLOUD GOLEM TELEGRAPHS — ground rings warning of lightning AoE ──────
+    static _drawCloudGolemTelegraphs(ctx, boss) {
+        const t = Date.now() / 1000;
+        for (const s of boss._lightningStrikes) {
+            const prog = 1 - (s.life / s.maxLife);          // 0 → 1 over telegraph
+            ctx.save();
+            // Outer warning ring
+            ctx.strokeStyle = `rgba(231, 76, 60, ${0.45 + Math.sin(t * 14) * 0.20})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2); ctx.stroke();
+            // Filling inner ring
+            ctx.fillStyle = `rgba(255, 235, 130, ${0.18 + prog * 0.35})`;
+            ctx.beginPath(); ctx.arc(s.x, s.y, s.radius * prog, 0, Math.PI * 2); ctx.fill();
+            // Crosshair lines
+            ctx.strokeStyle = `rgba(250, 220, 100, ${0.5 + prog * 0.4})`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(s.x - s.radius, s.y); ctx.lineTo(s.x + s.radius, s.y);
+            ctx.moveTo(s.x, s.y - s.radius); ctx.lineTo(s.x, s.y + s.radius);
+            ctx.stroke();
+            ctx.restore();
+        }
     }
 
     // ── STORM CROW ────────────────────────────────────────────────────────────

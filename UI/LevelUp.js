@@ -45,7 +45,7 @@ class LevelUpUI {
                 <div class="upgrade-title">${displayOpt.title}</div>
                 <div class="upgrade-desc">${displayOpt.desc}</div>
             `;
-            card.onclick = () => this.chooseUpgrade(opt.id, player);
+            card.onclick = () => this.chooseUpgrade(opt.id, player, displayOpt.title);
             container.appendChild(card);
         });
 
@@ -58,7 +58,7 @@ class LevelUpUI {
         }
     }
 
-    chooseUpgrade(type, player) {
+    chooseUpgrade(type, player, displayTitle) {
         // Online: send choice directly to server (server is now authoritative)
         if (typeof isOnlineMode !== 'undefined' && isOnlineMode && player === window.player) {
             window.networkManager?.send({ type: 'LEVEL_UP_CHOICE', choice: type });
@@ -70,7 +70,7 @@ class LevelUpUI {
         if (player === window.player && typeof currentRunStats !== 'undefined') {
             const _wave = (typeof wave !== 'undefined') ? wave : 0;
             const _t = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
-            const _title = this._upgradeTitle(type, player);
+            const _title = displayTitle || this._upgradeTitle(type, player);
             if (!currentRunStats.upgradesPicked) currentRunStats.upgradesPicked = [];
             currentRunStats.upgradesPicked.push({ wave: _wave, timeSec: _t, id: type, title: _title });
         }

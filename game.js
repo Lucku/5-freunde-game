@@ -2734,14 +2734,27 @@ function renderPauseMenu() {
             `<div class="pause-stat-cell"><div class="ps-label">${s.label}</div><div class="ps-value">${s.value}</div></div>`
         ).join('');
 
-        // Upgrades picked this run (most recent first, cap 24).
+        // Upgrades picked this run — grouped by title with count prefix.
         const picks = (runState.currentRunStats && runState.currentRunStats.upgradesPicked) || [];
         if (picks.length && upList && upTitle) {
             upTitle.style.display = '';
-            const rev = picks.slice(-24).reverse();
-            upList.innerHTML = rev.map(p =>
-                `<span class="pu-chip" title="Wave ${p.wave}">${(p.title || p.id || 'Upgrade').replace(/</g, '&lt;')}</span>`
-            ).join('');
+            const groups = new Map();
+            for (const p of picks) {
+                const label = String(p.title || p.id || 'Upgrade');
+                const key = label;
+                const g = groups.get(key);
+                if (g) {
+                    g.count += 1;
+                    g.lastWave = p.wave;
+                } else {
+                    groups.set(key, { label, count: 1, lastWave: p.wave });
+                }
+            }
+            const arr = Array.from(groups.values()).slice(-24).reverse();
+            upList.innerHTML = arr.map(g => {
+                const text = (g.count > 1 ? `${g.count}× ${g.label}` : g.label).replace(/</g, '&lt;');
+                return `<span class="pu-chip" title="Last picked: Wave ${g.lastWave}">${text}</span>`;
+            }).join('');
         } else if (upList && upTitle) {
             upTitle.style.display = 'none';
             upList.innerHTML = '';

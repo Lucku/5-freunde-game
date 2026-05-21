@@ -154,6 +154,15 @@ window.HERO_LOGIC['smoke'] = {
             }
         };
 
+        // Hook draw so cloud/shockwave/blind FX render in world-space AFTER
+        // _drawGameplayMid's clearRect — drawing them from `update` was wiped
+        // by the next-frame clear and never reached the screen.
+        const origDraw = player.draw.bind(player);
+        player.draw = function () {
+            origDraw();
+            _self._drawWorld(player);
+        };
+
         player.getFormName = function () { return 'INK STORM'; };
 
         player.customSpecial = () => _self.useSpecial(player);
@@ -249,8 +258,8 @@ window.HERO_LOGIC['smoke'] = {
         }
 
         if (typeof createExplosion === 'function') {
-            createExplosion(player.x, player.y, '#5a5a6e', 60);
-            createExplosion(player.x, player.y, '#0f0f14', 45);
+            createExplosion(player.x, player.y, '#9a6bd6', 70);
+            createExplosion(player.x, player.y, '#0f0f14', 50);
         }
 
         // Drop a big cloud at player position
@@ -263,6 +272,13 @@ window.HERO_LOGIC['smoke'] = {
         });
         while (player.smokeClouds.length > player.cloudMax) player.smokeClouds.shift();
 
+        // Expanding shockwave ring for cast feedback
+        player.blackoutShockwave = {
+            x: player.x, y: player.y,
+            life: 30, maxLife: 30,
+            baseRadius: burstRadius
+        };
+
         player.specialCooldown = 720; // 12s
         player.setupSpecial();
         return true;
@@ -272,7 +288,7 @@ window.HERO_LOGIC['smoke'] = {
         const _w = world ?? window._world;
         const { enemies } = _w ?? window;
 
-        // INK STORM Ultimate — follow-cloud + global blind
+        // INK STORM Ultimate — follow-cloud + global blind (state only; visuals in _drawWorld)
         if (player.transformActive && player.currentForm === 'INK STORM') {
             player.inkStormTimer = (player.inkStormTimer || 0) - 1;
             // Apply global blind to every enemy each frame
@@ -291,29 +307,6 @@ window.HERO_LOGIC['smoke'] = {
                     }
                 });
             }
-            // Draw the moving ink-storm cloud
-            if (window.ctx) {
-                const ctx = window.ctx;
-                const t = (typeof frame !== 'undefined' ? frame : Date.now() * 0.06);
-                ctx.save();
-                ctx.translate(player.x, player.y);
-                ctx.fillStyle = cachedRadial(ctx, 'smokeHero:smogAura', 20, 200, [
-                    [0,   'rgba(15, 15, 20, 0.55)'],
-                    [0.5, 'rgba(15, 15, 20, 0.35)'],
-                    [1,   'rgba(15, 15, 20, 0)'],
-                ]);
-                ctx.beginPath();
-                ctx.arc(0, 0, 200, 0, Math.PI * 2);
-                ctx.fill();
-                // Slow swirl ring
-                ctx.rotate(t * 0.02);
-                ctx.strokeStyle = 'rgba(140, 140, 160, 0.35)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(0, 0, 160, 0, Math.PI * 1.6);
-                ctx.stroke();
-                ctx.restore();
-            }
             if (player.inkStormTimer <= 0) {
                 player.transformActive = false;
                 player.currentForm = 'NONE';
@@ -329,6 +322,12 @@ window.HERO_LOGIC['smoke'] = {
                 player.smokeClouds.splice(i, 1);
                 continue;
             }
+        }
+
+        // Update Blackout shockwave (always, even without ctx, to avoid leak)
+        if (player.blackoutShockwave) {
+            player.blackoutShockwave.life--;
+            if (player.blackoutShockwave.life <= 0) player.blackoutShockwave = null;
         }
 
         // Altar convergence checks (per-frame so mid-run unlock works)
@@ -393,30 +392,133 @@ window.HERO_LOGIC['smoke'] = {
             });
         }
 
-        // Draw clouds
-        if (window.ctx) {
-            const ctx = window.ctx;
-            const t = (typeof frame !== 'undefined' ? frame : Date.now() * 0.06);
+    },
+
+    // Runs from a wrapped player.draw() so canvas isn't cleared after we draw.
+    // World-space (camera transform applied by drawGameplayMid before player.draw).
+    _drawWorld: function (player) {
+        if (!window.ctx) return;
+        const ctx = window.ctx;
+        const t = (typeof frame !== 'undefined' ? frame : Date.now() * 0.06);
+        const _w = window._world;
+        const enemies = (_w && _w.enemies) || window.enemies;
+
+        // INK STORM follow-cloud aura
+        if (player.transformActive && player.currentForm === 'INK STORM') {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.fillStyle = cachedRadial(ctx, 'smokeHero:smogAura', 20, 200, [
+                [0,   'rgba(15, 15, 20, 0.55)'],
+                [0.5, 'rgba(15, 15, 20, 0.35)'],
+                [1,   'rgba(15, 15, 20, 0)'],
+            ]);
+            ctx.beginPath();
+            ctx.arc(0, 0, 200, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.rotate(t * 0.02);
+            ctx.strokeStyle = 'rgba(140, 140, 160, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 160, 0, Math.PI * 1.6);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Smoke clouds
+        if (player.smokeClouds && player.smokeClouds.length) {
             player.smokeClouds.forEach(c => {
-                const alpha = Math.min(0.5, c.life / 60);
+                if (c.isBlackout) {
+                    const alpha = Math.min(0.75, c.life / 90);
+                    const pulse = 1 + Math.sin(t * 0.18) * 0.04;
+                    ctx.save();
+                    ctx.translate(c.x, c.y);
+                    const grad = ctx.createRadialGradient(0, 0, 5, 0, 0, c.radius);
+                    grad.addColorStop(0,    `rgba(25, 12, 40, ${alpha * 0.95})`);
+                    grad.addColorStop(0.45, `rgba(90, 45, 150, ${alpha * 0.55})`);
+                    grad.addColorStop(0.85, `rgba(45, 20, 80, ${alpha * 0.25})`);
+                    grad.addColorStop(1,    `rgba(20, 10, 35, 0)`);
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, c.radius * pulse, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = `rgba(180, 120, 230, ${alpha * 0.8})`;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, c.radius * 0.95, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.save();
+                    ctx.rotate(t * 0.025);
+                    ctx.strokeStyle = `rgba(220, 180, 255, ${alpha * 0.6})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, c.radius * 0.7, 0, Math.PI * 1.5);
+                    ctx.stroke();
+                    ctx.restore();
+                    ctx.rotate(-t * 0.018);
+                    ctx.strokeStyle = `rgba(160, 100, 220, ${alpha * 0.45})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, c.radius * 0.5, 0, Math.PI * 1.7);
+                    ctx.stroke();
+                    ctx.restore();
+                } else {
+                    const alpha = Math.min(0.5, c.life / 60);
+                    ctx.save();
+                    ctx.translate(c.x, c.y);
+                    const grad = ctx.createRadialGradient(0, 0, 5, 0, 0, c.radius);
+                    const baseCol = '60, 60, 75';
+                    grad.addColorStop(0,   `rgba(${baseCol}, ${alpha * 0.9})`);
+                    grad.addColorStop(0.6, `rgba(${baseCol}, ${alpha * 0.5})`);
+                    grad.addColorStop(1,   `rgba(${baseCol}, 0)`);
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, c.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.rotate(t * 0.01);
+                    ctx.strokeStyle = `rgba(140, 140, 160, ${alpha * 0.3})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, c.radius * 0.7, 0, Math.PI * 1.5);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            });
+        }
+
+        // Blackout shockwave ring
+        if (player.blackoutShockwave) {
+            const sw = player.blackoutShockwave;
+            const prog = 1 - sw.life / sw.maxLife;
+            const r = sw.baseRadius * (1 + prog * 1.4);
+            const a = sw.life / sw.maxLife;
+            ctx.save();
+            ctx.strokeStyle = `rgba(200, 150, 255, ${a * 0.85})`;
+            ctx.lineWidth = 4 * a + 1;
+            ctx.beginPath();
+            ctx.arc(sw.x, sw.y, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = `rgba(255, 230, 255, ${a * 0.5})`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(sw.x, sw.y, r * 0.96, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Per-enemy blind marker
+        if (enemies && enemies.length) {
+            enemies.forEach(e => {
+                if (e.hp <= 0) return;
+                if (!e._smokeBlind || e._smokeBlind <= 0) return;
+                const r = e.radius || 12;
+                const a = Math.min(1, e._smokeBlind / 60);
                 ctx.save();
-                ctx.translate(c.x, c.y);
-                // Pulsing inner gradient
-                const grad = ctx.createRadialGradient(0, 0, 5, 0, 0, c.radius);
-                const baseCol = c.isBlackout ? '15, 15, 20' : '60, 60, 75';
-                grad.addColorStop(0,   `rgba(${baseCol}, ${alpha * 0.9})`);
-                grad.addColorStop(0.6, `rgba(${baseCol}, ${alpha * 0.5})`);
-                grad.addColorStop(1,   `rgba(${baseCol}, 0)`);
-                ctx.fillStyle = grad;
+                ctx.translate(e.x, e.y - r - 8);
+                ctx.strokeStyle = `rgba(200, 150, 255, ${a})`;
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.arc(0, 0, c.radius, 0, Math.PI * 2);
-                ctx.fill();
-                // Slow swirl rings
-                ctx.rotate(t * 0.01);
-                ctx.strokeStyle = `rgba(140, 140, 160, ${alpha * 0.3})`;
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.arc(0, 0, c.radius * 0.7, 0, Math.PI * 1.5);
+                ctx.moveTo(-4, -4); ctx.lineTo(4, 4);
+                ctx.moveTo(4, -4); ctx.lineTo(-4, 4);
                 ctx.stroke();
                 ctx.restore();
             });
