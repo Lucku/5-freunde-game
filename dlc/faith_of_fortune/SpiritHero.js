@@ -1,5 +1,33 @@
 // #194 — explicit renderer imports (was: window-shim lookup).
 import { FloatingText } from '../../Entities/FloatingText.js';
+import { Projectile } from '../../Entities/Projectile.js';
+
+// `projectiles.push(plainObject)` is a no-op on the post-#5-phase-5.10b ECS
+// proxy sentinel. Spawn through the ECS via `Projectile.acquire` so the slot
+// actually lands in `runState.projectile*` and `drawProjectiles` picks it up.
+// Returns the slot proxy on success, or null on cap overflow.
+function _spawnSpiritProjectile(opts) {
+    const p = Projectile.acquire(
+        opts.x, opts.y,
+        { x: opts.vx || 0, y: opts.vy || 0 },
+        opts.damage || 0,
+        opts.color || '#ffffff',
+        opts.radius || 10,
+        opts.type || '',
+        opts.knockback || 0,
+        !!opts.isEnemy,
+        !!opts.isExplosive,
+        !!opts.isCrit
+    );
+    if (!p || (typeof p._slotIdx === 'function' && p._slotIdx() < 0)) return null;
+    if (opts.life     !== undefined) p.life     = opts.life;
+    if (opts.pierce   !== undefined) p.pierce   = opts.pierce;
+    if (opts.owner    !== undefined) p.owner    = opts.owner;
+    if (opts.onHit)                  p.onHit    = opts.onHit;
+    if (opts.update)                 p.update   = opts.update;
+    if (opts.draw)                   p.draw     = opts.draw;
+    return p;
+}
 
 // Spirit (Soft Amber) Hero Logic
 // Playstyle: Support, Healing, Purification, Balance
@@ -95,7 +123,7 @@ class SpiritHero {
     // LEVEL UP: Per-Run Upgrades
     static applyUpgrade(player, type, world) {
         const _w = world ?? window._world;
-        const { createExplosion, showNotification, projectiles } = _w ?? {};
+        const { createExplosion, showNotification } = _w ?? {};
         if (type === 'transform') {
             player.transformActive = true;
             player.currentForm = 'ENLIGHTENED';
@@ -108,25 +136,28 @@ class SpiritHero {
                 createExplosion(player.x, player.y, '#F0D080', 50);
             }
             if (typeof showNotification === 'function') showNotification("DIVINE RADIANCE", "#F0D080");
-            if (typeof projectiles !== 'undefined') {
-                projectiles.push({
+            {
+                const _aura = _spawnSpiritProjectile({
                     x: player.x, y: player.y, vx: 0, vy: 0,
-                    life: 9999, type: 'SPIRIT_AURA', radius: 100, angle: 0,
+                    life: 9999, type: 'SPIRIT_AURA', radius: 100,
                     owner: player, damage: 0, knockback: 0, pierce: 9999,
                     update: function () {
-                        if (!this.owner.transformActive || this.owner.currentForm !== 'ENLIGHTENED') { this.dead = true; return; }
-                        this.x = this.owner.x; this.y = this.owner.y; this.angle += 0.05;
+                        if (!this.owner.transformActive || this.owner.currentForm !== 'ENLIGHTENED') { this.life = 0; return; }
+                        this.x = this.owner.x; this.y = this.owner.y;
+                        this._auraAngle = (this._auraAngle || 0) + 0.05;
                     },
                     draw: function () {
                         const ctx = window.ctx; if (!ctx) return;
-                        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+                        const a = this._auraAngle || 0;
+                        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(a);
                         ctx.strokeStyle = "rgba(240, 208, 128, 0.6)"; ctx.lineWidth = 3;
-                        ctx.beginPath(); ctx.arc(0, 0, 60 + Math.sin(this.angle * 2) * 5, 0, Math.PI * 2); ctx.stroke();
+                        ctx.beginPath(); ctx.arc(0, 0, 60 + Math.sin(a * 2) * 5, 0, Math.PI * 2); ctx.stroke();
                         ctx.beginPath(); ctx.rect(-40, -40, 80, 80); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.stroke();
                         ctx.rotate(Math.PI / 4); ctx.beginPath(); ctx.rect(-40, -40, 80, 80); ctx.stroke();
                         ctx.restore();
                     }
                 });
+                if (_aura) _aura._auraAngle = 0;
             }
             return true;
         }
@@ -155,7 +186,7 @@ class SpiritHero {
 
     static update(player, dx, dy, world) {
         const _w = world ?? window._world;
-        const { frame, showNotification, createExplosion, audioManager, enemies, projectiles, floatingTexts } = _w ?? {};
+        const { frame, showNotification, createExplosion, audioManager, enemies } = _w ?? {};
         // Handle Instant Skill Triggers
         if (player.triggerRefillPeace) {
             player.triggerRefillPeace = false;
@@ -255,26 +286,24 @@ class SpiritHero {
                 }
 
                 else if (hasLotus) {
-                    // Overheal -> Vines
-                    if (typeof projectiles !== 'undefined') {
-                        // Spawn Vine Projectile (Static Trap)
-                        projectiles.push({
-                            x: player.x + (Math.random() * 100 - 50),
-                            y: player.y + (Math.random() * 100 - 50),
-                            vx: 0, vy: 0, life: 300,
-                            type: 'VINE',
-                            radius: 15, color: '#2ecc71',
-                            damage: 10, knockback: 0, owner: player,
-                            update: function () { this.life--; if (this.life <= 0) this.dead = true; },
-                            draw: function () {
-                                const ctx = window.ctx; if (!ctx) return;
-                                ctx.save(); ctx.translate(this.x, this.y);
-                                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
-                                ctx.strokeStyle = "#27ae60"; ctx.lineWidth = 2; ctx.stroke();
-                                ctx.restore();
-                            }
-                        });
-                    }
+                    // Overheal -> Vines (static trap that decays after 300 frames).
+                    // Base update does `x += vx; y += vy; life--`. vx/vy = 0 → no
+                    // drift; life expiry handled by the main projectile loop.
+                    _spawnSpiritProjectile({
+                        x: player.x + (Math.random() * 100 - 50),
+                        y: player.y + (Math.random() * 100 - 50),
+                        vx: 0, vy: 0, life: 300,
+                        type: 'VINE',
+                        radius: 15, color: '#2ecc71',
+                        damage: 10, knockback: 0, owner: player,
+                        draw: function () {
+                            const ctx = window.ctx; if (!ctx) return;
+                            ctx.save(); ctx.translate(this.x, this.y);
+                            ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                            ctx.strokeStyle = "#27ae60"; ctx.lineWidth = 2; ctx.stroke();
+                            ctx.restore();
+                        }
+                    });
                 }
             }
         } else {
@@ -335,33 +364,30 @@ class SpiritHero {
 
     static shootMantra(player, world) {
         const _w = world ?? window._world;
-        const { audioManager, projectiles, createExplosion, floatingTexts, enemies } = _w ?? {};
+        const { audioManager, createExplosion, floatingTexts, enemies } = _w ?? {};
         if (player.rangeCooldown > 0) return;
 
         if (player._divineRadiance) {
             const peaceMod = 0.5 + (player.innerPeace / 100);
             const dmg = (player.stats.rangeDmg || 15) * peaceMod * player.damageMultiplier * 3;
             const angle = player.aimAngle || 0;
-            if (typeof projectiles !== 'undefined') {
-                projectiles.push({
-                    x: player.x, y: player.y,
-                    vx: Math.cos(angle) * 14, vy: Math.sin(angle) * 14,
-                    radius: 18, color: '#fff',
-                    damage: dmg, dmg: dmg,
-                    life: 100, pierce: 10, knockback: 0,
-                    type: 'SACRED_BEAM', owner: player,
-                    onHit: function (enemy) { return 'DEFAULT'; },
-                    update: function () { this.x += this.vx; this.y += this.vy; this.life--; if (this.life <= 0) this.dead = true; },
-                    draw: function () {
-                        const ctx = window.ctx; if (!ctx) return;
-                        ctx.save(); ctx.translate(this.x, this.y);
-                        ctx.shadowBlur = 25; ctx.shadowColor = '#F0D080';
-                        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, this.radius / 2, 0, Math.PI * 2); ctx.fill();
-                        ctx.strokeStyle = '#F0D080'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.stroke();
-                        ctx.restore();
-                    }
-                });
-            }
+            _spawnSpiritProjectile({
+                x: player.x, y: player.y,
+                vx: Math.cos(angle) * 14, vy: Math.sin(angle) * 14,
+                radius: 18, color: '#fff',
+                damage: dmg,
+                life: 100, pierce: 10, knockback: 0,
+                type: 'SACRED_BEAM', owner: player,
+                onHit: function () { return 'DEFAULT'; },
+                draw: function () {
+                    const ctx = window.ctx; if (!ctx) return;
+                    ctx.save(); ctx.translate(this.x, this.y);
+                    ctx.shadowBlur = 25; ctx.shadowColor = '#F0D080';
+                    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, this.radius / 2, 0, Math.PI * 2); ctx.fill();
+                    ctx.strokeStyle = '#F0D080'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.stroke();
+                    ctx.restore();
+                }
+            });
             player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier * 0.5;
             return;
         }
@@ -403,103 +429,76 @@ class SpiritHero {
                 createExplosion(player.x + dx * 20, player.y + dy * 20, "#F0D080", 4);
             }
 
-            if (typeof projectiles !== 'undefined') {
-                projectiles.push({
-                    x: player.x,
-                    y: player.y,
-                    vx: dx * 8, // Slower, steady speed
-                    vy: dy * 8,
-                    radius: 10, // Slightly larger
-                    color: "#F0D080",
-                    dmg: dmg,
-                    life: 100,
-                    damage: dmg, // Map dmg property for standard collision
-                    pierce: player.pierceCount || 1, // Default 1 pierce
-                    knockback: 0, // Spirit mantras do not knock back
-                    type: 'MANTRA', owner: player,
-
-                    onHit: function (enemy) {
-                        // Spirit Mechanics: Violence disturbs peace
-                        if (player && typeof player.innerPeace !== 'undefined') {
-                            player.innerPeace = Math.max(0, player.innerPeace - 5);
-                            // Visual Float Text if possible
-                            if (typeof floatingTexts !== 'undefined' && Math.random() < 0.3) {
-                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "-Peace", "#cfcfcf", 15));
-                            }
+            _spawnSpiritProjectile({
+                x: player.x,
+                y: player.y,
+                vx: dx * 8,
+                vy: dy * 8,
+                radius: 10,
+                color: "#F0D080",
+                life: 100,
+                damage: dmg,
+                pierce: player.pierceCount || 1,
+                knockback: 0,
+                type: 'MANTRA',
+                owner: player,
+                onHit: function (enemy) {
+                    if (player && typeof player.innerPeace !== 'undefined') {
+                        player.innerPeace = Math.max(0, player.innerPeace - 5);
+                        if (typeof floatingTexts !== 'undefined' && Math.random() < 0.3) {
+                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 40, "-Peace", "#cfcfcf", 15));
                         }
-
-                        // Convergence Effects
-                        if (hasSacredFlame) {
-                            enemy.fireTicks = (enemy.fireTicks || 0) + 60; // Burn
-                            createExplosion(enemy.x, enemy.y, "#e74c3c", 8);
-                        }
-                        if (hasHolyWater) {
-                            const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                            enemy.vx = (enemy.vx || 0) + Math.cos(angle) * 5; // Extra Push
-                            enemy.vy = (enemy.vy || 0) + Math.sin(angle) * 5;
-                        }
-                        if (hasEnlightenment) {
-                            // Chain Lightning
-                            if (Math.random() < 0.3 && typeof enemies !== 'undefined') {
-                                const target = enemies.find(n => n !== enemy && Math.hypot(n.x - enemy.x, n.y - enemy.y) < 200);
-                                if (target) {
-                                    target.hp -= dmg * 0.5;
-                                    // Draw line (needs global hook or temp)
-                                    createExplosion(target.x, target.y, "#f1c40f", 8);
-                                }
-                            }
-                        }
-
-                        return 'DEFAULT';
-                    },
-
-                    update: function () {
-                        this.x += this.vx;
-                        this.y += this.vy;
-                        this.life--;
-                        if (this.life <= 0) this.dead = true;
-                    },
-
-                    draw: function () {
-                        const ctx = window.ctx;
-                        if (!ctx) return;
-
-                        ctx.save();
-                        ctx.translate(this.x, this.y);
-
-                        // Glowing Core
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = this.color;
-                        ctx.fillStyle = "#fff"; // White core
-                        ctx.beginPath();
-                        ctx.arc(0, 0, this.radius / 2, 0, Math.PI * 2);
-                        ctx.fill();
-
-                        // Outer Halo
-                        ctx.shadowBlur = 0;
-                        ctx.strokeStyle = this.color;
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                        ctx.stroke();
-
-                        // Longer Spur (Tail)
-                        const angle = Math.atan2(this.vy, this.vx);
-                        ctx.rotate(angle);
-
-                        ctx.fillStyle = this.color;
-                        ctx.globalAlpha = 0.6;
-                        ctx.beginPath();
-                        ctx.moveTo(-this.radius, -this.radius / 2);
-                        ctx.lineTo(-this.radius * 4, 0); // Tail length
-                        ctx.lineTo(-this.radius, this.radius / 2);
-                        ctx.fill();
-                        ctx.globalAlpha = 1.0;
-
-                        ctx.restore();
                     }
-                });
-            }
+                    if (hasSacredFlame) {
+                        enemy.fireTicks = (enemy.fireTicks || 0) + 60;
+                        createExplosion(enemy.x, enemy.y, "#e74c3c", 8);
+                    }
+                    if (hasHolyWater) {
+                        const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                        enemy.vx = (enemy.vx || 0) + Math.cos(angle) * 5;
+                        enemy.vy = (enemy.vy || 0) + Math.sin(angle) * 5;
+                    }
+                    if (hasEnlightenment) {
+                        if (Math.random() < 0.3 && typeof enemies !== 'undefined') {
+                            const target = enemies.find(n => n !== enemy && Math.hypot(n.x - enemy.x, n.y - enemy.y) < 200);
+                            if (target) {
+                                target.hp -= dmg * 0.5;
+                                createExplosion(target.x, target.y, "#f1c40f", 8);
+                            }
+                        }
+                    }
+                    return 'DEFAULT';
+                },
+                draw: function () {
+                    const ctx = window.ctx;
+                    if (!ctx) return;
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = this.color;
+                    ctx.fillStyle = "#fff";
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    const angle = Math.atan2(this.velocity.y, this.velocity.x);
+                    ctx.rotate(angle);
+                    ctx.fillStyle = this.color;
+                    ctx.globalAlpha = 0.6;
+                    ctx.beginPath();
+                    ctx.moveTo(-this.radius, -this.radius / 2);
+                    ctx.lineTo(-this.radius * 4, 0);
+                    ctx.lineTo(-this.radius, this.radius / 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                    ctx.restore();
+                }
+            });
         }
 
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
@@ -507,7 +506,7 @@ class SpiritHero {
 
     static useSpecial(player, world) {
         const _w = world ?? window._world;
-        const { showNotification, audioManager, projectiles, saveData } = _w ?? {};
+        const { showNotification, audioManager, saveData } = _w ?? {};
         if (player.transformActive) return; // Already active
 
         if (player.innerPeace < 30) {
@@ -529,61 +528,57 @@ class SpiritHero {
         if (typeof showNotification === 'function') showNotification("TRANSCENDENCE", "#F0D080");
         if (typeof audioManager !== 'undefined') audioManager.play('special_spirit');
 
-        // Spawn Visual Aura
-        if (typeof projectiles !== 'undefined') {
-            projectiles.push({
-                x: player.x,
-                y: player.y,
-                vx: 0,
-                vy: 0,
-                life: 9999, // Managed by update
-                type: 'SPIRIT_AURA',
-                radius: 100, // Visual radius
-                angle: 0,
-                owner: player,
-                damage: 0, // No collision damage, logic handled in SpiritHero.update
-                knockback: 0, // Must be 0 to prevent NaN enemy coordinates
-                pierce: 9999, // Must not be spliced on enemy contact
-
-                update: function () {
-                    if (!this.owner.transformActive || this.owner.currentForm !== 'ENLIGHTENED') {
-                        this.dead = true;
-                        return;
-                    }
-                    this.x = this.owner.x;
-                    this.y = this.owner.y;
-                    this.angle += 0.05;
-                },
-
-                draw: function () {
-                    const ctx = window.ctx;
-                    if (!ctx) return;
-                    ctx.save();
-                    ctx.translate(this.x, this.y);
-                    ctx.rotate(this.angle);
-
-                    // Draw Mandala / Shield
-                    ctx.strokeStyle = "rgba(240, 208, 128, 0.6)";
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 60 + Math.sin(this.angle * 2) * 5, 0, Math.PI * 2);
-                    ctx.stroke();
-
-                    // Rotating Squares
-                    ctx.beginPath();
-                    ctx.rect(-40, -40, 80, 80);
-                    ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-                    ctx.stroke();
-
-                    ctx.rotate(Math.PI / 4);
-                    ctx.beginPath();
-                    ctx.rect(-40, -40, 80, 80);
-                    ctx.stroke();
-
-                    ctx.restore();
+        // Spawn Visual Aura. Custom field `_auraAngle` is underscore-prefixed
+        // so the slot-proxy's `_*` trap routes it to per-slot extras storage.
+        const _aura = _spawnSpiritProjectile({
+            x: player.x,
+            y: player.y,
+            vx: 0,
+            vy: 0,
+            life: 9999,
+            type: 'SPIRIT_AURA',
+            radius: 100,
+            owner: player,
+            damage: 0,
+            knockback: 0,
+            pierce: 9999,
+            update: function () {
+                if (!this.owner.transformActive || this.owner.currentForm !== 'ENLIGHTENED') {
+                    this.life = 0;
+                    return;
                 }
-            });
-        }
+                this.x = this.owner.x;
+                this.y = this.owner.y;
+                this._auraAngle = (this._auraAngle || 0) + 0.05;
+            },
+            draw: function () {
+                const ctx = window.ctx;
+                if (!ctx) return;
+                const a = this._auraAngle || 0;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(a);
+
+                ctx.strokeStyle = "rgba(240, 208, 128, 0.6)";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, 60 + Math.sin(a * 2) * 5, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.rect(-40, -40, 80, 80);
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                ctx.stroke();
+
+                ctx.rotate(Math.PI / 4);
+                ctx.beginPath();
+                ctx.rect(-40, -40, 80, 80);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        });
+        if (_aura) _aura._auraAngle = 0;
     }
 }
 

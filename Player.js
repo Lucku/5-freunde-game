@@ -506,11 +506,11 @@ class Player {
                     enemies.forEach(e => {
                         if (Math.hypot(e.x - ex, e.y - ey) < 80) {
                             e.hp -= 50 * this.damageMultiplier;
-                            floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, "50", "#e74c3c", 20));
+                            floatingTexts?.push(FloatingText.acquire(e.x, e.y - 20, "50", "#e74c3c", 20));
 
                             if (isThermal) {
                                 e.frozenTimer = 60; // 1s Freeze
-                                floatingTexts.push(FloatingText.acquire(e.x, e.y - 40, "FREEZE", "#aaddff", 16));
+                                floatingTexts?.push(FloatingText.acquire(e.x, e.y - 40, "FREEZE", "#aaddff", 16));
                             }
                             if (isMeteor) {
                                 const angle = Math.atan2(e.y - ey, e.x - ex);
@@ -563,7 +563,7 @@ class Player {
             // Convergence: Hydro-Shield (c8)
             if (has('c8')) {
                 if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + 20); // Temp HP / Heal
-                floatingTexts.push(FloatingText.acquire(this.x, this.y - 40, "SHIELD", "#3498db", 20));
+                floatingTexts?.push(FloatingText.acquire(this.x, this.y - 40, "SHIELD", "#3498db", 20));
             }
 
             // Convergence: Storm Surge (c19)
@@ -580,7 +580,7 @@ class Player {
                 if (isStormSurge) {
                     e.hp -= 25 * this.damageMultiplier;
                     if (Math.random() < 0.5) {
-                        floatingTexts.push(FloatingText.acquire(e.x, e.y - 40, "ZAP", "#ffff00", 16));
+                        floatingTexts?.push(FloatingText.acquire(e.x, e.y - 40, "ZAP", "#ffff00", 16));
                         // Check if createExplosion supports color
                         createExplosion(e.x, e.y, '#ffff00');
                     }
@@ -588,18 +588,18 @@ class Player {
 
                 if (isBoiling) {
                     e.hp -= 10 * this.damageMultiplier; // Fire DoT instant burst
-                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 40, "BOIL", "#e74c3c", 16));
+                    floatingTexts?.push(FloatingText.acquire(e.x, e.y - 40, "BOIL", "#e74c3c", 16));
                 }
                 if (isAlgae) {
                     if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + 1);
                 }
                 if (isMuddy) {
                     e.speedMult = (e.speedMult || 1) * 0.5;
-                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 60, "SLOW", "#8d6e63", 16));
+                    floatingTexts?.push(FloatingText.acquire(e.x, e.y - 60, "SLOW", "#8d6e63", 16));
                 }
                 if (isAcidRain) {
                     e.poisonStacks = Math.min((e.poisonStacks || 0) + 30, 100);
-                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 80, "TOXIC", "#76ff03", 16));
+                    floatingTexts?.push(FloatingText.acquire(e.x, e.y - 80, "TOXIC", "#76ff03", 16));
                 }
             });
         } else if (this.type === 'ice') {
@@ -647,10 +647,10 @@ class Player {
             enemies.forEach(e => {
                 if (canShatter && e.frozenTimer > 0) {
                     e.hp -= 50 * this.damageMultiplier; // Shatter Damage
-                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, "SHATTER", "#aaddff", 20));
+                    floatingTexts?.push(FloatingText.acquire(e.x, e.y - 20, "SHATTER", "#aaddff", 20));
                 }
                 e.frozenTimer = duration;
-                floatingTexts.push(FloatingText.acquire(e.x, e.y - 40, "FROZEN", "#aaddff", 16));
+                floatingTexts?.push(FloatingText.acquire(e.x, e.y - 40, "FROZEN", "#aaddff", 16));
 
                 if (isPermafrost) {
                     const angle = Math.atan2(e.y - this.y, e.x - this.x);
@@ -659,7 +659,7 @@ class Player {
                 }
                 if (isGlacial) {
                     e.hp -= 30 * this.damageMultiplier;
-                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 60, "CRUSH", "#8d6e63", 20));
+                    floatingTexts?.push(FloatingText.acquire(e.x, e.y - 60, "CRUSH", "#8d6e63", 20));
                 }
             });
         } else if (this.type === 'plant') {
@@ -669,7 +669,7 @@ class Player {
             if (has('p2')) healAmount *= 1.2; // +20% Heal
 
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) this.hp = Math.min(this.maxHp, this.hp + healAmount);
-            floatingTexts.push(FloatingText.acquire(this.x, this.y - 40, "HEAL", "#2ecc71", 20));
+            floatingTexts?.push(FloatingText.acquire(this.x, this.y - 40, "HEAL", "#2ecc71", 20));
             // Healing bloom: central green burst + rising life particles + outward spore ring
             createExplosion(this.x, this.y, '#2ecc71');
             for (let i = 0; i < 20; i++) {
@@ -696,7 +696,7 @@ class Player {
                     if (Math.hypot(e.x - this.x, e.y - this.y) < 250) {
                         e.hp -= 40 * this.damageMultiplier;
                         createExplosion(e.x, e.y, '#ffff00');
-                        floatingTexts.push(FloatingText.acquire(e.x, e.y - 30, "SHOCK", "#ffff00", 18));
+                        floatingTexts?.push(FloatingText.acquire(e.x, e.y - 30, "SHOCK", "#ffff00", 18));
                     }
                 });
             }
@@ -704,7 +704,7 @@ class Player {
             // Thornmail (p3)
             if (has('p3')) {
                 this.thornmailTimer = 300; // 5s
-                floatingTexts.push(FloatingText.acquire(this.x, this.y - 60, "THORNMAIL", "#2ecc71", 20));
+                floatingTexts?.push(FloatingText.acquire(this.x, this.y - 60, "THORNMAIL", "#2ecc71", 20));
             }
 
             // Convergence: Ironbark (c10)
@@ -712,13 +712,13 @@ class Player {
                 const oldDr = this.damageReduction;
                 this.damageReduction = Math.max(this.damageReduction, 0.5); // Set to 50% DR if lower
                 setTimeout(() => this.damageReduction = oldDr, 5000); // Reset to previous value
-                floatingTexts.push(FloatingText.acquire(this.x, this.y - 80, "IRONBARK", "#95a5a6", 20));
+                floatingTexts?.push(FloatingText.acquire(this.x, this.y - 80, "IRONBARK", "#95a5a6", 20));
             }
 
             // Convergence: Stone Roots (c14)
             if (has('c14')) {
                 this.invincibleTimer = 60; // 1s Invincibility
-                floatingTexts.push(FloatingText.acquire(this.x, this.y - 80, "STONE SKIN", "#8d6e63", 20));
+                floatingTexts?.push(FloatingText.acquire(this.x, this.y - 80, "STONE SKIN", "#8d6e63", 20));
             }
 
             // Convergence: Wildfire (c4)
@@ -749,7 +749,7 @@ class Player {
             if (has('m2')) duration *= 1.5; // +50% Duration
 
             this.invincibleTimer = duration;
-            floatingTexts.push(FloatingText.acquire(this.x, this.y - 40, "INVINCIBLE", "#95a5a6", 20));
+            floatingTexts?.push(FloatingText.acquire(this.x, this.y - 40, "INVINCIBLE", "#95a5a6", 20));
             // Armor activation: silver flash + steel spark ring + delayed shockwave
             createExplosion(this.x, this.y, '#ecf0f1');
             createExplosion(this.x, this.y, '#95a5a6');
@@ -806,7 +806,7 @@ class Player {
                 enemies.forEach(e => {
                     if (Math.hypot(e.x - this.x, e.y - this.y) < 200) {
                         e.hp -= 30 * this.damageMultiplier;
-                        floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, "BURN", "#e74c3c", 16));
+                        floatingTexts?.push(FloatingText.acquire(e.x, e.y - 20, "BURN", "#e74c3c", 16));
                     }
                 });
             }
@@ -820,7 +820,7 @@ class Player {
             // Burst Heal
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
                 this.hp = Math.min(this.maxHp, this.hp + 50);
-                floatingTexts.push(FloatingText.acquire(this.x, this.y - 40, "+50 HP", "#2ecc71", 20));
+                floatingTexts?.push(FloatingText.acquire(this.x, this.y - 40, "+50 HP", "#2ecc71", 20));
             }
 
             createExplosion(this.x, this.y, '#9b59b6');
@@ -853,14 +853,14 @@ class Player {
             enemies.forEach(e => {
                 if (Math.hypot(e.x - this.x, e.y - this.y) < radius) {
                     e.hp -= 100 * this.damageMultiplier;
-                    floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, "100", "#8e44ad", 25));
+                    floatingTexts?.push(FloatingText.acquire(e.x, e.y - 20, "100", "#8e44ad", 25));
                     createExplosion(e.x, e.y, '#9b59b6');
 
                     if (isVoidStorm) {
                         e.hp -= 50 * this.damageMultiplier;
                         e.frozenTimer = 60; // Mini-stun
                         createExplosion(e.x, e.y, '#ffff00'); // Lightning visual
-                        floatingTexts.push(FloatingText.acquire(e.x, e.y - 50, "STORM", "#ffff00", 20));
+                        floatingTexts?.push(FloatingText.acquire(e.x, e.y - 50, "STORM", "#ffff00", 20));
                     }
                 }
             });
@@ -874,7 +874,7 @@ class Player {
             if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
                 // Buffed Healing: 3 HP per kill (was 1)
                 this.hp = Math.min(this.maxHp, this.hp + 3);
-                floatingTexts.push(FloatingText.acquire(this.x, this.y - 30, "+3", "#2ecc71", 14));
+                floatingTexts?.push(FloatingText.acquire(this.x, this.y - 30, "+3", "#2ecc71", 14));
             }
         }
     }
@@ -909,7 +909,7 @@ class Player {
 
                 // Visual indicator for high DoT
                 if (dotDamage > 2) {
-                    floatingTexts.push(FloatingText.acquire(this.x, this.y - 20, "-" + dotDamage.toFixed(1), "#555", 12));
+                    floatingTexts?.push(FloatingText.acquire(this.x, this.y - 20, "-" + dotDamage.toFixed(1), "#555", 12));
                 }
             }
 
