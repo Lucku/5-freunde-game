@@ -186,7 +186,7 @@ class AirHero {
 
             // Feedback
             if (typeof FloatingText !== 'undefined') {
-                FloatingText.acquire(player.x, player.y - 80, `Wind Shifts ${player.weatherVane.direction}!`, '#40e0d0', 120);
+                FloatingText.acquire(player.x, player.y - 80, `Wind Shifts ${player.weatherVane.direction}!`, '#40e0d0', 24);
             }
         }
 
