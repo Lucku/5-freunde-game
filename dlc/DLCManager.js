@@ -8,13 +8,19 @@
 // circularly reference this file.
 const DLC_MODULES = import.meta.glob('./*/*.js');
 
-// Electron detection (mirrors Config.js pattern)
+// Electron detection (mirrors Config.js pattern).
+// Indirect `require` so Vite/rolldown does not pattern-match the literal
+// `require('fs')` and ship a stub polyfill — see Platform.js for the same
+// pattern and the bug that motivated it.
 const _isElectronDLC = typeof process !== 'undefined' && process.versions && process.versions.electron;
+const _electronRequireDLC = (typeof globalThis !== 'undefined' && typeof globalThis.require === 'function')
+    ? globalThis.require
+    : null;
 let _fsDLC, _pathDLC, _dlcFilePath;
-if (_isElectronDLC) {
+if (_isElectronDLC && _electronRequireDLC) {
     try {
-        _fsDLC = require('fs');
-        _pathDLC = require('path');
+        _fsDLC = _electronRequireDLC('fs');
+        _pathDLC = _electronRequireDLC('path');
         if (process.env.APP_SAVE_PATH) {
             _dlcFilePath = _pathDLC.join(process.env.APP_SAVE_PATH, 'dlcs.json');
         }
