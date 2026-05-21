@@ -28,6 +28,23 @@ const { BASE_HERO_STATS } = require('../../server/simulation/constants.js');
 // returns.
 export const HERO_KEYS = Object.freeze(Object.keys(BASE_HERO_STATS));
 
+// Base enemy subtype roster from `Constants.js:19`. DLC enemy files push
+// extra entries onto `window.ENEMY_TYPES` at runtime (GOLEM, HARPY,
+// VOID_WALKER, ...), but the server loader doesn't import the DLC
+// `*Enemies.js` modules so those subtypes aren't exercised here. They
+// require their own harness — see phase 2 notes in
+// `tasks/smoke-test-suite.md`.
+export const BASE_ENEMY_TYPES = Object.freeze([
+    'BASIC', 'SHOOTER', 'BRUTE', 'SPEEDSTER', 'SWARM', 'SUMMONER',
+    'GHOST', 'SNIPER', 'BOMBER', 'TOXIC', 'SHIELDER',
+]);
+
+// Cheat-spawn one enemy of a given subtype into the active session.
+// Returns the slot proxy. Bypasses wave spawn pacing entirely.
+export function spawnEnemyOfType(ctx, subType) {
+    return new globalThis.Enemy(false, subType, ctx.session._world);
+}
+
 // Idle-input template. Every smoke test starts from this and toggles only
 // the field it's exercising.
 export const STUB_INPUT = Object.freeze({
