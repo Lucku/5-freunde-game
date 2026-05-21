@@ -179,44 +179,40 @@ window.HERO_LOGIC['void'] = {
                 // Spread
                 const spread = (i - (count - 1) / 2) * 0.2;
 
-                projectiles.push({
-                    x: player.x,
-                    y: player.y,
-                    vx: Math.cos(angle + spread) * speed,
-                    vy: Math.sin(angle + spread) * speed,
-                    size: size,
-                    color: player.riftColor || '#00bcd4',
-                    dmg: dmg,
-                    life: 100, // Increased from 60 to 100 for better range/decoy duration
-                    type: 'GLITCH_BOLT',
-                    pierce: 1,
-                    isCustom: true,
-                    update: function () {
-                        this.x += this.vx;
-                        this.y += this.vy;
-                        // Jitter Effect
-                        this.x += (Math.random() - 0.5) * 5;
-                        this.y += (Math.random() - 0.5) * 5;
-                        this.life--;
-                        if (this.life <= 0) this.dead = true;
-                    },
-                    draw: function () {
-                        const ctx = window.ctx;
-                        ctx.save();
-                        ctx.translate(this.x, this.y);
-                        // Glitch Visuals
-                        ctx.fillStyle = this.color;
-                        ctx.shadowColor = this.color;
-                        ctx.shadowBlur = 10;
-                        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
-
-                        if (Math.random() < 0.3) {
-                            ctx.fillStyle = "#fff";
-                            ctx.fillRect(-this.size, -this.size / 2, this.size * 0.5, this.size);
-                        }
-                        ctx.restore();
+                const boltColor = player.riftColor || '#00bcd4';
+                const proj = Projectile.acquire(
+                    player.x, player.y,
+                    { x: Math.cos(angle + spread) * speed, y: Math.sin(angle + spread) * speed },
+                    dmg, boltColor, size, 'GLITCH_BOLT', 0, false
+                );
+                if (!proj || (typeof proj._slotIdx === 'function' && proj._slotIdx() < 0)) continue;
+                proj.life = 100;
+                proj.pierce = 1;
+                proj.owner = player;
+                proj._isGlitch = true;
+                proj.update = function () {
+                    const v = this.velocity;
+                    this.x += v.x + (Math.random() - 0.5) * 5;
+                    this.y += v.y + (Math.random() - 0.5) * 5;
+                    const l = this.life;
+                    if (l !== null) this.life = l - 1;
+                };
+                proj.draw = function () {
+                    const ctx = window.ctx;
+                    if (!ctx) return;
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    const s = this.radius;
+                    ctx.fillStyle = this.color;
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 10;
+                    ctx.fillRect(-s / 2, -s / 2, s, s);
+                    if (Math.random() < 0.3) {
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(-s, -s / 2, s * 0.5, s);
                     }
-                });
+                    ctx.restore();
+                };
             }
             player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
         }

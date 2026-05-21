@@ -1,1 +1,2 @@
 # General
+- make "Wind shifts X" a simple notification

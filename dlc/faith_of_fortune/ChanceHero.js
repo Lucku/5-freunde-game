@@ -1,5 +1,6 @@
 // #194 — explicit renderer imports (was: window-shim lookup).
 import { FloatingText } from '../../Entities/FloatingText.js';
+import { Projectile } from '../../Entities/Projectile.js';
 // GoldDrop class removed in #5 phase 5.7 — replaced by spawnGoldDrop ECS helper.
 import { runState } from '../../RunState.js';
 import { spawnGoldDrop } from '../../core/systems/goldDropSystem.js';
@@ -496,119 +497,88 @@ class ChanceHero {
 
                 const projScale = (isExplosive ? 2.0 : (isPair ? 1.5 : 1.0));
 
-                projectiles.push({
-                    x: player.x,
-                    y: player.y,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    radius: radius * projScale, // Using 'radius' for collision
-                    color: isExplosive ? "#ff0000" : (isPair ? "#ff00ff" : "#ffffff"),
-                    damage: baseDmg * projScale, // Double damage on pair/explosive
-                    dmg: baseDmg * projScale, // Legacy prop
-                    life: 60,
-                    type: isExplosive ? 'EXPLOSIVE_DICE' : 'DICE',
-                    face: faces[i],
-                    rotation: 0,
-                    spinSpeed: (Math.random() - 0.5) * 0.4, // Randomized spin
-
-                    // Custom collision hook for Game.js
-                    onHit: function (enemy) {
-                        if (this.type === 'EXPLOSIVE_DICE') {
-                            if (typeof createExplosion !== 'undefined') createExplosion(this.x, this.y, '#ff0000', 60);
-                            // Area damage
-                            if (typeof enemies !== 'undefined') {
-                                enemies.forEach(e => {
-                                    if (Math.hypot(e.x - this.x, e.y - this.y) < 100) {
-                                        e.hp -= this.damage;
-                                    }
-                                });
-                            }
-                            // 25% chain bounce during JACKPOT form
-                            if (isJackpotForm && Math.random() < 0.25 && typeof enemies !== 'undefined') {
-                                const bounceTarget = enemies.find(nb => nb !== enemy && nb.hp > 0 &&
-                                    Math.hypot(nb.x - this.x, nb.y - this.y) < 200);
-                                if (bounceTarget) {
-                                    bounceTarget.hp -= this.damage * 0.75;
-                                    if (typeof createExplosion !== 'undefined') createExplosion(bounceTarget.x, bounceTarget.y, '#ff00ff', 15);
+                const dieColor = isExplosive ? '#ff0000' : (isPair ? '#ff00ff' : '#ffffff');
+                const dieDmg = baseDmg * projScale;
+                const dieType = isExplosive ? 'EXPLOSIVE_DICE' : 'DICE';
+                const proj = Projectile.acquire(
+                    player.x, player.y,
+                    { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+                    dieDmg, dieColor, radius * projScale, dieType, 0, false, isExplosive, false
+                );
+                if (!proj || (typeof proj._slotIdx === 'function' && proj._slotIdx() < 0)) continue;
+                proj.life = 60;
+                proj.owner = player;
+                proj._face = faces[i];
+                proj._rotation = 0;
+                proj._spinSpeed = (Math.random() - 0.5) * 0.4;
+                proj._isExplosive = isExplosive;
+                proj._isJackpotForm = isJackpotForm;
+                proj.onHit = function (enemy) {
+                    if (this._isExplosive) {
+                        if (typeof createExplosion !== 'undefined') createExplosion(this.x, this.y, '#ff0000', 60);
+                        if (typeof enemies !== 'undefined') {
+                            enemies.forEach(e => {
+                                if (Math.hypot(e.x - this.x, e.y - this.y) < 100) {
+                                    e.hp -= this.damage;
                                 }
+                            });
+                        }
+                        if (this._isJackpotForm && Math.random() < 0.25 && typeof enemies !== 'undefined') {
+                            const bounceTarget = enemies.find(nb => nb !== enemy && nb.hp > 0 &&
+                                Math.hypot(nb.x - this.x, nb.y - this.y) < 200);
+                            if (bounceTarget) {
+                                bounceTarget.hp -= this.damage * 0.75;
+                                if (typeof createExplosion !== 'undefined') createExplosion(bounceTarget.x, bounceTarget.y, '#ff00ff', 15);
                             }
                         }
-                        return 'DEFAULT'; // Let standard system apply direct hit damage too
-                    },
-
-                    update: function () {
-                        // Friction for "sliding/rolling" effect
-                        this.vx *= 0.94;
-                        this.vy *= 0.94;
-
-                        this.x += this.vx;
-                        this.y += this.vy;
-
-                        // Spin based on current speed
-                        const currentSpeed = Math.hypot(this.vx, this.vy);
-                        this.rotation += currentSpeed * 0.05 + ((this.spinSpeed || 0.1) * 0.5);
-
-                        this.life--;
-                        if (this.life <= 0) this.dead = true;
-                    },
-
-                    draw: function () {
-                        const ctx = window.ctx;
-                        if (!ctx) return;
-
-                        ctx.save();
-                        ctx.translate(this.x, this.y);
-                        ctx.rotate(this.rotation);
-
-                        // Draw like Void Orb (Circle with core) but 'Dice' flavor
-                        // Use square shape but with glow
-                        const size = this.radius * 2;
-
-                        // Glow
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = this.color;
-
-                        ctx.fillStyle = "#fff";
-                        // Draw centered square
-                        ctx.fillRect(-this.radius, -this.radius, size, size);
-
-                        ctx.shadowBlur = 0; // Reset for dots
-
-                        // Border
-                        ctx.strokeStyle = this.color;
-                        ctx.lineWidth = 2;
-                        ctx.strokeRect(-this.radius, -this.radius, size, size);
-
-                        // Dots
-                        // If color is white (on white body), use black for dots
-                        // If color is Red/Magenta, use that color heavily
-                        ctx.fillStyle = (this.color === '#ffffff' || this.color === '#fff') ? '#000000' : this.color;
-
-                        // Dots calculation relative to size
-                        const dotSize = size / 5;
-                        const q = size / 4;
-
-                        // 1: Center
-                        if (this.face % 2 === 1) ctx.fillRect(-dotSize / 2, -dotSize / 2, dotSize, dotSize);
-                        // 2: TL, BR
-                        if (this.face > 1) {
-                            ctx.fillRect(-q - dotSize / 2, -q - dotSize / 2, dotSize, dotSize);
-                            ctx.fillRect(q - dotSize / 2, q - dotSize / 2, dotSize, dotSize);
-                        }
-                        // 4: TR, BL
-                        if (this.face > 3) {
-                            ctx.fillRect(q - dotSize / 2, -q - dotSize / 2, dotSize, dotSize);
-                            ctx.fillRect(-q - dotSize / 2, q - dotSize / 2, dotSize, dotSize);
-                        }
-                        // 6: ML, MR
-                        if (this.face === 6) {
-                            ctx.fillRect(-q - dotSize / 2, -dotSize / 2, dotSize, dotSize);
-                            ctx.fillRect(q - dotSize / 2, -dotSize / 2, dotSize, dotSize);
-                        }
-
-                        ctx.restore();
                     }
-                });
+                    return 'DEFAULT';
+                };
+                proj.update = function () {
+                    const v = this.velocity;
+                    v.x *= 0.94;
+                    v.y *= 0.94;
+                    this.x += v.x;
+                    this.y += v.y;
+                    const currentSpeed = Math.hypot(v.x, v.y);
+                    this._rotation = (this._rotation || 0) + currentSpeed * 0.05 + ((this._spinSpeed || 0.1) * 0.5);
+                    const l = this.life;
+                    if (l !== null) this.life = l - 1;
+                };
+                proj.draw = function () {
+                    const ctx = window.ctx;
+                    if (!ctx) return;
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this._rotation || 0);
+                    const size = this.radius * 2;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = this.color;
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(-this.radius, -this.radius, size, size);
+                    ctx.shadowBlur = 0;
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-this.radius, -this.radius, size, size);
+                    ctx.fillStyle = (this.color === '#ffffff' || this.color === '#fff') ? '#000000' : this.color;
+                    const dotSize = size / 5;
+                    const q = size / 4;
+                    const face = this._face || 1;
+                    if (face % 2 === 1) ctx.fillRect(-dotSize / 2, -dotSize / 2, dotSize, dotSize);
+                    if (face > 1) {
+                        ctx.fillRect(-q - dotSize / 2, -q - dotSize / 2, dotSize, dotSize);
+                        ctx.fillRect(q - dotSize / 2, q - dotSize / 2, dotSize, dotSize);
+                    }
+                    if (face > 3) {
+                        ctx.fillRect(q - dotSize / 2, -q - dotSize / 2, dotSize, dotSize);
+                        ctx.fillRect(-q - dotSize / 2, q - dotSize / 2, dotSize, dotSize);
+                    }
+                    if (face === 6) {
+                        ctx.fillRect(-q - dotSize / 2, -dotSize / 2, dotSize, dotSize);
+                        ctx.fillRect(q - dotSize / 2, -dotSize / 2, dotSize, dotSize);
+                    }
+                    ctx.restore();
+                };
             }
         }
 

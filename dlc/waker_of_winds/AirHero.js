@@ -1,6 +1,7 @@
 // #194 — explicit renderer imports (was: window-shim lookup).
 import { Boss } from '../../Boss.js';
 import { FloatingText } from '../../Entities/FloatingText.js';
+import { Projectile } from '../../Entities/Projectile.js';
 
 // Air Hero Logic
 // Name: AIR (Turquoise)
@@ -914,50 +915,51 @@ class AirHero {
         const baseRadius = player.stats.projectileSize * 1.5;
 
         const push = (props) => {
-            projectiles.push({
-                x: player.x, y: player.y,
-                vx: Math.cos(props.angle) * props.speed,
-                vy: Math.sin(props.angle) * props.speed,
-                owner: player,
-                life: props.life || 60,
-                damage: props.damage,
-                radius: props.radius || baseRadius,
-                knockback: 4,
-                color: props.color || '#e0f7fa',
-                type: 'WIND_BURST',
-                pierce: props.pierce || 0,
-                windStyle: props.windStyle || 'DEFAULT',
-                onHit: function () { return 'CONTINUE'; },
-                update: function () {
-                    this.x += this.vx; this.y += this.vy; this.life--;
-                    if (this.life <= 0) this.dead = true;
-                    if (typeof createExplosion !== 'undefined' && Math.random() < 0.3) createExplosion(this.x, this.y, '#e0f7fa', 2);
-                },
-                draw: function () {
-                    const ctx = window.ctx; if (!ctx) return;
-                    ctx.save(); ctx.translate(this.x, this.y);
-                    const rot = Math.atan2(this.vy, this.vx); ctx.rotate(rot);
-                    if (this.windStyle === 'SCATTER') {
-                        ctx.fillStyle = this.color; ctx.globalAlpha = 0.8; ctx.beginPath();
-                        for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * this.radius, Math.sin(a) * this.radius); }
-                        ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, this.radius * 0.4, 0, Math.PI * 2); ctx.fill();
-                    } else if (this.windStyle === 'LANCE') {
-                        ctx.fillStyle = '#fff'; ctx.shadowColor = this.color; ctx.shadowBlur = 10; ctx.beginPath();
-                        ctx.moveTo(this.radius * 2, 0); ctx.lineTo(-this.radius, -this.radius * 0.4); ctx.lineTo(-this.radius * 0.5, 0); ctx.lineTo(-this.radius, this.radius * 0.4); ctx.fill();
-                    } else if (this.windStyle === 'BLADE') {
-                        ctx.strokeStyle = this.color; ctx.lineWidth = 3; ctx.lineCap = 'round';
-                        ctx.beginPath(); ctx.arc(-this.radius, 0, this.radius * 1.5, -Math.PI / 3, Math.PI / 3); ctx.stroke();
-                    } else if (this.windStyle === 'ORB') {
-                        const spin = (Date.now() / 100) % (Math.PI * 2); ctx.rotate(-rot + spin);
-                        ctx.fillStyle = 'rgba(64,224,208,0.4)'; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
-                        ctx.strokeStyle = this.color; ctx.lineWidth = 2;
-                        for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI * 2 / 3); ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(this.radius, this.radius, this.radius * 1.2, 0); ctx.stroke(); }
-                    } else {
-                        ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
-                    }
-                    ctx.restore();
+            const projColor = props.color || '#e0f7fa';
+            const projRadius = props.radius || baseRadius;
+            const p = Projectile.acquire(
+                player.x, player.y,
+                { x: Math.cos(props.angle) * props.speed, y: Math.sin(props.angle) * props.speed },
+                props.damage, projColor, projRadius, 'WIND_BURST', 4, false
+            );
+            if (!p || (typeof p._slotIdx === 'function' && p._slotIdx() < 0)) return;
+            p.life = props.life || 60;
+            p.pierce = props.pierce || 0;
+            p.owner = player;
+            p._windStyle = props.windStyle || 'DEFAULT';
+            p.onHit = function () { return 'CONTINUE'; };
+            p.update = function () {
+                const v = this.velocity;
+                this.x += v.x; this.y += v.y;
+                const l = this.life;
+                if (l !== null) this.life = l - 1;
+                if (typeof createExplosion !== 'undefined' && Math.random() < 0.3) createExplosion(this.x, this.y, '#e0f7fa', 2);
+            };
+            p.draw = function () {
+                const ctx = window.ctx; if (!ctx) return;
+                ctx.save(); ctx.translate(this.x, this.y);
+                const v = this.velocity;
+                const rot = Math.atan2(v.y, v.x); ctx.rotate(rot);
+                if (this._windStyle === 'SCATTER') {
+                    ctx.fillStyle = this.color; ctx.globalAlpha = 0.8; ctx.beginPath();
+                    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * this.radius, Math.sin(a) * this.radius); }
+                    ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, this.radius * 0.4, 0, Math.PI * 2); ctx.fill();
+                } else if (this._windStyle === 'LANCE') {
+                    ctx.fillStyle = '#fff'; ctx.shadowColor = this.color; ctx.shadowBlur = 10; ctx.beginPath();
+                    ctx.moveTo(this.radius * 2, 0); ctx.lineTo(-this.radius, -this.radius * 0.4); ctx.lineTo(-this.radius * 0.5, 0); ctx.lineTo(-this.radius, this.radius * 0.4); ctx.fill();
+                } else if (this._windStyle === 'BLADE') {
+                    ctx.strokeStyle = this.color; ctx.lineWidth = 3; ctx.lineCap = 'round';
+                    ctx.beginPath(); ctx.arc(-this.radius, 0, this.radius * 1.5, -Math.PI / 3, Math.PI / 3); ctx.stroke();
+                } else if (this._windStyle === 'ORB') {
+                    const spin = (Date.now() / 100) % (Math.PI * 2); ctx.rotate(-rot + spin);
+                    ctx.fillStyle = 'rgba(64,224,208,0.4)'; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                    ctx.strokeStyle = this.color; ctx.lineWidth = 2;
+                    for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI * 2 / 3); ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(this.radius, this.radius, this.radius * 1.2, 0); ctx.stroke(); }
+                } else {
+                    ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
                 }
-            });
+                ctx.restore();
+            };
         };
 
         // NORTH: scatter shotgun (5-way)
@@ -1027,29 +1029,26 @@ class AirHero {
         const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier;
 
         // --- COMPASS ATTACK LOGIC ---
-        // Pushes to window.projectiles
+        // Spawns through ECS via Projectile.acquire — plain `.push({})` is a
+        // no-op on the slot-proxy sentinel and silently drops the shot.
         const spawnProj = (props) => {
             // ALTAR: Typhoon (c23) - Increased Knockback
             let finalKnockback = props.knockback || 4;
             if (has('c23')) finalKnockback *= 1.5;
 
-            const p = {
-                x: player.x,
-                y: player.y,
-                vx: Math.cos(props.angle) * props.speed,
-                vy: Math.sin(props.angle) * props.speed,
-                owner: player,
-                life: props.life || 60,
-                damage: props.damage,
-                radius: props.radius || (player.stats.projectileSize * 1.5),
-                knockback: finalKnockback,
-                color: props.color || "#e0f7fa",
-                type: 'WIND_BURST',
-                pierce: props.pierce || 0,
-                windStyle: props.windStyle || 'DEFAULT', // NEW: Style prop
-
-                // ALTAR ON-HIT EFFECTS
-                onHit: function (enemy) {
+            const projColor = props.color || '#e0f7fa';
+            const projRadius = props.radius || (player.stats.projectileSize * 1.5);
+            const p = Projectile.acquire(
+                player.x, player.y,
+                { x: Math.cos(props.angle) * props.speed, y: Math.sin(props.angle) * props.speed },
+                props.damage, projColor, projRadius, 'WIND_BURST', finalKnockback, false
+            );
+            if (!p || (typeof p._slotIdx === 'function' && p._slotIdx() < 0)) return;
+            p.life = props.life || 60;
+            p.pierce = props.pierce || 0;
+            p.owner = player;
+            p._windStyle = props.windStyle || 'DEFAULT';
+            p.onHit = function (enemy) {
                     // C22: Firestorm (Burn)
                     if (has('c22')) {
                         enemy.hp -= 5;
@@ -1083,126 +1082,93 @@ class AirHero {
                     }
 
                     return 'CONTINUE'; // Continue standard processing
-                },
-
-                update: function () {
-                    this.x += this.vx;
-                    this.y += this.vy;
-                    this.life--;
-                    if (this.life <= 0) this.dead = true;
-
-                    // WIND VISUAL (Particles Trail)
-                    if (typeof createExplosion !== 'undefined' && Math.random() < 0.3) {
-                        createExplosion(this.x, this.y, '#e0f7fa', 2);
-                    }
-                },
-                draw: function () {
-                    const ctx = window.ctx;
-                    if (!ctx) return;
-
-                    ctx.save();
-                    ctx.translate(this.x, this.y);
-
-                    const rot = Math.atan2(this.vy, this.vx);
-                    ctx.rotate(rot);
-
-                    if (this.windStyle === 'SCATTER') {
-                        // NORTH: HEALING SHOTGUN (Cloud/Mist particles)
-                        ctx.fillStyle = this.color;
-                        ctx.globalAlpha = 0.8;
-                        ctx.beginPath();
-                        // Draw a rough "cloud" shape
-                        for (let i = 0; i < 6; i++) {
-                            const a = (i / 6) * Math.PI * 2;
-                            const r = this.radius * (0.6 + Math.random() * 0.4);
-                            ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-                        }
-                        ctx.fill();
-
-                        // Inner detail
-                        ctx.fillStyle = '#fff';
-                        ctx.beginPath();
-                        ctx.arc(0, 0, this.radius * 0.4, 0, Math.PI * 2);
-                        ctx.fill();
-
-                    } else if (this.windStyle === 'LANCE') {
-                        // SOUTH: Sniper (Sharp Lance)
-                        // Glowing core
-                        ctx.fillStyle = '#fff';
-                        ctx.shadowColor = this.color;
-                        ctx.shadowBlur = 10;
-                        ctx.beginPath();
-                        ctx.moveTo(this.radius * 2, 0); // Tip
-                        ctx.lineTo(-this.radius, -this.radius * 0.4);
-                        ctx.lineTo(-this.radius * 0.5, 0);
-                        ctx.lineTo(-this.radius, this.radius * 0.4);
-                        ctx.fill();
-
-                        // Trailing lines
-                        ctx.shadowBlur = 0;
-                        ctx.strokeStyle = this.color;
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        ctx.moveTo(-this.radius * 2, 0);
-                        ctx.lineTo(-this.radius, 0);
-                        ctx.stroke();
-
-                    } else if (this.windStyle === 'BLADE') {
-                        // EAST: Rifle (Crescent Wind Blades)
-                        ctx.strokeStyle = this.color;
-                        ctx.lineWidth = 3;
-                        ctx.lineCap = 'round';
-
-                        // Curve
-                        ctx.beginPath();
-                        ctx.arc(-this.radius, 0, this.radius * 1.5, -Math.PI / 3, Math.PI / 3);
-                        ctx.stroke();
-
-                        // Inner white blade
-                        ctx.strokeStyle = '#fff';
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.arc(-this.radius, 0, this.radius * 1.5, -Math.PI / 4, Math.PI / 4);
-                        ctx.stroke();
-
-                    } else if (this.windStyle === 'ORB') {
-                        // WEST: Orb (Spinning Vortex)
-                        const spin = (Date.now() / 100) % (Math.PI * 2);
-
-                        // We must undo the velocity rotation to make it spin on its own axis relative to world,
-                        // OR adds to it. Let's start from 0 for local spin.
-                        ctx.rotate(-rot); // Reset direction rotation to spin locally freely? 
-                        // Actually, keep it moving, but spin visual:
-                        ctx.rotate(spin);
-
-                        // Core
-                        ctx.fillStyle = 'rgba(64, 224, 208, 0.4)';
-                        ctx.beginPath();
-                        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                        ctx.fill();
-
-                        // Arms
-                        ctx.strokeStyle = this.color;
-                        ctx.lineWidth = 2;
-                        for (let i = 0; i < 3; i++) {
-                            ctx.rotate((Math.PI * 2) / 3);
-                            ctx.beginPath();
-                            ctx.moveTo(0, 0);
-                            ctx.quadraticCurveTo(this.radius, this.radius, this.radius * 1.2, 0);
-                            ctx.stroke();
-                        }
-                    } else {
-                        // Default
-                        ctx.fillStyle = this.color;
-                        ctx.beginPath();
-                        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-
-                    ctx.restore();
+            };
+            p.update = function () {
+                const v = this.velocity;
+                this.x += v.x;
+                this.y += v.y;
+                const l = this.life;
+                if (l !== null) this.life = l - 1;
+                if (typeof createExplosion !== 'undefined' && Math.random() < 0.3) {
+                    createExplosion(this.x, this.y, '#e0f7fa', 2);
                 }
             };
-            if (projectiles) projectiles.push(p);
+            p.draw = function () {
+                const ctx = window.ctx;
+                if (!ctx) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                const v = this.velocity;
+                const rot = Math.atan2(v.y, v.x);
+                ctx.rotate(rot);
+                if (this._windStyle === 'SCATTER') {
+                    ctx.fillStyle = this.color;
+                    ctx.globalAlpha = 0.8;
+                    ctx.beginPath();
+                    for (let i = 0; i < 6; i++) {
+                        const a = (i / 6) * Math.PI * 2;
+                        const r = this.radius * (0.6 + Math.random() * 0.4);
+                        ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+                    }
+                    ctx.fill();
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (this._windStyle === 'LANCE') {
+                    ctx.fillStyle = '#fff';
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.moveTo(this.radius * 2, 0);
+                    ctx.lineTo(-this.radius, -this.radius * 0.4);
+                    ctx.lineTo(-this.radius * 0.5, 0);
+                    ctx.lineTo(-this.radius, this.radius * 0.4);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-this.radius * 2, 0);
+                    ctx.lineTo(-this.radius, 0);
+                    ctx.stroke();
+                } else if (this._windStyle === 'BLADE') {
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.arc(-this.radius, 0, this.radius * 1.5, -Math.PI / 3, Math.PI / 3);
+                    ctx.stroke();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(-this.radius, 0, this.radius * 1.5, -Math.PI / 4, Math.PI / 4);
+                    ctx.stroke();
+                } else if (this._windStyle === 'ORB') {
+                    const spin = (Date.now() / 100) % (Math.PI * 2);
+                    ctx.rotate(-rot);
+                    ctx.rotate(spin);
+                    ctx.fillStyle = 'rgba(64, 224, 208, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 3; i++) {
+                        ctx.rotate((Math.PI * 2) / 3);
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.quadraticCurveTo(this.radius, this.radius, this.radius * 1.2, 0);
+                        ctx.stroke();
+                    }
+                } else {
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            };
         };
 
         if (dir === 'NORTH') {

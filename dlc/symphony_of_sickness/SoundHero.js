@@ -1,4 +1,5 @@
 // #194 — explicit renderer imports (was: window-shim lookup).
+import { Projectile } from '../../Entities/Projectile.js';
 
 // Sound Hero (Light Blue) Logic
 // Playstyle: Rhythm/Timing based. Strong when synced, weak when off-beat.
@@ -771,39 +772,34 @@ class SoundHero {
             angles.push(baseAngle + offset);
         }
 
-        if (projectiles) {
-            angles.forEach(angle => {
-                projectiles.push({
-                    x: player.x, y: player.y,
-                    vx: Math.cos(angle) * 10,
-                    vy: Math.sin(angle) * 10,
-                    radius: 8 * scale,
-                    color: color,
-                    damage: dmg,
-                    knockback: player.stats.knockback || 0,
-                    life: 60,
-                    type: 'NOTE', owner: player,
-                    update: function () {
-                        this.x += this.vx;
-                        this.y += this.vy;
-                        this.life--;
-                        if (this.life <= 0) this.dead = true;
-                    },
-                    draw: function (ctx) {
-                        if (!ctx) ctx = window.ctx;
-                        if (!ctx) return;
-                        ctx.save();
-                        ctx.translate(this.x, this.y);
-                        ctx.fillStyle = this.color;
-                        ctx.font = (this.radius * 3) + 'px Arial';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText('♪', 0, 0);
-                        ctx.restore();
-                    }
-                });
-            });
-        }
+        angles.forEach(angle => {
+            const p = Projectile.acquire(
+                player.x, player.y,
+                { x: Math.cos(angle) * 10, y: Math.sin(angle) * 10 },
+                dmg, color, 8 * scale, 'NOTE', player.stats.knockback || 0, false
+            );
+            if (!p || (typeof p._slotIdx === 'function' && p._slotIdx() < 0)) return;
+            p.life = 60;
+            p.owner = player;
+            p.update = function () {
+                const v = this.velocity;
+                this.x += v.x; this.y += v.y;
+                const l = this.life;
+                if (l !== null) this.life = l - 1;
+            };
+            p.draw = function () {
+                const ctx = window.ctx;
+                if (!ctx) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.fillStyle = this.color;
+                ctx.font = (this.radius * 3) + 'px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('♪', 0, 0);
+                ctx.restore();
+            };
+        });
 
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
     }
@@ -827,43 +823,39 @@ class SoundHero {
             fanAngles.push(-0.28 * (i + 1), 0.28 * (i + 1));
         }
 
-        if (projectiles) {
-            fanAngles.forEach(offset => {
-                const angle = baseAngle + offset;
-                projectiles.push({
-                    x: player.x, y: player.y,
-                    vx: Math.cos(angle) * 7,
-                    vy: Math.sin(angle) * 7,
-                    radius: 8,
-                    color: '#00e5ff',
-                    damage: dmg,
-                    knockback: player.stats.knockback || 0,
-                    life: 48,
-                    type: 'WAVE', owner: player,
-                    update: function () {
-                        this.x += this.vx;
-                        this.y += this.vy;
-                        this.radius += 0.4;
-                        this.life--;
-                        if (this.life <= 0) this.dead = true;
-                    },
-                    draw: function () {
-                        const ctx = window.ctx;
-                        if (!ctx) return;
-                        ctx.save();
-                        ctx.globalAlpha = this.life / 48;
-                        ctx.strokeStyle = this.color;
-                        ctx.lineWidth = 2.5;
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = this.color;
-                        ctx.beginPath();
-                        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-                });
-            });
-        }
+        fanAngles.forEach(offset => {
+            const angle = baseAngle + offset;
+            const p = Projectile.acquire(
+                player.x, player.y,
+                { x: Math.cos(angle) * 7, y: Math.sin(angle) * 7 },
+                dmg, '#00e5ff', 8, 'WAVE', player.stats.knockback || 0, false
+            );
+            if (!p || (typeof p._slotIdx === 'function' && p._slotIdx() < 0)) return;
+            p.life = 48;
+            p.owner = player;
+            p.update = function () {
+                const v = this.velocity;
+                this.x += v.x; this.y += v.y;
+                this.radius += 0.4;
+                const l = this.life;
+                if (l !== null) this.life = l - 1;
+            };
+            p.draw = function () {
+                const ctx = window.ctx;
+                if (!ctx) return;
+                ctx.save();
+                const l = this.life;
+                ctx.globalAlpha = (l == null ? 0 : l) / 48;
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2.5;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            };
+        });
 
         player.rangeCooldown = player.stats.rangeCd * player.cooldownMultiplier;
     }
@@ -888,37 +880,37 @@ class SoundHero {
         const baseAngle = Math.atan2(dy, dx);
         const offsets = isOnBeat ? [-0.5, -0.25, 0, 0.25, 0.5, -0.75, 0.75] : [-0.4, -0.2, 0, 0.2, 0.4];
 
-        if (projectiles) {
-            offsets.forEach(offset => {
-                const angle = baseAngle + offset;
-                const note = isOnBeat ? '♫' : '♪';
-                projectiles.push({
-                    x: player.x, y: player.y,
-                    vx: Math.cos(angle) * 11, vy: Math.sin(angle) * 11,
-                    radius: 11,
-                    color: '#00e5ff', damage: dmg,
-                    knockback: player.stats.knockback || 0,
-                    life: 65, type: 'FINALE_NOTE', owner: player,
-                    _note: note,
-                    update: function () {
-                        this.x += this.vx; this.y += this.vy;
-                        this.radius += 0.25; this.life--;
-                        if (this.life <= 0) this.dead = true;
-                    },
-                    draw: function () {
-                        const ctx = window.ctx; if (!ctx) return;
-                        ctx.save();
-                        ctx.shadowBlur = 18; ctx.shadowColor = '#00e5ff';
-                        ctx.fillStyle = '#00e5ff';
-                        ctx.font = (this.radius * 2.2) + 'px Arial';
-                        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                        ctx.fillText(this._note, this.x, this.y);
-                        ctx.shadowBlur = 0;
-                        ctx.restore();
-                    }
-                });
-            });
-        }
+        offsets.forEach(offset => {
+            const angle = baseAngle + offset;
+            const note = isOnBeat ? '♫' : '♪';
+            const p = Projectile.acquire(
+                player.x, player.y,
+                { x: Math.cos(angle) * 11, y: Math.sin(angle) * 11 },
+                dmg, '#00e5ff', 11, 'FINALE_NOTE', player.stats.knockback || 0, false
+            );
+            if (!p || (typeof p._slotIdx === 'function' && p._slotIdx() < 0)) return;
+            p.life = 65;
+            p.owner = player;
+            p._note = note;
+            p.update = function () {
+                const v = this.velocity;
+                this.x += v.x; this.y += v.y;
+                this.radius += 0.25;
+                const l = this.life;
+                if (l !== null) this.life = l - 1;
+            };
+            p.draw = function () {
+                const ctx = window.ctx; if (!ctx) return;
+                ctx.save();
+                ctx.shadowBlur = 18; ctx.shadowColor = '#00e5ff';
+                ctx.fillStyle = '#00e5ff';
+                ctx.font = (this.radius * 2.2) + 'px Arial';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(this._note, this.x, this.y);
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            };
+        });
 
         if (isOnBeat) {
             audioManager?.play('attack_sound_crit');
@@ -932,35 +924,35 @@ class SoundHero {
         const { projectiles, audioManager } = _w ?? {};
 
         const dmg = (player.stats.rangeDmg || 10) * player.damageMultiplier * 2.0;
-        if (projectiles) {
-            for (let i = 0; i < 8; i++) {
-                const angle = (i / 8) * Math.PI * 2;
-                projectiles.push({
-                    x: player.x, y: player.y,
-                    vx: Math.cos(angle) * 9, vy: Math.sin(angle) * 9,
-                    radius: 9,
-                    color: '#ffffff', damage: dmg,
-                    knockback: player.stats.knockback || 0,
-                    life: 55, type: 'OMNI_NOTE', owner: player,
-                    update: function () {
-                        this.x += this.vx; this.y += this.vy;
-                        this.life--;
-                        if (this.life <= 0) this.dead = true;
-                    },
-                    draw: function () {
-                        const ctx = window.ctx; if (!ctx) return;
-                        ctx.save();
-                        ctx.globalAlpha = this.life / 55;
-                        ctx.shadowBlur = 12; ctx.shadowColor = '#ffffff';
-                        ctx.fillStyle = '#ffffff';
-                        ctx.font = '20px Arial';
-                        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                        ctx.fillText('♩', this.x, this.y);
-                        ctx.shadowBlur = 0;
-                        ctx.restore();
-                    }
-                });
-            }
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const p = Projectile.acquire(
+                player.x, player.y,
+                { x: Math.cos(angle) * 9, y: Math.sin(angle) * 9 },
+                dmg, '#ffffff', 9, 'OMNI_NOTE', player.stats.knockback || 0, false
+            );
+            if (!p || (typeof p._slotIdx === 'function' && p._slotIdx() < 0)) continue;
+            p.life = 55;
+            p.owner = player;
+            p.update = function () {
+                const v = this.velocity;
+                this.x += v.x; this.y += v.y;
+                const l = this.life;
+                if (l !== null) this.life = l - 1;
+            };
+            p.draw = function () {
+                const ctx = window.ctx; if (!ctx) return;
+                ctx.save();
+                const l = this.life;
+                ctx.globalAlpha = (l == null ? 0 : l) / 55;
+                ctx.shadowBlur = 12; ctx.shadowColor = '#ffffff';
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('♩', this.x, this.y);
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            };
         }
         audioManager?.play('attack_sound_sync_' + (Math.floor(Math.random() * 4) + 1));
     }
@@ -990,91 +982,78 @@ class SoundHero {
         const hasToxFreq = ringHas('cv_so_po');
         let ringHealCount = 0;
 
-        projectiles.push({
-            x: player.x, y: player.y,
-            radius: 30,
-            damage: dmg,
-            color: '#00e5ff',
-            life: 120,       // 2 seconds to expand
-            type: 'CRESCENDO_RING',
-            owner: player,
-            hitEnemies: [],
-            onHit() { return 'STOP'; }, // Bypass standard circle collision — ring handles its own hit detection in update()
-            update() {
-                // Expand from 30 → 950 over 120 frames
-                this.radius += (950 - 30) / 120;
-                this.life--;
-                if (this.life <= 0) { this.dead = true; return; }
-                const _enemies = _w?.enemies;
-                if (!_enemies) return;
-                _enemies.forEach(e => {
-                    if (e.hp <= 0 || this.hitEnemies.includes(e)) return;
-                    const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                    if (Math.abs(dist - this.radius) < 28) {
-                        this.hitEnemies.push(e);
-                        if (saveData) {
-                            saveData.global.sound_crescendo_hits = (saveData.global.sound_crescendo_hits || 0) + 1;
-                        }
-
-                        // so3: Resonance Surge — double damage to already-resonating enemies
-                        let hitDmg = this.damage;
-                        if (hasSurge && e.resonating > 0) hitDmg *= 2;
-
-                        if (typeof e.takeDamage === 'function') e.takeDamage(hitDmg);
-                        else e.hp -= hitDmg;
-                        e.resonating = 180; // 3 seconds resonating
-                        // Knockback away from epicenter
-                        const a = Math.atan2(e.y - this.y, e.x - this.x);
-                        e.x += Math.cos(a) * 80;
-                        e.y += Math.sin(a) * 80;
-                        if (typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y, Math.floor(hitDmg), '#00e5ff');
-                        if (createExplosion) createExplosion(e.x, e.y, '#4fc3f7', 20);
-
-                        // cv_so_f: Resonant Flame — ignite hit enemies
-                        if (hasFlame) e.burnTimer = Math.max(e.burnTimer || 0, 120);
-
-                        // cv_so_i: Cryosonic — freeze hit enemies for 1.5s
-                        if (hasCryo) e.frozen = Math.max(e.frozen || 0, 90);
-
-                        // cv_so_po: Toxic Frequency — apply 30 poison stacks
-                        if (hasToxFreq) e.poisonStacks = Math.min((e.poisonStacks || 0) + 30, 100);
-
-                        // cv_so_p: Resonant Roots — track hits to heal after
-                        if (hasRoots) ringHealCount++;
+        const ring = Projectile.acquire(
+            player.x, player.y,
+            { x: 0, y: 0 },
+            dmg, '#00e5ff', 30, 'CRESCENDO_RING', 0, false
+        );
+        if (!ring || (typeof ring._slotIdx === 'function' && ring._slotIdx() < 0)) return;
+        ring.life = 120;
+        ring.pierce = 9999;
+        ring.owner = player;
+        ring._hitEnemies = [];
+        ring.onHit = function () { return 'STOP'; };
+        ring.update = function () {
+            this.radius += (950 - 30) / 120;
+            const l = this.life;
+            if (l !== null) this.life = l - 1;
+            if ((this.life || 0) <= 0) return;
+            const _enemies = _w?.enemies;
+            if (!_enemies) return;
+            const hits = this._hitEnemies || [];
+            _enemies.forEach(e => {
+                if (e.hp <= 0 || hits.includes(e)) return;
+                const dist = Math.hypot(e.x - this.x, e.y - this.y);
+                if (Math.abs(dist - this.radius) < 28) {
+                    hits.push(e);
+                    if (saveData) {
+                        saveData.global.sound_crescendo_hits = (saveData.global.sound_crescendo_hits || 0) + 1;
                     }
-                });
-
-                // cv_so_p: Resonant Roots — heal player 1 HP per enemy hit this frame
-                if (hasRoots && ringHealCount > 0 && player && player.hp < player.maxHp) {
-                    if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
-                        player.hp = Math.min(player.maxHp, player.hp + ringHealCount);
-                    }
-                    ringHealCount = 0;
+                    let hitDmg = this.damage;
+                    if (hasSurge && e.resonating > 0) hitDmg *= 2;
+                    if (typeof e.takeDamage === 'function') e.takeDamage(hitDmg);
+                    else e.hp -= hitDmg;
+                    e.resonating = 180;
+                    const a = Math.atan2(e.y - this.y, e.x - this.x);
+                    e.x += Math.cos(a) * 80;
+                    e.y += Math.sin(a) * 80;
+                    if (typeof createDamageNumber === 'function') createDamageNumber(e.x, e.y, Math.floor(hitDmg), '#00e5ff');
+                    if (createExplosion) createExplosion(e.x, e.y, '#4fc3f7', 20);
+                    if (hasFlame) e.burnTimer = Math.max(e.burnTimer || 0, 120);
+                    if (hasCryo) e.frozen = Math.max(e.frozen || 0, 90);
+                    if (hasToxFreq) e.poisonStacks = Math.min((e.poisonStacks || 0) + 30, 100);
+                    if (hasRoots) ringHealCount++;
                 }
-            },
-            draw() {
-                const ctx = window.ctx; if (!ctx) return;
-                const t = this.life / 120; // 1 → 0 as ring expands
-                ctx.save();
-                // Outer bright ring
-                ctx.globalAlpha = t * 0.85;
-                ctx.shadowBlur = 30; ctx.shadowColor = '#00e5ff';
-                ctx.strokeStyle = '#00e5ff';
-                ctx.lineWidth = 6 + (1 - t) * 6;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.stroke();
-                // Inner glow trail
-                ctx.globalAlpha = t * 0.35;
-                ctx.lineWidth = 2;
-                ctx.shadowBlur = 0;
-                ctx.strokeStyle = '#b2ebf2';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius - 14, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.restore();
+            });
+            this._hitEnemies = hits;
+            if (hasRoots && ringHealCount > 0 && player && player.hp < player.maxHp) {
+                if (typeof isChaosActive === 'function' && !isChaosActive('NO_REGEN')) {
+                    player.hp = Math.min(player.maxHp, player.hp + ringHealCount);
+                }
+                ringHealCount = 0;
             }
-        });
+        };
+        ring.draw = function () {
+            const ctx = window.ctx; if (!ctx) return;
+            const l = this.life;
+            const t = (l == null ? 0 : l) / 120;
+            ctx.save();
+            ctx.globalAlpha = t * 0.85;
+            ctx.shadowBlur = 30; ctx.shadowColor = '#00e5ff';
+            ctx.strokeStyle = '#00e5ff';
+            ctx.lineWidth = 6 + (1 - t) * 6;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = t * 0.35;
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#b2ebf2';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius - 14, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
