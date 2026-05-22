@@ -258,8 +258,8 @@ window.HERO_LOGIC['smoke'] = {
         }
 
         if (typeof createExplosion === 'function') {
-            createExplosion(player.x, player.y, '#9a6bd6', 70);
-            createExplosion(player.x, player.y, '#0f0f14', 50);
+            createExplosion(player.x, player.y, '#8a8a96', 70);
+            createExplosion(player.x, player.y, '#1a1a20', 50);
         }
 
         // Drop a big cloud at player position
@@ -433,29 +433,29 @@ window.HERO_LOGIC['smoke'] = {
                     ctx.save();
                     ctx.translate(c.x, c.y);
                     const grad = ctx.createRadialGradient(0, 0, 5, 0, 0, c.radius);
-                    grad.addColorStop(0,    `rgba(25, 12, 40, ${alpha * 0.95})`);
-                    grad.addColorStop(0.45, `rgba(90, 45, 150, ${alpha * 0.55})`);
-                    grad.addColorStop(0.85, `rgba(45, 20, 80, ${alpha * 0.25})`);
-                    grad.addColorStop(1,    `rgba(20, 10, 35, 0)`);
+                    grad.addColorStop(0,    `rgba(20, 20, 26, ${alpha * 0.95})`);
+                    grad.addColorStop(0.45, `rgba(70, 70, 82, ${alpha * 0.55})`);
+                    grad.addColorStop(0.85, `rgba(40, 40, 50, ${alpha * 0.25})`);
+                    grad.addColorStop(1,    `rgba(18, 18, 24, 0)`);
                     ctx.fillStyle = grad;
                     ctx.beginPath();
                     ctx.arc(0, 0, c.radius * pulse, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.strokeStyle = `rgba(180, 120, 230, ${alpha * 0.8})`;
+                    ctx.strokeStyle = `rgba(160, 160, 175, ${alpha * 0.8})`;
                     ctx.lineWidth = 2.5;
                     ctx.beginPath();
                     ctx.arc(0, 0, c.radius * 0.95, 0, Math.PI * 2);
                     ctx.stroke();
                     ctx.save();
                     ctx.rotate(t * 0.025);
-                    ctx.strokeStyle = `rgba(220, 180, 255, ${alpha * 0.6})`;
+                    ctx.strokeStyle = `rgba(210, 210, 220, ${alpha * 0.6})`;
                     ctx.lineWidth = 2;
                     ctx.beginPath();
                     ctx.arc(0, 0, c.radius * 0.7, 0, Math.PI * 1.5);
                     ctx.stroke();
                     ctx.restore();
                     ctx.rotate(-t * 0.018);
-                    ctx.strokeStyle = `rgba(160, 100, 220, ${alpha * 0.45})`;
+                    ctx.strokeStyle = `rgba(130, 130, 145, ${alpha * 0.45})`;
                     ctx.lineWidth = 1.5;
                     ctx.beginPath();
                     ctx.arc(0, 0, c.radius * 0.5, 0, Math.PI * 1.7);
@@ -492,12 +492,12 @@ window.HERO_LOGIC['smoke'] = {
             const r = sw.baseRadius * (1 + prog * 1.4);
             const a = sw.life / sw.maxLife;
             ctx.save();
-            ctx.strokeStyle = `rgba(200, 150, 255, ${a * 0.85})`;
+            ctx.strokeStyle = `rgba(180, 180, 195, ${a * 0.85})`;
             ctx.lineWidth = 4 * a + 1;
             ctx.beginPath();
             ctx.arc(sw.x, sw.y, r, 0, Math.PI * 2);
             ctx.stroke();
-            ctx.strokeStyle = `rgba(255, 230, 255, ${a * 0.5})`;
+            ctx.strokeStyle = `rgba(235, 235, 240, ${a * 0.5})`;
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.arc(sw.x, sw.y, r * 0.96, 0, Math.PI * 2);
@@ -514,7 +514,7 @@ window.HERO_LOGIC['smoke'] = {
                 const a = Math.min(1, e._smokeBlind / 60);
                 ctx.save();
                 ctx.translate(e.x, e.y - r - 8);
-                ctx.strokeStyle = `rgba(200, 150, 255, ${a})`;
+                ctx.strokeStyle = `rgba(180, 180, 195, ${a})`;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(-4, -4); ctx.lineTo(4, 4);

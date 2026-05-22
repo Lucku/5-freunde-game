@@ -35,6 +35,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // the raw files into dist/ would duplicate them at stale paths.
 const STATIC_DIRS = ['audio', 'images'];
 
+// DLC asset subdirs (images/, audio/) are referenced at runtime via plain
+// string paths like `dlc/waker_of_winds/images/title.png` — they are NOT in
+// the Vite module graph, so we must mirror them into dist/ ourselves. Only
+// non-JS assets are copied; .js files are bundled by import.meta.glob and
+// duplicating them at raw paths would ship stale code.
+const DLC_ASSET_SUBDIRS = ['images', 'audio'];
+
 export default defineConfig({
     root: __dirname,
     publicDir: false, // we copy static dirs manually below
@@ -70,6 +77,26 @@ export default defineConfig({
                     const dst = path.resolve(__dirname, 'dist', d);
                     if (fs.existsSync(src)) {
                         fs.cpSync(src, dst, { recursive: true });
+                    }
+                }
+
+                // Mirror each DLC's static asset subdirs (images/, audio/)
+                // into dist/dlc/<id>/<sub>/. DLCs reference these via plain
+                // string paths at runtime; without this step the packaged
+                // build 404s and falls back to base-game assets (e.g. story
+                // title image always shows base game title).
+                const dlcRoot = path.resolve(__dirname, 'dlc');
+                if (fs.existsSync(dlcRoot)) {
+                    for (const dlcId of fs.readdirSync(dlcRoot)) {
+                        const dlcDir = path.join(dlcRoot, dlcId);
+                        if (!fs.statSync(dlcDir).isDirectory()) continue;
+                        for (const sub of DLC_ASSET_SUBDIRS) {
+                            const src = path.join(dlcDir, sub);
+                            const dst = path.resolve(__dirname, 'dist', 'dlc', dlcId, sub);
+                            if (fs.existsSync(src)) {
+                                fs.cpSync(src, dst, { recursive: true });
+                            }
+                        }
                     }
                 }
 
