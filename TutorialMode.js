@@ -1,5 +1,8 @@
 // #194 phase 2 — explicit imports for symbols previously read off window shims.
 import { Player } from './Player.js';
+import { runState } from './RunState.js';
+import { clearParticles } from './core/systems/particleSystem.js';
+import { clearFloatingTexts } from './core/systems/floatingTextSystem.js';
 
 // TutorialMode.js — Playable Tutorial Mode Orchestrator
 // 5 waves total, one per base hero. Each wave = 1 objective → boss fight → next hero.
@@ -158,10 +161,13 @@ const TutorialMode = {
 
         // Reset wave-level state so closeStory() → advanceWave() restarts cleanly.
         // #11 phase 2 — mutate-in-place keeps runState.X identity stable.
+        // particles + floatingTexts are ECS sentinels with a read-only `length`
+        // getter — assigning .length=0 throws under ESM strict mode, so use the
+        // typed-array clear helpers directly.
         window.enemies.length = 0;
         window.projectiles.length = 0;
-        window.particles.length = 0;
-        window.floatingTexts.length = 0;
+        clearParticles(runState);
+        clearFloatingTexts(runState);
         window.wave = 0;
         window.bossActive = false;
         window.bossDeathTimer = 0;
