@@ -291,7 +291,10 @@ function _pollGamepad(ts) {
     if (!_editing) return;
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     let gp = null;
-    for (const p of pads) { if (p && p.connected) { gp = p; break; } }
+    // Filter phantom USB receivers / non-controller HID devices the same way
+    // handleGamepadMenu does — without this, a dead pad at index 0 swallows
+    // the poll and the real controller (higher index) can't drive edit mode.
+    for (const p of pads) { if (window.isRealGamepad ? window.isRealGamepad(p) : (p && p.connected)) { gp = p; break; } }
 
     if (gp) {
         const pressed = new Set();

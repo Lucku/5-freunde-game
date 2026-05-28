@@ -2,6 +2,7 @@
 
 import { CompletionMenu } from './CompletionMenu.js';
 import { drawHeroSprite, shadeColor } from './Utils.js';
+import { MenuBackground } from './UI/MenuBackground.js';
 
 // Room-aware dialogue: MUSEUM_DIALOGUES[heroType][roomName] or [heroType].generic
 const MUSEUM_DIALOGUES = {
@@ -2413,14 +2414,14 @@ class MuseumEntity {
 
 // Global Museum Helpers
 window.openMuseum = function () {
-    if (typeof MenuBackground !== 'undefined') MenuBackground.stop();
+    MenuBackground.stop();
     document.getElementById('menu-overlay').style.display = 'none';
     window.museum = new Museum();
     if (window.setUIState) window.setUIState('MUSEUM');
 };
 
 window.openGlobalLobby = function (heroType) {
-    if (typeof MenuBackground !== 'undefined') MenuBackground.stop();
+    MenuBackground.stop();
     document.getElementById('menu-overlay').style.display = 'none';
     const screen = document.getElementById('online-lobby-screen');
     if (screen) screen.style.display = 'none';

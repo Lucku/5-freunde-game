@@ -307,11 +307,17 @@ class AudioManager {
             const Ctor = window.AudioContext || window.webkitAudioContext;
             if (!Ctor) return null;
             this._audioCtx = new Ctor();
+        }
+        // Filter + ducking gain stage may be missing when `_audioCtx` was
+        // pre-created by `_ensureAudioCtx()` (SFX prewarm / buffer playback).
+        // Without this, `source.connect(this._musicFilter)` below throws on
+        // the first duck pulse — `createMediaElementSource` has already
+        // rerouted the track, so the music goes permanently silent.
+        if (!this._musicFilter) {
             this._musicFilter = this._audioCtx.createBiquadFilter();
             this._musicFilter.type = 'lowpass';
             this._musicFilter.frequency.value = 22050; // wide open
             this._musicFilter.Q.value = 0.8;
-            // #126 — ducking gain stage between filter and destination.
             this._musicGain = this._audioCtx.createGain();
             this._musicGain.gain.value = 1.0;
             this._musicFilter.connect(this._musicGain);
