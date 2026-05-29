@@ -20,9 +20,11 @@ export const MAX_POWERUPS = 16;
 export const POWERUP_RADIUS = 15;
 const POWERUP_TIMER_INIT = 600;
 
-// One palette + one symbol per type, indexed by Uint8 ordinal.
+// One palette per type, indexed by Uint8 ordinal (HEAL/MAXHP/SPEED/MULTI/AUTOAIM).
 const _COLORS  = ['#2ecc71', '#e74c3c', '#f1c40f', '#3498db', '#9b59b6'];
-const _SYMBOLS = ['+',       '♥',       '⚡',      '⁙',       '🎯'];
+// #48 — icons are drawn as procedural vector shapes (see drawPowerUpIcon) instead
+// of emoji/glyphs. `♥ ⚡ ⁙ 🎯` rendered inconsistently across Windows/Linux/Steam
+// Deck (mono vs color vs tofu); white vector shapes render identically everywhere.
 
 export function initPowerUps(rs) {
     rs.powerUpX        = new Float32Array(MAX_POWERUPS);
@@ -100,11 +102,71 @@ export function drawPowerUps(ctx, rs) {
         ctx.beginPath();
         ctx.arc(0, 0, POWERUP_RADIUS, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 16px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(_SYMBOLS[ti], 0, 1);
+        ctx.shadowBlur = 0; // icon strokes/fills shouldn't bloom like the disc
+        drawPowerUpIcon(ctx, ti, POWERUP_RADIUS);
         ctx.restore();
+    }
+}
+
+// #48 — per-type white vector icons, replacing the old emoji/glyph fillText.
+// Drawn centered at (0,0); caller has already translated to the powerup.
+// HEAL=cross · MAXHP=heart · SPEED=lightning · MULTI=three dots · AUTOAIM=target.
+function drawPowerUpIcon(ctx, ti, r) {
+    ctx.fillStyle = 'white';
+    ctx.strokeStyle = 'white';
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    const s = r * 0.62; // icon half-extent
+    switch (ti) {
+        case 0: { // HEAL — plus / cross
+            const t = s * 0.40; // arm half-thickness
+            ctx.beginPath();
+            ctx.rect(-t, -s, t * 2, s * 2);
+            ctx.rect(-s, -t, s * 2, t * 2);
+            ctx.fill();
+            break;
+        }
+        case 1: { // MAXHP — heart
+            const w = s * 1.05, h = s;
+            ctx.beginPath();
+            ctx.moveTo(0, h * 0.62);
+            ctx.bezierCurveTo(w, -h * 0.18, w * 0.5, -h, 0, -h * 0.32);
+            ctx.bezierCurveTo(-w * 0.5, -h, -w, -h * 0.18, 0, h * 0.62);
+            ctx.fill();
+            break;
+        }
+        case 2: { // SPEED — lightning bolt
+            ctx.beginPath();
+            ctx.moveTo(s * 0.18, -s);
+            ctx.lineTo(-s * 0.50, s * 0.12);
+            ctx.lineTo(-s * 0.04, s * 0.12);
+            ctx.lineTo(-s * 0.22, s);
+            ctx.lineTo(s * 0.56, -s * 0.18);
+            ctx.lineTo(s * 0.06, -s * 0.18);
+            ctx.closePath();
+            ctx.fill();
+            break;
+        }
+        case 3: { // MULTI — three dots (multishot)
+            const dr = s * 0.30;
+            for (const dx of [-s * 0.58, 0, s * 0.58]) {
+                ctx.beginPath();
+                ctx.arc(dx, 0, dr, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            break;
+        }
+        case 4: { // AUTOAIM — target / crosshair
+            ctx.lineWidth = Math.max(2, r * 0.13);
+            ctx.beginPath(); ctx.arc(0, 0, s * 0.82, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, 0, s * 0.34, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(-s, 0);        ctx.lineTo(-s * 0.55, 0);
+            ctx.moveTo(s * 0.55, 0);  ctx.lineTo(s, 0);
+            ctx.moveTo(0, -s);        ctx.lineTo(0, -s * 0.55);
+            ctx.moveTo(0, s * 0.55);  ctx.lineTo(0, s);
+            ctx.stroke();
+            break;
+        }
     }
 }

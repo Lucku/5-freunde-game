@@ -2,6 +2,7 @@
 // #5 phase 5.9 — Companion class replaced by ECS system.
 import { runState } from './RunState.js';
 import { BASE_HERO_STATS, CHAOS_OBJECTIVES, CHAOS_REWARDS } from './Constants.js';
+import { iconHTML } from './Icons.js'; // #48 — cross-platform vector icons
 import {
     spawnCompanion, killCompanion, findCompanionByType,
 } from './core/systems/companionSystem.js';
@@ -422,7 +423,7 @@ function updateChaosObjective(dt) {
     hud.style.display = 'block';
 
     // Render Content
-    const rewardHtml = `<span style="margin-left:8px; color:#f1c40f; border:1px solid #f1c40f; padding:2px 5px; border-radius:4px; font-size:12px;">${obj.reward.icon} ${obj.reward.name}</span>`;
+    const rewardHtml = `<span style="margin-left:8px; color:#f1c40f; border:1px solid #f1c40f; padding:2px 5px; border-radius:4px; font-size:12px;">${iconHTML(obj.reward.icon, 14)} ${obj.reward.name}</span>`;
 
     let statusText = "";
     // Time limit check
@@ -515,7 +516,7 @@ function completeChaosObjective(success) {
         if (hud) {
             hud.style.display = 'block';
             hud.style.color = '#2ecc71';
-            hud.innerHTML = `COMPLETE: ${reward.icon} ${reward.name} (Streak: ${state.chaosObjectiveStreak})`;
+            hud.innerHTML = `COMPLETE: ${iconHTML(reward.icon, 14)} ${reward.name} (Streak: ${state.chaosObjectiveStreak})`;
         }
         showNotification(`CHALLENGE COMPLETE! ${reward.icon} ${reward.name}`);
         createExplosion(player.x, player.y, '#2ecc71', 30);

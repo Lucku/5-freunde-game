@@ -15,9 +15,11 @@
     "preview": "vite preview",
     "lint": "eslint . --ext .js,.mjs --max-warnings 95",
     "lint:fix": "eslint . --ext .js,.mjs --fix",
-    "test": "vitest run --passWithNoTests && node server/simulation/parityTest.js",
+    "test": "vitest run --passWithNoTests && node server/simulation/parityTest.js && node scripts/replay.js verify",
     "test:watch": "vitest",
     "test:smoke": "vitest run tests/smoke --passWithNoTests",
+    "test:replay": "node scripts/replay.js verify",
+    "test:replay:record": "node scripts/replay.js record",
     "test:headless": "node scripts/nightly-headless.js",
     "admin-hash": "node scripts/admin-hash.js"
   },

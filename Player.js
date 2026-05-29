@@ -7,6 +7,7 @@ import { ACHIEVEMENTS } from './Constants.js';
 
 import { MeleeSwipe } from './Entities/MeleeSwipe.js';
 import { HumanController } from './Entities/PlayerController.js'; // #171 Phase 2 — was window.HumanController
+import { runState } from './RunState.js'; // #147/#196 — seeded RNG for deterministic crit/spread
 import { TutorialMode } from './TutorialMode.js';
 
 class Player {
@@ -1366,7 +1367,7 @@ class Player {
                 dmg *= 1.5; color = '#000'; cooldown = 20 * this.cooldownMultiplier;
                 pierce += 10; // Ult pierce
             } else if (this.currentForm === 'LAVA') {
-                shots.push(angle + (Math.random() - 0.5) * 0.1);
+                shots.push(angle + (runState.rng() - 0.5) * 0.1);
                 cooldown = 3 * this.cooldownMultiplier; dmg *= 0.8; color = '#e67e22';
             } else if (this.currentForm === 'CREEPER') {
                 shots.push(angle);
@@ -1386,7 +1387,7 @@ class Player {
             }
 
             // Fire Hero Special Trait
-            if (this.type === 'fire' && Math.random() < (this.stats.explodeChance || 0)) {
+            if (this.type === 'fire' && runState.rng() < (this.stats.explodeChance || 0)) {
                 isExplosive = true;
                 color = '#e67e22'; // Orange tint for explosive shots
                 size *= 1.5; // Increase size for explosion
@@ -1396,7 +1397,7 @@ class Player {
 
         shots.forEach(a => {
             // Calculate Crit
-            const isCrit = Math.random() < this.critChance;
+            const isCrit = runState.rng() < this.critChance;
             const finalDmg = dmg * (isCrit ? this.critMultiplier : 1);
 
             const vel = { x: Math.cos(a) * speed, y: Math.sin(a) * speed };
@@ -1409,11 +1410,11 @@ class Player {
             if (!this.transformActive) {
                 for (let i = 1; i <= this.extraProjectiles; i++) {
                     // Extra projectiles also roll for crit independently
-                    const isExtraCrit = Math.random() < this.critChance;
+                    const isExtraCrit = runState.rng() < this.critChance;
                     const extraDmg = dmg * (isExtraCrit ? this.critMultiplier : 1);
 
                     // Add slight spread to extra projectiles so they are visible
-                    const spreadAngle = (Math.random() - 0.5) * 0.2; // +/- 0.1 radians (~5.7 degrees)
+                    const spreadAngle = (runState.rng() - 0.5) * 0.2; // +/- 0.1 radians (~5.7 degrees)
                     const spreadVel = {
                         x: Math.cos(angle + spreadAngle) * speed,
                         y: Math.sin(angle + spreadAngle) * speed
@@ -1456,7 +1457,7 @@ class Player {
 
         const angle = this.aimAngle; // Use stored aim angle
 
-        const isCrit = Math.random() < this.critChance;
+        const isCrit = runState.rng() < this.critChance;
         const finalDmg = this.stats.meleeDmg * this.damageMultiplier * (isCrit ? this.critMultiplier : 1);
 
         meleeAttacks.push(MeleeSwipe.acquire(this.x, this.y, angle, finalDmg, this.stats.color, this.meleeRadius, isCrit, this));

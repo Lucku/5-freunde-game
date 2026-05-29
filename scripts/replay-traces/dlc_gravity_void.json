@@ -1,0 +1,34 @@
+{
+  "scenario": {
+    "name": "dlc_gravity_void",
+    "rngSeed": 4242,
+    "inputSeed": 31,
+    "hostHero": "gravity",
+    "guestHero": "void",
+    "mode": "NORMAL",
+    "ticks": 720
+  },
+  "fingerprint": {
+    "wave": 1,
+    "score": 0,
+    "frame": 721,
+    "enemies": 10,
+    "projectiles": 1,
+    "host": {
+      "hp": 60,
+      "x": 2355.34,
+      "y": 2980,
+      "level": 1,
+      "xp": 0,
+      "dead": false
+    },
+    "guest": {
+      "hp": 75,
+      "x": 2432.59,
+      "y": 2943.67,
+      "level": 1,
+      "xp": 0,
+      "dead": false
+    }
+  }
+}

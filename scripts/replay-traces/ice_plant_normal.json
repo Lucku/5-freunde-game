@@ -1,0 +1,34 @@
+{
+  "scenario": {
+    "name": "ice_plant_normal",
+    "rngSeed": 90210,
+    "inputSeed": 7,
+    "hostHero": "ice",
+    "guestHero": "plant",
+    "mode": "NORMAL",
+    "ticks": 900
+  },
+  "fingerprint": {
+    "wave": 1,
+    "score": 0,
+    "frame": 901,
+    "enemies": 10,
+    "projectiles": 12,
+    "host": {
+      "hp": 50,
+      "x": 1437.92,
+      "y": 62.46,
+      "level": 1,
+      "xp": 20,
+      "dead": false
+    },
+    "guest": {
+      "hp": 70,
+      "x": 1030.15,
+      "y": 1892.44,
+      "level": 1,
+      "xp": 0,
+      "dead": false
+    }
+  }
+}

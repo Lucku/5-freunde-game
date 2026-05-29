@@ -1,4 +1,5 @@
 // #194 phase 2 — explicit imports for symbols previously read off window shims.
+import { iconHTML } from '../Icons.js'; // #48 — cross-platform vector icons
 
 class LevelUpUI {
     constructor() {
@@ -41,7 +42,7 @@ class LevelUpUI {
             const card = document.createElement('div');
             card.className = 'upgrade-card';
             card.innerHTML = `
-                <div class="upgrade-icon">${displayOpt.icon}</div>
+                <div class="upgrade-icon">${iconHTML(displayOpt.icon, 34)}</div>
                 <div class="upgrade-title">${displayOpt.title}</div>
                 <div class="upgrade-desc">${displayOpt.desc}</div>
             `;

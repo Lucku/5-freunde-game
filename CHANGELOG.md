@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file, starting wi
 
 ## [Unreleased]
 
+### Changed
+- **#147 — replay-driven regression tests.** New [scripts/replay.js](scripts/replay.js) (`record`/`verify`) drives the authoritative `GameSession` from a seeded trace (`rngSeed` + `inputSeed` + heroes/mode/ticks) and asserts a structured end-state fingerprint against committed goldens ([scripts/replay-traces/](scripts/replay-traces/)); wired into `npm test` + `npm run test:replay`. `record` double-runs each scenario and refuses flaky (non-deterministic) goldens. It immediately caught a real online-coop determinism bug — `Player.js` shoot/melee rolled crit / projectile-spread / fire-explode via `Math.random()` (a gap in the #196/#197/#200 seeded-RNG arc) — now migrated to `runState.rng()`. ParityTest 127/127 unaffected.
+- **#48 — cross-platform vector icons (no more emoji render drift).** Powerup world-icons (HEAL/MAXHP/SPEED/MULTI/AUTOAIM) are now drawn as procedural white vector shapes on canvas instead of `♥ ⚡ ⁙ 🎯` glyphs that rendered as mono/color/tofu inconsistently across Windows/Linux/Steam Deck ([core/systems/powerUpSystem.js](core/systems/powerUpSystem.js)). New [Icons.js](Icons.js) `iconHTML()` maps the CHAOS_REWARDS / UPGRADE_POOL emoji vocab to inline `currentColor` SVG (with raw-glyph fallback); wired into the level-up cards and chaos reward HUD. Cosmetic + client-only — parity untouched. New [tests/icons.test.js](tests/icons.test.js).
+
 ### Added
 - **#41 — per-enemy-type death animations.** `createDeathBurst` now plays a distinct particle recipe per enemy subtype: BOMBER fizzle, GHOST dissolve, SHIELDER shatter, BRUTE heavy debris, TOXIC gas puff, SUMMONER arcane implosion, SPEEDSTER motion streak, SWARM cheap poof, GOBLIN gold sparkle (BASIC/SHOOTER/elites keep the generic burst). Cosmetic + client-only (server no-ops it; fires after kill rewards, zero parity impact); respects reduced-motion. See [game.js](game.js).
 

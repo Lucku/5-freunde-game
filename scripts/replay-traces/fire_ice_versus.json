@@ -1,0 +1,34 @@
+{
+  "scenario": {
+    "name": "fire_ice_versus",
+    "rngSeed": 8080,
+    "inputSeed": 12,
+    "hostHero": "fire",
+    "guestHero": "ice",
+    "mode": "VERSUS",
+    "ticks": 600
+  },
+  "fingerprint": {
+    "wave": 1,
+    "score": 0,
+    "frame": 601,
+    "enemies": 0,
+    "projectiles": 8,
+    "host": {
+      "hp": 60,
+      "x": 1265.94,
+      "y": 1509.09,
+      "level": 1,
+      "xp": 0,
+      "dead": false
+    },
+    "guest": {
+      "hp": 50,
+      "x": 1800,
+      "y": 1500,
+      "level": 1,
+      "xp": 0,
+      "dead": false
+    }
+  }
+}
