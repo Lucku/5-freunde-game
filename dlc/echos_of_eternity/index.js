@@ -17,6 +17,7 @@ import { MEMORY_STORIES } from '../../MemoryStories.js';
 const ECHOS_OF_ETERNITY = {
     id: 'echos_of_eternity',
     name: "Echos of Eternity",
+    dlcVersion: 1, // #175 — DLC schema version stamp
     heroes: ['time', 'love'],
 
     // #8 — declarative manifest (auto-loader drives scripts + inject hooks).

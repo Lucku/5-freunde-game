@@ -8,6 +8,7 @@ import { ALTAR_TREE } from '../../AltarData.js';
 const DISCIPLES_OF_DECEPTION = {
     id: 'disciples_of_deception',
     name: "Disciples of Deception",
+    dlcVersion: 1, // #175 — DLC schema version stamp
     heroes: ['psycho', 'mirror', 'smoke'],
     description: "A character pack featuring three deception-themed heroes: Psycho (Teal), Mirror (Marine Blue), and Smoke (Slate Gray). No story campaign — drops you straight into Standard Mode.",
     noStoryMode: true, // Flag: no Story.js / no story-mode unlock chapters

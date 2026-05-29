@@ -8,6 +8,7 @@ import { ALTAR_TREE } from '../../AltarData.js';
 const RADIANCE_OF_RUIN = {
     id: 'radiance_of_ruin',
     name: "Radiance of Ruin",
+    dlcVersion: 1, // #175 — DLC schema version stamp
     heroes: ['light', 'thorn', 'dream'],
     description: "A character pack featuring three resource-driven heroes: Light (Radiant Gold), Thorn (Crimson), and Dream (Twilight). No story campaign — drops you straight into Standard Mode.",
     noStoryMode: true,

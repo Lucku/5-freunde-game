@@ -8,6 +8,10 @@
 // circularly reference this file.
 const DLC_MODULES = import.meta.glob('./*/*.js');
 
+// #174 contract validation + #175 version stamping.
+import { validateDLCContract } from './dlcContracts.js';
+import { SaveManager } from '../Managers/SaveManager.js';
+
 // Electron detection (mirrors Config.js pattern).
 // Indirect `require` so Vite/rolldown does not pattern-match the literal
 // `require('fs')` and ship a stub polyfill — see Platform.js for the same
@@ -299,13 +303,40 @@ class DLCManager {
                     console.warn(`[DLCManager] ${id}: declared inject hook 'inject${name}' is not a function — skipped.`);
                 }
             }
-            return;
-        }
-        if (typeof dlc.load === 'function') {
+        } else if (typeof dlc.load === 'function') {
             await dlc.load();
+        } else {
+            console.error(`[DLCManager] ${id}: no 'scripts' manifest and no legacy 'load()' — nothing to activate.`);
             return;
         }
-        console.error(`[DLCManager] ${id}: no 'scripts' manifest and no legacy 'load()' — nothing to activate.`);
+
+        // #174 — contract validation: a DLC must have registered every hero it
+        // declares in its manifest. Surface problems loudly so a half-registered
+        // DLC fails at load instead of corrupting the hero-select / save state.
+        const problems = validateDLCContract(id, dlc);
+        for (const p of problems) console.error(`[DLCManager] contract violation — ${p}`);
+
+        // #175 — stamp the DLC's schema version into the save (+ run any pending
+        // per-DLC migrations). Guarded: no-op until a save + SaveManager exist.
+        this._stampDLCVersion(id, dlc);
+    }
+
+    /**
+     * #175 — record the DLC's `dlcVersion` in the active save and apply any
+     * pending per-DLC migrations. Best-effort: silently skips when there is no
+     * save loaded yet (e.g. hover-prefetch before boot) or no SaveManager.
+     */
+    _stampDLCVersion(id, dlc) {
+        if (typeof dlc.dlcVersion !== 'number') return;
+        try {
+            const ctx = (typeof window !== 'undefined') ? window.gameContext : null;
+            const saveData = ctx && ctx.saveData;
+            if (saveData && typeof SaveManager.applyDLCVersion === 'function') {
+                SaveManager.applyDLCVersion(saveData, id, dlc.dlcVersion);
+            }
+        } catch (e) {
+            console.warn(`[DLCManager] ${id}: dlcVersion stamp skipped —`, e);
+        }
     }
 
     /**

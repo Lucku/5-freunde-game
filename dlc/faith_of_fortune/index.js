@@ -12,6 +12,7 @@ import { AIController } from '../../Entities/PlayerController.js'; // #171 Phase
 const FAITH_OF_FORTUNE = {
     id: 'faith_of_fortune',
     name: "Faith of Fortune",
+    dlcVersion: 1, // #175 — DLC schema version stamp
     heroes: ['spirit', 'chance'],
     description: "Introduces 'Spirit' (Gold) and 'Chance' (Magenta). Balance versus Chaos. The Temple vs The Casino.",
     icon: "🎰",

@@ -9,6 +9,7 @@ import { MEMORY_STORIES } from '../../MemoryStories.js';
 const TOURNAMENT_OF_THUNDER = {
     id: 'tournament_of_thunder',
     name: "Tournament of Thunder",
+    dlcVersion: 1, // #175 — DLC schema version stamp
     hero: 'lightning',
     description: "Enter the Cloud Kingdom! Introduces the Lightning Hero, Cloud Biome, and the legendary Tournament.",
 

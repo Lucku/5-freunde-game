@@ -8,6 +8,7 @@ import { MEMORY_STORIES } from '../../MemoryStories.js';
 const WAKER_OF_WINDS = {
     id: 'waker_of_winds',
     name: "Waker of Winds",
+    dlcVersion: 1, // #175 — DLC schema version stamp
     heroes: ['air'],
     description: "Introduces 'Air' (Turquoise Hero), the Sky Palace Biome, and the 'Waker of Winds' story campaign.",
     icon: "🌪️",

@@ -79,6 +79,7 @@
  *
  * @typedef {Object} SaveData
  * @property {number}            version          Schema version (see SaveManager.MIGRATIONS).
+ * @property {Object<string, number>} [dlcVersions] Per-DLC schema stamps `{ '<dlcId>': dlcVersion }` (#175).
  * @property {GlobalSaveStats}   global
  * @property {Object<string, HeroSaveSlot>} [_perHero]  Doc-only stub — actual per-hero slots
  *                                                      live as direct keys (`fire`, `water`, …).

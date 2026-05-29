@@ -12,6 +12,7 @@ import { cachedRadial } from '../../Utils.js';
 const CHAMPIONS_OF_CHAOS = {
     id: 'champions_of_chaos',
     name: "Champions of Chaos",
+    dlcVersion: 1, // #175 — DLC schema version stamp
     heroes: ['gravity', 'void'],
     description: "Introduces 'Gravity' (Purple Hero), the Void Biome, and the Champions of Chaos story campaign.",
 

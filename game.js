@@ -164,6 +164,9 @@ const defaultSaveData = {
     // Schema version — bumped only when SaveManager.MIGRATIONS gains an entry.
     // Saves loaded without a version field are treated as v0 and migrated.
     version: 1,
+    // #175 — per-DLC schema version stamps: { '<dlcId>': <dlcVersion> }. Recorded
+    // by SaveManager.applyDLCVersion when a DLC activates; drives per-DLC migrations.
+    dlcVersions: {},
     fire: { level: 0, unlocked: 1, highScore: 0, prestige: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null },
     ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null },

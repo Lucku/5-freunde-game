@@ -34,6 +34,56 @@ class SaveManager {
         }
     ];
 
+    // #175 — per-DLC schema migrations, keyed by DLC id. Lets each DLC own its
+    // own version line (`dlcVersion` in its manifest) instead of bolting every
+    // DLC change onto the monolithic top-level MIGRATIONS table. Each entry:
+    // `{ from, to, migrate(saveData) }` — pure transform, ascending order.
+    // Empty today; the framework (`applyDLCVersion`) is what #175 establishes.
+    /** @type {Record<string, Array<{ from: number, to: number, migrate: (data: SaveData) => void }>>} */
+    static DLC_MIGRATIONS = {};
+
+    /**
+     * #175 — record the version a DLC's content was last reconciled to in this
+     * save, running any pending per-DLC migrations between the recorded and
+     * current version. Called by DLCManager when a DLC activates.
+     *
+     * - First sighting (no recorded version): stamp `currentVersion`, run no
+     *   migration — already-unlocked content is assumed at the current shape.
+     * - recorded < current: run `DLC_MIGRATIONS[id]` entries in (recorded, current],
+     *   then stamp current.
+     * - recorded >= current: no-op (up to date, or a downgrade we won't touch).
+     *
+     * @param {SaveData} saveData  the live save object (mutated in place)
+     * @param {string} id          DLC id
+     * @param {number} currentVersion  the DLC manifest's `dlcVersion`
+     * @returns {SaveData}
+     */
+    static applyDLCVersion(saveData, id, currentVersion) {
+        if (!saveData || typeof currentVersion !== 'number') return saveData;
+        if (!saveData.dlcVersions || typeof saveData.dlcVersions !== 'object') {
+            saveData.dlcVersions = {};
+        }
+        const recorded = saveData.dlcVersions[id];
+        if (typeof recorded !== 'number') {
+            saveData.dlcVersions[id] = currentVersion;
+            return saveData;
+        }
+        if (recorded >= currentVersion) return saveData;
+        const migrations = SaveManager.DLC_MIGRATIONS[id] || [];
+        for (const m of migrations) {
+            if (m.from >= recorded && m.to <= currentVersion) {
+                try {
+                    m.migrate(saveData);
+                    console.log(`Save: DLC ${id} migrated v${m.from} → v${m.to}`);
+                } catch (e) {
+                    console.error(`Save: DLC ${id} migration v${m.from}→v${m.to} failed:`, e);
+                }
+            }
+        }
+        saveData.dlcVersions[id] = currentVersion;
+        return saveData;
+    }
+
     static _getKey() {
         if (!this._keyPromise) {
             this._keyPromise = crypto.subtle.importKey(

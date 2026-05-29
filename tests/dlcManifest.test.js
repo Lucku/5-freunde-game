@@ -163,3 +163,13 @@ describe('DLC manifest contract (static)', () => {
         });
     }
 });
+
+// ─────────────────── #175 — dlcVersion stamp on every manifest ───────────────────
+describe('DLC manifest dlcVersion stamp (#175)', () => {
+    for (const id of DLC_DIRS) {
+        it(`${id}: declares a numeric dlcVersion`, () => {
+            const src = readFileSync(join(DLC_DIR, id, 'index.js'), 'utf8');
+            expect(/\bdlcVersion\s*:\s*\d+/.test(src), `${id}: missing dlcVersion`).toBe(true);
+        });
+    }
+});
