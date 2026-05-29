@@ -219,6 +219,14 @@ function _showOverlay() {
     }
 }
 
+// Hide the overlay from outside the gameplay frame. Standalone scenes (museum,
+// global lobby) draw a full replacement scene to the source canvas and never
+// call renderPostFX(), so the overlay would otherwise stay stuck showing the
+// last gameplay texture (z-index:2) on top of them. See game.js masterFrame.
+export function hidePostFX() {
+    _hideOverlay();
+}
+
 export function renderPostFX() {
     if (!_hasDOM) return;
 

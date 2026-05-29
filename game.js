@@ -63,7 +63,7 @@ import { _drawGameplayPost } from './core/drawGameplayPost.js';
 import { _drawGameplayMid } from './core/drawGameplayMid.js';
 import { _updateGameplayPre } from './core/updateGameplayPre.js';
 import { _updateGameplayMid } from './core/updateGameplayMid.js';
-import { renderPostFX } from './core/postProcess.js';
+import { renderPostFX, hidePostFX } from './core/postProcess.js';
 import { clearPowerUps } from './core/systems/powerUpSystem.js';
 import { spawnCardDrop, clearCardDrops } from './core/systems/cardDropSystem.js';
 import { spawnParticle, clearParticles } from './core/systems/particleSystem.js';
@@ -6651,8 +6651,11 @@ function masterFrame(deltaTime, timestamp) {
         handleCoopP2Gamepad();
 
         // ── Standalone-scene early returns (#173 phase 1) ───────────────────
-        if (_renderMuseumScene())      return;
-        if (_renderGlobalLobbyScene()) return;
+        // Museum + lobby draw a full replacement scene to the source canvas and
+        // never reach renderPostFX(), so hide the WebGL overlay (z-index:2) or it
+        // keeps showing the last gameplay frame's arena texture on top of them.
+        if (_renderMuseumScene())      { hidePostFX(); return; }
+        if (_renderGlobalLobbyScene()) { hidePostFX(); return; }
         if (_renderBigGambleScene())   return;
 
         // #51 — photo mode runs even while paused so the camera can pan.
