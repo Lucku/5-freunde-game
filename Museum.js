@@ -3,6 +3,7 @@
 import { CompletionMenu } from './CompletionMenu.js';
 import { drawHeroSprite, shadeColor } from './Utils.js';
 import { MenuBackground } from './UI/MenuBackground.js';
+import { CloudSaveManager } from './Managers/CloudSaveManager.js'; // #171 Phase 2 — was bare window global
 
 // Room-aware dialogue: MUSEUM_DIALOGUES[heroType][roomName] or [heroType].generic
 const MUSEUM_DIALOGUES = {

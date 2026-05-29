@@ -6,6 +6,7 @@ import { drawHeroSprite, cachedRadial } from './Utils.js';
 import { ACHIEVEMENTS } from './Constants.js';
 
 import { MeleeSwipe } from './Entities/MeleeSwipe.js';
+import { HumanController } from './Entities/PlayerController.js'; // #171 Phase 2 — was window.HumanController
 import { TutorialMode } from './TutorialMode.js';
 
 class Player {

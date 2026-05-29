@@ -20,6 +20,12 @@ import {
 import { killCardDrop, CARDDROP_RADIUS } from './systems/cardDropSystem.js';
 import { killParticle, updateParticles } from './systems/particleSystem.js';
 import { killFloatingText, updateFloatingTexts } from './systems/floatingTextSystem.js';
+// #171 Phase 2 — explicit imports replace the retired `window.Projectile` /
+// `window.FloatingText` back-compat shims. Bindings are identical to the
+// former globals (named exports === shim values); server resolves the same
+// module instance via `require()`.
+import { Projectile } from '../Entities/Projectile.js';
+import { FloatingText } from '../Entities/FloatingText.js';
 import { killMemoryShard, getMemoryShardColor, MEMORYSHARD_RADIUS } from './systems/memoryShardSystem.js';
 import { spawnGoldDrop, killGoldDrop } from './systems/goldDropSystem.js';
 import { spawnHolyMask, killHolyMask, HOLYMASK_RADIUS } from './systems/holyMaskSystem.js';

@@ -154,7 +154,7 @@ class TelemetryManager {
 
 if (typeof window !== 'undefined') {
     try { TelemetryManager.install(); } catch (_) {}
-    window.TelemetryManager = TelemetryManager;
+    // #171 Phase 2 — `window.TelemetryManager` shim retired; game.js imports directly.
 }
 
 export { TelemetryManager };

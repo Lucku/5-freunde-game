@@ -1,5 +1,6 @@
 // #194 phase 2 — explicit imports for symbols previously read off window shims.
 import { Player } from './Player.js';
+import { AIController } from './Entities/PlayerController.js'; // #171 Phase 2 — was window.AIController
 
 // HolyMask class removed in #5 phase 5.8 — ECS via spawnHolyMask helper.
 import { runState } from './RunState.js';

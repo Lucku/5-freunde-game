@@ -412,7 +412,6 @@ class SaveManager {
     }
 }
 
-if (typeof window !== 'undefined') window.SaveManager = SaveManager;
-
+// #171 Phase 2 — `window.SaveManager` shim retired; CloudSaveManager + game.js import directly.
 export { SaveManager };
 export default SaveManager;

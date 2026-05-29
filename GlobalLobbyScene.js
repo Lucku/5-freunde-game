@@ -3,6 +3,7 @@
 // and challenge each other to a match via proximity invite.
 
 import { drawHeroSprite } from './Utils.js';
+import { WorkshopPanel } from './UI/WorkshopPanel.js'; // #171 Phase 2 — was window.WorkshopPanel
 
 const GLOBAL_EMOTES = [
     { key: '1', label: 'Wave',  emoji: '👋' },
@@ -45,7 +46,7 @@ class GlobalLobbyScene {
         this.localEmote     = null;  // { emoji, timer, y }
 
         // Map Workshop panel
-        this.workshopPanel = window.WorkshopPanel ? new window.WorkshopPanel() : null;
+        this.workshopPanel = new WorkshopPanel();
         this.nearWorkshop  = false;
 
         // Click on the world-space workshop board → open panel

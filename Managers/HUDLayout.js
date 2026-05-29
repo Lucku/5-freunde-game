@@ -527,7 +527,7 @@ function exitEditMode(save) {
 const HUDLayout = { apply, reset, enterEditMode, exitEditMode };
 
 if (typeof window !== 'undefined') {
-    window.HUDLayout = HUDLayout;
+    // #171 Phase 2 — `window.HUDLayout` shim retired; Options.js imports directly.
     // Apply on DOM ready so CSS defaults are computed correctly.
     const _boot = () => {
         try { apply(); } catch (e) { console.error('HUDLayout.apply failed', e); }

@@ -16,7 +16,8 @@ import { Boss } from './Boss.js';
 import { Arena } from './Arena.js';
 // Companion class removed in #5 phase 5.9 (ECS migration). See core/systems/companionSystem.js.
 import { FloatingText } from './Entities/FloatingText.js';
-import { Particle } from './Entities/Particle.js';
+// #171 Phase 2 — Particle import dropped; game.js no longer references the class
+// directly (only ECS spawn helpers + comments remain).
 import { Projectile } from './Entities/Projectile.js';
 // GoldDrop class removed in #5 phase 5.7 (ECS migration). See core/systems/goldDropSystem.js.
 // CardDrop class removed in #5 phase 5.2 (ECS migration). See core/systems/cardDropSystem.js.
@@ -27,6 +28,7 @@ import { CloudSaveManager } from './Managers/CloudSaveManager.js';
 import { UIManager } from './Managers/UIManager.js';
 import { InputManager } from './Managers/InputManager.js';
 import { StoryManager } from './Managers/StoryManager.js';
+import { TelemetryManager } from './Managers/TelemetryManager.js'; // #171 Phase 2 — was window.TelemetryManager
 import { SpatialHash } from './Managers/SpatialHash.js';
 import { audioManager } from './Managers/AudioManager.js';
 import { introManager } from './Managers/IntroManager.js';
@@ -2426,7 +2428,7 @@ window._renderBossIntroCinematic  = _renderBossIntroCinematic;
 window._renderBossDeathCinematic  = _renderBossDeathCinematic;
 window._renderBossChoiceScreen    = _renderBossChoiceScreen;
 window.EvilMode                 = EvilMode;
-window.Projectile               = Projectile;
+// #171 Phase 2 — window.Projectile bridge dropped; leaf modules import it directly.
 // GoldDrop removed in #5 phase 5.7 (ECS migration).
 // HolyMask removed in #5 phase 5.8 (ECS migration).
 window._SPATIAL_HASH_MIN        = _SPATIAL_HASH_MIN;
@@ -3060,9 +3062,8 @@ function closeDailyInfo() {
 // HolyMask, PowerUp, Particle, FloatingText moved to Entities/
 // shadeColor moved to Utils.js
 
-// Expose Classes for DLC
-window.FloatingText = FloatingText;
-window.Particle = Particle;
+// #171 Phase 2 — window.FloatingText / window.Particle bridges dropped; renderer
+// leaf modules and DLCs (post-#194) import these classes directly.
 // CardDrop removed in #5 phase 5.2 (ECS migration).
 // createExplosion / spawnLevelUpAura moved to Spawner.js (Phase B of #1 split).
 // MAX_PARTICLES no longer needed in game.js — cap enforced by spawnParticle
@@ -3453,7 +3454,7 @@ function chooseUpgrade(type) {
 
     // Telemetry (#98) — anonymous level_up event. `type` is the upgrade id.
     try {
-        window.TelemetryManager?.track('level_up', {
+        TelemetryManager?.track('level_up', {
             hero:          target?.type || null,
             wave:          runState.wave,
             upgradePicked: String(type || '').slice(0, 64),
@@ -4104,7 +4105,7 @@ function advanceWave() {
     if (runState.wave > 0) {
         try {
             const startMs = runState.currentRunStats?.startTime || 0;
-            window.TelemetryManager?.track('wave_completed', {
+            TelemetryManager?.track('wave_completed', {
                 hero:    runState.player?.type || null,
                 mode:    runState.isDailyMode ? 'daily' : runState.isWeeklyMode ? 'weekly' : runState.isVersusMode ? 'versus' : runState.isEvilMode ? 'evil' : runState.isSpeedrunMode ? 'speedrun' : runState.isTutorialMode ? 'tutorial' : 'normal',
                 biome:   runState.currentBiomeType || null,
@@ -4921,7 +4922,7 @@ async function startGame(mode = 'NORMAL') {
 
     // Telemetry (#98) — anonymous run_start event (opt-in, gated by TelemetryManager).
     try {
-        window.TelemetryManager?.track('run_start', {
+        TelemetryManager?.track('run_start', {
             hero:      runState.player?.type || window.selectedHeroType || null,
             mode:      String(mode || 'NORMAL').toLowerCase(),
             biome:     runState.currentBiomeType || null,
@@ -4945,7 +4946,7 @@ function gameOver(isVictory = false) {
     try {
         const startMs = runState.currentRunStats?.startTime || 0;
         const totalTimeSec = startMs ? Math.floor((Date.now() - startMs) / 1000) : 0;
-        window.TelemetryManager?.track('run_end', {
+        TelemetryManager?.track('run_end', {
             hero:        runState.player?.type || null,
             mode:        runState.isDailyMode ? 'daily' : runState.isWeeklyMode ? 'weekly' : wasVersusMode ? 'versus' : wasEvilMode ? 'evil' : runState.isSpeedrunMode ? 'speedrun' : runState.isTutorialMode ? 'tutorial' : 'normal',
             biome:       runState.currentBiomeType || null,
@@ -4954,7 +4955,7 @@ function gameOver(isVictory = false) {
             timeSec:     totalTimeSec,
             deathSource: (!isVictory && runState.player && runState.player._lastDamageSource) ? String(runState.player._lastDamageSource.label).slice(0, 64) : null,
         });
-        window.TelemetryManager?.flush(false);
+        TelemetryManager?.flush(false);
     } catch (_) { /* swallow */ }
 
     // #168 — surface "Defeated by X (Y dmg)" on the game-over screen unless we

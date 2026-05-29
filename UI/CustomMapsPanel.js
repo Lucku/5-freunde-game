@@ -1,3 +1,6 @@
+// #171 Phase 2 — explicit import replaces bare `window.MapManager` global reads.
+import { MapManager } from '../Managers/MapManager.js';
+
 const _BIOME_EMOJI_CMP = {
     fire: '🔥', water: '💧', ice: '❄️', plant: '🌿', metal: '⚙️',
     rock: '🪨', cloud: '☁️', chaos: '💥', earth: '🪨', void: '☯️',
@@ -131,7 +134,7 @@ class CustomMapsPanel {
 
         if (this._tab === 'local') {
             // ── Local maps from user data directory ───────────────────────────
-            const mm = window.MapManager;
+            const mm = MapManager;
             if (!mm || !mm.isAvailable()) {
                 list.innerHTML = '<div style="text-align:center;padding:24px;color:#888">' +
                     'Local maps require the desktop app.<br>' +
@@ -180,7 +183,7 @@ class CustomMapsPanel {
         card.style.cssText = 'background:#222240;border:1px solid #383860;border-radius:8px;padding:10px 14px;display:flex;flex-direction:column;gap:6px';
 
         // Load the full map data for display details
-        const data   = window.MapManager.loadMap(mapEntry.fileName);
+        const data   = MapManager.loadMap(mapEntry.fileName);
         const wc     = data?.waveConfig;
         const biome  = data?.biomeType || 'fire';
         const emoji  = _BIOME_EMOJI_CMP[biome] || '🗺️';
@@ -255,7 +258,7 @@ class CustomMapsPanel {
     // ── Actions: local ────────────────────────────────────────────────────────
 
     _playLocal(fileName, card) {
-        const data = window.MapManager?.loadMap(fileName);
+        const data = MapManager?.loadMap(fileName);
         if (!data) { alert('Could not read map file.'); return; }
         window.pendingCustomMap   = data;
         window.currentCustomMapId = null;
@@ -266,7 +269,7 @@ class CustomMapsPanel {
     async _uploadLocal(fileName, card) {
         const token = this._token();
         if (!token) { alert('Log in first to upload maps.'); return; }
-        const data = window.MapManager?.loadMap(fileName);
+        const data = MapManager?.loadMap(fileName);
         if (!data) { alert('Could not read map file.'); return; }
         const btn = card.querySelector('.cmp-upload-btn');
         btn.textContent = '…';
@@ -285,7 +288,7 @@ class CustomMapsPanel {
 
     _deleteLocal(fileName, card) {
         if (!confirm(`Delete "${fileName.replace(/\.json$/, '')}"? This cannot be undone.`)) return;
-        const ok = window.MapManager?.deleteMap(fileName);
+        const ok = MapManager?.deleteMap(fileName);
         if (ok) card.remove();
         else alert('Delete failed.');
     }
@@ -357,4 +360,4 @@ class CustomMapsPanel {
 
 window.customMapsPanel = new CustomMapsPanel();
 window.openCustomMaps  = () => window.customMapsPanel.open();
-window.CustomMapsPanel = CustomMapsPanel;
+// #171 Phase 2 — `window.CustomMapsPanel` class shim retired (no external consumer).

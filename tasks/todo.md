@@ -44,3 +44,19 @@ Landed 2026-05-28:
 - **Lint** — 98 warnings unchanged from baseline (pre-existing cap break, not introduced by these edits).
 
 Bug 4 deferred — waiting on user retest with the repackaged installer carrying fixes 1-3.
+
+---
+
+# Museum / Lobby frozen arena overlay (2026-05-29)
+
+**Symptom:** after starting *and quitting* any run, opening the museum or global online lobby shows a frozen frame of the last arena. Fresh launch (no run yet) → museum/lobby render fine.
+
+**Root cause (distinct from Bug 3 above):** the WebGL post-processing overlay `<canvas id="postFxCanvas">` ([core/postProcess.js:137-139](../core/postProcess.js#L137-L139)) sits at `z-index:2` over `gameCanvas` and only updates/hides itself inside `renderPostFX()`, which is called solely from `_runGameplayFrame()` ([game.js:6638](../game.js#L6638)). Museum + lobby early-return in `masterFrame` *before* that call, so after a run the overlay stayed `display:block` holding the last gameplay texture and covered the scene drawn to `gameCanvas` underneath. At the main menu the stale overlay is masked by `#menu-bg-canvas` (z-index 19) — which is exactly why Bug 3's fix (hiding `#menu-bg-canvas` on scene entry) *unmasked* this one. Same class as the boss-defeat freeze (CHANGELOG 2026-05-17).
+
+- [x] Export `hidePostFX()` from `core/postProcess.js` (wraps `_hideOverlay()`).
+- [x] Call `hidePostFX()` in the museum + lobby early-return branches in `masterFrame` ([game.js:6657-6658](../game.js#L6657-L6658)). Big-gamble left untouched (mid-run, current texture, not user-reported).
+- [x] CHANGELOG `### Fixed` entry added.
+
+**Verify:** `npm run lint` clean (0 errors); `npx vitest run` → 351 passed. Behavioural check (DOM/WebGL) deferred to playtest: start run → quit → open museum and lobby → expect the scene, not a frozen arena.
+
+> Pause/level-up/shop/story intentionally keep `gameRunning` true, so they do *not* hit the museum/lobby branches and the arena + postFX stay visible behind those overlays as before.

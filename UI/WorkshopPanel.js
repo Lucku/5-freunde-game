@@ -294,4 +294,5 @@ class WorkshopPanel {
     }
 }
 
-window.WorkshopPanel = WorkshopPanel;
+// #171 Phase 2 — `window.WorkshopPanel` shim retired; GlobalLobbyScene imports directly.
+export { WorkshopPanel };

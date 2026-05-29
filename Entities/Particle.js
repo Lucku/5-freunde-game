@@ -94,6 +94,7 @@ if (typeof window !== 'undefined') {
         // shim wins for the rest of the session.
         window.particles = _particlesShim;
     }
-    window.Particle = Particle;
+    // `window.Particle` class shim retired in #171 Phase 2 — callers import
+    // `{ Particle }` directly. Entity-array sentinel above stays (#4 deferred).
     void MAX_PARTICLES; // re-exported for callers that read the cap
 }

@@ -1,4 +1,7 @@
 import { applyOneHandedScheme } from '../Config.js';
+// #171 Phase 2 — explicit imports replace bare `CloudSaveManager` / `window.HUDLayout` reads.
+import { CloudSaveManager } from '../Managers/CloudSaveManager.js';
+import { HUDLayout } from '../Managers/HUDLayout.js';
 
 class OptionsUI {
     openOptions() {
@@ -373,13 +376,13 @@ window.a11yAnnounce = (msg) => optionsUI.announce(msg);
 // #169 — entry point for the HUD layout edit mode. Hides the Options modal
 // (so the user can see the actual HUD) and hands off to HUDLayout.
 window.openHudEdit = function () {
-    if (!window.HUDLayout || typeof window.HUDLayout.enterEditMode !== 'function') {
+    if (!HUDLayout || typeof HUDLayout.enterEditMode !== 'function') {
         console.warn('HUDLayout module not available');
         return;
     }
     const screen = document.getElementById('options-screen');
     if (screen) screen.style.display = 'none';
-    window.HUDLayout.enterEditMode();
+    HUDLayout.enterEditMode();
 };
 
 window.showQuitWarning = function () {

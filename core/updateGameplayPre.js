@@ -12,6 +12,9 @@
 import { runState } from '../RunState.js';
 import { isPhotoMode } from '../Camera.js';
 import { spawnPowerUp } from './systems/powerUpSystem.js';
+// #171 Phase 2 — explicit import replaces the retired `window.FloatingText`
+// shim. Binding is identical to the former global (named export === shim value).
+import { FloatingText } from '../Entities/FloatingText.js';
 
 export
 function _updateGameplayPre(deltaTime) {

@@ -1,5 +1,6 @@
 // Temporary testing code for Versus Mode AI
 // This should be integrated into a proper GameMode later.
+import { AIController } from '../Entities/PlayerController.js'; // #171 Phase 2 — was window.AIController
 
 window.spawnAIPlayer = function (heroType = 'fire') {
     if (!window.player) {

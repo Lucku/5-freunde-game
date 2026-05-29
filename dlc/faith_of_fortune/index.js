@@ -5,6 +5,7 @@ import { FloatingText } from '../../Entities/FloatingText.js';
 import { Projectile } from '../../Entities/Projectile.js';
 import { MEMORY_STORIES } from '../../MemoryStories.js';
 import { Player } from '../../Player.js';
+import { AIController } from '../../Entities/PlayerController.js'; // #171 Phase 2 — was window.AIController
 
 // Faith of Fortune - DLC Manifest
 

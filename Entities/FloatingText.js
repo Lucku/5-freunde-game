@@ -76,5 +76,6 @@ if (typeof window !== 'undefined') {
     if (!('floatingTexts' in window) || Array.isArray(window.floatingTexts)) {
         window.floatingTexts = _ftShim;
     }
-    window.FloatingText = FloatingText;
+    // `window.FloatingText` class shim retired in #171 Phase 2 — callers import
+    // `{ FloatingText }` directly. Entity-array sentinel above stays (#4 deferred).
 }

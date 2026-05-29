@@ -247,7 +247,9 @@ function _concat(...arrs) {
 }
 
 if (typeof window !== 'undefined') {
+    // Entity-array sentinel shim stays (RunState-coupled, #4 deferred). The
+    // `window.Projectile` class shim was retired in #171 Phase 2 — all callers
+    // now import `{ Projectile }` directly.
     window.projectiles = _projectilesSentinel;
-    window.Projectile = ProjectileCtor;
     void MAX_PROJECTILES; // re-export for callers that read the cap
 }

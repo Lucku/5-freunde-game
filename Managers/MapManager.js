@@ -96,5 +96,5 @@ class MapManager {
     }
 }
 
-window.MapManager = MapManager;
+// #171 Phase 2 — `window.MapManager` shim retired; CustomMapsPanel imports directly.
 export { MapManager };

@@ -1,3 +1,6 @@
+// #171 Phase 2 — explicit import replaces bare `CloudSaveManager` global reads.
+import { CloudSaveManager } from '../Managers/CloudSaveManager.js';
+
 const _HERO_EMOJI = {
     fire:'🔥', water:'💧', ice:'❄️', plant:'🌿', metal:'⚙️',
     sound:'🎵', gravity:'🌀', void:'☯️', spirit:'✨', chance:'🎲',

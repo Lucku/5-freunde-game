@@ -1,3 +1,6 @@
+// #171 Phase 2 — explicit import replaces bare-name `SaveManager` global read.
+import { SaveManager } from './SaveManager.js';
+
 class CloudSaveManager {
     static _syncing = false;
 
@@ -293,8 +296,6 @@ class CloudSaveManager {
     }
 }
 
-window.CloudSaveManager = CloudSaveManager;
-
-// ESM exports — window shim above keeps classic-script callers unchanged.
+// #171 Phase 2 — `window.CloudSaveManager` shim retired; consumers import directly.
 export { CloudSaveManager };
 export default CloudSaveManager;

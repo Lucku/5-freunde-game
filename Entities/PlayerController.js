@@ -325,9 +325,5 @@ class CompanionAIController extends PlayerController {
 
 export { PlayerController, HumanController, AIController, CompanionAIController };
 export default PlayerController;
-if (typeof window !== 'undefined') {
-    // HumanController: bare-read by Player.js (`new HumanController(0)`).
-    // AIController: bare-read by Faith of Fortune DLC (`new AIController(...)`).
-    window.HumanController = HumanController;
-    window.AIController    = AIController;
-}
+// #171 Phase 2 — `window.HumanController` / `window.AIController` shims retired;
+// consumers (Player.js, EvilMode.js, Faith DLC, VersusTest) now import directly.
