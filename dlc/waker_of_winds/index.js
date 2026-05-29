@@ -12,30 +12,15 @@ const WAKER_OF_WINDS = {
     description: "Introduces 'Air' (Turquoise Hero), the Sky Palace Biome, and the 'Waker of Winds' story campaign.",
     icon: "🌪️",
 
-    load: async function () {
-        console.log("[DLC] Loading: Waker of Winds...");
+    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    scripts: [
+        'AirHero.js', 'WindBiome.js', 'WindEnemies.js', 'WindBosses.js', 'Story.js',
+    ],
+    inject: ['Hero', 'Biome', 'Enemies', 'Story', 'StoryArcLabels', 'StoryTheme', 'Altar', 'Achievements', 'Memories', 'Cards', 'Audio'],
 
-        if (window.dlcManager) {
-            await window.dlcManager.loadScript('dlc/waker_of_winds/AirHero.js');
-            await window.dlcManager.loadScript('dlc/waker_of_winds/WindBiome.js');
-            await window.dlcManager.loadScript('dlc/waker_of_winds/WindEnemies.js');
-            await window.dlcManager.loadScript('dlc/waker_of_winds/WindBosses.js');
-            await window.dlcManager.loadScript('dlc/waker_of_winds/Story.js');
-        }
-
-        this.injectHero();
-        this.injectBiome();
-        this.injectEnemies();
-        this.injectStory();
-        this.injectStoryArcLabels();
-        this.injectStoryTheme();
-        this.injectAltar();
-        this.injectAchievements();
-        this.injectMemories();
-        this.injectCards();
-
-        // Register audio
-        if (typeof audioManager !== 'undefined') {
+    injectAudio: function () {
+        if (typeof audioManager === 'undefined') return;
+        {
             audioManager.registerSounds({
                 'battle_air_1':            { path: 'dlc/waker_of_winds/audio/music/battle_1.mp3', loop: true, volume: 0.4 },
                 'battle_air_2':            { path: 'dlc/waker_of_winds/audio/music/battle_2.mp3', loop: true, volume: 0.4 },
@@ -82,8 +67,6 @@ const WAKER_OF_WINDS = {
             window.STORY_AUDIO_RESOLVERS['AIR'] = (id) => `dlc/waker_of_winds/audio/story/${id}.mp3`;
             audioManager.registerExclamationPath('air', (s) => `dlc/waker_of_winds/audio/voices/air/${s}.mp3`);
         }
-
-        console.log("[DLC] Loaded: Waker of Winds (Success)");
     },
 
     injectHero: function () {

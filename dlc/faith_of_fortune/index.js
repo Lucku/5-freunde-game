@@ -16,32 +16,16 @@ const FAITH_OF_FORTUNE = {
     description: "Introduces 'Spirit' (Gold) and 'Chance' (Magenta). Balance versus Chaos. The Temple vs The Casino.",
     icon: "🎰",
 
-    load: async function () {
-        console.log("[DLC] Loading: Faith of Fortune...");
+    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    scripts: [
+        'SpiritHero.js', 'ChanceHero.js', 'TempleBiome.js', 'MadnessBiome.js',
+        'MadnessEnemies.js', 'TempleEnemies.js', 'Story.js',
+    ],
+    inject: ['Hero', 'Biome', 'Enemies', 'Story', 'StoryArcLabels', 'StoryHooks', 'Altar', 'Achievements', 'Memories', 'Cards', 'Audio'],
 
-        if (window.dlcManager) {
-            await window.dlcManager.loadScript('dlc/faith_of_fortune/SpiritHero.js');
-            await window.dlcManager.loadScript('dlc/faith_of_fortune/ChanceHero.js');
-            await window.dlcManager.loadScript('dlc/faith_of_fortune/TempleBiome.js');
-            await window.dlcManager.loadScript('dlc/faith_of_fortune/MadnessBiome.js');
-            await window.dlcManager.loadScript('dlc/faith_of_fortune/MadnessEnemies.js');
-            await window.dlcManager.loadScript('dlc/faith_of_fortune/TempleEnemies.js');
-            await window.dlcManager.loadScript('dlc/faith_of_fortune/Story.js');
-        }
-
-        this.injectHero();
-        this.injectBiome();
-        this.injectEnemies();
-        this.injectStory();
-        this.injectStoryArcLabels();
-        this.injectStoryHooks();
-        this.injectAltar();
-        this.injectAchievements();
-        this.injectMemories();
-        this.injectCards();
-
-        // Register audio
-        if (typeof audioManager !== 'undefined') {
+    injectAudio: function () {
+        if (typeof audioManager === 'undefined') return;
+        {
             audioManager.registerSounds({
                 'attack_chance':           { path: 'dlc/faith_of_fortune/audio/sounds/attack_chance.wav',            volume: 0.3 },
                 'special_chance':          { path: 'dlc/faith_of_fortune/audio/sounds/special_chance.wav',           loop: true, volume: 0.5 },
@@ -76,8 +60,6 @@ const FAITH_OF_FORTUNE = {
             window.STORY_AUDIO_RESOLVERS['CHANCE'] = (id) => `dlc/faith_of_fortune/audio/story/${id}.mp3`;
             window.STORY_AUDIO_RESOLVERS['SPIRIT'] = (id) => `dlc/faith_of_fortune/audio/story/${id}.mp3`;
         }
-
-        console.log("[DLC] Loaded: Faith of Fortune (Success)");
     },
 
     injectStoryHooks: function () {

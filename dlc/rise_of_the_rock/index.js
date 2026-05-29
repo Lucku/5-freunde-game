@@ -15,28 +15,15 @@ const RISE_OF_THE_ROCK = {
     hero: 'earth',
     description: "Introduces the Earth Hero, Rock Biome, and a new Story Campaign.",
 
-    load: async function () {
-        console.log("[DLC] Loading: Rise of the Rock...");
+    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    scripts: [
+        'EarthHero.js', 'RockBiome.js', 'RockEnemies.js',
+    ],
+    inject: ['Hero', 'Biome', 'Enemies', 'Story', 'StoryArcLabels', 'Altar', 'Achievements', 'Memories', 'Cards', 'Audio'],
 
-        // Load Scripts
-        if (window.dlcManager) {
-            await window.dlcManager.loadScript('dlc/rise_of_the_rock/EarthHero.js');
-            await window.dlcManager.loadScript('dlc/rise_of_the_rock/RockBiome.js');
-            await window.dlcManager.loadScript('dlc/rise_of_the_rock/RockEnemies.js');
-        }
-
-        this.injectHero();
-        this.injectBiome();
-        this.injectEnemies();
-        this.injectStory();
-        this.injectStoryArcLabels();
-        this.injectAltar();
-        this.injectAchievements();
-        this.injectMemories();
-        this.injectCards();
-
-        // Register audio
-        if (typeof audioManager !== 'undefined') {
+    injectAudio: function () {
+        if (typeof audioManager === 'undefined') return;
+        {
             audioManager.registerSounds({
                 'battle_rock_1': { path: 'dlc/rise_of_the_rock/audio/music/battle_1.wav', loop: true, volume: 0.4 },
                 'battle_rock_2': { path: 'dlc/rise_of_the_rock/audio/music/battle_2.wav', loop: true, volume: 0.4 },
@@ -74,8 +61,6 @@ const RISE_OF_THE_ROCK = {
             window.STORY_AUDIO_RESOLVERS['EARTH'] = (id) => `dlc/rise_of_the_rock/audio/story/${id}.mp3`;
             audioManager.registerExclamationPath('earth', (s) => `dlc/rise_of_the_rock/audio/voices/earth/${s}.mp3`);
         }
-
-        console.log("[DLC] Loaded: Rise of the Rock (Success)");
     },
 
     injectMemories: function () {

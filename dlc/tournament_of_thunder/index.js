@@ -12,29 +12,15 @@ const TOURNAMENT_OF_THUNDER = {
     hero: 'lightning',
     description: "Enter the Cloud Kingdom! Introduces the Lightning Hero, Cloud Biome, and the legendary Tournament.",
 
-    load: async function () {
-        console.log("[DLC] Loading: Tournament of Thunder...");
+    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    scripts: [
+        'LightningHero.js', 'CloudBiome.js', 'ThunderEnemies.js', 'ThunderBoss.js',
+    ],
+    inject: ['Hero', 'Biome', 'Enemies', 'Story', 'StoryArcLabels', 'Altar', 'Achievements', 'Memories', 'Cards', 'Audio'],
 
-        // Load Scripts
-        if (window.dlcManager) {
-            await window.dlcManager.loadScript('dlc/tournament_of_thunder/LightningHero.js');
-            await window.dlcManager.loadScript('dlc/tournament_of_thunder/CloudBiome.js');
-            await window.dlcManager.loadScript('dlc/tournament_of_thunder/ThunderEnemies.js');
-            await window.dlcManager.loadScript('dlc/tournament_of_thunder/ThunderBoss.js');
-        }
-
-        this.injectHero();
-        this.injectBiome();
-        this.injectEnemies();
-        this.injectStory();
-        this.injectStoryArcLabels();
-        this.injectAltar();
-        this.injectAchievements();
-        this.injectMemories();
-        this.injectCards();
-
-        // Register audio
-        if (typeof audioManager !== 'undefined') {
+    injectAudio: function () {
+        if (typeof audioManager === 'undefined') return;
+        {
             audioManager.registerSounds({
                 'battle_thunder_1': { path: 'dlc/tournament_of_thunder/audio/music/battle_1.wav', loop: true, volume: 0.4 },
                 'battle_thunder_2': { path: 'dlc/tournament_of_thunder/audio/music/battle_2.wav', loop: true, volume: 0.4 },
@@ -73,8 +59,6 @@ const TOURNAMENT_OF_THUNDER = {
             window.STORY_AUDIO_RESOLVERS['LIGHTNING'] = (id) => `dlc/tournament_of_thunder/audio/story/${id}.mp3`;
             audioManager.registerExclamationPath('lightning', (s) => `dlc/tournament_of_thunder/audio/voices/lightning/${s}.mp3`);
         }
-
-        console.log("[DLC] Loaded: Tournament of Thunder (Success)");
     },
 
     injectHero: function () {

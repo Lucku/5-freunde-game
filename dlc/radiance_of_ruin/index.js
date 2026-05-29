@@ -13,24 +13,16 @@ const RADIANCE_OF_RUIN = {
     noStoryMode: true,
     icon: "👁️",
 
-    load: async function () {
-        console.log("[DLC] Loading: Radiance of Ruin...");
+    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    scripts: [
+        'LightHero.js', 'ThornHero.js', 'DreamHero.js',
+        'ReliquaryBiome.js', 'CrimsonGreenhouseBiome.js', 'DreamspaceBiome.js',
+    ],
+    inject: ['Hero', 'Biome', 'Altar', 'Achievements', 'Audio'],
 
-        if (window.dlcManager) {
-            await window.dlcManager.loadScript('dlc/radiance_of_ruin/LightHero.js');
-            await window.dlcManager.loadScript('dlc/radiance_of_ruin/ThornHero.js');
-            await window.dlcManager.loadScript('dlc/radiance_of_ruin/DreamHero.js');
-            await window.dlcManager.loadScript('dlc/radiance_of_ruin/ReliquaryBiome.js');
-            await window.dlcManager.loadScript('dlc/radiance_of_ruin/CrimsonGreenhouseBiome.js');
-            await window.dlcManager.loadScript('dlc/radiance_of_ruin/DreamspaceBiome.js');
-        }
-
-        this.injectHero();
-        this.injectBiome();
-        this.injectAltar();
-        this.injectAchievements();
-
-        if (typeof audioManager !== 'undefined') {
+    injectAudio: function () {
+        if (typeof audioManager === 'undefined') return;
+        {
             audioManager.registerSounds({
                 // Light SFX
                 'attack_light':       { path: 'dlc/radiance_of_ruin/audio/sounds/attack_light.wav',       volume: 0.4 },
@@ -107,8 +99,6 @@ const RADIANCE_OF_RUIN = {
                 ultimate:      "THE LONG SLEEP. Lie down. All of you. Lie down."
             });
         }
-
-        console.log("[DLC] Loaded: Radiance of Ruin (Success)");
     },
 
     injectHero: function () {

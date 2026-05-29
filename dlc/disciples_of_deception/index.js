@@ -13,24 +13,16 @@ const DISCIPLES_OF_DECEPTION = {
     noStoryMode: true, // Flag: no Story.js / no story-mode unlock chapters
     icon: "🎭",
 
-    load: async function () {
-        console.log("[DLC] Loading: Disciples of Deception...");
+    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    scripts: [
+        'PsychoHero.js', 'MirrorHero.js', 'SmokeHero.js',
+        'MindscapeBiome.js', 'HallOfMirrorsBiome.js', 'SmogQuarterBiome.js',
+    ],
+    inject: ['Hero', 'Biome', 'Altar', 'Achievements', 'Audio'],
 
-        if (window.dlcManager) {
-            await window.dlcManager.loadScript('dlc/disciples_of_deception/PsychoHero.js');
-            await window.dlcManager.loadScript('dlc/disciples_of_deception/MirrorHero.js');
-            await window.dlcManager.loadScript('dlc/disciples_of_deception/SmokeHero.js');
-            await window.dlcManager.loadScript('dlc/disciples_of_deception/MindscapeBiome.js');
-            await window.dlcManager.loadScript('dlc/disciples_of_deception/HallOfMirrorsBiome.js');
-            await window.dlcManager.loadScript('dlc/disciples_of_deception/SmogQuarterBiome.js');
-        }
-
-        this.injectHero();
-        this.injectBiome();
-        this.injectAltar();
-        this.injectAchievements();
-
-        if (typeof audioManager !== 'undefined') {
+    injectAudio: function () {
+        if (typeof audioManager === 'undefined') return;
+        {
             audioManager.registerSounds({
                 // Psycho SFX
                 'attack_psycho':     { path: 'dlc/disciples_of_deception/audio/sounds/attack_psycho.wav',     volume: 0.4 },
@@ -57,8 +49,6 @@ const DISCIPLES_OF_DECEPTION = {
             audioManager.registerExclamationPath('mirror', (s) => `dlc/disciples_of_deception/audio/voices/mirror/${s}.mp3`);
             audioManager.registerExclamationPath('smoke',  (s) => `dlc/disciples_of_deception/audio/voices/smoke/${s}.mp3`);
         }
-
-        console.log("[DLC] Loaded: Disciples of Deception (Success)");
     },
 
     injectHero: function () {

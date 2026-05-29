@@ -248,11 +248,11 @@ class DLCManager {
             // Dynamic Script Loading for Web/Electron compatibility
             await this.loadScript(`dlc/${id}/index.js`);
 
-            // The script should register itself. 
+            // The script should register itself.
             // Convention: DLCs push themselves to window.DLC_REGISTRY
             if (window.DLC_REGISTRY && window.DLC_REGISTRY[id]) {
                 const dlcContent = window.DLC_REGISTRY[id];
-                await dlcContent.load();
+                await this._activateDLC(id, dlcContent);
                 this.activeDLCs.push(id);
                 console.log(`DLC ${id} loaded successfully.`);
             } else {
@@ -261,6 +261,51 @@ class DLCManager {
         } catch (e) {
             console.error(`Failed to load DLC ${id}:`, e);
         }
+    }
+
+    /**
+     * #8 — Activate a registered DLC. Two contracts are supported:
+     *
+     *   1. Declarative manifest (preferred): the DLC object exposes
+     *        `scripts: ['HeroFile.js', ...]`  — dependency files, loaded in
+     *                                            order; paths are relative to
+     *                                            the DLC's own directory.
+     *        `inject: ['Hero', 'Biome', ...]`  — ordered list of inject-hook
+     *                                            suffixes; each maps to an
+     *                                            `inject<Name>()` method on the
+     *                                            DLC object and is invoked in
+     *                                            order after every script loads.
+     *      The auto-loader owns the orchestration so each DLC no longer repeats
+     *      the loadScript-chain + inject-call sequence boilerplate.
+     *
+     *   2. Legacy `load()` escape hatch: DLCs whose bring-up doesn't fit the
+     *      uniform shape (e.g. Symphony of Sickness, with its beat-loop timer +
+     *      self-running story IIFE) keep a `load: async function () {...}` and
+     *      are driven through that instead.
+     */
+    async _activateDLC(id, dlc) {
+        if (Array.isArray(dlc.scripts)) {
+            for (const file of dlc.scripts) {
+                await this.loadScript(`dlc/${id}/${file}`);
+            }
+            const hooks = Array.isArray(dlc.inject) ? dlc.inject : [];
+            for (const name of hooks) {
+                const fn = dlc['inject' + name];
+                if (typeof fn === 'function') {
+                    // `await` so an async inject hook (none today) still serializes;
+                    // awaiting a sync return is a no-op.
+                    await fn.call(dlc);
+                } else {
+                    console.warn(`[DLCManager] ${id}: declared inject hook 'inject${name}' is not a function — skipped.`);
+                }
+            }
+            return;
+        }
+        if (typeof dlc.load === 'function') {
+            await dlc.load();
+            return;
+        }
+        console.error(`[DLCManager] ${id}: no 'scripts' manifest and no legacy 'load()' — nothing to activate.`);
     }
 
     /**

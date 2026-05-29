@@ -15,31 +15,17 @@ const CHAMPIONS_OF_CHAOS = {
     heroes: ['gravity', 'void'],
     description: "Introduces 'Gravity' (Purple Hero), the Void Biome, and the Champions of Chaos story campaign.",
 
-    load: async function () {
-        console.log("[DLC] Loading: Champions of Chaos...");
+    // #8 — declarative manifest: the auto-loader (DLCManager._activateDLC)
+    // loads `scripts` in order then calls each `inject<Name>()` hook in order.
+    scripts: [
+        'GravityHero.js', 'VoidHero.js', 'ChaosBiome.js',
+        'FracturedBiome.js', 'ChaosEnemies.js', 'Story.js',
+    ],
+    inject: ['Hero', 'Biome', 'Enemies', 'Story', 'StoryArcLabels', 'Altar', 'Achievements', 'Memories', 'Cards', 'Audio'],
 
-        // Load Scripts
-        if (window.dlcManager) {
-            await window.dlcManager.loadScript('dlc/champions_of_chaos/GravityHero.js');
-            await window.dlcManager.loadScript('dlc/champions_of_chaos/VoidHero.js'); // New Hero
-            await window.dlcManager.loadScript('dlc/champions_of_chaos/ChaosBiome.js');
-            await window.dlcManager.loadScript('dlc/champions_of_chaos/FracturedBiome.js'); // New Biome
-            await window.dlcManager.loadScript('dlc/champions_of_chaos/ChaosEnemies.js');
-            await window.dlcManager.loadScript('dlc/champions_of_chaos/Story.js');
-        }
-
-        this.injectHero();
-        this.injectBiome();
-        this.injectEnemies();
-        this.injectStory();
-        this.injectStoryArcLabels();
-        this.injectAltar();
-        this.injectAchievements();
-        this.injectMemories();
-        this.injectCards();
-
-        // Register audio
-        if (typeof audioManager !== 'undefined') {
+    injectAudio: function () {
+        if (typeof audioManager === 'undefined') return;
+        {
             audioManager.registerSounds({
                 'battle_chaos_1':      { path: 'dlc/champions_of_chaos/audio/music/battle_1.wav',            loop: true, volume: 0.4 },
                 'battle_chaos_2':      { path: 'dlc/champions_of_chaos/audio/music/battle_2.wav',            loop: true, volume: 0.4 },
@@ -101,8 +87,6 @@ const CHAMPIONS_OF_CHAOS = {
             audioManager.registerExclamationPath('gravity', (s) => `dlc/champions_of_chaos/audio/voices/gravity/${s}.mp3`);
             audioManager.registerExclamationPath('void',    (s) => `dlc/champions_of_chaos/audio/voices/void/${s}.mp3`);
         }
-
-        console.log("[DLC] Loaded: Champions of Chaos (Success)");
     },
 
     injectHero: function () {

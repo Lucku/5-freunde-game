@@ -19,31 +19,16 @@ const ECHOS_OF_ETERNITY = {
     name: "Echos of Eternity",
     heroes: ['time', 'love'],
 
-    load: async function () {
-        console.log("[DLC] Loading: Echos of Eternity...");
+    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    scripts: [
+        'TimeBiome.js', 'TimeHero.js', 'LoveBiome.js', 'LoveHero.js',
+        'MazeOfTime.js', 'MazeUI.js', 'TimeBosses.js',
+    ],
+    inject: ['Heroes', 'Biome', 'Weather', 'Maze', 'Story', 'StoryArcLabels', 'Altar', 'Achievements', 'Memories', 'Cards', 'Audio'],
 
-        if (window.dlcManager) {
-            await window.dlcManager.loadScript('dlc/echos_of_eternity/TimeBiome.js');
-            await window.dlcManager.loadScript('dlc/echos_of_eternity/TimeHero.js');
-            await window.dlcManager.loadScript('dlc/echos_of_eternity/LoveBiome.js');
-            await window.dlcManager.loadScript('dlc/echos_of_eternity/LoveHero.js');
-            await window.dlcManager.loadScript('dlc/echos_of_eternity/MazeOfTime.js');
-            await window.dlcManager.loadScript('dlc/echos_of_eternity/MazeUI.js');
-            await window.dlcManager.loadScript('dlc/echos_of_eternity/TimeBosses.js');
-        }
-
-        this.injectHeroes();
-        this.injectBiome();
-        this.injectWeather();
-        this.injectMaze();
-        this.injectStory();
-        this.injectStoryArcLabels();
-        this.injectAltar();
-        this.injectAchievements();
-        this.injectMemories();
-        this.injectCards();
-
-        if (typeof audioManager !== 'undefined') {
+    injectAudio: function () {
+        if (typeof audioManager === 'undefined') return;
+        {
             audioManager.registerSounds({
                 // ── Music ─────────────────────────────────────────────────────────
                 'battle_dlc_1': { path: 'dlc/echos_of_eternity/audio/music/battle_all_1.wav', loop: true, volume: 0.40 },
@@ -157,8 +142,6 @@ const ECHOS_OF_ETERNITY = {
                 'weather_petal_storm': { path: 'dlc/echos_of_eternity/audio/sounds/weather_petal_storm.wav', loop: true, volume: 0.25 },
             });
         }
-
-        console.log("[DLC] Loaded: Echos of Eternity (Success)");
     },
 
     // ─── Heroes ──────────────────────────────────────────────────────────────
