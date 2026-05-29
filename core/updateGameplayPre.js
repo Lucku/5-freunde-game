@@ -33,7 +33,12 @@ function _updateGameplayPre(deltaTime) {
 
     // Update Camera — skipped during photo mode so manual pan sticks (#51).
     if (!isPhotoMode()) {
-        if (runState.isCoopMode && runState.player2) {
+        // Shared-screen local co-op fits BOTH players in one viewport (zoom to
+        // the pair). Online co-op renders on separate screens, so each client
+        // centers on its OWN player like single-player — using the two-player
+        // midpoint camera online left the local player off-centre and clipped
+        // their own projectiles on the side away from the partner.
+        if (runState.isCoopMode && runState.player2 && !runState.isOnlineMode) {
             const ref1 = !runState.player.isDead ? runState.player : runState.player2;
             const ref2 = runState.player2 && !runState.player2.isDead ? runState.player2 : runState.player;
             runState.coopZoom = arena.updateCameraForTwo(ref1, ref2, canvas.width, canvas.height);

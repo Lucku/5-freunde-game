@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file, starting wi
 ## [Unreleased]
 
 ### Fixed
+- **Online: own projectiles cut off / only visible near the player.** Online co-op reused the local shared-screen camera (`updateCameraForTwo`), which centres on the *midpoint* of both players and zooms to fit them. Online players are on separate screens, so the local player sat off-centre and their own projectiles left the framed view on the side away from the partner (while still hitting enemies). Online now centres on the local player like single-player ([core/updateGameplayPre.js](core/updateGameplayPre.js)); local co-op keeps the fit-both camera.
 - **Online projectiles clipped early.** The guest builds a full biomed arena *with* obstacles (seeded) but the server arena is flat, so the local projectile kill-pass killed server-driven *ghost* projectiles the instant they crossed a client-only obstacle/boundary — they vanished mid-flight then popped back in on the next snapshot. The kill-pass now skips ghosts entirely (`if (proj._ghost) continue;` in [core/updateGameplayMid.js](core/updateGameplayMid.js)); ghost lifetime stays owned by the snapshot rebuild + orphan-splice loop. Client-only render fix; server sim + parity untouched.
 
 ### Changed
@@ -13,6 +14,7 @@ All notable changes to this project will be documented in this file, starting wi
 - **#48 — cross-platform vector icons (no more emoji render drift).** Powerup world-icons (HEAL/MAXHP/SPEED/MULTI/AUTOAIM) are now drawn as procedural white vector shapes on canvas instead of `♥ ⚡ ⁙ 🎯` glyphs that rendered as mono/color/tofu inconsistently across Windows/Linux/Steam Deck ([core/systems/powerUpSystem.js](core/systems/powerUpSystem.js)). New [Icons.js](Icons.js) `iconHTML()` maps the CHAOS_REWARDS / UPGRADE_POOL emoji vocab to inline `currentColor` SVG (with raw-glyph fallback); wired into the level-up cards and chaos reward HUD. Cosmetic + client-only — parity untouched. New [tests/icons.test.js](tests/icons.test.js).
 
 ### Added
+- **Online: off-screen partner indicator.** With online co-op now using a per-player camera, teammates can roam to opposite ends of the arena and lose sight of each other. A pulsing edge arrow (tinted with the partner's hero colour, friendly dot at its base to distinguish it from the hostile boss chevron) points toward the partner whenever they leave the viewport ([core/drawGameplayMid.js](core/drawGameplayMid.js)). Online-only — local shared-screen co-op already fits both players. Reuses the boss-arrow edge-projection math; client-only, no parity impact.
 - **#41 — per-enemy-type death animations.** `createDeathBurst` now plays a distinct particle recipe per enemy subtype: BOMBER fizzle, GHOST dissolve, SHIELDER shatter, BRUTE heavy debris, TOXIC gas puff, SUMMONER arcane implosion, SPEEDSTER motion streak, SWARM cheap poof, GOBLIN gold sparkle (BASIC/SHOOTER/elites keep the generic burst). Cosmetic + client-only (server no-ops it; fires after kill rewards, zero parity impact); respects reduced-motion. See [game.js](game.js).
 
 **New DLCs**

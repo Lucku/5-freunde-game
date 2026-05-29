@@ -283,6 +283,63 @@ export function _drawGameplayMid() {
         }
     }
 
+    // Online Partner Off-Screen Direction Indicator. Online co-op gives each
+    // client its own player-centred camera (local co-op fits both players in
+    // one viewport, so no arrow is needed there) — players can roam to opposite
+    // ends of the arena and lose sight of each other. Mirrors the boss-arrow
+    // edge-projection math above, tinted with the partner's hero colour.
+    const _p2 = runState.player2;
+    if (runState.isOnlineMode && _p2 && !_p2.isDead) {
+        const _psx = _p2.x - arena.camera.x;
+        const _psy = _p2.y - arena.camera.y;
+        const _pr = _p2.radius || 20;
+        const _pOff = _psx < -_pr || _psx > canvas.width + _pr ||
+                      _psy < -_pr || _psy > canvas.height + _pr;
+        if (_pOff) {
+            const _cx = canvas.width / 2;
+            const _cy = canvas.height / 2;
+            const _angle = Math.atan2(_psy - _cy, _psx - _cx);
+            // Inner margin rectangle – keeps arrow off corners where UI lives
+            const _ml = 52, _mr = canvas.width - 52;
+            const _mt = 76, _mb = canvas.height - 52;
+            const _dx = _psx - _cx, _dy = _psy - _cy;
+            let _t = Infinity;
+            if (_dx > 0) { const _ty = (_mr - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
+            if (_dx < 0) { const _ty = (_ml - _cx) / _dx; if (_ty > 0) { const _py = _cy + _ty * _dy; if (_py >= _mt && _py <= _mb) _t = Math.min(_t, _ty); } }
+            if (_dy > 0) { const _tx = (_mb - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
+            if (_dy < 0) { const _tx = (_mt - _cy) / _dy; if (_tx > 0) { const _px = _cx + _tx * _dx; if (_px >= _ml && _px <= _mr) _t = Math.min(_t, _tx); } }
+            if (_t !== Infinity) {
+                const _ax = _cx + _t * _dx, _ay = _cy + _t * _dy;
+                const _pulse = 0.55 + 0.2 * ((Math.sin(frame * 0.08) + 1) / 2);
+                const _pc = (_p2.stats && _p2.stats.color) || '#4fd1ff';
+                ctx.save();
+                ctx.translate(_ax, _ay);
+                ctx.globalAlpha = _pulse;
+                ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                ctx.shadowBlur = 4;
+                // Friendly dot at the base so a teammate reads differently from
+                // the hostile boss chevron.
+                ctx.fillStyle = _pc;
+                ctx.beginPath();
+                ctx.arc(0, 0, 5, 0, Math.PI * 2);
+                ctx.fill();
+                // Chevron pointing toward the partner.
+                ctx.rotate(_angle);
+                const _s = 11;
+                ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(_s + 7, 0);
+                ctx.lineTo(_s * 0.5, -_s * 0.6);
+                ctx.lineTo(_s * 0.5, _s * 0.6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+    }
+
     // SANDSTORM vision reduction (radial vignette)
     if (currentWeather && currentWeather.id === 'SANDSTORM') {
         const _swFadeIn = Math.min(1, (currentWeather.duration - weatherDuration) / 120);
