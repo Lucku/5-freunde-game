@@ -2231,6 +2231,9 @@ function _resetGameState() {
     _stopWeather();
     // Reset online interpolation state so a new session starts with a fresh clock-offset lock
     _onlineClockOffset = null;
+    _lastServerT       = null;
+    _snapGapEMA        = null;
+    _snapJitterEMA     = null;
     runState.gameRunning = false;
     runState.isTutorialMode = false;
     runState.isTestingMode = false;
@@ -5516,9 +5519,28 @@ const FPS = 60;
 
 // Render remote entities this many ms behind the latest server time so we always
 // have two buffered snapshots to interpolate between, even with internet jitter.
-// Server tick is 33 ms, so 100 ms = ~3 ticks of history available for interpolation.
-const _INTERP_DELAY_MS = 100;
-const _SNAP_BUF_MAX    = 6;
+// Fallback default (used until snapshot cadence is measured). The live delay is
+// adaptive — see _currentInterpDelay(): it tracks the actual inter-snapshot gap
+// (server tick varies 60/30/20 Hz) plus jitter, so a calm 60 Hz link renders only
+// ~55 ms behind instead of a flat 100 ms, while still buffering ≥2 snapshots.
+const _INTERP_DELAY_MS  = 100;
+const _INTERP_DELAY_MIN = 55;
+const _INTERP_DELAY_MAX = 140;
+const _SNAP_BUF_MAX     = 6;
+
+// Measured snapshot cadence (gap between consecutive server timestamps) and its
+// jitter, both EMA-smoothed. Reset to null per match so a new session re-measures.
+let _lastServerT   = null;
+let _snapGapEMA    = null;
+let _snapJitterEMA = null;
+
+// Adaptive interpolation delay: ~2 inter-snapshot gaps + 2× jitter headroom,
+// clamped. Falls back to the fixed default until we have a cadence sample.
+function _currentInterpDelay() {
+    if (_snapGapEMA === null) return _INTERP_DELAY_MS;
+    const d = _snapGapEMA * 2 + _snapJitterEMA * 2;
+    return Math.max(_INTERP_DELAY_MIN, Math.min(_INTERP_DELAY_MAX, d));
+}
 
 // Smoothed offset between client clock and server clock, derived from snapshot
 // timestamps. clientNow - _onlineClockOffset ≈ server time. Locks to minimum
@@ -5536,8 +5558,9 @@ function _onlineUpdateClockOffset(serverT) {
 }
 
 function _onlineRenderTime() {
-    if (_onlineClockOffset === null) return Date.now() - _INTERP_DELAY_MS;
-    return Date.now() - _onlineClockOffset - _INTERP_DELAY_MS;
+    const delay = _currentInterpDelay();
+    if (_onlineClockOffset === null) return Date.now() - delay;
+    return Date.now() - _onlineClockOffset - delay;
 }
 
 // Cubic Hermite interpolation across a ring-buffer of {x,y,t} snapshots.
@@ -5634,6 +5657,18 @@ function _onlineApplySnapshot(s) {
     // actual server tick cadence, not jittery packet receipt times.
     const _serverT  = (typeof s.t === 'number') ? s.t : _snapTime;
     _onlineUpdateClockOffset(_serverT);
+
+    // Track inter-snapshot cadence + jitter (EMA) to size the interpolation delay
+    // adaptively. Ignore non-positive (reorder) or >500 ms (stall) gaps.
+    if (_lastServerT !== null) {
+        const gap = _serverT - _lastServerT;
+        if (gap > 0 && gap < 500) {
+            _snapGapEMA    = _snapGapEMA    === null ? gap : _snapGapEMA * 0.9 + gap * 0.1;
+            const dev      = Math.abs(gap - _snapGapEMA);
+            _snapJitterEMA = _snapJitterEMA === null ? dev : _snapJitterEMA * 0.9 + dev * 0.1;
+        }
+    }
+    _lastServerT = _serverT;
 
     // Update host ghost (rendered as player2 on guest's machine)
     // Store snapshot position + movement so extrapolation loop can forward-predict it
@@ -5751,10 +5786,16 @@ function _onlineApplySnapshot(s) {
     // immediately instead of waiting for server snapshot + 100ms interp delay.
     // After TTL the snapshot's server-side projectile takes over; brief visual
     // overlap is acceptable since both start at the player position.
+    // Keep a locally-predicted shot until its server ghost twin (rendered
+    // _currentInterpDelay() in the past, ~latency behind on the wire) has caught
+    // up to the same flight distance — dropping it sooner snaps the player's own
+    // projectile backward at handoff. TTL ≈ wire latency + render delay + margin.
+    const _predictTtl = Math.max(140, Math.min(400,
+        (window.networkManager?.latencyMs || 0) + _currentInterpDelay() + 40));
     for (let i = projectiles.length - 1; i >= 0; i--) {
         const p = projectiles[i];
         if (!p || p._ghost) continue;
-        if (p._predicted && (_now - p._predictedAt) < 140) continue;
+        if (p._predicted && (_now - p._predictedAt) < _predictTtl) continue;
         projectiles.splice(i, 1);
     }
     const _prevSlotById = new Map();

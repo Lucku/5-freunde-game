@@ -593,6 +593,11 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     for (let index = projectiles.length - 1; index >= 0; index--) {
         const proj = projectiles[index];
         if (!_isHitStopped && !proj._ghost) proj.update();
+        // Ghost (server-driven) projectiles are authoritative on the host. Their
+        // lifetime is owned by the snapshot rebuild + orphan-splice loop above; the
+        // server arena is flat, so running local life / arena-obstacle / arena-bounds
+        // kills here would clip them early at client-only obstacles. Render only.
+        if (proj._ghost) continue;
         if (proj.life !== null && proj.life <= 0) {
             Projectile.release(proj); // #20 P3
             projectiles.splice(index, 1);
