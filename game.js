@@ -3161,7 +3161,18 @@ window.applyDamage = applyDamage;
 
 function createDeathBurst(x, y, color, subType) {
     // #5 phase 5.4 — direct ECS spawn. spawnParticle enforces MAX_PARTICLES.
-    // #41 — per-subType death FX. BOMBER fizzle, GHOST dissolve, SHIELDER shatter.
+    // #41 — per-subType death FX. Cosmetic + CLIENT-ONLY (the server stubs this
+    // to a no-op) and fired AFTER kill rewards/removal, so it never touches
+    // simulation state. Uses Math.random() — NOT runState.rng() — on purpose:
+    // perturbing the seeded RNG here would desync the deterministic sim stream.
+    // #134 reduced-motion: calm, minimal feedback — skip the flashy bursts.
+    if (isReducedMotion()) {
+        for (let i = 0; i < 3; i++) {
+            const a = Math.random() * Math.PI * 2;
+            spawnParticle(runState, x, y, color, Math.cos(a) * 0.6, Math.sin(a) * 0.6, 0.05);
+        }
+        return;
+    }
     if (subType === 'BOMBER') {
         // Fizzle: smoky upward sputter with a few sparks.
         const emberColors = ['#e67e22', '#f1c40f', '#7f8c8d'];
@@ -3221,6 +3232,116 @@ function createDeathBurst(x, y, color, subType) {
         }
         return;
     }
+    if (subType === 'BRUTE') {
+        // Heavy debris: slow chunky shards + a puff of dust. Big, weighty.
+        const debris = ['#5d4037', '#6d4c41', '#8d6e63', color];
+        for (let i = 0; i < 7; i++) {
+            const angle = (i / 7) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+            const speed = 1 + Math.random() * 1.5;
+            spawnParticle(
+                runState, x, y, debris[i % debris.length],
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed - 0.3,
+                0.012 + Math.random() * 0.01,
+            );
+        }
+        for (let i = 0; i < 4; i++) {
+            spawnParticle(
+                runState, x, y, '#9e9e9e',
+                (Math.random() - 0.5) * 1.2,
+                (Math.random() - 0.5) * 1.2 - 0.2,
+                0.02 + Math.random() * 0.01,
+            );
+        }
+        return;
+    }
+    if (subType === 'TOXIC') {
+        // Toxic gas: slow expanding green cloud that lingers (low decay rate).
+        const gas = ['#2ecc71', '#27ae60', '#16a085', '#76ff03'];
+        for (let i = 0; i < 10; i++) {
+            const angle = (i / 10) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+            const speed = 0.4 + Math.random() * 0.8;
+            spawnParticle(
+                runState, x, y, gas[i % gas.length],
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed - 0.2,
+                0.006 + Math.random() * 0.006,
+            );
+        }
+        return;
+    }
+    if (subType === 'SUMMONER') {
+        // Arcane implosion: shards rush inward from a ring, then a bright pop.
+        const arc = ['#2980b9', '#3498db', '#5dade2', color];
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const R = 24;
+            spawnParticle(
+                runState, x + Math.cos(angle) * R, y + Math.sin(angle) * R, arc[i % arc.length],
+                -Math.cos(angle) * 2.2,
+                -Math.sin(angle) * 2.2,
+                0.03 + Math.random() * 0.02,
+            );
+        }
+        for (let i = 0; i < 5; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 2;
+            spawnParticle(
+                runState, x, y, '#ecf0f1',
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed,
+                0.04 + Math.random() * 0.02,
+            );
+        }
+        return;
+    }
+    if (subType === 'SPEEDSTER') {
+        // Motion streak: particles flung along one random axis, fast + brief.
+        const axis = Math.random() * Math.PI * 2;
+        const streak = ['#e74c3c', '#ff6b6b', '#f39c12'];
+        for (let i = 0; i < 6; i++) {
+            const dir = (i % 2 === 0) ? axis : axis + Math.PI;
+            const speed = 3 + Math.random() * 3;
+            const jitter = (Math.random() - 0.5) * 0.6;
+            spawnParticle(
+                runState, x, y, streak[i % streak.length],
+                Math.cos(dir + jitter) * speed,
+                Math.sin(dir + jitter) * speed,
+                0.04 + Math.random() * 0.02,
+            );
+        }
+        return;
+    }
+    if (subType === 'SWARM') {
+        // SWARM dies in bulk — keep it CHEAP: a tiny 3-particle poof only.
+        for (let i = 0; i < 3; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1 + Math.random() * 1.5;
+            spawnParticle(
+                runState, x, y, color,
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed,
+                0.06 + Math.random() * 0.02,
+            );
+        }
+        return;
+    }
+    if (subType === 'GOBLIN') {
+        // Gold sparkle — the gold-carrier bursts into coins.
+        const gold = ['#f1c40f', '#ffd700', '#f39c12', '#ffffff'];
+        for (let i = 0; i < 9; i++) {
+            const angle = (i / 9) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+            const speed = 1.5 + Math.random() * 2;
+            spawnParticle(
+                runState, x, y, gold[i % gold.length],
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed - 0.5,
+                0.02 + Math.random() * 0.015,
+            );
+        }
+        return;
+    }
+    // Default burst (BASIC / SHOOTER / SNIPER / elites / unknown subtype).
     const count = 8;
     for (let i = 0; i < count; i++) {
         const speed = 1.5 + Math.random() * 2.5;

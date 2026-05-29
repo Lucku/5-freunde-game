@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file, starting wi
 ## [Unreleased]
 
 ### Added
+- **#41 — per-enemy-type death animations.** `createDeathBurst` now plays a distinct particle recipe per enemy subtype: BOMBER fizzle, GHOST dissolve, SHIELDER shatter, BRUTE heavy debris, TOXIC gas puff, SUMMONER arcane implosion, SPEEDSTER motion streak, SWARM cheap poof, GOBLIN gold sparkle (BASIC/SHOOTER/elites keep the generic burst). Cosmetic + client-only (server no-ops it; fires after kill rewards, zero parity impact); respects reduced-motion. See [game.js](game.js).
 
 **New DLCs**
 - **DLC: Radiance of Ruin** — three heroes (Light / Mask Integrity drain, Thorn / Blood Bond HP-cost, Dream / Lucidity gauge); three biomes (Reliquary, Crimson Greenhouse, Dreamspace); 10 achievements; full SFX + voice + 60 altar convergence entries; in-game manual entry. Unique projectile sprites (Light sun-mote, Thorn barbed shard, Dream Whisper).
