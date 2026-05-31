@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { Enemy } from '../../Enemy.js';
 import { Particle } from '../../Entities/Particle.js';
 import { Projectile } from '../../Entities/Projectile.js';
@@ -816,5 +816,5 @@ class WindBosses {
     }
 }
 
-// #194 — DLC class must be reachable by bare-name `typeof WindBosses` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
+// DLC class must be reachable by bare-name `typeof WindBosses` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
 if (typeof window !== 'undefined') window.WindBosses = WindBosses;

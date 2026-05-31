@@ -290,7 +290,7 @@ try {
 // ── Express ───────────────────────────────────────────────────────────────────
 
 const app = express();
-// #89 — restrict CORS to the same allowlist when ALLOWED_WS_ORIGINS is set;
+// Restrict CORS to the same allowlist when ALLOWED_WS_ORIGINS is set;
 // otherwise (dev mode) allow all. Origin-less requests (curl, native clients)
 // always pass through; the JWT in the Authorization header is the authn proof.
 const _ALLOWED_HTTP_ORIGINS = (process.env.ALLOWED_WS_ORIGINS || '')
@@ -472,7 +472,7 @@ app.get('/api/admin/login-attempts', requireAdmin, (req, res) => {
     }
 });
 
-// ── Telemetry (#98) ───────────────────────────────────────────────────────────
+// ── Telemetry ───────────────────────────────────────────────────────────
 // Opt-in, anonymous analytics. Stores whitelisted fields only — no PII, no
 // account linkage. instance_id is a client-generated UUID. Rate-limited per IP
 // and capped at TELEMETRY_MAX_ROWS total with rolling prune on insert.
@@ -1360,7 +1360,7 @@ app.get('/api/admin/saves', requireAdmin, (_req, res) => {
     res.json({ saves });
 });
 
-// ── Admin: Map Workshop Moderation (TODO #185) ────────────────────────────────
+// ── Admin: Map Workshop Moderation (TODO ) ────────────────────────────────
 
 app.get('/api/admin/maps', requireAdmin, (req, res) => {
     const sort = (req.query.sort || 'reports');
@@ -1532,7 +1532,7 @@ if (TLS_CERT_PATH && TLS_KEY_PATH) {
     console.log('[TLS] No TLS_CERT_PATH/TLS_KEY_PATH set — running plain HTTP (development only)');
 }
 
-// #89 — Origin allowlist for WebSocket upgrades (CSRF defense). Browsers
+// Origin allowlist for WebSocket upgrades (CSRF defense). Browsers
 // always send an Origin header; native clients (Electron, Steam, dev tools)
 // don't, so we accept missing Origin too (the JWT token in the query string
 // is the authn proof). ALLOWED_WS_ORIGINS env var is a comma-separated list
@@ -1763,7 +1763,7 @@ function handleMessage(ws, msg) {
                 userIds: [lobby.host?.userId, lobby.guest?.userId].filter(Boolean),
             });
 
-            // #200 — generate a single 32-bit seed for this match. Server +
+            // Generate a single 32-bit seed for this match. Server +
             // both clients install `runState.rng = mulberry32(seed)` from
             // the same value so spawn / crit / drop / boss-pattern rolls
             // produce identical outcomes across all three participants.

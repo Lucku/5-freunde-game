@@ -1,4 +1,4 @@
-// #5 phase 5.6 — MemoryShard ECS system. Replaces `class MemoryShard` from
+// MemoryShard ECS system. Replaces `class MemoryShard`
 // MemoryShard.js with component arrays on runState. Drop on Memory levels +
 // boss-death wave breakpoints; pickup reveals a hero-keyed memory story line
 // (see core/updateGameplayMid.js's pickup-dispatch loop).

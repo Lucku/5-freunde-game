@@ -1,4 +1,4 @@
-// #5 phase 5.1 — PowerUp ECS system. Replaces the `class PowerUp` from
+// PowerUp ECS system. Replaces the `class PowerUp`
 // Entities/PowerUp.js with component arrays on runState. See tasks/ecs-design.md
 // for the slot-allocation strategy (dense head + swap-with-last), sizing
 // rationale (MAX_POWERUPS = 16), and pickup-collision pattern.
@@ -22,7 +22,7 @@ const POWERUP_TIMER_INIT = 600;
 
 // One palette per type, indexed by Uint8 ordinal (HEAL/MAXHP/SPEED/MULTI/AUTOAIM).
 const _COLORS  = ['#2ecc71', '#e74c3c', '#f1c40f', '#3498db', '#9b59b6'];
-// #48 — icons are drawn as procedural vector shapes (see drawPowerUpIcon) instead
+// Icons are drawn as procedural vector shapes (see drawPowerUpIcon) instead
 // of emoji/glyphs. `♥ ⚡ ⁙ 🎯` rendered inconsistently across Windows/Linux/Steam
 // Deck (mono vs color vs tofu); white vector shapes render identically everywhere.
 
@@ -108,7 +108,7 @@ export function drawPowerUps(ctx, rs) {
     }
 }
 
-// #48 — per-type white vector icons, replacing the old emoji/glyph fillText.
+// Per-type white vector icons, replacing the old emoji/glyph fillText.
 // Drawn centered at (0,0); caller has already translated to the powerup.
 // HEAL=cross · MAXHP=heart · SPEED=lightning · MULTI=three dots · AUTOAIM=target.
 function drawPowerUpIcon(ctx, ti, r) {

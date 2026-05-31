@@ -1,6 +1,6 @@
 // Config.js - Handles local user settings
 //
-// #9 — Electron detection + fs/path access now lives in Platform.js.
+// Electron detection + fs/path access now lives in Platform.js.
 // We read it through `window.Platform` because Config.js runs early in the
 // classic-script load order before all ESM imports settle on some pages.
 const _platform = (typeof window !== 'undefined' && window.Platform) ? window.Platform : null;
@@ -26,7 +26,7 @@ const defaultConfig = {
     screenShake: true,
     controllerVibration: true,
     particles: true,
-    postFX: true, // #35 — WebGL post-processing pass (bloom / chromatic / vignette / biome grade)
+    postFX: true, // WebGL post-processing pass (bloom / chromatic / vignette / biome grade)
 
     // Gameplay
     autoAim: false, // Accessibility?
@@ -42,12 +42,12 @@ const defaultConfig = {
     highContrast:     false, // forces high-contrast palette on UI
     fontScale:        1.0,   // 0.8 | 1.0 | 1.25 | 1.5 — HUD + damage-number font scaling
     screenReaderHints: false, // ARIA live announcements on UI state changes
-    holdToFireToggle: false, // when true, mouse click toggles auto-fire (#132)
-    aimAssist:        0,     // 0..1 — strength of aim snap toward nearest enemy (#133)
-    oneHandedScheme:  'off', // 'off' | 'leftHand' | 'rightHand' (#138)
-    pauseOnFocusLoss: true,  // pause when window loses focus (#139)
-    pauseOnGamepadDisconnect: true, // pause when an in-use gamepad disconnects (#139)
-    keyBindings: {           // #131 remappable keys (lowercase event.key)
+    holdToFireToggle: false, // when true, mouse click toggles auto-fire
+    aimAssist:        0,     // 0..1 — strength of aim snap toward nearest enemy
+    oneHandedScheme:  'off', // 'off' | 'leftHand' | 'rightHand'
+    pauseOnFocusLoss: true,  // pause when window loses focus
+    pauseOnGamepadDisconnect: true, // pause when an in-use gamepad disconnects
+    keyBindings: {           // Remappable keys (lowercase event.key)
         moveUp:    ['w', 'arrowup'],
         moveDown:  ['s', 'arrowdown'],
         moveLeft:  ['a', 'arrowleft'],
@@ -58,7 +58,7 @@ const defaultConfig = {
         special:   ['q'],
         pause:     ['escape', 'p']
     },
-    // Remappable XInput button indices per action (#131 gamepad parity).
+    // Remappable XInput button indices per action ( gamepad parity).
     // 0=A 1=B 2=X 3=Y 4=LB 5=RB 6=LT 7=RT 8=Back 9=Start 10=LS 11=RS
     // 12-15=DPad U/D/L/R. Triggers (6/7) also trip via analog value > 0.15.
     gamepadBindings: {
@@ -72,19 +72,19 @@ const defaultConfig = {
     // Telemetry — opt-in crash reports to the configured server. No PII.
     crashReportsEnabled: true,
 
-    // Anonymous analytics (#98) — opt-in. First-launch modal must run before
+    // Anonymous analytics — opt-in. First-launch modal must run
     // any events fire. instanceId generated lazily on first opt-in.
     telemetryEnabled: false,
     telemetryConsentSeen: false,
     telemetryInstanceId: null,
 
-    // Last APP_VERSION the user has seen the "What's New" modal for (#165).
+    // Last APP_VERSION the user has seen the "What's New" modal for.
     lastSeenVersion: null,
 
-    // Minimap (#170)
+    // Minimap
     minimapEnabled: true,
 
-    // HUD layout (#169) — per-element { left, top } overrides in CSS pixels.
+    // HUD layout — per-element { left, top } overrides in CSS pixels.
     // Empty {} means use CSS defaults. Populated by HUDLayout.js edit mode.
     hudLayout: {},
 
@@ -110,8 +110,8 @@ const defaultConfig = {
     }
 };
 
-const gameConfig = structuredClone(defaultConfig); // #17
-// #4 session 5 — GameContext owns gameConfig; `window.gameConfig` is a reverse
+const gameConfig = structuredClone(defaultConfig);
+// GameContext owns gameConfig; `window.gameConfig` is a reverse
 // alias getter set up by the setter. Later mutations are in-place
 // (`Object.assign(gameConfig, …)` / `gameConfig.X = …`), so object identity
 // is preserved and `window.gameContext.gameConfig === gameConfig` always.
@@ -154,7 +154,7 @@ function loadConfig() {
             console.log("Config loaded:", gameConfig);
         } catch (e) {
             console.error("Failed to parse config:", e);
-            Object.assign(gameConfig, structuredClone(defaultConfig)); // #17
+            Object.assign(gameConfig, structuredClone(defaultConfig));
         }
     } else {
         console.log("No config found, using defaults.");
@@ -211,7 +211,7 @@ function applyConfig() {
     }
 }
 
-// One-handed control presets (#138). Selected preset is applied as the active
+// One-handed control presets. Selected preset is applied as the active
 // keyBindings; the user can still customise on top via the remap UI.
 const ONE_HANDED_PRESETS = {
     off: null, // use defaultConfig.keyBindings
@@ -242,14 +242,14 @@ const ONE_HANDED_PRESETS = {
 function applyOneHandedScheme(scheme) {
     const preset = ONE_HANDED_PRESETS[scheme];
     if (!preset) {
-        gameConfig.keyBindings = structuredClone(defaultConfig.keyBindings); // #17
+        gameConfig.keyBindings = structuredClone(defaultConfig.keyBindings);
     } else {
-        gameConfig.keyBindings = structuredClone(preset); // #17
+        gameConfig.keyBindings = structuredClone(preset);
     }
     gameConfig.oneHandedScheme = scheme;
     saveConfig();
 }
-// #171 phase 2 — `window.applyOneHandedScheme` shim removed; UI/Options.js
+// `window.applyOneHandedScheme` shim removed; UI/Options.js
 // imports it explicitly via the export block below.
 
 // Initial Load

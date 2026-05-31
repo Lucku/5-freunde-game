@@ -278,7 +278,7 @@ const PERM_UPGRADES = {
     wisdom: { name: "Void Mind", desc: "+2% XP Gain", baseCost: 2500, costMult: 1.3 }
 };
 
-// #16 — Gameplay tuning numbers extracted from inline call sites. Keep them
+// Gameplay tuning numbers extracted from inline call sites. Keep them
 // here so balance changes don't require grepping through 7000+ lines of game.js.
 // Reads via `import { GAMEPLAY }` (ESM) or `window.GAMEPLAY` (classic shim).
 /** @type {import('./types/schemas.js').GameplayConstants} */
@@ -298,7 +298,7 @@ const GAMEPLAY = {
     // Networking
     INTERP_DELAY_MS:         100,
 
-    // Hit-stop frame counts (#39)
+    // Hit-stop frame counts
     HITSTOP_HIT:               2,
     HITSTOP_CRIT_MELEE:        5,
     HITSTOP_CRIT_SHOT:         4,
@@ -313,10 +313,10 @@ const GAMEPLAY = {
     // Combo timing
     COMBO_TIMEOUT_FRAMES:    240, // 4 s
 
-    // Save backups (#140)
+    // Save backups
     SAVE_BACKUP_SLOTS:         5,
 
-    // Pause summary (#159)
+    // Pause summary
     PAUSE_UPGRADE_CHIPS:      24,
     PAUSE_CARD_CHIPS:         12,
 };

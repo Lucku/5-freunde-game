@@ -1,4 +1,4 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 import { Enemy } from './Enemy.js';
 import { FloatingText } from './Entities/FloatingText.js';
 import { Projectile } from './Entities/Projectile.js';
@@ -674,7 +674,7 @@ class Boss {
                         if (dist < this.telegraphData.radius) {
                             const _dmg = this.damage * 2;
                             player.hp -= _dmg;
-                            if (typeof window.recordPlayerDamage === 'function') window.recordPlayerDamage(player, this.name || 'BOSS', _dmg); // #168
+                            if (typeof window.recordPlayerDamage === 'function') window.recordPlayerDamage(player, this.name || 'BOSS', _dmg);
                             floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(_dmg), "#e74c3c", 20));
                         }
                     }

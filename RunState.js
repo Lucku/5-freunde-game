@@ -1,11 +1,11 @@
-// RunState.js — extracted from game.js (improvement #1 phase D + #11 phase 1).
+// RunState.js — extracted from game.js (improvement phase D + ).
 //
 // Two distinct exports here:
 //
 //   1. createRunStats() — the per-run statistics object factory + helpers.
 //      Canonical instance lives in game.js as `currentRunStats`.
 //
-//   2. createRunState() — NEW in #11 phase 1. Container schema for the
+//  2. createRunState() — NEW. Container schema for the
 //      ~70 module-scope `let`/`var` globals in game.js that are run-scoped
 //      (entity arrays, lifecycle scalars, mode flags, story/objective/weather,
 //      combat/cinematic, players + revival). No fields are wired up yet —
@@ -32,7 +32,7 @@ export function createRunStats({ startTime = Date.now() } = {}) {
         bossesKilled:  0,
         maxCombo:      0,
         itemsBought:   0,
-        // End-of-run breakdown buckets (#160).
+        // End-of-run breakdown buckets.
         upgradesPicked: [],   // [{ wave, timeSec, id, title }, ...]
         keyMoments:     [],   // [{ wave, timeSec, kind, label }, ...]
         damageBySource: {},   // 'melee'|'projectile'|'special'|'dot' → number
@@ -63,7 +63,7 @@ export function logKeyMoment(rs, wave, timeSec, kind, label) {
     rs.keyMoments.push({ wave, timeSec, kind, label });
 }
 
-// #5 phase 5.1+ — ECS systems init bridge. Each component-array system
+// ECS systems init bridge. Each component-array system
 // owns a per-runState `init<Entity>(rs)` that allocates typed arrays. The
 // container calls them so a fresh `runState` has both legacy class-array
 // fields (entity types not yet migrated) and ECS typed arrays for the
@@ -80,10 +80,10 @@ import { initProjectiles } from './core/systems/projectileSystem.js';
 import { initEnemies } from './core/systems/enemySystem.js';
 
 // ───────────────────────────────────────────────────────────────────────────
-// #11 phase 1 — RunState container schema.
+// RunState container schema.
 //
 // The fields below mirror the run-scoped module-scope globals currently in
-// game.js. Later phases (#11.2 – #11.7) migrate consumers slice-by-slice. The
+// game.js. Later phases (.2 – .7) migrate consumers slice-by-slice. The
 // per-phase mapping lives in tasks/active-work.md.
 //
 // IMPORTANT — defaults must match game.js's initial values byte-for-byte so a
@@ -99,26 +99,26 @@ import { initEnemies } from './core/systems/enemySystem.js';
  * @property {Array} floatingTexts
  * @property {Array} meleeAttacks
  * @property {Array} cardDrops
- * (#5 phase 5.1 — `powerUps` migrated to ECS typed arrays. See
+ * (`powerUps` migrated to ECS typed arrays.
  *  core/systems/powerUpSystem.js.)
- * (#5 phase 5.2 — `cardDrops` migrated to ECS typed arrays. See
+ * (`cardDrops` migrated to ECS typed arrays.
  *  core/systems/cardDropSystem.js.)
- * (#5 phase 5.4 — `particles` migrated to ECS typed arrays + palette
+ * (`particles` migrated to ECS typed arrays + palette
  *  interning. See core/systems/particleSystem.js.)
- * (#5 phase 5.5 — `floatingTexts` migrated to ECS typed arrays + palette
+ * (`floatingTexts` migrated to ECS typed arrays + palette
  *  interning + string side-table. See core/systems/floatingTextSystem.js.)
- * (#5 phase 5.6 — `memoryShards` migrated to ECS typed arrays + palette
+ * (`memoryShards` migrated to ECS typed arrays + palette
  *  interning + heroType side-table. See core/systems/memoryShardSystem.js.)
- * (#5 phase 5.7 — `goldDrops` migrated to ECS typed arrays. See
+ * (`goldDrops` migrated to ECS typed arrays.
  *  core/systems/goldDropSystem.js.)
- * (#5 phase 5.8 — `holyMasks` migrated to ECS typed arrays. See
+ * (`holyMasks` migrated to ECS typed arrays.
  *  core/systems/holyMaskSystem.js.)
- * (#5 phase 5.9 — `companions` migrated to ECS typed arrays + AI tick.
+ * (`companions` migrated to ECS typed arrays + AI tick.
  *  See core/systems/companionSystem.js.)
- * (#5 phase 5.10 — `projectiles` migrated to ECS typed arrays + hybrid
+ * (`projectiles` migrated to ECS typed arrays + hybrid
  *  hook layout. See core/systems/projectileSystem.js + compat shim in
  *  Entities/Projectile.js.)
- * (#5 phase 5.11b — `enemies` migrated to ECS typed arrays + slot proxy
+ * (`enemies` migrated to ECS typed arrays + slot proxy
  *  via Enemy.js compat-ctor pattern. Mixed-storage sentinel iterates
  *  ECS Enemy slots + Boss class instances side-by-side.)
  *
@@ -193,7 +193,7 @@ import { initEnemies } from './core/systems/enemySystem.js';
 /**
  * Fresh per-session run-state container.
  *
- * Phase 1 of #11 lands the schema only — no consumer reads or writes through
+ * Phase 1 lands the schema only — no consumer reads or writes through
  * this object yet. Subsequent phases migrate one field group at a time.
  *
  * @returns {RunState}
@@ -201,17 +201,17 @@ import { initEnemies } from './core/systems/enemySystem.js';
 export function createRunState() {
     const rs = {
         // Phase 2 — entity arrays.
-        // PowerUp migrated to ECS in #5 phase 5.1 — see initPowerUps below.
-        // CardDrop migrated to ECS in #5 phase 5.2 — see initCardDrops below.
-        // Particle migrated to ECS in #5 phase 5.4 — see initParticles below.
+        // PowerUp migrated to ECS in — see initPowerUps below.
+        // CardDrop migrated to ECS in — see initCardDrops below.
+        // Particle migrated to ECS in — see initParticles below.
         //   (Entities/Particle.js stays as a compat shim for the ~115 existing
         //    `Particle.acquire` callers; they route to spawnParticle via a
         //    ParticleSlot proxy.)
-        // FloatingText migrated to ECS in #5 phase 5.5 — see initFloatingTexts
+        // FloatingText migrated to ECS in — see initFloatingTexts
         // below. Same compat-shim pattern as Particle.
-        // Projectile migrated to ECS in #5 phase 5.10 — see initProjectiles
+        // Projectile migrated to ECS in — see initProjectiles
         // below. Compat shim in Entities/Projectile.js.
-        // Enemy migrated to ECS in #5 phase 5.11b — see initEnemies +
+        // Enemy migrated to ECS in — see initEnemies +
         // mixed-storage sentinel in Enemy.js.
         meleeAttacks:    [],
 
@@ -302,7 +302,7 @@ export function createRunState() {
     initHolyMasks(rs);
     initCompanions(rs);
     initProjectiles(rs);
-    // #5 phase 5.11 skeleton — typed-array storage allocated, no
+    // Skeleton — typed-array storage allocated, no
     // consumers wired yet. Enemy class still owns instances; ECS
     // storage migrates in 5.11b.
     initEnemies(rs);
@@ -310,12 +310,12 @@ export function createRunState() {
     return rs;
 }
 
-// #173 phase 10 — singleton instance. game.js no longer owns the canonical
+// Singleton instance. game.js no longer owns the canonical
 // `runState`; leaf modules `import { runState } from './RunState.js'` to read
 // run-scoped state without coupling to game.js's module scope. The renderer
 // + DLC also see it via `window.runState` (set below) for bare-name access.
 //
-// #195 (step 4, post step-3 server-sim arc) — per-session indirection. The
+// (step 4, post step-3 server-sim arc) — per-session indirection. The
 // renderer uses a single `runState` per process; the server runs multiple
 // `GameSession` instances concurrently and each needs its own state. The
 // exported `runState` is now a Proxy that forwards every read/write to

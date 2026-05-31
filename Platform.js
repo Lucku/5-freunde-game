@@ -1,5 +1,5 @@
 // Platform.js — single source of truth for Electron / web runtime detection
-// and Node-module access (#9). Replaces duplicated `typeof process !==
+// and Node-module access. Replaces duplicated `typeof process !==
 // 'undefined' && process.versions && process.versions.electron` checks across
 // `Config.js`, `game.js`, `Managers/SaveManager.js`, `Managers/CrashReporter.js`,
 // `dlc/DLCManager.js`, etc.

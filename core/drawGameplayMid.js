@@ -1,4 +1,4 @@
-// #173 phase 10 — leaf-module extraction of `_drawGameplayMid`. Pure draw
+// Leaf-module extraction of `_drawGameplayMid`. Pure draw
 // helper called from game.js. Reads every gameplay scalar/array via
 // `globalThis.X` (resolves to `window.X` in the renderer, `global.X` server
 // side). Both sides set up the same globals — renderer via the
@@ -13,7 +13,7 @@
 // audioManager, getHeroTheme, showNotification, isCoopMode,
 // isAICompanionMode, isEvilMode, isVersusMode, applyScreenShake, Boss,
 // BIOME_LOGIC, HERO_LOGIC, TutorialMode, TestingGrounds.
-// (PowerUp draw moved to systems/powerUpSystem.js drawPowerUps in #5 phase 5.1.)
+// (PowerUp draw moved to systems/powerUpSystem.js drawPowerUps.)
 import { runState } from '../RunState.js';
 import { drawPowerUps } from './systems/powerUpSystem.js';
 import { drawCardDrops } from './systems/cardDropSystem.js';
@@ -155,16 +155,16 @@ export function _drawGameplayMid() {
     // Melee swipes draw pass — survivors of the update loop above.
     for (const att of meleeAttacks) att.draw();
 
-    // Particle draw pass (#5 phase 5.4 — ECS). drawParticles internally
+    // Particle draw pass (ECS). drawParticles internally
     // skips off-screen culling per slot by setting globalAlpha + drawImage;
     // for now we draw all live slots (kill pass already culled far-offscreen
     // in update). The leaf-module no longer has per-slot camera bounds.
     drawParticles(ctx, runState);
     ctx.globalAlpha = 1;
-    // Floating-text draw pass (#5 phase 5.5 — ECS).
+    // Floating-text draw pass (ECS).
     drawFloatingTexts(ctx, runState);
 
-    // #173 phase 6 — enemy draw pass. Survivors of the update + collision loop
+    // Enemy draw pass. Survivors of the update + collision loop
     // above. Hit-flash overlay (ghost-only) renders on top of the enemy sprite.
     for (const enemy of enemies) {
         enemy.draw();
@@ -179,7 +179,7 @@ export function _drawGameplayMid() {
         }
     }
 
-    // #173 phase 7 — single-instance entity draws (relocated from inline
+    // Single-instance entity draws (relocated from inline
     // positions earlier in this function). Renders on top of all list-based
     // entities so the player is always visible. Z-order:
     //   enemies → player → evil overlay → player2 → versus AI + HP bars
@@ -226,7 +226,7 @@ export function _drawGameplayMid() {
         window.HERO_LOGIC[player.type].drawUI(ctx);
     }
 
-    // #170 — Minimap (rendered into a separate DOM canvas)
+    // Minimap (rendered into a separate DOM canvas)
     _renderMinimap();
 
     // Tutorial HUD

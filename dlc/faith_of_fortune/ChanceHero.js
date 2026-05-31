@@ -1,7 +1,7 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { FloatingText } from '../../Entities/FloatingText.js';
 import { Projectile } from '../../Entities/Projectile.js';
-// GoldDrop class removed in #5 phase 5.7 — replaced by spawnGoldDrop ECS helper.
+// GoldDrop class removed in — replaced by spawnGoldDrop ECS helper.
 import { runState } from '../../RunState.js';
 import { spawnGoldDrop } from '../../core/systems/goldDropSystem.js';
 

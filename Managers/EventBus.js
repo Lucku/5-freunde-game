@@ -2,7 +2,7 @@
  * EventBus — simple pub/sub for cross-module signalling.
  *
  * Created during Phase 8a (2026-05-11) as the foundation for the eventual
- * game.js split (improvement #1). Lets future extracted modules (`Spawner`,
+ * game.js split (improvement ). Lets future extracted modules (`Spawner`,
  * `Wave`, `RunState`, `GameLoop`) communicate without recreating ad-hoc global
  * function references.
  *

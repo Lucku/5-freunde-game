@@ -1,4 +1,4 @@
-// Camera.js — extracted from game.js (improvement #1 phase A).
+// Camera.js — extracted from game.js (improvement phase A).
 //
 // Owns screen-shake state, named shake presets, photo-mode free-camera, and
 // gamepad-vibration impact helpers. Reads `window.arena`, `window.gameConfig`,
@@ -38,7 +38,7 @@ export function applyScreenShake(ctx) {
     _shakeDuration--;
 }
 
-// #38 — Camera-shake taxonomy. Named presets keep per-event flavor
+// Camera-shake taxonomy. Named presets keep per-event flavor
 // (intensity + duration) consistent across call sites.
 export const SHAKE_PRESETS = {
     hitSmall: { i: 3,  d: 6  }, // small projectile / pellet hit
@@ -90,7 +90,7 @@ export function triggerImpact(shakePx, shakeFrames, vibWeak, vibStrong, vibMs, g
     triggerVibration(vibWeak, vibStrong, vibMs, gpIndex);
 }
 
-// ── Photo mode (#51) ──────────────────────────────────────────────────────
+// ── Photo mode ──────────────────────────────────────────────────────
 // While active: UI overlays hide (HUD + pause-screen + minimap + debug),
 // camera becomes free (Arrow keys / WASD pan, Shift = slow, Ctrl = fast).
 // World keeps running ("live photo"). Press F2 / Esc to exit.

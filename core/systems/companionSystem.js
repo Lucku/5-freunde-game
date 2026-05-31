@@ -1,4 +1,4 @@
-// #5 phase 5.9 — Companion ECS system. Replaces `class Companion` from
+// Companion ECS system. Replaces `class Companion`
 // Companion.js with component arrays on runState. First behavioral system
 // in the migration (vs prior data+render-only entities): per-frame orbit
 // motion around the owning player, nearest-enemy targeting within 400 px

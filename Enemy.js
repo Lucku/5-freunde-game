@@ -1,5 +1,5 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
-// #5 phase 5.11b — `new Enemy(...)` now allocates an ECS slot and returns a
+// Explicit imports for symbols previously read off window shims.
+// `new Enemy(...)` now allocates an ECS slot and returns a
 // slot proxy. The constructor body writes to `this` (a throwaway class
 // instance); at the end, all own props are copied into the typed-array slot
 // via `copyToEnemySlot`. Subsequent reads/writes via the returned proxy
@@ -217,7 +217,7 @@ class Enemy {
         this._world = world;
         this.hitFlashTimer = 0;
 
-        // #5 phase 5.11b — allocate ECS slot, copy all own props (including
+        // Allocate ECS slot, copy all own props (including
         // any `_*` extras the DLC `init()` hook added), return slot proxy.
         // Callers see the proxy; method dispatch routes through
         // Enemy.prototype via the proxy's getPrototypeOf trap.
@@ -322,7 +322,7 @@ class Enemy {
                 if (Math.hypot(player.x - this.x, player.y - this.y) < 100) {
                     if (!player.isInvincible) {
                         player.hp -= 40 * (1 - player.damageReduction);
-                        if (typeof window.recordPlayerDamage === 'function') window.recordPlayerDamage(player, 'BOMBER', 40); // #168
+                        if (typeof window.recordPlayerDamage === 'function') window.recordPlayerDamage(player, 'BOMBER', 40);
                         floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "40", "#e74c3c", 20));
                     }
                     // Track hits for Untouchable objective
@@ -617,7 +617,7 @@ class Enemy {
 }
 Enemy._nextId = 0;
 
-// #5 phase 5.11b — register prototype so the slot proxy's
+// Register prototype so the slot proxy's
 // `getPrototypeOf` trap returns it, making `slot.update()` / `slot.draw()`
 // resolve to the class methods above.
 registerEnemyPrototype(Enemy.prototype);

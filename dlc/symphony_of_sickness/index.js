@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { ALTAR_TREE } from '../../AltarData.js';
 
 import { FloatingText } from '../../Entities/FloatingText.js';
@@ -12,7 +12,7 @@ const DLC_ID = 'symphony_of_sickness';
 const SymphonyDLC = {
     id: DLC_ID,
     name: "Symphony of Sickness",
-    dlcVersion: 1, // #175 — DLC schema version stamp
+    dlcVersion: 1, // DLC schema version stamp
     heroes: ['sound', 'poison'],
     load: async function () {
         console.log("Loading Symphony of Sickness DLC...");

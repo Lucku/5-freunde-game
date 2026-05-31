@@ -1,7 +1,7 @@
-// #194 follow-up — explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
+// Explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
 import { BiomeZone, Obstacle } from '../../Arena.js';
 
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 
 // The Mindscape - Psycho's Biome
 
@@ -430,5 +430,5 @@ class MindscapeBiome {
 if (typeof BIOME_LOGIC === 'undefined') window.BIOME_LOGIC = {};
 window.BIOME_LOGIC['psycho'] = new MindscapeBiome();
 
-// #194 — DLC class must be reachable by bare-name `typeof MindscapeBiome` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
+// DLC class must be reachable by bare-name `typeof MindscapeBiome` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
 if (typeof window !== 'undefined') window.MindscapeBiome = MindscapeBiome;

@@ -1,4 +1,4 @@
-// #5 phase 5.7 — GoldDrop ECS system. Replaces `class GoldDrop` from
+// GoldDrop ECS system. Replaces `class GoldDrop`
 // Entities/GoldDrop.js with component arrays on runState. No magnet pull
 // behavior despite the legacy "Golden Magnet" comment in the pickup loop —
 // pickup is plain pickup-range collision against `player.pickupRange`.

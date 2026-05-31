@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { Projectile } from '../../Entities/Projectile.js';
 
 // Mirror Hero Logic
@@ -339,7 +339,7 @@ window.HERO_LOGIC['mirror'] = {
                 }
                 if (exploded) {
                     this._spawnShatterFragments(p);
-                    if (typeof Projectile !== 'undefined') Projectile.release(p); // #20 P3
+                    if (typeof Projectile !== 'undefined') Projectile.release(p);
                     projectiles.splice(i, 1);
                 }
             }

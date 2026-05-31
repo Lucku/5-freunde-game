@@ -1,8 +1,8 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { ALTAR_TREE } from '../../AltarData.js';
 import { Boss } from '../../Boss.js';
 
-// MemoryShard class removed in #5 phase 5.6 — color overrides via window._MEMORY_SHARD_COLORS.
+// MemoryShard class removed in — color overrides via window._MEMORY_SHARD_COLORS.
 import { MEMORY_STORIES } from '../../MemoryStories.js';
 
 // Echos of Eternity — DLC Manifest
@@ -17,10 +17,10 @@ import { MEMORY_STORIES } from '../../MemoryStories.js';
 const ECHOS_OF_ETERNITY = {
     id: 'echos_of_eternity',
     name: "Echos of Eternity",
-    dlcVersion: 1, // #175 — DLC schema version stamp
+    dlcVersion: 1, // DLC schema version stamp
     heroes: ['time', 'love'],
 
-    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    // Declarative manifest (auto-loader drives scripts + inject hooks).
     scripts: [
         'TimeBiome.js', 'TimeHero.js', 'LoveBiome.js', 'LoveHero.js',
         'MazeOfTime.js', 'MazeUI.js', 'TimeBosses.js',
@@ -599,7 +599,7 @@ const ECHOS_OF_ETERNITY = {
             ];
         }
 
-        // Hook MemoryShard color (#5 phase 5.6 — ECS registry instead of
+        // Hook MemoryShard color (ECS registry instead
         // prototype patch). Color already matches the fallback switch;
         // kept for explicit DLC ownership.
         window._MEMORY_SHARD_COLORS = window._MEMORY_SHARD_COLORS || {};
@@ -650,7 +650,7 @@ const ECHOS_OF_ETERNITY = {
             };
         }
 
-        // Love memory shards (50 shards + secret shard #51)
+        // Love memory shards (50 shards + secret shard )
         if (typeof MEMORY_STORIES !== 'undefined') {
             MEMORY_STORIES['love'] = [
                 // 1-10: Life before
@@ -710,7 +710,7 @@ const ECHOS_OF_ETERNITY = {
                 "I loved him with my whole heart. That heart is mine now.",
             ];
 
-            // Secret shard #51 — revealed automatically when all 50 Love shards are collected
+            // Secret shard — revealed automatically when all 50 Love shards are collected
             window.ECHOS_LOVE_SECRET = "His name was Time. And I was the one who kept the world from ending while he was busy breaking it.";
         }
     },

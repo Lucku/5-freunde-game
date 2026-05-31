@@ -1,10 +1,10 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { ALTAR_TREE } from '../../AltarData.js';
 import { Boss } from '../../Boss.js';
 import { Enemy } from '../../Enemy.js';
 import { FloatingText } from '../../Entities/FloatingText.js';
 import { Projectile } from '../../Entities/Projectile.js';
-// MemoryShard class removed in #5 phase 5.6 — color overrides via window._MEMORY_SHARD_COLORS.
+// MemoryShard class removed in — color overrides via window._MEMORY_SHARD_COLORS.
 import { MEMORY_STORIES } from '../../MemoryStories.js';
 
 // The Rise of the Rock - DLC Manifest
@@ -12,11 +12,11 @@ import { MEMORY_STORIES } from '../../MemoryStories.js';
 const RISE_OF_THE_ROCK = {
     id: 'rise_of_the_rock',
     name: "Rise of the Rock",
-    dlcVersion: 1, // #175 — DLC schema version stamp
+    dlcVersion: 1, // DLC schema version stamp
     hero: 'earth',
     description: "Introduces the Earth Hero, Rock Biome, and a new Story Campaign.",
 
-    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    // Declarative manifest (auto-loader drives scripts + inject hooks).
     scripts: [
         'EarthHero.js', 'RockBiome.js', 'RockEnemies.js',
     ],
@@ -90,7 +90,7 @@ const RISE_OF_THE_ROCK = {
             ];
         }
 
-        // Extensibility: Hook into MemoryShard color (#5 phase 5.6 — ECS
+        // Extensibility: Hook into MemoryShard color (ECS
         // registry instead of prototype patch). Color already matches the
         // fallback switch; kept for explicit DLC ownership.
         window._MEMORY_SHARD_COLORS = window._MEMORY_SHARD_COLORS || {};

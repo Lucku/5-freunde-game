@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 
 // Madness Biome Logic
 // Associated with Chance Hero

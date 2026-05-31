@@ -1,4 +1,4 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 import { Player } from './Player.js';
 import { runState } from './RunState.js';
 import { clearParticles } from './core/systems/particleSystem.js';
@@ -160,7 +160,7 @@ const TutorialMode = {
         }
 
         // Reset wave-level state so closeStory() → advanceWave() restarts cleanly.
-        // #11 phase 2 — mutate-in-place keeps runState.X identity stable.
+        // Mutate-in-place keeps runState.X identity stable.
         // particles + floatingTexts are ECS sentinels with a read-only `length`
         // getter — assigning .length=0 throws under ESM strict mode, so use the
         // typed-array clear helpers directly.

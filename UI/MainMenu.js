@@ -111,7 +111,7 @@ class MainMenuUI {
                 window.selectedHeroType = h;
                 this.renderHeroSelect();
             };
-            // #29 P3 — hover prefetch. When the user hovers a hero card, kick
+            // Hover prefetch. When the user hovers a hero card, kick
             // off the owning DLC's load in the background so it's already
             // resolved (or in-flight with a shared promise) by the time they
             // click Start. No-op for base heroes (returns null owner).

@@ -20,14 +20,14 @@ class World {
         this.enemies       = [];
         this.projectiles   = [];
         this.particles     = [];
-        // floatingTexts migrated to ECS on runState in #5 phase 5.5.
-        // goldDrops migrated to ECS on runState in #5 phase 5.7.
-        // companions migrated to ECS on runState in #5 phase 5.9.
-        // memoryShards migrated to ECS on runState in #5 phase 5.6.
+        // floatingTexts migrated to ECS on runState.
+        // goldDrops migrated to ECS on runState.
+        // companions migrated to ECS on runState.
+        // memoryShards migrated to ECS on runState.
         this.meleeAttacks  = [];
-        // powerUps migrated to ECS on runState in #5 phase 5.1.
-        // holyMasks migrated to ECS on runState in #5 phase 5.8.
-        // cardDrops migrated to ECS on runState in #5 phase 5.2.
+        // powerUps migrated to ECS on runState.
+        // holyMasks migrated to ECS on runState.
+        // cardDrops migrated to ECS on runState.
 
         // ── Players ───────────────────────────────────────────────────────────
         this.player  = null;

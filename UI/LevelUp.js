@@ -1,5 +1,5 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
-import { iconHTML } from '../Icons.js'; // #48 — cross-platform vector icons
+// Explicit imports for symbols previously read off window shims.
+import { iconHTML } from '../Icons.js'; // Cross-platform vector icons
 
 class LevelUpUI {
     constructor() {

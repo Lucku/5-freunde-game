@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { ALTAR_TREE } from '../../AltarData.js';
 import { Boss } from '../../Boss.js';
 import { Enemy } from '../../Enemy.js';
@@ -12,11 +12,11 @@ import { cachedRadial } from '../../Utils.js';
 const CHAMPIONS_OF_CHAOS = {
     id: 'champions_of_chaos',
     name: "Champions of Chaos",
-    dlcVersion: 1, // #175 — DLC schema version stamp
+    dlcVersion: 1, // DLC schema version stamp
     heroes: ['gravity', 'void'],
     description: "Introduces 'Gravity' (Purple Hero), the Void Biome, and the Champions of Chaos story campaign.",
 
-    // #8 — declarative manifest: the auto-loader (DLCManager._activateDLC)
+    // Declarative manifest: the auto-loader (DLCManager._activateDLC)
     // loads `scripts` in order then calls each `inject<Name>()` hook in order.
     scripts: [
         'GravityHero.js', 'VoidHero.js', 'ChaosBiome.js',

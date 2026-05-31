@@ -1,4 +1,4 @@
-// #173 phase 10 — leaf-module extraction of `_drawGameplayPost`. First piece
+// Leaf-module extraction of `_drawGameplayPost`. First piece
 // of the gameplay-helpers split that lets the server-side simulation drive
 // `_updateGameplayPre` / `_updateGameplayMid` directly (with a no-op post draw)
 // without dragging the renderer's DOM-heavy import graph into Node.
@@ -128,7 +128,7 @@ export function _drawGameplayPost() {
 
     if (typeof globalThis.updateUI === 'function') globalThis.updateUI();
 
-    // #173 phase 9 — player-death cinematic: pure overlay render driven by the
+    // Player-death cinematic: pure overlay render driven by the
     // isPlayerDying flag + playerDeathTimer (both owned by _updateGameplayMid).
     // No state writes here; the timer ticks in update so photo mode freezes
     // the death sequence with the rest of the world.

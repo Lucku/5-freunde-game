@@ -1,6 +1,6 @@
-// #5 phase 5.5 — FloatingText ECS system. Replaces `class FloatingText` from
+// FloatingText ECS system. Replaces `class FloatingText`
 // Entities/FloatingText.js with component arrays on runState. Same compat-shim
-// strategy as Particle (#5 phase 5.4): the existing ~155 callsites across 30+
+// strategy as Particle: the existing ~155 callsites across 30+
 // files keep using `FloatingText.acquire(...)` + `floatingTexts.push(ft)` via
 // a thin proxy layer over slot indices.
 //
@@ -148,7 +148,7 @@ export function drawFloatingTexts(ctx, rs) {
         ctx.save();
         ctx.globalAlpha = Math.max(0, life / maxLife);
 
-        // #40 — crit scale-pulse: starts ~1.6× and eases to 1× over life.
+        // Crit scale-pulse: starts ~1.6× and eases to 1× over life.
         const t = 1 - (life / maxLife);
         const scaleCrit = isCrit ? (1 + 0.6 * (1 - Math.min(1, t * 2))) : 1;
         const finalSize = size * scaleCfg * scaleCrit;

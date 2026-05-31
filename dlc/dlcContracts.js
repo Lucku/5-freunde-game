@@ -1,4 +1,4 @@
-// #174 — DLC global-usage stub layer + contract validator.
+// DLC global-usage stub layer + contract validator.
 //
 // Background: DLC content registers itself into a handful of mutable,
 // process-wide registries (`HERO_LOGIC`, `BIOME_LOGIC`, `ENEMY_LOGIC`,
@@ -6,7 +6,7 @@
 // `DLC_STORY_ACHIEVEMENTS`, …). These live on `window` in the renderer and on
 // `global` server-side (the server sets `global.window = global` and `require()`s
 // the DLC *hero* files directly — see `server/simulation/loader.js`). Because
-// they are shared singletons that DLCs *write into* (not classes), #4's
+// they are shared singletons that DLCs *write into* (not classes), 's
 // window-globals flip left the DLC reads as bare `window.X` rather than ESM
 // imports.
 //

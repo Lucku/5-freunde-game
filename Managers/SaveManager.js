@@ -34,16 +34,16 @@ class SaveManager {
         }
     ];
 
-    // #175 — per-DLC schema migrations, keyed by DLC id. Lets each DLC own its
+    // Per-DLC schema migrations, keyed by DLC id. Lets each DLC own its
     // own version line (`dlcVersion` in its manifest) instead of bolting every
     // DLC change onto the monolithic top-level MIGRATIONS table. Each entry:
     // `{ from, to, migrate(saveData) }` — pure transform, ascending order.
-    // Empty today; the framework (`applyDLCVersion`) is what #175 establishes.
+    // Empty today; the framework (`applyDLCVersion`) is what establishes.
     /** @type {Record<string, Array<{ from: number, to: number, migrate: (data: SaveData) => void }>>} */
     static DLC_MIGRATIONS = {};
 
     /**
-     * #175 — record the version a DLC's content was last reconciled to in this
+     * Record the version a DLC's content was last reconciled to in this
      * save, running any pending per-DLC migrations between the recorded and
      * current version. Called by DLCManager when a DLC activates.
      *
@@ -180,9 +180,9 @@ class SaveManager {
         }
     }
 
-    // Ring-buffer backup count (#140). Bumping is non-breaking — older slots
+    // Ring-buffer backup count. Bumping is non-breaking — older slots
     // beyond the new cap remain on disk until overwritten in their turn.
-    // Sourced from #16 GAMEPLAY constants when available; falls back to 5 to
+    // Sourced from GAMEPLAY constants when available; falls back to 5 to
     // keep SaveManager loadable before Constants.js (Phase 1 leaf-file ESM order).
     static BACKUP_COUNT = (typeof window !== 'undefined' && window.GAMEPLAY)
         ? window.GAMEPLAY.SAVE_BACKUP_SLOTS : 5;
@@ -301,7 +301,7 @@ class SaveManager {
         const encoded = await this.encodeSaveData(data);
         if (!encoded) return null;
 
-        // #140 — ring-buffer the previous blob before overwriting.
+        // Ring-buffer the previous blob before overwriting.
         const prev = this.getRawBlob();
         if (prev && prev !== encoded) this._rotateBackup(prev);
 
@@ -429,7 +429,7 @@ class SaveManager {
             return merged;
         }
 
-        const fresh = structuredClone(defaultSaveData); // #17
+        const fresh = structuredClone(defaultSaveData);
         fresh.version = SaveManager.SCHEMA_VERSION;
         return fresh;
     }
@@ -462,6 +462,6 @@ class SaveManager {
     }
 }
 
-// #171 Phase 2 — `window.SaveManager` shim retired; CloudSaveManager + game.js import directly.
+// `window.SaveManager` shim retired; CloudSaveManager + game.js import directly.
 export { SaveManager };
 export default SaveManager;

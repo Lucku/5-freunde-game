@@ -1,6 +1,6 @@
 // GameContext.js — central read-only view onto the ~15 cross-cutting globals
 // that game.js (and the Managers / Entities / UI modules) currently reach for
-// directly via `window.X` (#4).
+// directly via `window.X`.
 //
 // ─── Migration arc ───────────────────────────────────────────────────────────
 // This file is **session 1** of a multi-session migration:
@@ -13,7 +13,7 @@
 //   Session 3        — Add registries view (BIOME_LOGIC / HERO_LOGIC / ENEMY_LOGIC
 //                      / DLC_REGISTRY). Audit DLC consumers.
 //   Session 4        — Flip ownership: GameContext owns the value, `window.X`
-//                      becomes the alias. Couples with #11 RunState migration
+//  becomes the alias. Couples with RunState migration
 //                      for entity arrays (`enemies`/`projectiles`/`wave`/`arena`).
 //   Session 5        — Drop redundant `window.X` shims where no DLC bare-reads.
 //                      Update ARCHITECTURE.md + final lint sweep.
@@ -141,7 +141,7 @@ GameContext.registries.callHero = (type, methodName, ...args) => {
     return hl[methodName](...args);
 };
 
-// List DLC consumers (for #4 audit + future #101 mod-API surface).
+// List DLC consumers (for audit + future mod-API surface).
 GameContext.registries.listDLCs = () => {
     const r = (typeof window !== 'undefined') ? window.DLC_REGISTRY : null;
     return r ? Object.keys(r) : [];

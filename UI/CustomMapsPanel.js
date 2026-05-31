@@ -1,4 +1,4 @@
-// #171 Phase 2 — explicit import replaces bare `window.MapManager` global reads.
+// Explicit import replaces bare `window.MapManager` global reads.
 import { MapManager } from '../Managers/MapManager.js';
 
 const _BIOME_EMOJI_CMP = {
@@ -360,4 +360,4 @@ class CustomMapsPanel {
 
 window.customMapsPanel = new CustomMapsPanel();
 window.openCustomMaps  = () => window.customMapsPanel.open();
-// #171 Phase 2 — `window.CustomMapsPanel` class shim retired (no external consumer).
+// `window.CustomMapsPanel` class shim retired (no external consumer).

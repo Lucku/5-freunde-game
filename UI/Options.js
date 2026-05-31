@@ -1,5 +1,5 @@
 import { applyOneHandedScheme } from '../Config.js';
-// #171 Phase 2 — explicit imports replace bare `CloudSaveManager` / `window.HUDLayout` reads.
+// Explicit imports replace bare `CloudSaveManager` / `window.HUDLayout` reads.
 import { CloudSaveManager } from '../Managers/CloudSaveManager.js';
 import { HUDLayout } from '../Managers/HUDLayout.js';
 
@@ -30,7 +30,7 @@ class OptionsUI {
                 localStorage.setItem('5Freunde_Config', JSON.stringify(window.gameConfig));
             }
         }
-        // #98 — Toggling telemetry from Options also marks consent as seen,
+        // Toggling telemetry from Options also marks consent as seen,
         // otherwise the first-launch modal would re-prompt on next boot.
         if (key === 'telemetryEnabled') {
             window.gameConfig.telemetryConsentSeen = true;
@@ -73,7 +73,7 @@ class OptionsUI {
             }
         }
 
-        // #127 — volume sliders rendered as percent buttons.
+        // Volume sliders rendered as percent buttons.
         const volMap = {
             'musicVolume': 'opt-musicvol-btn',
             'sfxVolume':   'opt-sfxvol-btn',
@@ -181,7 +181,7 @@ class OptionsUI {
         const order = ['off', 'leftHand', 'rightHand'];
         const cur = window.gameConfig.oneHandedScheme || 'off';
         const next = order[(order.indexOf(cur) + 1) % order.length];
-        // #171 phase 2 — direct import; was `window.applyOneHandedScheme(next)`
+        // Direct import; was `window.applyOneHandedScheme(next)`
         applyOneHandedScheme(next);
         this.updateOptionButtons();
         // Rebuild remap rows in case modal is open.
@@ -373,7 +373,7 @@ window.openGamepadRemap = () => optionsUI.openGamepadRemap();
 window.closeGamepadRemap = () => optionsUI.closeGamepadRemap();
 window.a11yAnnounce = (msg) => optionsUI.announce(msg);
 
-// #169 — entry point for the HUD layout edit mode. Hides the Options modal
+// Entry point for the HUD layout edit mode. Hides the Options modal
 // (so the user can see the actual HUD) and hands off to HUDLayout.
 window.openHudEdit = function () {
     if (!HUDLayout || typeof HUDLayout.enterEditMode !== 'function') {

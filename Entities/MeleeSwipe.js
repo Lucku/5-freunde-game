@@ -29,7 +29,7 @@ class MeleeSwipe {
         ctx.restore();
     }
 
-    // #20 P3 — object pool. Strict reset of every constructor field. hitList
+    // Object pool. Strict reset of every constructor field. hitList
     // is replaced with the existing array (cleared in place) to keep the
     // pool's hidden class stable across reuse.
     static _pool = [];
@@ -54,5 +54,5 @@ class MeleeSwipe {
 }
 export { MeleeSwipe };
 export default MeleeSwipe;
-// #171 phase 2 — no window shim. MeleeSwipe is referenced only by game.js
+// No window shim. MeleeSwipe is referenced only by game.js
 // + Player.js + tests, all of which import it explicitly. DLCs do not use it.

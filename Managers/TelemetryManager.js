@@ -1,5 +1,5 @@
 /**
- * TelemetryManager (#98) — opt-in anonymous analytics.
+ * TelemetryManager — opt-in anonymous analytics.
  *
  * Mirrors CrashReporter shape. Buffers events in memory and POSTs in batches
  * to /api/telemetry. Honors three gates from gameConfig:
@@ -154,7 +154,7 @@ class TelemetryManager {
 
 if (typeof window !== 'undefined') {
     try { TelemetryManager.install(); } catch (_) {}
-    // #171 Phase 2 — `window.TelemetryManager` shim retired; game.js imports directly.
+    // `window.TelemetryManager` shim retired; game.js imports directly.
 }
 
 export { TelemetryManager };

@@ -1,4 +1,4 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 
 class InputManager {
     constructor() {
@@ -25,7 +25,7 @@ class InputManager {
 
     // Resolve current key bindings. Falls back to defaults if config not ready.
     _getBindings() {
-        // #4 — read through GameContext when available (falls through to
+        // Read through GameContext when available (falls through to
         // window.gameConfig until ownership flips in a later session).
         const cfg = (typeof window !== 'undefined')
             ? (window.gameContext?.gameConfig || window.gameConfig)
@@ -82,7 +82,7 @@ class InputManager {
 
     // Gamepad button bindings — single button index per action (array stored).
     _getGamepadBindings() {
-        // #4 — read through GameContext when available.
+        // Read through GameContext when available.
         const cfg = (typeof window !== 'undefined')
             ? (window.gameContext?.gameConfig || window.gameConfig)
             : null;
@@ -225,7 +225,7 @@ class InputManager {
             const toggleMode = !!(window.gameConfig && window.gameConfig.holdToFireToggle);
 
             if (e.button === 0) {
-                // Hold-to-fire toggle (#132): each click flips sticky leftDown.
+                // Hold-to-fire toggle: each click flips sticky leftDown.
                 if (toggleMode) this.mouse.leftDown = !this.mouse.leftDown;
                 else this.mouse.leftDown = true;
             }
@@ -241,7 +241,7 @@ class InputManager {
 
         window.addEventListener('contextmenu', e => e.preventDefault());
 
-        // #139 Auto-pause on tab switch / window blur.
+        // Auto-pause on tab switch / window blur.
         const autoPause = () => {
             const cfg = window.gameConfig;
             if (!cfg || !cfg.pauseOnFocusLoss) return;
@@ -256,7 +256,7 @@ class InputManager {
         });
         window.addEventListener('blur', autoPause);
 
-        // #139 Auto-pause when a connected gamepad disconnects mid-run.
+        // Auto-pause when a connected gamepad disconnects mid-run.
         window.addEventListener('gamepaddisconnected', () => {
             const cfg = window.gameConfig;
             if (!cfg || !cfg.pauseOnGamepadDisconnect) return;

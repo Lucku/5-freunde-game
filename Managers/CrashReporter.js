@@ -132,7 +132,7 @@ class CrashReporter {
             platform:  navigator && navigator.platform,
             userAgent: navigator && navigator.userAgent && navigator.userAgent.slice(0, 200),
             screen:    (window.canvas) ? { w: window.canvas.width, h: window.canvas.height } : null,
-            electron:  (window.gameContext?.platform?.isElectron) ? (process.versions.electron) : null, // #4 via Platform
+            electron:  (window.gameContext?.platform?.isElectron) ? (process.versions.electron) : null, // Via Platform
         };
         try {
             // Best-effort run context — guarded since these globals may be undefined early in load

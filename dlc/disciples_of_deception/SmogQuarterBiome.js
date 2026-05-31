@@ -1,4 +1,4 @@
-// #194 follow-up — explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
+// Explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
 import { BiomeZone, Obstacle } from '../../Arena.js';
 
 // The Smog Quarter - Smoke's Biome
@@ -446,5 +446,5 @@ class SmogQuarterBiome {
 if (typeof BIOME_LOGIC === 'undefined') window.BIOME_LOGIC = {};
 window.BIOME_LOGIC['smoke'] = new SmogQuarterBiome();
 
-// #194 — DLC class must be reachable by bare-name `typeof SmogQuarterBiome` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
+// DLC class must be reachable by bare-name `typeof SmogQuarterBiome` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
 if (typeof window !== 'undefined') window.SmogQuarterBiome = SmogQuarterBiome;

@@ -1,7 +1,7 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { ALTAR_TREE } from '../../AltarData.js';
 import { Boss } from '../../Boss.js';
-// MemoryShard class removed in #5 phase 5.6 — color overrides via window._MEMORY_SHARD_COLORS.
+// MemoryShard class removed in — color overrides via window._MEMORY_SHARD_COLORS.
 import { MEMORY_STORIES } from '../../MemoryStories.js';
 
 // The Tournament of Thunder - DLC Manifest
@@ -9,11 +9,11 @@ import { MEMORY_STORIES } from '../../MemoryStories.js';
 const TOURNAMENT_OF_THUNDER = {
     id: 'tournament_of_thunder',
     name: "Tournament of Thunder",
-    dlcVersion: 1, // #175 — DLC schema version stamp
+    dlcVersion: 1, // DLC schema version stamp
     hero: 'lightning',
     description: "Enter the Cloud Kingdom! Introduces the Lightning Hero, Cloud Biome, and the legendary Tournament.",
 
-    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    // Declarative manifest (auto-loader drives scripts + inject hooks).
     scripts: [
         'LightningHero.js', 'CloudBiome.js', 'ThunderEnemies.js', 'ThunderBoss.js',
     ],
@@ -314,7 +314,7 @@ const TOURNAMENT_OF_THUNDER = {
             ];
         }
 
-        // Extensibility: Hook into MemoryShard color (#5 phase 5.6 — ECS
+        // Extensibility: Hook into MemoryShard color (ECS
         // registry instead of prototype patch).
         window._MEMORY_SHARD_COLORS = window._MEMORY_SHARD_COLORS || {};
         window._MEMORY_SHARD_COLORS.lightning = '#ffeb3b';

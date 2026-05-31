@@ -1181,11 +1181,11 @@ function testBridgeWaveAdvance() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Test 27 — #195 — Concurrent-session isolation (per-session runState).
+// Test 27 — — Concurrent-session isolation (per-session runState).
 //   Two sessions ticking alternately must NOT share entity state. Earlier
 //   the `runState` singleton meant `gs1.enemies` and `gs2.enemies` both
 //   pointed at the same sentinel reading the same `runState.enemyCount`.
-//   #195 introduced a Proxy + `setActiveRunState(rs)` per-tick activation
+//  Introduced a Proxy + `setActiveRunState(rs)` per-tick activation
 //   so each session owns its own ECS slot pools.
 // ═══════════════════════════════════════════════════════════════════════════════
 

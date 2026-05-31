@@ -1,4 +1,4 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 import { Boss } from '../Boss.js';
 
 class AudioManager {
@@ -157,7 +157,7 @@ class AudioManager {
         this.musicEnabled = true;
         this.sfxEnabled   = true;
 
-        // #15 — defer audio file fetches until first playback. Tiered by use:
+        // Defer audio file fetches until first playback. Tiered by use:
         //   'auto'     — music + hot-path SFX (likely to fire in the first wave)
         //   'metadata' — boss / level-up / pickup SFX (load on first play, but
         //                metadata for duration is fetched up-front so the audio
@@ -178,7 +178,7 @@ class AudioManager {
             else                                  t.preload = 'metadata';
         }
 
-        // #127 — snapshot per-track base volume so category multipliers can
+        // Snapshot per-track base volume so category multipliers can
         // recompute live volumes without losing the per-track mix.
         for (const k in this.tracks) {
             const t = this.tracks[k];
@@ -190,7 +190,7 @@ class AudioManager {
         // Loop Tracking
         this.activeLoops = {};
 
-        // #167 — lazy Web Audio graph for the pause low-pass filter. We don't
+        // Lazy Web Audio graph for the pause low-pass filter. We don't
         // construct anything until setPauseFilter() is called, since starting
         // an AudioContext before a user gesture throws in some browsers.
         this._audioCtx = null;
@@ -198,16 +198,16 @@ class AudioManager {
         this._musicGain = null;
         this._musicNodes = new WeakMap();
 
-        // #126 — sidechain-style ducking. A GainNode sits between the music
+        // Sidechain-style ducking. A GainNode sits between the music
         // filter and destination so high-impact SFX (boss telegraphs, wave
         // clears, level-ups) can briefly dip the music bus. Pulse-duck is
         // self-restoring; hold-duck tracks a counter for stacking voice lines.
         this._duckPulseEnd = 0;
         this._duckHoldCount = 0;
 
-        // #34 P8 — Web Audio buffer cache for hot SFX. cloneNode() per shot
+        // Web Audio buffer cache for hot SFX. cloneNode() per shot
         // is ~0.5–1ms on Chrome (HTMLAudioElement clone + decode); an
-        // AudioBufferSourceNode is ~0.01ms. Hot SFX list mirrors the #15
+        // AudioBufferSourceNode is ~0.01ms. Hot SFX list mirrors the
         // tiered-preload hot set (12 entries). Decode happens off the main
         // thread via fetch + decodeAudioData. Suspended AudioContext is fine
         // for decoding; first play after user gesture resumes + plays. Decode
@@ -218,8 +218,8 @@ class AudioManager {
         this._prewarmHotSFX();
     }
 
-    // #34 P8 — Lazily create the shared AudioContext on first need. Same
-    // instance powers the pause low-pass filter (#167) + Web Audio SFX.
+    // Lazily create the shared AudioContext on first need. Same
+    // instance powers the pause low-pass filter + Web Audio SFX.
     _ensureAudioCtx() {
         if (this._audioCtx) return this._audioCtx;
         const Ctor = (typeof window !== 'undefined') && (window.AudioContext || window.webkitAudioContext);
@@ -229,7 +229,7 @@ class AudioManager {
         return this._audioCtx;
     }
 
-    // #34 P8 — fetch + decodeAudioData a single SFX into an AudioBuffer.
+    // Fetch + decodeAudioData a single SFX into an AudioBuffer.
     // Returns a promise; memoized so concurrent callers share work.
     _loadSFXBuffer(key) {
         if (this._sfxBuffers.has(key)) return Promise.resolve(this._sfxBuffers.get(key));
@@ -298,7 +298,7 @@ class AudioManager {
         }
     }
 
-    // #167 — connect a music track into the AudioContext graph the first
+    // Connect a music track into the AudioContext graph the first
     // time we need it. `createMediaElementSource` is one-shot per element.
     _ensureMusicFilter(track) {
         if (!track) return null;
@@ -332,7 +332,7 @@ class AudioManager {
         return source;
     }
 
-    // #126 — force-route every currently-playing music track through the
+    // Force-route every currently-playing music track through the
     // Web Audio graph so a duck applied here affects every active track.
     // Cheap (N music tracks ≤ ~10) and idempotent — `_musicNodes` memoizes.
     _routeActiveMusic() {
@@ -344,7 +344,7 @@ class AudioManager {
         return !!this._musicGain;
     }
 
-    // #126 — short pulse-duck for one-shot SFX. Music bus dips for
+    // Short pulse-duck for one-shot SFX. Music bus dips for
     // `attackMs + holdMs + releaseMs`, then ramps back to unity. Overlapping
     // pulses extend the schedule rather than fight it.
     _duckMusicPulse(holdMs = 140, depth = 0.5) {
@@ -370,7 +370,7 @@ class AudioManager {
         this._duckPulseEnd = endsAt;
     }
 
-    // #126 — held duck for voice lines / exclamations. Reference-counted so
+    // Held duck for voice lines / exclamations. Reference-counted so
     // overlapping holds don't release early. `release` ramps back to unity.
     _duckMusicHold(depth = 0.7) {
         if (!this._routeActiveMusic()) return false;
@@ -408,7 +408,7 @@ class AudioManager {
         return AudioManager.DUCK_TRIGGER_PREFIX.test(key);
     }
 
-    // #167 — toggle the low-pass effect on the master music bus.
+    // Toggle the low-pass effect on the master music bus.
     setPauseFilter(active) {
         if (!this._audioCtx && !active) return; // nothing to do
         // Ensure every music track is routed through the filter graph.
@@ -422,7 +422,7 @@ class AudioManager {
         this._musicFilter.frequency.exponentialRampToValueAtTime(Math.max(1, target), now + 0.18);
     }
 
-    // #127 — category lookup. UI category falls back to SFX if not separately
+    // Category lookup. UI category falls back to SFX if not separately
     // categorised (only level_up / pickup_card / achievement_unlocked tagged).
     _categoryOf(key) {
         if (this.isMusic(key)) return 'music';
@@ -431,7 +431,7 @@ class AudioManager {
     }
 
     _categoryMultiplier(category) {
-        // #4 — read through GameContext when available; bare-global fallback
+        // Read through GameContext when available; bare-global fallback
         // covers the early-boot window before GameContext.js loads.
         const cfg = (typeof window !== 'undefined' && window.gameContext?.gameConfig)
             ? window.gameContext.gameConfig
@@ -561,7 +561,7 @@ class AudioManager {
         this.voice = new Audio(path);
         this.voice.volume = 0.8 * this._categoryMultiplier('voice');
         this.voice.play().catch(e => console.warn(`Audio memory not found: ${path}`, e));
-        // #126 — graph-level duck when Web Audio available; HTMLAudio fallback
+        // Graph-level duck when Web Audio available; HTMLAudio fallback
         // keeps the legacy museum-volume dip for browsers without AudioContext.
         const ducked = this._duckMusicHold(0.7);
         let savedMuseum = null;
@@ -607,7 +607,7 @@ class AudioManager {
         audio.volume = 1.0 * this._categoryMultiplier('voice');
         this._exclamationPlaying = true;
 
-        // #126 — graph-level duck for voice lines. Falls back to legacy
+        // Graph-level duck for voice lines. Falls back to legacy
         // HTMLAudio per-track volume dip when Web Audio is unavailable.
         const ducked = this._duckMusicHold(0.8);
         const _savedVols = {};
@@ -666,7 +666,7 @@ class AudioManager {
             el.classList.add('hero-sub-hidden');
             el.classList.remove('hero-sub-visible');
         }, duration);
-        // #137 mirror into ARIA live region so screen readers announce voice lines.
+        // Mirror into ARIA live region so screen readers announce voice lines.
         if (typeof window !== 'undefined' && typeof window.a11yAnnounce === 'function') {
             window.a11yAnnounce(`${heroName}: ${text}`);
         }
@@ -699,7 +699,7 @@ class AudioManager {
                 }
             }
 
-            // #127 — re-apply per-category volume multipliers to every track.
+            // Re-apply per-category volume multipliers to every track.
             for (const key in this.tracks) {
                 const t = this.tracks[key];
                 if (!t) continue;
@@ -726,9 +726,9 @@ class AudioManager {
             if (!this.sfxEnabled) return;
             const track = this.tracks[trackName];
             if (!track) return;
-            // #126 — duck music bus for high-impact SFX so the cue cuts through.
+            // Duck music bus for high-impact SFX so the cue cuts through.
             if (this._shouldDuckOnSfx(trackName)) this._duckMusicPulse();
-            // #34 P8 — prefer Web Audio (cheap AudioBufferSourceNode) when the
+            // Prefer Web Audio (cheap AudioBufferSourceNode) when the
             // buffer is decoded; fall back to cloneNode HTMLAudio for SFX not
             // in the prewarm list or while their decode is still in-flight.
             if (this._playBuffer(trackName, track.volume)) return;
@@ -821,7 +821,7 @@ class AudioManager {
     }
 }
 
-// #126 — SFX keys that trigger a music-bus pulse-duck. High-impact one-shots
+// SFX keys that trigger a music-bus pulse-duck. High-impact one-shots
 // only; per-attack / per-damage SFX deliberately excluded so the music isn't
 // pumping every frame. Prefix regex catches all level_up_<hero> variants.
 AudioManager.DUCK_TRIGGER_KEYS = new Set([

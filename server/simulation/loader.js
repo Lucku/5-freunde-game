@@ -155,11 +155,11 @@ global.enemies          = [];
 global.projectiles      = [];
 global.particles        = [];
 global.floatingTexts    = [];
-// goldDrops removed in #5 phase 5.7 — now lives on runState as typed arrays.
-// companions removed in #5 phase 5.9 — now lives on runState as typed arrays.
-// memoryShards removed in #5 phase 5.6 — now lives on runState as typed arrays.
+// goldDrops removed in — now lives on runState as typed arrays.
+// companions removed in — now lives on runState as typed arrays.
+// memoryShards removed in — now lives on runState as typed arrays.
 global.meleeAttacks     = [];
-// powerUps removed in #5 phase 5.1 — now lives on runState as typed arrays.
+// powerUps removed in — now lives on runState as typed arrays.
 global.keys             = null;
 global.mouse            = null;
 global.bossActive       = false;
@@ -243,7 +243,7 @@ global.World = loadClass('shared/world', 'World');
 // ── 6. Load entity classes (ESM since 2026-05-11; unwrap default export) ─────
 global.Projectile   = loadClass('Entities/Projectile',   'Projectile');
 global.FloatingText = loadClass('Entities/FloatingText', 'FloatingText');
-// GoldDrop class removed in #5 phase 5.7 — see core/systems/goldDropSystem.js.
+// GoldDrop class removed in — see core/systems/goldDropSystem.js.
 global.Particle     = loadClass('Entities/Particle',     'Particle');
 global.MeleeSwipe   = loadClass('Entities/MeleeSwipe',   'MeleeSwipe');
 
@@ -281,7 +281,7 @@ if (global.TimeHero)      global.HERO_LOGIC['time']      = global.TimeHero;
 // with only { applyUpgrade }; restore the full class so Player.init() finds init().
 if (global.LightningHero) global.HERO_LOGIC['lightning'] = global.LightningHero;
 
-// ── 9. Renderer helper stubs (#173) ──────────────────────────────────────────
+// ── 9. Renderer helper stubs ──────────────────────────────────────────
 // game.js exports _updateGameplayPre / _updateGameplayMid / _drawGameplayMid /
 // _drawGameplayPost as the four pure halves of a frame. The server simulation
 // drives the update halves via RendererBridge.js and never wants the draws.
@@ -365,7 +365,7 @@ global.logKeyMoment                = _noop;
 global._onlineInterpBuf            = [];
 global._onlineRenderTime           = 0;
 // Spatial hash globals — broad-phase collision optimization on the renderer
-// (#173 leaf modules read these). Server skips the hash entirely; stubs
+// ( leaf modules read these). Server skips the hash entirely; stubs
 // return empty arrays for any `queryEnemiesNear` / `queryProjectilesNear`
 // calls so the fall-back linear-scan path inside the helpers runs unhindered.
 global._SPATIAL_HASH_MIN     = 30;
@@ -391,7 +391,7 @@ global.audioManager = global.audioManager || {
 // Spawner helpers reached by core/updateGameplayMid.js boss-kill / wave-end paths.
 global.spawnEnemy            = _noop;
 global.spawnBoss             = _noop;
-// `masksDroppedInWave` is a per-wave counter; ECS-fied in #11 phase 3 but
+// `masksDroppedInWave` is a per-wave counter; ECS-fied in but
 // the leaf module reads it bare. Init to 0.
 global.masksDroppedInWave    = 0;
 // Achievement + card-drop hooks reached by the kill-rewards branch in

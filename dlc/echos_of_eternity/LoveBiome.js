@@ -1,4 +1,4 @@
-// #194 follow-up — explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
+// Explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
 import { BiomeZone } from '../../Arena.js';
 
 // Echos of Eternity — Love Biome: The Heart Nexus

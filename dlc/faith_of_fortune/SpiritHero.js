@@ -1,8 +1,8 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { FloatingText } from '../../Entities/FloatingText.js';
 import { Projectile } from '../../Entities/Projectile.js';
 
-// `projectiles.push(plainObject)` is a no-op on the post-#5-phase-5.10b ECS
+// `projectiles.push(plainObject)` is a no-op on the post--phase-5.10b ECS
 // proxy sentinel. Spawn through the ECS via `Projectile.acquire` so the slot
 // actually lands in `runState.projectile*` and `drawProjectiles` picks it up.
 // Returns the slot proxy on success, or null on cap overflow.
@@ -66,7 +66,7 @@ class SpiritHero {
             }
 
             if (hasBell && typeof enemies !== 'undefined') {
-                // #177: Spirit Bell reflect — route through applyDamage so the
+                // Spirit Bell reflect — route through applyDamage so the
                 // AOE respects isInvincible + customOnDamage. noFloatText since
                 // the sparse explosion particles already convey the reflect.
                 const reflectDmg = amount * 0.1;
@@ -626,5 +626,5 @@ window.HERO_LOGIC['spirit'].drawUI = function (ctx) {
     ctx.strokeRect(x, y, w, h);
 };
 
-// #194 — DLC class must be reachable by bare-name `typeof SpiritHero` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
+// DLC class must be reachable by bare-name `typeof SpiritHero` checks in base code (Boss.js, TestingGrounds.js, etc.); these checks predate the ESM migration and look up the global directly.
 if (typeof window !== 'undefined') window.SpiritHero = SpiritHero;

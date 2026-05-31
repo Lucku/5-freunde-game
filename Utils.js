@@ -118,7 +118,7 @@ function mulberry32(seed) {
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
 }
-// #171 phase 2 — duplicate `window.mulberry32` shim removed (also assigned in
+// Duplicate `window.mulberry32` shim removed (also assigned
 // the shim block at the bottom of this file; both were redundant once game.js
 // and tests started importing `mulberry32` explicitly).
 
@@ -140,7 +140,7 @@ function shadeColor(color, percent) {
     return "#" + pad(R) + pad(G) + pad(B);
 }
 
-// #22 — radial-gradient cache. Gradients bound to a canvas context can be
+// Radial-gradient cache. Gradients bound to a canvas context can be
 // reused across frames as long as the local-coordinate geometry stays
 // constant. Callers should `ctx.translate(x, y)` first and request a gradient
 // centred at (0,0). Cache is keyed by an opaque string supplied by the caller
@@ -165,6 +165,6 @@ function cachedRadial(ctx, key, r0, r1, stops) {
 }
 function clearGradientCache() { _GRAD_CACHE.clear(); }
 
-// ESM exports — #194 retired all window shims for this module after every DLC
+// ESM exports — retired all window shims for this module after every DLC
 // gained explicit imports. Bundler tree-shake now applies.
 export { drawHeroSprite, shadeColor, mulberry32, cachedRadial, clearGradientCache };

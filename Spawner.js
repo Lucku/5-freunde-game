@@ -1,4 +1,4 @@
-// Spawner.js — extracted from game.js (improvement #1 phase B).
+// Spawner.js — extracted from game.js (improvement phase B).
 //
 // Owns the cookie-cutter spawn / FX-burst helpers that were sprinkled across
 // game.js. Functions reach into the shared entity arrays via `window.*`
@@ -25,7 +25,7 @@ const MAX_PARTICLES = GAMEPLAY.MAX_PARTICLES;
 export function createExplosion(x, y, color, count = 10) {
     const particles = window.particles;
     if (!particles || particles.length >= MAX_PARTICLES) return;
-    for (let i = 0; i < 8; i++) { particles.push(Particle.acquire(x, y, color)); } // #20
+    for (let i = 0; i < 8; i++) { particles.push(Particle.acquire(x, y, color)); }
 }
 
 export function spawnLevelUpAura(x, y, color) {
@@ -37,7 +37,7 @@ export function spawnLevelUpAura(x, y, color) {
             if (!window.particles) return;
             const ox = (Math.random() - 0.5) * 28;
             const oy = (Math.random() - 0.5) * 10;
-            const p = Particle.acquire(x + ox, y + oy, color); // #20
+            const p = Particle.acquire(x + ox, y + oy, color);
             p.velocity.x = (Math.random() - 0.5) * 1.8;
             p.velocity.y = -(Math.random() * 3.2 + 1.2);
             p.life = Math.random() * 0.008 + 0.005;
@@ -49,7 +49,7 @@ export function spawnLevelUpAura(x, y, color) {
     for (let i = 0; i < ringCount; i++) {
         const angle = (i / ringCount) * Math.PI * 2;
         const speed = Math.random() * 1.5 + 1.5;
-        const p = Particle.acquire(x, y, color); // #20
+        const p = Particle.acquire(x, y, color);
         p.velocity.x = Math.cos(angle) * speed;
         p.velocity.y = Math.sin(angle) * speed;
         p.life = 0.025;

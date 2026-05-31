@@ -1,4 +1,4 @@
-// GameLoop.js — extracted from game.js (improvement #1 phase E).
+// GameLoop.js — extracted from game.js (improvement phase E).
 //
 // Owns the requestAnimationFrame harness + fixed-timestep gate that was
 // inlined at the top of `masterLoop()`. The masterLoop body itself stays in

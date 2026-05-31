@@ -103,6 +103,6 @@ window.onlineTestBot = new OnlineTestBot();
 
 export { OnlineTestBot };
 export default window.onlineTestBot;
-// #171 phase 2 — class shim retired. Only the singleton `window.onlineTestBot`
+// Class shim retired. Only the singleton `window.onlineTestBot`
 // (line 102) is referenced externally; the class itself has zero callers
 // outside this file.

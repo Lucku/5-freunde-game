@@ -2,7 +2,7 @@
 // Pure visual enhancements for the 5 core biomes: Fire | Water | Ice | Plant | Metal
 // No gameplay impact — only drawBackground, update (particles), draw (overlay).
 //
-// #7 — BiomeRegistry: enforce the `{ generate, update, draw }` shape on every
+// BiomeRegistry: enforce the `{ generate, update, draw }` shape on every
 // entry. DLC biomes register through `window.BiomeRegistry.register(id, impl)`
 // or assign directly to `window.BIOME_LOGIC[id]` (legacy path). Either way we
 // log a warning if a required method is missing so silent draw/update failures

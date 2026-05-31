@@ -1,4 +1,4 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 import { Boss } from './Boss.js';
 import { Enemy } from './Enemy.js';
 import { ENEMY_TYPES } from './Constants.js';

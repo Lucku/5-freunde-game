@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { ALTAR_TREE } from '../../AltarData.js';
 import { Boss } from '../../Boss.js';
 import { MEMORY_STORIES } from '../../MemoryStories.js';
@@ -8,12 +8,12 @@ import { MEMORY_STORIES } from '../../MemoryStories.js';
 const WAKER_OF_WINDS = {
     id: 'waker_of_winds',
     name: "Waker of Winds",
-    dlcVersion: 1, // #175 — DLC schema version stamp
+    dlcVersion: 1, // DLC schema version stamp
     heroes: ['air'],
     description: "Introduces 'Air' (Turquoise Hero), the Sky Palace Biome, and the 'Waker of Winds' story campaign.",
     icon: "🌪️",
 
-    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    // Declarative manifest (auto-loader drives scripts + inject hooks).
     scripts: [
         'AirHero.js', 'WindBiome.js', 'WindEnemies.js', 'WindBosses.js', 'Story.js',
     ],

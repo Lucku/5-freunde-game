@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { ALTAR_TREE } from '../../AltarData.js';
 
 // The Disciples of Deception - DLC Manifest (Character Pack)
@@ -8,13 +8,13 @@ import { ALTAR_TREE } from '../../AltarData.js';
 const DISCIPLES_OF_DECEPTION = {
     id: 'disciples_of_deception',
     name: "Disciples of Deception",
-    dlcVersion: 1, // #175 — DLC schema version stamp
+    dlcVersion: 1, // DLC schema version stamp
     heroes: ['psycho', 'mirror', 'smoke'],
     description: "A character pack featuring three deception-themed heroes: Psycho (Teal), Mirror (Marine Blue), and Smoke (Slate Gray). No story campaign — drops you straight into Standard Mode.",
     noStoryMode: true, // Flag: no Story.js / no story-mode unlock chapters
     icon: "🎭",
 
-    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    // Declarative manifest (auto-loader drives scripts + inject hooks).
     scripts: [
         'PsychoHero.js', 'MirrorHero.js', 'SmokeHero.js',
         'MindscapeBiome.js', 'HallOfMirrorsBiome.js', 'SmogQuarterBiome.js',

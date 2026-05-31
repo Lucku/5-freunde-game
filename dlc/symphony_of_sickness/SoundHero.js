@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { Projectile } from '../../Entities/Projectile.js';
 
 // Sound Hero (Light Blue) Logic

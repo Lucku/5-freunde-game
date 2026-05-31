@@ -1,4 +1,4 @@
-// Wave.js — extracted from game.js (improvement #1 phase C).
+// Wave.js — extracted from game.js (improvement phase C).
 //
 // Owns the pure-helper logic around wave progression: biome selection,
 // enemies-needed math, story-boss lookup. The large `advanceWave()` body

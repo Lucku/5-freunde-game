@@ -1,4 +1,4 @@
-// #5 phase 5.10 — Projectile ECS system. Hybrid layout per
+// Projectile ECS system. Hybrid layout
 // `tasks/ecs-projectile-hooks.md`:
 //   - Typed-array slots for hot-path fields (x, y, vx, vy, damage, radius,
 //     life, pierce, knockback, type ord, color, flags bitfield, shooterType)

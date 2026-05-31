@@ -1,7 +1,7 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 import { FloatingText } from './Entities/FloatingText.js';
 import { Projectile } from './Entities/Projectile.js';
-// MemoryShard class removed in #5 phase 5.6 — ECS via core/systems/memoryShardSystem.js.
+// MemoryShard class removed in — ECS via core/systems/memoryShardSystem.js.
 import { runState } from './RunState.js';
 import { spawnMemoryShard } from './core/systems/memoryShardSystem.js';
 
@@ -21,7 +21,7 @@ class Arena {
         this.traps = [];
         /** @type {BiomeZone[]} */
         this.biomeZones = [];
-        // #21 — Static obstacle layer. Obstacles never move (only the array
+        // Static obstacle layer. Obstacles never move (only the array
         // is mutated by adds/removes), so their gradient + crack + pit detail
         // (~25 draw ops per obstacle) is baked into an offscreen canvas once
         // per generation and blitted as a single drawImage each frame. The
@@ -32,7 +32,7 @@ class Arena {
         this._staticObstacleFingerprint = '';
     }
 
-    // #21 — Lazy rebuild for the obstacle bake layer. No-op in non-browser
+    // Lazy rebuild for the obstacle bake layer. No-op in non-browser
     // environments (server simulation) since `document` is absent.
     _rebuildStaticObstacleLayer() {
         if (typeof document === 'undefined') {
@@ -316,14 +316,14 @@ class Arena {
             }
         }
 
-        // #21 — Bake obstacles into the offscreen layer after the final
+        // Bake obstacles into the offscreen layer after the final
         // population (incl. turret/laser obstacle pushes above). Subsequent
         // DLC mutations (PoisonFlask consume etc.) auto-rebake via the
         // fingerprint check in draw().
         this._rebuildStaticObstacleLayer();
     }
 
-    // #102 — Load a custom map produced by the map editor.
+    // Load a custom map produced by the map editor.
     // mapData shape: { biomeType, arenaWidth?, arenaHeight?, obstacles[], biomeZones[], traps[] }
     // traps entries may include pairIndex (int) to wire TELEPORTER pairs.
     generateFromMap(mapData) {
@@ -407,7 +407,7 @@ class Arena {
         // Draw Traps
         this.traps.forEach(trap => trap.draw(ctx));
 
-        // Draw Obstacles — #21 blit baked layer. Auto-rebuild if DLC adds /
+        // Draw Obstacles — blit baked layer. Auto-rebuild if DLC adds /
         // removes obstacles (PoisonFlask spawn or consume) since last bake.
         if (this._staticObstacleLayerDirty()) this._rebuildStaticObstacleLayer();
         if (this._staticObstacleCanvas) {

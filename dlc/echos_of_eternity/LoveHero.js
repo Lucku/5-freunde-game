@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 
 import { FloatingText } from '../../Entities/FloatingText.js';
 import { Particle } from '../../Entities/Particle.js';
@@ -103,7 +103,7 @@ class LoveHero {
             enemies.forEach(e => {
                 if (e._loveCharmed > 0) {
                     // cl1 Heartbreak: burst fire damage when charm expires.
-                    // #177: route through applyDamage for isInvincible + shield
+                    // Route through applyDamage for isInvincible + shield
                     // hook coverage. Burst damage so show the number.
                     if (player._mutCl1 && e._loveCharmed === 1) {
                         const burnDmg = player.stats.rangeDmg * player.damageMultiplier * 1.5;

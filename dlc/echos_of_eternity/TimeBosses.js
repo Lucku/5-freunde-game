@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 
 import { FloatingText } from '../../Entities/FloatingText.js';
 import { Projectile } from '../../Entities/Projectile.js';
@@ -512,7 +512,7 @@ import { Projectile } from '../../Entities/Projectile.js';
                         if (p.isPlayerShot) {
                             const d = Math.hypot(p.x - b.x, p.y - b.y);
                             if (d < b.radius * 1.8) {
-                                if (typeof Projectile !== 'undefined') Projectile.release(p); // #20 P3
+                                if (typeof Projectile !== 'undefined') Projectile.release(p);
                                 projectiles.splice(i, 1);
                                 b._absorbedCount++;
                             }
@@ -1655,7 +1655,7 @@ import { Projectile } from '../../Entities/Projectile.js';
                     const p = projectiles[pi];
                     if (p.isPlayerShot && Math.hypot(p.x - ox, p.y - oy) < 18) {
                         orb.hp -= p.damage || 10;
-                        if (typeof Projectile !== 'undefined') Projectile.release(p); // #20 P3
+                        if (typeof Projectile !== 'undefined') Projectile.release(p);
                         projectiles.splice(pi, 1);
                         if (orb.hp <= 0) {
                             explosion(ox, oy, '#a060e0', 6);

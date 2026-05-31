@@ -1,4 +1,4 @@
-// #171 — Single ESM entry point. Replaces the 70 individual
+// Single ESM entry point. Replaces the 70 individual
 // `<script type="module" src="…">` tags previously listed in game.html.
 //
 // Side-effect-only imports: each module's body runs in declaration order,
@@ -34,9 +34,9 @@ import './Managers/StoryManager.js';
 import './Player.js';
 import './Enemy.js';
 import './Boss.js';
-// Companion.js removed in #5 phase 5.9 — replaced by core/systems/companionSystem.js.
+// Companion.js removed in — replaced by core/systems/companionSystem.js.
 import './MemoryStories.js';
-// MemoryShard.js removed in #5 phase 5.6 — replaced by core/systems/memoryShardSystem.js.
+// MemoryShard.js removed in — replaced by core/systems/memoryShardSystem.js.
 import './CompletionMenu.js';
 
 // Managers
@@ -86,10 +86,10 @@ import './scripts/VersusTest.js';
 import './Utils.js';
 import './Entities/Projectile.js';
 import './Entities/MeleeSwipe.js';
-// Entities/GoldDrop.js removed in #5 phase 5.7 — replaced by core/systems/goldDropSystem.js.
-// Entities/CardDrop.js removed in #5 phase 5.2 — replaced by core/systems/cardDropSystem.js.
-// Entities/HolyMask.js removed in #5 phase 5.8 — replaced by core/systems/holyMaskSystem.js.
-// Entities/PowerUp.js removed in #5 phase 5.1 — replaced by core/systems/powerUpSystem.js.
+// Entities/GoldDrop.js removed in — replaced by core/systems/goldDropSystem.js.
+// Entities/CardDrop.js removed in — replaced by core/systems/cardDropSystem.js.
+// Entities/HolyMask.js removed in — replaced by core/systems/holyMaskSystem.js.
+// Entities/PowerUp.js removed in — replaced by core/systems/powerUpSystem.js.
 import './Entities/Particle.js';
 import './Entities/FloatingText.js';
 

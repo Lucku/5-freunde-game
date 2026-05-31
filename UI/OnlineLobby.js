@@ -1,4 +1,4 @@
-// #171 Phase 2 — explicit import replaces bare `CloudSaveManager` global reads.
+// Explicit import replaces bare `CloudSaveManager` global reads.
 import { CloudSaveManager } from '../Managers/CloudSaveManager.js';
 
 const _HERO_EMOJI = {

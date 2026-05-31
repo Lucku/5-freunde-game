@@ -1,4 +1,4 @@
-// #173 phase 10 — leaf-module extraction of `_updateGameplayMid`. Pure update
+// Leaf-module extraction of `_updateGameplayMid`. Pure update
 // helper called from game.js. Reads run-scoped state via the singleton
 // `runState` imported from RunState.js. Module-scope renderer globals
 // (`arena`, `canvas`, `audioManager`, `Boss`, `Enemy`, `PowerUp`, `Particle`,
@@ -20,7 +20,7 @@ import {
 import { killCardDrop, CARDDROP_RADIUS } from './systems/cardDropSystem.js';
 import { killParticle, updateParticles } from './systems/particleSystem.js';
 import { killFloatingText, updateFloatingTexts } from './systems/floatingTextSystem.js';
-// #171 Phase 2 — explicit imports replace the retired `window.Projectile` /
+// Explicit imports replace the retired `window.Projectile` /
 // `window.FloatingText` back-compat shims. Bindings are identical to the
 // former globals (named exports === shim values); server resolves the same
 // module instance via `require()`.
@@ -62,7 +62,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 if (zone.type === 'WATER') biomeSpeedMod = 0.7;
 
                 if (zone.type === 'LAVA' && runState.frame % 60 === 0) {
-                    applyDamage(runState.player, 5, { label: 'LAVA' }); // #18
+                    applyDamage(runState.player, 5, { label: 'LAVA' });
                     createExplosion(runState.player.x, runState.player.y, '#e74c3c');
                     showNotification("BURNING!");
                 }
@@ -101,7 +101,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     } else {
         runState.player.update();
     }
-    // #173 phase 7 — player.draw + evil overlay relocated to the draw cluster
+    // Player.draw + evil overlay relocated to the draw cluster
     // at the end of this function so the player renders ON TOP of enemies
     // (previous behavior: player drew first → enemies covered the player when
     // overlapping; new behavior: player always visible).
@@ -152,7 +152,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 }
             }
         }
-        // #173 phase 7 — player2.draw moved to the draw cluster at the end
+        // player2.draw moved to the draw cluster at the end
         // of this function. Revival markers stay inline since they need
         // per-player state set up in this block.
         updateDrawRevivalMarkers(ctx);
@@ -276,10 +276,10 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         window.networkManager?.flushInput();
     }
 
-    // #173 phase 6 / #5 phase 5.9 — companions update via ECS system.
+    // Companions update via ECS system.
     updateCompanions(runState);
 
-    // Memory Shards — #173 phase 6 / #5 phase 5.6 ECS. floatOffset animation
+    // Memory Shards — ECS. floatOffset animation
     // is computed in drawMemoryShards (global per frame, not per slot), so
     // no per-tick update step is needed here.
     for (let index = runState.memoryShardCount - 1; index >= 0; index--) {
@@ -331,7 +331,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
             saveGame();
 
-            // Secret Love shard #51 — auto-reveal once all 50 regular Love shards are collected
+            // Secret Love shard — auto-reveal once all 50 regular Love shards are collected
             if (shardType === 'love' && typeof window.ECHOS_LOVE_SECRET !== 'undefined') {
                 const collected = saveData.memories['love'] || [];
                 const allFiftyCollected = collected.length >= 50 &&
@@ -381,7 +381,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     }
 
 
-    // Gold Drops — #173 phase 6 / #5 phase 5.7 ECS. Pickup is plain
+    // Gold Drops — ECS. Pickup is plain
     // pickup-range collision (despite the legacy "Golden Magnet" comment, no
     // actual magnet pull). Reverse iter for killGoldDrop swap-with-last safety.
     const _gdPickupRad = runState.player.pickupRange || (runState.player.radius + 20);
@@ -404,7 +404,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
     }
 
-    // Card Drops — #173 phase 6 split / #5 phase 5.2 ECS. Reverse iter for
+    // Card Drops — split / ECS. Reverse iter for
     // killCardDrop's swap-with-last safety.
     for (let index = runState.cardDropCount - 1; index >= 0; index--) {
         const dx = runState.cardDropX[index];
@@ -472,7 +472,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
     }
 
-    // Holy Masks — #173 phase 6 / #5 phase 5.8 ECS.
+    // Holy Masks — ECS.
     for (let index = runState.holyMaskCount - 1; index >= 0; index--) {
         const mx = runState.holyMaskX[index];
         const my = runState.holyMaskY[index];
@@ -531,7 +531,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
     }
 
-    // #173 phase 6 / #5 phase 5.1 — powerups: timers tick first, then a
+    // Powerups: timers tick first, then a
     // reverse-iter pickup-collision pass. ECS slot allocation means killPowerUp
     // does swap-with-last, so the reverse iteration stays correct.
     updatePowerUps(runState);
@@ -599,7 +599,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         // kills here would clip them early at client-only obstacles. Render only.
         if (proj._ghost) continue;
         if (proj.life !== null && proj.life <= 0) {
-            Projectile.release(proj); // #20 P3
+            Projectile.release(proj);
             projectiles.splice(index, 1);
             continue;
         }
@@ -634,7 +634,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                                 // Story Mode Duel Victory
                                 runState.bossActive = false;
                                 runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds for dramatic effect
-                                triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
+                                triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // Boss-kill freeze
 
                                 // Clear any remaining enemies/projectiles
                                 enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
@@ -657,7 +657,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             }
 
             if (proj.dead) {
-                Projectile.release(proj); // #20 P3
+                Projectile.release(proj);
                 projectiles.splice(index, 1);
                 continue;
             }
@@ -689,7 +689,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     createExplosion(proj.x, proj.y, proj.color);
                 }
             }
-            if (proj.dead) { Projectile.release(proj); projectiles.splice(index, 1); continue; } // #20 P3
+            if (proj.dead) { Projectile.release(proj); projectiles.splice(index, 1); continue; }
         }
 
         if (arena.checkCollision(proj.x, proj.y, proj.radius)) {
@@ -706,17 +706,17 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 }
                 createExplosion(proj.x, proj.y, '#e67e22');
             }
-            Projectile.release(proj); // #20 P3
+            Projectile.release(proj);
             projectiles.splice(index, 1);
             continue;
         }
         if (proj.x < 0 || proj.x > arena.width || proj.y < 0 || proj.y > arena.height) {
-            Projectile.release(proj); // #20 P3
+            Projectile.release(proj);
             projectiles.splice(index, 1);
         }
     }
 
-    // #173 phase 6 — melee swipes: split update + PvP collision from draw.
+    // Melee swipes: split update + PvP collision from draw.
     for (let index = meleeAttacks.length - 1; index >= 0; index--) {
         const att = meleeAttacks[index];
         att.update();
@@ -754,7 +754,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                                     } else if (!runState.isVersusMode && runState.bossActive && window.additionalPlayers.length === 0) {
                                         runState.bossActive = false;
                                         runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
-                                        triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
+                                        triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // Boss-kill freeze
                                         enemies.forEach(e => createExplosion(e.x, e.y, '#fff'));
                                         enemies.length = 0;
                                         projectiles.length = 0;
@@ -809,10 +809,10 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             }
         }
 
-        if (att.life <= 0) { MeleeSwipe.release(att); meleeAttacks.splice(index, 1); } // #20 P3
+        if (att.life <= 0) { MeleeSwipe.release(att); meleeAttacks.splice(index, 1); }
     }
 
-    // #27 — camera-bounds culling. Skip draw for off-screen particles +
+    // Camera-bounds culling. Skip draw for off-screen particles +
     // floating text; skip update entirely when far outside (≥2× margin),
     // because those particles will never return into view.
     const _cullMargin   = 64;
@@ -826,11 +826,11 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     const _camRFar = arena.camera.x + arena.camera.width  + _cullFarMargin;
     const _camBFar = arena.camera.y + arena.camera.height + _cullFarMargin;
 
-    // #173 phase 6 — particles split into update+cull pass + draw pass.
+    // Particles split into update+cull pass + draw pass.
     // The far-offscreen cull (≥2× margin) releases immediately because those
     // particles will never re-enter the camera. The on-screen draw check is
     // recomputed in the draw pass since `part.x/y` may have shifted in update.
-    // #5 phase 5.4 — ECS particle tick. Far-offscreen cull first (slots will
+    // ECS particle tick. Far-offscreen cull first (slots will
     // never re-enter camera bounds), then physics step + alpha decay via
     // updateParticles which handles kill-on-zero-alpha internally.
     for (let index = runState.particleCount - 1; index >= 0; index--) {
@@ -842,7 +842,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     }
     updateParticles(runState);
 
-    // #5 phase 5.5 — ECS floating-text tick. Cap is enforced at spawn time
+    // ECS floating-text tick. Cap is enforced at spawn time
     // (spawnFloatingText returns -1 when at MAX). Far-offscreen cull first
     // then physics step + life decay via updateFloatingTexts (which handles
     // kill-on-zero-life internally).
@@ -855,7 +855,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     }
     updateFloatingTexts(runState);
 
-    // #173 phase 7 — versus AI: update pass only. Draws moved to the draw
+    // Versus AI: update pass only. Draws moved to the draw
     // cluster so AI players + HP bars render on top of all entities.
     if (typeof window.additionalPlayers !== 'undefined') {
         window.additionalPlayers.forEach(p2 => {
@@ -865,7 +865,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         });
     }
 
-    // #19 P2 — Lift enemy-projectile vs player(s) collision OUT of the
+    // Lift enemy-projectile vs player(s) collision OUT of the
     // per-enemy inner sweep. Each enemy projectile collides with the
     // player exactly once regardless of how many enemies are on screen,
     // so this branch is independent of the enemies array. Running it
@@ -880,7 +880,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
             if (_proj.shooterType === 'SHOOTER' && _bonuses.specials.includes('SHOOTER_DODGE') && runState.rng() < 0.15) {
                 floatingTexts.push(FloatingText.acquire(runState.player.x, runState.player.y - 40, "DODGE", "#f1c40f", 20));
-                Projectile.release(_proj); // #20 P3
+                Projectile.release(_proj);
                 projectiles.splice(_pi, 1);
                 continue;
             }
@@ -894,7 +894,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
             if (!runState.player.isInvincible) {
                 runState.player.hp -= _dmgTaken;
-                recordPlayerDamage(runState.player, _proj.shooterType || 'PROJECTILE', _dmgTaken); // #168
+                recordPlayerDamage(runState.player, _proj.shooterType || 'PROJECTILE', _dmgTaken);
                 audioManager.play('damage');
                 floatingTexts.push(FloatingText.acquire(runState.player.x, runState.player.y - 20, Math.ceil(_dmgTaken), '#e74c3c', 20));
                 runState.currentRunStats.damageTaken += _dmgTaken;
@@ -907,7 +907,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             }
 
             createExplosion(runState.player.x, runState.player.y, _proj.color);
-            Projectile.release(_proj); // #20 P3
+            Projectile.release(_proj);
             projectiles.splice(_pi, 1);
 
             if (runState.player.transformActive) {
@@ -922,7 +922,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 runState.player2.hp -= _p2Dmg;
                 floatingTexts.push(FloatingText.acquire(runState.player2.x, runState.player2.y - 20, Math.ceil(_p2Dmg), '#e74c3c', 20));
                 createExplosion(runState.player2.x, runState.player2.y, _proj.color);
-                Projectile.release(_proj); // #20 P3
+                Projectile.release(_proj);
                 projectiles.splice(_pi, 1);
                 if (runState.player2.hp <= 0 && !runState.player2.isDead) {
                     runState.player2.isDead = true; runState.player2.hp = 0; runState.player2.isInvincible = true;
@@ -936,7 +936,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
     }
 
-    // #19 P2 — Build broad-phase indices for this frame. Enemies hash
+    // Build broad-phase indices for this frame. Enemies hash
     // serves AOE-radius scans + per-enemy projectile queries below;
     // projectiles hash serves the per-enemy collision sweep that was
     // O(N×M) before inversion. Both honour _SPATIAL_HASH_MIN: when
@@ -948,15 +948,15 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     if (_enemyHashActive) _enemySpatialHash.rebuild(enemies);
     if (_projectileHashActive) _projectileSpatialHash.rebuild(projectiles);
 
-    // #24 P10 — time the enemy update + draw + collision phase.
+    // Time the enemy update + draw + collision phase.
     // Wave 30+ profile feeds the decision whether a Web Worker AI
-    // pass (#24) is worth the rewrite.
+    // pass is worth the rewrite.
     const _enemiesT0 = performance.now();
     for (let eIndex = enemies.length - 1; eIndex >= 0; eIndex--) {
         const enemy = enemies[eIndex];
         if (enemy.dead) { enemies.splice(eIndex, 1); continue; }
 
-        // #28 — Biome-zone collision cache. AABB iteration is the hottest
+        // Biome-zone collision cache. AABB iteration is the hottest
         // zone cost (200 enemies × ~10 zones = 2k checks/frame). Refresh
         // the cached speed mod every 4 frames, or whenever LAVA DPS could
         // fire (frame % 60 === 0). Enemies move ~3–5 px/frame and zones
@@ -983,7 +983,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
         if (!_isHitStopped && !enemy._ghost) enemy.update();
         // enemy.draw + hit-flash overlay moved to dedicated draw pass after
-        // this loop (#173 phase 6). The hit-flash decrement stays here since
+        // this loop. The hit-flash decrement stays here since
         // it's state mutation; the visual is drawn below at the new flash value.
         if (enemy._ghost && enemy._hitFlash > 0) enemy._hitFlash--;
         const dist = Math.hypot(runState.player.x - enemy.x, player.y - enemy.y);
@@ -1035,7 +1035,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 enemy.hp = 0; // Suicide
             }
 
-            // Thornmail (Altar p3) — #177: route reflect damage through
+            // Thornmail (Altar p3) — : route reflect damage through
             // applyDamage so it respects isInvincible + customOnDamage on
             // the enemy. Keeps the original "REFLECT" pop + explosion.
             if (runState.player.thornmailTimer > 0) {
@@ -1053,7 +1053,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
                 if (!damagePrevented) {
                     runState.player.hp -= dmgTaken;
-                    recordPlayerDamage(runState.player, enemy.subType || 'ENEMY', dmgTaken); // #168
+                    recordPlayerDamage(runState.player, enemy.subType || 'ENEMY', dmgTaken);
                     audioManager.play('damage');
                     if (runState.isChaosShuffleMode) checkChaosEvent('HIT');
                     floatingTexts.push(FloatingText.acquire(runState.player.x, runState.player.y - 20, Math.ceil(dmgTaken), "#e74c3c", 20));
@@ -1098,7 +1098,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             }
         }
 
-        // #19 P2 — Per-enemy projectile collision. Iterates only the
+        // Per-enemy projectile collision. Iterates only the
         // spatial-hash candidates near this enemy (~3–10 at wave 30+)
         // instead of the full projectiles array (N×M → N×k). Enemy
         // projectiles vs player were lifted into the pre-pass above
@@ -1118,7 +1118,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             if (enemy._ghost) {
                 if (!proj.pierce || proj.pierce <= 0) {
                     const _gIdx = projectiles.indexOf(proj);
-                    if (_gIdx >= 0) { Projectile.release(proj); projectiles.splice(_gIdx, 1); } // #20 P3
+                    if (_gIdx >= 0) { Projectile.release(proj); projectiles.splice(_gIdx, 1); }
                 }
                 continue;
             }
@@ -1129,7 +1129,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 if (result === 'STOP') {
                     if (proj.life <= 0) {
                         const _hIdx = projectiles.indexOf(proj);
-                        if (_hIdx >= 0) { Projectile.release(proj); projectiles.splice(_hIdx, 1); } // #20 P3
+                        if (_hIdx >= 0) { Projectile.release(proj); projectiles.splice(_hIdx, 1); }
                     }
                     continue;
                 }
@@ -1139,7 +1139,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             if (enemy instanceof Boss && enemy.immune) {
                 floatingTexts.push(FloatingText.acquire(enemy.x, enemy.y - 40, "IMMUNE", "#fff", 20));
                 const _bIdx = projectiles.indexOf(proj);
-                if (_bIdx >= 0) { Projectile.release(proj); projectiles.splice(_bIdx, 1); } // #20 P3
+                if (_bIdx >= 0) { Projectile.release(proj); projectiles.splice(_bIdx, 1); }
                 continue;
             }
 
@@ -1222,7 +1222,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     }
                 }
                 const _eIdx = projectiles.indexOf(proj);
-                if (_eIdx >= 0) { Projectile.release(proj); projectiles.splice(_eIdx, 1); } // #20 P3
+                if (_eIdx >= 0) { Projectile.release(proj); projectiles.splice(_eIdx, 1); }
             } else {
                 // Phase 3h.2 — snapshot proj fields BEFORE the splice below.
                 // The non-explosive branch may splice (swap-with-last on the
@@ -1235,7 +1235,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     proj.pierce--;
                 } else {
                     const _nIdx = projectiles.indexOf(proj);
-                    if (_nIdx >= 0) { Projectile.release(proj); projectiles.splice(_nIdx, 1); } // #20 P3
+                    if (_nIdx >= 0) { Projectile.release(proj); projectiles.splice(_nIdx, 1); }
                 }
                 if (!(enemy instanceof Boss)) {
                     const angle = Math.atan2(enemy.y - _proj_y, enemy.x - _proj_x);
@@ -1307,7 +1307,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             if ((runState.isDailyMode || runState.isWeeklyMode) && runState.activeMutators.some(m => m.id === 'EXPLOSIVE')) {
                 createExplosion(enemy.x, enemy.y, '#e74c3c');
                 if (Math.hypot(runState.player.x - enemy.x, runState.player.y - enemy.y) < 100) {
-                    applyDamage(runState.player, 10, { label: 'EXPLOSION' }); // #18
+                    applyDamage(runState.player, 10, { label: 'EXPLOSION' });
                 }
             }
 
@@ -1362,7 +1362,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
                     // Start Boss Death Sequence
                     runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES; // 3 seconds at 60 FPS
-                    triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
+                    triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // Boss-kill freeze
                     if (typeof audioManager !== 'undefined') {
                         audioManager.play('wave_completed');
                         if (runState.currentStoryEvent && runState.currentStoryEvent.type === 'BOSS_FIGHT') {
@@ -1424,7 +1424,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                         createExplosion(enemy.x, enemy.y, '#e74c3c');
                         // Damage Player
                         if (Math.hypot(runState.player.x - enemy.x, runState.player.y - enemy.y) < radius) {
-                            applyDamage(runState.player, 30, { label: 'EXPLODER' }); // #18
+                            applyDamage(runState.player, 30, { label: 'EXPLODER' });
                         }
                     }
                 }
@@ -1458,9 +1458,9 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             }
         }
     }
-    _recordPhase('enemies', performance.now() - _enemiesT0); // #24 P10
+    _recordPhase('enemies', performance.now() - _enemiesT0);
 
-    // #173 phase 9 — player-death cinematic state machine. Trigger detection
+    // Player-death cinematic state machine. Trigger detection
     // (hp ≤ 0), co-op revive marker drop, isPlayerDying flag flip, timer
     // decrement, and gameOver() call. Pure state mutation — the visual fade
     // + screen shake lives in _drawGameplayPost (driven by isPlayerDying +
@@ -1520,4 +1520,4 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
     }
 }
-// — end #173 phase 10 leaf module —
+// — end leaf module —

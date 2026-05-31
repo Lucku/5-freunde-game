@@ -1,4 +1,4 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 import { FloatingText } from './Entities/FloatingText.js';
 import { Particle } from './Entities/Particle.js';
 import { Projectile } from './Entities/Projectile.js';
@@ -6,8 +6,8 @@ import { drawHeroSprite, cachedRadial } from './Utils.js';
 import { ACHIEVEMENTS } from './Constants.js';
 
 import { MeleeSwipe } from './Entities/MeleeSwipe.js';
-import { HumanController } from './Entities/PlayerController.js'; // #171 Phase 2 — was window.HumanController
-import { runState } from './RunState.js'; // #147/#196 — seeded RNG for deterministic crit/spread
+import { HumanController } from './Entities/PlayerController.js'; // Was window.HumanController
+import { runState } from './RunState.js'; // Seeded RNG for deterministic crit/spread
 import { TutorialMode } from './TutorialMode.js';
 
 class Player {
@@ -954,7 +954,7 @@ class Player {
         // --- Input Handling (Keyboard & Controller) ---
         let dx = 0; let dy = 0;
 
-        // Keyboard — #131 remappable bindings
+        // Keyboard — remappable bindings
         const _im = (typeof window !== 'undefined') ? window.inputManager : null;
         if (_im) {
             if (_im.isAction('moveUp'))    dy = -1;
@@ -1011,7 +1011,7 @@ class Player {
                 this.usingGamepad = true;
             }
 
-            // Actions — routed through gamepadBindings (#131 gamepad parity).
+            // Actions — routed through gamepadBindings ( gamepad parity).
             const im = (typeof window !== 'undefined') ? window.inputManager : null;
             const act = (a, fallback) => (im && typeof im.isGamepadAction === 'function')
                 ? im.isGamepadAction(gp, a)
@@ -1045,7 +1045,7 @@ class Player {
         }
 
         // Auto-aim: override aimAngle toward nearest enemy when buff is active,
-        // or when accessibility aim-assist (#133) is dialled up. Aim-assist blends
+        // or when accessibility aim-assist is dialled up. Aim-assist blends
         // current aim toward nearest target by slider weight (0..1) so a partial
         // value still feels mouse-driven but pulls toward enemies.
         const _cfg = (typeof window !== 'undefined') ? window.gameConfig : null;
@@ -1480,7 +1480,7 @@ window.invalidateHeroStatsCache = function () { _heroStatsCache.clear(); };
 /**
  * Build the fully-derived HeroStats for `type` (base stats + meta upgrades +
  * prestige + skill tree + achievement bonuses). Memoised per
- * (type, prestige:unlocked:level, metaUpgrades, achievements) — see #31.
+ * (type, prestige:unlocked:level, metaUpgrades, achievements).
  * @param {import('./types/schemas.js').HeroType} type
  * @returns {import('./types/schemas.js').HeroStats}
  */

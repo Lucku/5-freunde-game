@@ -26,10 +26,10 @@ const {
     TICK_FRAMES,
     UPGRADE_POOL,
 } = require('./constants');
-// #198 — WaveManager retired (phase 3h.2 closed step 3; bridge owns spawn).
+// WaveManager retired (phase 3h.2 closed step 3; bridge owns spawn).
 // Tests poke `gs._waveManager._lastSpawnMs` removed in this commit.
 
-// #195 — per-session `runState`. RunState.js exports a Proxy that forwards
+// Per-session `runState`. RunState.js exports a Proxy that forwards
 // to whichever object `setActiveRunState(rs)` last installed. GameSession
 // creates its own instance on construct, then activates it for the
 // duration of each `_tick` so the leaf modules' `runState.X` accesses
@@ -130,7 +130,7 @@ class GameSession {
         this._knownEnemyIds = new Set();
         this._knownProjIds  = new Set();
 
-        // #32 P9 — Position delta encoding. Track the last rounded x/y sent to
+        // Position delta encoding. Track the last rounded x/y sent to
         // each client per entity id so subsequent snapshots can emit `dx, dy`
         // (typically -10..+10 = 2–3 char JSON tokens) instead of absolute
         // `x, y` (4–5 char tokens). Force a full keyframe every
@@ -156,12 +156,12 @@ class GameSession {
         // Tier 1b — bump to 60 Hz when the world is calm. Halves the
         // authoritative-state gap clients see between snapshots, which is the
         // main source of rubber-band feel at low entity counts. Bandwidth
-        // cost absorbed by dx/dy deltas (#32) + permessage-deflate (#158).
+        // cost absorbed by dx/dy deltas + permessage-deflate.
         this._LOW_LOAD_ENTER  = 50;  // enemies + projectiles
         this._LOW_LOAD_EXIT   = 80;
         this._FAST_TICK_MS    = 16;  // ~60 Hz
 
-        // #195 — per-session `runState`. Own typed-array pools + scalars
+        // Per-session `runState`. Own typed-array pools + scalars
         // so concurrent sessions don't share entity slots / wave counters
         // / RNG state. Activated for the duration of each `_tick` via
         // `setActiveRunState`; the leaf-module Proxy read from
@@ -200,7 +200,7 @@ class GameSession {
         this._world.isVersusMode = this._isVersusMode;
         this._world.isCoopMode   = !this._isVersusMode;
 
-        // #195 — activate this session's runState for the duration of init().
+        // Activate this session's runState for the duration of init().
         // Player constructor + DLC hero init hooks read `runState.X` during
         // construction (e.g. assigning the player ref onto runState, reading
         // current biome). Without activation those reads + writes target the
@@ -239,7 +239,7 @@ class GameSession {
         };
         scheduleNext();
 
-        // #195 — leave this session's runState ACTIVE after init() returns.
+        // Leave this session's runState ACTIVE after init() returns.
         // Tests + external callers between ticks expect `global.runState`
         // (which is the Proxy) to forward to the most-recently-initialized
         // session's state. `_tick` does its own activate+restore per
@@ -320,7 +320,7 @@ class GameSession {
     _tick() {
         if (this.isLevelingUp) return;
 
-        // #195 — activate this session's per-session `runState` for the
+        // Activate this session's per-session `runState` for the
         // duration of the tick. RunState.js's exported `runState` Proxy
         // forwards every property access to whichever object was last
         // installed via `setActiveRunState`. Restore the prior state in
@@ -385,7 +385,7 @@ class GameSession {
      * also cleared.
      */
     _resetEcsState() {
-        // Phase 3h.2 + #195 — mutate THIS session's runState directly. Earlier
+        // Phase 3h.2 — mutate THIS session's runState directly. Earlier
         // singleton-only code path read through `global.runState` (still valid,
         // since the Proxy forwards to the session's state during a tick) — but
         // `_resetEcsState` runs from `init()` BEFORE the first tick, so no
@@ -605,7 +605,7 @@ class GameSession {
             } : null,
         } : null;
 
-        // #32 P9 — keyframe gate. Force full x,y this snapshot if we've sent
+        // Keyframe gate. Force full x,y this snapshot if we've sent
         // _KEYFRAME_INTERVAL delta snapshots since the last keyframe.
         const isKeyframe = this._snapshotsSinceKeyframe >= this._KEYFRAME_INTERVAL;
 

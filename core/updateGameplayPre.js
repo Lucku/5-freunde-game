@@ -1,4 +1,4 @@
-// #173 phase 10 — leaf-module extraction of `_updateGameplayPre`. Pure update
+// Leaf-module extraction of `_updateGameplayPre`. Pure update
 // helper called from game.js. Reads run-scoped state via the singleton
 // `runState` imported from RunState.js. Module-scope renderer globals
 // (`arena`, `canvas`, `audioManager`, `EvilMode`, `GAMEPLAY`, `WEATHER_TYPES`,
@@ -12,7 +12,7 @@
 import { runState } from '../RunState.js';
 import { isPhotoMode } from '../Camera.js';
 import { spawnPowerUp } from './systems/powerUpSystem.js';
-// #171 Phase 2 — explicit import replaces the retired `window.FloatingText`
+// Explicit import replaces the retired `window.FloatingText`
 // shim. Binding is identical to the former global (named export === shim value).
 import { FloatingText } from '../Entities/FloatingText.js';
 
@@ -26,12 +26,12 @@ function _updateGameplayPre(deltaTime) {
             if (runState.player) audioManager.playHeroExclamation(runState.player.type, 'boss_win');
         }
         runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
-        triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // #39 boss-kill freeze
+        triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL); // Boss-kill freeze
     }
 
     if (runState.isChaosShuffleMode) updateChaosObjective(deltaTime / 1000);
 
-    // Update Camera — skipped during photo mode so manual pan sticks (#51).
+    // Update Camera — skipped during photo mode so manual pan sticks.
     if (!isPhotoMode()) {
         // Shared-screen local co-op fits BOTH players in one viewport (zoom to
         // the pair). Online co-op renders on separate screens, so each client
@@ -338,7 +338,7 @@ function _updateGameplayPre(deltaTime) {
                 // DoT: 1% max HP every 4s
                 if (runState.frame % 240 === 0 && wFadeIn >= 1) {
                     const acidDmg = Math.ceil(runState.player.maxHp * 0.01);
-                    applyDamage(runState.player, acidDmg, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null }); // #18
+                    applyDamage(runState.player, acidDmg, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null });
                 }
 
             } else if (runState.currentWeather.id === 'GALE') {
@@ -474,7 +474,7 @@ function _updateGameplayPre(deltaTime) {
             } else if (runState.currentWeather2.id === 'ACIDIC_FOG') {
                 if (runState.frame % 240 === 0 && _wFI2 >= 1) {
                     const _ad2 = Math.ceil(runState.player.maxHp * 0.01);
-                    applyDamage(runState.player, _ad2, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null }); // #18
+                    applyDamage(runState.player, _ad2, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null });
                 }
             }
             void _wProg2; // suppress unused warning
@@ -640,4 +640,4 @@ function _updateGameplayPre(deltaTime) {
     if (runState.frame % 600 === 0) spawnPowerUp(runState);
     return false;
 }
-// — end #173 phase 10 leaf module —
+// — end leaf module —

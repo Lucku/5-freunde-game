@@ -1,4 +1,4 @@
-// HUDLayout.js — #169 Configurable HUD layout
+// HUDLayout.js — Configurable HUD layout
 //
 // Lets the player reposition combo, minimap, and the bottom player HUD
 // (HP/XP/MELEE bars + buffs + special). Layout is stored in
@@ -527,7 +527,7 @@ function exitEditMode(save) {
 const HUDLayout = { apply, reset, enterEditMode, exitEditMode };
 
 if (typeof window !== 'undefined') {
-    // #171 Phase 2 — `window.HUDLayout` shim retired; Options.js imports directly.
+    // `window.HUDLayout` shim retired; Options.js imports directly.
     // Apply on DOM ready so CSS defaults are computed correctly.
     const _boot = () => {
         try { apply(); } catch (e) { console.error('HUDLayout.apply failed', e); }

@@ -1,4 +1,4 @@
-// #5 phase 5.10b — Projectile compat shim.
+// Projectile compat shim.
 //
 // Real storage lives on `runState.projectile*` typed arrays — see
 // `core/systems/projectileSystem.js`. This file is the back-compat layer
@@ -247,8 +247,8 @@ function _concat(...arrs) {
 }
 
 if (typeof window !== 'undefined') {
-    // Entity-array sentinel shim stays (RunState-coupled, #4 deferred). The
-    // `window.Projectile` class shim was retired in #171 Phase 2 — all callers
+    // Entity-array sentinel shim stays (RunState-coupled, deferred). The
+    // `window.Projectile` class shim was retired in — all callers
     // now import `{ Projectile }` directly.
     window.projectiles = _projectilesSentinel;
     void MAX_PROJECTILES; // re-export for callers that read the cap

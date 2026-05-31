@@ -1,4 +1,4 @@
-// #5 phase 5.4 — Particle compat shim.
+// Particle compat shim.
 //
 // The real storage lives on `runState.particle*` typed arrays — see
 // `core/systems/particleSystem.js`. This file used to host the class +
@@ -90,11 +90,11 @@ if (typeof window !== 'undefined') {
     // (legacy class-array path, removed in this phase).
     if (!('particles' in window) || Array.isArray(window.particles)) {
         // game.js destructure will overwrite this with a real array if it still
-        // exists — but #5 phase 5.4 drops that destructure entry, so this
+        // exists — but drops that destructure entry, so this
         // shim wins for the rest of the session.
         window.particles = _particlesShim;
     }
-    // `window.Particle` class shim retired in #171 Phase 2 — callers import
-    // `{ Particle }` directly. Entity-array sentinel above stays (#4 deferred).
+    // `window.Particle` class shim retired in — callers import
+    // `{ Particle }` directly. Entity-array sentinel above stays ( deferred).
     void MAX_PARTICLES; // re-exported for callers that read the cap
 }

@@ -1,4 +1,4 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 import { ALTAR_TREE } from './AltarData.js';
 import { COLLECTOR_CARDS, CHAOS_EFFECTS } from './Constants.js';
 
@@ -181,7 +181,7 @@ class CompletionMenu {
                 stories.forEach((story, i) => {
                     addToDLC('Echos of Eternity', 'Memories', unlockedIndices.includes(i), `${hero.charAt(0).toUpperCase() + hero.slice(1)} Shard #${i + 1}`);
                 });
-                // Secret shard #51 — only for Love, unlocked by collecting all 50
+                // Secret shard — only for Love, unlocked by collecting all 50
                 if (hero === 'love') {
                     const secretUnlocked = !!(saveData.memories && saveData.memories['love_secret_51']);
                     addToDLC('Echos of Eternity', 'Memories', secretUnlocked, 'Love Shard #51 (Secret Revelation)');
@@ -696,5 +696,5 @@ class CompletionMenu {
 
 export { CompletionMenu };
 export default CompletionMenu;
-// #171 phase 2 — window shim retired. Museum.js (the only consumer) now
+// Window shim retired. Museum.js (the only consumer) now
 // imports CompletionMenu explicitly.

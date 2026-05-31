@@ -1,4 +1,4 @@
-// #5 phase 5.2 — CardDrop ECS system. Replaces `class CardDrop` from
+// CardDrop ECS system. Replaces `class CardDrop`
 // Entities/CardDrop.js with component arrays on runState. Drops on field,
 // pickup adds card to collection. No timer — cards persist until picked up
 // (same as the original class).

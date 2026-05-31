@@ -1,4 +1,4 @@
-// #48 — cross-platform vector icons for DOM UI.
+// Cross-platform vector icons for DOM UI.
 //
 // Emoji render differently (or as tofu) across Windows / Linux / Steam Deck.
 // `iconHTML(emoji)` maps the small set of gameplay emoji (CHAOS_REWARDS +

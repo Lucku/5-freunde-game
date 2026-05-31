@@ -1,23 +1,23 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { ALTAR_TREE } from '../../AltarData.js';
 
 import { FloatingText } from '../../Entities/FloatingText.js';
 import { Projectile } from '../../Entities/Projectile.js';
 import { MEMORY_STORIES } from '../../MemoryStories.js';
 import { Player } from '../../Player.js';
-import { AIController } from '../../Entities/PlayerController.js'; // #171 Phase 2 — was window.AIController
+import { AIController } from '../../Entities/PlayerController.js'; // Was window.AIController
 
 // Faith of Fortune - DLC Manifest
 
 const FAITH_OF_FORTUNE = {
     id: 'faith_of_fortune',
     name: "Faith of Fortune",
-    dlcVersion: 1, // #175 — DLC schema version stamp
+    dlcVersion: 1, // DLC schema version stamp
     heroes: ['spirit', 'chance'],
     description: "Introduces 'Spirit' (Gold) and 'Chance' (Magenta). Balance versus Chaos. The Temple vs The Casino.",
     icon: "🎰",
 
-    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    // Declarative manifest (auto-loader drives scripts + inject hooks).
     scripts: [
         'SpiritHero.js', 'ChanceHero.js', 'TempleBiome.js', 'MadnessBiome.js',
         'MadnessEnemies.js', 'TempleEnemies.js', 'Story.js',

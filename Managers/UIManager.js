@@ -14,7 +14,7 @@ class UIManager {
         if (typeof document !== 'undefined' && document.body) {
             document.body.classList.toggle('museum-mode', newState === 'MUSEUM');
         }
-        // #137 announce state changes for screen readers (silent when disabled).
+        // Announce state changes for screen readers (silent when disabled).
         if (typeof window !== 'undefined' && typeof window.a11yAnnounce === 'function') {
             const labels = {
                 MENU: 'Main menu', PAUSE: 'Paused', GAME: 'In game',

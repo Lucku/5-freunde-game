@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { Enemy } from '../../Enemy.js';
 import { FloatingText } from '../../Entities/FloatingText.js';
 

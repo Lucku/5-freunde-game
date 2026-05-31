@@ -170,5 +170,5 @@ const MenuBackground = (() => {
 
 export { MenuBackground };
 export default MenuBackground;
-// #171 phase 2 — window shim retired. The only consumer is game.js, which
+// Window shim retired. The only consumer is game.js, which
 // imports MenuBackground explicitly at the top of the file.

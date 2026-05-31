@@ -1,9 +1,9 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 
 import { CompletionMenu } from './CompletionMenu.js';
 import { drawHeroSprite, shadeColor } from './Utils.js';
 import { MenuBackground } from './UI/MenuBackground.js';
-import { CloudSaveManager } from './Managers/CloudSaveManager.js'; // #171 Phase 2 — was bare window global
+import { CloudSaveManager } from './Managers/CloudSaveManager.js'; // Was bare window global
 
 // Room-aware dialogue: MUSEUM_DIALOGUES[heroType][roomName] or [heroType].generic
 const MUSEUM_DIALOGUES = {
@@ -339,7 +339,7 @@ class Museum {
         });
 
         // 4. 100% Completion Trophy (Center of Gallery). CompletionMenu is
-        // imported at the top of this file (#171 phase 2 — used to rely on
+        // imported at the top of this file (used to rely on
         // window.CompletionMenu set by the now-removed shim).
         if (typeof CompletionMenu !== 'undefined') {
             const tempMenu = new CompletionMenu();

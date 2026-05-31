@@ -1,4 +1,4 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 import { MeleeSwipe } from './Entities/MeleeSwipe.js';
 import { World } from './shared/world.js';
 import { ACHIEVEMENTS } from './Constants.js';
@@ -14,21 +14,21 @@ import { Player } from './Player.js';
 import { Enemy } from './Enemy.js';
 import { Boss } from './Boss.js';
 import { Arena } from './Arena.js';
-// Companion class removed in #5 phase 5.9 (ECS migration). See core/systems/companionSystem.js.
+// Companion class removed in (ECS migration). See core/systems/companionSystem.js.
 import { FloatingText } from './Entities/FloatingText.js';
-// #171 Phase 2 — Particle import dropped; game.js no longer references the class
+// Particle import dropped; game.js no longer references the class
 // directly (only ECS spawn helpers + comments remain).
 import { Projectile } from './Entities/Projectile.js';
-// GoldDrop class removed in #5 phase 5.7 (ECS migration). See core/systems/goldDropSystem.js.
-// CardDrop class removed in #5 phase 5.2 (ECS migration). See core/systems/cardDropSystem.js.
-// HolyMask class removed in #5 phase 5.8 (ECS migration). See core/systems/holyMaskSystem.js.
-// PowerUp class removed in #5 phase 5.1 (ECS migration). See core/systems/powerUpSystem.js.
+// GoldDrop class removed in (ECS migration). See core/systems/goldDropSystem.js.
+// CardDrop class removed in (ECS migration). See core/systems/cardDropSystem.js.
+// HolyMask class removed in (ECS migration). See core/systems/holyMaskSystem.js.
+// PowerUp class removed in (ECS migration). See core/systems/powerUpSystem.js.
 import { SaveManager } from './Managers/SaveManager.js';
 import { CloudSaveManager } from './Managers/CloudSaveManager.js';
 import { UIManager } from './Managers/UIManager.js';
 import { InputManager } from './Managers/InputManager.js';
 import { StoryManager } from './Managers/StoryManager.js';
-import { TelemetryManager } from './Managers/TelemetryManager.js'; // #171 Phase 2 — was window.TelemetryManager
+import { TelemetryManager } from './Managers/TelemetryManager.js'; // Was window.TelemetryManager
 import { SpatialHash } from './Managers/SpatialHash.js';
 import { audioManager } from './Managers/AudioManager.js';
 import { introManager } from './Managers/IntroManager.js';
@@ -77,12 +77,12 @@ import {
     spawnCompanion, clearCompanions, serializeCompanions,
 } from './core/systems/companionSystem.js';
 
-// #9 — Electron detection + fs/path/saveFilePath now centralised in Platform.js.
+// Electron detection + fs/path/saveFilePath now centralised in Platform.js.
 const isElectron   = !!(window.Platform && window.Platform.isElectron);
 const fs           = window.Platform ? window.Platform.fs   : null;
 const saveFilePath = window.Platform ? window.Platform.saveFilePath : null;
 
-// #194 follow-up — cross-module exposure for symbols read by bare name from
+// Cross-module exposure for symbols read by bare name
 // non-importing files (typeof X !== 'undefined' guards in EvilMode.js,
 // SaveManager.js, AudioManager.js, InputManager.js, CrashReporter.js, etc.).
 // These bindings are immutable from this module's perspective so a one-time
@@ -115,7 +115,7 @@ if (isElectron) {
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-// #4 session 4 — GameContext now owns canvas + ctx; the setter mirrors to
+// GameContext now owns canvas + ctx; the setter mirrors to
 // `window.canvas` / `window.ctx` so DLC bare-reads keep working.
 window.gameContext.canvas = canvas;
 window.gameContext.ctx    = ctx;
@@ -164,7 +164,7 @@ const defaultSaveData = {
     // Schema version — bumped only when SaveManager.MIGRATIONS gains an entry.
     // Saves loaded without a version field are treated as v0 and migrated.
     version: 1,
-    // #175 — per-DLC schema version stamps: { '<dlcId>': <dlcVersion> }. Recorded
+    // Per-DLC schema version stamps: { '<dlcId>': <dlcVersion> }. Recorded
     // by SaveManager.applyDLCVersion when a DLC activates; drives per-DLC migrations.
     dlcVersions: {},
     fire: { level: 0, unlocked: 1, highScore: 0, prestige: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null },
@@ -179,7 +179,7 @@ const defaultSaveData = {
         totalVoidGoldSpent: 0, unlockedAchievements: [],
         daily_wins: 0, weekly_wins: 0,
         onlineGamesPlayed: 0, onlineMaxWave: 0,
-        bossesSeen: {} // #192 — per-boss-id flag; first encounter cinematic is always full, repeats are skippable
+        bossesSeen: {} // Per-boss-id flag; first encounter cinematic is always full, repeats are skippable
     },
     collection: [],
     metaUpgrades: { health: 0, greed: 0, power: 0, swift: 0, defense: 0, wisdom: 0 },
@@ -193,10 +193,10 @@ const defaultSaveData = {
     savedRun: null, // Slot for mid-run save
     tutorial: { seen: false, completed: false }, // First-launch & completion tracking
 };
-window.gameContext.defaultSaveData = defaultSaveData; // #4 session 4 — owned by GameContext, mirrored to window._defaultSaveData
+window.gameContext.defaultSaveData = defaultSaveData; // Owned by GameContext, mirrored to window._defaultSaveData
 
-// currentBiomeType migrated to runState (#11 phase 5).
-// #11 phase 4 — mode flags migrated to runState.X (isVersusMode,
+// currentBiomeType migrated to runState.
+// Mode flags migrated to runState.X (isVersusMode,
 // isChaosShuffleMode, isTutorialMode, isTestingMode, isEvilMode, isCoopMode,
 // isSpeedrunMode, isAICompanionMode, isWorkshopMode, isOnlineMode,
 // isOnlineHost, isOnlineGuest, isDailyMode, isWeeklyMode). Bare references
@@ -209,12 +209,12 @@ let coopP2GamepadIndex = -1;
 let coopP2MenuIndex = 0;
 let coopP2Debounce = 0;
 let coopP2HeroLocked = false; // True when resuming a co-op save — P2 hero cannot be changed
-// player2 migrated to runState (#11 phase 7).
-// coopZoom migrated to runState (#11 phase 3).
-// p1RevivalMarker, p2RevivalMarker migrated to runState (#11 phase 7).
+// player2 migrated to runState.
+// coopZoom migrated to runState.
+// p1RevivalMarker, p2RevivalMarker migrated to runState.
 let p2LevelUpPending = false;
 const p2LevelUpOptions = [];
-window.gameContext.saveData = { // #4 session 5
+window.gameContext.saveData = {
     fire: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     water: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
     ice: { level: 0, unlocked: 0, highScore: 0, prestige: 0 },
@@ -358,7 +358,7 @@ if (typeof window !== 'undefined') {
     window.queryProjectilesNear = queryProjectilesNear;
 }
 
-// Runtime stats tracker — owned by runState.currentRunStats (#11 phase 7).
+// Runtime stats tracker — owned by runState.currentRunStats.
 // `createRunState()` calls `createRunStats({ startTime: 0 })` for the
 // initial instance; resetRunStats() is called at startGame().
 
@@ -380,10 +380,10 @@ async function saveGame() {
 
 async function loadGame() {
     if (typeof SaveManager !== 'undefined') {
-        window.gameContext.saveData = await SaveManager.loadGame(defaultSaveData); // #4 session 5
+        window.gameContext.saveData = await SaveManager.loadGame(defaultSaveData);
     } else {
         console.error("SaveManager is not defined!");
-        window.gameContext.saveData = structuredClone(defaultSaveData); // #4 session 5 + #17
+        window.gameContext.saveData = structuredClone(defaultSaveData);
     }
     if (typeof CloudSaveManager !== 'undefined') {
         await CloudSaveManager.syncOnStartup();
@@ -402,7 +402,7 @@ function importSave(input) {
     if (!input.files[0]) return;
     if (typeof SaveManager !== 'undefined') {
         SaveManager.importSave(input.files[0], (data) => {
-            window.gameContext.saveData = data; // #4 session 5
+            window.gameContext.saveData = data;
             saveGame();
             alert("Save loaded successfully!");
             location.reload();
@@ -410,7 +410,7 @@ function importSave(input) {
     }
 }
 
-// #165 — In-game changelog ("What's New") modal
+// In-game changelog ("What's New") modal
 // Minimal markdown→HTML for the CHANGELOG slice rendered in the modal.
 // Subset: `##` / `###` headings, `- ` lists, `**bold**`, `*em*`, `` `code` ``,
 // `[text](url)`. Source is escaped first so any stray HTML is inert.
@@ -501,7 +501,7 @@ function closeWhatsNew() {
     }
 }
 
-// #98 — Telemetry consent. Shown once on first launch; suppressed once the
+// Telemetry consent. Shown once on first launch; suppressed once the
 // user has answered (Enable / Decline). "Ask me later" leaves consentSeen
 // false so the prompt returns next boot.
 function _maybeShowTelemetryConsent() {
@@ -529,7 +529,7 @@ window.respondTelemetryConsent = function (accepted) {
     }
 };
 
-// #140 — Save backup browser
+// Save backup browser
 function openSaveBackups() {
     const modal = document.getElementById('save-backups-modal');
     const list  = document.getElementById('save-backups-list');
@@ -984,7 +984,7 @@ function handleGamepadMenu() {
 
     // Back Action (B Button) - Moved BEFORE focus check so it works on empty screens
     if (b && !lastGamepadState.b) {
-        // #192 — boss intro skip via controller B. Same gate as keyboard ESC:
+        // Boss intro skip via controller B. Same gate as keyboard ESC:
         // only skippable once the player has seen this boss before on this save.
         if (runState.bossIntroTimer > 0 && runState.bossIntroSkippable) {
             runState.bossIntroTimer = 0;
@@ -1798,7 +1798,7 @@ function saveRunState() {
 
     saveData.savedRun = payload;
     saveGame();
-    _markRunActive(); // #166 — flag a run in progress for crash recovery
+    _markRunActive(); // Flag a run in progress for crash recovery
     console.log("Run saved at Wave " + payload.wave);
 }
 
@@ -1806,11 +1806,11 @@ function clearSavedRun() {
     saveData.savedRun = null;
     saveGame();
     updateContinueButton();
-    // #166 — crash recovery flag cleared on graceful shutdown / end-of-run.
+    // Crash recovery flag cleared on graceful shutdown / end-of-run.
     try { localStorage.removeItem('5FreundeRunActive'); } catch (_) { /* noop */ }
 }
 
-// #166 — set/clear the "run in progress" sentinel. Read at startup to detect
+// Set/clear the "run in progress" sentinel. Read at startup to detect
 // crashes (sentinel still set + saveData.savedRun present → offer restore).
 function _markRunActive() {
     try { localStorage.setItem('5FreundeRunActive', '1'); } catch (_) { /* noop */ }
@@ -2322,7 +2322,7 @@ function closeAltar() {
 
 // --- Game State ---
 let arena; // Arena Instance
-// #11 phase 3 — run-lifecycle scalars migrated to runState.X:
+// Run-lifecycle scalars migrated to runState.X:
 //   wave, score, frame, gameRunning, gamePaused, isLevelingUp, isShopping,
 //   bossActive, enemiesKilledInWave, coopZoom, _hitStopFrames.
 // All bare references in game.js were rewritten to `runState.X`. DLC + leaf
@@ -2330,12 +2330,12 @@ let arena; // Arena Instance
 // from / write to `runState.X` (see the block ~3830).
 const isStatsOpen = false;
 
-// _shakeIntensity / _shakeDuration moved to Camera.js (Phase A of #1 split).
+// _shakeIntensity / _shakeDuration moved to Camera.js (Phase A of split).
 let _comboMilestoneTimer = 0;
 let _prevCombo = 0;
 let masksDroppedInWave = 0;  // Cap holy-mask drops per wave
 let waveTimer = 0;           // Sentinel used by versus mode to disable wave timer
-// #11 phase 6 — combat/cinematic state migrated to runState.X:
+// Combat/cinematic state migrated to runState.X:
 //   bossDeathTimer, bossIntroTimer, bossIntroName, bossIntroSkippable,
 //   bossIntroCamStart{X,Y}, bossIntroCamTarget{X,Y}, _bossChoiceScreen,
 //   _bossChoiceFrame, _bossChoiceFocus, _bossChoiceGpPrev, isPlayerDying,
@@ -2358,7 +2358,7 @@ Object.defineProperties(window, {
     isShopping:          { get: () => runState.isShopping,          set: v => { runState.isShopping          = v; }, configurable: true, enumerable: true },
     gamePaused:          { get: () => runState.gamePaused,          set: v => { runState.gamePaused          = v; }, configurable: true, enumerable: true },
     isTutorialMode:      { get: () => runState.isTutorialMode,      set: v => { runState.isTutorialMode      = v; }, configurable: true, enumerable: true },
-    // #194 follow-up — these are re-assigned at multiple sites in game.js
+    // These are re-assigned at multiple sites in game.js
     // (`activeMutators = getDailyMutators()`, `weatherParticles = []`,
     // `currentWeather = pickWeather()`, etc.) so a one-time write would go
     // stale. Use the same lazy-getter pattern as above; consumers in
@@ -2373,7 +2373,7 @@ Object.defineProperties(window, {
     isChaosShuffleMode:  { get: () => runState.isChaosShuffleMode,  set: v => { runState.isChaosShuffleMode  = v; }, configurable: true, enumerable: true },
     isEvilMode:          { get: () => runState.isEvilMode,          set: v => { runState.isEvilMode          = v; }, configurable: true, enumerable: true },
     isOnlineMode:        { get: () => runState.isOnlineMode,        set: v => { runState.isOnlineMode        = v; }, configurable: true, enumerable: true },
-    // #11 phase 4 — mode flag bridges (DLC + leaf modules read these via
+    // Mode flag bridges (DLC + leaf modules read these
     // bare-name global lookup or `window.X` / `globalThis.X`).
     isCoopMode:          { get: () => runState.isCoopMode,          set: v => { runState.isCoopMode          = v; }, configurable: true, enumerable: true },
     isAICompanionMode:   { get: () => runState.isAICompanionMode,   set: v => { runState.isAICompanionMode   = v; }, configurable: true, enumerable: true },
@@ -2383,11 +2383,11 @@ Object.defineProperties(window, {
     isWorkshopMode:      { get: () => runState.isWorkshopMode,      set: v => { runState.isWorkshopMode      = v; }, configurable: true, enumerable: true },
     isTestingMode:       { get: () => runState.isTestingMode,       set: v => { runState.isTestingMode       = v; }, configurable: true, enumerable: true },
     isSpeedrunMode:      { get: () => runState.isSpeedrunMode,      set: v => { runState.isSpeedrunMode      = v; }, configurable: true, enumerable: true },
-    // #11 phase 5 — story/weather bridge for DLC use (MazeUI.js sets currentStoryEvent).
+    // Story/weather bridge for DLC use (MazeUI.js sets currentStoryEvent).
     currentStoryEvent:   { get: () => runState.currentStoryEvent,   set: v => { runState.currentStoryEvent   = v; }, configurable: true, enumerable: true },
-    // #11 phase 6 — bossDeathTimer bridge (TestingGrounds.js writes bare).
+    // bossDeathTimer bridge (TestingGrounds.js writes bare).
     bossDeathTimer:      { get: () => runState.bossDeathTimer,      set: v => { runState.bossDeathTimer      = v; }, configurable: true, enumerable: true },
-    // #11 phase 7 — player refs. External consumers (EvilMode.js, Boss.js,
+    // Player refs. External consumers (EvilMode.js, Boss.js,
     // Player.js, TutorialMode.js, DLC) read window.player / window.player2 —
     // the bridges keep them always pointing at the current runState ref.
     player:              { get: () => runState.player,              set: v => { runState.player              = v; }, configurable: true, enumerable: true },
@@ -2396,7 +2396,7 @@ Object.defineProperties(window, {
     p2RevivalMarker:     { get: () => runState.p2RevivalMarker,     set: v => { runState.p2RevivalMarker     = v; }, configurable: true, enumerable: true },
     gameRunning:         { get: () => runState.gameRunning,         set: v => { runState.gameRunning         = v; }, configurable: true, enumerable: true },
     isStoryOpen:         { get: () => runState.isStoryOpen,         set: v => { runState.isStoryOpen         = v; }, configurable: true, enumerable: true },
-    // #173 phase 10 — additional mirrors so `core/drawGameplayPost.js`
+    // Additional mirrors so `core/drawGameplayPost.js`
     // (and future leaf modules) can read this state via `globalThis.X`
     // without coupling to game.js's module scope.
     weatherDuration:     { get: () => runState.weatherDuration,     set: v => { runState.weatherDuration     = v; }, configurable: true, enumerable: true },
@@ -2407,19 +2407,19 @@ Object.defineProperties(window, {
     score:               { get: () => runState.score,               set: v => { runState.score               = v; }, configurable: true, enumerable: true },
     frame:               { get: () => runState.frame,               set: v => { runState.frame               = v; }, configurable: true, enumerable: true },
     _hitStopFrames:      { get: () => runState._hitStopFrames,      set: v => { runState._hitStopFrames      = v; }, configurable: true, enumerable: true },
-    // #173 phase 10 — spatial-hash active flags. game.js owns the local
+    // Spatial-hash active flags. game.js owns the local
     // `let _enemyHashActive` / `_projectileHashActive`; the bridge lets the
     // extracted `core/updateGameplayMid.js` rebuild them each frame.
     _enemyHashActive:      { get: () => _enemyHashActive,      set: v => { _enemyHashActive      = v; }, configurable: true, enumerable: true },
     _projectileHashActive: { get: () => _projectileHashActive, set: v => { _projectileHashActive = v; }, configurable: true, enumerable: true },
     masksDroppedInWave:    { get: () => masksDroppedInWave,    set: v => { masksDroppedInWave    = v; }, configurable: true, enumerable: true },
 });
-// #173 phase 10 — class + helper references exposed for leaf modules.
+// Class + helper references exposed for leaf modules.
 window.Boss             = Boss;
 window.applyScreenShake = applyScreenShake;
 window.TutorialMode     = TutorialMode;
 window.MeleeSwipe       = MeleeSwipe;
-// PowerUp removed in #5 phase 5.1 (ECS migration).
+// PowerUp removed in (ECS migration).
 window.MEMORY_STORIES   = MEMORY_STORIES;
 window.updateChaosObjective = updateChaosObjective;
 window.checkChaosEvent  = checkChaosEvent;
@@ -2434,9 +2434,9 @@ window._renderBossIntroCinematic  = _renderBossIntroCinematic;
 window._renderBossDeathCinematic  = _renderBossDeathCinematic;
 window._renderBossChoiceScreen    = _renderBossChoiceScreen;
 window.EvilMode                 = EvilMode;
-// #171 Phase 2 — window.Projectile bridge dropped; leaf modules import it directly.
-// GoldDrop removed in #5 phase 5.7 (ECS migration).
-// HolyMask removed in #5 phase 5.8 (ECS migration).
+// Window.Projectile bridge dropped; leaf modules import it directly.
+// GoldDrop removed in (ECS migration).
+// HolyMask removed in (ECS migration).
 window._SPATIAL_HASH_MIN        = _SPATIAL_HASH_MIN;
 window._recordPhase             = _recordPhase;
 window.getCollectionBonuses     = getCollectionBonuses;
@@ -2444,7 +2444,7 @@ window._onlineInterpBuf         = _onlineInterpBuf;
 window._onlineRenderTime        = _onlineRenderTime;
 window._renderMinimap           = _renderMinimap;
 
-// Weather state migrated to runState (#11 phase 5):
+// Weather state migrated to runState:
 //   currentWeather, weatherTimer, weatherDuration, weatherParticles,
 //   _weatherFlash, _weatherBolts, currentWeather2, weatherDuration2.
 
@@ -2453,24 +2453,24 @@ window._weatherDrawHooks = {};
 // DLC extension point: { weatherId → (wFadeIn, frame) => void } for per-frame logic (particles, damage, etc.)
 window._weatherLogicHooks = {};
 
-// player migrated to runState (#11 phase 7). Lives at runState.player.
+// player migrated to runState. Lives at runState.player.
 
-// #11 phase 2 — entity arrays migrated into runState container. Destructured
+// Entity arrays migrated into runState container. Destructured
 // const aliases preserve the bare-name idiom (~330 refs in this file) while
 // routing array identity through `runState.X`. Arrays are mutated in place
 // (push / splice / `.length = 0`) and never reassigned, so the local aliases
 // stay valid for the lifetime of the session.
-// #173 phase 10 — `runState` is now imported from RunState.js so leaf modules
+// `runState` is now imported from RunState.js so leaf modules
 // (`core/updateGameplay*.js`) can read it without coupling to game.js.
-// powerUps migrated to ECS in #5 phase 5.1 — see core/systems/powerUpSystem.js.
+// powerUps migrated to ECS in — see core/systems/powerUpSystem.js.
 const {
     meleeAttacks,
 } = runState;
-// #5 phase 5.10b — `projectiles` is the smart Proxy sentinel installed by
+// `projectiles` is the smart Proxy sentinel installed
 // Entities/Projectile.js (loaded via main.js side-effect). Looks like an
 // Array but routes all access to the ECS slots on runState.projectile*.
 const projectiles = window.projectiles;
-// #5 phase 5.11b — `enemies` is the mixed-storage sentinel installed by
+// `enemies` is the mixed-storage sentinel installed
 // Enemy.js. Iterates ECS Enemy slots + runState.bossInstances Boss class
 // instances side-by-side.
 const enemies = window.enemies;
@@ -2486,7 +2486,7 @@ window.player = runState.player;
 window.meleeAttacks = meleeAttacks;
 window.arena = arena; // Expose Arena to Window for DLCs
 // Live array references shared with extracted modules (Spawner.js, RunState.js).
-// Arrays are reference types so module mutations propagate. After #11 phase 2
+// Arrays are reference types so module mutations propagate.
 // these all alias the single `runState.X` ref, so the one-time exports stay
 // valid forever and `window._world.X = X` resyncs become idempotent no-ops.
 // projectiles now ECS — see Entities/Projectile.js compat shim for window.projectiles sentinel.
@@ -2497,16 +2497,16 @@ window.arena = arena; // Expose Arena to Window for DLCs
 // Cross-module references via window — these arrays are mutated (push / splice)
 // but never reassigned, so a one-time window export keeps Arena.js,
 // EvilMode.js, ChaosMode.js, Museum.js, etc. in sync without needing imports.
-// powerUps no longer on window — migrated to ECS in #5 phase 5.1.
-// holyMasks no longer on window — migrated to ECS in #5 phase 5.8.
-// goldDrops no longer on window — migrated to ECS in #5 phase 5.7.
-// cardDrops no longer on window — migrated to ECS in #5 phase 5.2.
-// memoryShards no longer on window — migrated to ECS in #5 phase 5.6.
-// companions no longer on window — migrated to ECS in #5 phase 5.9.
+// powerUps no longer on window — migrated to ECS.
+// holyMasks no longer on window — migrated to ECS.
+// goldDrops no longer on window — migrated to ECS.
+// cardDrops no longer on window — migrated to ECS.
+// memoryShards no longer on window — migrated to ECS.
+// companions no longer on window — migrated to ECS.
 
 // Story Manager
 const storyManager = new StoryManager();
-// isStoryOpen + currentStoryEvent migrated to runState (#11 phase 5).
+// isStoryOpen + currentStoryEvent migrated to runState.
 let _onlineLocalContinuedStory  = false;
 let _onlinePartnerContinuedStory = false;
 
@@ -2517,10 +2517,10 @@ window.inputManager = inputManager;
 // Context menu blocked by InputManager
 
 inputManager.onKeyDown = e => {
-    // #131 routed via remappable key bindings; legacy keyCodes left as fallbacks
+    // Routed via remappable key bindings; legacy keyCodes left as fallbacks
     // so the old defaults keep working even if config didn't load yet.
     const im = inputManager;
-    // #192 — boss intro skip: ESC during a re-encounter cinematic ends it
+    // Boss intro skip: ESC during a re-encounter cinematic ends it
     // immediately. Must run before the pause handler so the same key doesn't
     // also pause the game. First-encounter cinematics ignore the key entirely.
     if (runState.bossIntroTimer > 0 && runState.bossIntroSkippable && (im.eventMatches('pause', e) || e.code === 'Escape')) {
@@ -2713,7 +2713,7 @@ inputManager.onKeyDown = e => {
     }
 };
 
-// #159 — Pause menu summary. Pulls live numbers from currentRunStats + player
+// Pause menu summary. Pulls live numbers from currentRunStats + player
 // + wave globals and paints them into the existing #pause-screen panel.
 function renderPauseMenu() {
     try {
@@ -2795,11 +2795,11 @@ function togglePause() {
         audioManager.stopLoop('attack_earth_roll');
         audioManager.stopLoop('special_spirit_charging');
     }
-    // #167 — apply low-pass on the music bus while paused.
+    // Apply low-pass on the music bus while paused.
     if (typeof audioManager !== 'undefined' && typeof audioManager.setPauseFilter === 'function') {
         audioManager.setPauseFilter(!!runState.gamePaused);
     }
-    // #159 — refresh pause-menu run summary contents.
+    // Refresh pause-menu run summary contents.
     if (runState.gamePaused && typeof window.renderPauseMenu === 'function') window.renderPauseMenu();
 }
 
@@ -2903,8 +2903,8 @@ function showNotification(text, type = 'info') {
 }
 
 // --- Daily Challenge Logic ---
-// activeMutators migrated to runState (#11 phase 5).
-// isDailyMode migrated to runState (#11 phase 4).
+// activeMutators migrated to runState.
+// isDailyMode migrated to runState.
 let forcedEnemyType = null;
 
 function getDailySeed() {
@@ -2943,7 +2943,7 @@ if (typeof window !== 'undefined') {
     window.clearSeededRng = clearSeededRng;
 }
 
-// isWeeklyMode migrated to runState (#11 phase 4).
+// isWeeklyMode migrated to runState.
 
 function getWeeklySeed() {
     const now = new Date();
@@ -3068,14 +3068,14 @@ function closeDailyInfo() {
 // HolyMask, PowerUp, Particle, FloatingText moved to Entities/
 // shadeColor moved to Utils.js
 
-// #171 Phase 2 — window.FloatingText / window.Particle bridges dropped; renderer
-// leaf modules and DLCs (post-#194) import these classes directly.
-// CardDrop removed in #5 phase 5.2 (ECS migration).
-// createExplosion / spawnLevelUpAura moved to Spawner.js (Phase B of #1 split).
+// Window.FloatingText / window.Particle bridges dropped; renderer
+// leaf modules and DLCs (post-) import these classes directly.
+// CardDrop removed in (ECS migration).
+// createExplosion / spawnLevelUpAura moved to Spawner.js (Phase B of split).
 // MAX_PARTICLES no longer needed in game.js — cap enforced by spawnParticle
-// in core/systems/particleSystem.js after #5 phase 5.4.
+// in core/systems/particleSystem.js.
 
-// #38/#51/#168 — screen-shake, shake taxonomy, gamepad vibration, photo mode
+// Screen-shake, shake taxonomy, gamepad vibration, photo mode
 // moved to Camera.js. Re-exposed via window shims from Camera.js for DLCs.
 
 function isReducedMotion() {
@@ -3088,7 +3088,7 @@ function triggerHitStop(frames) {
 }
 window.triggerHitStop = triggerHitStop;
 
-// #168 — track the last hit that landed on the local player so the game-over
+// Track the last hit that landed on the local player so the game-over
 // screen can surface "Defeated by SHOOTER (40 dmg)" instead of a bare title.
 // Updated at every meaningful damage-take site (enemy body contact, projectile,
 // acid fog, lava DOT, bomber, boss melee/ranged). The killing blow leaves the
@@ -3103,14 +3103,14 @@ function recordPlayerDamage(target, label, dmg) {
 }
 window.recordPlayerDamage = recordPlayerDamage;
 
-// #18 — Centralized damage pipeline. Handles the common bookkeeping that was
+// Centralized damage pipeline. Handles the common bookkeeping that was
 // previously duplicated at every `player.hp -= X` site: invincibility check,
 // damageReduction multiplier, customOnDamage shield hook, damage-source stamp,
 // floating-text number, SFX, run-stat accounting. Returns the final damage
 // applied (0 if blocked).
 //
 // Options:
-//   label         — short name for the damage source (drives #168 death feedback)
+//  label — short name for the damage source (drives death feedback)
 //   color         — floating-text color (default red #e74c3c)
 //   size          — floating-text font size (default 20; >=25 reads as crit)
 //   prefix        — optional text prefix (e.g. "☠")
@@ -3163,12 +3163,12 @@ function applyDamage(target, dmg, opts = {}) {
 window.applyDamage = applyDamage;
 
 function createDeathBurst(x, y, color, subType) {
-    // #5 phase 5.4 — direct ECS spawn. spawnParticle enforces MAX_PARTICLES.
-    // #41 — per-subType death FX. Cosmetic + CLIENT-ONLY (the server stubs this
+    // Direct ECS spawn. spawnParticle enforces MAX_PARTICLES.
+    // Per-subType death FX. Cosmetic + CLIENT-ONLY (the server stubs this
     // to a no-op) and fired AFTER kill rewards/removal, so it never touches
     // simulation state. Uses Math.random() — NOT runState.rng() — on purpose:
     // perturbing the seeded RNG here would desync the deterministic sim stream.
-    // #134 reduced-motion: calm, minimal feedback — skip the flashy bursts.
+    // Reduced-motion: calm, minimal feedback — skip the flashy bursts.
     if (isReducedMotion()) {
         for (let i = 0; i < 3; i++) {
             const a = Math.random() * Math.PI * 2;
@@ -3358,7 +3358,7 @@ function createDeathBurst(x, y, color, subType) {
     }
 }
 
-// spawnLevelUpAura moved to Spawner.js (Phase B of #1 split).
+// spawnLevelUpAura moved to Spawner.js (Phase B of split).
 
 // generateArena removed - moved to Arena.js
 
@@ -3579,7 +3579,7 @@ function chooseUpgrade(type) {
     // Apply upgrade to whoever triggered the level-up (P1 or P2 in co-op)
     const target = (window.levelingUpPlayer) ? window.levelingUpPlayer : runState.player;
 
-    // Telemetry (#98) — anonymous level_up event. `type` is the upgrade id.
+    // Telemetry — anonymous level_up event. `type` is the upgrade id.
     try {
         TelemetryManager?.track('level_up', {
             hero:          target?.type || null,
@@ -4067,7 +4067,7 @@ function changeHeroInGame(newType) {
     createExplosion(runState.player.x, runState.player.y, '#fff');
 }
 
-// currentObjective migrated to runState (#11 phase 5).
+// currentObjective migrated to runState.
 
 // Second batch of bidirectional window bindings — declared after the first block.
 // Same getter/setter pattern: DLC reads see live values; DLC writes propagate back.
@@ -4078,7 +4078,7 @@ Object.defineProperties(window, {
     currentWeather:      { get: () => runState.currentWeather,      set: v => { runState.currentWeather      = v; }, configurable: true, enumerable: true },
     currentObjective:    { get: () => runState.currentObjective,    set: v => { runState.currentObjective    = v; }, configurable: true, enumerable: true },
     activeMutators:      { get: () => runState.activeMutators,      set: v => { runState.activeMutators      = v; }, configurable: true, enumerable: true },
-    // #11 phase 2 — entity arrays now live on runState with stable identity
+    // Entity arrays now live on runState with stable identity
     // (mutate-in-place via `arr.length = 0` and push/splice). The one-time
     // `window.X = X` exports above bind directly to the runState refs, so
     // defineProperty bridges are no longer needed for these fields.
@@ -4177,8 +4177,8 @@ function shuffleHero(targetHeroType = null) {
         xp: runState.player.xp,
         maxXp: runState.player.maxXp,
         gold: runState.player.gold,
-        buffs: structuredClone(runState.player.buffs),       // #17
-        runBuffs: structuredClone(runState.player.runBuffs), // #17
+        buffs: structuredClone(runState.player.buffs),
+        runBuffs: structuredClone(runState.player.runBuffs),
         critChance: runState.player.critChance,
         critMultiplier: runState.player.critMultiplier
     };
@@ -4227,7 +4227,7 @@ function shuffleHero(targetHeroType = null) {
 function advanceWave() {
     if (runState.isTestingMode) return; // Testing Grounds: no wave progression
 
-    // Telemetry (#98) — fire wave_completed for the wave that was just cleared.
+    // Telemetry — fire wave_completed for the wave that was just cleared.
     // Skip the initial transition (wave 0 → 1) since no wave was actually played.
     if (runState.wave > 0) {
         try {
@@ -4411,7 +4411,7 @@ function resumeWaveGeneration() {
         enemies.unshift(new Boss(storyBossId));
         runState.bossIntroTimer = GAMEPLAY.BOSS_INTRO_FRAMES;
         runState.bossIntroName = pName;
-        // #192 — only allow skip if this boss has been seen before on this save.
+        // Only allow skip if this boss has been seen before on this save.
         // Stamp the flag AFTER reading it so the first encounter always plays full.
         if (!saveData.global.bossesSeen) saveData.global.bossesSeen = {};
         runState.bossIntroSkippable = !!saveData.global.bossesSeen[storyBossId];
@@ -4681,7 +4681,7 @@ function checkAchievements() {
 // --- Main Loop ---
 
 async function startGame(mode = 'NORMAL') {
-    // #194 follow-up — block on DLC load before any arena.generate runs.
+    // Block on DLC load before any arena.generate runs.
     // The hover-prefetch in UI/MainMenu.js fires `ensureDLCLoaded()` as a
     // fire-and-forget promise, but if the player clicks Start before the
     // chunk finishes downloading, `window.BIOME_LOGIC[hero]` is undefined
@@ -4728,7 +4728,7 @@ async function startGame(mode = 'NORMAL') {
     else if (mode === 'WEEKLY') initSeededRng(getWeeklySeed());
     else                        clearSeededRng();
 
-    // #196 — install `runState.rng` for the leaf-module RNG migration
+    // Install `runState.rng` for the leaf-module RNG migration
     // (phase 3f). Every `runState.rng()` call inside `core/updateGameplay*.js`
     // + `Enemy.js` now routes through the seeded `mulberry32` instance below,
     // so two clients on the same seed roll identical enemy positions /
@@ -5047,7 +5047,7 @@ async function startGame(mode = 'NORMAL') {
         }
     }
 
-    // Telemetry (#98) — anonymous run_start event (opt-in, gated by TelemetryManager).
+    // Telemetry — anonymous run_start event (opt-in, gated by TelemetryManager).
     try {
         TelemetryManager?.track('run_start', {
             hero:      runState.player?.type || window.selectedHeroType || null,
@@ -5067,7 +5067,7 @@ function gameOver(isVictory = false) {
     const wasVersusMode = runState.isVersusMode;
     const wasOnlineMode = runState.isOnlineMode;
 
-    // Telemetry (#98) — anonymous run_end event. Fire before resets so we
+    // Telemetry — anonymous run_end event. Fire before resets so we
     // still have hero / mode / wave / damage source intact. Flush right after
     // so the event survives an immediate menu return.
     try {
@@ -5085,7 +5085,7 @@ function gameOver(isVictory = false) {
         TelemetryManager?.flush(false);
     } catch (_) { /* swallow */ }
 
-    // #168 — surface "Defeated by X (Y dmg)" on the game-over screen unless we
+    // Surface "Defeated by X (Y dmg)" on the game-over screen unless we
     // won. Reads `player._lastDamageSource` set by recordPlayerDamage at every
     // tagged damage site. Cleared on victory.
     const _causeEl = document.getElementById('go-death-cause');
@@ -5737,7 +5737,7 @@ function _onlineApplySnapshot(s) {
             e.radius = 20; e.color = '#888888'; e.sides = 0; // safe defaults until static fields arrive
         }
         e._id = ed._id;
-        // #32 P9 — position delta decoding. Server emits absolute `x, y` on
+        // Position delta decoding. Server emits absolute `x, y` on
         // first sight + every keyframe (~1s), and `dx, dy` between keyframes.
         // Apply delta to the last absolute we stored so client + server agree
         // bit-for-bit (server tracks the rounded value it sent).
@@ -5824,7 +5824,7 @@ function _onlineApplySnapshot(s) {
             p._ghost = true;
             p._id    = pd._id;
         }
-        // #32 P9 — position delta decoding (keyframe vs delta wire shape).
+        // Position delta decoding (keyframe vs delta wire shape).
         let _pax, _pay;
         if (pd.x !== undefined) {
             _pax = pd.x; _pay = pd.y;
@@ -5968,10 +5968,10 @@ function _onlineShowReconnectOverlay(show, timeoutSec = 90) {
     }
 }
 
-// #51 — Photo mode moved to Camera.js. togglePhotoMode / tickPhotoMode /
+// Photo mode moved to Camera.js. togglePhotoMode / tickPhotoMode /
 // isPhotoMode imported above. F2 keydown handler is registered inside Camera.js.
 
-// #170 — Minimap. Renders arena bounds + player(s) + enemies + boss + objective
+// Minimap. Renders arena bounds + player(s) + enemies + boss + objective
 // markers into a small 180x135 canvas in the top-right corner. Throttled to 15 Hz
 // since the player only needs rough positional context. Off when:
 //   - gameConfig.minimapEnabled is false
@@ -6068,7 +6068,7 @@ function _renderMinimap() {
     }
 }
 
-// #149 — Cheat console (~ toggles). Behind a single Tilde/Backtick keybind.
+// Cheat console (~ toggles). Behind a single Tilde/Backtick keybind.
 // Commands: give gold N | set wave N | spawn boss <id> | kill | god | heal | help
 let _cheatOpen = false;
 function _toggleCheatConsole() {
@@ -6169,15 +6169,15 @@ window.addEventListener('keydown', e => {
     }
 });
 
-// #148 — Debug overlay (F1)
+// Debug overlay (F1)
 let _debugOverlayOn = false;
 const _frameTimes = new Array(120).fill(0);
 let _frameIdx = 0;
 let _lastDebugUpdateMs = 0;
 
-// #24/#30 P10 — Phase timing infrastructure. Records per-phase ms over a
+// Phase timing infrastructure. Records per-phase ms over a
 // rolling 120-frame window so the F1 overlay can show where main-thread time
-// goes. Used to decide whether the speculative #24 (worker AI) and #30
+// goes. Used to decide whether the speculative (worker AI) and
 // (WebGL/Pixi) passes are worth the rewrite cost. Active only while the
 // overlay is on so non-debug runs pay zero overhead.
 const _phaseTimes = {
@@ -6234,10 +6234,10 @@ function _updateDebugOverlay(frameMs) {
     const _phStats = _ph && _ph.stats ? _ph.stats() : { buckets: 0, maxBucket: 0 };
     const hitStop  = runState._hitStopFrames;
     const wv       = (typeof runState.wave !== 'undefined') ? runState.wave : 0;
-    // #24/#30 P10 — phase breakdown. `frameWork` is total main-thread time
+    // Phase breakdown. `frameWork` is total main-thread time
     // in masterFrame body; `enemies` is the per-frame enemy update + draw +
-    // collision phase. Used to gate the speculative #24 (worker AI) /
-    // #30 (WebGL/Pixi) passes — if `enemies` p99 < 4ms or `frameWork` p99
+    // collision phase. Used to gate the speculative (worker AI) /
+    // (WebGL/Pixi) passes — if `enemies` p99 < 4ms or `frameWork` p99
     // < 8ms at wave 30+, the rewrite cost outweighs the perf win.
     const fwP50 = _phaseP50('frameWork');
     const fwP99 = _phaseP99('frameWork');
@@ -6261,7 +6261,7 @@ function _updateDebugOverlay(frameMs) {
 
 // Per-fixed-frame body. Invoked by the GameLoop harness once every ~16.6 ms.
 // The rAF dispatch + dt-gate now live in GameLoop.js.
-// #173 phase 1 — scene helpers extracted from masterFrame for clarity. Each
+// Scene helpers extracted from masterFrame for clarity. Each
 // returns `true` when it owns the frame (caller should bail) or `false` to let
 // normal gameplay update/draw proceed.
 //
@@ -6295,7 +6295,7 @@ function _renderBigGambleScene() {
     return false;
 }
 
-// #173 phase 2 — boss death cinematic finalizer. Runs when bossDeathTimer
+// Boss death cinematic finalizer. Runs when bossDeathTimer
 // transitions to 0. Daily / weekly win conditions, tutorial / evil-mode hooks,
 // then opens the boss-choice screen. Returns `true` if the caller should
 // short-circuit (game-over scheduled, mode-specific hook routed elsewhere)
@@ -6369,7 +6369,7 @@ function _finalizeBossDeathCinematic() {
     return false;
 }
 
-// #173 phase 2 — boss death cinematic body. Pure render + 1s slow-motion
+// Boss death cinematic body. Pure render + 1s slow-motion
 // fade-out. Returns `true` while bossDeathTimer > 0 so caller bails out;
 // invokes the finalizer when the timer just hit 0.
 function _renderBossDeathCinematic() {
@@ -6461,7 +6461,7 @@ function _renderBossDeathCinematic() {
     return true;
 }
 
-// #173 phase 2 — boss intro cinematic. Pure render + timer-decrement; reads
+// Boss intro cinematic. Pure render + timer-decrement; reads
 // `bossIntroTimer/Name/Skippable/CamStart{X,Y}/CamTarget{X,Y}` from module
 // scope, writes back the same. Self-contained — returns `true` while active.
 function _renderBossIntroCinematic() {
@@ -6572,7 +6572,7 @@ function _renderBossIntroCinematic() {
         ctx.restore();
     }
 
-    // #192 — skip hint, only on re-encounters. Fades in after the banner is
+    // Skip hint, only on re-encounters. Fades in after the banner is
     // fully visible (≥0.34) and fades back out alongside the banner.
     if (runState.bossIntroSkippable && _ip > 0.34) {
         const _isa = _ip > 0.88 ? Math.max(0, 1 - (_ip - 0.88) / 0.12) : 1.0;
@@ -6596,13 +6596,13 @@ function _renderBossIntroCinematic() {
     return true;
 }
 
-// #173 phase 3 — main gameplay frame (~2.6K LOC). Owns update + draw
+// Main gameplay frame (~2.6K LOC). Owns update + draw
 // for an active in-progress run. Gated by the caller on
 // `gameRunning && !gamePaused && !isLevelingUp && !isShopping && !isStoryOpen`.
 // Phase 4 (next) will split the body into _updateGameplay(dt) and
-// _drawGameplay(ctx) so #180 (photo-mode true freeze) becomes a 1-line
+// _drawGameplay(ctx) so (photo-mode true freeze) becomes a 1-line
 // update gate and the server simulation can call the update half alone.
-// #173 phase 3+ — boss-defeated choice screen. Renders the post-cinematic
+// Boss-defeated choice screen. Renders the post-cinematic
 // "Continue / Save & Quit" overlay and handles mouse + gamepad navigation.
 // Returns `true` while the screen owns the frame so the caller bails out.
 function _renderBossChoiceScreen() {
@@ -6744,24 +6744,24 @@ ctx.restore();
 return true; // Prevent normal game render
 }
 
-// #173 phase 4 — UPDATE phase prefix. Pure state mutation: hit-stop tick
+// UPDATE phase prefix. Pure state mutation: hit-stop tick
 // (caller owns), evil-mode boss-end check, chaos shuffle objective, camera
 // update, heatwave wobble, arena.update, objective logic, boss-intro / death /
 // choice cinematic delegations (return true here = caller bails), weather
 // logic, spawning. Returns true if a cinematic owns the frame.
-// #173 phase 10 — body extracted to `core/updateGameplayPre.js`.
+// Body extracted to `core/updateGameplayPre.js`.
 
-// #173 phase 4 — DRAW phase suffix. Pure rendering: weather particles, HUD,
+// DRAW phase suffix. Pure rendering: weather particles, HUD,
 // player death cinematic. Caller responsibility: pass ctx, do not modify
 // state. Player-death block decrements playerDeathTimer (mutation) — TODO
 // for phase 5 hoist outside this helper.
 
-// #173 phase 6 — mixed middle. Update + draw still interleaved by entity
+// Mixed middle. Update + draw still interleaved by entity
 // system; phase 7 (next) splits each forEach into a pure-update pass then a
 // pure-draw pass and lifts the draw sites to a dedicated `_drawGameplayMid(ctx)`.
 // For now this isolates the ~1.5K LOC as a single named function — useful for
 // profiling, server-sim re-use, and bounding future split work.
-// #173 phase 7 — draw helper. Pulls every entity-loop draw pass + the
+// Draw helper. Pulls every entity-loop draw pass + the
 // single-instance draws (player, evil overlay, player2, versus AI) into one
 // place. Update logic in _runGameplayMid does NOT touch ctx; this helper
 // is the only ctx writer in the gameplay middle. Server simulation can
@@ -6769,7 +6769,7 @@ return true; // Prevent normal game render
 
 
 function _runGameplayFrame(deltaTime) {
-    // #173 phase 5 — photo-mode true-freeze gate. When isPhotoMode() is true,
+    // Photo-mode true-freeze gate. When isPhotoMode() is true,
     // every entity.update() in the mixed middle becomes a no-op so the
     // frozen scene can be re-rendered from a panning camera. Draws run
     // unconditionally so the camera pan stays visible.
@@ -6788,7 +6788,7 @@ function _runGameplayFrame(deltaTime) {
     if (!_cinematicOwnsFrame) {
         if (!_frozen) _updateGameplayMid(deltaTime, _isHitStopped);
 
-        // #173 phase 8 — true update/draw split. _drawGameplayMid owns every
+        // True update/draw split. _drawGameplayMid owns every
         // ctx.* write in the gameplay frame: camera transform setup, arena +
         // objective + entity draws, camera restore, then post-camera HUD draws.
         // Runs unconditionally so photo mode can re-render the frozen scene from
@@ -6796,7 +6796,7 @@ function _runGameplayFrame(deltaTime) {
         _drawGameplayMid();
         _drawGameplayPost();
     }
-    // #35 — single WebGL fragment-shader pass (bloom / chromatic / vignette /
+    // Single WebGL fragment-shader pass (bloom / chromatic / vignette /
     // biome color grade). No-op when disabled in Options or under reducedMotion.
     // Always called so cinematic frames (boss intro / death / choice screen)
     // also feed the overlay; skipping this is what made the boss-defeat
@@ -6805,18 +6805,18 @@ function _runGameplayFrame(deltaTime) {
 }
 
 function masterFrame(deltaTime, timestamp) {
-    // #10 P10 — measure actual frame work time, not the rAF delta. Wrap the
+    // Measure actual frame work time, not the rAF delta. Wrap the
     // body in try/finally so timing covers every return path (museum skip,
     // game-over early return). Negligible overhead when overlay is off.
     const _frameT0 = performance.now();
     try {
-        _updateDebugOverlay(deltaTime); // #148
+        _updateDebugOverlay(deltaTime);
 
         // Always handle UI input
         handleGamepadMenu();
         handleCoopP2Gamepad();
 
-        // ── Standalone-scene early returns (#173 phase 1) ───────────────────
+        // ── Standalone-scene early returns ───────────────────
         // Museum + lobby draw a full replacement scene to the source canvas and
         // never reach renderPostFX(), so hide the WebGL overlay (z-index:2) or it
         // keeps showing the last gameplay frame's arena texture on top of them.
@@ -6824,14 +6824,14 @@ function masterFrame(deltaTime, timestamp) {
         if (_renderGlobalLobbyScene()) { hidePostFX(); return; }
         if (_renderBigGambleScene())   return;
 
-        // #51 — photo mode runs even while paused so the camera can pan.
+        // Photo mode runs even while paused so the camera can pan.
         if (isPhotoMode()) tickPhotoMode();
 
         if (runState.gameRunning && !runState.gamePaused && !runState.isLevelingUp && !runState.isShopping && !runState.isStoryOpen) {
             _runGameplayFrame(deltaTime);
         }
     } finally {
-        // #24/#30 P10 — record actual main-thread work time per frame.
+        // Record actual main-thread work time per frame.
         _recordPhase('frameWork', performance.now() - _frameT0);
     }
 }
@@ -6879,7 +6879,7 @@ function _launchMenu() {
     });
 }
 
-// GameLoop harness (Phase E of #1 split). audioManager.update() runs every
+// GameLoop harness (Phase E of split). audioManager.update() runs every
 // rAF tick; masterFrame runs once per fixed 60 Hz frame.
 const _gameLoop = createGameLoop({
     targetFps: FPS,
@@ -6910,12 +6910,12 @@ setInterval(() => {
     }
 }, 30000);
 
-// #173 phase 10 — expose updateUI on window so the extracted leaf module
+// Expose updateUI on window so the extracted leaf module
 // `core/drawGameplayPost.js` can call it via `globalThis.updateUI`. Renderer-
 // only path; server bridge's no-op stub never reaches the leaf.
 if (typeof window !== 'undefined') window.updateUI = updateUI;
 
-// #173 phase 9 follow-up — named exports for the four pure update/draw helpers
+// Named exports for the four pure update/draw helpers
 // so a server-side adapter (server/simulation/RendererBridge.js) can call them
 // directly with no-op stubs for the draw halves. The renderer keeps using its
 // usual side-effect-only module load path; these exports are the explicit API
@@ -6941,7 +6941,7 @@ window.closeConfirmDialog  = closeConfirmDialog;
 // from inline HTML onclick handlers. These look unused to ESLint because the
 // references are out-of-file or in string attributes, but they need to live
 // on window for the legacy script-tag load order.
-// #194 follow-up — game.js-local functions called bare from other modules.
+// Game.js-local functions called bare from other modules.
 window.triggerStory        = triggerStory;
 window.openAltar           = openAltar;
 window.shuffleHero         = shuffleHero;

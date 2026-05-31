@@ -1,4 +1,4 @@
-// #35 — WebGL post-processing stack: bloom / chromatic aberration / vignette /
+// WebGL post-processing stack: bloom / chromatic aberration / vignette /
 // per-biome color grade. Single full-screen fragment-shader pass.
 //
 // Architecture: an overlay <canvas id="postFxCanvas"> is created lazily on the

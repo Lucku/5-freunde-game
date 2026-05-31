@@ -1,4 +1,4 @@
-// #171 Phase 2 — explicit import replaces bare-name `SaveManager` global read.
+// Explicit import replaces bare-name `SaveManager` global read.
 import { SaveManager } from './SaveManager.js';
 
 class CloudSaveManager {
@@ -191,7 +191,7 @@ class CloudSaveManager {
         if (!merged.altar) merged.altar = { active: [] };
         if (!merged.weekly) merged.weekly = { lastCompleted: null };
 
-        window.gameContext.saveData = merged; // #4 session 5
+        window.gameContext.saveData = merged;
         await SaveManager.saveGame(merged);
 
         window.gameConfig.cloudSave.lastSyncAt   = cloudSavedAt;
@@ -296,6 +296,6 @@ class CloudSaveManager {
     }
 }
 
-// #171 Phase 2 — `window.CloudSaveManager` shim retired; consumers import directly.
+// `window.CloudSaveManager` shim retired; consumers import directly.
 export { CloudSaveManager };
 export default CloudSaveManager;

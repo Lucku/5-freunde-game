@@ -1,4 +1,4 @@
-// #5 phase 5.4 — Particle ECS system. Replaces `class Particle` from
+// Particle ECS system. Replaces `class Particle`
 // Entities/Particle.js with component arrays on runState. Highest-volume
 // entity in the game (~115 spawn sites across renderer + 17 DLCs), so the
 // system uses palette-interned colors (Uint16 ordinal per slot) and a

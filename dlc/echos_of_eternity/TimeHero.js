@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { FloatingText } from '../../Entities/FloatingText.js';
 import { Particle } from '../../Entities/Particle.js';
 import { Projectile } from '../../Entities/Projectile.js';
@@ -238,7 +238,7 @@ class TimeHero {
                 if (dl.timer <= 0) {
                     const lightDmg = player.stats.rangeDmg * player.damageMultiplier * 0.65;
                     if (enemies) {
-                        // #177: AOE secondary hits through applyDamage. noFloatText
+                        // AOE secondary hits through applyDamage. noFloatText
                         // keeps the cinematic clean (explosion conveys the impact).
                         const ad = (typeof window !== 'undefined' && window.applyDamage) ? window.applyDamage : null;
                         enemies.forEach(e => {
@@ -272,7 +272,7 @@ class TimeHero {
             }
         }
         // ct3 Burning Moment: slowed enemies take fire DOT every 45 frames.
-        // #177: route through applyDamage; noFloatText avoids spamming numbers
+        // Route through applyDamage; noFloatText avoids spamming numbers
         // on every tick while the ember particles convey the damage.
         if (player._mutCt3 && typeof enemies !== 'undefined') {
             if ((player._ct3Tick = ((player._ct3Tick || 0) + 1)) % 45 === 0) {

@@ -1,4 +1,4 @@
-// types/schemas.js — JSDoc @typedef definitions for cross-cutting data shapes (#3).
+// types/schemas.js — JSDoc @typedef definitions for cross-cutting data shapes.
 //
 // Why a single file: every shape here is reached for from many call sites
 // (SaveManager, Player, game.js, UI/*, DLCs). Centralising the @typedefs lets a
@@ -79,7 +79,7 @@
  *
  * @typedef {Object} SaveData
  * @property {number}            version          Schema version (see SaveManager.MIGRATIONS).
- * @property {Object<string, number>} [dlcVersions] Per-DLC schema stamps `{ '<dlcId>': dlcVersion }` (#175).
+ * @property {Object<string, number>} [dlcVersions] Per-DLC schema stamps `{ '<dlcId>': dlcVersion }`.
  * @property {GlobalSaveStats}   global
  * @property {Object<string, HeroSaveSlot>} [_perHero]  Doc-only stub — actual per-hero slots
  *                                                      live as direct keys (`fire`, `water`, …).
@@ -106,7 +106,7 @@
  * @property {Object<string, *>} memories         MemoryShard / MemoryStories state keyed by chapter id.
  * @property {{active: string[]}} altar
  * @property {{shards: number, unlocked: string[], active: string[]}} chaos
- * @property {Object|null}       savedRun         Mid-run snapshot (#166). Null when no run is paused.
+ * @property {Object|null} savedRun Mid-run snapshot. Null when no run is paused.
  * @property {{seen: boolean, completed: boolean}} [tutorial]
  */
 
@@ -156,7 +156,7 @@
 /**
  * Fully-derived hero stats — output of `window.getHeroStats(heroType)`. Extends
  * BaseHeroStats with all gameplay modifiers + breakdown audit trail. Returned
- * value is a fresh clone on every call (#31).
+ * value is a fresh clone on every call.
  *
  * @typedef {BaseHeroStats & {
  *   ultModifiers:      { damage: number, speed: number },
@@ -180,7 +180,7 @@
 
 /**
  * Keyboard rebindings. Each action maps to a list of accepted lowercase
- * `event.key` strings. Multiple bindings per action allowed (#131).
+ * `event.key` strings. Multiple bindings per action allowed.
  *
  * @typedef {Object} KeyBindings
  * @property {string[]} moveUp
@@ -215,7 +215,7 @@
  */
 
 /**
- * Per-HUD-element pixel overrides (#169). Empty `{}` means CSS defaults.
+ * Per-HUD-element pixel overrides. Empty `{}` means CSS defaults.
  * Keys are HUDLayout.js element ids ('combo-display', 'minimap', 'bottom-ui',
  * 'p2-hud', …); values are absolute pixel offsets.
  *
@@ -282,7 +282,7 @@
 // ─── Arena / camera / world ─────────────────────────────────────────────────
 
 /**
- * Camera AABB used everywhere from culling (#27) to minimap (#170) to
+ * Camera AABB used everywhere from culling to minimap to
  * coordinate transforms (`worldToScreen`).
  *
  * @typedef {Object} ArenaCamera
@@ -294,7 +294,7 @@
 
 /**
  * Arena obstacle. Subset of fields the rest of the codebase reads from. Map
- * editor (#102) populates the same shape from `mapData.obstacles[]`.
+ * editor populates the same shape from `mapData.obstacles[]`.
  *
  * @typedef {Object} ArenaObstacle
  * @property {number} x
@@ -337,7 +337,7 @@
  * paths. New code should prefer the typed accessors on GameContext. Listed here
  * so call sites stop pretending the shape is unknown.
  *
- * NOTE: this is intentionally a partial — the real RunState carve is #11.
+ * NOTE: this is intentionally a partial — the real RunState carve is a separate, later pass.
  *
  * @typedef {Object} WorldState
  * @property {number}          [wave]

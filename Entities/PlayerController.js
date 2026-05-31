@@ -1,4 +1,4 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 
 class PlayerController {
     constructor() {
@@ -39,7 +39,7 @@ class HumanController extends PlayerController {
         let usingGamepad = player.usingGamepad;
         let aimAngle = player.aimAngle;
 
-        // 1. Keyboard Input — routed via remappable keyBindings (#131).
+        // 1. Keyboard Input — routed via remappable keyBindings.
         const im = (typeof window !== 'undefined') ? window.inputManager : null;
         if (im) {
             if (im.isAction('moveUp'))    dy = -1;
@@ -84,7 +84,7 @@ class HumanController extends PlayerController {
                 usingGamepad = true;
             }
 
-            // Actions — routed through gamepadBindings (#131 gamepad parity).
+            // Actions — routed through gamepadBindings ( gamepad parity).
             const im = (typeof window !== 'undefined') ? window.inputManager : null;
             if (im && typeof im.isGamepadAction === 'function') {
                 if (im.isGamepadAction(gp, 'shoot'))   shoot = true;
@@ -325,5 +325,5 @@ class CompanionAIController extends PlayerController {
 
 export { PlayerController, HumanController, AIController, CompanionAIController };
 export default PlayerController;
-// #171 Phase 2 — `window.HumanController` / `window.AIController` shims retired;
+// `window.HumanController` / `window.AIController` shims retired;
 // consumers (Player.js, EvilMode.js, Faith DLC, VersusTest) now import directly.

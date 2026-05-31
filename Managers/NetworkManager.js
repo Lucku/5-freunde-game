@@ -151,7 +151,7 @@ class NetworkManager {
             // Server-issued anti-cheat token — included on leaderboard POST so
             // the server can clamp client-claimed score against authoritative state.
             if (msg.sessionToken) this._gameSessionToken = msg.sessionToken;
-            // #200 — server-authoritative run seed. Stamp on window so
+            // Server-authoritative run seed. Stamp on window so
             // `game.js startGame()` installs `runState.rng = mulberry32(seed)`
             // with the same value the server (+ peer client) uses.
             if (typeof msg.runSeed === 'number') {

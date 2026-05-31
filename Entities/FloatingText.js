@@ -1,4 +1,4 @@
-// #5 phase 5.5 — FloatingText compat shim.
+// FloatingText compat shim.
 //
 // Real storage lives on `runState.floatingText*` typed arrays — see
 // `core/systems/floatingTextSystem.js`. This file used to host the class +
@@ -76,6 +76,6 @@ if (typeof window !== 'undefined') {
     if (!('floatingTexts' in window) || Array.isArray(window.floatingTexts)) {
         window.floatingTexts = _ftShim;
     }
-    // `window.FloatingText` class shim retired in #171 Phase 2 — callers import
-    // `{ FloatingText }` directly. Entity-array sentinel above stays (#4 deferred).
+    // `window.FloatingText` class shim retired in — callers import
+    // `{ FloatingText }` directly. Entity-array sentinel above stays ( deferred).
 }

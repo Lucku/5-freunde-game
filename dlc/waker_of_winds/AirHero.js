@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { Boss } from '../../Boss.js';
 import { FloatingText } from '../../Entities/FloatingText.js';
 import { Projectile } from '../../Entities/Projectile.js';
@@ -330,7 +330,7 @@ class AirHero {
         // Any projectile fired doesn't leave immediately; it orbits for 1s then launches
         // (Handled partially in shoot, but let's override behavior here or add passive damage aura)
 
-        // Passive Storm Damage to anything inside ring. #177: route through
+        // Passive Storm Damage to anything inside ring. : route through
         // applyDamage; noFloatText since this ticks every 10 frames and the
         // hurricane visual already conveys the AOE.
         if (player.hurricaneActive && frame % 10 === 0 && enemies) {
@@ -538,7 +538,7 @@ class AirHero {
 
                     // Logic: Suck Enemies IN
                     if (enemies) {
-                        // #177: ambient tempest aura DOT via applyDamage.
+                        // Ambient tempest aura DOT via applyDamage.
                         const ad = (typeof window !== 'undefined' && window.applyDamage) ? window.applyDamage : null;
                         enemies.forEach(e => {
                             const d = Math.hypot(e.x - eff.x, e.y - eff.y);

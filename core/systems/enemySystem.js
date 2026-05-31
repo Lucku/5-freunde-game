@@ -1,4 +1,4 @@
-// #5 phase 5.11 (skeleton) — Enemy ECS system.
+// (skeleton) — Enemy ECS system.
 //
 // Storage layout per `tasks/ecs-enemy-boss-design.md`. This file ships
 // the typed-array allocation + minimal helper API; the compat shim

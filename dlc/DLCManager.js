@@ -1,14 +1,14 @@
-// #194 — DLC module manifest. `import.meta.glob` returns
+// DLC module manifest. `import.meta.glob` returns
 //   { './foo/bar.js': () => import('./foo/bar.js'), ... }
 // at build time. Vite walks every match, statically resolves each module's
 // own imports (e.g. `../../Entities/Particle.js`), and emits one bundle chunk
 // per DLC file. Marking each as a separate chunk preserves the on-demand-load
-// behavior #29 set up; the chunks are only fetched when DLCManager.loadScript
+// behavior set up; the chunks are only fetched when DLCManager.loadScript
 // is called. We exclude `./DLCManager.js` itself so the manifest doesn't
 // circularly reference this file.
 const DLC_MODULES = import.meta.glob('./*/*.js');
 
-// #174 contract validation + #175 version stamping.
+// Contract validation + version stamping.
 import { validateDLCContract } from './dlcContracts.js';
 import { SaveManager } from '../Managers/SaveManager.js';
 
@@ -36,7 +36,7 @@ if (_isElectronDLC && _electronRequireDLC) {
 class DLCManager {
     constructor() {
         this.activeDLCs = [];
-        // #29 P3 — `heroes` lists every hero type the DLC ships so consumers
+        // `heroes` lists every hero type the DLC ships so consumers
         // can reverse-map hero → owning DLC without loading the full module.
         // Eager `init()` parallel-loads everything that's enabled today; the
         // memoized `loadDLC` + `ensureDLCLoaded` below give callers a clean
@@ -99,15 +99,15 @@ class DLCManager {
                 heroes: ['light', 'thorn', 'dream']
             }
         };
-        // #29 P3 — memoize in-flight loads so concurrent ensureDLCLoaded calls
+        // Memoize in-flight loads so concurrent ensureDLCLoaded calls
         // share the same promise; resolved promises stay cached so subsequent
         // calls are O(1).
         this._loadPromises = new Map();
-        // #29 P3 — reverse index built lazily from availableDLCs.
+        // Reverse index built lazily from availableDLCs.
         this._heroOwnerIndex = null;
     }
 
-    // #29 P3 — Build (and cache) a heroType → dlcId reverse map.
+    // Build (and cache) a heroType → dlcId reverse map.
     _buildHeroOwnerIndex() {
         const idx = {};
         for (const id in this.availableDLCs) {
@@ -205,7 +205,7 @@ class DLCManager {
         // of round-trip per dynamic <script>. Order independence is fine: each
         // DLC self-registers via window.DLC_REGISTRY and its hero/biome inject
         // hooks read from the same global registries.
-        // #29 P3 — go through ensureDLCLoaded so concurrent init calls share
+        // Go through ensureDLCLoaded so concurrent init calls share
         // the same promise + the memoization is uniform between eager init
         // and on-demand load paths (hero pick, story menu, etc.).
         const t0 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
@@ -268,7 +268,7 @@ class DLCManager {
     }
 
     /**
-     * #8 — Activate a registered DLC. Two contracts are supported:
+     * Activate a registered DLC. Two contracts are supported:
      *
      *   1. Declarative manifest (preferred): the DLC object exposes
      *        `scripts: ['HeroFile.js', ...]`  — dependency files, loaded in
@@ -310,19 +310,19 @@ class DLCManager {
             return;
         }
 
-        // #174 — contract validation: a DLC must have registered every hero it
+        // Contract validation: a DLC must have registered every hero it
         // declares in its manifest. Surface problems loudly so a half-registered
         // DLC fails at load instead of corrupting the hero-select / save state.
         const problems = validateDLCContract(id, dlc);
         for (const p of problems) console.error(`[DLCManager] contract violation — ${p}`);
 
-        // #175 — stamp the DLC's schema version into the save (+ run any pending
+        // Stamp the DLC's schema version into the save (+ run any pending
         // per-DLC migrations). Guarded: no-op until a save + SaveManager exist.
         this._stampDLCVersion(id, dlc);
     }
 
     /**
-     * #175 — record the DLC's `dlcVersion` in the active save and apply any
+     * Record the DLC's `dlcVersion` in the active save and apply any
      * pending per-DLC migrations. Best-effort: silently skips when there is no
      * save loaded yet (e.g. hover-prefetch before boot) or no SaveManager.
      */
@@ -342,8 +342,8 @@ class DLCManager {
     /**
      * Dynamically load a DLC file as an ES module.
      *
-     * #194 — uses `import.meta.glob` (static manifest) instead of the prior
-     * runtime `import(url)`. Vite statically discovers every dlc/&#42;/&#42;.js file at
+     * Uses `import.meta.glob` (static manifest) instead of the prior
+     * runtime `import(url)`. Vite statically discovers every dlc/&#42;/&#42;.js file
      * build time and emits one chunk per DLC; the chunks pull in their
      * transitive imports (Entities/, Managers/, etc.) from the same bundle
      * graph as the rest of the renderer. In dev each glob entry is a thin
@@ -353,7 +353,7 @@ class DLCManager {
      * Previously this used `await import(/&#42; @vite-ignore &#42;/ url)` so the bundler
      * skipped DLC files entirely — that worked while every DLC referenced
      * renderer classes by global pollution (the `window.X = X` shims). After
-     * the #194 sweep added explicit `import` lines to every DLC file, those
+     * the sweep added explicit `import` lines to every DLC file, those
      * imports need a real module-graph resolution; the glob gives it.
      */
     async loadScript(src) {

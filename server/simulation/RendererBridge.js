@@ -5,10 +5,10 @@
  *
  * Bridge between the server-side `GameSession` simulation and the renderer's
  * pure update halves (`_updateGameplayPre`, `_updateGameplayMid`) exported by
- * `game.js`. Closes #173 phase 9's stated unlock — "server simulation can swap
+ * `game.js`. Closes 's stated unlock — "server simulation can swap
  * the draw halves for no-op stubs and drive only the update helpers."
  *
- * ── Status as of 2026-05-18 (#173 phase 10 complete) ─────────────────────────
+ * ── Status as of 2026-05-18 ( complete) ─────────────────────────
  *
  *   ✅ All four pure halves now live in `core/*.js` leaf modules:
  *        core/updateGameplayPre.js

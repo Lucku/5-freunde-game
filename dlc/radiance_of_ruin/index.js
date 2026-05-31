@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { ALTAR_TREE } from '../../AltarData.js';
 
 // Radiance of Ruin — DLC Manifest (Character Pack)
@@ -8,13 +8,13 @@ import { ALTAR_TREE } from '../../AltarData.js';
 const RADIANCE_OF_RUIN = {
     id: 'radiance_of_ruin',
     name: "Radiance of Ruin",
-    dlcVersion: 1, // #175 — DLC schema version stamp
+    dlcVersion: 1, // DLC schema version stamp
     heroes: ['light', 'thorn', 'dream'],
     description: "A character pack featuring three resource-driven heroes: Light (Radiant Gold), Thorn (Crimson), and Dream (Twilight). No story campaign — drops you straight into Standard Mode.",
     noStoryMode: true,
     icon: "👁️",
 
-    // #8 — declarative manifest (auto-loader drives scripts + inject hooks).
+    // Declarative manifest (auto-loader drives scripts + inject hooks).
     scripts: [
         'LightHero.js', 'ThornHero.js', 'DreamHero.js',
         'ReliquaryBiome.js', 'CrimsonGreenhouseBiome.js', 'DreamspaceBiome.js',

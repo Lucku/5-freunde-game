@@ -1,4 +1,4 @@
-// #5 phase 5.8 — HolyMask ECS system. Replaces `class HolyMask` from
+// HolyMask ECS system. Replaces `class HolyMask`
 // Entities/HolyMask.js with component arrays on runState. No "type→buff
 // lookup sub-table" despite the plan description — the original class held
 // only `isTrueGolden` (boolean) + draw routines. Pickup buffs are applied
@@ -180,7 +180,7 @@ function _drawTrueGolden(ctx, angle, pulse) {
     ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.stroke();
 
-    // Inner golden overlay — #22 cached gradient across all instances.
+    // Inner golden overlay — cached gradient across all instances.
     ctx.shadowBlur = 0;
     ctx.fillStyle = cachedRadial(ctx, 'holyMask:gold', 3, 17, [
         [0,   'rgba(255,250,200,0)'],

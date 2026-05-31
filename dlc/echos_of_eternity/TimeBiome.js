@@ -1,7 +1,7 @@
-// #194 follow-up — explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
+// Explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
 import { BiomeZone } from '../../Arena.js';
 
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { drawHeroSprite } from '../../Utils.js';
 
 // Echos of Eternity — Time Biome: The Shattered Continuum

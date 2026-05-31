@@ -1,4 +1,4 @@
-// #194 — explicit renderer imports (was: window-shim lookup).
+// Explicit renderer imports (was: window-shim lookup).
 import { FloatingText } from '../../Entities/FloatingText.js';
 import { Projectile } from '../../Entities/Projectile.js';
 
@@ -332,7 +332,7 @@ class LightningHero {
                 floatingTexts.push(FloatingText.acquire(tx, ty - 20, Math.floor(damage), "#00ffff", 24));
             }
         } else {
-            // AOE Check (if ground strike hit anyone). #177: route secondary
+            // AOE Check (if ground strike hit anyone). : route secondary
             // hits through applyDamage; noFloatText keeps the ground-strike
             // visuals readable (explosion + bolt convey the hit).
             const ad = (typeof window !== 'undefined' && window.applyDamage) ? window.applyDamage : null;

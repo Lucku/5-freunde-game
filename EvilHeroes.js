@@ -1,4 +1,4 @@
-// #194 phase 2 — explicit imports for symbols previously read off window shims.
+// Explicit imports for symbols previously read off window shims.
 import { FloatingText } from './Entities/FloatingText.js';
 import { Projectile } from './Entities/Projectile.js';
 

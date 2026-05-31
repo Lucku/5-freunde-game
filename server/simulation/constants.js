@@ -1,6 +1,6 @@
 'use strict';
 
-// #199 — Server constants. Single source of truth: the 8 base heroes +
+// Server constants. Single source of truth: the 8 base heroes +
 // `UPGRADE_POOL` come from the browser-side `Constants.js` via ESM-from-CJS
 // `require` (Node 24+ honors `__esModule` interop). The 11 DLC heroes,
 // which the browser self-registers at DLC load time, are baked in here
