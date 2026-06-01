@@ -1171,8 +1171,8 @@ function toggleCoopMode() {
 function getCoopTarget(ex, ey) {
     if (!(runState.isCoopMode || runState.isAICompanionMode) || !runState.player2 || runState.player2.isDead) return runState.player;
     if (runState.player.isDead) return runState.player2;
-    const d1 = Math.hypot(runState.player.x - ex, player.y - ey);
-    const d2 = Math.hypot(runState.player2.x - ex, player2.y - ey);
+    const d1 = Math.hypot(runState.player.x - ex, runState.player.y - ey);
+    const d2 = Math.hypot(runState.player2.x - ex, runState.player2.y - ey);
     return d1 <= d2 ? runState.player : runState.player2;
 }
 

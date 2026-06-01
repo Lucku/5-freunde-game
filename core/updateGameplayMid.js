@@ -120,13 +120,13 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 runState.player2.update();
                 // Distance enforcement — rubber band above 1800px (skip for online — server handles)
                 if (!runState.isOnlineMode) {
-                    const _sep = Math.hypot(runState.player2.x - runState.player.x, player2.y - runState.player.y);
+                    const _sep = Math.hypot(runState.player2.x - runState.player.x, runState.player2.y - runState.player.y);
                     if (_sep > 1800) {
                         const _force = (_sep - 1800) * 0.06;
-                        const _ang = Math.atan2(runState.player.y - runState.player2.y, player.x - runState.player2.x);
+                        const _ang = Math.atan2(runState.player.y - runState.player2.y, runState.player.x - runState.player2.x);
                         runState.player2.x += Math.cos(_ang) * _force;
                         runState.player2.y += Math.sin(_ang) * _force;
-                        const _ang2 = Math.atan2(runState.player2.y - runState.player.y, player2.x - runState.player.x);
+                        const _ang2 = Math.atan2(runState.player2.y - runState.player.y, runState.player2.x - runState.player.x);
                         runState.player.x += Math.cos(_ang2) * _force * 0.3;
                         runState.player.y += Math.sin(_ang2) * _force * 0.3;
                     }
@@ -771,7 +771,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         if (runState.isVersusMode && runState.isCoopMode && runState.player2 && !runState.player2.isDead && att.owner === runState.player) {
             const pid = 'PLAYER_2';
             if (!att.hitList.includes(pid) && Math.hypot(runState.player2.x - att.x, runState.player2.y - att.y) < att.radius + runState.player2.radius) {
-                const angleTo = Math.atan2(runState.player2.y - att.y, player2.x - att.x);
+                const angleTo = Math.atan2(runState.player2.y - att.y, runState.player2.x - att.x);
                 let diff = angleTo - att.angle;
                 while (diff < -Math.PI) diff += Math.PI * 2;
                 while (diff > Math.PI) diff -= Math.PI * 2;
@@ -795,7 +795,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         // PvP Collision: P2 (AI or 2P-Versus) vs P1
         if (att.owner && att.owner !== runState.player && !att.hitList.includes('PLAYER')) {
             if (Math.hypot(runState.player.x - att.x, runState.player.y - att.y) < att.radius + runState.player.radius) {
-                const angleTo = Math.atan2(runState.player.y - att.y, player.x - att.x);
+                const angleTo = Math.atan2(runState.player.y - att.y, runState.player.x - att.x);
                 let diff = angleTo - att.angle;
                 while (diff < -Math.PI) diff += Math.PI * 2;
                 while (diff > Math.PI) diff -= Math.PI * 2;
@@ -986,7 +986,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         // this loop. The hit-flash decrement stays here since
         // it's state mutation; the visual is drawn below at the new flash value.
         if (enemy._ghost && enemy._hitFlash > 0) enemy._hitFlash--;
-        const dist = Math.hypot(runState.player.x - enemy.x, player.y - enemy.y);
+        const dist = Math.hypot(runState.player.x - enemy.x, runState.player.y - enemy.y);
 
         if (dist - enemy.radius - runState.player.radius < 0 && !runState.player.isDashing) {
             // Invincibility Check
@@ -1077,7 +1077,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
         // Co-op: P2 enemy body contact damage
         if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2.isDead && !runState.player2.isInvincible) {
-            const distP2 = Math.hypot(runState.player2.x - enemy.x, player2.y - enemy.y);
+            const distP2 = Math.hypot(runState.player2.x - enemy.x, runState.player2.y - enemy.y);
             if (distP2 - enemy.radius - runState.player2.radius < 0 && !runState.player2.isDashing) {
                 let p2Dmg = 1 * (1 - runState.player2.damageReduction);
                 if (enemy.subType === 'SPEEDSTER') { p2Dmg = 20 * (1 - runState.player2.damageReduction); enemy.hp = 0; }

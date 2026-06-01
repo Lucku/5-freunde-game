@@ -63,7 +63,10 @@ class TelemetryManager {
         // Generate lazily on first event sent after consent.
         const id = this._generateUUID();
         cfg.telemetryInstanceId = id;
-        try { localStorage.setItem('5Freunde_Config', JSON.stringify(cfg)); } catch (_) {}
+        // Persist via the canonical config saver — writing a stray '5Freunde_Config'
+        // key here never round-trips (Config reads/writes '5FreundeConfig'), so the
+        // id was regenerated every session.
+        try { window.saveConfig?.(); } catch (_) {}
         return id;
     }
 

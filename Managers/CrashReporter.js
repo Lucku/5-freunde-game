@@ -29,7 +29,7 @@ class CrashReporter {
         const prevErr = window.onerror;
         window.onerror = (message, source, lineno, colno, error) => {
             try { this.report({ kind: 'uncaught', message: String(message), source, lineno, colno, stack: error && error.stack }); } catch (_) {}
-            if (typeof prevErr === 'function') return prevErr.apply(this, arguments);
+            if (typeof prevErr === 'function') return prevErr.call(this, message, source, lineno, colno, error);
             return false;
         };
 

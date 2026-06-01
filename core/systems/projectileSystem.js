@@ -453,7 +453,7 @@ export function _acquireProjectileSlot(rs, i) { return _ensureProxy(rs, i); }
 function _drawProjectileSlot(ctx, rs, i) {
     const fn = rs.projectileDrawFn[i];
     if (fn) {
-        const proxy = _ensureProxyOverride(rs, i);
+        const proxy = _ensureProxy(rs, i);
         try { fn.call(proxy); } catch (e) { void e; }
         return;
     }

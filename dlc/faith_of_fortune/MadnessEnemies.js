@@ -1,7 +1,9 @@
 // Fortune Enemies
 // Unique enemies for Faith of Fortune DLC
 
-/* 
+import { Projectile } from '../../Entities/Projectile.js';
+
+/*
   MADNESS ENEMIES
   Theme: Glitches, Reality distortion, 4th wall breaking, Chaos.
 */
@@ -105,101 +107,88 @@ class RNGTurret {
     }
 
     shoot(player) {
-        // Shoots random geometric shapes with different behaviors
+        // Shoots random geometric shapes with different behaviors.
+        // Spawned through the ECS Projectile pool (custom per-projectile state
+        // lives in `_`-prefixed extras; movement uses `velocity`).
         const r = Math.random();
-        
-        if (typeof enemyProjectiles === 'undefined') return;
 
-        const projectile = {
-            x: this.x,
-            y: this.y,
-            life: 200,
-            dmg: 15,
-            color: "#fff",
-            update: () => {},
-            draw: () => {}
-        };
+        if (typeof Projectile === 'undefined') return;
 
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
 
         if (r < 0.33) {
             // TYPE 1: The "Homing Error" (Blue Screen)
-            projectile.vx = Math.cos(angle) * 3;
-            projectile.vy = Math.sin(angle) * 3;
-            projectile.color = "#0000ff";
-            projectile.update = function() {
-                // Homing
-                if (Math.random() < 0.1) { // Redirect occasionally
-                     const a2 = Math.atan2(player.y - this.y, player.x - this.x);
-                     this.vx = Math.cos(a2) * 5;
-                     this.vy = Math.sin(a2) * 5;
+            const p = Projectile.acquire(this.x, this.y, { x: Math.cos(angle) * 3, y: Math.sin(angle) * 3 }, 15, '#0000ff', 7, 'enemy', 0, true);
+            p.life = 200;
+            p.update = function () {
+                // Homing — redirect occasionally
+                if (Math.random() < 0.1) {
+                    const a2 = Math.atan2(player.y - this.y, player.x - this.x);
+                    this.velocity.x = Math.cos(a2) * 5;
+                    this.velocity.y = Math.sin(a2) * 5;
                 }
-                this.x += this.vx; 
-                this.y += this.vy;
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
                 this.life--;
             };
-            projectile.draw = function() {
-                 window.ctx.fillStyle = this.color;
-                 window.ctx.fillRect(this.x-5, this.y-5, 10, 10);
-                 window.ctx.fillStyle = "#fff";
-                 window.ctx.fillText(":(" , this.x-4, this.y+3);
+            p.draw = function () {
+                window.ctx.fillStyle = '#0000ff';
+                window.ctx.fillRect(this.x - 5, this.y - 5, 10, 10);
+                window.ctx.fillStyle = '#fff';
+                window.ctx.fillText(':(', this.x - 4, this.y + 3);
             };
-        } 
-        else if (r < 0.66) {
-             // TYPE 2: The "Sine Wave of Doom"
-            projectile.baseAngle = angle;
-            projectile.speed = 4;
-            projectile.t = 0;
-            projectile.update = function() {
-                this.t += 0.2;
-                const perp = this.baseAngle + Math.PI/2;
-                const wave = Math.sin(this.t) * 3;
-                
-                this.x += Math.cos(this.baseAngle) * this.speed + Math.cos(perp) * wave;
-                this.y += Math.sin(this.baseAngle) * this.speed + Math.sin(perp) * wave;
+        } else if (r < 0.66) {
+            // TYPE 2: The "Sine Wave of Doom"
+            const p = Projectile.acquire(this.x, this.y, { x: 0, y: 0 }, 15, '#ffff00', 6, 'enemy', 0, true);
+            p.life = 200;
+            p._baseAngle = angle;
+            p._speed = 4;
+            p._t = 0;
+            p.update = function () {
+                this._t += 0.2;
+                const perp = this._baseAngle + Math.PI / 2;
+                const wave = Math.sin(this._t) * 3;
+                this.x += Math.cos(this._baseAngle) * this._speed + Math.cos(perp) * wave;
+                this.y += Math.sin(this._baseAngle) * this._speed + Math.sin(perp) * wave;
                 this.life--;
             };
-            projectile.draw = function() {
-                window.ctx.fillStyle = "#ffff00"; // Yellow
+            p.draw = function () {
+                window.ctx.fillStyle = '#ffff00';
                 window.ctx.beginPath();
-                window.ctx.arc(this.x, this.y, 6, 0, Math.PI*2);
+                window.ctx.arc(this.x, this.y, 6, 0, Math.PI * 2);
                 window.ctx.fill();
-            }
-        } 
-        else {
+            };
+        } else {
             // TYPE 3: "Lag Spike" (Stops then dashes)
-            projectile.vx = Math.cos(angle) * 10;
-            projectile.vy = Math.sin(angle) * 10;
-            projectile.state = 0; // 0: Move, 1: Stop, 2: Dash
-            projectile.timer = 0;
-            projectile.update = function() {
-                this.timer++;
-                if (this.state === 0) {
-                     this.x += this.vx; 
-                     this.y += this.vy;
-                     if (this.timer > 20) { this.state = 1; this.timer = 0; }
-                } else if (this.state === 1) {
-                    // Frozen
-                    if (this.timer > 30) { 
-                        this.state = 2; 
-                        // Re-aim
+            const p = Projectile.acquire(this.x, this.y, { x: Math.cos(angle) * 10, y: Math.sin(angle) * 10 }, 15, '#ffaa00', 6, 'enemy', 0, true);
+            p.life = 200;
+            p._state = 0; // 0: Move, 1: Stop, 2: Dash
+            p._timer = 0;
+            p.update = function () {
+                this._timer++;
+                if (this._state === 0) {
+                    this.x += this.velocity.x;
+                    this.y += this.velocity.y;
+                    if (this._timer > 20) { this._state = 1; this._timer = 0; }
+                } else if (this._state === 1) {
+                    // Frozen, then re-aim and dash
+                    if (this._timer > 30) {
+                        this._state = 2;
                         const a3 = Math.atan2(player.y - this.y, player.x - this.x);
-                        this.vx = Math.cos(a3) * 15; // Fast!
-                        this.vy = Math.sin(a3) * 15;
+                        this.velocity.x = Math.cos(a3) * 15;
+                        this.velocity.y = Math.sin(a3) * 15;
                     }
                 } else {
-                    this.x += this.vx;
-                    this.y += this.vy;
+                    this.x += this.velocity.x;
+                    this.y += this.velocity.y;
                 }
                 this.life--;
             };
-            projectile.draw = function() {
-                 window.ctx.fillStyle = this.state === 1 ? "#ff0000" : "#ffaa00";
-                 window.ctx.fillRect(this.x-4, this.y-4, 8, 8);
-            }
+            p.draw = function () {
+                window.ctx.fillStyle = this._state === 1 ? '#ff0000' : '#ffaa00';
+                window.ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+            };
         }
-
-        enemyProjectiles.push(projectile);
     }
     
     draw(ctx) {

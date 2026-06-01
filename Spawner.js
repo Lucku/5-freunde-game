@@ -25,7 +25,7 @@ const MAX_PARTICLES = GAMEPLAY.MAX_PARTICLES;
 export function createExplosion(x, y, color, count = 10) {
     const particles = window.particles;
     if (!particles || particles.length >= MAX_PARTICLES) return;
-    for (let i = 0; i < 8; i++) { particles.push(Particle.acquire(x, y, color)); }
+    for (let i = 0; i < count; i++) { particles.push(Particle.acquire(x, y, color)); }
 }
 
 export function spawnLevelUpAura(x, y, color) {

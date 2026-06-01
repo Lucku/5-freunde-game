@@ -311,9 +311,11 @@ class WindBosses {
                         const p = Projectile.acquire(boss.x, boss.y, { x: Math.cos(a), y: Math.sin(a) }, 10, '#1abc9c', 20, 'enemy', 0, true);
                         p.life = 600;
                         p.update = function () {
-                            this.angle = (this.angle || 0) + 0.1;
-                            this.x += this.vx; this.y += this.vy;
-                            this.vx *= 1.01; this.vy *= 1.01;
+                            this._angle = (this._angle || 0) + 0.1;
+                            this.x += this.velocity.x;
+                            this.y += this.velocity.y;
+                            this.velocity.x *= 1.01;
+                            this.velocity.y *= 1.01;
                         };
                         projectiles.push(p);
                     }

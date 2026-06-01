@@ -547,6 +547,10 @@ class LightningHero {
             // Usually camera checks 'currentWeather' or screen shake variables.
             // We'll leave it to the explosions to create impact.
         }
+
+        // Return truthy so Player.use() applies the standard special cooldown;
+        // without this the STORM special has no cooldown and recasts every frame.
+        return true;
     }
 
     static getSkillTreeWeights() {

@@ -101,7 +101,7 @@ function _updateGameplayPre(deltaTime) {
             }
 
             // Check Player
-            const d = Math.hypot(runState.player.x - eye.x, player.y - eye.y);
+            const d = Math.hypot(runState.player.x - eye.x, runState.player.y - eye.y);
             if (d < eye.radius) {
                 runState.currentObjective.current += 1 / 60;
             } else {

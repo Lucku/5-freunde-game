@@ -269,7 +269,12 @@ const EvilMode = (() => {
         // Clean up enemies and stray projectiles immediately
         window.additionalPlayers = [];
         if (typeof projectiles !== 'undefined') {
-            projectiles = projectiles.filter(p => !p.isEnemy);
+            // Clear enemy projectiles in place — reassigning `projectiles`
+            // detaches the global from the ECS sentinel proxy, after which
+            // every future Projectile.acquire is invisible/non-colliding.
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                if (projectiles[i].isEnemy) projectiles.splice(i, 1);
+            }
         }
     }
 
