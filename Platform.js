@@ -26,6 +26,19 @@ const _electronRequire = (typeof globalThis !== 'undefined' && typeof globalThis
     ? globalThis.require
     : null;
 
+// Live process env, read through indirection. Vite/rolldown statically replace
+// any literal `process.env` member expression with `{}` during the bundle, so
+// `process.env.APP_SAVE_PATH` compiled to `{}.APP_SAVE_PATH` (undefined) and
+// left `saveFilePath` null — every disk save then crashed with
+// `ERR_INVALID_ARG_TYPE … Received null`. Reading env off `globalThis.process`
+// keeps the identifier off the `process.env` AST pattern, so the real runtime
+// env (inherited from the main process, which sets APP_SAVE_PATH before the
+// window is created) survives the build. Same trick as `_electronRequire`.
+const _proc = (typeof globalThis !== 'undefined' && globalThis.process)
+    ? globalThis.process
+    : null;
+const _env = (_proc && _proc.env) ? _proc.env : {};
+
 let fs = null;
 let path = null;
 let appSavePath = null;
@@ -36,8 +49,8 @@ if (isElectron && _electronRequire) {
     try {
         fs   = _electronRequire('fs');
         path = _electronRequire('path');
-        if (process.env.APP_SAVE_PATH) {
-            appSavePath    = process.env.APP_SAVE_PATH;
+        if (_env.APP_SAVE_PATH) {
+            appSavePath    = _env.APP_SAVE_PATH;
             saveFilePath   = path.join(appSavePath, 'save_data.json');
             configFilePath = path.join(appSavePath, 'config.json');
         }

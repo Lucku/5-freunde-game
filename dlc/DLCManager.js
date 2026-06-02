@@ -20,13 +20,18 @@ const _isElectronDLC = typeof process !== 'undefined' && process.versions && pro
 const _electronRequireDLC = (typeof globalThis !== 'undefined' && typeof globalThis.require === 'function')
     ? globalThis.require
     : null;
+// Live env via indirection — a literal `process.env.APP_SAVE_PATH` is folded to
+// `{}.APP_SAVE_PATH` (undefined) by the bundler, which nulled the DLC file path.
+// See Platform.js for the full rationale; same `globalThis.process` trick.
+const _procDLC = (typeof globalThis !== 'undefined' && globalThis.process) ? globalThis.process : null;
+const _envDLC = (_procDLC && _procDLC.env) ? _procDLC.env : {};
 let _fsDLC, _pathDLC, _dlcFilePath;
 if (_isElectronDLC && _electronRequireDLC) {
     try {
         _fsDLC = _electronRequireDLC('fs');
         _pathDLC = _electronRequireDLC('path');
-        if (process.env.APP_SAVE_PATH) {
-            _dlcFilePath = _pathDLC.join(process.env.APP_SAVE_PATH, 'dlcs.json');
+        if (_envDLC.APP_SAVE_PATH) {
+            _dlcFilePath = _pathDLC.join(_envDLC.APP_SAVE_PATH, 'dlcs.json');
         }
     } catch (e) {
         console.warn("DLCManager: failed to load Electron fs modules:", e);

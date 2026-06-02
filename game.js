@@ -100,7 +100,10 @@ if (isElectron) {
 
     // Write uncaught JS errors directly to the log file so crashes are captured
     // even if the renderer freezes before the main process can log them.
-    const _logPath = process.env.APP_LOG_PATH;
+    // Read via globalThis.process so the bundler doesn't fold the literal
+    // `process.env` to `{}` (see Platform.js) and null out the log path.
+    const _proc = (typeof globalThis !== 'undefined' && globalThis.process) ? globalThis.process : null;
+    const _logPath = (_proc && _proc.env) ? _proc.env.APP_LOG_PATH : undefined;
     if (_logPath) {
         window.onerror = function (message, source, lineno, colno, error) {
             const entry = `[${new Date().toISOString()}] [RENDERER:UNCAUGHT] ${message}\n  at ${source}:${lineno}:${colno}\n${error && error.stack ? error.stack : ''}\n`;
