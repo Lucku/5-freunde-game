@@ -753,7 +753,10 @@ body.hud-edit-mode [data-hud-id].hud-moving {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    /* safe center: centred when content fits, but falls back to top-aligned +
+       scrollable when the summary overflows so the top is never clipped. */
+    justify-content: safe center;
+    overflow-y: auto;
     pointer-events: auto;
     z-index: 20;
 }
@@ -827,8 +830,10 @@ body.hud-edit-mode [data-hud-id].hud-moving {
         linear-gradient(160deg, #0d0820 0%, #0a1428 55%, #0d0820 100%);
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    overflow: hidden;
+    /* safe center + vertical scroll: long run summaries never clip the title. */
+    justify-content: safe center;
+    overflow-y: auto;
+    overflow-x: hidden;
     pointer-events: auto;
     z-index: 20;
 }
@@ -3594,7 +3599,9 @@ input:checked+.slider:before {
     flex-direction: column; justify-content: center; align-items: center;
     z-index: 200;
     --story-rgb: 212,175,55;
-    background: radial-gradient(ellipse 75% 55% at 50% 42%, rgba(var(--story-rgb), 0.07) 0%, rgba(0,0,0,0.88) 62%);
+    /* Opaque base layer beneath the ambiance gradient so the live gameplay
+       canvas (z-index below) can't bleed through the translucent gradient. */
+    background: radial-gradient(ellipse 75% 55% at 50% 42%, rgba(var(--story-rgb), 0.07) 0%, rgba(0,0,0,0.88) 62%), #05060a;
 }
 
 .story-bg-img {

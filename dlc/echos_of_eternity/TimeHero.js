@@ -437,6 +437,11 @@ class TimeHero {
                     if (typeof e.takeDamage === 'function') e.takeDamage(dmg);
                     else e.hp -= dmg;
                     hitCount++;
+                    // Hit feedback — Chrono Strike used to apply damage silently
+                    // (no flash, no numbers), so it read as "melee does nothing".
+                    e.hitFlashTimer = 6;
+                    if (typeof floatingTexts !== 'undefined' && floatingTexts)
+                        floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, Math.floor(dmg), '#c8aa6e', 18));
                     // ct4 Frozen Timeline: fully freeze instead of slow
                     if (player._mutCt4) {
                         e.frozenTimer = Math.max(e.frozenTimer || 0, slowDur);
@@ -493,6 +498,9 @@ class TimeHero {
         if (hitCount > 0) {
             const gainMult = player.stats.chronoGainMult || 1;
             player.chronoEnergy = Math.min(100, player.chronoEnergy + 14 * Math.min(hitCount, 3) * gainMult);
+            // Screen impact + brief hit-stop so the strike feels like it lands.
+            if (window.triggerImpact) window.triggerImpact(5, 13, 0.22, 0.50, 160);
+            if (window.triggerHitStop) window.triggerHitStop(2);
         }
 
         player.meleeCooldown = player.stats.meleeCd * (player.cooldownMultiplier || 1);

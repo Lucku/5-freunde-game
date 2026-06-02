@@ -167,9 +167,19 @@ class AirHero {
             if (isOnlineGuest) {
                 // Objective state is authoritative from server snapshot — do not override.
             } else if (isStoryMode) {
-                AirHero.generateWaveObjective(player, currentWave);
-                if (showNotification) {
-                    setTimeout(() => showNotification(`GOAL: ${player.currentObjective.text}`), 500);
+                // Boss-fight / finale waves must NOT be gated behind a random
+                // objective — otherwise the intended boss is hidden until an
+                // unrelated (sometimes unwinnable) goal completes, so killing it
+                // never ends the wave. Leave the objective empty on those waves.
+                const _ev = (_w && _w.currentStoryEvent) || window.currentStoryEvent;
+                const _isBossWave = !!_ev && (_ev.type === 'BOSS_FIGHT' || _ev.type === 'THE_END');
+                if (_isBossWave) {
+                    player.currentObjective = { type: 'NONE', completed: true };
+                } else {
+                    AirHero.generateWaveObjective(player, currentWave);
+                    if (showNotification) {
+                        setTimeout(() => showNotification(`GOAL: ${player.currentObjective.text}`), 500);
+                    }
                 }
             } else {
                 // Disable objectives in other modes
@@ -196,7 +206,7 @@ class AirHero {
 
         // BOSS BLOCKING MECHANIC — skip on online guest (server is authoritative)
         if (!_isOnlineGuest) {
-            if (player.currentObjective.type !== 'NONE' && !player.currentObjective.completed) {
+            if (player.currentObjective.type !== 'NONE' && !player.currentObjective.completed && !player.currentObjective.failed) {
 
                 // Signal server-side wave gating (read by GameSession._checkWaveAdvance)
                 if (_w) _w.objectiveLocked = true;
@@ -1237,7 +1247,38 @@ const AirHeroLogic = {
     getSkillNodeDetails: AirHero.getSkillNodeDetails,
     applySkillNode: AirHero.applySkillNode,
     applyUpgrade: AirHero.applyUpgrade, // Added
-    applyWindShift: AirHero.applyWindShift // Fix for Level Up item
+    applyWindShift: AirHero.applyWindShift, // Fix for Level Up item
+
+    // Hero UI hook — called by the renderer in the DRAW pass (drawGameplayMid),
+    // after the camera transform is restored (screen space). The objective HUD
+    // used to be drawn from inside update(), i.e. the UPDATE pass, so the draw
+    // pass cleared the canvas right after and the progress was never visible.
+    drawUI: function (ctx) {
+        const player = window.player;
+        if (!ctx || !player || player.type !== 'air') return;
+        const obj = player.currentObjective;
+        if (!obj || obj.type === 'NONE') return;
+
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // Screen space
+        const x = ctx.canvas.width / 2;
+        const y = 80;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 4;
+
+        let progressText = `${Math.floor(obj.current)} / ${obj.target}`;
+        if (obj.completed) progressText = 'COMPLETE';
+        if (obj.failed) progressText = 'FAILED';
+
+        ctx.font = 'bold 16px Arial';
+        ctx.fillStyle = obj.completed ? '#00ff00' : (obj.failed ? '#ff0000' : '#ffffff');
+        ctx.fillText(obj.text, x, y);
+        ctx.font = '14px Arial';
+        ctx.fillStyle = obj.completed ? '#00ff00' : (obj.failed ? '#ff0000' : '#40e0d0');
+        ctx.fillText(progressText, x, y + 20);
+        ctx.restore();
+    }
 };
 
 // Register Hero Logic for Injection

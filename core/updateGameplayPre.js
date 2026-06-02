@@ -485,7 +485,14 @@ function _updateGameplayPre(deltaTime) {
     // --- Spawning Logic ---
     // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
     if (!runState.bossActive && runState.bossDeathTimer === 0 && !runState.isTestingMode && !runState.isEvilMode && isWaveCleared(runState.wave, runState.enemiesKilledInWave) && (!runState.isTutorialMode || TutorialMode.bossForced)) {
-        if (runState.currentObjective && runState.currentObjective.state === 'ACTIVE') {
+        // Also respect a hero-owned custom objective (e.g. Waker of Winds stores
+        // its objective on player.currentObjective, not runState.currentObjective).
+        // Without this the boss spawns the moment the kill count is reached,
+        // ignoring an unfulfilled objective. A completed OR failed objective no
+        // longer blocks (failed must not hang the wave forever).
+        const _heroObj = runState.player && runState.player.currentObjective;
+        const _heroObjActive = !!_heroObj && _heroObj.type !== 'NONE' && !_heroObj.completed && !_heroObj.failed;
+        if ((runState.currentObjective && runState.currentObjective.state === 'ACTIVE') || _heroObjActive) {
             // Do nothing, wait for objective completion logic
         } else if (runState.isWorkshopMode && window.pendingCustomMap?.waveConfig?.bossType === 'none') {
             // Workshop: no boss configured — advance wave directly
