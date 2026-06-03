@@ -17,7 +17,6 @@
 // Wave.js emits no events itself; advanceWave() in game.js stays the single
 // authority that signals `wave:advance` once EventBus wiring lands.
 
-import { ENEMIES_PER_WAVE } from './Constants.js';
 import { eventBus } from './Managers/EventBus.js';
 
 const BASE_BIOMES = ['fire', 'water', 'ice', 'plant', 'metal'];
@@ -30,10 +29,10 @@ const DLC_BIOMES  = [
 export function enemiesNeededForWave(wave) {
     // Workshop maps pin an explicit per-wave count → keep the linear model.
     if (window._customEnemiesPerWave != null) return window._customEnemiesPerWave * wave;
-    // Default progression: gentle ramp. The old `ENEMIES_PER_WAVE * wave` (30*wave)
-    // demanded 60 kills by wave 2 and felt tedious before the boss. Now base 40% of
-    // ENEMIES_PER_WAVE + 20% per wave → 18 / 24 / 30 / 42 / 72 at waves 1 / 2 / 3 / 5 / 10.
-    return Math.round(ENEMIES_PER_WAVE * 0.4 + ENEMIES_PER_WAVE * 0.2 * wave);
+    // Default progression: wave 1 stays close to the old flat first wave (26 vs 30),
+    // then a much shallower ramp than the old 30*wave (which hit 60 by wave 2).
+    // → 26 / 32 / 38 / 50 / 80 kills at waves 1 / 2 / 3 / 5 / 10.
+    return 20 + 6 * wave;
 }
 
 export function isWaveCleared(wave, killed) {
