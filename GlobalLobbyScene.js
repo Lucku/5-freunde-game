@@ -498,14 +498,19 @@ class GlobalLobbyScene {
     }
 
     _drawOnlineCount(ctx) {
-        const count = Object.keys(this.remotePlayers).length + 1;
+        // Only count the local player as online when actually connected. The `+1`
+        // was unconditional, so a failed/dropped server connection still showed
+        // "🌍 1 online" — the player appeared online while offline.
+        const nm = window.networkManager;
+        const connected = !!(nm && nm.connected);
+        const count = Object.keys(this.remotePlayers).length + (connected ? 1 : 0);
+        const text = connected ? `🌍 ${count} online` : '⚠ Offline';
         ctx.save();
         ctx.font = 'bold 12px Arial';
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.textAlign = 'right';
-        const text = `🌍 ${count} online`;
         ctx.fillText(text, canvas.width - 14, 14);
-        ctx.fillStyle = '#adf';
+        ctx.fillStyle = connected ? '#adf' : '#e88';
         ctx.fillText(text, canvas.width - 15, 13);
         ctx.restore();
     }

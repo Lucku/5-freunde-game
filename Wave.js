@@ -28,8 +28,12 @@ const DLC_BIOMES  = [
 ];
 
 export function enemiesNeededForWave(wave) {
-    const epw = window._customEnemiesPerWave ?? ENEMIES_PER_WAVE;
-    return epw * wave;
+    // Workshop maps pin an explicit per-wave count → keep the linear model.
+    if (window._customEnemiesPerWave != null) return window._customEnemiesPerWave * wave;
+    // Default progression: gentle ramp. The old `ENEMIES_PER_WAVE * wave` (30*wave)
+    // demanded 60 kills by wave 2 and felt tedious before the boss. Now base 40% of
+    // ENEMIES_PER_WAVE + 20% per wave → 18 / 24 / 30 / 42 / 72 at waves 1 / 2 / 3 / 5 / 10.
+    return Math.round(ENEMIES_PER_WAVE * 0.4 + ENEMIES_PER_WAVE * 0.2 * wave);
 }
 
 export function isWaveCleared(wave, killed) {

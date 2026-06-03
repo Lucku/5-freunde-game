@@ -115,7 +115,16 @@ class HumanController extends PlayerController {
             if (mouse.rightDown) melee = true;
         }
 
-        return { x: dx, y: dy, aimAngle, shoot, melee, dash, special, pause, usingGamepad };
+        // Edge-detect dash + special so a held button fires ONCE per press.
+        // shoot/melee stay auto-fire (held). Without this, gamepad polling reports
+        // the button as pressed every frame, so Earth's dash=roll-toggle loops
+        // on/off and Thorn's special spams "TOO FRAIL" while the button is held.
+        const dashEdge    = dash    && !this._prevDash;
+        const specialEdge = special && !this._prevSpecial;
+        this._prevDash    = dash;
+        this._prevSpecial = special;
+
+        return { x: dx, y: dy, aimAngle, shoot, melee, dash: dashEdge, special: specialEdge, pause, usingGamepad };
     }
 }
 

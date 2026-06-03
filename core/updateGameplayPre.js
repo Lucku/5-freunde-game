@@ -482,6 +482,20 @@ function _updateGameplayPre(deltaTime) {
     }
     // ── End Weather Logic ─────────────────────────────────────────────
 
+    // ── Boss-presence invariant ───────────────────────────────────────
+    // A live, on-field boss means we are in a boss fight: the trash spawner
+    // and the kill-count boss spawn below must both stay off, and the boss HP
+    // bar must show. `runState.bossActive` is the flag those checks read, but it
+    // can desync from reality — observed on Echos of Eternity maze boss waves
+    // (solo), where the flag flips false mid-fight, waking the trash spawner so
+    // the wave never ends. Re-assert the flag from the actual entities each
+    // frame. Hidden / inactive bosses (Waker objective lock sets
+    // `hiddenByObjective` / `active = false`) are intentionally excluded.
+    if (!runState.bossActive && enemies.some(e =>
+            e instanceof Boss && e.hp > 0 && e.active !== false && !e.hiddenByObjective)) {
+        runState.bossActive = true;
+    }
+
     // --- Spawning Logic ---
     // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
     if (!runState.bossActive && runState.bossDeathTimer === 0 && !runState.isTestingMode && !runState.isEvilMode && isWaveCleared(runState.wave, runState.enemiesKilledInWave) && (!runState.isTutorialMode || TutorialMode.bossForced)) {

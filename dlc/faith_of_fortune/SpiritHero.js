@@ -37,7 +37,7 @@ class SpiritHero {
     static init(player) {
         // Base Stats (Tanky, Balanced)
         player.speedMultiplier = 0.95; // Slightly slower
-        player.damageMultiplier = 0.8; // Lower base damage
+        player.damageMultiplier = 1.0; // was 0.8 — stacked with low base dmg made Spirit far too weak
 
         // Unique Resource: Inner Peace (0 - 100)
         player.innerPeace = 50;

@@ -42,6 +42,15 @@ class SoundHero {
         player.customUpdate = (dx, dy) => SoundHero.update(player, dx, dy);
         player.customSpecial = () => SoundHero.useSpecial(player);
         player.shoot = (dx, dy) => SoundHero.shootNote(player, dx, dy);
+        // Draw-pass hook (camera transform active). The sync/BPM meter, totems and
+        // beat indicator used to be drawn from handlePassiveLogic during the UPDATE
+        // phase, so the draw-phase canvas clear wiped them — the meter never showed.
+        player.customDraw = (ctx) => {
+            if (!ctx) return;
+            SoundHero.drawTotems(ctx, player);
+            SoundHero.drawUI(player, ctx);
+            SoundHero.drawBeatIndicator(player, ctx);
+        };
 
         // Altar: cooldown reduction (so1)
         const active = (saveData && saveData.altar && saveData.altar.active) ? saveData.altar.active : [];
@@ -451,13 +460,8 @@ class SoundHero {
         }
         if (player.visualPulse > 0) player.visualPulse--;
 
-        // All drawing goes through here while camera transform is active
-        const ctx = window.ctx;
-        if (ctx) {
-            SoundHero.drawTotems(ctx, player);
-            SoundHero.drawUI(player, ctx);
-            SoundHero.drawBeatIndicator(player, ctx);
-        }
+        // Drawing moved to player.customDraw (draw pass) — see init(). Drawing here
+        // (update phase) was wiped by the draw-phase canvas clear.
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -373,6 +373,12 @@ class Player {
         }
 
         const iconEl = document.getElementById('special-icon');
+        // Reset the shared #special-container background. Gravity Hero paints an
+        // inline purple charge gradient onto it every frame and nothing else ever
+        // cleared it, so after a Gravity run every other hero inherited that
+        // frozen purple fill. Gravity re-applies its own gradient in its update.
+        const _specialContainer = document.getElementById('special-container');
+        if (_specialContainer) _specialContainer.style.background = '';
         if (this.type === 'fire') {
             this.specialName = "INFERNO";
             this.specialMaxCooldown = 900; // 15s

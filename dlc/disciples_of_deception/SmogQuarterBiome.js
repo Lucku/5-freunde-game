@@ -292,53 +292,65 @@ class SmogQuarterBiome {
         ctx.restore();
 
         // ── 5. Rolling fog banks — radial gradient blobs ────────────────────
-        ctx.save();
+        // Perf: the gradient shape is fixed per blob (only its size wobbles), so
+        // build a unit-radius gradient once and scale it via the transform instead
+        // of allocating a fresh CanvasGradient every blob every frame — the
+        // per-frame createRadialGradient churn was the Smoke-biome stutter on Deck.
         this.fogBanks.forEach(f => {
+            if (!f._grad) {
+                const g = ctx.createRadialGradient(0, 0, 0.1, 0, 0, 1);
+                g.addColorStop(0,   `rgba(150, 150, 160, ${f.alpha})`);
+                g.addColorStop(0.5, `rgba(110, 110, 122, ${f.alpha * 0.5})`);
+                g.addColorStop(1,   'rgba(70, 70, 82, 0)');
+                f._grad = g;
+            }
             const wob = Math.sin(t * 0.008 + f.seed) * 0.15 + 1;
             const r = f.r * wob;
-            const grd = ctx.createRadialGradient(f.x, f.y, r * 0.1, f.x, f.y, r);
-            grd.addColorStop(0,   `rgba(150, 150, 160, ${f.alpha})`);
-            grd.addColorStop(0.5, `rgba(110, 110, 122, ${f.alpha * 0.5})`);
-            grd.addColorStop(1,   'rgba(70, 70, 82, 0)');
-            ctx.fillStyle = grd;
-            ctx.fillRect(f.x - r, f.y - r, r * 2, r * 2);
+            ctx.save();
+            ctx.translate(f.x, f.y);
+            ctx.scale(r, r);
+            ctx.fillStyle = f._grad;
+            ctx.fillRect(-1, -1, 2, 2);
+            ctx.restore();
         });
-        ctx.restore();
 
         // ── 6. Searchlight beams — sodium cones ─────────────────────────────
+        // Perf: cone + core gradients are fixed per searchlight (only the beam
+        // angle changes), so build them once in beam-local space (+x axis) and
+        // position with translate/rotate instead of allocating two CanvasGradients
+        // per light every frame.
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
+        const halfSpread = 0.18;
         this.searchlights.forEach(s => {
-            const ang = s.angle;
-            const halfSpread = 0.18;
             const range = s.range;
-            const x1 = s.cx + Math.cos(ang - halfSpread) * range;
-            const y1 = s.cy + Math.sin(ang - halfSpread) * range;
-            const x2 = s.cx + Math.cos(ang + halfSpread) * range;
-            const y2 = s.cy + Math.sin(ang + halfSpread) * range;
-
-            const ex = s.cx + Math.cos(ang) * range;
-            const ey = s.cy + Math.sin(ang) * range;
-            const lg = ctx.createLinearGradient(s.cx, s.cy, ex, ey);
-            lg.addColorStop(0,   'rgba(220, 180, 90, 0.30)');
-            lg.addColorStop(0.5, 'rgba(180, 140, 70, 0.14)');
-            lg.addColorStop(1,   'rgba(120, 90, 40, 0)');
-            ctx.fillStyle = lg;
+            const coff = range * 0.15;
+            if (!s._coneGrad) {
+                const lg = ctx.createLinearGradient(0, 0, range, 0);
+                lg.addColorStop(0,   'rgba(220, 180, 90, 0.30)');
+                lg.addColorStop(0.5, 'rgba(180, 140, 70, 0.14)');
+                lg.addColorStop(1,   'rgba(120, 90, 40, 0)');
+                s._coneGrad = lg;
+                const cg = ctx.createRadialGradient(coff, 0, 4, coff, 0, 40);
+                cg.addColorStop(0, 'rgba(255, 220, 140, 0.55)');
+                cg.addColorStop(1, 'rgba(255, 200, 120, 0)');
+                s._coreGrad = cg;
+            }
+            ctx.save();
+            ctx.translate(s.cx, s.cy);
+            ctx.rotate(s.angle);
+            // Cone (beam points along local +x)
+            ctx.fillStyle = s._coneGrad;
             ctx.beginPath();
-            ctx.moveTo(s.cx, s.cy);
-            ctx.lineTo(x1, y1);
-            ctx.lineTo(x2, y2);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(-halfSpread) * range, Math.sin(-halfSpread) * range);
+            ctx.lineTo(Math.cos(halfSpread) * range, Math.sin(halfSpread) * range);
             ctx.closePath();
             ctx.fill();
-
             // Bright core
-            const cx = s.cx + Math.cos(ang) * range * 0.15;
-            const cy = s.cy + Math.sin(ang) * range * 0.15;
-            const cg = ctx.createRadialGradient(cx, cy, 4, cx, cy, 40);
-            cg.addColorStop(0, 'rgba(255, 220, 140, 0.55)');
-            cg.addColorStop(1, 'rgba(255, 200, 120, 0)');
-            ctx.fillStyle = cg;
-            ctx.fillRect(cx - 40, cy - 40, 80, 80);
+            ctx.fillStyle = s._coreGrad;
+            ctx.fillRect(coff - 40, -40, 80, 80);
+            ctx.restore();
         });
         ctx.restore();
 

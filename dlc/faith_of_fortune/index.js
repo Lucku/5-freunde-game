@@ -166,8 +166,8 @@ const FAITH_OF_FORTUNE = {
                 color: '#F0D080', // Soft Amber / Ivory-Gold
                 hp: 120,
                 speed: 3.5,
-                rangeDmg: 5,
-                meleeDmg: 20,
+                rangeDmg: 12, // was 5 — Spirit played far too weak (×0.8 mult made it ~4 effective)
+                meleeDmg: 42, // was 20
                 rangeCd: 20, // Fast low dmg
                 meleeCd: 120,
                 projectileSpeed: 8,

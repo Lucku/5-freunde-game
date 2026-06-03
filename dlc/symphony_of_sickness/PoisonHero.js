@@ -31,6 +31,10 @@ class PoisonHero {
         player.customUpdate = (dx, dy, w) => PoisonHero.update(player, dx, dy, w);
         player.customSpecial = (w) => PoisonHero.useSpecial(player, w);
         player.shoot = (dx, dy, w) => PoisonHero.shootGas(player, dx, dy, w);
+        // Draw-pass hook: the Alchemy (flask) HUD used to be drawn from update()
+        // via drawFlaskUI, so the draw-phase canvas clear wiped it. drawFlaskUI
+        // self-manages its (screen-space) transform, so it's safe in the draw pass.
+        player.customDraw = (ctx) => { if (ctx) PoisonHero.drawFlaskUI(player); };
 
         // Altar checks
         const active = (typeof saveData !== 'undefined' && saveData?.altar?.active) ? saveData.altar.active : [];
@@ -152,8 +156,8 @@ class PoisonHero {
             // if (typeof showNotification === 'function') showNotification("New Wave - Flasks Cleared", "#76ff03");
         }
 
-        // 2. UI Overlay for Flasks
-        PoisonHero.drawFlaskUI(player);
+        // 2. Flask (Alchemy) HUD now drawn in player.customDraw (draw pass) — see
+        //    init(). Drawing it here (update phase) was wiped by the draw clear.
 
         // 3. PLAGUEBRINGER: PANDEMIC PROTOCOL
         if (player.transformActive) {

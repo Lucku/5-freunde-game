@@ -164,6 +164,11 @@ window.HERO_LOGIC['mirror'] = {
 
         player.customSpecial = () => _self.useSpecial(player);
         player.customUpdate = (dx, dy) => { _self.update(player, dx, dy); return false; };
+        // Draw-pass hook: the Mirror Shield aura + REFRACTION orbiting panels were
+        // drawn from update() via window.ctx, so the draw-phase canvas clear wiped
+        // them — activating the special showed no shield visual. customDraw runs in
+        // the draw pass (camera transform active; both are world-space at player).
+        player.customDraw = (ctx) => _self.draw(player, ctx);
 
         // Special UI
         player.setupSpecial = function () {
@@ -246,6 +251,62 @@ window.HERO_LOGIC['mirror'] = {
         shard._owner = player;
         projectiles.push(shard);
         if (typeof audioManager !== 'undefined') audioManager.play('special_mirror');
+    },
+
+    // Draw pass (camera transform active). Mirror Shield aura + REFRACTION
+    // orbiting panels. Were inlined in update() → wiped by the draw-phase clear.
+    draw: function (player, ctx) {
+        if (!ctx) return;
+        const t = (typeof window.frame !== 'undefined' ? window.frame : Date.now() * 0.06);
+
+        // REFRACTION Ultimate — orbiting mirror panels
+        if (player.transformActive && player.currentForm === 'REFRACTION') {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            const panels = 4;
+            const orbitR = 70;
+            for (let i = 0; i < panels; i++) {
+                const a = (i / panels) * Math.PI * 2 + t * 0.05;
+                ctx.save();
+                ctx.translate(Math.cos(a) * orbitR, Math.sin(a) * orbitR);
+                ctx.rotate(a + Math.PI / 2);
+                ctx.fillStyle = `rgba(174, 214, 241, ${0.55 + Math.sin(t * 0.2 + i) * 0.15})`;
+                ctx.shadowColor = '#1a5276';
+                ctx.shadowBlur = 12;
+                ctx.fillRect(-12, -3, 24, 6);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(-12, -3, 24, 6);
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+
+        // Mirror Shield aura — rotating hexagonal panels + inner flash
+        if (player.shieldActive) {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            const sides = 6;
+            const r = 40;
+            ctx.rotate(t * 0.04);
+            ctx.strokeStyle = '#aed6f1';
+            ctx.shadowColor = '#1a5276';
+            ctx.shadowBlur = 14;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for (let i = 0; i <= sides; i++) {
+                const a = (i / sides) * Math.PI * 2;
+                const x = Math.cos(a) * r;
+                const y = Math.sin(a) * r;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            ctx.fillStyle = `rgba(174, 214, 241, ${0.08 + Math.sin(t * 0.2) * 0.04})`;
+            ctx.beginPath();
+            ctx.arc(0, 0, r - 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
     },
 
     update: function (player, dx, dy, world) {
@@ -345,63 +406,8 @@ window.HERO_LOGIC['mirror'] = {
             }
         }
 
-        // REFRACTION Ultimate — extra orbiting mirror panels
-        if (player.transformActive && player.currentForm === 'REFRACTION' && window.ctx) {
-            const ctx = window.ctx;
-            const t = (typeof frame !== 'undefined' ? frame : Date.now() * 0.06);
-            ctx.save();
-            ctx.translate(player.x, player.y);
-            const panels = 4;
-            const orbitR = 70;
-            for (let i = 0; i < panels; i++) {
-                const a = (i / panels) * Math.PI * 2 + t * 0.05;
-                const px = Math.cos(a) * orbitR;
-                const py = Math.sin(a) * orbitR;
-                ctx.save();
-                ctx.translate(px, py);
-                ctx.rotate(a + Math.PI / 2);
-                // Mirror panel rectangle
-                ctx.fillStyle = `rgba(174, 214, 241, ${0.55 + Math.sin(t * 0.2 + i) * 0.15})`;
-                ctx.shadowColor = '#1a5276';
-                ctx.shadowBlur = 12;
-                ctx.fillRect(-12, -3, 24, 6);
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(-12, -3, 24, 6);
-                ctx.restore();
-            }
-            ctx.restore();
-        }
-
-        // Draw shield aura
-        if (player.shieldActive && window.ctx) {
-            const ctx = window.ctx;
-            const t = (typeof frame !== 'undefined' ? frame : Date.now() * 0.06);
-            ctx.save();
-            ctx.translate(player.x, player.y);
-            // Hexagonal mirror panels rotating
-            const sides = 6;
-            const r = 40;
-            ctx.rotate(t * 0.04);
-            ctx.strokeStyle = '#aed6f1';
-            ctx.shadowColor = '#1a5276';
-            ctx.shadowBlur = 14;
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            for (let i = 0; i <= sides; i++) {
-                const a = (i / sides) * Math.PI * 2;
-                const x = Math.cos(a) * r;
-                const y = Math.sin(a) * r;
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-            // Inner flash
-            ctx.fillStyle = `rgba(174, 214, 241, ${0.08 + Math.sin(t * 0.2) * 0.04})`;
-            ctx.beginPath();
-            ctx.arc(0, 0, r - 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
+        // Shield aura + REFRACTION panels now drawn in draw() (draw pass) — see
+        // init(). Drawing here (update phase) was wiped by the draw-phase clear.
     },
 
     _spawnShatterFragments: function (shard) {

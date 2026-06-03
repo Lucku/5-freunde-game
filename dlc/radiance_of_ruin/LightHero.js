@@ -279,6 +279,11 @@ window.HERO_LOGIC['light'] = {
 
         player.customSpecial = () => _self.useSpecial(player);
         player.customUpdate  = (dx, dy) => { _self.update(player, dx, dy); return false; };
+        // Draw-pass hook: mask-state visuals (masked halo / civilian cracked-mask
+        // icon), aurum trail and revelation ring used to be drawn from update()
+        // via window.ctx, so the draw-phase canvas clear wiped them — the mask
+        // state stopped showing. customDraw runs in the draw pass (camera active).
+        player.customDraw    = (ctx) => _self.draw(player, ctx);
 
         // Special UI (Revelation gauge = Integrity)
         player.setupSpecial = function () {
@@ -428,6 +433,82 @@ window.HERO_LOGIC['light'] = {
         return true;
     },
 
+    // Draw pass (camera transform active). Mask-state halo / civilian cracked-mask
+    // icon, Aurum trail and Revelation ring. Was inlined in update() → wiped.
+    draw: function (player, ctx) {
+        if (!ctx) return;
+        const t = (typeof window.frame !== 'undefined' ? window.frame : Date.now() * 0.06);
+
+        // Aurum trail
+        if (player.aurumTrail) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            player.aurumTrail.forEach(p => {
+                const a = (p.life / p.maxLife) * 0.55;
+                const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 30);
+                grad.addColorStop(0, `rgba(255, 230, 110, ${a})`);
+                grad.addColorStop(1, 'rgba(255, 230, 110, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 30, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+        }
+
+        // Revelation expanding ring at cast
+        if (player.revelationActive && player._revelationRadius) {
+            const dur = 600 + (player.revelationDurationBonus || 0);
+            const age = dur - player.revelationTimer;
+            if (age < 30) {
+                const ringR = (age / 30) * player._revelationRadius;
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255, 255, 220, 0.65)';
+                ctx.lineWidth = 6;
+                ctx.shadowColor = '#f1c40f';
+                ctx.shadowBlur  = 16;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, ringR, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+            ctx.save();
+            const grd = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, player._revelationRadius);
+            grd.addColorStop(0, 'rgba(255, 240, 180, 0.05)');
+            grd.addColorStop(0.7, 'rgba(255, 240, 180, 0.03)');
+            grd.addColorStop(1, 'rgba(255, 240, 180, 0)');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player._revelationRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Mask state: civilian cracked-mask icon, or masked inner-glow halo
+        if (player.civilianForm) {
+            ctx.save();
+            ctx.translate(player.x, player.y - (player.radius || 18) - 22);
+            ctx.fillStyle = 'rgba(120, 120, 120, 0.85)';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🪞', 0, 0);
+            ctx.restore();
+        } else {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const r = (player.radius || 18) + 8 + Math.sin(t * 0.12) * 2;
+            const grad = ctx.createRadialGradient(player.x, player.y, 2, player.x, player.y, r);
+            grad.addColorStop(0, 'rgba(255, 240, 160, 0.35)');
+            grad.addColorStop(1, 'rgba(255, 240, 160, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    },
+
     update: function (player, dx, dy, world) {
         const _w = world ?? window._world;
         const { enemies } = _w ?? window;
@@ -564,80 +645,9 @@ window.HERO_LOGIC['light'] = {
             if (typeof showNotification === 'function') showNotification("THE MASK IS LOST", "#444");
         }
 
-        // ── Visuals ─────────────────────────────────────────────────
-        if (window.ctx) {
-            const ctx = window.ctx;
-            const t = (typeof frame !== 'undefined' ? frame : Date.now() * 0.06);
-
-            // Aurum trail
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            player.aurumTrail.forEach(p => {
-                const a = (p.life / p.maxLife) * 0.55;
-                const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 30);
-                grad.addColorStop(0, `rgba(255, 230, 110, ${a})`);
-                grad.addColorStop(1, 'rgba(255, 230, 110, 0)');
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 30, 0, Math.PI * 2);
-                ctx.fill();
-            });
-            ctx.restore();
-
-            // Revelation expanding ring at cast
-            if (player.revelationActive && player._revelationRadius) {
-                const dur = 600 + (player.revelationDurationBonus || 0);
-                const age = dur - player.revelationTimer;
-                if (age < 30) {
-                    const ringR = (age / 30) * player._revelationRadius;
-                    ctx.save();
-                    ctx.strokeStyle = 'rgba(255, 255, 220, 0.65)';
-                    ctx.lineWidth = 6;
-                    ctx.shadowColor = '#f1c40f';
-                    ctx.shadowBlur  = 16;
-                    ctx.beginPath();
-                    ctx.arc(player.x, player.y, ringR, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.restore();
-                }
-                // Soft sphere fill that lingers
-                ctx.save();
-                const grd = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, player._revelationRadius);
-                grd.addColorStop(0, 'rgba(255, 240, 180, 0.05)');
-                grd.addColorStop(0.7, 'rgba(255, 240, 180, 0.03)');
-                grd.addColorStop(1, 'rgba(255, 240, 180, 0)');
-                ctx.fillStyle = grd;
-                ctx.beginPath();
-                ctx.arc(player.x, player.y, player._revelationRadius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
-
-            // Civilian Form overlay: cracked-mask icon hovering, gray vignette
-            if (player.civilianForm) {
-                ctx.save();
-                ctx.translate(player.x, player.y - (player.radius || 18) - 22);
-                ctx.fillStyle = 'rgba(120, 120, 120, 0.85)';
-                ctx.font = 'bold 16px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('🪞', 0, 0);
-                ctx.restore();
-            } else {
-                // Faint inner glow halo when masked
-                ctx.save();
-                ctx.globalCompositeOperation = 'lighter';
-                const r = (player.radius || 18) + 8 + Math.sin(t * 0.12) * 2;
-                const grad = ctx.createRadialGradient(player.x, player.y, 2, player.x, player.y, r);
-                grad.addColorStop(0, 'rgba(255, 240, 160, 0.35)');
-                grad.addColorStop(1, 'rgba(255, 240, 160, 0)');
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.arc(player.x, player.y, r, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
-        }
+        // ── Visuals moved to draw() (player.customDraw / draw pass) — drawing
+        //    here in the update phase was wiped by the draw-phase canvas clear,
+        //    so the mask-state halo / civilian icon stopped showing. ────────────
 
         // Ally damage buff window
         if (player._unveilingBuff && player._unveilingBuff > 0) {

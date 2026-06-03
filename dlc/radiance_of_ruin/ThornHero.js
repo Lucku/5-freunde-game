@@ -242,6 +242,11 @@ window.HERO_LOGIC['thorn'] = {
 
         player.customSpecial = () => _self.useSpecial(player);
         player.customUpdate  = (dx, dy) => { _self.update(player, dx, dy); return false; };
+        // Draw-pass hook: Crimson Garden (bloodRose) + The Reckoning vine ring +
+        // low-HP pulse were drawn from update() via window.ctx, so the draw-phase
+        // canvas clear wiped them — the ultimate "did nothing" on screen even
+        // though its damage ticked. customDraw runs in the draw pass (camera active).
+        player.customDraw    = (ctx) => _self.draw(player, ctx);
 
         // Special UI — Crimson Garden
         player.setupSpecial = function () {
@@ -317,6 +322,89 @@ window.HERO_LOGIC['thorn'] = {
         return true;
     },
 
+    // Draw pass (camera transform active). Crimson Garden bloom, The Reckoning
+    // vine-ring + red tint, and the low-HP pulse. Were inlined in update() → wiped.
+    draw: function (player, ctx) {
+        if (!ctx) return;
+        const f = (typeof window.frame !== 'undefined' ? window.frame : 0);
+
+        // Crimson Garden (Blood Rose)
+        const rose = player.bloodRose;
+        if (rose) {
+            ctx.save();
+            ctx.translate(rose.x, rose.y);
+            const pulse = 0.7 + 0.3 * Math.sin(f * 0.2);
+            const grad = ctx.createRadialGradient(0, 0, 8, 0, 0, rose.radius);
+            grad.addColorStop(0,   `rgba(139, 26, 26, ${0.45 * pulse})`);
+            grad.addColorStop(0.5, `rgba(80, 12, 12, ${0.25 * pulse})`);
+            grad.addColorStop(1,   'rgba(50, 0, 0, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, rose.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.rotate(f * 0.01);
+            ctx.fillStyle = `rgba(192, 57, 43, ${0.7 * pulse})`;
+            for (let i = 0; i < 6; i++) {
+                ctx.save();
+                ctx.rotate(i * Math.PI / 3);
+                ctx.beginPath();
+                ctx.ellipse(0, -14, 8, 18, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            ctx.fillStyle = '#1a0606';
+            ctx.beginPath();
+            ctx.arc(0, 0, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // The Reckoning — synchronized vine ring + red overlay tint
+        if (player.reckoningActive) {
+            const t = f;
+            ctx.save();
+            ctx.globalAlpha = 0.4 + Math.sin(t * 0.2) * 0.2;
+            ctx.strokeStyle = '#8b1a1a';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#5a0808';
+            ctx.shadowBlur  = 14;
+            const arcSegments = 14;
+            const rArc = 220 + Math.sin(t * 0.1) * 60;
+            ctx.beginPath();
+            for (let i = 0; i < arcSegments; i++) {
+                const a = (i / arcSegments) * Math.PI * 2 + t * 0.02;
+                const x = player.x + Math.cos(a) * rArc;
+                const y = player.y + Math.sin(a) * rArc;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+            // Full-screen red tint — reset to screen space (customDraw runs with
+            // the camera transform active, so a raw fillRect would be world-offset).
+            if (window.canvas) {
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.globalAlpha = 0.10 + Math.sin(t * 0.1) * 0.05;
+                ctx.fillStyle = '#5a0808';
+                ctx.fillRect(0, 0, window.canvas.width, window.canvas.height);
+                ctx.restore();
+            }
+        }
+
+        // Low-HP pulse ring
+        if (player.hp <= 1 && f % 30 < 10) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(139, 26, 26, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, (player.radius || 18) + 6, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    },
+
     update: function (player, dx, dy, world) {
         const _w = world ?? window._world;
         const { enemies } = _w ?? window;
@@ -386,38 +474,7 @@ window.HERO_LOGIC['thorn'] = {
                 }
             }
             if (rose.life <= 0) player.bloodRose = null;
-
-            // Draw Blood Rose
-            if (window.ctx && rose) {
-                const ctx = window.ctx;
-                ctx.save();
-                ctx.translate(rose.x, rose.y);
-                const pulse = 0.7 + 0.3 * Math.sin(f * 0.2);
-                const grad = ctx.createRadialGradient(0, 0, 8, 0, 0, rose.radius);
-                grad.addColorStop(0,   `rgba(139, 26, 26, ${0.45 * pulse})`);
-                grad.addColorStop(0.5, `rgba(80, 12, 12, ${0.25 * pulse})`);
-                grad.addColorStop(1,   'rgba(50, 0, 0, 0)');
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.arc(0, 0, rose.radius, 0, Math.PI * 2);
-                ctx.fill();
-                // Inner bloom — petal-ish
-                ctx.rotate(f * 0.01);
-                ctx.fillStyle = `rgba(192, 57, 43, ${0.7 * pulse})`;
-                for (let i = 0; i < 6; i++) {
-                    ctx.save();
-                    ctx.rotate(i * Math.PI / 3);
-                    ctx.beginPath();
-                    ctx.ellipse(0, -14, 8, 18, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-                ctx.fillStyle = '#1a0606';
-                ctx.beginPath();
-                ctx.arc(0, 0, 5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
+            // Blood Rose visual drawn in draw() (draw pass) — see init().
         }
 
         // The Reckoning tick — distribute damage arena-wide
@@ -435,36 +492,7 @@ window.HERO_LOGIC['thorn'] = {
                     });
                 }
             }
-            // Visual: synchronized vine pulses
-            if (window.ctx) {
-                const ctx = window.ctx;
-                const t = f;
-                ctx.save();
-                ctx.globalAlpha = 0.4 + Math.sin(t * 0.2) * 0.2;
-                ctx.strokeStyle = '#8b1a1a';
-                ctx.lineWidth = 3;
-                ctx.shadowColor = '#5a0808';
-                ctx.shadowBlur  = 14;
-                const arcSegments = 14;
-                const rArc = 220 + Math.sin(t * 0.1) * 60;
-                ctx.beginPath();
-                for (let i = 0; i < arcSegments; i++) {
-                    const a = (i / arcSegments) * Math.PI * 2 + t * 0.02;
-                    const x = player.x + Math.cos(a) * rArc;
-                    const y = player.y + Math.sin(a) * rArc;
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                }
-                ctx.closePath();
-                ctx.stroke();
-                // Red overlay tint
-                if (window.canvas) {
-                    ctx.globalAlpha = 0.10 + Math.sin(t * 0.1) * 0.05;
-                    ctx.fillStyle = '#5a0808';
-                    ctx.fillRect(0, 0, window.canvas.width, window.canvas.height);
-                }
-                ctx.restore();
-            }
+            // Reckoning vine-ring + red tint drawn in draw() (draw pass) — see init().
             if (player.reckoningTimer <= 0) {
                 player.reckoningActive = false;
                 if (player.hp > 0) {
@@ -476,16 +504,6 @@ window.HERO_LOGIC['thorn'] = {
             }
         }
 
-        // Self-tint flash when attacking (low HP visual cue)
-        if (window.ctx && player.hp <= 1 && (typeof frame === 'undefined' ? 0 : frame) % 30 < 10) {
-            const ctx = window.ctx;
-            ctx.save();
-            ctx.strokeStyle = 'rgba(139, 26, 26, 0.7)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, (player.radius || 18) + 6, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
-        }
+        // Low-HP pulse ring drawn in draw() (draw pass) — see init().
     }
 };
