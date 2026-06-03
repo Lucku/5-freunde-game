@@ -6153,8 +6153,9 @@ function _cheatExec(raw) {
     }
 }
 window.addEventListener('keydown', e => {
-    // Toggle on F9
+    // Toggle on F9 — disabled in packaged (Electron) builds; browser/dev only.
     if (e.key === 'F9') {
+        if (isElectron) return;
         e.preventDefault();
         _toggleCheatConsole();
         return;

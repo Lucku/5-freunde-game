@@ -1,15 +1,15 @@
 # Debug Keys
 
-These keys are only active when running in the **browser** (non-Electron build). They are disabled in the shipped game.
+Most of these keys are only active in the **browser** (non-Electron) build and are disabled in the shipped game. The per-row **Availability** notes call out the exceptions (e.g. the `F1` debug overlay also works in Electron).
 
 ---
 
-## Always-on overlays (browser + Electron)
+## Overlays & cheat console
 
-| Key | Effect |
-|-----|--------|
-| `F1` | Toggles the **debug overlay** (top-right). Shows: FPS (p50 / p99 rolling over 120 frames), current wave, player position, live entity counts (enemies / projectiles / particles / floating text), SpatialHash populated-cell count, current hit-stop frames. DOM writes throttled to 5 Hz. |
-| `` ` `` / `~` | Toggles the **cheat console** (bottom of screen). Backtick or tilde works. Press `Esc` while focused to close. Suppressed when typing into other inputs (text fields stay editable). |
+| Key | Availability | Effect |
+|-----|--------------|--------|
+| `F1` | browser **+ Electron** | Toggles the **debug overlay** (top-right). Shows: FPS (p50 / p99 rolling over 120 frames), current wave, player position, live entity counts (enemies / projectiles / particles / floating text), SpatialHash populated-cell count, current hit-stop frames. DOM writes throttled to 5 Hz. |
+| `F9` | **browser / dev build only** (disabled in packaged Electron builds) | Toggles the **cheat console** (bottom of screen). Type a command and press `Enter` to run it; `Esc` closes. |
 
 ### Cheat console commands
 
