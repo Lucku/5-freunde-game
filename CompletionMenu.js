@@ -234,7 +234,10 @@ class CompletionMenu {
                 addToDLC('The Wind Waker', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
                 return;
             }
-            if (ach.id.startsWith('chaos_') || ach.id.includes('gravity') || ach.id.includes('void') || ach.id === 'ENTROPY_LORD' || ach.id === 'GALAXY_S') {
+            // NB: don't match `.includes('void')` — the only 'void' achievements
+            // are the base-game Void-Shop spend tiers (`void_1000`…), which belong
+            // in Collection (below), not this DLC bucket.
+            if (ach.id.startsWith('chaos_') || ach.id.includes('gravity') || ach.id === 'ENTROPY_LORD' || ach.id === 'GALAXY_S') {
                 addToDLC('Champions of Chaos', 'Achievements', saveData.global.unlockedAchievements.includes(ach.id), ach.title);
                 return;
             }
@@ -252,7 +255,8 @@ class CompletionMenu {
             }
 
             let cat = 'Combat';
-            if (ach.id.startsWith('story') || ach.id.startsWith('MAKUTA')) cat = 'Story';
+            // Per-hero story achievements are `STORY_FIRE`…`STORY_METAL` (uppercase).
+            if (ach.id.startsWith('story') || ach.id.startsWith('STORY_') || ach.id.startsWith('MAKUTA')) cat = 'Story';
             else if (ach.id.startsWith('gold') || ach.id.startsWith('void')) cat = 'Collection';
             else if (ach.id.startsWith('wave') || ach.id.startsWith('skill') || ach.id.startsWith('prestige') || ach.id.startsWith('games')) cat = 'Progression';
             else if (ach.id.includes('CHALLENGE')) cat = 'Challenges';

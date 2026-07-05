@@ -511,9 +511,13 @@ class AudioManager {
 
     playAttack(hero, isCharged = false) {
         if (!this.sfxEnabled) return;
-        let key = `attack_${hero}`;
-        if (hero === 'lightning' && isCharged) key = 'attack_lightning_charged';
-        const sound = this.tracks[key];
+        // Most DLC heroes (and the lightning-charged variant) register no
+        // dedicated attack track — fall back to the per-hero, then the generic
+        // shooter SFX, so the shot is never silent.
+        const chargedKey = (hero === 'lightning' && isCharged) ? 'attack_lightning_charged' : null;
+        const sound = (chargedKey && this.tracks[chargedKey])
+            || this.tracks[`attack_${hero}`]
+            || this.tracks['attack_shooter'];
         if (sound) {
             const sfx = sound.cloneNode();
             sfx.volume = 0.3;

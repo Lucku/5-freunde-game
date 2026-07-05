@@ -30,7 +30,9 @@ export function initGoldDrops(rs) {
 export function spawnGoldDrop(rs, x, y) {
     const i = rs.goldDropCount;
     if (i >= MAX_GOLDDROPS) return -1;
-    const value = Math.floor(Math.random() * 10) + 5;
+    // Value is economy (feeds gainGold / totalGold) → seeded RNG so daily/weekly
+    // and online co-op agree. Spin/bob phases stay Math.random (cosmetic only).
+    const value = Math.floor(rs.rng() * 10) + 5;
     rs.goldDropX[i]         = x;
     rs.goldDropY[i]         = y;
     rs.goldDropValue[i]     = value;

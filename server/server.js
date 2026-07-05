@@ -1637,15 +1637,25 @@ wss.on('connection', (ws, req) => {
     if (prevCode) {
         const lobby = lobbies.get(prevCode);
         if (lobby && lobby.phase === 'in_game') {
-            ws.lobbyCode = prevCode;
-            ws.role = (lobby.host?.userId === user.id) ? 'host' : 'guest';
-            const slot = ws.role === 'host' ? 'host' : 'guest';
-            lobby[slot] = { ws, userId: user.id, username: user.username };
-            send(ws, { type: 'REJOINED', code: prevCode, role: ws.role });
-            const p = partner(lobby, ws.role);
-            if (p) send(p.ws, { type: 'PARTNER_RECONNECTED' });
-            clearTimeout(lobby._graceTimer);
-            lobby._graceTimer = null;
+            // Role from the persistent owner ids — the live slot for this user was
+            // nulled on disconnect, so inferring from `lobby.host?.userId` wrongly
+            // returned 'guest' and clobbered the real guest slot.
+            const role = (lobby.hostUserId === user.id) ? 'host'
+                       : (lobby.guestUserId === user.id) ? 'guest' : null;
+            if (role) {
+                ws.lobbyCode = prevCode;
+                ws.role = role;
+                lobby[role] = { ws, userId: user.id, username: user.username };
+                send(ws, { type: 'REJOINED', code: prevCode, role });
+                const p = partner(lobby, role);
+                if (p) send(p.ws, { type: 'PARTNER_RECONNECTED' });
+                clearTimeout(lobby._graceTimer);
+                lobby._graceTimer = null;
+                clearTimeout(lobby._hardCleanupTimer);
+                lobby._hardCleanupTimer = null;
+            } else {
+                userLobby.delete(user.id);
+            }
         } else {
             userLobby.delete(user.id);
         }
@@ -1672,6 +1682,10 @@ function handleMessage(ws, msg) {
                 phase: 'waiting',
                 host: { ws, userId: ws.userId, username: ws.username },
                 guest: null,
+                // Persistent role owners — NOT nulled on disconnect, so a
+                // reconnecting player is matched back to the right slot.
+                hostUserId: ws.userId,
+                guestUserId: null,
                 hostHero: msg.hero || 'fire',
                 guestHero: 'water',
                 hostConfirmed: false,
@@ -1696,6 +1710,7 @@ function handleMessage(ws, msg) {
 
             leaveLobby(ws);
             lobby.guest = { ws, userId: ws.userId, username: ws.username };
+            lobby.guestUserId = ws.userId;
             lobby.guestHero = msg.hero || lobby.guestHero || 'water';
             lobby.guestUsername = ws.username;
             lobby.phase = 'hero_select';
@@ -2001,6 +2016,7 @@ function handleMessage(ws, msg) {
                 code, phase: 'pre_game',
                 host: { ws: inviter.ws, userId: inviter.userId, username: inviter.username },
                 guest: { ws: target.ws, userId: target.userId, username: target.username },
+                hostUserId: inviter.userId, guestUserId: target.userId,
                 hostHero, guestHero, hostConfirmed: true, guestConfirmed: true, hostMode: 'NORMAL',
                 hostUsername: inviter.username, guestUsername: target.username,
             });
@@ -2044,8 +2060,11 @@ function handleClose(ws) {
             const remaining = l.host || l.guest;
             if (remaining) send(remaining.ws, { type: 'PARTNER_DISCONNECTED' });
         }, 30_000);
-        // Hard cleanup after 90s — allows the late leaderboard submission window
-        setTimeout(() => {
+        // Hard cleanup after 90s — allows the late leaderboard submission window.
+        // Tracked + cleared on reconnect so repeated disconnect cycles don't stack
+        // orphaned timers.
+        clearTimeout(lobby._hardCleanupTimer);
+        lobby._hardCleanupTimer = setTimeout(() => {
             if (lobbies.has(lobby.code)) {
                 const l = lobbies.get(lobby.code);
                 if (!l.host || !l.guest) cleanupLobby(lobby.code);

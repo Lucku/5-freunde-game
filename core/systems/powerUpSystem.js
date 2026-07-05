@@ -43,6 +43,11 @@ export function spawnPowerUp(rs) {
     // Find a non-obstacle position. Original PowerUp.js loops until safe;
     // we keep the same semantics but cap attempts to avoid infinite loop
     // on a fully-blocked arena.
+    // Placement stays on Math.random: the retry count depends on arena.checkCollision,
+    // and arena layout/obstacles aren't seeded yet (client builds obstacles, server
+    // is flat), so seeding this loop would diverge the RNG stream server-vs-client.
+    // Tracked with the arena-determinism pass. Type IS seeded — it's the gameplay-
+    // relevant part (which power-up you get) and is a single deterministic draw.
     let x = 0, y = 0;
     for (let attempt = 0; attempt < 20; attempt++) {
         x = Math.random() * (arena.width - 100) + 50;
@@ -52,7 +57,7 @@ export function spawnPowerUp(rs) {
 
     rs.powerUpX[i]        = x;
     rs.powerUpY[i]        = y;
-    rs.powerUpType[i]     = Math.floor(Math.random() * POWERUP_TYPES.length);
+    rs.powerUpType[i]     = Math.floor(rs.rng() * POWERUP_TYPES.length);
     rs.powerUpTimer[i]    = POWERUP_TIMER_INIT;
     rs.powerUpOscill[i]   = Math.random() * Math.PI;
     rs.powerUpCount       = i + 1;

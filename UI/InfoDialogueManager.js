@@ -14,13 +14,37 @@ class InfoDialogueManager {
         }
     }
 
-    // Call at end of initMenu() — shows first queued dialogue, or falls through to tutorial check.
+    // Call at end of initMenu(). On first launch (tutorial not yet seen) the
+    // tutorial prompt is shown FIRST and everything else — the info-dialogue queue
+    // and the post-queue startup modals (what's-new, telemetry opt-in) — is
+    // deferred, so the very-first-open screen isn't cluttered.
+    // acceptTutorialPrompt()/skipTutorialPrompt() set saveData.tutorial.seen and
+    // re-enter this (skip calls startQueue directly; accept returns to the menu via
+    // initMenu after the tutorial), at which point the queue drains normally.
     startQueue() {
+        if (this._tutorialPending()) {
+            this._showTutorialPrompt();
+            return;
+        }
         if (this._queue.length > 0) {
             this._showNext();
         } else {
             this._onQueueEmpty();
         }
+    }
+
+    _tutorialPending() {
+        return typeof saveData !== 'undefined' && saveData.tutorial && !saveData.tutorial.seen;
+    }
+
+    _showTutorialPrompt() {
+        const overlay = document.getElementById('tutorial-welcome-overlay');
+        if (overlay) overlay.style.display = 'flex';
+        setUIState('TUTORIAL_PROMPT');
+        setTimeout(() => {
+            const btn = document.getElementById('tutorial-accept-btn');
+            if (btn) btn.focus();
+        }, 50);
     }
 
     _showNext() {
@@ -93,16 +117,12 @@ class InfoDialogueManager {
         }
     }
 
-    // Runs when the queue is exhausted — hands off to the tutorial prompt if needed.
+    // Runs when the info queue is exhausted. The tutorial prompt is shown up-front
+    // by startQueue() on first launch, so by now it's already resolved — hand off
+    // to the deferred startup modals (what's-new, telemetry opt-in).
     _onQueueEmpty() {
-        if (typeof saveData !== 'undefined' && saveData.tutorial && !saveData.tutorial.seen) {
-            const overlay = document.getElementById('tutorial-welcome-overlay');
-            if (overlay) overlay.style.display = 'flex';
-            setUIState('TUTORIAL_PROMPT');
-            setTimeout(() => {
-                const btn = document.getElementById('tutorial-accept-btn');
-                if (btn) btn.focus();
-            }, 50);
+        if (typeof window._runPostInfoStartupModals === 'function') {
+            window._runPostInfoStartupModals();
         }
     }
 }

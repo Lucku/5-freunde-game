@@ -27,7 +27,7 @@ class OptionsUI {
             // Fallback if toggleSetting is explicitly local to game.js (unlikely for config)
             window.gameConfig[key] = !window.gameConfig[key];
             if (localStorage) {
-                localStorage.setItem('5Freunde_Config', JSON.stringify(window.gameConfig));
+                localStorage.setItem('5FreundeConfig', JSON.stringify(window.gameConfig));
             }
         }
         // Toggling telemetry from Options also marks consent as seen,
@@ -36,7 +36,7 @@ class OptionsUI {
             window.gameConfig.telemetryConsentSeen = true;
             if (typeof window.saveConfig === 'function') window.saveConfig();
             else if (localStorage) {
-                try { localStorage.setItem('5Freunde_Config', JSON.stringify(window.gameConfig)); } catch (_) {}
+                try { localStorage.setItem('5FreundeConfig', JSON.stringify(window.gameConfig)); } catch (_) {}
             }
         }
         this.updateOptionButtons();

@@ -10,6 +10,18 @@ import { HumanController } from './Entities/PlayerController.js'; // Was window.
 import { runState } from './RunState.js'; // Seeded RNG for deterministic crit/spread
 import { TutorialMode } from './TutorialMode.js';
 
+// Uniform Fisher–Yates over the seeded RNG. Replaces the biased
+// `sort(() => 0.5 - Math.random())` shuffle used for level-up options, which
+// both skewed the distribution and broke daily/weekly/replay determinism.
+function _shuffleUpgradePool(src) {
+    const pool = [...src];
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(runState.rng() * (i + 1));
+        const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+    return pool;
+}
+
 class Player {
     constructor(type, isCPU = false) {
         this.type = type;
@@ -101,11 +113,8 @@ class Player {
         this.pauseDebounce = 0;
         this.moveInput = { x: 0, y: 0 };
 
-        // Apply Achievement Gold Bonus
-        saveData.global.unlockedAchievements.forEach(id => {
-            const ach = ACHIEVEMENTS.find(a => a.id === id);
-            if (ach && ach.bonus.type === 'gold') this.goldMultiplier += ach.bonus.val;
-        });
+        // (Achievement gold bonus is already folded into stats.goldMultiplier by
+        // getHeroStats — re-adding it here double-counted every gold achievement.)
 
         // Chaos Effects (Constructor)
         if (typeof isChaosActive === 'function') {
@@ -226,7 +235,7 @@ class Player {
                 currentPool = window.HERO_LOGIC[this.type].upgradePool;
             }
 
-            const pool = [...currentPool].sort(() => 0.5 - Math.random());
+            const pool = _shuffleUpgradePool(currentPool);
             options = [transformOption, pool[0]];
         } else {
             // Check for Hero-Specific Upgrade Pool
@@ -235,7 +244,7 @@ class Player {
                 currentPool = window.HERO_LOGIC[this.type].upgradePool;
             }
 
-            const pool = [...currentPool].sort(() => 0.5 - Math.random());
+            const pool = _shuffleUpgradePool(currentPool);
             options = pool.slice(0, 2);
         }
 
@@ -717,9 +726,12 @@ class Player {
 
             // Convergence: Ironbark (c10)
             if (has('c10')) {
-                const oldDr = this.damageReduction;
-                this.damageReduction = Math.max(this.damageReduction, 0.5); // Set to 50% DR if lower
-                setTimeout(() => this.damageReduction = oldDr, 5000); // Reset to previous value
+                if (!(this.ironbarkTimer > 0)) {
+                    // Lift DR to a 0.5 floor by adding only the missing amount.
+                    this._ironbarkBonus = Math.max(0, 0.5 - this.damageReduction);
+                    this.damageReduction += this._ironbarkBonus;
+                }
+                this.ironbarkTimer = 300; // 5s @ 60fps (refreshes without re-adding)
                 floatingTexts?.push(FloatingText.acquire(this.x, this.y - 80, "IRONBARK", "#95a5a6", 20));
             }
 
@@ -902,6 +914,24 @@ class Player {
             if (this.invincibleTimer <= 0) this.hasFrostbiteArmor = false;
         }
         if (this.thornmailTimer > 0) this.thornmailTimer--;
+        // Ironbark (c10): frame-based expiry. Removes exactly the bonus it added
+        // (a delta, not an absolute snapshot) so DR gained mid-window survives.
+        if (this.ironbarkTimer > 0) {
+            this.ironbarkTimer--;
+            if (this.ironbarkTimer <= 0 && this._ironbarkBonus) {
+                this.damageReduction -= this._ironbarkBonus;
+                this._ironbarkBonus = 0;
+            }
+        }
+        // Earth AUTOAIM ram-damage boost: frame-based expiry (pause-safe,
+        // no stale-player wall-clock callback).
+        if (this.ramBoostFrames > 0) {
+            this.ramBoostFrames--;
+            if (this.ramBoostFrames <= 0 && this._ramBoostBonus) {
+                this.stats.ramDmgMult = (this.stats.ramDmgMult || 1) - this._ramBoostBonus;
+                this._ramBoostBonus = 0;
+            }
+        }
         if (this.pauseDebounce > 0) this.pauseDebounce--;
 
         if (this.dashCooldown > 0) this.dashCooldown--;
@@ -1588,6 +1618,7 @@ window.getHeroStats = function (type) {
                 if (ach.bonus.type === 'damage') { base.rangeDmg *= (1 + ach.bonus.val); base.breakdown.damage.ach += ach.bonus.val; }
                 if (ach.bonus.type === 'health') { base.hp *= (1 + ach.bonus.val); base.breakdown.health.ach += ach.bonus.val; }
                 if (ach.bonus.type === 'gold') { base.goldMultiplier += ach.bonus.val; } // Note: Gold isn't in breakdown yet, but works
+                if (ach.bonus.type === 'defense') { base.defense += ach.bonus.val; base.breakdown.defense.ach += ach.bonus.val; }
 
                 // NEW TYPES
                 if (ach.bonus.type === 'speed') {

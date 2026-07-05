@@ -263,6 +263,21 @@ window.HERO_LOGIC['gravity'] = {
             return false; // Return false to let default movement run
         };
 
+        // Draw-pass hook: the active black hole lives only on player.activeBlackHole
+        // (no entity array), so the draw pass must render it here or it's invisible.
+        // customDraw fully REPLACES the default hero sprite, so we draw the hole
+        // (world space, behind the player) then re-run the default sprite path by
+        // nulling customDraw for one call (Gravity keeps its normal sprite).
+        player.customDraw = function (ctx) {
+            if (player.activeBlackHole && player.activeBlackHole.active) {
+                player.activeBlackHole.draw(ctx);
+            }
+            const saved = player.customDraw;
+            player.customDraw = null;
+            player.draw();
+            player.customDraw = saved;
+        };
+
         player.getFormName = function () { return 'DARK STAR'; };
 
         // Force UI update immediately if we are the selected hero
@@ -513,11 +528,8 @@ class BlackHole {
         if (this.life <= 0) {
             this.collapse(this.owner);
         }
-
-        // Draw (Hack: Draw immediately to canvas context if available globally)
-        if (window.ctx) {
-            this.draw(window.ctx);
-        }
+        // Drawing happens in the draw pass via the hero's player.customDraw
+        // (drawing here — the update phase — is wiped by the draw-phase clear).
     }
 
     collapse(player) {

@@ -8,9 +8,11 @@
  */
 class WorldEventsManager {
     constructor() {
-        this._events     = [];
-        this._lastFetch  = 0;
-        this._TTL        = 5 * 60 * 1000; // re-poll at most every 5 minutes
+        this._events      = [];
+        this._lastFetch   = 0;             // last SUCCESSFUL fetch
+        this._lastAttempt = 0;             // last attempt (success or failure)
+        this._TTL         = 5 * 60 * 1000; // re-poll at most every 5 minutes on success
+        this._RETRY_TTL   = 30 * 1000;     // but retry every 30s after a failure
     }
 
     _baseUrl() {
@@ -22,8 +24,12 @@ class WorldEventsManager {
 
     async poll() {
         const now = Date.now();
+        // Throttle successes to _TTL, but only lock out retries for _RETRY_TTL —
+        // a failed fetch previously stamped _lastFetch and blocked retry for the
+        // full 5 minutes.
         if (now - this._lastFetch < this._TTL) return;
-        this._lastFetch = now;
+        if (now - this._lastAttempt < this._RETRY_TTL) return;
+        this._lastAttempt = now;
         const base = this._baseUrl();
         if (!base) return;
         try {
@@ -31,6 +37,7 @@ class WorldEventsManager {
             if (res.ok) {
                 const data = await res.json();
                 this._events = data.events || [];
+                this._lastFetch = now; // stamp success only
             }
         } catch (_) {}
     }
@@ -42,7 +49,7 @@ class WorldEventsManager {
     getXpMultiplier() {
         let mult = 1;
         for (const ev of this._events) {
-            if (ev.type === 'xp_boost') mult *= ev.multiplier;
+            if (ev.type === 'xp_boost') mult *= (Number(ev.multiplier) || 1);
         }
         return mult;
     }
@@ -50,7 +57,7 @@ class WorldEventsManager {
     getScoreMultiplier() {
         let mult = 1;
         for (const ev of this._events) {
-            if (ev.type === 'score_boost') mult *= ev.multiplier;
+            if (ev.type === 'score_boost') mult *= (Number(ev.multiplier) || 1);
         }
         return mult;
     }

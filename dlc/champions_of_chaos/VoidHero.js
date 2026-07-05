@@ -132,8 +132,13 @@ window.HERO_LOGIC['void'] = {
                 iconEl.innerText = "👻";
                 const container = document.getElementById('special-container');
                 if (container) {
+                    // Clear any inherited inline gradient (e.g. Gravity paints one)
+                    // and use borderColor like the base heroes — the `border`
+                    // shorthand left Void's width/style clobbering the base CSS
+                    // when switching to another hero afterwards.
+                    container.style.background = '';
                     container.style.boxShadow = "0 0 10px #00bcd4";
-                    container.style.border = "1px solid #00bcd4";
+                    container.style.borderColor = "#00bcd4";
                 }
             }
         };
@@ -192,8 +197,9 @@ window.HERO_LOGIC['void'] = {
                 proj._isGlitch = true;
                 proj.update = function () {
                     const v = this.velocity;
-                    this.x += v.x + (Math.random() - 0.5) * 5;
-                    this.y += v.y + (Math.random() - 0.5) * 5;
+                    const _r = window.runState?.rng || Math.random;
+                    this.x += v.x + (_r() - 0.5) * 5;
+                    this.y += v.y + (_r() - 0.5) * 5;
                     const l = this.life;
                     if (l !== null) this.life = l - 1;
                 };

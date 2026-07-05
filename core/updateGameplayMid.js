@@ -564,9 +564,12 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             }
             else if (ptype === 'AUTOAIM') {
                 if (runState.player.heroType === 'EARTH') {
-                    // Earth Hero: Temporary Ram Damage Boost
-                    runState.player.stats.ramDmgMult = (runState.player.stats.ramDmgMult || 1) + 1.0; // +100% Ram Damage
-                    setTimeout(() => { runState.player.stats.ramDmgMult -= 1.0; }, 10000); // Lasts 10s
+                    // Earth Hero: Temporary Ram Damage Boost (frame-based, decays in Player.update)
+                    if (!(runState.player.ramBoostFrames > 0)) {
+                        runState.player._ramBoostBonus = 1.0;
+                        runState.player.stats.ramDmgMult = (runState.player.stats.ramDmgMult || 1) + 1.0; // +100% Ram Damage
+                    }
+                    runState.player.ramBoostFrames = 600; // 10s @ 60fps
                     showNotification("RAM DAMAGE BOOST!");
                     createExplosion(runState.player.x, runState.player.y, '#e74c3c');
                 } else {
@@ -1105,7 +1108,15 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         // and are skipped here. pIndex is resolved lazily via
         // projectiles.indexOf only when a splice is needed.
         const _qR = (enemy.radius || 30) + 60;
-        const _projCands = queryProjectilesNear(enemy.x, enemy.y, _qR);
+        const _projCandsRaw = queryProjectilesNear(enemy.x, enemy.y, _qR);
+        // Snapshot into a stable array: the low-N fallback returns the live
+        // `projectiles` sentinel directly, so a mid-loop swap-with-last splice
+        // would shift the underlying array and make forward iteration skip the
+        // element pulled into the current slot. The hash path already returns a
+        // private array; this makes both paths behave identically. Iteration
+        // order is preserved (RNG-consumption order unchanged).
+        const _projCands = [];
+        for (let _k = 0; _k < _projCandsRaw.length; _k++) _projCands.push(_projCandsRaw[_k]);
         for (let _ci = 0; _ci < _projCands.length; _ci++) {
             const proj = _projCands[_ci];
             if (!proj || proj.isEnemy) continue;
@@ -1250,7 +1261,9 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         }
 
         meleeAttacks.forEach(att => {
-            if (att.hitList.includes(eIndex)) return;
+            // Keyed on the stable enemy id, not the transient loop index —
+            // kills swap-with-last and shift indices during the swipe's ~15f life.
+            if (att.hitList.includes(enemy._id)) return;
             const dx = enemy.x - att.x; const dy = enemy.y - att.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < att.radius + enemy.radius) {
@@ -1283,7 +1296,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     runState.currentRunStats.damageDealt += att.damage; // Track Damage
                     saveData.global.totalDamage += att.damage;
                     bumpDamageSource('melee', att.damage);
-                    createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(eIndex);
+                    createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(enemy._id);
                     if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
                 }
             }
@@ -1435,20 +1448,10 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     masksDroppedInWave++;
                 }
 
-                // Mutator: No Regen (No Health Drops)
-                if (!((runState.isDailyMode || runState.isWeeklyMode) && runState.activeMutators.some(m => m.id === 'NO_REGEN'))) {
-                    if (runState.rng() < 0.3) spawnGoldDrop(runState, enemy.x, enemy.y); // Gold Drop
-                } else {
-                    // Still drop gold, but maybe less? Or just no health potions if they existed as drops.
-                    // Wait, GoldDrop is money. Health is usually from Shop or Skills.
-                    // If "No Regen" means no healing, we should block healing in Player.js or here.
-                    // Let's assume "No Health Drops" refers to potential future drops or just disable lifesteal/regen.
-                    // For now, let's just block Gold Drops as a penalty or rename mutator to "Poverty".
-                    // Actually, let's stick to the description: "No Health Drops spawn".
-                    // Since we don't have health drops yet (only shop potions), let's make it block Gold Drops instead for now?
-                    // Or better: Block Shop Healing.
-                }
-                if (runState.rng() < 0.3) spawnGoldDrop(runState, enemy.x, enemy.y);
+                // Mutator: No Regen suppresses the gold drop (the only run-drop we have).
+                const noRegenActive = (runState.isDailyMode || runState.isWeeklyMode)
+                    && runState.activeMutators.some(m => m.id === 'NO_REGEN');
+                if (!noRegenActive && runState.rng() < 0.3) spawnGoldDrop(runState, enemy.x, enemy.y);
 
                 // Check for Card Drop
                 checkDrop(enemy.subType || 'BASIC', enemy.x, enemy.y);

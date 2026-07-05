@@ -59,8 +59,9 @@ class SpiritHero {
             // Convergence: Ascension (cv_s_a)
             const hasAscension = SpiritHero.checkConvergence(player, 'cv_s_a');
 
-            // Ascension Dodge Check
-            if (hasAscension && Math.random() < (player.dodgeChance || 0)) {
+            // Ascension Dodge Check (seeded so the dodge outcome is deterministic
+            // in daily/weekly/online; falls back to Math.random in solo play)
+            if (hasAscension && (window.runState?.rng || Math.random)() < (player.dodgeChance || 0)) {
                 if (typeof showNotification === 'function') showNotification("DODGE", "#40e0d0");
                 return;
             }

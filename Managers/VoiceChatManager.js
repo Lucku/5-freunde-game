@@ -20,6 +20,13 @@ class VoiceChatManager {
         this._active       = false;
         this._role         = null;
 
+        // Signaling can arrive before start() finishes (getUserMedia is async):
+        // buffer an early OFFER and any ICE candidates until the peer connection
+        // exists / the remote description is set, then flush them.
+        this._pendingOffer = null;
+        this._pendingIce   = [];
+        this._remoteSet    = false;
+
         // Optional callback: (isSelf, muted) => void
         this.onMuteChange  = null;
     }
@@ -70,14 +77,21 @@ class VoiceChatManager {
             const offer = await this._pc.createOffer();
             await this._pc.setLocalDescription(offer);
             window.networkManager?.send({ type: 'WEBRTC_OFFER', data: offer });
+        } else if (this._pendingOffer) {
+            // Guest: an OFFER that arrived before the peer connection existed.
+            const off = this._pendingOffer;
+            this._pendingOffer = null;
+            await this.handleOffer(off);
         }
 
         return true;
     }
 
     async handleOffer(offer) {
-        if (!this._pc) return;
+        if (!this._pc) { this._pendingOffer = offer; return; }
         await this._pc.setRemoteDescription(new RTCSessionDescription(offer));
+        this._remoteSet = true;
+        await this._flushPendingIce();
         const answer = await this._pc.createAnswer();
         await this._pc.setLocalDescription(answer);
         window.networkManager?.send({ type: 'WEBRTC_ANSWER', data: answer });
@@ -87,17 +101,35 @@ class VoiceChatManager {
         if (!this._pc) return;
         try {
             await this._pc.setRemoteDescription(new RTCSessionDescription(answer));
+            this._remoteSet = true;
+            await this._flushPendingIce();
         } catch (e) {
             console.warn('[VoiceChat] handleAnswer error:', e.message);
         }
     }
 
     async handleIce(candidate) {
-        if (!this._pc || !candidate) return;
+        if (!candidate) return;
+        // Queue until the remote description is set — addIceCandidate throws
+        // InvalidStateError otherwise (and the candidate would be lost).
+        if (!this._pc || !this._remoteSet) { this._pendingIce.push(candidate); return; }
         try {
             await this._pc.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (e) {
             console.warn('[VoiceChat] ICE error:', e.message);
+        }
+    }
+
+    async _flushPendingIce() {
+        if (!this._pc || !this._pendingIce.length) return;
+        const queued = this._pendingIce;
+        this._pendingIce = [];
+        for (const c of queued) {
+            try {
+                await this._pc.addIceCandidate(new RTCIceCandidate(c));
+            } catch (e) {
+                console.warn('[VoiceChat] ICE error (flush):', e.message);
+            }
         }
     }
 
@@ -124,6 +156,9 @@ class VoiceChatManager {
         this._role         = null;
         this._muted        = false;
         this._partnerMuted = false;
+        this._pendingOffer = null;
+        this._pendingIce   = [];
+        this._remoteSet    = false;
     }
 }
 

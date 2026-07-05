@@ -15,6 +15,12 @@ class SaveManager {
     // Cached CryptoKey so we only import once per session.
     static _keyPromise = null;
 
+    // Serializes save writes. saveGame is async (awaits encode), so two
+    // overlapping calls (autosave + user action, or a cloud apply during an
+    // autosave) could interleave read-prev → rotate-backup → write and corrupt a
+    // backup slot or write the main file out of order. All saves chain here.
+    static _saveChain = Promise.resolve();
+
     // Schema version. Bump when adding a migration that changes structure.
     // Saves without a `version` field are treated as v0 (pre-migration era).
     static SCHEMA_VERSION = 1;
@@ -136,9 +142,15 @@ class SaveManager {
      * @returns {Promise<SaveData|null>}
      */
     static async decodeSaveData(raw) {
+        // Once a signed save has been written on this install, unsigned formats
+        // can only reappear via a manual file swap — i.e. tampering — so reject
+        // them instead of accepting the downgrade. Genuine legacy saves (flag not
+        // yet set) still migrate transparently exactly once.
+        const _legacyBlocked = SaveManager._signedEstablished();
         try {
             // Legacy format 1: plain JSON (migrate transparently)
             if (raw.trim().startsWith('{')) {
+                if (_legacyBlocked) { console.error('Save: rejecting unsigned plain-JSON blob (downgrade/tamper)'); return null; }
                 console.warn('Save: migrating from plain-JSON format');
                 return JSON.parse(raw);
             }
@@ -149,6 +161,7 @@ class SaveManager {
             } catch (_) {
                 // base64 decoded to something that isn't JSON at all — try the
                 // old encode path: btoa(unescape(encodeURIComponent(json)))
+                if (_legacyBlocked) { console.error('Save: rejecting unsigned base64 blob (downgrade/tamper)'); return null; }
                 console.warn('Save: migrating from unsigned base64 format');
                 const json = decodeURIComponent(escape(atob(raw)));
                 return JSON.parse(json);
@@ -159,6 +172,7 @@ class SaveManager {
                 // Correct — fall through to HMAC verification below.
             } else if (envelope && (envelope.global !== undefined || envelope.fire !== undefined)) {
                 // Legacy format: base64 decoded directly to a save object (all-ASCII save data).
+                if (_legacyBlocked) { console.error('Save: rejecting unsigned ASCII blob (downgrade/tamper)'); return null; }
                 console.warn('Save: migrating from unsigned base64 format (ASCII path)');
                 return envelope;
             } else {
@@ -291,7 +305,25 @@ class SaveManager {
      * @param {SaveData} data
      * @returns {Promise<string|null>} encoded blob written, or null on failure
      */
-    static async saveGame(data) {
+    static saveGame(data) {
+        // Chain onto the in-flight save so writes never interleave. The chain
+        // must not reject, or a single failed save would wedge all later ones.
+        const run = SaveManager._saveChain.then(() => SaveManager._saveGameImpl(data));
+        SaveManager._saveChain = run.catch(() => {});
+        return run;
+    }
+
+    // Persisted flag: has a signed save ever been written on this install?
+    // Gates one-time acceptance of legacy unsigned formats in decodeSaveData.
+    static _signedEstablished() {
+        try { return typeof localStorage !== 'undefined' && localStorage.getItem('5FreundeSaveSigned') === '1'; }
+        catch (_) { return false; }
+    }
+    static _markSignedEstablished() {
+        try { if (typeof localStorage !== 'undefined') localStorage.setItem('5FreundeSaveSigned', '1'); } catch (_) { /* ignore */ }
+    }
+
+    static async _saveGameImpl(data) {
         if (!data) return null;
 
         // Always stamp current schema version before encoding so out-of-date
@@ -308,11 +340,13 @@ class SaveManager {
         if (typeof isElectron !== 'undefined' && isElectron && typeof fs !== 'undefined') {
             try {
                 fs.writeFileSync(saveFilePath, encoded);
+                SaveManager._markSignedEstablished();
             } catch (e) {
                 console.error('Failed to save game to disk:', e);
             }
         } else {
             localStorage.setItem('5FreundeSave', encoded);
+            SaveManager._markSignedEstablished();
         }
 
         console.log('Game Saved Successfully');
@@ -448,7 +482,10 @@ class SaveManager {
         reader.onload = function (e) {
             try {
                 const json = JSON.parse(e.target.result);
-                if (json.global && json.unlocks) {
+                // Validate against keys the schema actually has — the old check
+                // required `json.unlocks`, which never existed, so every export
+                // failed to re-import.
+                if (json.global && json.metaUpgrades) {
                     callback(json);
                 } else {
                     alert('Invalid save file format!');

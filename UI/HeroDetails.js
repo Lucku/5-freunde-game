@@ -75,6 +75,7 @@ class HeroDetailsUI {
                     if (ach.bonus.type === 'speed') { totals.speed += val * 100; effect = `+${(val * 100).toFixed(0)}% Speed`; }
                     if (ach.bonus.type === 'cooldown') { totals.cooldown += val * 100; effect = `+${(val * 100).toFixed(0)}% CDR`; }
                     if (ach.bonus.type === 'gold') { totals.gold += val * 100; effect = `+${(val * 100).toFixed(0)}% Gold`; }
+                    if (ach.bonus.type === 'defense') { effect = `+${(val * 100).toFixed(0)}% Def`; }
 
                     achHtml += `<div class="stat-row"><span>${ach.title}</span><span>${effect}</span></div>`;
                 }

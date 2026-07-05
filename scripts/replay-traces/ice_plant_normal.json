@@ -12,22 +12,22 @@
     "wave": 1,
     "score": 0,
     "frame": 901,
-    "enemies": 10,
-    "projectiles": 12,
+    "enemies": 9,
+    "projectiles": 10,
     "host": {
       "hp": 50,
-      "x": 1437.92,
-      "y": 62.46,
+      "x": 598.13,
+      "y": 1451.97,
       "level": 1,
-      "xp": 20,
+      "xp": 60,
       "dead": false
     },
     "guest": {
       "hp": 70,
-      "x": 1030.15,
-      "y": 1892.44,
+      "x": 1289.9,
+      "y": 2648.85,
       "level": 1,
-      "xp": 0,
+      "xp": 20,
       "dead": false
     }
   }

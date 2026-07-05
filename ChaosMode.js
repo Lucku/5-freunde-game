@@ -115,10 +115,12 @@ function openChaosGamble() {
     ];
     const penalty = penalties[Math.floor(Math.random() * penalties.length)];
 
-    const options = [
-        { type: 'HERO', val: picks[0], label: `Switch to ${picks[0].toUpperCase()}`, color: BASE_HERO_STATS[picks[0]]?.color || '#fff' },
-        { type: 'HERO', val: picks[1], label: `Switch to ${picks[1].toUpperCase()}`, color: BASE_HERO_STATS[picks[1]]?.color || '#fff' }
-    ];
+    // Only offer the hero switches we actually rolled — after heavy attrition
+    // (most heroes lost) `picks` can hold fewer than 2, so indexing picks[1]
+    // blindly produced a "Switch to UNDEFINED" card / shuffleHero(undefined).
+    const options = picks.map(pk => ({
+        type: 'HERO', val: pk, label: `Switch to ${pk.toUpperCase()}`, color: BASE_HERO_STATS[pk]?.color || '#fff'
+    }));
 
     // Feature 1: The Nemesis Wager (20% Chance)
     if (Math.random() < 0.20) {

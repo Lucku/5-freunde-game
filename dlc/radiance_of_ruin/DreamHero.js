@@ -237,6 +237,18 @@ window.HERO_LOGIC['dream'] = {
         player.customSpecial = () => _self.useSpecial(player);
         player.customUpdate  = (dx, dy) => { _self.update(player, dx, dy); return false; };
 
+        // Draw-pass hook: Dreamscape aura / drowsy Zz / dream-pool / Long Sleep
+        // tint were inlined in update() → wiped by the draw-phase clear. customDraw
+        // REPLACES the default sprite, so we null it for one call to keep rendering
+        // the normal hero body under the dream visuals.
+        player.customDraw = function (ctx) {
+            _self.draw(player, ctx);
+            const saved = player.customDraw;
+            player.customDraw = null;
+            player.draw();
+            player.customDraw = saved;
+        };
+
         // Special UI — Lucidity gauge for Dreamscape
         player.setupSpecial = function () {
             if (this.isCPU) { this.specialName = "DREAMSCAPE"; return; }
@@ -339,6 +351,85 @@ window.HERO_LOGIC['dream'] = {
         return true;
     },
 
+    // Draw pass (camera transform active). Lucid-step smoke, drowsy Zz above
+    // enemies, the Dreamscape pocket, and the Long Sleep screen tint. Were
+    // inlined in update() → wiped by the draw-phase canvas clear.
+    draw: function (player, ctx) {
+        if (!ctx) return;
+        const f = (typeof window.frame !== 'undefined' ? window.frame : 0);
+        const enemies = (window._world && window._world.enemies) || window.enemies;
+
+        // Lucid Step — dissolved purple smoke around the player
+        if (player.lucidStepPhase) {
+            ctx.save();
+            ctx.globalAlpha = 0.55;
+            const r = (player.radius || 18) + 12 + Math.sin(f * 0.2) * 3;
+            const grad = ctx.createRadialGradient(player.x, player.y, 4, player.x, player.y, r);
+            grad.addColorStop(0, 'rgba(124, 94, 200, 0.7)');
+            grad.addColorStop(1, 'rgba(58, 30, 110, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Drowsy "Zz" stacks above affected enemies
+        if (enemies) {
+            enemies.forEach(e => {
+                if (!e._dreamDrowsy || e._dreamDrowsy <= 0) return;
+                ctx.save();
+                ctx.translate(e.x, e.y - (e.radius || 18) - 22);
+                ctx.fillStyle = 'rgba(180, 160, 240, 0.85)';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                for (let i = 0; i < e._dreamDrowsy; i++) {
+                    ctx.fillText('z', i * 6 - (e._dreamDrowsy - 1) * 3, -Math.sin(f * 0.1 + i) * 2);
+                }
+                ctx.restore();
+            });
+        }
+
+        // Dreamscape pocket
+        if (player.dreamPocket) {
+            const dp = player.dreamPocket;
+            ctx.save();
+            ctx.translate(dp.x, dp.y);
+            ctx.rotate(f * 0.01);
+            const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, dp.radius);
+            grad.addColorStop(0,   'rgba(90, 62, 158, 0.45)');
+            grad.addColorStop(0.7, 'rgba(40, 20, 90, 0.25)');
+            grad.addColorStop(1,   'rgba(10, 8, 21, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, dp.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(200, 180, 240, 0.35)';
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                const startA = i * (Math.PI * 2 / 3);
+                ctx.arc(0, 0, dp.radius * (0.4 + i * 0.18), startA, startA + Math.PI * 1.4);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // Long Sleep — full-screen indigo overlay. Reset to screen space (the
+        // draw pass runs with the camera transform active).
+        if (player.longSleepActive && window.canvas) {
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.globalAlpha = 0.22 + Math.sin(f * 0.06) * 0.05;
+            const overlay = ctx.createLinearGradient(0, 0, 0, window.canvas.height);
+            overlay.addColorStop(0, '#5a3e9e');
+            overlay.addColorStop(1, '#0a0815');
+            ctx.fillStyle = overlay;
+            ctx.fillRect(0, 0, window.canvas.width, window.canvas.height);
+            ctx.restore();
+        }
+    },
+
     update: function (player, dx, dy, world) {
         const _w = world ?? window._world;
         const { enemies } = _w ?? window;
@@ -356,21 +447,7 @@ window.HERO_LOGIC['dream'] = {
             player.isInvincible = true;
             // Regen 5 HP/sec
             if (f % 12 === 0) player.hp = Math.min(player.maxHp || player.hp, player.hp + 1);
-            // Visual: dissolved purple smoke
-            if (window.ctx) {
-                const ctx = window.ctx;
-                ctx.save();
-                ctx.globalAlpha = 0.55;
-                const r = (player.radius || 18) + 12 + Math.sin(f * 0.2) * 3;
-                const grad = ctx.createRadialGradient(player.x, player.y, 4, player.x, player.y, r);
-                grad.addColorStop(0, 'rgba(124, 94, 200, 0.7)');
-                grad.addColorStop(1, 'rgba(58, 30, 110, 0)');
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.arc(player.x, player.y, r, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
+            // Visual (dissolved purple smoke) drawn in the draw pass — see draw().
             if (player.lucidStepTimer <= 0) {
                 player.lucidStepPhase = false;
                 player.isInvincible = false;
@@ -389,19 +466,8 @@ window.HERO_LOGIC['dream'] = {
                     if (e._dreamDrowsyTimer <= 0) {
                         e._dreamDrowsy = 0;
                         e._dreamSlowFactor = 1;
-                    } else if (window.ctx) {
-                        // Draw stacks as small Zz above
-                        const ctx = window.ctx;
-                        ctx.save();
-                        ctx.translate(e.x, e.y - (e.radius || 18) - 22);
-                        ctx.fillStyle = 'rgba(180, 160, 240, 0.85)';
-                        ctx.font = 'bold 12px sans-serif';
-                        ctx.textAlign = 'center';
-                        for (let i = 0; i < e._dreamDrowsy; i++) {
-                            ctx.fillText('z', i * 6 - (e._dreamDrowsy - 1) * 3, -Math.sin(f * 0.1 + i) * 2);
-                        }
-                        ctx.restore();
                     }
+                    // Drowsy "Zz" stacks drawn in the draw pass — see draw().
                     // Apply slow to velocity components if present
                     if (e._dreamSlowFactor && e._dreamSlowFactor < 1) {
                         if (typeof e.vx === 'number') e.vx *= e._dreamSlowFactor;
@@ -435,31 +501,7 @@ window.HERO_LOGIC['dream'] = {
             if (f % 12 === 0 && Math.hypot(player.x - dp.x, player.y - dp.y) < dp.radius) {
                 player.hp = Math.min(player.maxHp || player.hp, player.hp + 1);
             }
-            // Draw pocket
-            if (window.ctx) {
-                const ctx = window.ctx;
-                ctx.save();
-                ctx.translate(dp.x, dp.y);
-                ctx.rotate(f * 0.01);
-                const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, dp.radius);
-                grad.addColorStop(0,   'rgba(90, 62, 158, 0.45)');
-                grad.addColorStop(0.7, 'rgba(40, 20, 90, 0.25)');
-                grad.addColorStop(1,   'rgba(10, 8, 21, 0)');
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.arc(0, 0, dp.radius, 0, Math.PI * 2);
-                ctx.fill();
-                // Galaxy swirls
-                ctx.strokeStyle = 'rgba(200, 180, 240, 0.35)';
-                ctx.lineWidth = 1.5;
-                for (let i = 0; i < 3; i++) {
-                    ctx.beginPath();
-                    const startA = i * (Math.PI * 2 / 3);
-                    ctx.arc(0, 0, dp.radius * (0.4 + i * 0.18), startA, startA + Math.PI * 1.4);
-                    ctx.stroke();
-                }
-                ctx.restore();
-            }
+            // Dreamscape pocket drawn in the draw pass — see draw().
             if (dp.life <= 0) player.dreamPocket = null;
         }
 
@@ -490,18 +532,7 @@ window.HERO_LOGIC['dream'] = {
             }
             // Phase-step: allies untargetable / pass through enemies — approximate via invincibility
             player.isInvincible = true;
-            // Visual: indigo gradient overlay + stars
-            if (window.ctx && window.canvas) {
-                const ctx = window.ctx;
-                ctx.save();
-                ctx.globalAlpha = 0.22 + Math.sin(f * 0.06) * 0.05;
-                const overlay = ctx.createLinearGradient(0, 0, 0, window.canvas.height);
-                overlay.addColorStop(0, '#5a3e9e');
-                overlay.addColorStop(1, '#0a0815');
-                ctx.fillStyle = overlay;
-                ctx.fillRect(0, 0, window.canvas.width, window.canvas.height);
-                ctx.restore();
-            }
+            // Visual (indigo overlay) drawn in the draw pass — see draw().
             if (player.longSleepTimer <= 0) {
                 player.longSleepActive = false;
                 player.isInvincible = false;

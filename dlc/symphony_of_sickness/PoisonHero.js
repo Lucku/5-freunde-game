@@ -901,7 +901,7 @@ class PoisonHero {
                     const perp = Math.abs(-dx * Math.sin(this._ang) + dy * Math.cos(this._ang));
                     if (along > -60 && along < 60 && perp < this._ww / 2) {
                         this._hit.add(e);
-                        const dmg = (15 + Math.random() * 10) * (player.damageMultiplier || 1);
+                        const dmg = (15 + (window.runState?.rng || Math.random)() * 10) * (player.damageMultiplier || 1);
                         if (typeof e.takeDamage === 'function') e.takeDamage(dmg); else e.hp -= dmg;
                         e.poisonStacks = Math.min((e.poisonStacks || 0) + 20, 100);
                         e.x += Math.cos(this._ang) * 30; e.y += Math.sin(this._ang) * 30;

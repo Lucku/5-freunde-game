@@ -75,6 +75,7 @@ class OnlineLobbyUI {
         if (screen) screen.style.display = 'none';
         if (window.setUIState) window.setUIState('MENU');
         clearTimeout(this._pollTimer);
+        clearTimeout(this._returnTimer); // the 10s return-to-lobby fallback could re-open the screen
     }
 
     // ── Lobby actions ─────────────────────────────────────────────────────────
@@ -202,6 +203,7 @@ class OnlineLobbyUI {
         add('PRE_GAME', msg => {
             // Hide the lobby screen and hand off to the shared versus pre-game screen
             this._removeHandlers();
+            clearTimeout(this._pollTimer); // stop the 1s connect-status poll
             const screen = document.getElementById('online-lobby-screen');
             if (screen) screen.style.display = 'none';
             if (typeof versusMenu !== 'undefined') versusMenu.openOnlinePreGame(msg);
@@ -210,6 +212,7 @@ class OnlineLobbyUI {
         add('GAME_START', msg => {
             // Fallback: if GAME_START somehow arrives while lobby screen is still open
             this._removeHandlers();
+            clearTimeout(this._pollTimer); // stop the 1s connect-status poll
             const screen = document.getElementById('online-lobby-screen');
             if (screen) screen.style.display = 'none';
             if (typeof window.startOnlineGame === 'function') window.startOnlineGame(msg);

@@ -207,6 +207,15 @@ class LightningHero {
         player.customUpdate = (dx, dy, world) => LightningHero.update(player, dx, dy, world);
         player.shoot = (dx, dy, world) => LightningHero.shoot(player, dx, dy, false, world);
         player.customSpecial = (world) => LightningHero.useSpecial(player, world);
+        // customDraw REPLACES the default sprite, so null it for one call to keep
+        // the normal hero body under the static-charge bar.
+        player.customDraw = function (ctx) {
+            LightningHero.draw(player, ctx);
+            const saved = player.customDraw;
+            player.customDraw = null;
+            player.draw();
+            player.customDraw = saved;
+        };
 
         // Setup Special UI: STORM SURGE
         // This is the active spacebar ability.
@@ -273,24 +282,28 @@ class LightningHero {
             }
         }
 
-        // 4. UI: Draw Charge Bar
-        if (typeof ctx !== 'undefined') {
-            const barWidth = 40;
-            const barHeight = 4;
-            const x = player.x - barWidth / 2;
-            const y = player.y - 35;
+        // Static-charge bar drawn in the draw pass — see LightningHero.draw().
+    }
 
-            ctx.fillStyle = '#222';
-            ctx.fillRect(x, y, barWidth, barHeight);
+    // Draw pass (camera transform active). Static-charge bar above the player.
+    // Was inlined in update() → wiped by the draw-phase canvas clear.
+    static draw(player, ctx) {
+        if (!ctx) return;
+        const barWidth = 40;
+        const barHeight = 4;
+        const x = player.x - barWidth / 2;
+        const y = player.y - 35;
 
-            ctx.fillStyle = player.staticCharge >= 100 ? '#fff' : '#ffeb3b';
-            ctx.fillRect(x, y, barWidth * (player.staticCharge / player.maxStaticCharge), barHeight);
+        ctx.fillStyle = '#222';
+        ctx.fillRect(x, y, barWidth, barHeight);
 
-            if (player.staticCharge >= 100) {
-                ctx.strokeStyle = '#00ffff';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(x - 1, y - 1, barWidth + 2, barHeight + 2);
-            }
+        ctx.fillStyle = player.staticCharge >= 100 ? '#fff' : '#ffeb3b';
+        ctx.fillRect(x, y, barWidth * (player.staticCharge / player.maxStaticCharge), barHeight);
+
+        if (player.staticCharge >= 100) {
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x - 1, y - 1, barWidth + 2, barHeight + 2);
         }
     }
 

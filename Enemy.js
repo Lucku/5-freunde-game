@@ -283,6 +283,10 @@ class Enemy {
             currentSpeed *= 0.5;
             this.slowTimer--;
         }
+        if (this._auraSpeedFrames > 0) {
+            currentSpeed *= 1.5; // AURA_SPEED elite buff
+            this._auraSpeedFrames--;
+        }
 
         // --- Behavior Logic ---
         if (this.subType === 'GHOST') {
@@ -407,7 +411,9 @@ class Enemy {
                 if (frame % 10 === 0) {
                     enemies.forEach(e => {
                         if (e !== this && Math.hypot(e.x - this.x, e.y - this.y) < 200) {
-                            e.speedBuff = 1.5; // 50% speed boost
+                            // Re-armed every 10 frames while in range; decays in update()
+                            // so the buff only lasts as long as the enemy stays near the aura.
+                            e._auraSpeedFrames = 15; // ~0.25s window, 50% speed boost
                         }
                     });
                 }

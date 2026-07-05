@@ -202,6 +202,16 @@ window.HERO_LOGIC['psycho'] = {
         player.customSpecial = () => _self.useSpecial(player);
         player.customUpdate = (dx, dy) => { _self.update(player, dx, dy); return false; };
 
+        // Draw-pass hook. customDraw REPLACES the default sprite, so null it for
+        // one call to keep rendering the normal hero body under the FX.
+        player.customDraw = function (ctx) {
+            _self.draw(player, ctx);
+            const saved = player.customDraw;
+            player.customDraw = null;
+            player.draw();
+            player.customDraw = saved;
+        };
+
         // Special UI
         const origSetupSpecial = player.setupSpecial ? player.setupSpecial.bind(player) : null;
         player.setupSpecial = function () {
@@ -295,23 +305,10 @@ window.HERO_LOGIC['psycho'] = {
             bouncesLeft--;
         }
 
-        // Visual: draw zap chain on canvas as a quick flash (handled by adding to a global FX list if available;
-        // otherwise do an immediate canvas burst)
-        if (window.ctx && chainPoints.length > 1) {
-            const ctx = window.ctx;
-            ctx.save();
-            ctx.strokeStyle = '#ffffff';
-            ctx.shadowColor = '#1abc9c';
-            ctx.shadowBlur = 16;
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(chainPoints[0].x, chainPoints[0].y);
-            for (let i = 1; i < chainPoints.length; i++) {
-                const cp = chainPoints[i];
-                ctx.lineTo(cp.x + (Math.random() - 0.5) * 12, cp.y + (Math.random() - 0.5) * 12);
-            }
-            ctx.stroke();
-            ctx.restore();
+        // Persist the zap chain so the draw pass renders it — drawing here (the
+        // special/update phase) is wiped by the draw-phase canvas clear.
+        if (chainPoints.length > 1) {
+            player._psychoZap = { points: chainPoints.slice(), life: 12 };
         }
 
         player.specialCooldown = 600; // 10s cooldown
@@ -319,9 +316,49 @@ window.HERO_LOGIC['psycho'] = {
         return true;
     },
 
+    // Draw pass (camera transform active). DELIRIUM distortion vignette
+    // (screen-space bars) + the MIND FRACTURE zap-chain flash (world-space).
+    // Both were inlined in the update/special phase → wiped by the draw clear.
+    draw: function (player, ctx) {
+        if (!ctx) return;
+        const t = (typeof window.frame !== 'undefined' ? window.frame : Date.now() * 0.06);
+
+        // MIND FRACTURE zap chain (persisted for a few frames)
+        const zap = player._psychoZap;
+        if (zap && zap.life > 0 && zap.points && zap.points.length > 1) {
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, zap.life / 12);
+            ctx.strokeStyle = '#ffffff';
+            ctx.shadowColor = '#1abc9c';
+            ctx.shadowBlur = 16;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(zap.points[0].x, zap.points[0].y);
+            for (let i = 1; i < zap.points.length; i++) {
+                const cp = zap.points[i];
+                ctx.lineTo(cp.x + (Math.random() - 0.5) * 12, cp.y + (Math.random() - 0.5) * 12);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // DELIRIUM distortion vignette — screen space (reset the camera transform)
+        if (player.transformActive && player.currentForm === 'DELIRIUM' && window.canvas) {
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.globalAlpha = 0.25 + Math.sin(t * 0.4) * 0.1;
+            ctx.fillStyle = '#1abc9c';
+            ctx.fillRect(0, 0, window.canvas.width, 80);
+            ctx.fillRect(0, window.canvas.height - 80, window.canvas.width, 80);
+            ctx.restore();
+        }
+    },
+
     update: function (player, dx, dy, world) {
         const _w = world ?? window._world;
         const { enemies } = _w ?? window;
+
+        if (player._psychoZap && player._psychoZap.life > 0) player._psychoZap.life--;
 
         // DELIRIUM Ultimate
         if (player.transformActive && player.currentForm === 'DELIRIUM') {
@@ -334,17 +371,7 @@ window.HERO_LOGIC['psycho'] = {
                     e._psychoConfused = Math.max(e._psychoConfused || 0, 30);
                 });
             }
-            // Distortion vignette
-            if (window.ctx) {
-                const ctx = window.ctx;
-                const t = (typeof frame !== 'undefined' ? frame : Date.now() * 0.06);
-                ctx.save();
-                ctx.globalAlpha = 0.25 + Math.sin(t * 0.4) * 0.1;
-                ctx.fillStyle = '#1abc9c';
-                ctx.fillRect(0, 0, (typeof window !== 'undefined' && window.canvas) ? window.canvas.width : 1920, 80);
-                ctx.fillRect(0, ((typeof window !== 'undefined' && window.canvas) ? window.canvas.height : 1080) - 80, (typeof window !== 'undefined' && window.canvas) ? window.canvas.width : 1920, 80);
-                ctx.restore();
-            }
+            // Distortion vignette drawn in the draw pass — see draw().
             if (player.deliriumTimer <= 0) {
                 player.transformActive = false;
                 player.currentForm = 'NONE';

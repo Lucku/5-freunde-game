@@ -39,6 +39,8 @@ class NetworkManager {
 
         // Global lobby — remote player state (userId → { x, y, angle, hero, username })
         this.remotePlayers  = {};
+        this._inGlobalLobby  = false;
+        this._globalLobbyHero = null;
         this._lastMoveSent  = 0;
         this._lastMoveX     = null;
         this._lastMoveY     = null;
@@ -71,6 +73,12 @@ class NetworkManager {
             clearTimeout(this._reconnectTimer);
             this._startPing();
             console.log('[Network] Connected');
+            // Re-announce global-lobby presence after a reconnect (the server
+            // dropped us from it on the socket close).
+            if (this._inGlobalLobby) {
+                this.remotePlayers = {};
+                this.send({ type: 'JOIN_GLOBAL_LOBBY', hero: this._globalLobbyHero });
+            }
         };
 
         this._ws.onmessage = (ev) => {
@@ -303,10 +311,17 @@ class NetworkManager {
 
     joinGlobalLobby(hero) {
         this.remotePlayers = {};
+        // Remember membership so a reconnect can re-announce presence — the
+        // server drops the user from the global lobby on any socket drop and
+        // only auto-rejoins in_game lobbies, so otherwise the player becomes an
+        // invisible ghost after a blip in the museum.
+        this._inGlobalLobby  = true;
+        this._globalLobbyHero = hero;
         this.send({ type: 'JOIN_GLOBAL_LOBBY', hero });
     }
 
     leaveGlobalLobby() {
+        this._inGlobalLobby = false;
         this.send({ type: 'LEAVE_GLOBAL_LOBBY' });
         this.remotePlayers = {};
     }

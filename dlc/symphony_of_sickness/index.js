@@ -552,12 +552,12 @@ window.DLC_REGISTRY[DLC_ID] = SymphonyDLC;
                     // Return types defined in PoisonEnemies (or assume standard if not loaded 3rd party classes)
                     // Currently using standard types but modified by Biome? 
                     // Let's use standard 'TOXIC' + chance for 'SLIME'
-                    if (Math.random() < 0.3) return 'TOXIC';
+                    if ((window.runState?.rng || Math.random)() < 0.3) return 'TOXIC';
                     return null; // Fallback to standard rng
                 }
                 if (c.includes('sound') || c === 'rhythm') {
                     // Sound Biome Spawns
-                    if (Math.random() < 0.3) return 'SPEEDSTER'; // Fast tempo
+                    if ((window.runState?.rng || Math.random)() < 0.3) return 'SPEEDSTER'; // Fast tempo
                     return null;
                 }
             }

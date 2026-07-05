@@ -273,8 +273,14 @@ const TestingGrounds = {
     },
 
     clearAll() {
-        enemies = [];
-        projectiles = [];
+        // Splice in place — reassigning `enemies`/`projectiles` detaches the
+        // globals from their ECS sentinel proxies, after which every future
+        // Enemy/Projectile.acquire is invisible/non-colliding (see EvilMode).
+        for (let i = enemies.length - 1; i >= 0; i--) enemies.splice(i, 1);
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            if (typeof Projectile !== 'undefined') Projectile.release(projectiles[i]);
+            projectiles.splice(i, 1);
+        }
         bossActive = false;
         showNotification('All enemies cleared');
     },

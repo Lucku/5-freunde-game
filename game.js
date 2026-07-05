@@ -516,6 +516,19 @@ function _maybeShowTelemetryConsent() {
     } catch (e) { console.warn('Telemetry consent modal failed:', e); }
 }
 
+// Post-info startup modals (what's-new + telemetry opt-in). Triggered once per
+// session by InfoDialogueManager._onQueueEmpty — i.e. AFTER the info-dialogue
+// queue, which on first launch only runs once the tutorial prompt is resolved.
+// The once-guard keeps the telemetry "ask me later" choice a once-per-boot prompt
+// rather than re-firing on every return to the menu (initMenu re-drains the queue).
+let _postInfoStartupModalsDone = false;
+window._runPostInfoStartupModals = function () {
+    if (_postInfoStartupModalsDone) return;
+    _postInfoStartupModalsDone = true;
+    _maybeShowWhatsNew();
+    _maybeShowTelemetryConsent();
+};
+
 window.respondTelemetryConsent = function (accepted) {
     const modal = document.getElementById('telemetry-consent-modal');
     if (modal) modal.style.display = 'none';
@@ -1517,6 +1530,10 @@ function skipTutorialPrompt() {
     saveData.tutorial.seen = true;
     saveGame();
     setUIState('MENU');
+    // Tutorial prompt cancelled — now run the deferred info-dialogue queue +
+    // post-queue startup modals (what's-new, telemetry). seen=true above means
+    // startQueue() no longer re-shows the prompt and drains normally.
+    if (window.infoDialogueManager) window.infoDialogueManager.startQueue();
 }
 
 function startStoryGame() {
@@ -2912,8 +2929,9 @@ let forcedEnemyType = null;
 
 function getDailySeed() {
     const now = new Date();
-    // Create a unique integer for the day (YYYYMMDD)
-    return parseInt(`${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`);
+    // UTC (YYYYMMDD) so every player's daily rolls over at the same instant,
+    // matching getWeeklySeed's UTC clock (was local time — timezone-split boards).
+    return parseInt(`${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}`);
 }
 
 function getDailyMutators() {
@@ -2960,24 +2978,18 @@ function getWeeklySeed() {
 
 function getWeeklyMutators() {
     const seed = getWeeklySeed();
-    const random = (seed) => {
-        const x = Math.sin(seed++) * 10000;
-        return x - Math.floor(x);
-    };
-
-    let currentSeed = seed;
+    // mulberry32 is uniform — matches getDailyMutators. The previous Math.sin
+    // PRNG skewed selection so some mutator combos were globally rare.
+    const rng = mulberry32(seed);
     const count = 3; // Always 3 mutators for Weekly
-    currentSeed++;
-
     const selected = [];
     const pool = [...MUTATORS];
 
     for (let i = 0; i < count; i++) {
         if (pool.length === 0) break;
-        const index = Math.floor(random(currentSeed) * pool.length);
+        const index = Math.floor(rng() * pool.length);
         selected.push(pool[index]);
         pool.splice(index, 1);
-        currentSeed++;
     }
     return selected;
 }
@@ -4612,7 +4624,8 @@ window.showAchievementNotif = showAchievementNotif;
 
 function checkAchievements() {
     saveData.global.totalKills++;
-    saveData.global.totalGold = (saveData.global.totalGold || 0) + 1;
+    // (Gold is accrued on pickup in updateGameplayMid; incrementing per kill here
+    // conflated kill count into "Total Gold" and skewed the gold-tier achievements.)
     if (runState.wave > saveData.global.maxWave) saveData.global.maxWave = runState.wave;
     if (runState.currentRunStats.maxCombo > (saveData.global.maxCombo || 0)) saveData.global.maxCombo = runState.currentRunStats.maxCombo;
 
@@ -6872,13 +6885,15 @@ function _launchMenu() {
         if (loader && loader.style.display !== 'none' && loader.style.opacity !== '0') {
             loader.style.transition = 'opacity 0.5s';
             loader.style.opacity = '0';
-            setTimeout(() => { loader.remove(); initMenu(); _maybeShowWhatsNew(); _maybeOfferCrashRecovery(); _maybeShowTelemetryConsent(); }, 500);
+            // what's-new + telemetry opt-in are deferred to _runPostInfoStartupModals
+            // (fired after the info-dialogue queue, which on first launch runs only
+            // after the tutorial prompt is resolved). Crash recovery stays here — it
+            // only appears if an interrupted run exists (never on a true first launch).
+            setTimeout(() => { loader.remove(); initMenu(); _maybeOfferCrashRecovery(); }, 500);
         } else {
             if (loader) loader.remove();
             initMenu();
-            _maybeShowWhatsNew();
             _maybeOfferCrashRecovery();
-            _maybeShowTelemetryConsent();
         }
     });
 }
