@@ -50,7 +50,6 @@ class OnlineLobbyUI {
         const screen = document.getElementById('online-lobby-screen');
         if (screen) screen.style.display = 'flex';
         if (window.setUIState) window.setUIState('ONLINE_LOBBY');
-        if (window.audioManager) window.audioManager.playMenuMusic?.();
 
         this._reset();
         this._buildHeroGrid();
@@ -355,7 +354,6 @@ class OnlineLobbyUI {
         const screen = document.getElementById('online-lobby-screen');
         if (screen) screen.style.display = 'flex';
         if (window.setUIState) window.setUIState('ONLINE_LOBBY');
-        if (window.audioManager) window.audioManager.playMenuMusic?.();
         this._removeHandlers();
         this._registerHandlers();
         this._showPanel('connect');

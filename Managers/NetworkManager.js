@@ -328,10 +328,14 @@ class NetworkManager {
 
     sendPlayerMove(x, y, angle, hero) {
         const now = Date.now();
-        const dx = Math.abs(x - this._lastMoveX);
-        const dy = Math.abs(y - this._lastMoveY);
-        const da = Math.abs(angle - this._lastMoveAngle);
-        if (now - this._lastMoveSent < 50 && dx < 2 && dy < 2 && da < 0.05) return;
+        // Skip the dedup on the very first move (baselines still null) — otherwise
+        // `x - null` coerces to `x - 0` and the thresholds compare against garbage.
+        if (this._lastMoveX !== null) {
+            const dx = Math.abs(x - this._lastMoveX);
+            const dy = Math.abs(y - this._lastMoveY);
+            const da = Math.abs(angle - this._lastMoveAngle);
+            if (now - this._lastMoveSent < 50 && dx < 2 && dy < 2 && da < 0.05) return;
+        }
         this._lastMoveSent  = now;
         this._lastMoveX     = x;
         this._lastMoveY     = y;

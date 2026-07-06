@@ -426,6 +426,7 @@ class AudioManager {
     // categorised (only level_up / pickup_card / achievement_unlocked tagged).
     _categoryOf(key) {
         if (this.isMusic(key)) return 'music';
+        if (/^(voice_|exclamation_)/.test(key)) return 'voice';
         if (/^(level_up|pickup_|achievement|wave_completed|challenge_)/.test(key)) return 'ui';
         return 'sfx';
     }

@@ -151,9 +151,10 @@ export function _drawGameplayMid() {
     // Powerups draw pass — survivors of the update loop above.
     drawPowerUps(ctx, runState);
     // Projectile draw pass — survivors of the update + collision sweep above.
-    for (const proj of projectiles) proj.draw();
+    // Indexed (not for..of) to avoid allocating a proxy iterator every frame.
+    for (let _pi = 0, _pn = projectiles.length; _pi < _pn; _pi++) projectiles[_pi].draw();
     // Melee swipes draw pass — survivors of the update loop above.
-    for (const att of meleeAttacks) att.draw();
+    for (let _mi = 0, _mn = meleeAttacks.length; _mi < _mn; _mi++) meleeAttacks[_mi].draw();
 
     // Particle draw pass (ECS). drawParticles internally
     // skips off-screen culling per slot by setting globalAlpha + drawImage;
@@ -166,7 +167,8 @@ export function _drawGameplayMid() {
 
     // Enemy draw pass. Survivors of the update + collision loop
     // above. Hit-flash overlay (ghost-only) renders on top of the enemy sprite.
-    for (const enemy of enemies) {
+    for (let _ei = 0, _en = enemies.length; _ei < _en; _ei++) {
+        const enemy = enemies[_ei];
         enemy.draw();
         if (enemy._ghost && enemy._hitFlash > 0) {
             ctx.save();

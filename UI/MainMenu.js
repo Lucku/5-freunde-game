@@ -40,7 +40,7 @@ class MainMenuUI {
         heroes.forEach(h => {
             // Ensure save data exists
             if (!window.saveData[h]) {
-                window.saveData[h] = { level: 0, unlocked: 0, highScore: 0, prestige: 0, storyCompleted: false, bestSpeedrunSec: null };
+                window.saveData[h] = { level: 0, unlocked: 0, highScore: 0, prestige: 0, maxWinPrestige: -1, storyCompleted: false, bestSpeedrunSec: null };
                 if (h === 'earth') window.saveData[h].unlocked = 1;
                 saveDirty = true;
             }

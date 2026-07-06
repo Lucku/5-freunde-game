@@ -131,8 +131,6 @@ class Enemy {
             }
 
             // Apply Card Nerfs
-            const nerfHp = getCollectionBonuses(this.eliteType.id).damageMult; // Using damageMult as HP nerf here for simplicity or add specific logic
-            // Actually, let's check specific card bonuses
             if (this.eliteType.id === 'AURA_SPEED' && getCollectionBonuses('ELITE_AURA_SPEED').damageMult > 1) {
                 this.hp *= 0.9; // 10% less HP
             }
@@ -351,8 +349,7 @@ class Enemy {
                 // Leave a stationary projectile (puddle)
                 const puddle = Projectile.acquire(this.x, this.y, { x: 0, y: 0 }, 5, '#2ecc71', 10, 'enemy', 0, true);
                 puddle.shooterType = 'TOXIC';
-                puddle.life = 180; // Custom life property needed in Projectile or handle cleanup
-                // Since Projectile doesn't have life, we'll just use a slow projectile
+                puddle.life = 180; // Puddle expires after 180 frames (~3s)
                 projectiles.push(puddle);
                 this.shootCooldown = 30;
             }

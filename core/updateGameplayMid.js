@@ -1369,7 +1369,10 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 }
 
                 enemies.splice(eIndex, 1);
-                const remainingBosses = enemies.filter(e => e instanceof Boss).length;
+                // The splice above removes the boss from runState.bossInstances too
+                // (sentinel keeps them in sync), so read the count directly instead
+                // of allocating a filtered array every boss kill.
+                const remainingBosses = runState.bossInstances.length;
                 if (remainingBosses === 0) {
                     runState.bossActive = false;
 
