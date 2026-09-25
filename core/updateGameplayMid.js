@@ -989,6 +989,10 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         // this loop. The hit-flash decrement stays here since
         // it's state mutation; the visual is drawn below at the new flash value.
         if (enemy._ghost && enemy._hitFlash > 0) enemy._hitFlash--;
+        // Online ghosts are server-owned: local contact / melee may still show
+        // feedback, but must not push or kill them — the next snapshot snaps a
+        // pushed ghost back (visible jitter), and the server confirms deaths.
+        const _ownsEnemy = !enemy._ghost;
         const dist = Math.hypot(runState.player.x - enemy.x, runState.player.y - enemy.y);
 
         if (dist - enemy.radius - runState.player.radius < 0 && !runState.player.isDashing) {
@@ -1001,10 +1005,12 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 }
 
                 // Reflect damage?
-                enemy.hp -= 5;
                 createExplosion(runState.player.x, runState.player.y, '#95a5a6');
-                const angle = Math.atan2(enemy.y - runState.player.y, enemy.x - runState.player.x);
-                enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20;
+                if (_ownsEnemy) {
+                    enemy.hp -= 5;
+                    const angle = Math.atan2(enemy.y - runState.player.y, enemy.x - runState.player.x);
+                    enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20;
+                }
                 continue; // Skip damage
             }
 
@@ -1012,7 +1018,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             if (runState.player.heroType === 'EARTH' && runState.player.momentum >= runState.player.maxMomentum * 0.95) {
                 // Bounce enemy away
                 const angle = Math.atan2(enemy.y - runState.player.y, enemy.x - runState.player.x);
-                if (!(enemy instanceof Boss)) {
+                if (_ownsEnemy && !(enemy instanceof Boss)) {
                     enemy.x += Math.cos(angle) * 50;
                     enemy.y += Math.sin(angle) * 50;
                 }
@@ -1035,14 +1041,14 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
                 dmgTaken = speedsterDmg * (1 - runState.player.damageReduction);
                 createExplosion(runState.player.x, runState.player.y, '#e74c3c');
-                enemy.hp = 0; // Suicide
+                if (_ownsEnemy) enemy.hp = 0; // Suicide
             }
 
             // Thornmail (Altar p3) — : route reflect damage through
             // applyDamage so it respects isInvincible + customOnDamage on
             // the enemy. Keeps the original "REFLECT" pop + explosion.
             if (runState.player.thornmailTimer > 0) {
-                applyDamage(enemy, 20, { label: 'Thornmail', color: '#2ecc71', noFloatText: true, sfx: null });
+                if (_ownsEnemy) applyDamage(enemy, 20, { label: 'Thornmail', color: '#2ecc71', noFloatText: true, sfx: null });
                 createExplosion(runState.player.x, runState.player.y, '#2ecc71');
                 floatingTexts.push(FloatingText.acquire(runState.player.x, runState.player.y - 40, "REFLECT", "#2ecc71", 16));
             }
@@ -1075,11 +1081,12 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             }
 
             const angle = Math.atan2(enemy.y - runState.player.y, enemy.x - runState.player.x);
-            if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20; }
+            if (_ownsEnemy && !(enemy instanceof Boss)) { enemy.x += Math.cos(angle) * 20; enemy.y += Math.sin(angle) * 20; }
         }
 
-        // Co-op: P2 enemy body contact damage
-        if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2.isDead && !runState.player2.isInvincible) {
+        // Co-op: P2 enemy body contact damage. Skipped for the online partner
+        // ghost — its own client + the server own its HP / death state.
+        if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2._ghost && !runState.player2.isDead && !runState.player2.isInvincible) {
             const distP2 = Math.hypot(runState.player2.x - enemy.x, runState.player2.y - enemy.y);
             if (distP2 - enemy.radius - runState.player2.radius < 0 && !runState.player2.isDashing) {
                 let p2Dmg = 1 * (1 - runState.player2.damageReduction);
@@ -1125,9 +1132,13 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             if (pDist - enemy.radius - proj.radius >= 0) continue;
 
             // Ghost enemies on the guest side: consume the projectile
-            // for visual feedback but skip authoritative damage/flash.
+            // for visual feedback but skip authoritative damage/flash. Only
+            // locally-predicted shots are consumed — server-owned ghost shots
+            // vanish when a snapshot drops them (the orphan pass lets them
+            // finish their rendered flight); consuming one here made the next
+            // snapshot re-create it mid-flight.
             if (enemy._ghost) {
-                if (!proj.pierce || proj.pierce <= 0) {
+                if (!proj._ghost && (!proj.pierce || proj.pierce <= 0)) {
                     const _gIdx = projectiles.indexOf(proj);
                     if (_gIdx >= 0) { Projectile.release(proj); projectiles.splice(_gIdx, 1); }
                 }
@@ -1271,7 +1282,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 let diff = angleToEnemy - att.angle;
                 while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
                 if (Math.abs(diff) < Math.PI / 3) {
-                    enemy.hp -= att.damage;
+                    if (_ownsEnemy) enemy.hp -= att.damage;
                     enemy.hitFlashTimer = 6;
                     if (enemy.hp <= 0 && enemy.hp + att.damage > 0) {
                         enemy.lastHitBy = 'MELEE';
@@ -1297,12 +1308,15 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     saveData.global.totalDamage += att.damage;
                     bumpDamageSource('melee', att.damage);
                     createExplosion(enemy.x, enemy.y, att.color); att.hitList.push(enemy._id);
-                    if (!(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
+                    if (_ownsEnemy && !(enemy instanceof Boss)) { enemy.x += Math.cos(angleToEnemy) * 50; enemy.y += Math.sin(angleToEnemy) * 50; }
                 }
             }
         });
 
-        if (enemy.hp <= 0) {
+        // Ghosts only die when the server drops them from a snapshot (its
+        // `enemy_death` event plays the burst) — a local kill would splice the
+        // ghost, then the snapshot re-adds it until the server catches up.
+        if (enemy.hp <= 0 && _ownsEnemy) {
             enemy.dead = true; // Prevent double-processing if forEach+splice skips this enemy
             if (!(enemy instanceof Boss)) createDeathBurst(enemy.x, enemy.y, enemy.color || '#e74c3c', enemy.subType);
             if (runState.isChaosShuffleMode) checkChaosEvent('KILL', { isMelee: (enemy.lastHitBy === 'MELEE') });

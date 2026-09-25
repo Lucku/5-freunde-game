@@ -98,7 +98,7 @@ Cross-cutting subsystems, one file per concern:
 | `UIManager` | `setUIState(state)` drives which screen is "focused" for gamepad nav. Announces transitions to the ARIA live region. |
 | `StoryManager` | Story-mode chapter unlock + boss reveal flow. |
 | `IntroManager` | First-launch intro screens. |
-| `NetworkManager` | WebSocket client to `server/server.js`. Snapshot interpolation (cubic Hermite), MTU-aware fragmentation. |
+| `NetworkManager` | WebSocket client to `server/server.js`. Snapshot interpolation (cubic Hermite), dead-socket detection (10 s silence → reconnect). |
 | `CloudSaveManager` | Save sync to server. |
 | `CrashReporter` | Catches `window.onerror` + console breadcrumbs, POSTs to `/api/crash`. |
 | `SpatialHash` | Cell-bucket structure for AOE-radius queries. |
@@ -152,7 +152,7 @@ saveData = {
 - `POST /api/save` / `GET /api/save` (cloud sync)
 - `POST /api/crash` (in-house crash reporter)
 - `GET /api/admin/*` (admin dashboard at `/admin`)
-- `WS /ws` — lobby + match state, gameplay snapshots (permessage-deflate compressed, MTU-fragmented). Origin allowlist via `ALLOWED_WS_ORIGINS` env var.
+- `WS /ws` — lobby + match state, gameplay snapshots (permessage-deflate compressed, server context kept between messages). 5 s ping/pong heartbeat terminates half-open sockets. Origin allowlist via `ALLOWED_WS_ORIGINS` env var.
 
 [`server/simulation/`](server/simulation/) — runs the same `Player` / `Enemy` / `Arena` code as the client. `GameSession` ticks at 30 Hz (drops to 20 Hz under CPU pressure via variable tick-rate). Inputs come from the client over WS; world state is broadcast back as snapshots.
 
@@ -160,7 +160,8 @@ saveData = {
 
 - **Snapshots**: cubic-Hermite-interpolated entity positions (Catmull-Rom tangents). Delta-encoded per entity (first appearance carries full payload, subsequent frames send only changed fields).
 - **Compression**: WebSocket `permessage-deflate` (replaced the abandoned Zstd plan — same effect, zero handshake, broader support).
-- **Fragmentation**: snapshots above MTU split + reassembled by sequence number.
+- **One message per snapshot**: entity-count chunking was removed (no benefit over TCP); the client still reassembles `chunk`-tagged parts from older servers. Default-valued enemy fields are omitted and enemy `hp` ships only on change / keyframe.
+- **Reconnect grace**: a dropped player's slot is held for 30 s and the session is paused (`GameSession.paused`) until they rejoin; the partner sees `PARTNER_RECONNECTING`, and `PARTNER_DISCONNECTED` only when the grace expires.
 - **Anti-cheat**: server-signed session token issued at run start; leaderboard submissions clamped to hero-specific damage caps; rate-limited per IP.
 
 ## CI

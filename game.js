@@ -206,6 +206,8 @@ window.gameContext.defaultSaveData = defaultSaveData; // Owned by GameContext, m
 // rewritten throughout game.js. DLC + leaf modules still read via window.X
 // — defineProperty bridges below route to runState.X.
 let _onlineEvents = [];     // event queue flushed with each host snapshot
+let _onlineGameSubs = [];   // unsubscribe fns for in-game nm handlers (cleared per match)
+let _onlinePartnerLeveling = false; // partner has the level-up modal open → server paused
 let coopP2HeroType = null;
 let coopP1GamepadIndex = -1;
 let coopP2GamepadIndex = -1;
@@ -2048,18 +2050,23 @@ function startOnlineGame(msg) {
         window.selectedBiome = _vb[window._onlineBiomeSeed % _vb.length];
     }
 
-    // Both clients handle server-pushed messages directly (no RELAY wrapper in-game)
-    nm.on('SNAPSHOT',        (s)  => { if (runState.isOnlineMode) _onlineHandleSnapshot(s); });
-    nm.on('LEVEL_UP',        (ev) => { if (runState.isOnlineMode) _onlineShowLevelUpForGuest(ev); });
-    nm.on('PARTNER_LEVELING',()   => { if (runState.isOnlineMode) _onlineShowPartnerLevelingOverlay(true); });
-    nm.on('LEVEL_UP_DONE',   ()   => { if (runState.isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
+    // Both clients handle server-pushed messages directly (no RELAY wrapper in-game).
+    // Subscriptions are tracked and dropped in _onlineCleanup — without that,
+    // every later match in the same app session stacked another copy of each
+    // handler and applied every snapshot (and its dx/dy deltas) N times.
+    _offOnlineGameHandlers();
+    const sub = (type, fn) => _onlineGameSubs.push(nm.on(type, fn));
+    sub('SNAPSHOT',        (s)  => { if (runState.isOnlineMode) _onlineHandleSnapshot(s); });
+    sub('LEVEL_UP',        (ev) => { if (runState.isOnlineMode) _onlineShowLevelUpForGuest(ev); });
+    sub('PARTNER_LEVELING',()   => { if (runState.isOnlineMode) _onlineShowPartnerLevelingOverlay(true); });
+    sub('LEVEL_UP_DONE',   ()   => { if (runState.isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
 
-    nm.on('PARTNER_RECONNECTING', (msg) => { if (runState.gameRunning) _onlineShowReconnectOverlay(true, msg.timeoutSec || 30); });
-    nm.on('PARTNER_DISCONNECTED', () => { if (runState.gameRunning) _onlineShowReconnectOverlay(true, 0); });
-    nm.on('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
-    nm.on('GAME_OVER', () => { if (runState.isOnlineMode) gameOver(false); });
-    nm.on('STORY_CONTINUE', () => { if (runState.isOnlineMode && runState.isStoryOpen) _onlinePartnerContinueStory(); });
-    nm.on('MAZE_NODE_SELECTED', (msg) => {
+    sub('PARTNER_RECONNECTING', (msg) => { if (runState.gameRunning) _onlineShowReconnectOverlay(true, msg.timeoutSec || 30); });
+    sub('PARTNER_DISCONNECTED', () => { if (runState.gameRunning) _onlineShowReconnectOverlay(true, 0); });
+    sub('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
+    sub('GAME_OVER', () => { if (runState.isOnlineMode) gameOver(false); });
+    sub('STORY_CONTINUE', () => { if (runState.isOnlineMode && runState.isStoryOpen) _onlinePartnerContinueStory(); });
+    sub('MAZE_NODE_SELECTED', (msg) => {
         if (!runState.isOnlineMode) return;
         // Close the read-only spectator maze UI
         if (window.mazeIsOpen && window.mazeUI) window.mazeUI.close();
@@ -2082,7 +2089,14 @@ function startOnlineGame(msg) {
 }
 window.startOnlineGame = startOnlineGame;
 
+function _offOnlineGameHandlers() {
+    for (const off of _onlineGameSubs) off();
+    _onlineGameSubs = [];
+}
+
 function _onlineCleanup() {
+    _offOnlineGameHandlers();
+    _onlinePartnerLeveling = false;
     runState.isOnlineMode  = false;
     runState.isOnlineHost  = false;
     runState.isOnlineGuest = false;
@@ -2254,6 +2268,8 @@ function _resetGameState() {
     _lastServerT       = null;
     _snapGapEMA        = null;
     _snapJitterEMA     = null;
+    _onlineEnemyBase.clear();
+    _onlineProjBase.clear();
     runState.gameRunning = false;
     runState.isTutorialMode = false;
     runState.isTestingMode = false;
@@ -5563,6 +5579,14 @@ function _currentInterpDelay() {
 // observed offset (least-delayed packet) and slowly drifts to follow clock skew.
 let _onlineClockOffset = null;
 
+// Last reconstructed absolute position per server entity id, the base the next
+// `dx, dy` delta applies to. Kept apart from the ghost objects: a ghost removed
+// locally (projectile consumed on hit, DLC splice) and re-created from a
+// delta-only entry used to rebuild from (0, 0) — a corner teleport until the
+// next keyframe. Rebuilt each snapshot so ids that left the view drop out.
+let _onlineEnemyBase = new Map(); // id → [x, y]
+let _onlineProjBase  = new Map();
+
 function _onlineUpdateClockOffset(serverT) {
     const sample = Date.now() - serverT;
     if (_onlineClockOffset === null || sample < _onlineClockOffset) {
@@ -5741,6 +5765,8 @@ function _onlineApplySnapshot(s) {
     // Rebuild ghost enemy array from snapshot
     const _now = Date.now();
     const _prevMap = new Map(enemies.filter(e => e._ghost).map(e => [e._id, e]));
+    const _prevEnemyBase = _onlineEnemyBase;
+    _onlineEnemyBase = new Map();
     _replaceArrInPlace(enemies, s.enemies.map(ed => {
         // Reuse existing ghost object if possible (avoids GC churn)
         let e = _prevMap.get(ed._id);
@@ -5761,18 +5787,24 @@ function _onlineApplySnapshot(s) {
         if (ed.x !== undefined) {
             _ax = ed.x; _ay = ed.y;
         } else {
-            _ax = (e._lastSnapX ?? 0) + (ed.dx || 0);
-            _ay = (e._lastSnapY ?? 0) + (ed.dy || 0);
+            // No base only when this client missed the id's keyframe (rejoin
+            // mid-match — see plan N10); the next keyframe corrects it.
+            const _b = _prevEnemyBase.get(ed._id);
+            _ax = (_b ? _b[0] : (e.x ?? 0)) + (ed.dx || 0);
+            _ay = (_b ? _b[1] : (e.y ?? 0)) + (ed.dy || 0);
         }
-        e._lastSnapX = _ax; e._lastSnapY = _ay;
+        _onlineEnemyBase.set(ed._id, [_ax, _ay]);
         e._sx = _ax; e._sy = _ay;
         e._snapshotAt = _now;
         e.vx = ed.vx || 0; e.vy = ed.vy || 0;
         if (!e._snapBuf) { e._snapBuf = [{ x: _ax, y: _ay, t: _serverT }]; e.x = _ax; e.y = _ay; }
         else { e._snapBuf.push({ x: _ax, y: _ay, t: _serverT }); if (e._snapBuf.length > _SNAP_BUF_MAX) e._snapBuf.shift(); }
-        const _prevEHp = e.hp;
-        e.hp = ed.hp;
-        if (ed.hp < _prevEHp && _prevEHp > 0) e._hitFlash = 6;
+        // hp ships only on first sight / keyframe / change — keep last value.
+        if (ed.hp !== undefined) {
+            const _prevEHp = e.hp;
+            e.hp = ed.hp;
+            if (ed.hp < _prevEHp && _prevEHp > 0) e._hitFlash = 6;
+        }
         e.alpha = ed.alpha !== undefined ? ed.alpha : 1;
         e.frozenTimer = ed.frozenTimer || 0;
         e.slowTimer   = 0;
@@ -5820,6 +5852,8 @@ function _onlineApplySnapshot(s) {
         if (p && p._ghost) _prevSlotById.set(p._id, p);
     }
     const _newProjIds = new Set();
+    const _prevProjBase = _onlineProjBase;
+    _onlineProjBase = new Map();
     for (const pd of s.projectiles) {
         _newProjIds.add(pd._id);
         let p = _prevSlotById.get(pd._id);
@@ -5845,11 +5879,11 @@ function _onlineApplySnapshot(s) {
         if (pd.x !== undefined) {
             _pax = pd.x; _pay = pd.y;
         } else {
-            _pax = (p._lastSnapX ?? 0) + (pd.dx || 0);
-            _pay = (p._lastSnapY ?? 0) + (pd.dy || 0);
+            const _b = _prevProjBase.get(pd._id);
+            _pax = (_b ? _b[0] : (p.x ?? 0)) + (pd.dx || 0);
+            _pay = (_b ? _b[1] : (p.y ?? 0)) + (pd.dy || 0);
         }
-        p._lastSnapX  = _pax;
-        p._lastSnapY  = _pay;
+        _onlineProjBase.set(pd._id, [_pax, _pay]);
         p._sx         = _pax;
         p._sy         = _pay;
         p._snapshotAt = _snapTime;
@@ -5879,6 +5913,11 @@ function _onlineApplySnapshot(s) {
         if (_newProjIds.has(id)) continue;
         if (p._orphanAt === undefined) p._orphanAt = _serverT;
     }
+
+    // Self-heal: the server only ticks (and snapshots) while nobody is picking
+    // an upgrade, so a live snapshot means a missed LEVEL_UP_DONE must not keep
+    // this client frozen.
+    if (_onlinePartnerLeveling && s.isLevelingUp === false) _onlineShowPartnerLevelingOverlay(false);
 
     // Game state
     if (s.wave     !== undefined) runState.wave      = s.wave;
@@ -5934,6 +5973,10 @@ function _onlineHideLevelUpWait() {
 
 /** GUEST: show/hide the "partner is choosing an upgrade" overlay. */
 function _onlineShowPartnerLevelingOverlay(show) {
+    // The server freezes the whole session while either player picks an
+    // upgrade. Freeze the local frame too — otherwise local prediction keeps
+    // walking the player and snaps them back when the partner resumes.
+    _onlinePartnerLeveling = !!show;
     const el = document.getElementById('online-partner-leveling-overlay');
     if (!el) return;
     el.style.display = show ? 'flex' : 'none';
@@ -6200,7 +6243,40 @@ let _lastDebugUpdateMs = 0;
 const _phaseTimes = {
     frameWork: new Array(120).fill(0),
     enemies:   new Array(120).fill(0),
+    update:    new Array(120).fill(0), // _updateGameplayPre + _updateGameplayMid
+    draw:      new Array(120).fill(0), // _drawGameplayMid + _drawGameplayPost (incl. hud)
+    hud:       new Array(120).fill(0), // updateUI DOM writes (subset of draw)
+    postfx:    new Array(120).fill(0), // renderPostFX WebGL pass
 };
+
+// Long-animation-frame observer. `frameWork` only times JS inside masterFrame;
+// style / layout / paint (e.g. HUD DOM churn) and hitches from outside the
+// loop (autosave, GC) are invisible to it. LoAF entries (frames > 50 ms) carry
+// that split. Started lazily with the F1 overlay so normal play pays nothing.
+let _loafObserver = null;
+const _loafRecent = []; // { t, dur, script, layout } within the last 10 s
+function _startLoafObserver() {
+    if (_loafObserver || typeof PerformanceObserver === 'undefined') return;
+    if (!PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame')) return;
+    _loafObserver = new PerformanceObserver(list => {
+        for (const e of list.getEntries()) {
+            const end = e.startTime + e.duration;
+            const layoutStart = e.styleAndLayoutStart || end;
+            _loafRecent.push({ t: end, dur: e.duration, script: layoutStart - e.startTime, layout: end - layoutStart });
+        }
+    });
+    _loafObserver.observe({ type: 'long-animation-frame' });
+}
+function _loafSummary() {
+    const cutoff = performance.now() - 10000;
+    while (_loafRecent.length && _loafRecent[0].t < cutoff) _loafRecent.shift();
+    if (!_loafObserver) return 'n/a';
+    if (_loafRecent.length === 0) return 'none';
+    let worst = _loafRecent[0];
+    for (const e of _loafRecent) if (e.dur > worst.dur) worst = e;
+    return `${_loafRecent.length}, worst ${worst.dur.toFixed(0)}ms ` +
+        `(js ${worst.script.toFixed(0)} / style+layout ${worst.layout.toFixed(0)})`;
+}
 function _recordPhase(name, ms) {
     const arr = _phaseTimes[name];
     if (!arr) return;
@@ -6220,6 +6296,7 @@ function _phaseP99(name) {
 }
 function _toggleDebugOverlay() {
     _debugOverlayOn = !_debugOverlayOn;
+    if (_debugOverlayOn) _startLoafObserver();
     const el = document.getElementById('debug-overlay');
     if (el) el.style.display = _debugOverlayOn ? 'block' : 'none';
 }
@@ -6260,6 +6337,7 @@ function _updateDebugOverlay(frameMs) {
     const fwP99 = _phaseP99('frameWork');
     const enP50 = _phaseP50('enemies');
     const enP99 = _phaseP99('enemies');
+    const _phaseStr = (name) => `p50 ${_phaseP50(name).toFixed(1)}ms / p99 ${_phaseP99(name).toFixed(1)}ms`;
     el.textContent =
         `FPS:    ${fps} (p50 ${p50.toFixed(1)}ms / p99 ${p99.toFixed(1)}ms)\n` +
         `Wave:   ${wv}\n` +
@@ -6273,6 +6351,11 @@ function _updateDebugOverlay(frameMs) {
         `HitStop: ${hitStop}\n` +
         `Frame work: p50 ${fwP50.toFixed(1)}ms / p99 ${fwP99.toFixed(1)}ms\n` +
         `Enemies ph: p50 ${enP50.toFixed(1)}ms / p99 ${enP99.toFixed(1)}ms\n` +
+        `Update:  ${_phaseStr('update')}\n` +
+        `Draw:    ${_phaseStr('draw')}\n` +
+        `  HUD:   ${_phaseStr('hud')}\n` +
+        `PostFX:  ${_phaseStr('postfx')}\n` +
+        `Hitches >50ms (10s): ${_loafSummary()}\n` +
         `F1 to hide`;
 }
 
@@ -6801,9 +6884,12 @@ function _runGameplayFrame(deltaTime) {
     // still have to fall through to renderPostFX so the postFxCanvas overlay
     // re-uploads the new texture — otherwise the WebGL overlay (z-index:2)
     // keeps showing the previous frame and looks like the game has frozen.
+    const _tUpdate0 = performance.now();
     const _cinematicOwnsFrame = !_frozen && _updateGameplayPre(deltaTime);
     if (!_cinematicOwnsFrame) {
         if (!_frozen) _updateGameplayMid(deltaTime, _isHitStopped);
+        const _tDraw0 = performance.now();
+        _recordPhase('update', _tDraw0 - _tUpdate0);
 
         // True update/draw split. _drawGameplayMid owns every
         // ctx.* write in the gameplay frame: camera transform setup, arena +
@@ -6812,13 +6898,16 @@ function _runGameplayFrame(deltaTime) {
         // a panning camera.
         _drawGameplayMid();
         _drawGameplayPost();
+        _recordPhase('draw', performance.now() - _tDraw0);
     }
     // Single WebGL fragment-shader pass (bloom / chromatic / vignette /
     // biome color grade). No-op when disabled in Options or under reducedMotion.
     // Always called so cinematic frames (boss intro / death / choice screen)
     // also feed the overlay; skipping this is what made the boss-defeat
     // screen look frozen — see comment on _cinematicOwnsFrame above.
+    const _tPostFx0 = performance.now();
     renderPostFX();
+    _recordPhase('postfx', performance.now() - _tPostFx0);
 }
 
 function masterFrame(deltaTime, timestamp) {
@@ -6844,7 +6933,7 @@ function masterFrame(deltaTime, timestamp) {
         // Photo mode runs even while paused so the camera can pan.
         if (isPhotoMode()) tickPhotoMode();
 
-        if (runState.gameRunning && !runState.gamePaused && !runState.isLevelingUp && !runState.isShopping && !runState.isStoryOpen) {
+        if (runState.gameRunning && !runState.gamePaused && !runState.isLevelingUp && !runState.isShopping && !runState.isStoryOpen && !_onlinePartnerLeveling) {
             _runGameplayFrame(deltaTime);
         }
     } finally {

@@ -67,6 +67,12 @@ class GameSession {
         this._lobby  = lobby;  // { host: {ws, userId, …}, guest: {ws, userId, …} }
         this._send   = sendFn; // send(ws, msgObject)
         this._onTickStats = opts.onTickStats || null; // (wave, score, timeSec) => void
+        // Wall-clock input staleness (ms). A client that stops sending INPUT
+        // (paused frame, tab throttled, stall) would otherwise keep its last
+        // movement forever and run off on the server, then snap back. Opt-in:
+        // 0 = off, so test harnesses (sparse applyInput + virtual clock) stay
+        // deterministic. server.js enables it for live sessions.
+        this._inputTimeoutMs = opts.inputTimeoutMs || 0;
 
         // ── World instance ─────────────────────────────────────────────────────
         this._world = World.createServerWorld();
@@ -117,6 +123,7 @@ class GameSession {
         this.score        = 0;
         this.bossActive   = false;
         this.isLevelingUp = false;
+        this.paused       = false; // set by server.js during a reconnect grace window
 
         this._events             = []; // flushed each snapshot
         this._levelUpFor         = -1; // index of player currently choosing upgrade
@@ -138,6 +145,7 @@ class GameSession {
         // drift past one second of misses.
         this._lastSentEnemyXY = new Map(); // id → [roundedX, roundedY]
         this._lastSentProjXY  = new Map();
+        this._lastSentEnemyHp = new Map(); // id → last hp shipped (sent on change only)
         this._snapshotsSinceKeyframe = 0;
         this._KEYFRAME_INTERVAL = 30; // 1s at 30Hz
 
@@ -273,6 +281,7 @@ class GameSession {
         const idx    = role === 'host' ? 0 : 1;
         const player = this.players[idx];
         if (!player) return;
+        player._lastInputAt = Date.now();
 
         if (input.x        !== undefined) player.moveInput.x = input.x;
         if (input.y        !== undefined) player.moveInput.y = input.y;
@@ -318,7 +327,17 @@ class GameSession {
     // ─── Internal tick ───────────────────────────────────────────────────────────
 
     _tick() {
-        if (this.isLevelingUp) return;
+        if (this.isLevelingUp || this.paused) return;
+
+        if (this._inputTimeoutMs > 0) {
+            const now = Date.now();
+            for (const p of this.players) {
+                if (p && p.moveInput && now - (p._lastInputAt || 0) > this._inputTimeoutMs) {
+                    p.moveInput.x = 0;
+                    p.moveInput.y = 0;
+                }
+            }
+        }
 
         // Activate this session's per-session `runState` for the
         // duration of the tick. RunState.js's exported `runState` Proxy
@@ -582,8 +601,6 @@ class GameSession {
         const roundP = (pl) => pl ? {
             x:            Math.round(pl.x * 10) / 10,
             y:            Math.round(pl.y * 10) / 10,
-            vx:           0,
-            vy:           0,
             hp:           Math.round(pl.hp),
             maxHp:        pl.maxHp,
             isDead:       pl.isDead,
@@ -611,27 +628,38 @@ class GameSession {
 
         const nextKnownEnemyIds = new Set();
         const nextLastSentEnemyXY = new Map();
+        const nextLastSentEnemyHp = new Map();
         const enemyList = this.enemies.slice(0, 80).map(e => {
             nextKnownEnemyIds.add(e._id);
             const rx = Math.round(e.x * 10) / 10;
             const ry = Math.round(e.y * 10) / 10;
-            nextLastSentEnemyXY.set(e._id, [rx, ry]);
-            const entry = {
-                _id:         e._id,
-                vx:          Math.round((e.vx || 0) * 10) / 10,
-                vy:          Math.round((e.vy || 0) * 10) / 10,
-                hp:          Math.round(e.hp),
-                alpha:       e.alpha !== 1 ? Math.round((e.alpha || 1) * 100) / 100 : 1,
-                frozenTimer: e.frozenTimer > 0 ? Math.round(e.frozenTimer) : 0,
-            };
+            // Default-valued fields are omitted (client reads missing vx/vy/
+            // frozenTimer as 0 and alpha as 1). hp is sent on first sight,
+            // keyframes and changes only — the client keeps the last value.
+            const entry = { _id: e._id };
+            const vx = Math.round((e.vx || 0) * 10) / 10;
+            const vy = Math.round((e.vy || 0) * 10) / 10;
+            if (vx) entry.vx = vx;
+            if (vy) entry.vy = vy;
+            const alpha = e.alpha !== 1 ? Math.round((e.alpha || 1) * 100) / 100 : 1;
+            if (alpha !== 1) entry.alpha = alpha;
+            if (e.frozenTimer > 0) entry.frozenTimer = Math.round(e.frozenTimer);
+            const hp = Math.round(e.hp);
+            nextLastSentEnemyHp.set(e._id, hp);
             const prev = this._lastSentEnemyXY.get(e._id);
+            if (isKeyframe || !prev || this._lastSentEnemyHp.get(e._id) !== hp) entry.hp = hp;
             if (isKeyframe || !prev) {
                 entry.x = rx;
                 entry.y = ry;
+                nextLastSentEnemyXY.set(e._id, [rx, ry]);
             } else {
                 // Delta — integer pixel difference; ~95% of cases fit -127..+127.
                 entry.dx = Math.round(rx - prev[0]);
                 entry.dy = Math.round(ry - prev[1]);
+                // Track the position the client reconstructs (prev + rounded
+                // delta), not the true one — otherwise per-snapshot rounding
+                // error accumulates client-side until the next keyframe snap.
+                nextLastSentEnemyXY.set(e._id, [prev[0] + entry.dx, prev[1] + entry.dy]);
             }
             if (!this._knownEnemyIds.has(e._id)) {
                 entry.maxHp   = e.maxHp;
@@ -644,17 +672,23 @@ class GameSession {
         });
         this._knownEnemyIds = nextKnownEnemyIds;
         this._lastSentEnemyXY = nextLastSentEnemyXY;
+        this._lastSentEnemyHp = nextLastSentEnemyHp;
 
         const nextKnownProjIds = new Set();
         const nextLastSentProjXY = new Map();
         const projList = this.projectiles.slice(0, 150).map(p => {
+            // ECS projectile slots carry no id of their own. Stamp one on first
+            // sight — it lives in the slot's extras bag (follows swap-remove,
+            // cleared on acquire), so a reused slot gets a fresh id. Without it
+            // every entry shipped `_id: undefined` and the client folded all
+            // server projectiles onto a single ghost slot.
+            if (p._id === undefined) p._id = this._nextProjId++;
             nextKnownProjIds.add(p._id);
             // Support both real Projectile (velocity.x/y) and plain objects (vx/vy)
             const vx = p.vx ?? p.velocity?.x ?? 0;
             const vy = p.vy ?? p.velocity?.y ?? 0;
             const rx = Math.round(p.x * 10) / 10;
             const ry = Math.round(p.y * 10) / 10;
-            nextLastSentProjXY.set(p._id, [rx, ry]);
             const entry = {
                 _id: p._id,
                 vx:  Math.round(vx * 10) / 10,
@@ -664,9 +698,11 @@ class GameSession {
             if (isKeyframe || !prev) {
                 entry.x = rx;
                 entry.y = ry;
+                nextLastSentProjXY.set(p._id, [rx, ry]);
             } else {
                 entry.dx = Math.round(rx - prev[0]);
                 entry.dy = Math.round(ry - prev[1]);
+                nextLastSentProjXY.set(p._id, [prev[0] + entry.dx, prev[1] + entry.dy]);
             }
             if (!this._knownProjIds.has(p._id)) {
                 entry.color       = p.color;
@@ -705,38 +741,12 @@ class GameSession {
         if (guest && guest.ws) this._emitSnapshot(guest.ws, guestHeader, enemyList, projList);
     }
 
-    // Emit a snapshot, chunking entity arrays across multiple messages when the
-    // payload would otherwise blow past typical buffer/MTU-friendly sizes. Each
-    // chunk repeats the same `t` and a shared `chunk.seq` so the client can
-    // reassemble. Header fields (players, score, events) appear only on idx 0.
+    // Emit one snapshot per client per tick. Entity-count chunking was dropped:
+    // over TCP it only added messages (each deflated without the others'
+    // context) and a reassembly wait. The client still merges `chunk`-tagged
+    // parts, so an older server stays compatible.
     _emitSnapshot(ws, header, enemies, projectiles) {
-        const totalEntities = enemies.length + projectiles.length;
-        // Below ~100 entities the message is small enough that chunking adds
-        // pure overhead. Tune threshold against perMessageDeflate ratio.
-        if (totalEntities <= 100) {
-            this._send(ws, { ...header, enemies, projectiles });
-            return;
-        }
-
-        const numChunks = totalEntities > 200 ? 3 : 2;
-        const seq = this._nextSnapSeq = (this._nextSnapSeq || 0) + 1;
-        const ePer = Math.ceil(enemies.length / numChunks);
-        const pPer = Math.ceil(projectiles.length / numChunks);
-
-        for (let i = 0; i < numChunks; i++) {
-            const ePart = enemies.slice(i * ePer, (i + 1) * ePer);
-            const pPart = projectiles.slice(i * pPer, (i + 1) * pPer);
-            const msg = (i === 0)
-                ? { ...header, chunk: { seq, idx: i, of: numChunks }, enemies: ePart, projectiles: pPart }
-                : {
-                    type: 'SNAPSHOT',
-                    t: header.t,
-                    chunk: { seq, idx: i, of: numChunks },
-                    enemies: ePart,
-                    projectiles: pPart,
-                };
-            this._send(ws, msg);
-        }
+        this._send(ws, { ...header, enemies, projectiles });
     }
 }
 

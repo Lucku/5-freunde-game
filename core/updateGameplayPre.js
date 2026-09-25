@@ -497,8 +497,11 @@ function _updateGameplayPre(deltaTime) {
     }
 
     // --- Spawning Logic ---
+    // Online clients never spawn: the server simulation owns every enemy and
+    // each snapshot replaces the local array, so a local spawn only flickers in
+    // for a frame or two (and fires boss rumble / twin-boss SFX spuriously).
     // Disable standard boss spawn if Objective Wave or Boss already active (e.g. Instant Spawn)
-    if (!runState.bossActive && runState.bossDeathTimer === 0 && !runState.isTestingMode && !runState.isEvilMode && isWaveCleared(runState.wave, runState.enemiesKilledInWave) && (!runState.isTutorialMode || TutorialMode.bossForced)) {
+    if (!runState.isOnlineMode && !runState.bossActive && runState.bossDeathTimer === 0 && !runState.isTestingMode && !runState.isEvilMode && isWaveCleared(runState.wave, runState.enemiesKilledInWave) && (!runState.isTutorialMode || TutorialMode.bossForced)) {
         // Also respect a hero-owned custom objective (e.g. Waker of Winds stores
         // its objective on player.currentObjective, not runState.currentObjective).
         // Without this the boss spawns the moment the kill count is reached,
@@ -556,7 +559,7 @@ function _updateGameplayPre(deltaTime) {
         }
     }
 
-    if (!runState.isVersusMode && !runState.isTestingMode && !runState.isEvilMode) {
+    if (!runState.isOnlineMode && !runState.isVersusMode && !runState.isTestingMode && !runState.isEvilMode) {
         if (!runState.bossActive && runState.bossDeathTimer === 0) {
             let spawnRate = Math.max(10, 45 - (runState.wave * 1.3));
             let forcedType = null;
@@ -621,10 +624,12 @@ function _updateGameplayPre(deltaTime) {
         }
     }
 
-    // Co-op / AI companion: scale new non-boss enemy HP up
+    // Co-op / AI companion: scale new non-boss enemy HP up. Online ghosts are
+    // skipped — the server already scaled them, and re-scaling rewrote the
+    // ghost's maxHp so HP bars read ~71 % at full health.
     if (runState.isCoopMode || runState.isAICompanionMode) {
         enemies.forEach(e => {
-            if (!(e instanceof Boss) && !e._coopScaled) {
+            if (!(e instanceof Boss) && !e._ghost && !e._coopScaled) {
                 e._coopScaled = true;
                 e.hp *= 1.4; e.maxHp = e.hp;
             }
@@ -635,7 +640,7 @@ function _updateGameplayPre(deltaTime) {
     if (window.mazeCurrentNode && window.mazeCurrentNode.waveStrength !== 1.0) {
         const s = window.mazeCurrentNode.waveStrength;
         enemies.forEach(e => {
-            if (!(e instanceof Boss) && !e._mazeScaled) {
+            if (!(e instanceof Boss) && !e._ghost && !e._mazeScaled) {
                 e._mazeScaled = true;
                 e.hp = Math.round(e.hp * s);
                 e.maxHp = e.hp;

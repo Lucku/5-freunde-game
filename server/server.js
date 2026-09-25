@@ -1560,11 +1560,31 @@ const wss = new WebSocket.Server({
         zlibDeflateOptions: { level: 3, memLevel: 7, chunkSize: 1024 },
         zlibInflateOptions: { chunkSize: 10 * 1024 },
         clientNoContextTakeover: true,
-        serverNoContextTakeover: true,
+        // Keep the server's deflate window between messages: consecutive
+        // snapshots share most of their bytes, so a warm dictionary roughly
+        // halves the wire size (measured ~750 B → ~320 B per wave-1 snapshot).
+        // 8 KB window bounds per-socket memory.
+        serverNoContextTakeover: false,
+        serverMaxWindowBits: 13,
         concurrencyLimit: 10,
         threshold: 256, // skip compression for tiny messages (PING/PONG, INPUT)
     },
 });
+
+// Heartbeat — protocol-level ping every 5 s (browsers answer ping frames
+// automatically). A socket that missed the previous pong is half-open (Wi-Fi
+// drop, laptop sleep) and is terminated, so handleClose runs and the in-game
+// reconnect grace starts instead of the lobby holding a ghost indefinitely.
+const WS_HEARTBEAT_MS = 5000;
+const _wsHeartbeat = setInterval(() => {
+    for (const client of wss.clients) {
+        if (client.isAlive === false) { try { client.terminate(); } catch (_) { /* noop */ } continue; }
+        client.isAlive = false;
+        try { client.ping(); } catch (_) { /* noop */ }
+    }
+}, WS_HEARTBEAT_MS);
+_wsHeartbeat.unref?.();
+wss.on('close', () => clearInterval(_wsHeartbeat));
 
 // ── Lobby state ───────────────────────────────────────────────────────────────
 
@@ -1629,6 +1649,8 @@ wss.on('connection', (ws, req) => {
     ws.username = user.username;
     ws.role = null;
     ws.lobbyCode = null;
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
 
     send(ws, { type: 'CONNECTED', username: user.username });
 
@@ -1643,9 +1665,15 @@ wss.on('connection', (ws, req) => {
             const role = (lobby.hostUserId === user.id) ? 'host'
                        : (lobby.guestUserId === user.id) ? 'guest' : null;
             if (role) {
+                // The previous socket may still be half-open (its close not yet
+                // observed). Retire it — handleClose ignores closes from sockets
+                // that no longer own the slot, so it can't wipe this new one.
+                const superseded = lobby[role]?.ws;
+                if (superseded && superseded !== ws) { try { superseded.terminate(); } catch (_) { /* noop */ } }
                 ws.lobbyCode = prevCode;
                 ws.role = role;
                 lobby[role] = { ws, userId: user.id, username: user.username };
+                if (lobby.session) lobby.session.paused = false;
                 send(ws, { type: 'REJOINED', code: prevCode, role });
                 const p = partner(lobby, role);
                 if (p) send(p.ws, { type: 'PARTNER_RECONNECTED' });
@@ -1802,6 +1830,8 @@ function handleMessage(ws, msg) {
             // Start server-authoritative simulation for this lobby
             try {
                 const session = new GameSession(lobby, send, {
+                    // Zero a player's movement once their INPUT stream stalls.
+                    inputTimeoutMs: 200,
                     // Keep authoritative wave/score fresh so /api/leaderboard
                     // can clamp client claims even before GAME_OVER lands.
                     onTickStats: (wave, score, timeSec) => {
@@ -2033,6 +2063,10 @@ function handleMessage(ws, msg) {
 }
 
 function handleClose(ws) {
+    // `close` and `error` are both wired here — run once per socket.
+    if (ws._closeHandled) return;
+    ws._closeHandled = true;
+
     // Clean up from global lobby if present
     if (ws.inGlobalLobby) {
         globalLobby.delete(ws.userId);
@@ -2044,14 +2078,20 @@ function handleClose(ws) {
     const lobby = lobbies.get(ws.lobbyCode);
     if (!lobby) return;
 
-    const p = partner(lobby, ws.role);
-    if (p) send(p.ws, { type: 'PARTNER_DISCONNECTED' });
-
     if (lobby.phase === 'in_game') {
+        // A late close from a socket the user already replaced (rejoined on a
+        // new one) must not wipe the live slot or alarm the partner.
+        if (!ws.role || lobby[ws.role]?.ws !== ws) return;
+        const p = partner(lobby, ws.role);
         // Keep lobby alive for reconnect; null out the disconnected slot
-        if (ws.role === 'host') lobby.host = null;
-        else lobby.guest = null;
-        // 30s grace window — partner gets a pause overlay, not an immediate game-over
+        lobby[ws.role] = null;
+        // Freeze the simulation for the grace window — the partner's client is
+        // paused behind the reconnect overlay and the absent player sends no
+        // input, so running on would let enemies kill both idle avatars.
+        if (lobby.session) lobby.session.paused = true;
+        // 30s grace window — partner gets a pause overlay, not an immediate
+        // game-over. PARTNER_DISCONNECTED is only sent once the grace expires
+        // (the client treats it as final and aborts the run).
         if (p) send(p.ws, { type: 'PARTNER_RECONNECTING', timeoutSec: 30 });
         clearTimeout(lobby._graceTimer);
         lobby._graceTimer = setTimeout(() => {

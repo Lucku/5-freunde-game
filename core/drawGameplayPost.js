@@ -126,7 +126,11 @@ export function _drawGameplayPost() {
     }
     // ──────────────────────────────────────────────────────────────────
 
-    if (typeof globalThis.updateUI === 'function') globalThis.updateUI();
+    if (typeof globalThis.updateUI === 'function') {
+        const _tHud0 = performance.now();
+        globalThis.updateUI();
+        globalThis._recordPhase?.('hud', performance.now() - _tHud0);
+    }
 
     // Player-death cinematic: pure overlay render driven by the
     // isPlayerDying flag + playerDeathTimer (both owned by _updateGameplayMid).

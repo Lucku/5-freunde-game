@@ -13,6 +13,8 @@
  *   networkManager.relay(payload)     // send any in-game message to partner
  *   networkManager.disconnect()
  */
+const DEAD_SOCKET_MS = 10_000;
+
 class NetworkManager {
     constructor() {
         this._ws            = null;
@@ -24,6 +26,7 @@ class NetworkManager {
         this._intentionalClose = false;
         this._pingInterval  = null;
         this._lastPingSent   = 0;
+        this._lastRecvAt     = 0;    // any inbound message — liveness signal
 
         this.latencyMs      = 0;
         this.connected      = false;
@@ -69,6 +72,7 @@ class NetworkManager {
 
         this._ws.onopen = () => {
             this.connected = true;
+            this._lastRecvAt = Date.now();
             this._reconnectDelay = 1000;
             clearTimeout(this._reconnectTimer);
             this._startPing();
@@ -82,6 +86,7 @@ class NetworkManager {
         };
 
         this._ws.onmessage = (ev) => {
+            this._lastRecvAt = Date.now();
             let msg;
             try { msg = JSON.parse(ev.data); } catch { return; }
             this._dispatch(msg);
@@ -409,9 +414,28 @@ class NetworkManager {
     _startPing() {
         this._stopPing();
         this._pingInterval = setInterval(() => {
+            // Half-open socket (Wi-Fi drop, sleep): the browser may not fire
+            // onclose for minutes. The server answers every PING and streams
+            // snapshots in-game, so 10 s of silence means the link is dead.
+            if (Date.now() - this._lastRecvAt > DEAD_SOCKET_MS) { this._dropDeadSocket(); return; }
             this._lastPingSent = Date.now();
             this.send({ type: 'PING', t: this._lastPingSent });
         }, 3000);
+    }
+
+    _dropDeadSocket() {
+        console.warn('[Network] No traffic for 10 s — reconnecting');
+        const ws = this._ws;
+        this._ws = null;
+        if (ws) {
+            // Detach first so the dead socket's late onclose can't tear down the
+            // replacement connection.
+            ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
+            try { ws.close(); } catch { /* noop */ }
+        }
+        this.connected = false;
+        this._stopPing();
+        this._scheduleReconnect();
     }
 
     _stopPing() {
