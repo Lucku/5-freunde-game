@@ -2266,6 +2266,7 @@ function _resetGameState() {
     // Reset online interpolation state so a new session starts with a fresh clock-offset lock
     _onlineClockOffset = null;
     _lastServerT       = null;
+    _lastArrivalT      = null;
     _snapGapEMA        = null;
     _snapJitterEMA     = null;
     _onlineEnemyBase.clear();
@@ -2477,6 +2478,7 @@ window._SPATIAL_HASH_MIN        = _SPATIAL_HASH_MIN;
 window._recordPhase             = _recordPhase;
 window.getCollectionBonuses     = getCollectionBonuses;
 window._onlineInterpBuf         = _onlineInterpBuf;
+window._onlineExtrapolateBuf    = _onlineExtrapolateBuf;
 window._onlineRenderTime        = _onlineRenderTime;
 window._renderMinimap           = _renderMinimap;
 
@@ -5558,20 +5560,33 @@ const FPS = 60;
 const _INTERP_DELAY_MS  = 100;
 const _INTERP_DELAY_MIN = 55;
 const _INTERP_DELAY_MAX = 140;
-const _SNAP_BUF_MAX     = 6;
+// Snapshot ring buffers are trimmed by age, not count: they must reach back
+// past the render time (up to _INTERP_DELAY_MAX behind) plus one neighbour on
+// each side for the Hermite tangents — at 60 Hz a fixed 6 entries covered only
+// ~100 ms, so a large delay rendered before the oldest point and froze.
+const _SNAP_BUF_SPAN_MS = 300;
 
-// Measured snapshot cadence (gap between consecutive server timestamps) and its
-// jitter, both EMA-smoothed. Reset to null per match so a new session re-measures.
+// Measured snapshot cadence (gap between consecutive server timestamps) and
+// network jitter, both smoothed. Reset per match so a new session re-measures.
 let _lastServerT   = null;
+let _lastArrivalT  = null;
 let _snapGapEMA    = null;
 let _snapJitterEMA = null;
 
-// Adaptive interpolation delay: ~2 inter-snapshot gaps + 2× jitter headroom,
+// Adaptive interpolation delay: ~2 inter-snapshot gaps + 3× jitter headroom,
 // clamped. Falls back to the fixed default until we have a cadence sample.
 function _currentInterpDelay() {
     if (_snapGapEMA === null) return _INTERP_DELAY_MS;
-    const d = _snapGapEMA * 2 + _snapJitterEMA * 2;
+    const d = _snapGapEMA * 2 + _snapJitterEMA * 3;
     return Math.max(_INTERP_DELAY_MIN, Math.min(_INTERP_DELAY_MAX, d));
+}
+
+// Append a sample and drop entries that are entirely older than the span
+// (keeps the one straddling the cutoff so interpolation always has a left point).
+function _onlinePushSnap(buf, x, y, t) {
+    buf.push({ x, y, t });
+    const cutoff = t - _SNAP_BUF_SPAN_MS;
+    while (buf.length > 2 && buf[1].t < cutoff) buf.shift();
 }
 
 // Smoothed offset between client clock and server clock, derived from snapshot
@@ -5651,6 +5666,24 @@ function _onlineInterpBuf(buf, renderTime) {
     return { x: buf[0].x, y: buf[0].y };
 }
 
+// Render time past the newest snapshot (late / lost packet): continue along
+// the velocity of the last two buffered points, capped at maxAheadMs, instead
+// of freezing. Positions-only — server enemy vx/vy are always 0 (enemies move
+// by position), so velocity-based extrapolation stood them still.
+function _onlineExtrapolateBuf(buf, renderTime, maxAheadMs) {
+    const n = buf.length;
+    const last = buf[n - 1];
+    if (n < 2) return { x: last.x, y: last.y };
+    const prev = buf[n - 2];
+    const dt = last.t - prev.t;
+    if (dt <= 0) return { x: last.x, y: last.y };
+    const ahead = Math.min(renderTime - last.t, maxAheadMs);
+    return {
+        x: last.x + (last.x - prev.x) / dt * ahead,
+        y: last.y + (last.y - prev.y) / dt * ahead,
+    };
+}
+
 // Buffer for chunked snapshots — server splits large snapshots across
 // multiple messages tagged with `chunk: { seq, idx, of }`. We merge when all
 // parts arrive; stale partial sets are evicted after EVICT_MS.
@@ -5698,17 +5731,21 @@ function _onlineApplySnapshot(s) {
     const _serverT  = (typeof s.t === 'number') ? s.t : _snapTime;
     _onlineUpdateClockOffset(_serverT);
 
-    // Track inter-snapshot cadence + jitter (EMA) to size the interpolation delay
-    // adaptively. Ignore non-positive (reorder) or >500 ms (stall) gaps.
+    // Track inter-snapshot cadence + network jitter to size the interpolation
+    // delay adaptively. Ignore non-positive (reorder) or >500 ms (stall) gaps.
+    // Jitter is RFC 3550-style: the change in transit time between consecutive
+    // snapshots (arrival spacing minus send spacing). Measuring it from server
+    // send times alone — as before — never saw network jitter at all.
     if (_lastServerT !== null) {
         const gap = _serverT - _lastServerT;
         if (gap > 0 && gap < 500) {
             _snapGapEMA    = _snapGapEMA    === null ? gap : _snapGapEMA * 0.9 + gap * 0.1;
-            const dev      = Math.abs(gap - _snapGapEMA);
-            _snapJitterEMA = _snapJitterEMA === null ? dev : _snapJitterEMA * 0.9 + dev * 0.1;
+            const dev      = Math.abs((_snapTime - _lastArrivalT) - gap);
+            _snapJitterEMA = _snapJitterEMA === null ? dev : _snapJitterEMA + (dev - _snapJitterEMA) / 16;
         }
     }
-    _lastServerT = _serverT;
+    _lastServerT  = _serverT;
+    _lastArrivalT = _snapTime;
 
     // Update host ghost (rendered as player2 on guest's machine)
     // Store snapshot position + movement so extrapolation loop can forward-predict it
@@ -5719,8 +5756,7 @@ function _onlineApplySnapshot(s) {
         runState.player2._smy      = s.p1.my || 0;
         runState.player2._snapshotAt = _snapTime;
         if (!runState.player2._snapBuf) runState.player2._snapBuf = [];
-        runState.player2._snapBuf.push({ x: s.p1.x, y: s.p1.y, t: _serverT });
-        if (runState.player2._snapBuf.length > _SNAP_BUF_MAX) runState.player2._snapBuf.shift();
+        _onlinePushSnap(runState.player2._snapBuf, s.p1.x, s.p1.y, _serverT);
         if (runState.player2._snapBuf.length === 1) { runState.player2.x = s.p1.x; runState.player2.y = s.p1.y; }
         runState.player2.hp        = s.p1.hp;
         runState.player2.maxHp     = s.p1.maxHp;
@@ -5798,7 +5834,7 @@ function _onlineApplySnapshot(s) {
         e._snapshotAt = _now;
         e.vx = ed.vx || 0; e.vy = ed.vy || 0;
         if (!e._snapBuf) { e._snapBuf = [{ x: _ax, y: _ay, t: _serverT }]; e.x = _ax; e.y = _ay; }
-        else { e._snapBuf.push({ x: _ax, y: _ay, t: _serverT }); if (e._snapBuf.length > _SNAP_BUF_MAX) e._snapBuf.shift(); }
+        else _onlinePushSnap(e._snapBuf, _ax, _ay, _serverT);
         // hp ships only on first sight / keyframe / change — keep last value.
         if (ed.hp !== undefined) {
             const _prevEHp = e.hp;
@@ -5895,8 +5931,7 @@ function _onlineApplySnapshot(s) {
             p.x = _pax;
             p.y = _pay;
         } else {
-            buf.push({ x: _pax, y: _pay, t: _serverT });
-            if (buf.length > _SNAP_BUF_MAX) buf.shift();
+            _onlinePushSnap(buf, _pax, _pay, _serverT);
         }
         // Static fields present only on first appearance (delta encoding)
         if (pd.color       !== undefined) p.color       = pd.color;

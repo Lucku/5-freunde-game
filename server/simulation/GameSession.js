@@ -19,6 +19,7 @@ function _mulberry32(seed) {
 
 const World = global.World;
 const NetworkInputController = require('./NetworkInputController');
+const { performance } = require('perf_hooks'); // monotonic clock for the tick scheduler
 const {
     ARENA_WIDTH,
     ARENA_HEIGHT,
@@ -38,6 +39,12 @@ const {
 // 24+ honors `__esModule` interop on the cached module.
 const { createRunState: _createRunState, setActiveRunState: _setActiveRunState }
     = require(require('path').join(__dirname, '..', '..', 'RunState.js'));
+
+// Skip a client's snapshot while its socket still has this much unsent data
+// queued (slow / congested link) — sending more only grows the backlog.
+const SNAPSHOT_BACKPRESSURE_BYTES = 64 * 1024;
+// Events queued for a client whose snapshots are being skipped are capped.
+const SNAPSHOT_MAX_QUEUED_EVENTS  = 200;
 
 /**
  * GameSession — authoritative server-side game simulation.
@@ -133,21 +140,14 @@ class GameSession {
         this._frame              = 0;  // virtual 60-fps frame counter
         this._waveKillTarget     = 30;
 
-        // Phase 3 delta encoding: IDs sent at least once this session.
-        this._knownEnemyIds = new Set();
-        this._knownProjIds  = new Set();
-
-        // Position delta encoding. Track the last rounded x/y sent to
-        // each client per entity id so subsequent snapshots can emit `dx, dy`
-        // (typically -10..+10 = 2–3 char JSON tokens) instead of absolute
-        // `x, y` (4–5 char tokens). Force a full keyframe every
-        // _KEYFRAME_INTERVAL snapshots so client + server can never accumulate
-        // drift past one second of misses.
-        this._lastSentEnemyXY = new Map(); // id → [roundedX, roundedY]
-        this._lastSentProjXY  = new Map();
-        this._lastSentEnemyHp = new Map(); // id → last hp shipped (sent on change only)
-        this._snapshotsSinceKeyframe = 0;
-        this._KEYFRAME_INTERVAL = 30; // 1s at 30Hz
+        // Delta encoding state, one entry per client socket (see
+        // _clientSnapState): ids already described to that client (static
+        // fields ship once), last x/y it reconstructed per id (so snapshots
+        // emit `dx, dy` — typically -10..+10 = 2–3 char JSON tokens — instead
+        // of absolute `x, y`), last hp shipped, and a keyframe counter. A full
+        // keyframe is forced every _KEYFRAME_INTERVAL snapshots per client.
+        this._snapStates = new Map(); // ws → state
+        this._KEYFRAME_INTERVAL = 30; // 0.5 s at 60 Hz, 1 s at 30 Hz
 
         this._tickInterval = null;
         this._startedAt    = 0;
@@ -168,6 +168,8 @@ class GameSession {
         this._LOW_LOAD_ENTER  = 50;  // enemies + projectiles
         this._LOW_LOAD_EXIT   = 80;
         this._FAST_TICK_MS    = 16;  // ~60 Hz
+        this._TICK_MAX_LAG_MS = 100; // scheduler backlog cap (≈ 6 frames)
+        this._nextTickAt      = 0;   // performance.now() deadline of the next tick
 
         // Per-session `runState`. Own typed-array pools + scalars
         // so concurrent sessions don't share entity slots / wave counters
@@ -175,6 +177,12 @@ class GameSession {
         // `setActiveRunState`; the leaf-module Proxy read from
         // RunState.js forwards to whichever session is currently active.
         this._runState = _createRunState();
+    }
+
+    // 60 fps frames one tick simulates at the current tier (16 ms → 1,
+    // 33 ms → 2, 50 ms → 3).
+    _subSteps() {
+        return Math.max(1, Math.round(this._currentTickFrames));
     }
 
     _adjustTickRate() {
@@ -238,12 +246,26 @@ class GameSession {
         this._world.projectiles = this.projectiles;
 
         this._startedAt = Date.now();
-        // Self-rescheduling tick — interval adjusts per-iteration via _adjustTickRate
+        // Self-rescheduling tick on a wall-clock deadline. Each tick advances
+        // `_subSteps()` 60 fps frames, so the next deadline moves by exactly that
+        // much simulated time — the sim runs at a true 60 fps on every tier.
+        // (Re-arming `setTimeout(_currentTickMs)` after the work ran ~4–7 %
+        // slow, 55–58 fps, and the 16 ms tier 4 % fast; clients predict at 60,
+        // so they drifted ahead and were pulled back.) A backlog beyond
+        // _TICK_MAX_LAG_MS (event-loop stall) is dropped instead of replayed
+        // as a burst.
+        const FRAME_MS = 1000 / 60;
+        this._nextTickAt = performance.now() + this._subSteps() * FRAME_MS;
         const scheduleNext = () => {
+            const delay = Math.max(0, this._nextTickAt - performance.now());
             this._tickInterval = setTimeout(() => {
+                const steps = this._subSteps(); // before _tick — it may retune the rate
                 this._tick();
+                this._nextTickAt += steps * FRAME_MS;
+                const now = performance.now();
+                if (now - this._nextTickAt > this._TICK_MAX_LAG_MS) this._nextTickAt = now;
                 if (this._tickInterval !== null) scheduleNext();
-            }, this._currentTickMs);
+            }, delay);
         };
         scheduleNext();
 
@@ -365,7 +387,7 @@ class GameSession {
             // + next tick observe the authoritative count.
             this._syncWorld();
             const bridge = require('./RendererBridge');
-            const SUB_STEPS = Math.max(1, Math.round(this._currentTickFrames));
+            const SUB_STEPS = this._subSteps();
             for (let s = 0; s < SUB_STEPS; s++) {
                 bridge.runUpdate(this, 1000 / 60);
             }
@@ -622,14 +644,93 @@ class GameSession {
             } : null,
         } : null;
 
+        // Stamp ids once per tick (shared by every client's view). ECS
+        // projectile slots carry no id of their own; the stamp lives in the
+        // slot's extras bag (follows swap-remove, cleared on acquire), so a
+        // reused slot gets a fresh id. Without it every entry shipped
+        // `_id: undefined` and the client folded all server projectiles onto a
+        // single ghost slot.
+        const enemies = this.enemies.slice(0, 80);
+        const projectiles = this.projectiles.slice(0, 150);
+        for (const p of projectiles) if (p._id === undefined) p._id = this._nextProjId++;
+
+        const events = this._events.splice(0);
+        const t = Date.now();
+        const { host, guest } = this._lobby;
+
+        // Delta state is per connection: a socket that joined late (rejoin) or
+        // skipped snapshots under backpressure gets deltas against what IT last
+        // received — a fresh socket starts empty, i.e. its first snapshot is a
+        // full keyframe with every static field. States of sockets that are no
+        // longer in the lobby are dropped.
+        for (const ws of this._snapStates.keys()) {
+            if (ws !== host?.ws && ws !== guest?.ws) this._snapStates.delete(ws);
+        }
+
+        // Personalised player views — each client sees their own character as p2
+        const views = [
+            [host?.ws,  this.players[1], this.players[0]],
+            [guest?.ws, this.players[0], this.players[1]],
+        ];
+        for (const [ws, viewP1, viewP2] of views) {
+            if (!ws) continue;
+            const st = this._clientSnapState(ws);
+            // Queue events per client so a skipped snapshot doesn't lose them.
+            if (events.length) {
+                st.events.push(...events);
+                if (st.events.length > SNAPSHOT_MAX_QUEUED_EVENTS) st.events.splice(0, st.events.length - SNAPSHOT_MAX_QUEUED_EVENTS);
+            }
+            // Backpressure: a socket that hasn't drained its previous snapshots
+            // (slow / congested link) skips this one instead of queueing more.
+            // Safe because deltas are relative to this client's own last send.
+            if ((ws.bufferedAmount || 0) > SNAPSHOT_BACKPRESSURE_BYTES) continue;
+
+            const msg = {
+                type:         'SNAPSHOT',
+                t,
+                wave:         this.wave,
+                score:        this.score,
+                bossActive:   this.bossActive,
+                isLevelingUp: this.isLevelingUp,
+                events:       st.events,
+                p1:           roundP(viewP1),
+                p2:           roundP(viewP2),
+                ...this._buildEntityDeltas(st, enemies, projectiles),
+            };
+            st.events = [];
+            this._emitSnapshot(ws, msg);
+        }
+    }
+
+    _clientSnapState(ws) {
+        let st = this._snapStates.get(ws);
+        if (!st) {
+            st = {
+                knownEnemyIds: new Set(),
+                lastEnemyXY:   new Map(), // id → client-reconstructed [x, y]
+                lastEnemyHp:   new Map(), // id → last hp shipped
+                knownProjIds:  new Set(),
+                lastProjXY:    new Map(),
+                sinceKeyframe: 0,
+                events:        [],
+            };
+            this._snapStates.set(ws, st);
+        }
+        return st;
+    }
+
+    // Entity lists for one client, delta-encoded against that client's state
+    // (which is advanced in place — call once per snapshot actually sent).
+    _buildEntityDeltas(st, enemies, projectiles) {
         // Keyframe gate. Force full x,y this snapshot if we've sent
         // _KEYFRAME_INTERVAL delta snapshots since the last keyframe.
-        const isKeyframe = this._snapshotsSinceKeyframe >= this._KEYFRAME_INTERVAL;
+        const isKeyframe = st.sinceKeyframe >= this._KEYFRAME_INTERVAL;
+        st.sinceKeyframe = isKeyframe ? 0 : st.sinceKeyframe + 1;
 
         const nextKnownEnemyIds = new Set();
-        const nextLastSentEnemyXY = new Map();
-        const nextLastSentEnemyHp = new Map();
-        const enemyList = this.enemies.slice(0, 80).map(e => {
+        const nextLastEnemyXY = new Map();
+        const nextLastEnemyHp = new Map();
+        const enemyList = enemies.map(e => {
             nextKnownEnemyIds.add(e._id);
             const rx = Math.round(e.x * 10) / 10;
             const ry = Math.round(e.y * 10) / 10;
@@ -645,13 +746,13 @@ class GameSession {
             if (alpha !== 1) entry.alpha = alpha;
             if (e.frozenTimer > 0) entry.frozenTimer = Math.round(e.frozenTimer);
             const hp = Math.round(e.hp);
-            nextLastSentEnemyHp.set(e._id, hp);
-            const prev = this._lastSentEnemyXY.get(e._id);
-            if (isKeyframe || !prev || this._lastSentEnemyHp.get(e._id) !== hp) entry.hp = hp;
+            nextLastEnemyHp.set(e._id, hp);
+            const prev = st.lastEnemyXY.get(e._id);
+            if (isKeyframe || !prev || st.lastEnemyHp.get(e._id) !== hp) entry.hp = hp;
             if (isKeyframe || !prev) {
                 entry.x = rx;
                 entry.y = ry;
-                nextLastSentEnemyXY.set(e._id, [rx, ry]);
+                nextLastEnemyXY.set(e._id, [rx, ry]);
             } else {
                 // Delta — integer pixel difference; ~95% of cases fit -127..+127.
                 entry.dx = Math.round(rx - prev[0]);
@@ -659,9 +760,9 @@ class GameSession {
                 // Track the position the client reconstructs (prev + rounded
                 // delta), not the true one — otherwise per-snapshot rounding
                 // error accumulates client-side until the next keyframe snap.
-                nextLastSentEnemyXY.set(e._id, [prev[0] + entry.dx, prev[1] + entry.dy]);
+                nextLastEnemyXY.set(e._id, [prev[0] + entry.dx, prev[1] + entry.dy]);
             }
-            if (!this._knownEnemyIds.has(e._id)) {
+            if (!st.knownEnemyIds.has(e._id)) {
                 entry.maxHp   = e.maxHp;
                 entry.subType = e.subType;
                 entry.color   = e.color;
@@ -670,19 +771,13 @@ class GameSession {
             }
             return entry;
         });
-        this._knownEnemyIds = nextKnownEnemyIds;
-        this._lastSentEnemyXY = nextLastSentEnemyXY;
-        this._lastSentEnemyHp = nextLastSentEnemyHp;
+        st.knownEnemyIds = nextKnownEnemyIds;
+        st.lastEnemyXY   = nextLastEnemyXY;
+        st.lastEnemyHp   = nextLastEnemyHp;
 
         const nextKnownProjIds = new Set();
-        const nextLastSentProjXY = new Map();
-        const projList = this.projectiles.slice(0, 150).map(p => {
-            // ECS projectile slots carry no id of their own. Stamp one on first
-            // sight — it lives in the slot's extras bag (follows swap-remove,
-            // cleared on acquire), so a reused slot gets a fresh id. Without it
-            // every entry shipped `_id: undefined` and the client folded all
-            // server projectiles onto a single ghost slot.
-            if (p._id === undefined) p._id = this._nextProjId++;
+        const nextLastProjXY = new Map();
+        const projList = projectiles.map(p => {
             nextKnownProjIds.add(p._id);
             // Support both real Projectile (velocity.x/y) and plain objects (vx/vy)
             const vx = p.vx ?? p.velocity?.x ?? 0;
@@ -694,17 +789,17 @@ class GameSession {
                 vx:  Math.round(vx * 10) / 10,
                 vy:  Math.round(vy * 10) / 10,
             };
-            const prev = this._lastSentProjXY.get(p._id);
+            const prev = st.lastProjXY.get(p._id);
             if (isKeyframe || !prev) {
                 entry.x = rx;
                 entry.y = ry;
-                nextLastSentProjXY.set(p._id, [rx, ry]);
+                nextLastProjXY.set(p._id, [rx, ry]);
             } else {
                 entry.dx = Math.round(rx - prev[0]);
                 entry.dy = Math.round(ry - prev[1]);
-                nextLastSentProjXY.set(p._id, [prev[0] + entry.dx, prev[1] + entry.dy]);
+                nextLastProjXY.set(p._id, [prev[0] + entry.dx, prev[1] + entry.dy]);
             }
-            if (!this._knownProjIds.has(p._id)) {
+            if (!st.knownProjIds.has(p._id)) {
                 entry.color       = p.color;
                 entry.radius      = p.radius;
                 entry.isEnemy     = !!p.isEnemy;
@@ -714,39 +809,18 @@ class GameSession {
             }
             return entry;
         });
-        this._knownProjIds = nextKnownProjIds;
-        this._lastSentProjXY = nextLastSentProjXY;
+        st.knownProjIds = nextKnownProjIds;
+        st.lastProjXY   = nextLastProjXY;
 
-        // Advance / reset keyframe counter for next snapshot.
-        this._snapshotsSinceKeyframe = isKeyframe ? 0 : this._snapshotsSinceKeyframe + 1;
-
-        const events = this._events.splice(0);
-
-        const baseHeader = {
-            type:         'SNAPSHOT',
-            t:            Date.now(),
-            wave:         this.wave,
-            score:        this.score,
-            bossActive:   this.bossActive,
-            isLevelingUp: this.isLevelingUp,
-            events,
-        };
-
-        // Personalised player views — each client sees their own character as p2
-        const hostHeader  = { ...baseHeader, p1: roundP(this.players[1]), p2: roundP(this.players[0]) };
-        const guestHeader = { ...baseHeader, p1: roundP(this.players[0]), p2: roundP(this.players[1]) };
-
-        const { host, guest } = this._lobby;
-        if (host  && host.ws)  this._emitSnapshot(host.ws,  hostHeader,  enemyList, projList);
-        if (guest && guest.ws) this._emitSnapshot(guest.ws, guestHeader, enemyList, projList);
+        return { enemies: enemyList, projectiles: projList };
     }
 
     // Emit one snapshot per client per tick. Entity-count chunking was dropped:
     // over TCP it only added messages (each deflated without the others'
     // context) and a reassembly wait. The client still merges `chunk`-tagged
     // parts, so an older server stays compatible.
-    _emitSnapshot(ws, header, enemies, projectiles) {
-        this._send(ws, { ...header, enemies, projectiles });
+    _emitSnapshot(ws, msg) {
+        this._send(ws, msg);
     }
 }
 

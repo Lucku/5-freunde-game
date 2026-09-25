@@ -133,8 +133,14 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     if (_sep > 1400) drawCoopDistanceWarning(ctx, runState.player2, _sep);
                 }
             } else if (runState.player2._snapshotAt) {
-                if (runState.player2._snapBuf && runState.player2._snapBuf.length >= 2) {
-                    const _p2pos = _onlineInterpBuf(runState.player2._snapBuf, _onlineRenderTime());
+                const _p2buf = runState.player2._snapBuf;
+                if (_p2buf && _p2buf.length >= 2) {
+                    // Past the newest snapshot → extrapolate (≤100 ms) instead of
+                    // freezing the partner on a late packet.
+                    const _p2rt = _onlineRenderTime();
+                    const _p2pos = _p2rt > _p2buf[_p2buf.length - 1].t
+                        ? _onlineExtrapolateBuf(_p2buf, _p2rt, 100)
+                        : _onlineInterpBuf(_p2buf, _p2rt);
                     runState.player2.x = _p2pos.x; runState.player2.y = _p2pos.y;
                 } else {
                     // Fallback: extrapolate from single snapshot until buffer fills
@@ -171,14 +177,12 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 const _ep = _onlineInterpBuf(_buf, _renderTime);
                 e.x = _ep.x; e.y = _ep.y;
             } else if (_buf && _buf.length && _renderTime > _lastT) {
-                // Tier 1a — past last snapshot: extrapolate via velocity instead
-                // of clamping. Keeps motion smooth across packet stalls; capped
-                // at 150 ms ahead to bound the snap-back when packet arrives.
-                const _last = _buf[_buf.length - 1];
-                const _aheadMs = Math.min(_renderTime - _lastT, 150);
-                const _dt = _aheadMs / (1000 / 60);
-                e.x = _last.x + (e.vx || 0) * _dt;
-                e.y = _last.y + (e.vy || 0) * _dt;
+                // Tier 1a — past last snapshot: extrapolate instead of clamping.
+                // Keeps motion smooth across packet stalls; capped at 150 ms
+                // ahead to bound the snap-back when the packet arrives. Uses
+                // the buffered path (enemies ship no velocity).
+                const _ep = _onlineExtrapolateBuf(_buf, _renderTime, 150);
+                e.x = _ep.x; e.y = _ep.y;
             } else {
                 const _dt = Math.min((_now - (e._snapshotAt || _now)) / 1000 * 60, 12);
                 e.x = (e._sx ?? e.x) + (e.vx || 0) * _dt;

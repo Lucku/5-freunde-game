@@ -154,7 +154,7 @@ saveData = {
 - `GET /api/admin/*` (admin dashboard at `/admin`)
 - `WS /ws` — lobby + match state, gameplay snapshots (permessage-deflate compressed, server context kept between messages). 5 s ping/pong heartbeat terminates half-open sockets. Origin allowlist via `ALLOWED_WS_ORIGINS` env var.
 
-[`server/simulation/`](server/simulation/) — runs the same `Player` / `Enemy` / `Arena` code as the client. `GameSession` ticks at 30 Hz (drops to 20 Hz under CPU pressure via variable tick-rate). Inputs come from the client over WS; world state is broadcast back as snapshots.
+[`server/simulation/`](server/simulation/) — runs the same `Player` / `Enemy` / `Arena` code as the client. `GameSession` ticks at 60 / 30 / 20 Hz depending on entity load (1 / 2 / 3 sub-stepped 60 fps frames per tick), scheduled on a monotonic wall-clock deadline so the simulation runs at exactly 60 fps on every tier. Inputs come from the client over WS; world state is broadcast back as snapshots, delta-encoded per connection (a rejoining socket starts with a full keyframe; congested sockets skip snapshots instead of queueing).
 
 ## Networking
 

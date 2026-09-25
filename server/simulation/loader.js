@@ -363,6 +363,7 @@ global.logKeyMoment                = _noop;
 // Online net-sync globals — server is the authority; client interp fields
 // stay at safe defaults.
 global._onlineInterpBuf            = [];
+global._onlineExtrapolateBuf       = _noop;
 global._onlineRenderTime           = 0;
 // Spatial hash globals — broad-phase collision optimization on the renderer
 // ( leaf modules read these). Server skips the hash entirely; stubs
