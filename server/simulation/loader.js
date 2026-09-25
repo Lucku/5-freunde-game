@@ -150,7 +150,7 @@ global.player           = null;
 global.player2          = null;
 global.wave             = 1;
 global.frame            = 0;
-global.arena            = { width: ARENA_WIDTH, height: ARENA_HEIGHT, camera: { x: 0, y: 0 }, checkCollision: () => false };
+global.arena            = { width: ARENA_WIDTH, height: ARENA_HEIGHT, camera: { x: 0, y: 0 }, checkCollision: () => false, update: () => {}, applyToPlayer: () => {} };
 global.enemies          = [];
 global.projectiles      = [];
 global.particles        = [];

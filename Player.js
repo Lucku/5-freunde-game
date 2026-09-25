@@ -903,7 +903,12 @@ class Player {
         const _w = this._world ?? window._world;
         const { frame, wave, currentWeather, particles, enemies, floatingTexts,
                 arena, saveData, createExplosion, currentRunStats, keys } = _w ?? {};
-        this.trapSpeedMod = 1; // Reset trap modifier
+        // Trap modifier for THIS frame was set by arena.update / applyToPlayer
+        // (which run before player.update); consume it, then reset for the
+        // next frame. Resetting before reading — as before — meant the SLOW
+        // trap never slowed anyone.
+        const _trapSpeedMod = this.trapSpeedMod;
+        this.trapSpeedMod = 1;
 
         if (this.buffs.speed > 0) this.buffs.speed--;
         if (this.buffs.multi > 0) this.buffs.multi--;
@@ -1116,7 +1121,7 @@ class Player {
             if (this.customUpdate(dx, dy, _w)) return;
         }
 
-        let currentSpeed = this.stats.speed * this.speedMultiplier * this.trapSpeedMod;
+        let currentSpeed = this.stats.speed * this.speedMultiplier * _trapSpeedMod;
         if (this.buffs.speed > 0) currentSpeed *= 1.5;
 
         // Apply Biome Modifier

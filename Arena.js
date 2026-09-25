@@ -35,7 +35,9 @@ class Arena {
     // Lazy rebuild for the obstacle bake layer. No-op in non-browser
     // environments (server simulation) since `document` is absent.
     _rebuildStaticObstacleLayer() {
-        if (typeof document === 'undefined') {
+        // The server simulation installs a minimal `document` stub (no
+        // createElement), so test for the capability, not just the global.
+        if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
             this._staticObstacleCanvas = null;
             return;
         }
@@ -332,13 +334,25 @@ class Arena {
         if (mapData.arenaWidth) this.width = mapData.arenaWidth;
         if (mapData.arenaHeight) this.height = mapData.arenaHeight;
 
-        this.obstacles = (mapData.obstacles || []).map(
-            o => new Obstacle(o.x, o.y, o.w, o.h, o.biomeType ?? null)
-        );
+        this.obstacles = (mapData.obstacles || []).map(o => {
+            const obs = new Obstacle(o.x, o.y, o.w, o.h, o.biomeType ?? null);
+            if (o.solid === false) obs.solid = false;
+            return obs;
+        });
         this.biomeZones = (mapData.biomeZones || []).map(
             z => new BiomeZone(z.x, z.y, z.w, z.h, z.type)
         );
-        this.traps = (mapData.traps || []).map(t => new Trap(t.x, t.y, t.type));
+        this.traps = (mapData.traps || []).map(t => {
+            const trap = new Trap(t.x, t.y, t.type);
+            // Online layouts (serializeLayout) carry the host's rolled trap
+            // state — conveyor direction, spike/turret phase, laser angle — so
+            // every simulation of this arena starts in step. Editor maps omit it.
+            if (typeof t.timer === 'number') trap.timer = t.timer;
+            if (typeof t.active === 'boolean') trap.active = t.active;
+            if (typeof t.angle === 'number') trap.angle = t.angle;
+            if (typeof t.vx === 'number' && typeof t.vy === 'number') { trap.vx = t.vx; trap.vy = t.vy; }
+            return trap;
+        });
 
         // Wire TELEPORTER pairs via pairIndex
         if (mapData.traps) {
@@ -351,6 +365,70 @@ class Arena {
         }
 
         this._rebuildStaticObstacleLayer();
+    }
+
+    // Plain-JSON snapshot of the gameplay-relevant layout — the shape
+    // generateFromMap consumes, plus trap runtime state. Online co-op sends the
+    // host's generated arena to the server (so its simulation collides with the
+    // same walls, zones and traps) and to the guest (as a cross-check).
+    // Positions are rounded to 0.1 px so two clients that generated the same
+    // arena serialize — and hash — it identically.
+    serializeLayout() {
+        const r = (v) => Math.round(v * 10) / 10;
+        const traps = this.traps;
+        return {
+            biomeType: this.biomeType || null,
+            obstacles: this.obstacles.map(o => {
+                const e = { x: r(o.x), y: r(o.y), w: r(o.w), h: r(o.h) };
+                if (o.biomeType) e.biomeType = o.biomeType;
+                if (o.solid === false) e.solid = false;
+                return e;
+            }),
+            biomeZones: this.biomeZones.map(z => ({ x: r(z.x), y: r(z.y), w: r(z.w), h: r(z.h), type: z.type })),
+            traps: traps.map(t => {
+                const e = { x: r(t.x), y: r(t.y), type: t.type, timer: r(t.timer || 0), active: !!t.active };
+                if (typeof t.angle === 'number') e.angle = t.angle;
+                if (typeof t.vx === 'number') { e.vx = t.vx; e.vy = t.vy; }
+                if (t.pair) {
+                    const pi = traps.indexOf(t.pair);
+                    if (pi >= 0) e.pairIndex = pi;
+                }
+                return e;
+            }),
+        };
+    }
+
+    // Fingerprint of a serialized layout (FNV-1a over a canonical string, so
+    // object key order doesn't matter). Client and server both call this, so
+    // it must stay a pure function of the layout's values.
+    static layoutHash(layout) {
+        if (!layout) return 0;
+        const f = (v) => (typeof v === 'number' ? v.toFixed(2) : '');
+        const parts = [String(layout.biomeType || '')];
+        for (const o of layout.obstacles || []) parts.push(`o${f(o.x)},${f(o.y)},${f(o.w)},${f(o.h)},${o.biomeType || ''},${o.solid === false ? 0 : 1}`);
+        for (const z of layout.biomeZones || []) parts.push(`z${f(z.x)},${f(z.y)},${f(z.w)},${f(z.h)},${z.type}`);
+        for (const t of layout.traps || []) parts.push(`t${f(t.x)},${f(t.y)},${t.type},${f(t.timer)},${t.active ? 1 : 0},${f(t.angle)},${f(t.vx)},${f(t.vy)},${t.pairIndex ?? ''}`);
+        const s = parts.join('|');
+        let h = 0x811c9dc5;
+        for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+        return h >>> 0;
+    }
+
+    // Deterministic nearest collision-free point to (x, y): rings of samples at
+    // growing distance. Used where independent simulations must agree on a
+    // spot without sharing RNG (online co-op spawn points on an uploaded layout).
+    nearestFreePosition(x, y, r) {
+        if (!this.checkCollision(x, y, r)) return { x, y };
+        for (let d = 25; d <= 1500; d += 25) {
+            const n = Math.max(8, Math.round(d / 12));
+            for (let i = 0; i < n; i++) {
+                const a = (i / n) * Math.PI * 2;
+                const px = x + Math.cos(a) * d;
+                const py = y + Math.sin(a) * d;
+                if (!this.checkCollision(px, py, r)) return { x: px, y: py };
+            }
+        }
+        return { x, y };
     }
 
     draw(ctx, theme) {
@@ -426,102 +504,17 @@ class Arena {
         // Check Trap Collisions
         this.traps.forEach(trap => {
             trap.update(); // Update state
-
-            const dx = player.x - (trap.x + trap.w / 2);
-            const dy = player.y - (trap.y + trap.h / 2);
-            if (Math.abs(dx) < trap.w / 2 && Math.abs(dy) < trap.h / 2) {
-                if (trap.type === 'SPIKE' && trap.active) {
-                    if (frame % 60 === 0) {
-                        if (!player.isInvincible) {
-                            player.hp -= 10; // Damage every second if active
-                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "10", "#e74c3c", 20));
-                        }
-                    }
-                } else if (trap.type === 'SLOW') {
-                    player.trapSpeedMod = 0.5; // Slow down
-                } else if (trap.type === 'CONVEYOR') {
-                    player.x += trap.vx;
-                    player.y += trap.vy;
-                } else if (trap.type === 'TELEPORTER' && trap.active && trap.pair) {
-                    // Teleport
-                    createExplosion(player.x, player.y, '#3498db');
-                    player.x = trap.pair.x + trap.pair.w / 2;
-                    player.y = trap.pair.y + trap.pair.h / 2;
-                    createExplosion(player.x, player.y, '#3498db');
-                    trap.active = false; // Cooldown
-                    trap.pair.active = false;
-                    trap.timer = 180; // 3 seconds cooldown
-                    trap.pair.timer = 180;
-                }
-            }
-
-            // Laser Beam Collision (Line vs Circle)
-            if (trap.type === 'LASER_BEAM') {
-                // Simple check: distance from point to line segment
-                // Laser rotates around center
-                const cx = trap.x + trap.w / 2;
-                const cy = trap.y + trap.h / 2;
-                const lx = cx + Math.cos(trap.angle) * 200;
-                const ly = cy + Math.sin(trap.angle) * 200;
-
-                // Check collision with player
-                // Vector from start to end
-                const dx = lx - cx;
-                const dy = ly - cy;
-                // Vector from start to player
-                const px = player.x - cx;
-                const py = player.y - cy;
-
-                const t = Math.max(0, Math.min(1, (px * dx + py * dy) / (dx * dx + dy * dy)));
-                const closestX = cx + t * dx;
-                const closestY = cy + t * dy;
-
-                const dist = Math.hypot(player.x - closestX, player.y - closestY);
-                if (dist < player.radius + 5) {
-                    if (frame % 10 === 0) {
-                        if (!player.isInvincible) {
-                            player.hp -= 2;
-                            createExplosion(player.x, player.y, '#e74c3c');
-                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "2", "#e74c3c", 20));
-                        }
-                    }
-                }
-            }
+            this._applyTrapToPlayer(trap, player);
         });
 
         // Check Biome Collisions (Dark Energy)
         this.biomeZones.forEach(zone => {
             if (zone.type === 'DARK_ENERGY') {
-                // Player Interaction
-                if (player.x > zone.x && player.x < zone.x + zone.w &&
-                    player.y > zone.y && player.y < zone.y + zone.h) {
+                this._applyZoneToPlayer(zone, player);
 
-                    if (player.type === 'black') {
-                        // Heal Black Hero
-                        if (frame % 60 === 0 && player.hp < player.maxHp) {
-                            player.hp += 1;
-                            zone.healthYielded += 1;
-                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 30, "+1", "#9b59b6", 14));
-
-                            if (zone.healthYielded >= zone.maxHealthYield) {
-                                zone.depleted = true;
-                                floatingTexts.push(FloatingText.acquire(zone.x + zone.w / 2, zone.y + zone.h / 2, "DEPLETED", "#555", 20));
-                            }
-                        }
-                    } else {
-                        // Damage other heroes (Makuta Fight Logic)
-                        if (frame % 60 === 0) {
-                            if (!player.isInvincible) {
-                                player.hp -= 5 * (1 - player.damageReduction);
-                                createExplosion(player.x, player.y, '#8e44ad');
-                                floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "5", "#8e44ad", 16));
-                            }
-                        }
-                    }
-                }
-
-                // Enemy Interaction
+                // Enemy Interaction (online ghosts are server-owned — skip)
                 enemies.forEach(e => {
+                    if (e._ghost) return;
                     if (e.x > zone.x && e.x < zone.x + zone.w &&
                         e.y > zone.y && e.y < zone.y + zone.h) {
 
@@ -545,6 +538,111 @@ class Arena {
 
         // Remove depleted zones
         this.biomeZones = this.biomeZones.filter(z => !z.depleted);
+    }
+
+    // Trap + hazard-zone effects on an additional player (co-op P2). World
+    // state — trap timers, zone-vs-enemy effects, the DLC biome hook — is
+    // advanced once per frame by update(player 1); this applies only the
+    // per-player part, so P2 no longer walks through spikes and conveyors.
+    applyToPlayer(player) {
+        this.traps.forEach(trap => this._applyTrapToPlayer(trap, player));
+        this.biomeZones.forEach(zone => {
+            if (zone.type === 'DARK_ENERGY') this._applyZoneToPlayer(zone, player);
+        });
+        this.biomeZones = this.biomeZones.filter(z => !z.depleted);
+    }
+
+    _applyTrapToPlayer(trap, player) {
+        const dx = player.x - (trap.x + trap.w / 2);
+        const dy = player.y - (trap.y + trap.h / 2);
+        if (Math.abs(dx) < trap.w / 2 && Math.abs(dy) < trap.h / 2) {
+            if (trap.type === 'SPIKE' && trap.active) {
+                if (frame % 60 === 0) {
+                    if (!player.isInvincible) {
+                        player.hp -= 10; // Damage every second if active
+                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "10", "#e74c3c", 20));
+                    }
+                }
+            } else if (trap.type === 'SLOW') {
+                player.trapSpeedMod = 0.5; // Slow down
+            } else if (trap.type === 'CONVEYOR') {
+                player.x += trap.vx;
+                player.y += trap.vy;
+            } else if (trap.type === 'TELEPORTER' && trap.active && trap.pair) {
+                // Teleport
+                createExplosion(player.x, player.y, '#3498db');
+                player.x = trap.pair.x + trap.pair.w / 2;
+                player.y = trap.pair.y + trap.pair.h / 2;
+                createExplosion(player.x, player.y, '#3498db');
+                trap.active = false; // Cooldown
+                trap.pair.active = false;
+                trap.timer = 180; // 3 seconds cooldown
+                trap.pair.timer = 180;
+            }
+        }
+
+        // Laser Beam Collision (Line vs Circle)
+        if (trap.type === 'LASER_BEAM') {
+            // Simple check: distance from point to line segment
+            // Laser rotates around center
+            const cx = trap.x + trap.w / 2;
+            const cy = trap.y + trap.h / 2;
+            const lx = cx + Math.cos(trap.angle) * 200;
+            const ly = cy + Math.sin(trap.angle) * 200;
+
+            // Check collision with player
+            // Vector from start to end
+            const dx = lx - cx;
+            const dy = ly - cy;
+            // Vector from start to player
+            const px = player.x - cx;
+            const py = player.y - cy;
+
+            const t = Math.max(0, Math.min(1, (px * dx + py * dy) / (dx * dx + dy * dy)));
+            const closestX = cx + t * dx;
+            const closestY = cy + t * dy;
+
+            const dist = Math.hypot(player.x - closestX, player.y - closestY);
+            if (dist < player.radius + 5) {
+                if (frame % 10 === 0) {
+                    if (!player.isInvincible) {
+                        player.hp -= 2;
+                        createExplosion(player.x, player.y, '#e74c3c');
+                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "2", "#e74c3c", 20));
+                    }
+                }
+            }
+        }
+    }
+
+    _applyZoneToPlayer(zone, player) {
+        // Player Interaction
+        if (player.x > zone.x && player.x < zone.x + zone.w &&
+            player.y > zone.y && player.y < zone.y + zone.h) {
+
+            if (player.type === 'black') {
+                // Heal Black Hero
+                if (frame % 60 === 0 && player.hp < player.maxHp) {
+                    player.hp += 1;
+                    zone.healthYielded += 1;
+                    floatingTexts.push(FloatingText.acquire(player.x, player.y - 30, "+1", "#9b59b6", 14));
+
+                    if (zone.healthYielded >= zone.maxHealthYield) {
+                        zone.depleted = true;
+                        floatingTexts.push(FloatingText.acquire(zone.x + zone.w / 2, zone.y + zone.h / 2, "DEPLETED", "#555", 20));
+                    }
+                }
+            } else {
+                // Damage other heroes (Makuta Fight Logic)
+                if (frame % 60 === 0) {
+                    if (!player.isInvincible) {
+                        player.hp -= 5 * (1 - player.damageReduction);
+                        createExplosion(player.x, player.y, '#8e44ad');
+                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "5", "#8e44ad", 16));
+                    }
+                }
+            }
+        }
     }
 
     checkCollision(x, y, r) {

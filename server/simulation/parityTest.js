@@ -1233,6 +1233,129 @@ function testConcurrentSessionIsolation() {
     gsB.stop();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 28 — N11: uploaded arena layout (walls / zones / traps on the server)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testArenaLayout() {
+    console.log('\n── 28 N11 — Uploaded arena layout on the server ───────────');
+    const Arena = global.Arena;
+    const CX = 1500, CY = 1500;
+    // Keep bots alive and level-up free so ticks keep simulating.
+    const run = (gs, ticks, input) => {
+        for (let i = 0; i < ticks; i++) {
+            for (const p of gs.players) { if (p) { p.hp = p.maxHp; p.isDead = false; p.xp = 0; } }
+            if (input) {
+                if (input.host)  gs.applyInput('host',  input.host);
+                if (input.guest) gs.applyInput('guest', input.guest);
+            }
+            gs.isLevelingUp = false; gs._levelUpFor = -1;
+            gs._tick();
+        }
+    };
+    const wall = { x: CX - 150, y: CY - 200, w: 100, h: 400 };      // right of the host spawn (CX-300)
+    const guestBlock = { x: CX + 250, y: CY - 50, w: 100, h: 100 }; // covers the guest spawn (CX+300)
+    const layout = {
+        biomeType: 'fire',
+        obstacles: [wall, guestBlock],
+        biomeZones: [{ x: 100, y: 100, w: 200, h: 200, type: 'MUD' }],
+        traps: [
+            { x: CX + 400, y: CY + 300, type: 'CONVEYOR', timer: 0, active: true, vx: 2, vy: 0 },
+            { x: CX - 600, y: CY + 600, type: 'SLOW', timer: 0, active: true },
+        ],
+    };
+
+    // ── Validation ──
+    {
+        const { gs } = makeSession('fire', 'water');
+        assert(gs.setArenaLayout(null) === false, 'rejects a null layout');
+        assert(gs.setArenaLayout({ obstacles: [{ x: '1', y: 0, w: 1, h: 1 }] }) === false, 'rejects non-numeric obstacle fields');
+        assert(gs.setArenaLayout({ obstacles: Array.from({ length: 201 }, () => ({ x: 0, y: 0, w: 1, h: 1 })) }) === false, 'rejects > 200 obstacles');
+        assert(gs.setArenaLayout({ traps: [{ x: 0, y: 0, type: 'NUKE' }] }) === false, 'rejects unknown trap types');
+        assert(gs.setArenaLayout({ traps: [{ x: 0, y: 0, type: 'TELEPORTER', pairIndex: 5 }] }) === false, 'rejects out-of-range teleporter pair');
+        assert(gs._world.arena.obstacles.length === 0, 'rejected uploads leave the stub arena in place');
+        gs.stop();
+    }
+
+    // ── Walls, spawns, enemies, projectiles, conveyor ──
+    {
+        const { gs } = makeSession('fire', 'water');
+        const ok = gs.setArenaLayout(layout, 1);
+        const arena = gs._world.arena;
+        assert(ok && typeof arena.checkCollision === 'function' && arena.obstacles.length === 2, 'valid layout installs a real Arena with its obstacles');
+        assert(gs.arenaLayoutHash === Arena.layoutHash(gs.arenaLayout) && gs.arenaLayoutHash !== 0, 'session exposes the layout hash');
+
+        const [p1, p2] = gs.players;
+        assert(!arena.checkCollision(p2.x, p2.y, p2.radius) && Math.hypot(p2.x - (CX + 300), p2.y - CY) < 200,
+            `guest spawn nudged out of the wall covering it (→ ${p2.x.toFixed(0)}, ${p2.y.toFixed(0)})`);
+
+        run(gs, 90, { host: { x: 1, y: 0, aimAngle: 0, shoot: true }, guest: { x: 0, y: 0, aimAngle: Math.PI } });
+        assert(p1.x <= wall.x - p1.radius + 0.5, `host moving right is stopped by the wall (x=${p1.x.toFixed(1)}, wall face ${wall.x - p1.radius})`);
+
+        const hostShotsPastWall = [];
+        for (let i = 0; i < gs.projectiles.length; i++) {
+            const p = gs.projectiles[i];
+            if (!p.isEnemy && p.x > wall.x + wall.w + 5 && p.y > wall.y && p.y < wall.y + wall.h) hostShotsPastWall.push(p);
+        }
+        assert(hostShotsPastWall.length === 0, `host shots die on the wall (${hostShotsPastWall.length} past it)`);
+
+        run(gs, 240, { host: { x: 0, y: 0, aimAngle: 0 }, guest: { x: 0, y: 0, aimAngle: 0 } });
+        let inWall = 0, n = 0;
+        for (let i = 0; i < gs.enemies.length; i++) { n++; if (arena.checkCollision(gs.enemies[i].x, gs.enemies[i].y, 1)) inWall++; }
+        assert(n > 0 && inWall === 0, `enemies stay out of walls and inside the map (${n} alive, ${inWall} inside)`);
+
+        // Conveyor under the guest: pushed +2 px/frame with no input (applyToPlayer on P2).
+        p2.x = CX + 450; p2.y = CY + 350;
+        const x0 = p2.x, f0 = gs._frame;
+        run(gs, 6, { guest: { x: 0, y: 0, aimAngle: 0 } });
+        const frames = gs._frame - f0;
+        assert(p2.x - x0 >= 1.5 * frames, `conveyor trap moves the co-op P2 (+${(p2.x - x0).toFixed(1)} px over ${frames} frames)`);
+        gs.stop();
+    }
+
+    // ── SLOW trap actually slows (trapSpeedMod consumed before reset) ──
+    {
+        const speedOver = (onTrap) => {
+            const { gs } = makeSession('fire', 'water');
+            gs.setArenaLayout(layout, 1);
+            const p1 = gs.players[0];
+            p1.x = CX - 590; p1.y = onTrap ? CY + 650 : CY + 900; // SLOW trap spans x 900–1000, y 2100–2200
+            const x0 = p1.x, f0 = gs._frame;
+            run(gs, 4, { host: { x: 1, y: 0, aimAngle: 0 } });
+            const v = (p1.x - x0) / (gs._frame - f0);
+            gs.stop();
+            return v;
+        };
+        const vTrap = speedOver(true), vFree = speedOver(false);
+        assert(vFree > 0 && vTrap < vFree * 0.7, `SLOW trap slows the player (${vTrap.toFixed(2)} vs ${vFree.toFixed(2)} px/frame)`);
+    }
+
+    // ── Wait-for-layout gate ──
+    {
+        const gs = new GameSession({ host: { ws: 'H' }, guest: { ws: 'G' } }, () => {}, { awaitLayoutMs: 60000 });
+        gs.init('fire', 'water');
+        clearTimeout(gs._tickInterval); gs._tickInterval = null;
+        for (let i = 0; i < 5; i++) gs._tick();
+        assert(gs._frame === 0, `awaitLayoutMs holds the simulation until the layout arrives (frame ${gs._frame})`);
+        gs.setArenaLayout(layout, 1);
+        gs._tick();
+        assert(gs._frame > 0, `simulation starts once the layout is installed (frame ${gs._frame})`);
+        gs.stop();
+    }
+
+    // ── Hash contract (client ↔ server) ──
+    {
+        const reordered = JSON.parse(JSON.stringify(layout));
+        reordered.obstacles = reordered.obstacles.map(o => ({ h: o.h, w: o.w, y: o.y, x: o.x }));
+        assert(Arena.layoutHash(reordered) === Arena.layoutHash(layout), 'layout hash ignores object key order');
+        const moved = JSON.parse(JSON.stringify(layout)); moved.obstacles[0].x += 1;
+        assert(Arena.layoutHash(moved) !== Arena.layoutHash(layout), 'layout hash changes when geometry changes');
+        const a = new Arena(3000, 3000);
+        a.generateFromMap(layout);
+        assert(Arena.layoutHash(a.serializeLayout()) === Arena.layoutHash(layout), 'serializeLayout ↔ generateFromMap round-trip keeps the hash');
+    }
+}
+
 // ─── Run all tests ─────────────────────────────────────────────────────────────
 
 testSessionIsolation();
@@ -1261,6 +1384,7 @@ testKillSpawnsGoldDropOnBridge();
 testDeterministicSpawnParity();
 testBridgeWaveAdvance();
 testConcurrentSessionIsolation();
+testArenaLayout();
 
 const total = passed + failed;
 console.log(`\n${'─'.repeat(56)}`);

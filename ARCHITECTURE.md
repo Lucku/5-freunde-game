@@ -161,6 +161,7 @@ saveData = {
 - **Snapshots**: cubic-Hermite-interpolated entity positions (Catmull-Rom tangents). Delta-encoded per entity (first appearance carries full payload, subsequent frames send only changed fields).
 - **Compression**: WebSocket `permessage-deflate` (replaced the abandoned Zstd plan — same effect, zero handshake, broader support).
 - **One message per snapshot**: entity-count chunking was removed (no benefit over TCP); the client still reassembles `chunk`-tagged parts from older servers. Default-valued enemy fields are omitted and enemy `hp` ships only on change / keyframe.
+- **Arena layout**: the host generates the arena like singleplayer and uploads `Arena.serializeLayout()` as `ARENA_LAYOUT`. The server validates it (`GameSession.setArenaLayout`, holding the sim ≤ 5 s at match start until it arrives), simulates on a real `Arena` built via `generateFromMap` with a virtual 1280×800 viewport, and relays it with `Arena.layoutHash` to the guest, which adopts it if its own generation hashes differently.
 - **Reconnect grace**: a dropped player's slot is held for 30 s and the session is paused (`GameSession.paused`) until they rejoin; the partner sees `PARTNER_RECONNECTING`, and `PARTNER_DISCONNECTED` only when the grace expires.
 - **Anti-cheat**: server-signed session token issued at run start; leaderboard submissions clamped to hero-specific damage caps; rate-limited per IP.
 

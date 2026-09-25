@@ -208,6 +208,8 @@ window.gameContext.defaultSaveData = defaultSaveData; // Owned by GameContext, m
 let _onlineEvents = [];     // event queue flushed with each host snapshot
 let _onlineGameSubs = [];   // unsubscribe fns for in-game nm handlers (cleared per match)
 let _onlinePartnerLeveling = false; // partner has the level-up modal open → server paused
+let _onlineHostLayout = null;       // { layout, hash } the server relayed from the host (guest side)
+let _onlineLocalLayoutHash = 0;     // Arena.layoutHash of this client's generated arena
 let coopP2HeroType = null;
 let coopP1GamepadIndex = -1;
 let coopP2GamepadIndex = -1;
@@ -2055,11 +2057,18 @@ function startOnlineGame(msg) {
     // every later match in the same app session stacked another copy of each
     // handler and applied every snapshot (and its dx/dy deltas) N times.
     _offOnlineGameHandlers();
+    _onlineHostLayout = null;
+    _onlineLocalLayoutHash = 0;
     const sub = (type, fn) => _onlineGameSubs.push(nm.on(type, fn));
     sub('SNAPSHOT',        (s)  => { if (runState.isOnlineMode) _onlineHandleSnapshot(s); });
     sub('LEVEL_UP',        (ev) => { if (runState.isOnlineMode) _onlineShowLevelUpForGuest(ev); });
     sub('PARTNER_LEVELING',()   => { if (runState.isOnlineMode) _onlineShowPartnerLevelingOverlay(true); });
     sub('LEVEL_UP_DONE',   ()   => { if (runState.isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
+    sub('ARENA_LAYOUT',    (m)  => {
+        if (!runState.isOnlineMode || !m || !m.layout) return;
+        _onlineHostLayout = { layout: m.layout, hash: m.hash };
+        _onlineReconcileLayout();
+    });
 
     sub('PARTNER_RECONNECTING', (msg) => { if (runState.gameRunning) _onlineShowReconnectOverlay(true, msg.timeoutSec || 30); });
     sub('PARTNER_DISCONNECTED', () => { if (runState.gameRunning) _onlineShowReconnectOverlay(true, 0); });
@@ -2094,9 +2103,38 @@ function _offOnlineGameHandlers() {
     _onlineGameSubs = [];
 }
 
+// Online arena sync. Both clients generate the arena exactly like
+// singleplayer (seeded by lobby + wave). The host uploads it so the server
+// simulation collides with the same walls / zones / traps; the guest
+// compares its own result with the host's (relayed by the server) and adopts
+// the host's layout if they differ (e.g. a DLC biome missing on this client).
+function _onlineShareArenaLayout() {
+    const nm = window.networkManager;
+    if (!nm || !arena || typeof arena.serializeLayout !== 'function') return;
+    const layout = arena.serializeLayout();
+    _onlineLocalLayoutHash = Arena.layoutHash(layout);
+    if (nm.isHost()) nm.send({ type: 'ARENA_LAYOUT', wave: runState.wave, layout });
+    else _onlineReconcileLayout();
+}
+
+function _onlineReconcileLayout() {
+    if (!_onlineHostLayout || !_onlineLocalLayoutHash) return; // wait for both halves
+    if (_onlineHostLayout.hash === _onlineLocalLayoutHash) return;
+    console.warn('[online] arena layout differs from host — adopting host layout');
+    arena.generateFromMap(_onlineHostLayout.layout);
+    _onlineLocalLayoutHash = _onlineHostLayout.hash;
+    const p = runState.player;
+    if (p && arena.checkCollision(p.x, p.y, p.radius)) {
+        const pos = arena.nearestFreePosition(p.x, p.y, p.radius);
+        p.x = pos.x; p.y = pos.y;
+    }
+}
+
 function _onlineCleanup() {
     _offOnlineGameHandlers();
     _onlinePartnerLeveling = false;
+    _onlineHostLayout = null;
+    _onlineLocalLayoutHash = 0;
     runState.isOnlineMode  = false;
     runState.isOnlineHost  = false;
     runState.isOnlineGuest = false;
@@ -4488,9 +4526,21 @@ function resumeWaveGeneration() {
 
     if (_savedRandom) Math.random = _savedRandom;
 
+    // Online: hand the generated arena to the server / cross-check with the host.
+    if (runState.isOnlineMode) _onlineShareArenaLayout();
+
     // Reset Player Position to Center
     if (runState.player) {
-        if (runState.isVersusMode) {
+        if (runState.isOnlineMode && !runState.isVersusMode) {
+            // Online co-op: the same deterministic spawn the server gives this
+            // role (GameSession.setArenaLayout) — host left of centre, guest
+            // right, nudged out of any wall — so prediction and the
+            // authoritative position start in agreement.
+            const _side = window.networkManager?.isHost() ? -1 : 1;
+            const _sp = arena.nearestFreePosition(arena.width / 2 + _side * 300, arena.height / 2, runState.player.radius);
+            runState.player.x = _sp.x;
+            runState.player.y = _sp.y;
+        } else if (runState.isVersusMode) {
             runState.player.x = arena.width / 2 - 800; // Left Spawn
             runState.player.y = arena.height / 2;
 

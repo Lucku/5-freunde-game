@@ -1675,6 +1675,10 @@ wss.on('connection', (ws, req) => {
                 lobby[role] = { ws, userId: user.id, username: user.username };
                 if (lobby.session) lobby.session.paused = false;
                 send(ws, { type: 'REJOINED', code: prevCode, role });
+                const s = lobby.session;
+                if (role === 'guest' && s && s.arenaLayout) {
+                    send(ws, { type: 'ARENA_LAYOUT', wave: s.arenaLayoutWave, layout: s.arenaLayout, hash: s.arenaLayoutHash });
+                }
                 const p = partner(lobby, role);
                 if (p) send(p.ws, { type: 'PARTNER_RECONNECTED' });
                 clearTimeout(lobby._graceTimer);
@@ -1832,6 +1836,8 @@ function handleMessage(ws, msg) {
                 const session = new GameSession(lobby, send, {
                     // Zero a player's movement once their INPUT stream stalls.
                     inputTimeoutMs: 200,
+                    // Wait (≤ 5 s) for the host's ARENA_LAYOUT before simulating.
+                    awaitLayoutMs: 5000,
                     // Keep authoritative wave/score fresh so /api/leaderboard
                     // can clamp client claims even before GAME_OVER lands.
                     onTickStats: (wave, score, timeSec) => {
@@ -1861,6 +1867,23 @@ function handleMessage(ws, msg) {
             const lobby = lobbies.get(ws.lobbyCode);
             if (!lobby || lobby.phase !== 'in_game' || !lobby.session) return;
             lobby.session.applyInput(ws.role, msg);
+            break;
+        }
+
+        case 'ARENA_LAYOUT': {
+            // The host generated the arena exactly like singleplayer (seeded,
+            // incl. DLC biome hooks the server can't run) — the server
+            // simulation adopts it so walls / zones / traps are authoritative,
+            // and the guest gets it to cross-check its own generation.
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby || lobby.phase !== 'in_game' || !lobby.session || ws.role !== 'host') return;
+            const wave = Number.isInteger(msg.wave) ? msg.wave : 1;
+            if (wave <= lobby.session.arenaLayoutWave) return; // one layout per wave
+            if (!lobby.session.setArenaLayout(msg.layout, wave)) {
+                console.warn(`[ARENA_LAYOUT] rejected malformed layout from ${ws.username} (lobby ${lobby.code})`);
+                return;
+            }
+            if (lobby.guest) send(lobby.guest.ws, { type: 'ARENA_LAYOUT', wave, layout: lobby.session.arenaLayout, hash: lobby.session.arenaLayoutHash });
             break;
         }
 

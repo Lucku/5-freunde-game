@@ -46,6 +46,80 @@ const SNAPSHOT_BACKPRESSURE_BYTES = 64 * 1024;
 // Events queued for a client whose snapshots are being skipped are capped.
 const SNAPSHOT_MAX_QUEUED_EVENTS  = 200;
 
+// ── Arena layout (uploaded by the online host) ──────────────────────────────
+// The host generates the arena exactly like singleplayer (seeded, incl. DLC
+// biome hooks the server can't run) and uploads `Arena.serializeLayout()`.
+// The server validates it and simulates on a real Arena built from it.
+const LAYOUT_MAX_OBSTACLES = 200;
+const LAYOUT_MAX_ZONES     = 80;
+const LAYOUT_MAX_TRAPS     = 60;
+const LAYOUT_TRAP_TYPES    = new Set(['SLOW', 'CONVEYOR', 'SPIKE', 'TURRET', 'LASER_BEAM', 'TELEPORTER']);
+// Reference client viewport (Steam Deck). The server has no screen; its
+// arena camera uses this size so camera-relative gameplay — enemies spawn
+// just off the view (Enemy.js) — matches singleplayer instead of treating the
+// whole 3000² map as "on screen" (which spawned enemies outside the walls).
+const SERVER_VIEW_W = 1280;
+const SERVER_VIEW_H = 800;
+
+// Returns a normalized copy of an uploaded layout, or null if anything is
+// malformed / out of range (the whole upload is rejected, never partially used).
+function _sanitizeArenaLayout(raw, W, H) {
+    if (!raw || typeof raw !== 'object') return null;
+    const num = (v, lo, hi) => (typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi) ? v : null;
+    const tag = (v) => (typeof v === 'string' && v.length > 0 && v.length <= 40) ? v : null;
+    const list = (v, max) => (v === undefined ? [] : (Array.isArray(v) && v.length <= max ? v : null));
+    const obstacles = list(raw.obstacles, LAYOUT_MAX_OBSTACLES);
+    const zones     = list(raw.biomeZones, LAYOUT_MAX_ZONES);
+    const traps     = list(raw.traps, LAYOUT_MAX_TRAPS);
+    if (!obstacles || !zones || !traps) return null;
+    const rect = (o) => {
+        if (!o || typeof o !== 'object') return null;
+        const x = num(o.x, -W, 2 * W), y = num(o.y, -H, 2 * H);
+        const w = num(o.w, 0, 2 * W),  h = num(o.h, 0, 2 * H);
+        return (x === null || y === null || w === null || h === null) ? null : { x, y, w, h };
+    };
+    const out = { biomeType: null, obstacles: [], biomeZones: [], traps: [] };
+    if (raw.biomeType != null && !(out.biomeType = tag(raw.biomeType))) return null;
+    for (const o of obstacles) {
+        const r = rect(o);
+        if (!r) return null;
+        if (o.biomeType != null) { if (!(r.biomeType = tag(o.biomeType))) return null; }
+        if (o.solid === false) r.solid = false;
+        out.obstacles.push(r);
+    }
+    for (const z of zones) {
+        const r = rect(z);
+        if (!r || !(r.type = tag(z.type))) return null;
+        out.biomeZones.push(r);
+    }
+    for (const t of traps) {
+        if (!t || typeof t !== 'object' || !LAYOUT_TRAP_TYPES.has(t.type)) return null;
+        const x = num(t.x, -W, 2 * W), y = num(t.y, -H, 2 * H);
+        if (x === null || y === null) return null;
+        const e = { x, y, type: t.type, timer: num(t.timer, -1e6, 1e6) ?? 0, active: t.active !== false };
+        if (t.angle !== undefined) { if ((e.angle = num(t.angle, -1e6, 1e6)) === null) return null; }
+        if (t.vx !== undefined || t.vy !== undefined) {
+            e.vx = num(t.vx, -20, 20); e.vy = num(t.vy, -20, 20);
+            if (e.vx === null || e.vy === null) return null;
+        }
+        if (t.pairIndex !== undefined) {
+            if (!Number.isInteger(t.pairIndex) || t.pairIndex < 0 || t.pairIndex >= traps.length) return null;
+            e.pairIndex = t.pairIndex;
+        }
+        out.traps.push(e);
+    }
+    return out;
+}
+
+function _useVirtualViewport(arena) {
+    const cam = arena.updateCamera.bind(arena);
+    const two = arena.updateCameraForTwo.bind(arena);
+    arena.updateCamera       = (p) => cam(p, SERVER_VIEW_W, SERVER_VIEW_H);
+    arena.updateCameraForTwo = (a, b) => two(a, b, SERVER_VIEW_W, SERVER_VIEW_H);
+    arena.camera.width  = SERVER_VIEW_W;
+    arena.camera.height = SERVER_VIEW_H;
+}
+
 /**
  * GameSession — authoritative server-side game simulation.
  *
@@ -80,6 +154,14 @@ class GameSession {
         // 0 = off, so test harnesses (sparse applyInput + virtual clock) stay
         // deterministic. server.js enables it for live sessions.
         this._inputTimeoutMs = opts.inputTimeoutMs || 0;
+        // Hold the simulation at match start until the host's arena layout
+        // arrives (up to this long), so nothing is simulated on the flat stub
+        // arena first. Opt-in: 0 = start immediately (tests / harnesses).
+        this._awaitLayoutMs       = opts.awaitLayoutMs || 0;
+        this._awaitingLayoutUntil = 0;
+        this.arenaLayout          = null; // sanitized layout once received
+        this.arenaLayoutHash      = 0;
+        this.arenaLayoutWave      = 0;
 
         // ── World instance ─────────────────────────────────────────────────────
         this._world = World.createServerWorld();
@@ -115,6 +197,7 @@ class GameSession {
             camera:         { x: 0, y: 0, width: ARENA_WIDTH, height: ARENA_HEIGHT },
             checkCollision: () => false,
             update:             () => {},
+            applyToPlayer:      () => {},
             updateCamera:       () => {},
             updateCameraForTwo: () => 1.0,
             draw:               () => {},
@@ -205,7 +288,7 @@ class GameSession {
         if (next !== cur) {
             this._currentTickMs     = next;
             this._currentTickFrames = next / (1000 / 60);
-            console.log(`[GameSession ${this._lobby.code}] tick rate → ${Math.round(1000 / next)} Hz (load=${load})`);
+            console.log(`[GameSession ${this._lobby.code}] tick rate → ${Math.round(60 / this._subSteps())} Hz (load=${load})`);
         }
     }
 
@@ -246,6 +329,7 @@ class GameSession {
         this._world.projectiles = this.projectiles;
 
         this._startedAt = Date.now();
+        if (this._awaitLayoutMs > 0) this._awaitingLayoutUntil = performance.now() + this._awaitLayoutMs;
         // Self-rescheduling tick on a wall-clock deadline. Each tick advances
         // `_subSteps()` 60 fps frames, so the next deadline moves by exactly that
         // much simulated time — the sim runs at a true 60 fps on every tier.
@@ -348,8 +432,66 @@ class GameSession {
 
     // ─── Internal tick ───────────────────────────────────────────────────────────
 
+    /**
+     * Install the online host's generated arena (`Arena.serializeLayout()`).
+     * Returns false if the upload is malformed. The server simulation then
+     * collides with the same walls, zones and traps the clients draw.
+     */
+    setArenaLayout(raw, wave = 1) {
+        const layout = _sanitizeArenaLayout(raw, ARENA_WIDTH, ARENA_HEIGHT);
+        if (!layout) return false;
+        const _prevRunState = _setActiveRunState(this._runState);
+        try {
+            const arena = new global.Arena(ARENA_WIDTH, ARENA_HEIGHT);
+            arena.generateFromMap(layout);
+            _useVirtualViewport(arena);
+            this._world.arena    = arena;
+            this.arenaLayout     = layout;
+            this.arenaLayoutHash = global.Arena.layoutHash(layout);
+            this.arenaLayoutWave = wave;
+
+            // Players: before the match starts, take the same deterministic
+            // spawn the clients use (role offset ∓300 px, nudged out of walls —
+            // game.js resumeWaveGeneration). Later, only rescue a player the
+            // new walls would trap.
+            const starting = this._awaitingLayoutUntil > 0 || this._frame === 0;
+            this.players.forEach((p, i) => {
+                if (!p) return;
+                const r = p.radius || 20;
+                const from = starting
+                    ? { x: ARENA_WIDTH / 2 + (i === 0 ? -300 : 300), y: ARENA_HEIGHT / 2 }
+                    : { x: p.x, y: p.y };
+                const pos = arena.nearestFreePosition(from.x, from.y, r);
+                p.x = pos.x; p.y = pos.y;
+            });
+            // Enemies already simulated on the flat stub arena (late upload).
+            for (let i = 0; i < this.enemies.length; i++) {
+                const e = this.enemies[i];
+                if (!e) continue;
+                const r = e.radius || 20;
+                if (arena.checkCollision(e.x, e.y, r)) {
+                    const pos = arena.nearestFreePosition(e.x, e.y, r);
+                    e.x = pos.x; e.y = pos.y;
+                }
+            }
+            this._awaitingLayoutUntil = 0;
+        } finally {
+            _setActiveRunState(_prevRunState);
+        }
+        return true;
+    }
+
+    _isAwaitingLayout() {
+        if (!this._awaitingLayoutUntil) return false;
+        if (performance.now() < this._awaitingLayoutUntil) return true;
+        // Timed out (older client that never uploads) — run on the stub arena.
+        this._awaitingLayoutUntil = 0;
+        console.warn(`[GameSession ${this._lobby.code}] no arena layout from host — simulating without walls`);
+        return false;
+    }
+
     _tick() {
-        if (this.isLevelingUp || this.paused) return;
+        if (this.isLevelingUp || this.paused || this._isAwaitingLayout()) return;
 
         if (this._inputTimeoutMs > 0) {
             const now = Date.now();

@@ -61,6 +61,13 @@ function _updateGameplayPre(deltaTime) {
     }
 
     arena.update(runState.player);
+    // Co-op / AI companion: traps + hazard zones hit the second player too
+    // (they only ever applied to P1). The online partner ghost is skipped —
+    // the server applies it authoritatively.
+    if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2
+            && !runState.player2._ghost && !runState.player2.isDead) {
+        arena.applyToPlayer(runState.player2);
+    }
 
     // --- OBJECTIVE LOGIC ---
     if (runState.currentObjective && runState.currentObjective.state === 'ACTIVE') {
@@ -276,7 +283,7 @@ function _updateGameplayPre(deltaTime) {
                         tx = target.x - arena.camera.x;
                         ty = target.y - arena.camera.y;
                         // Damage the struck enemy
-                        target.hp -= (runState.player.rangeDmg || 20) * 1.8;
+                        if (!target._ghost) target.hp -= (runState.player.rangeDmg || 20) * 1.8; // ghosts: server applies it
                         createExplosion(target.x, target.y, '#ffffaa', 6);
                     } else {
                         tx = runState.rng() * canvas.width;
