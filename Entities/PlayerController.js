@@ -1,5 +1,25 @@
 // Explicit imports for symbols previously read off window shims.
 
+// Stick deadzones (radial). A resting stick rarely reads exactly 0 — worn
+// pads drift 0.05–0.2 off-centre — and the old per-axis 0.1 threshold let
+// that through: the hero crept sideways on its own (online, two game windows
+// sharing one pad crept in lockstep).
+export const STICK_DEADZONE_MOVE = 0.2;
+export const STICK_DEADZONE_AIM  = 0.25;
+
+/**
+ * Radial deadzone with rescale: returns [x, y] = 0 inside the deadzone, and
+ * ramps smoothly from 0 at its edge to full deflection at the rim (no jump to
+ * ~20 % speed the moment the threshold is crossed). Direction is preserved.
+ */
+export function applyStickDeadzone(ax, ay, deadzone) {
+    const x = ax || 0, y = ay || 0;
+    const mag = Math.hypot(x, y);
+    if (mag <= deadzone) return [0, 0];
+    const k = Math.min(1, (mag - deadzone) / (1 - deadzone)) / mag;
+    return [x * k, y * k];
+}
+
 class PlayerController {
     constructor() {
         this.type = 'BASE';
@@ -74,13 +94,15 @@ class HumanController extends PlayerController {
         }
 
         if (gp) {
-            // Movement (Left Stick)
-            if (Math.abs(gp.axes[0]) > 0.1) dx = gp.axes[0];
-            if (Math.abs(gp.axes[1]) > 0.1) dy = gp.axes[1];
+            // Movement (Left Stick) — overrides keyboard only when deflected.
+            const [mx, my] = applyStickDeadzone(gp.axes[0], gp.axes[1], STICK_DEADZONE_MOVE);
+            if (mx !== 0 || my !== 0) { dx = mx; dy = my; }
 
-            // Aiming (Right Stick)
-            if (Math.abs(gp.axes[2]) > 0.1 || Math.abs(gp.axes[3]) > 0.1) {
-                aimAngle = Math.atan2(gp.axes[3], gp.axes[2]);
+            // Aiming (Right Stick) — a larger deadzone so the angle doesn't
+            // latch whatever noise the stick passes through as it springs back.
+            const [rx, ry] = applyStickDeadzone(gp.axes[2], gp.axes[3], STICK_DEADZONE_AIM);
+            if (rx !== 0 || ry !== 0) {
+                aimAngle = Math.atan2(ry, rx);
                 usingGamepad = true;
             }
 

@@ -1,3 +1,5 @@
+import { applyStickDeadzone, STICK_DEADZONE_MOVE, STICK_DEADZONE_AIM } from './Entities/PlayerController.js';
+
 class CoopGamepadController {
     constructor(gamepadIndex) {
         this.gamepadIndex = gamepadIndex;
@@ -10,11 +12,8 @@ class CoopGamepadController {
             shoot: false, melee: false, dash: false, special: false, pause: false
         };
 
-        const T = 0.12;
-        const moveX = Math.abs(gp.axes[0]) > T ? gp.axes[0] : 0;
-        const moveY = Math.abs(gp.axes[1]) > T ? gp.axes[1] : 0;
-        const aimX  = Math.abs(gp.axes[2]) > T ? gp.axes[2] : 0;
-        const aimY  = Math.abs(gp.axes[3]) > T ? gp.axes[3] : 0;
+        const [moveX, moveY] = applyStickDeadzone(gp.axes[0], gp.axes[1], STICK_DEADZONE_MOVE);
+        const [aimX, aimY]   = applyStickDeadzone(gp.axes[2], gp.axes[3], STICK_DEADZONE_AIM);
 
         const aimAngle = (aimX !== 0 || aimY !== 0)
             ? Math.atan2(aimY, aimX)

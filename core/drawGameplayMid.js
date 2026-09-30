@@ -152,7 +152,13 @@ export function _drawGameplayMid() {
     drawPowerUps(ctx, runState);
     // Projectile draw pass — survivors of the update + collision sweep above.
     // Indexed (not for..of) to avoid allocating a proxy iterator every frame.
-    for (let _pi = 0, _pn = projectiles.length; _pi < _pn; _pi++) projectiles[_pi].draw();
+    // Online: skip ghosts not yet spawned at render time and hidden echoes of
+    // our own predicted shots (see updateGameplayMid interp + game.js twins).
+    for (let _pi = 0, _pn = projectiles.length; _pi < _pn; _pi++) {
+        const _pr = projectiles[_pi];
+        if (_pr._netHidden || _pr._netTwin) continue;
+        _pr.draw();
+    }
     // Melee swipes draw pass — survivors of the update loop above.
     for (let _mi = 0, _mn = meleeAttacks.length; _mi < _mn; _mi++) meleeAttacks[_mi].draw();
 
@@ -169,6 +175,7 @@ export function _drawGameplayMid() {
     // above. Hit-flash overlay (ghost-only) renders on top of the enemy sprite.
     for (let _ei = 0, _en = enemies.length; _ei < _en; _ei++) {
         const enemy = enemies[_ei];
+        if (enemy._netHidden) continue; // online ghost not yet spawned at render time
         enemy.draw();
         if (enemy._ghost && enemy._hitFlash > 0) {
             ctx.save();

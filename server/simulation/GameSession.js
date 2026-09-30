@@ -184,9 +184,10 @@ class GameSession {
         };
         // No-op audioManager: DLC heroes guard with `typeof audioManager !== 'undefined'`,
         // which passes for null (typeof null === 'object'). Stub avoids the crash.
-        this._world.audioManager = {
-            play: () => {}, playAttack: () => {}, stopLoop: () => {}, startLoop: () => {},
-        };
+        // Every method is a no-op (see loader.js `silentAudioManager`) — a
+        // hand-listed subset crashed the tick on the first level-up
+        // (`playHeroExclamation`) once enemies could actually be killed.
+        this._world.audioManager = global.silentAudioManager;
         // Flat arena — no obstacles on the server (pure collision boundary).
         // Leaf modules (`core/updateGameplayPre.js` via RendererBridge) call
         // `arena.update(player)` / `arena.updateCamera(player, w, h)` / etc.
@@ -251,7 +252,11 @@ class GameSession {
         this._LOW_LOAD_ENTER  = 50;  // enemies + projectiles
         this._LOW_LOAD_EXIT   = 80;
         this._FAST_TICK_MS    = 16;  // ~60 Hz
-        this._TICK_MAX_LAG_MS = 100; // scheduler backlog cap (≈ 6 frames)
+        // Scheduler backlog cap. Short event-loop stalls are caught up (clients
+        // already predicted those frames — dropping them left a lasting
+        // client-vs-server offset); only a longer stall (sleep, debugger) is
+        // dropped instead of replayed as a burst.
+        this._TICK_MAX_LAG_MS = 250; // ≈ 15 frames
         this._nextTickAt      = 0;   // performance.now() deadline of the next tick
 
         // Per-session `runState`. Own typed-array pools + scalars
@@ -344,7 +349,10 @@ class GameSession {
             const delay = Math.max(0, this._nextTickAt - performance.now());
             this._tickInterval = setTimeout(() => {
                 const steps = this._subSteps(); // before _tick — it may retune the rate
-                this._tick();
+                // A throw here is uncaught (timer callback) and would take the
+                // whole server — every match — down. Log it and keep ticking.
+                try { this._tick(); }
+                catch (err) { console.error(`[GameSession ${this._lobby.code}] tick failed:`, err); }
                 this._nextTickAt += steps * FRAME_MS;
                 const now = performance.now();
                 if (now - this._nextTickAt > this._TICK_MAX_LAG_MS) this._nextTickAt = now;
@@ -837,7 +845,7 @@ class GameSession {
                 events:       st.events,
                 p1:           roundP(viewP1),
                 p2:           roundP(viewP2),
-                ...this._buildEntityDeltas(st, enemies, projectiles),
+                ...this._buildEntityDeltas(st, enemies, projectiles, viewP2),
             };
             st.events = [];
             this._emitSnapshot(ws, msg);
@@ -863,7 +871,9 @@ class GameSession {
 
     // Entity lists for one client, delta-encoded against that client's state
     // (which is advanced in place — call once per snapshot actually sent).
-    _buildEntityDeltas(st, enemies, projectiles) {
+    // `ownPlayer` is that client's player: its projectiles are flagged `mine`
+    // so the client can pair them with its own locally predicted shots.
+    _buildEntityDeltas(st, enemies, projectiles, ownPlayer) {
         // Keyframe gate. Force full x,y this snapshot if we've sent
         // _KEYFRAME_INTERVAL delta snapshots since the last keyframe.
         const isKeyframe = st.sinceKeyframe >= this._KEYFRAME_INTERVAL;
@@ -948,6 +958,7 @@ class GameSession {
                 entry.isExplosive = !!p.isExplosive;
                 entry.isCrit      = !!p.isCrit;
                 entry.type        = p.type || '';
+                if (ownPlayer && p.owner === ownPlayer) entry.mine = 1;
             }
             return entry;
         });

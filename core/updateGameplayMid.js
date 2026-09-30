@@ -166,59 +166,69 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
     // Online: interpolate ghost entities between buffered snapshots; reconcile own player; flush input
     if (runState.isOnlineMode && runState.gameRunning && !runState.gamePaused) {
-        // Interpolate ghost entities between buffered snapshots for smooth rendering
-        const _now = Date.now();
+        // Interpolate ghost entities between buffered snapshots for smooth
+        // rendering. Everything remote is shown at `_renderTime` (server time
+        // minus the interpolation delay) — including the moment it appears: a
+        // ghost whose first snapshot is still in the future at render time is
+        // hidden (`_netHidden`) until render time reaches it. Before, a new
+        // ghost was drawn at its newest position *extrapolated forward from
+        // arrival*, i.e. ahead of everything else, then snapped back once a
+        // second snapshot arrived — shots popped in well in front of the
+        // shooter instead of leaving the muzzle.
         const _renderTime = _onlineRenderTime();
         enemies.forEach(e => {
             if (!e._ghost) return;
             const _buf = e._snapBuf;
-            const _lastT = _buf && _buf.length ? _buf[_buf.length - 1].t : 0;
-            if (_buf && _buf.length >= 2 && _renderTime <= _lastT) {
-                const _ep = _onlineInterpBuf(_buf, _renderTime);
-                e.x = _ep.x; e.y = _ep.y;
-            } else if (_buf && _buf.length && _renderTime > _lastT) {
+            if (!_buf || !_buf.length) return;
+            if (_renderTime < _buf[0].t) { e._netHidden = true; e.x = _buf[0].x; e.y = _buf[0].y; return; }
+            e._netHidden = false;
+            if (_renderTime > _buf[_buf.length - 1].t) {
                 // Tier 1a — past last snapshot: extrapolate instead of clamping.
                 // Keeps motion smooth across packet stalls; capped at 150 ms
                 // ahead to bound the snap-back when the packet arrives. Uses
                 // the buffered path (enemies ship no velocity).
                 const _ep = _onlineExtrapolateBuf(_buf, _renderTime, 150);
                 e.x = _ep.x; e.y = _ep.y;
-            } else {
-                const _dt = Math.min((_now - (e._snapshotAt || _now)) / 1000 * 60, 12);
-                e.x = (e._sx ?? e.x) + (e.vx || 0) * _dt;
-                e.y = (e._sy ?? e.y) + (e.vy || 0) * _dt;
+            } else if (_buf.length >= 2) {
+                const _ep = _onlineInterpBuf(_buf, _renderTime);
+                e.x = _ep.x; e.y = _ep.y;
             }
         });
         projectiles.forEach(p => {
-            if (!p._ghost || !p._snapshotAt) return;
+            if (!p._ghost) return;
             const _buf = p._snapBuf;
-            const _lastT = _buf && _buf.length ? _buf[_buf.length - 1].t : 0;
-            if (_buf && _buf.length >= 2 && _renderTime <= _lastT) {
+            if (!_buf || !_buf.length) return;
+            if (_renderTime < _buf[0].t) { p._netHidden = true; p.x = _buf[0].x; p.y = _buf[0].y; return; }
+            p._netHidden = false;
+            const _last = _buf[_buf.length - 1];
+            if (_buf.length >= 2 && _renderTime <= _last.t) {
                 const _pp = _onlineInterpBuf(_buf, _renderTime);
                 p.x = _pp.x; p.y = _pp.y;
-            } else if (_buf && _buf.length && _renderTime > _lastT) {
-                // Tier 1a — past last snapshot: extrapolate via velocity. Tighter
-                // 80 ms cap for projectiles since trajectory deviation reads worse
-                // on fast-moving objects than on enemies.
-                const _last = _buf[_buf.length - 1];
-                const _aheadMs = Math.min(_renderTime - _lastT, 80);
-                const _dt = _aheadMs / (1000 / 60);
+            } else {
+                // Past the newest snapshot (or only one so far): continue along
+                // the shipped velocity. Tighter 80 ms cap for projectiles since
+                // trajectory deviation reads worse on fast-moving objects.
+                const _dt = Math.min(_renderTime - _last.t, 80) / (1000 / 60);
                 p.x = _last.x + (p.velocity?.x || 0) * _dt;
                 p.y = _last.y + (p.velocity?.y || 0) * _dt;
-            } else {
-                const _dt = Math.min((_now - p._snapshotAt) / 1000 * 60, 12);
-                p.x = p._sx + (p.velocity?.x || 0) * _dt;
-                p.y = p._sy + (p.velocity?.y || 0) * _dt;
             }
         });
         // Drop orphan projectiles once render time has passed their last buffered
         // server position — they've finished their visible flight to impact.
+        // A hidden echo of one of our own predicted shots takes its prediction
+        // with it: the server says the shot is over (hit or expired).
         // Iterate backwards so splice's swap-with-last doesn't skip a slot.
         for (let i = projectiles.length - 1; i >= 0; i--) {
             const p = projectiles[i];
             if (!p || p._orphanAt === undefined) continue;
             const lastT = p._snapBuf && p._snapBuf.length ? p._snapBuf[p._snapBuf.length - 1].t : 0;
-            if (_renderTime > lastT) projectiles.splice(i, 1);
+            if (_renderTime <= lastT) continue;
+            const _twin = p._twin;
+            projectiles.splice(i, 1);
+            if (_twin) {
+                const _ti = projectiles.indexOf(_twin);
+                if (_ti >= 0) projectiles.splice(_ti, 1); // swap-remove: indices ≤ i stay valid
+            }
         }
 
         // Own-player reconciliation. Trust client prediction whenever the
@@ -272,9 +282,28 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     // Idle past grace, divergence beyond tolerance: gentle pull
                     runState.player.x += _rdx * 0.04;
                     runState.player.y += _rdy * 0.04;
+                } else if (_isInputMoving && !runState.player.isDashing && !runState.player._reconcileGrace) {
+                    // Moving: the server copy legitimately trails by ~one round
+                    // trip of movement, so compare against it projected forward
+                    // by our velocity × RTT and only correct what's left beyond
+                    // 40 px. Without this, a divergence gained while moving
+                    // (collision differences, a missed input) persisted for as
+                    // long as input was held — with a drifting stick, forever.
+                    const _px = runState.player._reconPrevX, _py = runState.player._reconPrevY;
+                    if (_px !== undefined) {
+                        const _rttFrames = ((window.networkManager?.latencyMs || 0) * 2 + 33) / (1000 / 60);
+                        const _ex = runState.player._serverTargetX + (runState.player.x - _px) * _rttFrames - runState.player.x;
+                        const _ey = runState.player._serverTargetY + (runState.player.y - _py) * _rttFrames - runState.player.y;
+                        if (_ex * _ex + _ey * _ey > 1600) {
+                            runState.player.x += _ex * 0.03;
+                            runState.player.y += _ey * 0.03;
+                        }
+                    }
                 }
                 // Otherwise: trust client prediction.
             }
+            runState.player._reconPrevX = runState.player.x;
+            runState.player._reconPrevY = runState.player.y;
         }
         // Both clients send input every frame so the server has up-to-date state
         window.networkManager?.flushInput();

@@ -192,20 +192,8 @@ global.createExplosion   = () => {};
 global.showNotification  = () => {};
 global.getDecoyTarget    = () => null;
 global.getBiomeEnemyType = () => null;
-global.getCoopTarget     = (x, y) => {
-    const p1 = global._world?.player  ?? global.player;
-    const p2 = global._world?.player2 ?? global.player2;
-    if (!p1 && !p2) return null;
-    if (!p1) return p2;
-    if (!p2) return p1;
-    const d1 = Math.hypot(p1.x - x, p1.y - y);
-    const d2 = Math.hypot(p2.x - x, p2.y - y);
-    return d1 <= d2 ? p1 : p2;
-};
-global.getCollectionBonuses = () => ({
-    damageMult: 1, speedMult: 1, healthMult: 1, goldMult: 1, xpMult: 1,
-    meleeDmg: 0, rangeDmg: 0, maxHp: 0, speed: 0, defense: 0, luck: 0,
-});
+// getCoopTarget / getCollectionBonuses are defined once, in the stub block
+// further down — a duplicate here was silently overridden by it.
 global.isChaosActive     = () => false;
 global.checkChaosEvent   = () => {};
 global.triggerImpact     = () => {};
@@ -344,7 +332,17 @@ global.isWaveCleared = function (wave, killed) {
 };
 global.gameOver                    = _noop;
 global.getDecoyTarget              = () => null;
-global.getCoopTarget               = (x, y) => ({ x, y });
+// Enemy / boss targeting — mirrors game.js getCoopTarget: nearest LIVING
+// player. (This line used to be a stub returning `{ x, y }` — the enemy's own
+// position — which overrode the real helper above: atan2(0, 0) = 0, so every
+// online enemy walked, and every shooter fired, straight to the right.)
+global.getCoopTarget               = (x, y) => {
+    const p1 = global._world?.player  ?? global.player;
+    const p2 = global._world?.player2 ?? global.player2;
+    if (!p2 || p2.isDead) return p1 || p2 || null;
+    if (!p1 || p1.isDead) return p2;
+    return Math.hypot(p1.x - x, p1.y - y) <= Math.hypot(p2.x - x, p2.y - y) ? p1 : p2;
+};
 global.getHeroTheme                = () => null;
 // `applyDamage(target, dmg)` — server-side damage is owned by GameSession;
 // the leaf-module fallback to bare `target.hp -= dmg` is acceptable for
@@ -355,7 +353,10 @@ global.applyDamage                 = (target, dmg) => {
 };
 global.createExplosion             = _noop;
 global.recordPlayerDamage          = _noop;
-global.getCollectionBonuses        = () => ({ damageMult: 1, specials: [] });
+// Neutral collection bonuses — same shape as UI/Collection.js with no cards.
+// `defenseMult` was missing, so every enemy-projectile / speedster hit on the
+// server computed `damage * undefined` = NaN player damage.
+global.getCollectionBonuses        = () => ({ damageMult: 1, defenseMult: 1, xpMult: 1, specials: [] });
 global._recordPhase                = _noop;
 global.bumpDamageSource            = _noop;
 global.logUpgradePick              = _noop;
@@ -385,10 +386,18 @@ global.queryProjectilesNear  = () => (typeof global.projectiles !== 'undefined' 
 // module load so any bare-name `audioManager.play(...)` call inside leaf
 // modules (collision hit-sound, damage SFX) becomes a no-op instead of
 // crashing on undefined.
-global.audioManager = global.audioManager || {
-    play: () => {}, playAttack: () => {}, stopLoop: () => {}, startLoop: () => {},
-    playHeroExclamation: () => {}, playVoice: () => {},
-};
+// Silent stand-in: data fields read by gameplay code have neutral values,
+// and ANY method (play, playHeroExclamation, playCapped, register*, …) is a
+// no-op, so a newly used audio call can never throw inside a server tick.
+const _silentAudioData = { tracks: {}, sfxEnabled: false, musicEnabled: false };
+global.silentAudioManager = new Proxy(_silentAudioData, {
+    get: (t, k) => {
+        if (k in t) return t[k];
+        if (typeof k === 'symbol' || k === 'then') return undefined; // not a thenable / primitive
+        return k === 'isStoryMode' ? () => false : () => {};
+    },
+});
+global.audioManager = global.audioManager || global.silentAudioManager;
 // Spawner helpers reached by core/updateGameplayMid.js boss-kill / wave-end paths.
 global.spawnEnemy            = _noop;
 global.spawnBoss             = _noop;

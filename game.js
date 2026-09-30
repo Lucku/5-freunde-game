@@ -208,6 +208,11 @@ window.gameContext.defaultSaveData = defaultSaveData; // Owned by GameContext, m
 let _onlineEvents = [];     // event queue flushed with each host snapshot
 let _onlineGameSubs = [];   // unsubscribe fns for in-game nm handlers (cleared per match)
 let _onlinePartnerLeveling = false; // partner has the level-up modal open → server paused
+// Match started locally but the server hasn't simulated yet (it waits for the
+// host's arena layout, ≤ 5 s). Local prediction is held meanwhile — otherwise
+// any movement in that window became a permanent client-vs-server offset
+// (measured 93 px with a drifting stick), so shots left from the wrong spot.
+let _onlineAwaitingServer = false;
 let _onlineHostLayout = null;       // { layout, hash } the server relayed from the host (guest side)
 let _onlineLocalLayoutHash = 0;     // Arena.layoutHash of this client's generated arena
 let coopP2HeroType = null;
@@ -2060,6 +2065,9 @@ function startOnlineGame(msg) {
     _offOnlineGameHandlers();
     _onlineHostLayout = null;
     _onlineLocalLayoutHash = 0;
+    _onlineAwaitingServer = true;
+    const _waitEl = document.getElementById('online-wait-overlay');
+    if (_waitEl) _waitEl.style.display = 'block';
     const sub = (type, fn) => _onlineGameSubs.push(nm.on(type, fn));
     sub('SNAPSHOT',        (s)  => { if (runState.isOnlineMode) _onlineHandleSnapshot(s); });
     sub('LEVEL_UP',        (ev) => { if (runState.isOnlineMode) _onlineShowLevelUpForGuest(ev); });
@@ -2134,6 +2142,7 @@ function _onlineReconcileLayout() {
 function _onlineCleanup() {
     _offOnlineGameHandlers();
     _onlinePartnerLeveling = false;
+    _onlineAwaitingServer = false;
     _onlineHostLayout = null;
     _onlineLocalLayoutHash = 0;
     runState.isOnlineMode  = false;
@@ -5776,6 +5785,11 @@ function _onlineHandleSnapshot(s) {
 /** GUEST: apply a state snapshot received from the host. */
 function _onlineApplySnapshot(s) {
     if (!s || !runState.gameRunning) return;
+    if (_onlineAwaitingServer) {
+        // First snapshot: the server is simulating — release local prediction.
+        _onlineAwaitingServer = false;
+        _onlineHideLevelUpWait(); // hides #online-wait-overlay
+    }
     const _snapTime = Date.now();
     // Server-side timestamp: use this for interpolation buffers so spacing reflects
     // actual server tick cadence, not jittery packet receipt times.
@@ -5927,10 +5941,13 @@ function _onlineApplySnapshot(s) {
     // projectile backward at handoff. TTL ≈ wire latency + render delay + margin.
     const _predictTtl = Math.max(140, Math.min(400,
         (window.networkManager?.latencyMs || 0) + _currentInterpDelay() + 40));
+    // A prediction paired with its server echo (_onlineTwinOwnShot) lives its
+    // full local flight — the echo stays hidden and ends it when the server's
+    // copy is gone. An unpaired prediction (server never fired it) expires on TTL.
     for (let i = projectiles.length - 1; i >= 0; i--) {
         const p = projectiles[i];
         if (!p || p._ghost) continue;
-        if (p._predicted && (_now - p._predictedAt) < _predictTtl) continue;
+        if (p._predicted && (p._twinned || (_now - p._predictedAt) < _predictTtl)) continue;
         projectiles.splice(i, 1);
     }
     const _prevSlotById = new Map();
@@ -5960,6 +5977,7 @@ function _onlineApplySnapshot(s) {
             if (!p || (typeof p._slotIdx === 'function' && p._slotIdx() < 0)) continue;
             p._ghost = true;
             p._id    = pd._id;
+            if (pd.mine) _onlineTwinOwnShot(p);
         }
         // Position delta decoding (keyframe vs delta wire shape).
         let _pax, _pay;
@@ -6012,6 +6030,36 @@ function _onlineApplySnapshot(s) {
 
     // Process events
     if (s.events) s.events.forEach(_onlineProcessGuestEvent);
+}
+
+// Own shots are predicted locally (Player.shoot) and the server echoes each
+// one back ~(latency + interpolation delay) later. Pair the echo with its
+// prediction — oldest untwinned predicted shot flying the same way at the same
+// speed — and hide the echo: the prediction is where the shot really is from
+// the shooter's point of view. Before, both copies showed (~50–80 px apart) and
+// the shot jumped back onto the echo when the prediction's TTL ran out.
+// An echo with no matching prediction (special abilities, multishot spread
+// rolled differently server-side) simply stays visible.
+function _onlineTwinOwnShot(ghost) {
+    const gv = ghost.velocity, gs = Math.hypot(gv.x, gv.y);
+    if (!gs) return;
+    const ga = Math.atan2(gv.y, gv.x);
+    const now = Date.now();
+    let best = null;
+    for (let i = 0; i < projectiles.length; i++) {
+        const q = projectiles[i];
+        if (!q || q._ghost || !q._predicted || q._twinned || now - q._predictedAt > 1000) continue;
+        const qv = q.velocity, qs = Math.hypot(qv.x, qv.y);
+        if (!qs || Math.abs(qs - gs) > gs * 0.25) continue;
+        let da = Math.abs(Math.atan2(qv.y, qv.x) - ga);
+        if (da > Math.PI) da = Math.PI * 2 - da;
+        if (da > 0.3) continue;
+        if (!best || q._predictedAt < best._predictedAt) best = q;
+    }
+    if (!best) return;
+    best._twinned = true;
+    ghost._twin = best;
+    ghost._netTwin = true;
 }
 
 /** GUEST: handle one-shot events relayed from the host. */
@@ -6954,12 +7002,15 @@ return true; // Prevent normal game render
 // substitute a no-op helper to skip draws entirely.
 
 
-function _runGameplayFrame(deltaTime) {
+function _runGameplayFrame(deltaTime, holdSim = false) {
     // Photo-mode true-freeze gate. When isPhotoMode() is true,
     // every entity.update() in the mixed middle becomes a no-op so the
     // frozen scene can be re-rendered from a panning camera. Draws run
     // unconditionally so the camera pan stays visible.
-    const _frozen = isPhotoMode();
+    // `holdSim` (online, before the server's first snapshot) freezes the same
+    // way but keeps the camera on the local player.
+    const _frozen = isPhotoMode() || holdSim;
+    if (holdSim && runState.player) arena.updateCamera(runState.player, canvas.width, canvas.height);
     const _isHitStopped = runState._hitStopFrames > 0;
     if (!_frozen && runState._hitStopFrames > 0) runState._hitStopFrames--;
 
@@ -7020,7 +7071,7 @@ function masterFrame(deltaTime, timestamp) {
         if (isPhotoMode()) tickPhotoMode();
 
         if (runState.gameRunning && !runState.gamePaused && !runState.isLevelingUp && !runState.isShopping && !runState.isStoryOpen && !_onlinePartnerLeveling) {
-            _runGameplayFrame(deltaTime);
+            _runGameplayFrame(deltaTime, _onlineAwaitingServer);
         }
     } finally {
         // Record actual main-thread work time per frame.
