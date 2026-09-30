@@ -42,7 +42,7 @@ class OnlineLobbyUI {
         }
 
         const account = window.gameConfig?.account || {};
-        if (!account.token) {
+        if (!CloudSaveManager.isLoggedIn()) {
             this._showError('You need to log in first.\nUse the LOGIN button on the main menu.');
             return;
         }

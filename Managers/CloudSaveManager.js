@@ -3,6 +3,7 @@ import { SaveManager } from './SaveManager.js';
 
 class CloudSaveManager {
     static _syncing = false;
+    static SESSION_EXPIRED_MSG = 'Login expired — please log in again.';
 
     static _baseUrl() {
         const raw = (window.gameConfig.serverUrl || 'localhost').trim();
@@ -33,11 +34,15 @@ class CloudSaveManager {
         return window.gameConfig.cloudSave || {};
     }
 
-    static async _fetch(endpoint, options = {}) {
-        const token = this._account().token;
+    // `auth: false` for login/register: they send no token, and their 401
+    // means a wrong password rather than a dead login.
+    static async _fetch(endpoint, options = {}, { auth = true } = {}) {
+        const token = auth ? this._account().token : null;
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
-        return fetch(this._baseUrl() + endpoint, { ...options, headers });
+        const res = await fetch(this._baseUrl() + endpoint, { ...options, headers });
+        if (token && res.status === 401) this.expireSession();
+        return res;
     }
 
     static isEnabled() {
@@ -45,7 +50,35 @@ class CloudSaveManager {
     }
 
     static isLoggedIn() {
+        this.validateSession();
         return !!this._account().token;
+    }
+
+    // Reads the JWT `exp` claim (the server issues 90-day tokens). No
+    // signature check: the server stays the authority, and an unreadable
+    // token counts as not expired so the server can reject it instead.
+    static _tokenExpired(token) {
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+            return typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now();
+        } catch {
+            return false;
+        }
+    }
+
+    // Drops an expired login so every `account.token` check in the UI (menu
+    // badge, Options, lobby gates) shows the logged-out state.
+    static validateSession() {
+        const token = this._account().token;
+        if (token && this._tokenExpired(token)) this.expireSession();
+    }
+
+    // The server no longer accepts the saved login (expired, or signed with
+    // another server's JWT_SECRET): log out and tell the player why.
+    static expireSession() {
+        if (!this._account().token) return;
+        this.logout({ keepCloudSync: true });
+        if (typeof showNotification === 'function') showNotification(this.SESSION_EXPIRED_MSG, 'warning');
     }
 
     // Simple blob fingerprint: length + first/last 16 chars
@@ -59,7 +92,7 @@ class CloudSaveManager {
         const res = await this._fetch('/api/login', {
             method: 'POST',
             body: JSON.stringify({ username, password })
-        });
+        }, { auth: false });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Login failed');
         window.gameConfig.account.token    = data.token;
@@ -72,7 +105,7 @@ class CloudSaveManager {
         const res = await this._fetch('/api/register', {
             method: 'POST',
             body: JSON.stringify({ username, password })
-        });
+        }, { auth: false });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Registration failed');
         window.gameConfig.account.token    = data.token;
@@ -81,12 +114,14 @@ class CloudSaveManager {
         return data;
     }
 
-    static logout() {
+    // `keepCloudSync`: an expired login is not the player opting out, and
+    // logging back in never re-enables Cloud Sync, so keep the preference.
+    static logout({ keepCloudSync = false } = {}) {
         window.gameConfig.account.token    = null;
         window.gameConfig.account.username = null;
         window.gameConfig.cloudSave.lastSyncAt   = 0;
         window.gameConfig.cloudSave.lastSyncHash = null;
-        window.gameConfig.cloudSaveEnabled = false;
+        if (!keepCloudSync) window.gameConfig.cloudSaveEnabled = false;
         if (typeof saveConfig === 'function') saveConfig();
         if (typeof updateOptionButtons === 'function') updateOptionButtons();
         if (typeof updateMenuAccountBadge === 'function') updateMenuAccountBadge();

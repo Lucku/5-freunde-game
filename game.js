@@ -393,6 +393,7 @@ async function loadGame() {
         window.gameContext.saveData = structuredClone(defaultSaveData);
     }
     if (typeof CloudSaveManager !== 'undefined') {
+        CloudSaveManager.validateSession();
         await CloudSaveManager.syncOnStartup();
     }
     // Poll active world events (fire-and-forget; TTL guards against repeated calls)
@@ -1461,7 +1462,7 @@ async function startOnlineTestArena() {
         ? CloudSaveManager._baseUrl()
         : (window.gameConfig?.serverUrl || 'http://localhost:3001');
 
-    if (!account?.token) {
+    if (!CloudSaveManager.isLoggedIn()) {
         showNotification('Online test requires login — sign in first.');
         return;
     }

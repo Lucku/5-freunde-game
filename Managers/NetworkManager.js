@@ -13,6 +13,8 @@
  *   networkManager.relay(payload)     // send any in-game message to partner
  *   networkManager.disconnect()
  */
+import { CloudSaveManager } from './CloudSaveManager.js';
+
 const DEAD_SOCKET_MS = 10_000;
 
 class NetworkManager {
@@ -203,6 +205,15 @@ class NetworkManager {
         if (msg.type === 'GLOBAL_PLAYER_UPDATE') {
             const p = this.remotePlayers[msg.userId];
             if (p) { p.x = msg.x; p.y = msg.y; p.angle = msg.angle; p.hero = msg.hero; }
+        }
+
+        // The server answers a dead login token with this ERROR, then closes
+        // the socket. Retrying with the same token can never succeed: stop,
+        // drop the saved login, and show handlers why instead of "Unauthorized".
+        if (msg.type === 'ERROR' && msg.message === 'Unauthorized') {
+            this._intentionalClose = true;
+            CloudSaveManager.expireSession();
+            msg = { ...msg, message: CloudSaveManager.SESSION_EXPIRED_MSG };
         }
 
         // Fan out to registered handlers
