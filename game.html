@@ -1470,7 +1470,7 @@
                         <span id="cloud-account-label" class="options-label">Not signed in</span>
                     </div>
                     <button id="opt-cloud-account-btn" class="opt-toggle-btn"
-                        onclick="CloudSaveManager.showLoginModal()">LOGIN</button>
+                        onclick="openLoginModal()">LOGIN</button>
                 </div>
             </div>
 
@@ -1561,20 +1561,20 @@
                 <div class="cloud-field">
                     <label class="cloud-label">Username</label>
                     <input id="cloud-username" class="cloud-input" type="text" placeholder="your username"
-                        onkeydown="if(event.key==='Enter')CloudSaveManager.submitLogin(false)">
+                        onkeydown="if(event.key==='Enter')submitLogin(false)">
                 </div>
                 <div class="cloud-field">
                     <label class="cloud-label">Password</label>
                     <input id="cloud-password" class="cloud-input" type="password" placeholder="your password"
-                        onkeydown="if(event.key==='Enter')CloudSaveManager.submitLogin(false)">
+                        onkeydown="if(event.key==='Enter')submitLogin(false)">
                 </div>
                 <div id="cloud-login-status" class="cloud-status"></div>
             </div>
             <button class="screen-action-btn" style="background:#2980b9;"
-                onclick="CloudSaveManager.submitLogin(false)">SIGN IN</button>
+                onclick="submitLogin(false)">SIGN IN</button>
             <button class="screen-action-btn" style="background:#27ae60; margin-top:8px;"
-                onclick="CloudSaveManager.submitLogin(true)">CREATE ACCOUNT</button>
-            <button class="screen-back-btn" onclick="CloudSaveManager.hideLoginModal()">← CANCEL</button>
+                onclick="submitLogin(true)">CREATE ACCOUNT</button>
+            <button class="screen-back-btn" onclick="closeLoginModal()">← CANCEL</button>
             <div class="gamepad-hint">🎮 Navigate: D-Pad · Confirm: A · Cancel: B</div>
         </div>
     </div>

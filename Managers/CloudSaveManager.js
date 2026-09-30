@@ -332,5 +332,10 @@ class CloudSaveManager {
 }
 
 // `window.CloudSaveManager` shim retired; consumers import directly.
+// game.html's inline login handlers can't import, so they call these.
+window.openLoginModal  = () => CloudSaveManager.showLoginModal();
+window.submitLogin     = (isRegister) => CloudSaveManager.submitLogin(isRegister);
+window.closeLoginModal = () => CloudSaveManager.hideLoginModal();
+
 export { CloudSaveManager };
 export default CloudSaveManager;

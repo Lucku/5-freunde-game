@@ -1,5 +1,6 @@
 // Explicit import replaces bare `window.MapManager` global reads.
 import { MapManager } from '../Managers/MapManager.js';
+import { CloudSaveManager } from '../Managers/CloudSaveManager.js';
 
 const _BIOME_EMOJI_CMP = {
     fire: '🔥', water: '💧', ice: '❄️', plant: '🌿', metal: '⚙️',
@@ -116,10 +117,7 @@ class CustomMapsPanel {
     // ── Data ──────────────────────────────────────────────────────────────────
 
     _baseUrl() {
-        if (typeof CloudSaveManager !== 'undefined') return CloudSaveManager._baseUrl();
-        const host  = window.gameConfig?.serverUrl || 'localhost:3001';
-        const proto = (host.startsWith('localhost') || host.startsWith('127.')) ? 'http' : 'https';
-        return `${proto}://${host}`;
+        return CloudSaveManager._baseUrl();
     }
 
     _token() { return window.gameConfig?.account?.token || null; }

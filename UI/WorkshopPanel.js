@@ -1,3 +1,5 @@
+import { CloudSaveManager } from '../Managers/CloudSaveManager.js';
+
 const _BIOME_EMOJI = {
     fire: '🔥', water: '💧', ice: '❄️', plant: '🌿', metal: '⚙️',
     rock: '🪨', cloud: '☁️', chaos: '💥', earth: '🪨', void: '☯️',
@@ -103,10 +105,7 @@ class WorkshopPanel {
     // ── Data Fetching ─────────────────────────────────────────────────────────
 
     _baseUrl() {
-        if (typeof CloudSaveManager !== 'undefined') return CloudSaveManager._baseUrl();
-        const host = window.gameConfig?.serverUrl || 'localhost:3001';
-        const proto = (host.startsWith('localhost') || host.startsWith('127.')) ? 'http' : 'https';
-        return `${proto}://${host}`;
+        return CloudSaveManager._baseUrl();
     }
 
     _token() { return window.gameConfig?.account?.token || null; }

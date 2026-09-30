@@ -10,7 +10,7 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "dev": "VITE_DEV=1 vite",
-    "dev:electron": "VITE_DEV=1 concurrently --kill-others \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev:electron": "VITE_DEV=1 concurrently --kill-others \"vite\" \"wait-on http://localhost:5173/game.html && electron .\"",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .js,.mjs --max-warnings 95",
