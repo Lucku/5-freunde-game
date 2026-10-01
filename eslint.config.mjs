@@ -190,7 +190,7 @@ export default [
     {
         // Browser ESM script that lives under scripts/ — override the Node
         // CommonJS rule above for this specific file.
-        files: ['scripts/VersusTest.js'],
+        files: ['scripts/VersusTest.js', 'scripts/online-test/driver.js'],
         languageOptions: {
             ecmaVersion: 2024,
             sourceType: 'module',

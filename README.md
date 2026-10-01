@@ -51,6 +51,18 @@ cd server && npm install && npm start
 ```
 Listens on port 3001 by default (HTTP/WS). Set `TLS_CERT_PATH` + `TLS_KEY_PATH` env vars to enable HTTPS/WSS. Set `JWT_SECRET` in production.
 
+### Testing online play (no second person needed)
+```bash
+npm run online:test                         # two windows side by side: P1 = you, P2 = autopilot
+npm run online:test -- --solo               # one window, partner is a headless bot
+npm run online:test -- --server my-pi       # against a running server instead of a local one
+```
+The launcher rebuilds `dist/`, starts a throwaway local server on port 3101 (data in the OS temp dir), and logs in the test accounts `ot-host` / `ot-guest`. It then opens the real game and walks it through the real lobby into a match. The autopilot partner walks a loop while shooting (with full aim assist), picks the first upgrade on level-up and continues story chapters. Every 2 s each window prints a status line (wave, positions as seen by both sides, enemy count, round-trip time). Ctrl+C or closing the windows stops everything.
+
+Useful options (`--help` lists all): `--p1 auto` (watch both play), `--p2 you` (play both windows yourself), `--hero1` / `--hero2`, `--mode STORY`, `--dev` (use the running Vite dev server), `--no-build`. `--hidden --duration 60` runs both players offscreen and exits non-zero if one never got into the match, which makes a quick check after netcode changes. `--server` takes the same forms as the in-game server field (a bare host means port 3001). On a shared server, set `ONLINE_TEST_PASSWORD` so the test accounts aren't guessable.
+
+The older tools still work: **Online Sim** in the browser build (`npm run dev`, then `D` on the main menu; needs a login, idle bot, Testing Grounds rules) and the headless `test-arena.js` (its server address is hardcoded at the top).
+
 Building distributables
 -----------------------
 

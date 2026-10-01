@@ -15,7 +15,7 @@ const GameSession = require('./simulation/GameSession');
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
 const NODE_ENV  = process.env.NODE_ENV || 'development';
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const SAVES_DIR = path.join(DATA_DIR, 'saves');
 
 // ── Admin credential bootstrap ────────────────────────────────────────────────
