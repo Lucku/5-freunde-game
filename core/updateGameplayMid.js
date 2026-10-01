@@ -98,6 +98,15 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         // Freeze player during death sequence
         runState.player.vx = 0;
         runState.player.vy = 0;
+    } else if (runState.player.isDead) {
+        // Downed (co-op revive marker): stay where you fell, as a downed P2
+        // does — running update() walked the corpse away from its marker on
+        // input (on the server too, for the host). Online, hold at the
+        // server's position; reconciliation is off while dead.
+        if (runState.isOnlineMode && runState.player._serverTargetX !== undefined) {
+            runState.player.x = runState.player._serverTargetX;
+            runState.player.y = runState.player._serverTargetY;
+        }
     } else {
         runState.player.update();
     }

@@ -61,6 +61,50 @@ const LAYOUT_TRAP_TYPES    = new Set(['SLOW', 'CONVEYOR', 'SPIKE', 'TURRET', 'LA
 const SERVER_VIEW_W = 1280;
 const SERVER_VIEW_H = 800;
 
+// ── Player progression (uploaded by each client at match start) ────────────
+// Singleplayer heroes are built from the save: permanent upgrades, prestige,
+// unlocked skill-tree nodes, achievement bonuses, chaos and altar picks. The
+// server had none of that and simulated everyone at base stats while clients
+// predicted with their real ones (speed upgrades → rubber-banding). Each
+// client now sends that slice of its save; it is validated here and the
+// player is built through the same Player / getHeroStats code with it.
+const {
+    ACHIEVEMENTS: _ACHIEVEMENTS, CHAOS_EFFECTS: _CHAOS_EFFECTS,
+    PERM_UPGRADES: _PERM_UPGRADES, SKILL_TREE_SIZE: _SKILL_TREE_SIZE,
+} = require(require('path').join(__dirname, '..', '..', 'Constants.js'));
+const { ALTAR_TREE: _ALTAR_TREE } = require(require('path').join(__dirname, '..', '..', 'AltarData.js'));
+const LOADOUT_PRESTIGE_MAX = 50;   // sanity bounds, not balance limits
+const LOADOUT_META_MAX     = 200;
+const _DEFAULT_SAVE = global.saveData; // loader's default-save Proxy
+
+function _sanitizeLoadout(hero, raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const int = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi) ? v : 0;
+    const ids = (arr, known, max) => (Array.isArray(arr)
+        ? [...new Set(arr.filter(x => typeof x === 'string' && known.has(x)))].slice(0, max)
+        : []);
+    const knownAch   = new Set(_ACHIEVEMENTS.map(a => a.id));
+    const knownChaos = new Set(_CHAOS_EFFECTS.map(e => e.id));
+    const knownAltar = new Set(Object.values(_ALTAR_TREE).flat().map(n => n.id));
+    const rec  = (raw[hero] && typeof raw[hero] === 'object') ? raw[hero] : {};
+    const meta = {};
+    for (const k of Object.keys(_PERM_UPGRADES)) meta[k] = int(raw.metaUpgrades && raw.metaUpgrades[k], 0, LOADOUT_META_MAX);
+    // Unknown keys (other heroes, collection, …) fall through to the defaults.
+    return Object.assign(Object.create(_DEFAULT_SAVE), {
+        [hero]: {
+            level:    int(rec.level, 0, 1e7),
+            unlocked: int(rec.unlocked, 0, _SKILL_TREE_SIZE),
+            prestige: int(rec.prestige, 0, LOADOUT_PRESTIGE_MAX),
+        },
+        metaUpgrades: meta,
+        global:  { unlockedAchievements: ids(raw.global && raw.global.unlockedAchievements, knownAch, 2000), totalDamage: 0 },
+        chaos:   { active: ids(raw.chaos && raw.chaos.active, knownChaos, 50) },
+        altar:   { active: ids(raw.altar && raw.altar.active, knownAltar, 100) },
+        collection: [],
+        story:   { enabled: false },
+    });
+}
+
 // Returns a normalized copy of an uploaded layout, or null if anything is
 // malformed / out of range (the whole upload is rejected, never partially used).
 function _sanitizeArenaLayout(raw, W, H) {
@@ -148,6 +192,8 @@ class GameSession {
         this._lobby  = lobby;  // { host: {ws, userId, …}, guest: {ws, userId, …} }
         this._send   = sendFn; // send(ws, msgObject)
         this._onTickStats = opts.onTickStats || null; // (wave, score, timeSec) => void
+        this._onGameOverCb = opts.onGameOver || null; // (isVictory) => void — match ended
+        this._ended       = false;
         // Wall-clock input staleness (ms). A client that stops sending INPUT
         // (paused frame, tab throttled, stall) would otherwise keep its last
         // movement forever and run off on the server, then snap back. Opt-in:
@@ -162,6 +208,11 @@ class GameSession {
         this.arenaLayout          = null; // sanitized layout once received
         this.arenaLayoutHash      = 0;
         this.arenaLayoutWave      = 0;
+        // Match start also waits for both players' progression (opt-in, like
+        // awaitLayoutMs) so neither hero is simulated at base stats first.
+        this._awaitLoadouts       = !!opts.awaitLoadouts;
+        this._loadoutsIn          = [false, false];
+        this._layoutReady         = false;
 
         // ── World instance ─────────────────────────────────────────────────────
         this._world = World.createServerWorld();
@@ -218,7 +269,6 @@ class GameSession {
 
         this._events             = []; // flushed each snapshot
         this._levelUpFor         = -1; // index of player currently choosing upgrade
-        this._enemiesKilledInWave = 0;
         this._nextEnemyId        = 1;
         this._nextProjId         = 1;
         this._frame              = 0;  // virtual 60-fps frame counter
@@ -374,11 +424,18 @@ class GameSession {
      * Create a real Player instance for server-side simulation.
      * isCPU = true suppresses DOM access in setupSpecial().
      */
-    _createPlayer(heroType, x, y) {
+    _createPlayer(heroType, x, y, save = null) {
         // HERO_LOGIC.init() falls back to window._world when no world arg is passed;
         // set global._world so that lookup resolves to this session's world.
         global._world = this._world;
-        const p = new global.Player(heroType, true); // isCPU = true → no DOM writes
+        // The constructor (getHeroStats, setupSpecial, DLC init) reads the
+        // global save — give it this player's progression while it runs.
+        const _prevSave = global.saveData;
+        if (save) global.saveData = save;
+        let p;
+        try { p = new global.Player(heroType, true); } // isCPU = true → no DOM writes
+        finally { global.saveData = _prevSave; }
+        if (save) this._bindPlayerSave(p, save);
         p._world    = this._world;
         p.x         = x;
         p.y         = y;
@@ -389,6 +446,46 @@ class GameSession {
         p._pendingSpecial = false;
         p.controller = new NetworkInputController();
         return p;
+    }
+
+    // Player and DLC hero code also read progression while acting (altar perks
+    // in specials, …) from the global / world `saveData` — run this player's
+    // own actions with its save swapped in.
+    _bindPlayerSave(p, save) {
+        const world = this._world;
+        for (const m of ['update', 'shoot', 'melee', 'dash', 'useSpecial']) {
+            const fn = p[m];
+            if (typeof fn !== 'function') continue;
+            p[m] = function (...args) {
+                const g = global.saveData, w = world.saveData;
+                global.saveData = save; world.saveData = save;
+                try { return fn.apply(this, args); }
+                finally { global.saveData = g; world.saveData = w; }
+            };
+        }
+    }
+
+    /**
+     * Rebuild `role`'s hero from the client's progression (`PLAYER_LOADOUT`).
+     * Only before the simulation has started — returns false otherwise or if
+     * the upload is malformed.
+     */
+    setPlayerLoadout(role, rawSave) {
+        const idx = role === 'host' ? 0 : 1;
+        const old = this.players[idx];
+        if (!old || this._frame > 0) return false;
+        const save = _sanitizeLoadout(old.type, rawSave);
+        if (!save) return false;
+        const _prevRunState = _setActiveRunState(this._runState);
+        try {
+            const p = this._createPlayer(old.type, old.x, old.y, save);
+            this.players[idx] = p;
+            if (idx === 0) this._world.player = p; else this._world.player2 = p;
+        } finally {
+            _setActiveRunState(_prevRunState);
+        }
+        this._loadoutsIn[idx] = true;
+        return true;
     }
 
     applyInput(role, input) {
@@ -482,24 +579,63 @@ class GameSession {
                     e.x = pos.x; e.y = pos.y;
                 }
             }
-            this._awaitingLayoutUntil = 0;
+            this._layoutReady = true; // _isAwaitingLayout releases the hold
         } finally {
             _setActiveRunState(_prevRunState);
         }
         return true;
     }
 
+    // Server half of singleplayer's advanceWave() (game.js), run inside _tick
+    // (this session's runState is active) when the wave number changed:
+    // clear the field, bring fallen co-op players back at 50 % HP, and — when
+    // the host uploads arenas — hold the sim until it sends this wave's layout.
+    // Players are placed on their spawns when it lands, as singleplayer
+    // re-centres the player each wave. Clients hear `wave_start` and run the
+    // singleplayer wave set-up (biome shift, arena, spawn).
+    _onWaveAdvanced() {
+        if (global.enemies) global.enemies.length = 0;
+        this.bossActive = false;
+        this._runState.bossActive = false;
+        for (const p of this.players) {
+            if (!p || !p.isDead) continue;
+            p.isDead = false;
+            p.hp = Math.floor(p.maxHp * 0.5);
+            p.isInvincible = false;
+        }
+        this._runState.p1RevivalMarker = null;
+        this._runState.p2RevivalMarker = null;
+        this._events.push({ type: 'wave_start', wave: this.wave });
+        if (this.arenaLayout && this._awaitLayoutMs > 0) {
+            this._layoutReady = false;
+            this._awaitingLayoutUntil = performance.now() + this._awaitLayoutMs;
+        }
+    }
+
+    // Singleplayer gameOver(), server half: both players stayed down through
+    // the death cinematic (the shared update code calls gameOver()). Tell the
+    // clients via the snapshot that is sent at the end of this tick, then stop.
+    _onGameOver(isVictory) {
+        if (this._ended) return;
+        this._ended = true;
+        this._events.push({ type: 'game_over', victory: !!isVictory });
+    }
+
+    // Start / wave-start hold: wait for the host's arena (and, at match start
+    // with awaitLoadouts, both players' progression), at most the deadline.
     _isAwaitingLayout() {
         if (!this._awaitingLayoutUntil) return false;
+        const loadoutsReady = !this._awaitLoadouts || this._frame > 0 || this._loadoutsIn.every(Boolean);
+        if (this._layoutReady && loadoutsReady) { this._awaitingLayoutUntil = 0; return false; }
         if (performance.now() < this._awaitingLayoutUntil) return true;
-        // Timed out (older client that never uploads) — run on the stub arena.
+        // Timed out (older client that never uploads) — run with what we have.
         this._awaitingLayoutUntil = 0;
-        console.warn(`[GameSession ${this._lobby.code}] no arena layout from host — simulating without walls`);
+        console.warn(`[GameSession ${this._lobby.code}] start hold timed out (layout ${this._layoutReady ? 'ok' : 'missing'}, loadouts ${this._loadoutsIn.join('/')})`);
         return false;
     }
 
     _tick() {
-        if (this.isLevelingUp || this.paused || this._isAwaitingLayout()) return;
+        if (this._ended || this.isLevelingUp || this.paused || this._isAwaitingLayout()) return;
 
         if (this._inputTimeoutMs > 0) {
             const now = Date.now();
@@ -538,10 +674,25 @@ class GameSession {
             this._syncWorld();
             const bridge = require('./RendererBridge');
             const SUB_STEPS = this._subSteps();
+            const _waveBefore = this.wave;
+            const _bossDeathBefore = this._runState.bossDeathTimer || 0;
             for (let s = 0; s < SUB_STEPS; s++) {
                 bridge.runUpdate(this, 1000 / 60);
             }
-            this._frame = this._world.frame;
+            // Read back everything the shared update code may change. Only
+            // `frame` used to be read back, so the next tick's `_syncWorld`
+            // reset wave → 1, score → 0 and bossActive → stale: online never
+            // left wave 1 and the score always showed 0.
+            this._frame      = this._world.frame;
+            this.wave        = this._world.wave;
+            this.score       = this._world.score;
+            this.bossActive  = !!this._world.bossActive;
+
+            // Boss just died → clients play the singleplayer death cinematic.
+            if (_bossDeathBefore === 0 && (this._runState.bossDeathTimer || 0) > 0) {
+                this._events.push({ type: 'boss_defeated', wave: this.wave });
+            }
+            if (this.wave !== _waveBefore) this._onWaveAdvanced();
 
             // Leaf-module spawn pushes through `enemies.push(new Enemy())` — the
             // `window.enemies` sentinel installed by Enemy.js (`_enemiesSentinel`
@@ -554,6 +705,11 @@ class GameSession {
             this._world.projectiles = this.projectiles;
 
             this._sendSnapshot();
+            if (this._ended) {
+                this.stop();
+                if (this._onGameOverCb) this._onGameOverCb();
+                return;
+            }
             this._adjustTickRate();
             if (this._onTickStats) {
                 const elapsedSec = Math.round((Date.now() - this._startedAt) / 1000);
@@ -628,65 +784,6 @@ class GameSession {
         w.projectiles  = this.projectiles;
         w.isVersusMode = this._isVersusMode;
         w.isCoopMode   = !this._isVersusMode;
-    }
-
-    // ─── Melee ───────────────────────────────────────────────────────────────────
-
-    /**
-     * Process MeleeSwipe objects that were pushed by Player.melee() / DLC hooks.
-     * MeleeSwipe.update() only repositions the swipe — damage must be applied here.
-     */
-    // ─── Damage helpers ──────────────────────────────────────────────────────────
-
-    _onEnemyKilled(enemy) {
-        enemy._killProcessed = true;
-        this.score += 10;
-        this._enemiesKilledInWave++;
-
-        const xpGain = 10;
-        this.players.forEach((p, i) => {
-            if (p && !p.isDead) this._giveXP(p, i, xpGain);
-        });
-
-        if (Math.random() < 0.3) {
-            this._events.push({ type: 'gold_drop', x: enemy.x, y: enemy.y });
-            this.players.forEach(p => { if (p) p.gold += 5; });
-        }
-
-        this._events.push({ type: 'enemy_death', x: enemy.x, y: enemy.y, color: enemy.color });
-    }
-
-    _damageEnemy(enemy, damage) {
-        enemy.hp -= damage;
-        if (enemy.hp > 0) return;
-        if (!enemy._killProcessed) this._onEnemyKilled(enemy);
-    }
-
-    _damagePlayer(player, playerIdx, damage) {
-        if (player.isInvincible) return;
-
-        const actual = Math.max(0, damage * (1 - (player.damageReduction || 0)));
-        player.hp -= actual;
-
-        player.invincibleTimer = 30;
-        player.isInvincible    = true;
-
-        if (player.hp <= 0) {
-            player.hp     = 0;
-            player.isDead = true;
-
-            if (this._isVersusMode) {
-                // Versus: first to die loses; surviving player wins
-                this._events.push({ type: 'game_over', victory: false, loserIdx: playerIdx });
-                this.stop();
-            } else {
-                const allDead = this.players.every(p => !p || p.isDead);
-                if (allDead) {
-                    this._events.push({ type: 'game_over', victory: false });
-                    this.stop();
-                }
-            }
-        }
     }
 
     // ─── XP & level-up ───────────────────────────────────────────────────────────
@@ -841,6 +938,7 @@ class GameSession {
                 wave:         this.wave,
                 score:        this.score,
                 bossActive:   this.bossActive,
+                killed:       this._runState.enemiesKilledInWave || 0,
                 isLevelingUp: this.isLevelingUp,
                 events:       st.events,
                 p1:           roundP(viewP1),

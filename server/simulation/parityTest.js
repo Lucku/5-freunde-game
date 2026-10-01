@@ -407,8 +407,6 @@ function testBridgeRunUpdateLive() {
 function testBridgeVsLegacyDamageParity() {
     console.log('\n── 11 Damage authority parity (legacy _tick vs runUpdate) ───');
 
-    const bridge = require('./RendererBridge');
-
     function makeIdenticalSession() {
         const { gs } = makeSession('fire', 'water');
         // Stays in coop mode (default `_isVersusMode=false`). The leaf
@@ -1356,6 +1354,151 @@ function testArenaLayout() {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 29 — N12 A: wave / score persistence, boss → next wave, player loadouts
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testOnlineWaveFlowAndLoadouts() {
+    console.log('\n── 29 N12 A — Online wave flow + player progression ───────');
+    const keep = (gs) => {
+        for (const p of gs.players) if (p && !p.isDead) { p.hp = p.maxHp; p.xp = 0; }
+        gs.isLevelingUp = false; gs._levelUpFor = -1;
+    };
+
+    // ── Boss death: 3 s cinematic hold → wave 2, field cleared, fallen revived ──
+    {
+        const events = [];
+        const gs = new GameSession({ host: { ws: 'H' }, guest: { ws: 'G' } }, (ws, m) => {
+            if (ws === 'H' && m.type === 'SNAPSHOT') events.push(...(m.events || []));
+        });
+        gs.init('fire', 'water');
+        clearTimeout(gs._tickInterval); gs._tickInterval = null;
+        const rs = global.runState;
+        rs.enemiesKilledInWave = 26;                 // wave 1 cleared → boss spawns
+        for (let i = 0; i < 4; i++) { keep(gs); gs._tick(); }
+        let boss = null;
+        for (let i = 0; i < gs.enemies.length; i++) if (gs.enemies[i] instanceof global.Boss) boss = gs.enemies[i];
+        assert(!!boss && gs.bossActive, 'boss spawns once the wave-1 kill target (26) is met');
+        if (boss) boss.hp = 0;
+        gs.players[1].isDead = true; gs.players[1].hp = 0;   // guest fell during the boss fight
+        keep(gs); gs._tick();
+        assert(events.some(e => e.type === 'boss_defeated'), 'boss kill emits boss_defeated');
+        assert(rs.bossDeathTimer > 0 && gs.wave === 1, `death cinematic holds the wave (timer ${rs.bossDeathTimer})`);
+        let ticks = 0;
+        for (; ticks < 400 && gs.wave === 1; ticks++) { keep(gs); gs._tick(); }
+        assert(gs.wave === 2, `wave advances after the cinematic (wave ${gs.wave}, after ${ticks} ticks)`);
+        assert(events.some(e => e.type === 'wave_start' && e.wave === 2), 'wave_start(2) sent to clients');
+        assert(rs.enemiesKilledInWave === 0, 'kill counter reset for wave 2');
+        assert(!gs.bossActive, 'no boss active at wave 2 start');
+        const g = gs.players[1];
+        assert(!g.isDead && g.hp === Math.floor(g.maxHp * 0.5), `fallen co-op player revived at 50 % HP (${g.hp}/${g.maxHp})`);
+        // Wave + score changed inside ticks must survive the following ticks
+        // (they used to be reset to 1 / 0 by the next tick's world sync).
+        for (let i = 0; i < 3; i++) { keep(gs); gs._tick(); }
+        assert(gs.wave === 2 && rs.wave === 2, `wave persists across ticks (session ${gs.wave}, runState ${rs.wave})`);
+        assert(gs.score >= 1000, `score persists (boss kill +1000 → ${gs.score})`);
+        gs.stop();
+    }
+
+    // ── Next wave waits for the host's new arena (layout path is per wave) ──
+    {
+        const gs = new GameSession({ host: { ws: 'H' }, guest: { ws: 'G' } }, () => {}, { awaitLayoutMs: 60000 });
+        gs.init('fire', 'water');
+        clearTimeout(gs._tickInterval); gs._tickInterval = null;
+        const lay = { biomeType: 'fire', obstacles: [], biomeZones: [], traps: [] };
+        gs.setArenaLayout(lay, 1);
+        keep(gs); gs._tick();
+        gs.wave = 2; gs._onWaveAdvanced();            // what _tick runs on a wave change
+        const f0 = gs._frame;
+        for (let i = 0; i < 5; i++) { keep(gs); gs._tick(); }
+        assert(gs._frame === f0, `sim holds at wave 2 until its arena arrives (frame ${f0} → ${gs._frame})`);
+        assert(gs.setArenaLayout(lay, 2) && (gs._tick(), gs._frame > f0), 'sim resumes once the wave-2 arena is installed');
+        gs.stop();
+    }
+
+    // ── Both players down → death cinematic → game over (used to loop forever) ──
+    {
+        const events = [];
+        let ended = 0;
+        const gs = new GameSession({ host: { ws: 'H' }, guest: { ws: 'G' } }, (ws, m) => {
+            if (ws === 'H' && m.type === 'SNAPSHOT') events.push(...(m.events || []));
+        }, { onGameOver: () => { ended++; } });
+        gs.init('fire', 'water');
+        clearTimeout(gs._tickInterval); gs._tickInterval = null;
+        gs._tick();
+        gs.players[1].isDead = true; gs.players[1].hp = 0;   // guest already down
+        gs.players[0].hp = 0;                                // host falls now
+        let ticks = 0;
+        for (; ticks < 400 && !ended; ticks++) gs._tick();
+        assert(ended === 1 && events.some(e => e.type === 'game_over'),
+            `both players down → game_over sent + match ended (after ${ticks} ticks)`);
+        const f = gs._frame;
+        gs._tick();
+        assert(gs._frame === f, 'ended session no longer simulates');
+        gs.stop();
+    }
+
+    // ── Hazard death follows singleplayer: revive marker, corpse stays put ──
+    {
+        const bridge = require('./RendererBridge');
+        let ended = 0;
+        const gs = new GameSession({ host: { ws: 'H' }, guest: { ws: 'G' } }, () => {}, { onGameOver: () => { ended++; } });
+        gs.init('fire', 'water');
+        clearTimeout(gs._tickInterval); gs._tickInterval = null;
+        keep(gs); gs._tick();
+        const h = gs.players[0];
+        h.isInvincible = false; h.invincibleTimer = 0; h.damageReduction = 0; h.hp = 3;
+        bridge.syncWorldToGlobals(gs);               // the per-tick applyDamage swap
+        const dealt = global.applyDamage(h, 5, { label: 'LAVA' });
+        bridge.syncGlobalsToWorld(gs);
+        assert(dealt === 5 && h.hp === -2 && !h.isDead, `hazard damage only lowers HP, as singleplayer (hp ${h.hp}, dead ${h.isDead})`);
+        const keepGuest = () => { const g = gs.players[1]; g.hp = g.maxHp; g.xp = 0; h.xp = 0; gs.isLevelingUp = false; gs._levelUpFor = -1; };
+        keepGuest(); gs._tick();
+        assert(h.isDead && !!gs._runState.p1RevivalMarker && !ended,
+            'host downed by a hazard drops a revive marker while the guest lives (no instant game over)');
+        const x0 = h.x, y0 = h.y;
+        for (let i = 0; i < 30; i++) { gs.applyInput('host', { x: 1, y: 1 }); keepGuest(); gs._tick(); }
+        assert(h.x === x0 && h.y === y0, `downed host ignores movement input (moved ${Math.round(h.x - x0)},${Math.round(h.y - y0)})`);
+        gs.stop();
+    }
+
+    // ── Player loadout: singleplayer stats from the client's progression ──
+    {
+        const { gs } = makeSession('fire', 'water');
+        const baseSpeed = gs.players[0].stats.speed, baseHp = gs.players[0].maxHp;
+        const save = {
+            fire: { level: 30, unlocked: 60, prestige: 2 },
+            metaUpgrades: { health: 10, power: 20, swift: 15, defense: 5, wisdom: 3, greed: 4 },
+            global: { unlockedAchievements: ['NOT_A_REAL_ACHIEVEMENT'] },
+            chaos: { active: [] },
+            altar: { active: ['f1'] },
+        };
+        assert(gs.setPlayerLoadout('host', save), 'loadout accepted before the match runs');
+        const p = gs.players[0];
+        // Expected: the same getHeroStats code over the same (sanitized) save.
+        const prev = global.saveData;
+        global.saveData = Object.assign(Object.create(prev), { fire: save.fire, metaUpgrades: save.metaUpgrades,
+            global: { unlockedAchievements: [] }, chaos: { active: [] }, altar: { active: ['f1'] } });
+        const want = global.getHeroStats('fire');
+        global.saveData = prev;
+        assert(Math.abs(p.stats.speed - want.speed) < 1e-9 && p.stats.speed > baseSpeed,
+            `speed from progression (${p.stats.speed.toFixed(3)} = singleplayer ${want.speed.toFixed(3)}, base ${baseSpeed})`);
+        assert(p.maxHp === want.hp && p.maxHp > baseHp, `max HP from progression (${p.maxHp} vs base ${baseHp})`);
+        const { gs: plain } = makeSession('fire', 'water');
+        const baseCd = plain.players[0].specialMaxCooldown;
+        plain.stop();
+        assert(Math.abs(p.specialMaxCooldown - baseCd * 0.9) < 1e-6,
+            `altar perk f1 applied to the special cooldown (${p.specialMaxCooldown} vs base ${baseCd})`);
+        assert(gs._world.player === p, 'world points at the rebuilt player');
+        const junk = gs.setPlayerLoadout('guest', { water: { unlocked: 'all', prestige: -5 }, metaUpgrades: { swift: 1e9 } });
+        assert(junk && gs.players[1].stats.speed === global.getHeroStats('water').speed,
+            'malformed / out-of-range fields clamp to base values');
+        keep(gs); gs._tick();
+        assert(gs.setPlayerLoadout('host', save) === false, 'loadout rejected once the match is running');
+        gs.stop();
+    }
+}
+
 // ─── Run all tests ─────────────────────────────────────────────────────────────
 
 testSessionIsolation();
@@ -1385,6 +1528,7 @@ testDeterministicSpawnParity();
 testBridgeWaveAdvance();
 testConcurrentSessionIsolation();
 testArenaLayout();
+testOnlineWaveFlowAndLoadouts();
 
 const total = passed + failed;
 console.log(`\n${'─'.repeat(56)}`);

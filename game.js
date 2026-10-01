@@ -215,6 +215,7 @@ let _onlinePartnerLeveling = false; // partner has the level-up modal open → s
 let _onlineAwaitingServer = false;
 let _onlineHostLayout = null;       // { layout, hash } the server relayed from the host (guest side)
 let _onlineLocalLayoutHash = 0;     // Arena.layoutHash of this client's generated arena
+let _onlineLocalLayoutWave = 0;     // …and the wave it was generated for
 let coopP2HeroType = null;
 let coopP1GamepadIndex = -1;
 let coopP2GamepadIndex = -1;
@@ -2034,6 +2035,22 @@ function startOnlineGame(msg) {
     const myHero      = nm.isHost() ? msg.hostHero : msg.guestHero;
     const partnerHero = nm.isHost() ? msg.guestHero : msg.hostHero;
 
+    // Our progression (the slice of the save getHeroStats / setupSpecial and
+    // hero specials read): the server builds our hero from it like
+    // singleplayer instead of at base stats — otherwise prediction (real
+    // stats) and the server (base stats) disagree on speed, damage and HP.
+    const _heroSave = saveData[myHero] || {};
+    nm.send({
+        type: 'PLAYER_LOADOUT',
+        save: {
+            [myHero]: { level: _heroSave.level || 0, unlocked: _heroSave.unlocked || 0, prestige: _heroSave.prestige || 0 },
+            metaUpgrades: { ...(saveData.metaUpgrades || {}) },
+            global: { unlockedAchievements: [...(saveData.global?.unlockedAchievements || [])] },
+            chaos: { active: [...(saveData.chaos?.active || [])] },
+            altar: { active: [...(saveData.altar?.active || [])] },
+        },
+    });
+
     coopP2HeroType = partnerHero;
     window.coopP2HeroType = partnerHero;
     coopP1GamepadIndex = -1;
@@ -2075,7 +2092,7 @@ function startOnlineGame(msg) {
     sub('LEVEL_UP_DONE',   ()   => { if (runState.isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
     sub('ARENA_LAYOUT',    (m)  => {
         if (!runState.isOnlineMode || !m || !m.layout) return;
-        _onlineHostLayout = { layout: m.layout, hash: m.hash };
+        _onlineHostLayout = { layout: m.layout, hash: m.hash, wave: m.wave || 1 };
         _onlineReconcileLayout();
     });
 
@@ -2122,12 +2139,14 @@ function _onlineShareArenaLayout() {
     if (!nm || !arena || typeof arena.serializeLayout !== 'function') return;
     const layout = arena.serializeLayout();
     _onlineLocalLayoutHash = Arena.layoutHash(layout);
+    _onlineLocalLayoutWave = runState.wave;
     if (nm.isHost()) nm.send({ type: 'ARENA_LAYOUT', wave: runState.wave, layout });
     else _onlineReconcileLayout();
 }
 
 function _onlineReconcileLayout() {
     if (!_onlineHostLayout || !_onlineLocalLayoutHash) return; // wait for both halves
+    if (_onlineHostLayout.wave !== _onlineLocalLayoutWave) return; // same wave's arenas only
     if (_onlineHostLayout.hash === _onlineLocalLayoutHash) return;
     console.warn('[online] arena layout differs from host — adopting host layout');
     arena.generateFromMap(_onlineHostLayout.layout);
@@ -4390,6 +4409,48 @@ function advanceWave() {
     }
 }
 
+// Generate the current wave's arena (workshop map, or the biome's generator).
+function _generateWaveArena(layoutOverride = null, trapOverride = null) {
+    // Online: temporarily replace Math.random with a seeded PRNG so both clients
+    // generate identical arena layouts for the same wave + lobby code.
+    let _savedRandom = null;
+    if (runState.isOnlineMode && window._onlineBiomeSeed !== undefined) {
+        let _ms = ((runState.wave * 2654435761) ^ (window._onlineBiomeSeed * 1664525)) >>> 0;
+        _savedRandom = Math.random;
+        Math.random = function() {
+            _ms = (_ms + 0x6D2B79F5) | 0;
+            let _t = Math.imul(_ms ^ (_ms >>> 15), 1 | _ms);
+            _t = (_t + Math.imul(_t ^ (_t >>> 7), 61 | _t)) ^ _t;
+            return ((_t ^ (_t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    if (runState.isWorkshopMode && window.pendingCustomMap) {
+        arena.generateFromMap(window.pendingCustomMap);
+    } else {
+        arena.generate(runState.currentBiomeType, layoutOverride, trapOverride);
+
+        // Versus Mode Override: Force 1v1 Layout if somehow called here
+        if (runState.isVersusMode) {
+            arena.generate(runState.currentBiomeType, 'VERSUS_1V1');
+        }
+    }
+
+    if (_savedRandom) Math.random = _savedRandom;
+}
+
+// Online co-op: the same deterministic spawn the server gives this role
+// (GameSession.setArenaLayout) — host left of centre, guest right, nudged
+// out of any wall — so prediction and the authoritative position start in
+// agreement.
+function _placeOnlineSpawn() {
+    if (!runState.player) return;
+    const _side = window.networkManager?.isHost() ? -1 : 1;
+    const _sp = arena.nearestFreePosition(arena.width / 2 + _side * 300, arena.height / 2, runState.player.radius);
+    runState.player.x = _sp.x;
+    runState.player.y = _sp.y;
+}
+
 function resumeWaveGeneration() {
     // True Golden Mask Spawn (Wave 90 Narrative Event) - STORY MODE ONLY
     const isStoryMode = (saveData.story && saveData.story.enabled !== false) &&
@@ -4509,32 +4570,7 @@ function resumeWaveGeneration() {
         }
     }
 
-    // Online: temporarily replace Math.random with a seeded PRNG so both clients
-    // generate identical arena layouts for the same wave + lobby code.
-    let _savedRandom = null;
-    if (runState.isOnlineMode && window._onlineBiomeSeed !== undefined) {
-        let _ms = ((runState.wave * 2654435761) ^ (window._onlineBiomeSeed * 1664525)) >>> 0;
-        _savedRandom = Math.random;
-        Math.random = function() {
-            _ms = (_ms + 0x6D2B79F5) | 0;
-            let _t = Math.imul(_ms ^ (_ms >>> 15), 1 | _ms);
-            _t = (_t + Math.imul(_t ^ (_t >>> 7), 61 | _t)) ^ _t;
-            return ((_t ^ (_t >>> 14)) >>> 0) / 4294967296;
-        };
-    }
-
-    if (runState.isWorkshopMode && window.pendingCustomMap) {
-        arena.generateFromMap(window.pendingCustomMap);
-    } else {
-        arena.generate(runState.currentBiomeType, layoutOverride, trapOverride);
-
-        // Versus Mode Override: Force 1v1 Layout if somehow called here
-        if (runState.isVersusMode) {
-            arena.generate(runState.currentBiomeType, 'VERSUS_1V1');
-        }
-    }
-
-    if (_savedRandom) Math.random = _savedRandom;
+    _generateWaveArena(layoutOverride, trapOverride);
 
     // Online: hand the generated arena to the server / cross-check with the host.
     if (runState.isOnlineMode) _onlineShareArenaLayout();
@@ -4542,14 +4578,7 @@ function resumeWaveGeneration() {
     // Reset Player Position to Center
     if (runState.player) {
         if (runState.isOnlineMode && !runState.isVersusMode) {
-            // Online co-op: the same deterministic spawn the server gives this
-            // role (GameSession.setArenaLayout) — host left of centre, guest
-            // right, nudged out of any wall — so prediction and the
-            // authoritative position start in agreement.
-            const _side = window.networkManager?.isHost() ? -1 : 1;
-            const _sp = arena.nearestFreePosition(arena.width / 2 + _side * 300, arena.height / 2, runState.player.radius);
-            runState.player.x = _sp.x;
-            runState.player.y = _sp.y;
+            _placeOnlineSpawn();
         } else if (runState.isVersusMode) {
             runState.player.x = arena.width / 2 - 800; // Left Spawn
             runState.player.y = arena.height / 2;
@@ -6024,6 +6053,7 @@ function _onlineApplySnapshot(s) {
     if (_onlinePartnerLeveling && s.isLevelingUp === false) _onlineShowPartnerLevelingOverlay(false);
 
     // Game state
+    if (s.killed   !== undefined) runState.enemiesKilledInWave = s.killed;
     if (s.wave     !== undefined) runState.wave      = s.wave;
     if (s.score    !== undefined) runState.score     = s.score;
     if (s.bossActive !== undefined) runState.bossActive = s.bossActive;
@@ -6062,6 +6092,29 @@ function _onlineTwinOwnShot(ghost) {
     ghost._netTwin = true;
 }
 
+// Online wave transition — singleplayer's advanceWave / resumeWaveGeneration
+// set-up for a server-driven wave: the same seeded biome shift and arena
+// generation as wave 1 (identical on both clients), the host uploads the
+// arena, the own player goes to its spawn, and local prediction is held until
+// the server — which waits for that arena — resumes.
+function _onlineBeginWave(wave) {
+    if (!wave || wave <= 1) return;
+    runState.wave = wave;
+    runState.enemiesKilledInWave = 0;
+    runState.bossActive = false;
+    runState.bossDeathTimer = 0;   // end a still-running death cinematic
+    masksDroppedInWave = 0;
+    notifyWaveAdvance(wave);
+    runState.currentBiomeType = pickSeededBiome(wave, window._onlineBiomeSeed);
+    showNotification(`BIOME SHIFT: ${runState.currentBiomeType.toUpperCase()}`);
+    _generateWaveArena();
+    _onlineShareArenaLayout();
+    _placeOnlineSpawn();
+    _onlineAwaitingServer = true;
+    const _waitEl = document.getElementById('online-wait-overlay');
+    if (_waitEl) _waitEl.style.display = 'block';
+}
+
 /** GUEST: handle one-shot events relayed from the host. */
 function _onlineProcessGuestEvent(ev) {
     if (!ev) return;
@@ -6072,9 +6125,17 @@ function _onlineProcessGuestEvent(ev) {
         case 'gold_drop':
             spawnGoldDrop(runState, ev.x, ev.y);
             break;
+        case 'boss_defeated':
+            // The server finished the wave's boss and holds its sim for the
+            // singleplayer death cinematic — play it here too (it freezes the
+            // local frame for the same 3 s). wave_start follows.
+            runState.bossActive = false;
+            runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
+            triggerHitStop(GAMEPLAY.HITSTOP_BOSS_KILL);
+            if (typeof audioManager !== 'undefined') audioManager.play('wave_completed');
+            break;
         case 'wave_start':
-            runState.wave = ev.wave;
-            showNotification(`WAVE ${ev.wave}`);
+            _onlineBeginWave(ev.wave);
             break;
         case 'notification':
             showNotification(ev.msg, ev.color);
@@ -6535,6 +6596,9 @@ function _renderBigGambleScene() {
 // short-circuit (game-over scheduled, mode-specific hook routed elsewhere)
 // or `false` if the boss-choice screen will take over on the next frame.
 function _finalizeBossDeathCinematic() {
+    // Online: the server continues to the next wave on its own (wave_start);
+    // there is no Continue / Save & Quit choice for a shared run.
+    if (runState.isOnlineMode) return true;
     if (runState.isTestingMode) {
         showNotification('Boss defeated — [TAB] to spawn another');
         return false;

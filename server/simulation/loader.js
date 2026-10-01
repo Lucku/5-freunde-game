@@ -208,8 +208,9 @@ global.BIOME_LOGIC       = {};
 // SoundHero reads window.SYMPHONY_STATE for its totem system
 global.SYMPHONY_STATE    = { _lastWave: null, totems: [], totemsConquered: 0, onBeat: false };
 
-// getHeroStats() calls this for skill-tree bonuses; return empty tree (unlocked=0 skips loop)
-global.generateHeroSkillTree = () => ({});
+// Real skill tree (shared pure module) — online players' stats are computed
+// here from their uploaded progression and must match the client's exactly.
+global.generateHeroSkillTree = require('../../core/skillTree.js').generateHeroSkillTree;
 
 // Stub level-up UI so Player.levelUp() doesn't crash on server
 global.levelUpUI         = null;
@@ -290,7 +291,18 @@ const _false = () => false;
 // Boss cinematic helpers — return false so the helper falls through to the
 // normal update path (true would mean "cinematic owns this frame, bail out").
 global._renderBossIntroCinematic   = _false;
-global._renderBossDeathCinematic   = _false;
+// Boss death: count down the singleplayer cinematic's 3 s with the sim frozen
+// (returning true = "cinematic owns this frame"), then go on to the next wave.
+// Online has no Continue / Save & Quit screen (runs aren't saved). The stub
+// used to return false, so the timer never moved, the wave never advanced and
+// the next boss spawned the moment the last one died.
+global._renderBossDeathCinematic   = () => {
+    const rs = global.runState;
+    if (!rs || !(rs.bossDeathTimer > 0)) return false;
+    rs.bossDeathTimer--;
+    if (rs.bossDeathTimer === 0) global.advanceWave();
+    return true;
+};
 global._renderBossChoiceScreen     = _false;
 global._renderMinimap              = _noop;
 // FX + camera-mode helpers — visual side effects only, server skips.
@@ -310,11 +322,10 @@ global.createDeathBurst            = _noop;
 // Story / wave-flow helpers — server has its own wave manager so the leaf
 // module's calls into these are advisory; no-ops are safe for smoke.
 global.triggerStory                = _noop;
-// Phase 3g — wire wave-flow stubs to mutate runState. Leaf-module path
-// (`core/updateGameplayPre.js:484`) calls `advanceWave()` when a wave is
-// cleared or workshop has no boss; without a real implementation the
-// bridge-driven session never advances past wave 1. `isWaveCleared`
-// mirrors `Wave.js:35` (30 kills per wave × current wave).
+// Phase 3g — wave-flow stubs mutate runState. Called by the boss-death
+// countdown above (and the leaf's workshop no-boss path). This is the shared
+// half of singleplayer's advanceWave; GameSession._onWaveAdvanced does the
+// rest (clear the field, revive, wait for the next arena, tell the clients).
 global.advanceWave = function () {
     const rs = global.runState;
     if (!rs) return;
@@ -327,9 +338,9 @@ global.notifyWaveAdvance           = _noop;
 global.updateChaosObjective        = _noop;
 global.checkChaosEvent             = _noop;
 global.isStoryBossWave             = _false;
-global.isWaveCleared = function (wave, killed) {
-    return killed >= 30 * wave;
-};
+// Same kill target as singleplayer (Wave.js: 20 + 6 × wave). The stub here
+// used the old 30 × wave curve.
+global.isWaveCleared = require('../../Wave.js').isWaveCleared;
 global.gameOver                    = _noop;
 global.getDecoyTarget              = () => null;
 // Enemy / boss targeting — mirrors game.js getCoopTarget: nearest LIVING

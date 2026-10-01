@@ -352,74 +352,35 @@ class Player {
             return;
         }
 
-        // UI updates should only happen for the main player
-        if (this.isCPU) {
-            // Setup internal stats WITHOUT touching DOM
-            if (this.type === 'fire') {
-                this.specialName = "INFERNO";
-                this.specialMaxCooldown = 900;
-            } else if (this.type === 'water') {
-                this.specialName = "TIDAL WAVE";
-                this.specialMaxCooldown = 600;
-            } else if (this.type === 'ice') {
-                this.specialName = "DEEP FREEZE";
-                this.specialMaxCooldown = 1200;
-            } else if (this.type === 'plant') {
-                this.specialName = "OVERGROWTH";
-                this.specialMaxCooldown = 1800;
-            } else if (this.type === 'metal') {
-                this.specialName = "IRON WILL";
-                this.specialMaxCooldown = 1200;
-            } else if (this.type === 'black') {
-                this.specialName = "VOID ERUPTION";
-                this.specialMaxCooldown = 900;
-            } else if (this.type === 'earth') {
-                // Earth special is handled via Transform or custom hook usually
-                this.specialName = "OBSIDIAN FORM";
-                this.specialMaxCooldown = 1200;
-            }
-            return;
-        }
+        // Name + base cooldown (frames) + HUD icon per base hero. Shared by the
+        // local player and CPU players (AI companions, the online server's
+        // heroes) — the CPU path used to return early with its own table, so it
+        // skipped the altar perks below and had no Spirit / Chance entries:
+        // online heroes' special cooldowns differed from singleplayer. DLC
+        // heroes set theirs in HERO_LOGIC.init(), which runs after this.
+        const BASE_SPECIALS = {
+            fire:   ['INFERNO',       900,  '🔥'], // 15s
+            water:  ['TIDAL WAVE',    600,  '🌊'], // 10s
+            ice:    ['DEEP FREEZE',   1200, '❄️'], // 20s
+            plant:  ['OVERGROWTH',    1800, '🌿'], // 30s
+            metal:  ['IRON WILL',     1200, '🛡️'], // 20s
+            black:  ['VOID ERUPTION', 900,  '🌑'], // 15s
+            spirit: ['TRANSCEND',     0,    '🧘'], // usage based
+            chance: ['SLOTS',         900,  '🎰'], // 15s
+        };
+        const _spec = BASE_SPECIALS[this.type];
+        if (_spec) [this.specialName, this.specialMaxCooldown] = _spec;
 
-        const iconEl = document.getElementById('special-icon');
-        // Reset the shared #special-container background. Gravity Hero paints an
-        // inline purple charge gradient onto it every frame and nothing else ever
-        // cleared it, so after a Gravity run every other hero inherited that
-        // frozen purple fill. Gravity re-applies its own gradient in its update.
-        const _specialContainer = document.getElementById('special-container');
-        if (_specialContainer) _specialContainer.style.background = '';
-        if (this.type === 'fire') {
-            this.specialName = "INFERNO";
-            this.specialMaxCooldown = 900; // 15s
-            iconEl.innerText = "🔥";
-        } else if (this.type === 'water') {
-            this.specialName = "TIDAL WAVE";
-            this.specialMaxCooldown = 600; // 10s
-            iconEl.innerText = "🌊";
-        } else if (this.type === 'ice') {
-            this.specialName = "DEEP FREEZE";
-            this.specialMaxCooldown = 1200; // 20s
-            iconEl.innerText = "❄️";
-        } else if (this.type === 'plant') {
-            this.specialName = "OVERGROWTH";
-            this.specialMaxCooldown = 1800; // 30s
-            iconEl.innerText = "🌿";
-        } else if (this.type === 'metal') {
-            this.specialName = "IRON WILL";
-            this.specialMaxCooldown = 1200; // 20s
-            iconEl.innerText = "🛡️";
-        } else if (this.type === 'black') {
-            this.specialName = "VOID ERUPTION";
-            this.specialMaxCooldown = 900; // 15s
-            iconEl.innerText = "🌑";
-        } else if (this.type === 'spirit') {
-            this.specialName = "TRANSCEND";
-            this.specialMaxCooldown = 0; // Usage based
-            iconEl.innerText = "🧘";
-        } else if (this.type === 'chance') {
-            this.specialName = "SLOTS";
-            this.specialMaxCooldown = 900; // 15s
-            iconEl.innerText = "🎰";
+        // HUD only for the main player.
+        if (!this.isCPU) {
+            const iconEl = document.getElementById('special-icon');
+            // Reset the shared #special-container background. Gravity Hero paints an
+            // inline purple charge gradient onto it every frame and nothing else ever
+            // cleared it, so after a Gravity run every other hero inherited that
+            // frozen purple fill. Gravity re-applies its own gradient in its update.
+            const _specialContainer = document.getElementById('special-container');
+            if (_specialContainer) _specialContainer.style.background = '';
+            if (_spec && iconEl) iconEl.innerText = _spec[2];
         }
 
         const active = saveData?.altar?.active ?? [];

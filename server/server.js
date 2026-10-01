@@ -1673,18 +1673,25 @@ wss.on('connection', (ws, req) => {
                 ws.lobbyCode = prevCode;
                 ws.role = role;
                 lobby[role] = { ws, userId: user.id, username: user.username };
-                if (lobby.session) lobby.session.paused = false;
                 send(ws, { type: 'REJOINED', code: prevCode, role });
                 const s = lobby.session;
                 if (role === 'guest' && s && s.arenaLayout) {
                     send(ws, { type: 'ARENA_LAYOUT', wave: s.arenaLayoutWave, layout: s.arenaLayout, hash: s.arenaLayoutHash });
                 }
                 const p = partner(lobby, role);
-                if (p) send(p.ws, { type: 'PARTNER_RECONNECTED' });
-                clearTimeout(lobby._graceTimer);
-                lobby._graceTimer = null;
-                clearTimeout(lobby._hardCleanupTimer);
-                lobby._hardCleanupTimer = null;
+                if (p) {
+                    send(p.ws, { type: 'PARTNER_RECONNECTED' });
+                    if (lobby.session) lobby.session.paused = false;
+                    clearTimeout(lobby._graceTimer);
+                    lobby._graceTimer = null;
+                    clearTimeout(lobby._hardCleanupTimer);
+                    lobby._hardCleanupTimer = null;
+                } else {
+                    // Both dropped at once (server stall, network blip): stay
+                    // paused, and keep the grace and cleanup timers running,
+                    // until the partner is back too.
+                    send(ws, { type: 'PARTNER_RECONNECTING', timeoutSec: 30 });
+                }
             } else {
                 userLobby.delete(user.id);
             }
@@ -1836,8 +1843,20 @@ function handleMessage(ws, msg) {
                 const session = new GameSession(lobby, send, {
                     // Zero a player's movement once their INPUT stream stalls.
                     inputTimeoutMs: 200,
-                    // Wait (≤ 5 s) for the host's ARENA_LAYOUT before simulating.
+                    // Wait (≤ 5 s) for the host's ARENA_LAYOUT and both
+                    // players' PLAYER_LOADOUT before simulating.
                     awaitLayoutMs: 5000,
+                    awaitLoadouts: true,
+                    // Both players went down: the session already told the
+                    // clients (game_over event) — finish the lobby like a
+                    // client-reported GAME_OVER.
+                    onGameOver: () => {
+                        if (lobby.phase === 'finished') return;
+                        if (lobby.session) { recordCompletedSession(lobby); lobby.session = null; }
+                        lobby.phase = 'finished';
+                        clearTimeout(lobby._finishTimer);
+                        lobby._finishTimer = setTimeout(() => cleanupLobby(lobby.code), 5 * 60 * 1000);
+                    },
                     // Keep authoritative wave/score fresh so /api/leaderboard
                     // can clamp client claims even before GAME_OVER lands.
                     onTickStats: (wave, score, timeSec) => {
@@ -1867,6 +1886,19 @@ function handleMessage(ws, msg) {
             const lobby = lobbies.get(ws.lobbyCode);
             if (!lobby || lobby.phase !== 'in_game' || !lobby.session) return;
             lobby.session.applyInput(ws.role, msg);
+            break;
+        }
+
+        case 'PLAYER_LOADOUT': {
+            // Each client's progression (skill tree, permanent upgrades,
+            // prestige, achievements, chaos + altar picks): the server builds
+            // that player's hero from it through the singleplayer stat code
+            // instead of base stats. Accepted before the simulation starts.
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby || lobby.phase !== 'in_game' || !lobby.session) return;
+            if (!lobby.session.setPlayerLoadout(ws.role, msg.save)) {
+                console.warn(`[PLAYER_LOADOUT] ignored from ${ws.username} (lobby ${lobby.code}): malformed or match already running`);
+            }
             break;
         }
 

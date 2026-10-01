@@ -114,31 +114,34 @@ function syncWorldToGlobals(session) {
     global.HERO_LOGIC    = w.HERO_LOGIC  || global.HERO_LOGIC  || {};
     global.ENEMY_LOGIC   = w.ENEMY_LOGIC || global.ENEMY_LOGIC || {};
 
-    // Wire server-authoritative damage. Leaf-module collision sites call
-    // `applyDamage(target, dmg, opts)` — route to GameSession's
-    // `_damageEnemy` / `_damagePlayer` so kill processing, XP awarding,
-    // gold drops, invincibility frames, and damage-reduction multipliers
-    // all run through the canonical server paths instead of the loader's
-    // smoke-grade `target.hp -= dmg` fallback. Restored to the loader's
-    // stub in `syncGlobalsToWorld` so cross-tick state stays clean.
+    // Session-aware game over (both players down after the singleplayer death
+    // cinematic): the loader's no-op stub left online runs going forever.
+    _prevGameOver = global.gameOver;
+    global.gameOver = (isVictory = false) => session._onGameOver(!!isVictory);
+
+    // Singleplayer applyDamage() (game.js) minus its presentation (sound,
+    // damage number): i-frame check, damage reduction, shield hook, HP, combo
+    // reset. Kills and deaths are left to the shared update code, as in
+    // singleplayer — the old server-only helpers marked a player dead on the
+    // spot (no revive marker, no death cinematic, a game over the lobby never
+    // heard of) and paid kill XP a second time. Both swaps are restored in
+    // `syncGlobalsToWorld`.
     _prevApplyDamage = global.applyDamage;
-    global.applyDamage = (target, dmg, opts) => {
-        if (!target || typeof dmg !== 'number') return 0;
-        // Player ref? (matches either P1 or P2 instance pointer)
-        const pIdx = session.players.indexOf(target);
-        if (pIdx >= 0) {
-            session._damagePlayer(target, pIdx, dmg);
-            return dmg;
+    global.applyDamage = (target, dmg, opts = {}) => {
+        if (!target || target.isInvincible) return 0;
+        if (!Number.isFinite(dmg) || dmg <= 0) return 0;
+        const reduction = opts.noReduction ? 0 : (Number(target.damageReduction) || 0);
+        const finalDmg = dmg * (1 - reduction);
+        if (typeof target.customOnDamage === 'function') {
+            try {
+                if (target.customOnDamage(finalDmg)) return 0;
+            } catch (e) { console.warn('customOnDamage threw:', e); }
         }
-        // Enemy ref (default)
-        session._damageEnemy(target, dmg);
-        if (opts && opts.label && session._events) {
-            session._events.push({
-                type: 'damage_text', x: target.x, y: target.y,
-                label: opts.label, color: opts.color, size: opts.size,
-            });
+        target.hp -= finalDmg;
+        if (session.players.includes(target) && typeof target.resetCombo === 'function' && finalDmg > 0) {
+            target.resetCombo();
         }
-        return dmg;
+        return finalDmg;
     };
 
     // runState singleton mirrors the same fields — leaf modules read both
@@ -183,9 +186,14 @@ function syncGlobalsToWorld(session) {
         global.applyDamage = _prevApplyDamage;
         _prevApplyDamage = null;
     }
+    if (_prevGameOver) {
+        global.gameOver = _prevGameOver;
+        _prevGameOver = null;
+    }
 }
 
 let _prevApplyDamage = null;
+let _prevGameOver = null;
 
 /**
  * Run one tick of the extracted renderer update halves against a session's
@@ -201,9 +209,8 @@ let _prevApplyDamage = null;
  * retired. The leaf modules from `core/*.js` execute every collision +
  * damage + wave-advance path server-side via the `runState` ECS layer.
  * `applyDamage` calls inside the leaf modules route through the per-tick
- * `global.applyDamage` swap below (writes session-aware closure on entry,
- * restores loader stub on exit) so HP mutation lands through
- * `session._damageEnemy` / `session._damagePlayer`.
+ * `global.applyDamage` swap in `syncWorldToGlobals` (session-aware closure
+ * on entry, loader stub restored on exit), which mirrors singleplayer's.
  */
 function runUpdate(session, dt) {
     const pre = getUpdatePre();
