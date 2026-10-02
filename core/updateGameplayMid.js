@@ -13,7 +13,7 @@
 // `_projectileSpatialHash`, etc.) resolve via bare-name global lookup —
 // `window.X` bridges in the renderer, `global.X` stubs in
 // `server/simulation/loader.js`.
-import { runState } from '../RunState.js';
+import { runState, hazardTargets } from '../RunState.js';
 import {
     updatePowerUps, killPowerUp, getPowerUpType, POWERUP_RADIUS,
 } from './systems/powerUpSystem.js';
@@ -31,52 +31,166 @@ import { spawnGoldDrop, killGoldDrop } from './systems/goldDropSystem.js';
 import { spawnHolyMask, killHolyMask, HOLYMASK_RADIUS } from './systems/holyMaskSystem.js';
 import { updateCompanions } from './systems/companionSystem.js';
 
+// Versus: beat between the opponent's KO and the victory screen (2 s). A
+// frame count, not a setTimeout: the server's gameOver is only bound to its
+// session during a tick, so a timer firing later ended nothing online.
+const VERSUS_WIN_FRAMES = 120;
+
+// P2 (co-op partner, AI companion, versus opponent) reached 0 HP, from any
+// source. Co-op: down with a revive marker. Versus: KO — P1 wins. The online
+// partner ghost never falls locally: the server decides, snapshots tell.
+function _player2Fell() {
+    const p2 = runState.player2;
+    if (!p2 || p2.isDead || p2._ghost) return;
+    p2.isDead = true; p2.hp = 0;
+    if (runState.isVersusMode) {
+        createExplosion(p2.x, p2.y, '#fff');
+        showNotification("OPPONENT KO!");
+        audioManager.playHeroExclamation(runState.player.type, 'boss_win');
+        runState.versusWinTimer = VERSUS_WIN_FRAMES;
+        return;
+    }
+    p2.isInvincible = true;
+    p2.isDashing = false; p2.moveInput = { x: 0, y: 0 };
+    runState.p2RevivalMarker = { x: p2.x, y: p2.y, progress: 0, maxProgress: 240 };
+    createExplosion(p2.x, p2.y, '#3b82f6');
+    if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(p2.type, 'failure');
+    showNotification(runState.isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
+}
+
+// True Golden Mask (story wave 90): the run-long stat boost.
+export function applyTrueGoldenMask(p) {
+    p.damageMultiplier += 0.5; // +50% Damage
+    p.speedMultiplier += 0.2; // +20% Speed
+    p.maxHp += 50;
+    p.hp += 50;
+    p.cooldownMultiplier *= 0.8; // -20% Cooldown
+    p.isGolden = true;
+}
+
+// Save-side rewards of one kill — achievements, kill stats, run-summary
+// counts, collector-card and holy-mask drops. Singleplayer grants them in the
+// kill branch below. Online the server only simulates; each client grants
+// them to its own save from the server's `kill` event (every kill of the
+// team counts, as local co-op's shared save counts both players' kills).
+// `k` = { x, y, subType, isBoss, type, bossLabel, eliteId }.
+export function grantKillRewards(k) {
+    checkAchievements(); // Check achievements on kill
+    if (k.isBoss) {
+        // Makuta Achievement Check
+        if (k.type === 'MAKUTA' && runState.wave >= 100) {
+            unlockAchievement('MAKUTA_SLAYER'); // Base Achievement
+
+            // Hard Mode Achievements (1-10)
+            const prestige = saveData[runState.player.type].prestige;
+            for (let i = 1; i <= 10; i++) {
+                if (prestige >= i) unlockAchievement(`MAKUTA_HM_${i}`);
+            }
+
+            showNotification("MAKUTA DEFEATED!");
+        }
+
+        runState.currentRunStats.bossesKilled++; // Track Boss Kill
+        saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
+        if (runState.currentRunStats.keyMoments) {
+            const _km_t = Math.floor((Date.now() - (runState.currentRunStats.startTime || Date.now())) / 1000);
+            runState.currentRunStats.keyMoments.push({ wave: runState.wave, timeSec: _km_t, kind: 'boss_kill', label: k.bossLabel || 'Boss' });
+        }
+        checkDrop('BOSS', k.x, k.y); // Boss Card
+
+        // Unlock Hero Story Achievement
+        if (k.type === 'MAKUTA' && runState.wave >= 100) {
+            // True Golden Mask moved to Wave 90 start
+
+            if (runState.player.type === 'fire') unlockAchievement('STORY_FIRE');
+            if (runState.player.type === 'water') unlockAchievement('STORY_WATER');
+            if (runState.player.type === 'ice') unlockAchievement('STORY_ICE');
+            if (runState.player.type === 'plant') unlockAchievement('STORY_PLANT');
+            if (runState.player.type === 'metal') unlockAchievement('STORY_METAL');
+        }
+
+        // DLC boss-specific achievements (superbosses, etc.)
+        if (window.DLC_STORY_ACHIEVEMENTS[k.type]) {
+            unlockAchievement(window.DLC_STORY_ACHIEVEMENTS[k.type]);
+        }
+        return;
+    }
+
+    runState.currentRunStats.enemiesKilled++; // Track Kill
+
+    // Track Specific Enemy Kills for Achievements
+    const killKey = `kill_${k.subType}`;
+    if (!saveData.stats[killKey]) saveData.stats[killKey] = 0;
+    saveData.stats[killKey]++;
+
+    // Elite Card Drop. Card keys are ELITE_<id>_<tier>; the bare elite id
+    // never matched one, so elite cards could not drop.
+    if (k.eliteId) checkDrop(`ELITE_${k.eliteId}`, k.x, k.y);
+
+    // Mask Drop Logic (Capped at 5 per wave)
+    if (masksDroppedInWave < 5 && runState.rng() < runState.player.maskChance) {
+        spawnHolyMask(runState, k.x, k.y);
+        masksDroppedInWave++;
+    }
+
+    // Check for Card Drop
+    checkDrop(k.subType || 'BASIC', k.x, k.y);
+}
+
 export
 function _updateGameplayMid(deltaTime, _isHitStopped) {
     // --- Updates ---
 
     // Biome Effects on Player
-    let biomeSpeedMod = 1;
-
-    // DLC Hook: Biome Update
-    if (window.BIOME_LOGIC && window.BIOME_LOGIC[runState.currentBiomeType]) {
-        window.BIOME_LOGIC[runState.currentBiomeType].update(arena, runState.player, enemies);
+    // DLC Hook: Biome Update — and its per-player effects on a second player
+    // (co-op P2 / the online guest), as Arena.applyToPlayer does.
+    const _biome = window.BIOME_LOGIC && window.BIOME_LOGIC[runState.currentBiomeType];
+    if (_biome) {
+        _biome.update(arena, runState.player, enemies);
+        const _p2 = hazardTargets()[1];
+        if (_p2 && _biome.applyToPlayer) _biome.applyToPlayer(arena, _p2);
     }
 
+    // Zones act on every player here (hazardTargets) — they used to act on
+    // P1 only, so lava never burned P2 / the online guest and mud never slowed them.
+    const _zonePlayers = hazardTargets();
+    const _zoneSpeed = _zonePlayers.map(() => 1); // biome speed mod per player
     arena.biomeZones.forEach(zone => {
-        // Simple AABB collision
-        if (runState.player.x > zone.x && runState.player.x < zone.x + zone.w &&
-            runState.player.y > zone.y && runState.player.y < zone.y + zone.h) {
+        _zonePlayers.forEach((pl, pi) => {
+            // Simple AABB collision
+            if (pl.x > zone.x && pl.x < zone.x + zone.w &&
+                pl.y > zone.y && pl.y < zone.y + zone.h) {
 
-            // Immunity Check
-            let isImmune = false;
-            if (runState.player.type === 'fire' && zone.type === 'LAVA') isImmune = true;
-            if (runState.player.type === 'ice' && zone.type === 'ICE') isImmune = true;
-            if (runState.player.type === 'plant' && zone.type === 'MUD') isImmune = true;
-            if (runState.player.type === 'water' && zone.type === 'WATER') isImmune = true;
-            if (runState.player.type === 'metal' && zone.type === 'MAGNET') isImmune = true;
+                // Immunity Check
+                let isImmune = false;
+                if (pl.type === 'fire' && zone.type === 'LAVA') isImmune = true;
+                if (pl.type === 'ice' && zone.type === 'ICE') isImmune = true;
+                if (pl.type === 'plant' && zone.type === 'MUD') isImmune = true;
+                if (pl.type === 'water' && zone.type === 'WATER') isImmune = true;
+                if (pl.type === 'metal' && zone.type === 'MAGNET') isImmune = true;
 
-            if (!isImmune) {
-                if (zone.type === 'MUD') biomeSpeedMod = 0.5;
-                if (zone.type === 'ICE') biomeSpeedMod = 1.3; // Slide faster
-                if (zone.type === 'WATER') biomeSpeedMod = 0.7;
+                if (!isImmune) {
+                    if (zone.type === 'MUD') _zoneSpeed[pi] = 0.5;
+                    if (zone.type === 'ICE') _zoneSpeed[pi] = 1.3; // Slide faster
+                    if (zone.type === 'WATER') _zoneSpeed[pi] = 0.7;
 
-                if (zone.type === 'LAVA' && runState.frame % 60 === 0) {
-                    applyDamage(runState.player, 5, { label: 'LAVA' });
-                    createExplosion(runState.player.x, runState.player.y, '#e74c3c');
-                    showNotification("BURNING!");
-                }
+                    if (zone.type === 'LAVA' && runState.frame % 60 === 0) {
+                        applyDamage(pl, 5, { label: 'LAVA' });
+                        createExplosion(pl.x, pl.y, '#e74c3c');
+                        showNotification("BURNING!");
+                    }
 
-                if (zone.type === 'MAGNET') {
-                    // Pull Player towards center
-                    const cx = zone.x + zone.w / 2;
-                    const cy = zone.y + zone.h / 2;
-                    const angle = Math.atan2(cy - runState.player.y, cx - runState.player.x);
-                    runState.player.x += Math.cos(angle) * 2; // Strong pull
-                    runState.player.y += Math.sin(angle) * 2;
+                    if (zone.type === 'MAGNET') {
+                        // Pull Player towards center
+                        const cx = zone.x + zone.w / 2;
+                        const cy = zone.y + zone.h / 2;
+                        const angle = Math.atan2(cy - pl.y, cx - pl.x);
+                        pl.x += Math.cos(angle) * 2; // Strong pull
+                        pl.y += Math.sin(angle) * 2;
+                    }
                 }
             }
-        }
+        });
 
         // Biome Effects on Enemies (Always active, no immunity for them)
         if (zone.type === 'MAGNET') {
@@ -92,7 +206,9 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             });
         }
     });
-    runState.player.biomeSpeedMod = biomeSpeedMod;
+    // On top of the biome hook's own (rubble, sludge, updraft) — assigning it
+    // here threw those away every frame.
+    _zonePlayers.forEach((pl, pi) => { pl.biomeSpeedMod = (pl.biomeSpeedMod ?? 1) * _zoneSpeed[pi]; });
 
     if (runState.isPlayerDying) {
         // Freeze player during death sequence
@@ -387,7 +503,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     saveGame();
                 }
             }
-        } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2.isDead) {
+        } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2._ghost && !runState.player2.isDead) {
             const distP2 = Math.hypot(runState.player2.x - sx, runState.player2.y - sy);
             if (distP2 < runState.player2.radius + MEMORYSHARD_RADIUS) {
                 const color = getMemoryShardColor(runState, index);
@@ -426,22 +542,29 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
     // Gold Drops — ECS. Pickup is plain
     // pickup-range collision (despite the legacy "Golden Magnet" comment, no
     // actual magnet pull). Reverse iter for killGoldDrop swap-with-last safety.
-    const _gdPickupRad = runState.player.pickupRange || (runState.player.radius + 20);
+    // Who collects: P1 (local co-op shares P1's wallet); on the online server
+    // each player has their own, so both pick up (the guest never got any).
+    const _goldPickers = runState.perPlayerLoot ? hazardTargets() : [runState.player];
     for (let index = runState.goldDropCount - 1; index >= 0; index--) {
         const gx = runState.goldDropX[index];
         const gy = runState.goldDropY[index];
-        const dist = Math.hypot(runState.player.x - gx, runState.player.y - gy);
-        if (dist < _gdPickupRad) {
+        const picker = _goldPickers.find(p => Math.hypot(p.x - gx, p.y - gy) < (p.pickupRange || (p.radius + 20)));
+        if (picker) {
             const value = runState.goldDropValue[index];
-            const amount = Math.floor(value * runState.player.goldMultiplier);
-            if (runState.player.gainGold) runState.player.gainGold(amount);
-            else runState.player.gold += amount;
+            const amount = Math.floor(value * picker.goldMultiplier);
+            if (picker.gainGold) picker.gainGold(amount);
+            else picker.gold += amount;
 
             if (runState.isChaosShuffleMode) checkChaosEvent('GOLD', amount);
             if (runState.isTutorialMode) TutorialMode.onGold();
             runState.currentRunStats.moneyGained += amount;
             saveData.global.totalGold += value;
             if (typeof audioManager !== 'undefined') audioManager.play('pickup_gold');
+            // Online: predicted — the server credits it (snapshot gold).
+            if (runState.isOnlineMode) {
+                if (!runState.predictedGold) runState.predictedGold = new Map();
+                runState.predictedGold.set(runState.goldDropId[index], Date.now());
+            }
             killGoldDrop(runState, index);
         }
     }
@@ -486,7 +609,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             }
 
             killCardDrop(runState, index);
-        } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2.isDead) {
+        } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2._ghost && !runState.player2.isDead) {
             const distP2 = Math.hypot(runState.player2.x - dx, runState.player2.y - dy);
             if (distP2 < runState.player2.radius + CARDDROP_RADIUS) {
                 const card = COLLECTOR_CARDS[cardKey];
@@ -520,15 +643,13 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         const my = runState.holyMaskY[index];
         const isTrueGolden = !!runState.holyMaskIsTrueGolden[index];
         const dist = Math.hypot(runState.player.x - mx, runState.player.y - my);
+        // Online the True Golden Mask is the server's (a stat boost): it says
+        // who got it (golden_mask event) — no local pickup.
+        if (isTrueGolden && runState.isOnlineMode) continue;
         if (dist < runState.player.radius + HOLYMASK_RADIUS) {
             if (isTrueGolden) {
-                // True Golden Mask Effect
-                runState.player.damageMultiplier += 0.5; // +50% Damage
-                runState.player.speedMultiplier += 0.2; // +20% Speed
-                runState.player.maxHp += 50;
-                runState.player.hp += 50;
-                runState.player.cooldownMultiplier *= 0.8; // -20% Cooldown
-                runState.player.isGolden = true;
+                applyTrueGoldenMask(runState.player);
+                if (runState.lootListener) runState.lootListener('golden_mask', runState.player);
                 showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
                 createExplosion(runState.player.x, runState.player.y, '#fff');
                 if (typeof audioManager !== 'undefined') {
@@ -546,16 +667,12 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 createExplosion(runState.player.x, runState.player.y, '#f1c40f');
             }
             killHolyMask(runState, index);
-        } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2.isDead) {
+        } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2._ghost && !runState.player2.isDead) {
             const distP2 = Math.hypot(runState.player2.x - mx, runState.player2.y - my);
             if (distP2 < runState.player2.radius + HOLYMASK_RADIUS) {
                 if (isTrueGolden) {
-                    runState.player2.damageMultiplier += 0.5;
-                    runState.player2.speedMultiplier += 0.2;
-                    runState.player2.maxHp += 50;
-                    runState.player2.hp += 50;
-                    runState.player2.cooldownMultiplier *= 0.8;
-                    runState.player2.isGolden = true;
+                    applyTrueGoldenMask(runState.player2);
+                    if (runState.lootListener) runState.lootListener('golden_mask', runState.player2);
                     showNotification("TRUE GOLDEN MASK! ALL STATS BOOSTED!");
                     createExplosion(runState.player2.x, runState.player2.y, '#fff');
                 } else {
@@ -620,8 +737,14 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 }
                 if (typeof audioManager !== 'undefined') audioManager.play('pickup_autoaim');
             }
+            // Online this pickup is a prediction (instant buff); the server
+            // decides — note it so the next snapshots don't re-show it.
+            if (runState.isOnlineMode) {
+                if (!runState.predictedPickups) runState.predictedPickups = new Map();
+                runState.predictedPickups.set(runState.powerUpId[index], { type: ptype, at: Date.now() });
+            }
             killPowerUp(runState, index);
-        } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2.isDead) {
+        } else if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2._ghost && !runState.player2.isDead) {
             // Co-op: P2 collects power-ups
             const distP2 = Math.hypot(runState.player2.x - px, runState.player2.y - py);
             if (distP2 < runState.player2.radius + POWERUP_RADIUS) {
@@ -674,7 +797,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
                             if (runState.isVersusMode && window.additionalPlayers.length === 0) {
                                 audioManager.playHeroExclamation(runState.player.type, 'boss_win');
-                                setTimeout(() => gameOver(true), 2000);
+                                runState.versusWinTimer = VERSUS_WIN_FRAMES;
                             } else if (!runState.isVersusMode && runState.bossActive && window.additionalPlayers.length === 0) {
                                 // Story Mode Duel Victory
                                 runState.bossActive = false;
@@ -711,19 +834,16 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         // 2P Versus PvP: projectile hits between P1 and P2
         if (runState.isVersusMode && runState.isCoopMode && runState.player2 && !runState.player2.isDead && !proj.isEnemy) {
             if (proj.owner === runState.player) {
-                // P1 projectile → P2
+                // P1 projectile → P2. Online the opponent is a ghost: the
+                // shot ends on it here, the server deals the damage / KO.
                 if (Math.hypot(runState.player2.x - proj.x, runState.player2.y - proj.y) < runState.player2.radius + proj.radius) {
-                    const dmg = proj.damage * (1 - runState.player2.damageReduction);
-                    runState.player2.hp -= dmg;
-                    floatingTexts.push(FloatingText.acquire(runState.player2.x, runState.player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
                     proj.dead = true;
                     createExplosion(proj.x, proj.y, proj.color);
-                    if (runState.player2.hp <= 0 && !runState.player2.isDead) {
-                        runState.player2.isDead = true; runState.player2.hp = 0;
-                        createExplosion(runState.player2.x, runState.player2.y, '#fff');
-                        showNotification("OPPONENT KO!");
-                        audioManager.playHeroExclamation(runState.player.type, 'boss_win');
-                        setTimeout(() => gameOver(true), 2000);
+                    if (!runState.player2._ghost) {
+                        const dmg = proj.damage * (1 - runState.player2.damageReduction);
+                        runState.player2.hp -= dmg;
+                        floatingTexts.push(FloatingText.acquire(runState.player2.x, runState.player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
+                        if (runState.player2.hp <= 0) _player2Fell();
                     }
                 }
             } else if (proj.owner === runState.player2 && !runState.player.isInvincible) {
@@ -795,7 +915,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
                                     if (runState.isVersusMode && window.additionalPlayers.length === 0) {
                                         audioManager.playHeroExclamation(runState.player.type, 'boss_win');
-                                        setTimeout(() => gameOver(true), 2000);
+                                        runState.versusWinTimer = VERSUS_WIN_FRAMES;
                                     } else if (!runState.isVersusMode && runState.bossActive && window.additionalPlayers.length === 0) {
                                         runState.bossActive = false;
                                         runState.bossDeathTimer = GAMEPLAY.BOSS_DEATH_FRAMES;
@@ -821,17 +941,13 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 while (diff < -Math.PI) diff += Math.PI * 2;
                 while (diff > Math.PI) diff -= Math.PI * 2;
                 if (Math.abs(diff) < Math.PI / 3) {
-                    const dmg = att.damage * (1 - runState.player2.damageReduction);
-                    runState.player2.hp -= dmg;
                     att.hitList.push(pid);
                     createExplosion(runState.player2.x, runState.player2.y, att.color);
-                    floatingTexts.push(FloatingText.acquire(runState.player2.x, runState.player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
-                    if (runState.player2.hp <= 0 && !runState.player2.isDead) {
-                        runState.player2.isDead = true; runState.player2.hp = 0;
-                        createExplosion(runState.player2.x, runState.player2.y, '#fff');
-                        showNotification("OPPONENT KO!");
-                        audioManager.playHeroExclamation(runState.player.type, 'boss_win');
-                        setTimeout(() => gameOver(true), 2000);
+                    if (!runState.player2._ghost) { // online: the server deals it
+                        const dmg = att.damage * (1 - runState.player2.damageReduction);
+                        runState.player2.hp -= dmg;
+                        floatingTexts.push(FloatingText.acquire(runState.player2.x, runState.player2.y - 40, Math.ceil(dmg), "#ff4444", 25));
+                        if (runState.player2.hp <= 0) _player2Fell();
                     }
                 }
             }
@@ -921,7 +1037,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
         if (!_proj.isEnemy) continue;
         const _pDist = Math.hypot(_proj.x - runState.player.x, _proj.y - runState.player.y);
         if (_pDist < runState.player.radius + _proj.radius) {
-            const _bonuses = getCollectionBonuses(_proj.shooterType);
+            const _bonuses = getCollectionBonuses(_proj.shooterType, runState.player);
 
             if (_proj.shooterType === 'SHOOTER' && _bonuses.specials.includes('SHOOTER_DODGE') && runState.rng() < 0.15) {
                 floatingTexts.push(FloatingText.acquire(runState.player.x, runState.player.y - 40, "DODGE", "#f1c40f", 20));
@@ -969,14 +1085,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 createExplosion(runState.player2.x, runState.player2.y, _proj.color);
                 Projectile.release(_proj);
                 projectiles.splice(_pi, 1);
-                if (runState.player2.hp <= 0 && !runState.player2.isDead) {
-                    runState.player2.isDead = true; runState.player2.hp = 0; runState.player2.isInvincible = true;
-                    runState.player2.isDashing = false; runState.player2.moveInput = { x: 0, y: 0 };
-                    runState.p2RevivalMarker = { x: runState.player2.x, y: runState.player2.y, progress: 0, maxProgress: 240 };
-                    createExplosion(runState.player2.x, runState.player2.y, '#3b82f6');
-                    if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(runState.player2.type, 'failure');
-                    showNotification(runState.isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
-                }
+                if (runState.player2.hp <= 0) _player2Fell();
             }
         }
     }
@@ -1078,7 +1187,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             // Speedster Explosion
             if (enemy.subType === 'SPEEDSTER') {
                 let speedsterDmg = 20;
-                const bonuses = getCollectionBonuses('SPEEDSTER');
+                const bonuses = getCollectionBonuses('SPEEDSTER', runState.player);
                 speedsterDmg *= bonuses.defenseMult;
 
                 dmgTaken = speedsterDmg * (1 - runState.player.damageReduction);
@@ -1139,14 +1248,7 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 const a2 = Math.atan2(enemy.y - runState.player2.y, enemy.x - runState.player2.x);
                 if (!(enemy instanceof Boss)) { enemy.x += Math.cos(a2) * 20; enemy.y += Math.sin(a2) * 20; }
                 // P2 death in co-op
-                if (runState.player2.hp <= 0 && !runState.player2.isDead) {
-                    runState.player2.isDead = true; runState.player2.hp = 0; runState.player2.isInvincible = true;
-                    runState.player2.isDashing = false; runState.player2.moveInput = { x: 0, y: 0 };
-                    runState.p2RevivalMarker = { x: runState.player2.x, y: runState.player2.y, progress: 0, maxProgress: 240 };
-                    createExplosion(runState.player2.x, runState.player2.y, '#3b82f6');
-                    if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(runState.player2.type, 'failure');
-                    showNotification(runState.isAICompanionMode ? 'Ally down! Stand on marker to revive.' : 'P2 down! Stand on marker to revive.');
-                }
+                if (runState.player2.hp <= 0) _player2Fell();
             }
         }
 
@@ -1209,9 +1311,12 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
 
             let finalDamage = proj.damage;
 
-            const bonuses = getCollectionBonuses(enemy.subType);
+            // The shooting player's cards (online: each player brings their
+            // own) and crit stats. Non-player owners (summons, shadows) count as P1.
+            const _shooter = (proj.owner && typeof proj.owner.critChance === 'number') ? proj.owner : runState.player;
+            const bonuses = getCollectionBonuses(enemy.subType, _shooter);
             if (enemy instanceof Boss) {
-                const bossBonuses = getCollectionBonuses('BOSS');
+                const bossBonuses = getCollectionBonuses('BOSS', _shooter);
                 bonuses.damageMult += (bossBonuses.damageMult - 1);
 
                 if (enemy.type === 'TANK' && enemy.phase === 2) {
@@ -1222,9 +1327,9 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
             finalDamage *= bonuses.damageMult;
 
             let isCrit = proj.isCrit;
-            if (!isCrit && runState.rng() < (runState.player.critChance + bonuses.critChance)) {
+            if (!isCrit && runState.rng() < (_shooter.critChance + bonuses.critChance)) {
                 isCrit = true;
-                finalDamage *= runState.player.critMultiplier;
+                finalDamage *= _shooter.critMultiplier;
             }
 
             if (enemy.subType === 'SHIELDER' && bonuses.specials.includes('SHIELD_PIERCE')) {
@@ -1368,61 +1473,37 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                 enemy.parentBoss.minionsToKill--;
             }
 
-            runState.player.addCombo(); // Add Combo
-            if (runState.player.onKill) runState.player.onKill(); // Trigger onKill effects (e.g. Black Hero Heal)
-            checkAchievements(); // Check achievements on kill
+            // Co-op: the killer gets the XP, the combo and its on-kill effect
+            // (e.g. Black Hero heal). Combo and on-kill were always P1's, so
+            // P2's / the online guest's kills fed the host's combo.
+            const _killer = (runState.isCoopMode && enemy.killer) ? enemy.killer : runState.player;
+            if (_killer.addCombo) _killer.addCombo();
+            if (_killer.onKill) _killer.onKill();
+            // Save-side rewards (achievements, kill stats, card + mask drops).
+            // Online they are per player: each client grants its own from the
+            // server's `kill` event (killListener) instead.
+            const _kill = {
+                x: enemy.x, y: enemy.y, subType: enemy.subType, isBoss: enemy instanceof Boss,
+                type: enemy.type, bossLabel: enemy.bossType, eliteId: enemy.isElite ? enemy.eliteType.id : null,
+            };
+            if (!runState.perPlayerLoot) grantKillRewards(_kill);
+            if (runState.killListener) runState.killListener(enemy, _killer, _kill);
 
             // Mutator: Explosive Personality
             if ((runState.isDailyMode || runState.isWeeklyMode) && runState.activeMutators.some(m => m.id === 'EXPLOSIVE')) {
                 createExplosion(enemy.x, enemy.y, '#e74c3c');
-                if (Math.hypot(runState.player.x - enemy.x, runState.player.y - enemy.y) < 100) {
-                    applyDamage(runState.player, 10, { label: 'EXPLOSION' });
+                for (const _hp of hazardTargets()) {
+                    if (Math.hypot(_hp.x - enemy.x, _hp.y - enemy.y) < 100) applyDamage(_hp, 10, { label: 'EXPLOSION' });
                 }
             }
 
             if (enemy instanceof Boss) {
-                // Makuta Achievement Check
-                if (enemy.type === 'MAKUTA' && runState.wave >= 100) {
-                    unlockAchievement('MAKUTA_SLAYER'); // Base Achievement
-
-                    // Hard Mode Achievements (1-10)
-                    const prestige = saveData[runState.player.type].prestige;
-                    for (let i = 1; i <= 10; i++) {
-                        if (prestige >= i) unlockAchievement(`MAKUTA_HM_${i}`);
-                    }
-
-                    showNotification("MAKUTA DEFEATED!");
-                }
-
-                runState.currentRunStats.bossesKilled++; // Track Boss Kill
-                saveData.global.totalBosses = (saveData.global.totalBosses || 0) + 1; // Achievement track
-                if (runState.currentRunStats.keyMoments) {
-                    const _km_t = Math.floor((Date.now() - (runState.currentRunStats.startTime || Date.now())) / 1000);
-                    runState.currentRunStats.keyMoments.push({ wave: runState.wave, timeSec: _km_t, kind: 'boss_kill', label: enemy.bossType || 'Boss' });
-                }
                 runState.score += 1000; runState.player.gainXp(500);
                 if ((runState.isCoopMode || runState.isAICompanionMode) && runState.player2 && !runState.player2.isDead) runState.player2.gainXp(500);
                 createExplosion(enemy.x, enemy.y, '#c0392b');
-                checkDrop('BOSS', enemy.x, enemy.y); // Boss Card
 
                 // CHAOS EVENT HOOK
                 if (typeof checkChaosEvent === 'function') checkChaosEvent('BOSS_KILL', enemy.type);
-
-                // Unlock Hero Story Achievement
-                if (enemy.type === 'MAKUTA' && runState.wave >= 100) {
-                    // True Golden Mask moved to Wave 90 start
-
-                    if (runState.player.type === 'fire') unlockAchievement('STORY_FIRE');
-                    if (runState.player.type === 'water') unlockAchievement('STORY_WATER');
-                    if (runState.player.type === 'ice') unlockAchievement('STORY_ICE');
-                    if (runState.player.type === 'plant') unlockAchievement('STORY_PLANT');
-                    if (runState.player.type === 'metal') unlockAchievement('STORY_METAL');
-                }
-
-                // DLC boss-specific achievements (superbosses, etc.)
-                if (window.DLC_STORY_ACHIEVEMENTS[enemy.type]) {
-                    unlockAchievement(window.DLC_STORY_ACHIEVEMENTS[enemy.type]);
-                }
 
                 enemies.splice(eIndex, 1);
                 // The splice above removes the boss from runState.bossInstances too
@@ -1454,8 +1535,8 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     projectiles.length = 0; // Clear projectiles too
                 }
             } else {
-                // Swarm Explosion (Tier 4)
-                if (enemy.subType === 'SWARM' && saveData.collection.includes('SWARM_4')) {
+                // Swarm Explosion (Tier 4) — the killer's card
+                if (enemy.subType === 'SWARM' && getPlayerCollection(_killer).includes('SWARM_4')) {
                     createExplosion(enemy.x, enemy.y, '#8e44ad');
                     const _swarmCands = queryEnemiesNear(enemy.x, enemy.y, 100);
                     for (let _wi = 0; _wi < _swarmCands.length; _wi++) {
@@ -1467,16 +1548,8 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     }
                 }
 
-                runState.currentRunStats.enemiesKilled++; // Track Kill
-
-                // Track Specific Enemy Kills for Achievements
-                const killKey = `kill_${enemy.subType}`;
-                if (!saveData.stats[killKey]) saveData.stats[killKey] = 0;
-                saveData.stats[killKey]++;
-
                 const _eventXpMult = window.worldEvents?.getXpMultiplier?.() ?? 1;
                 const _xpMod = (runState.bossActive ? 0.15 : 1) * _eventXpMult;
-                const _killer = (runState.isCoopMode && enemy.killer) ? enemy.killer : runState.player;
                 runState.score += 10; _killer.gainXp(Math.round(20 * _xpMod));
                 createExplosion(enemy.x, enemy.y, '#aaa');
 
@@ -1486,25 +1559,14 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     _killer.gainXp(Math.round(200 * _xpMod));
                     createExplosion(enemy.x, enemy.y, enemy.eliteType.color);
 
-                    // Elite Card Drop
-                    checkDrop(enemy.eliteType.id, enemy.x, enemy.y);
-
                     if (enemy.eliteType.id === 'EXPLODER') {
-                        let radius = 200;
-                        if (saveData.collection.includes('ELITE_EXPLODER_4')) radius = 160; // Nerf
-
                         createExplosion(enemy.x, enemy.y, '#e74c3c');
-                        // Damage Player
-                        if (Math.hypot(runState.player.x - enemy.x, runState.player.y - enemy.y) < radius) {
-                            applyDamage(runState.player, 30, { label: 'EXPLODER' });
+                        // Damage players in the blast (ELITE_EXPLODER_4 shrinks it for its owner)
+                        for (const _hp of hazardTargets()) {
+                            const radius = getPlayerCollection(_hp).includes('ELITE_EXPLODER_4') ? 160 : 200;
+                            if (Math.hypot(_hp.x - enemy.x, _hp.y - enemy.y) < radius) applyDamage(_hp, 30, { label: 'EXPLODER' });
                         }
                     }
-                }
-
-                // Mask Drop Logic (Capped at 5 per wave)
-                if (masksDroppedInWave < 5 && runState.rng() < runState.player.maskChance) {
-                    spawnHolyMask(runState, enemy.x, enemy.y);
-                    masksDroppedInWave++;
                 }
 
                 // Mutator: No Regen suppresses the gold drop (the only run-drop we have).
@@ -1512,15 +1574,18 @@ function _updateGameplayMid(deltaTime, _isHitStopped) {
                     && runState.activeMutators.some(m => m.id === 'NO_REGEN');
                 if (!noRegenActive && runState.rng() < 0.3) spawnGoldDrop(runState, enemy.x, enemy.y);
 
-                // Check for Card Drop
-                checkDrop(enemy.subType || 'BASIC', enemy.x, enemy.y);
-
                 enemies.splice(eIndex, 1);
                 if (!runState.bossActive) runState.enemiesKilledInWave++;
             }
         }
     }
     _recordPhase('enemies', performance.now() - _enemiesT0);
+
+    // P2 at 0 HP from a source without its own check (lava, acid fog,
+    // exploders, slams — hazards hit P2 too now), like P1's check below.
+    if (runState.player2 && runState.player2.hp <= 0) _player2Fell();
+    // Versus: the opponent's KO → victory after VERSUS_WIN_FRAMES.
+    if (runState.versusWinTimer > 0 && --runState.versusWinTimer === 0) gameOver(true);
 
     // Player-death cinematic state machine. Trigger detection
     // (hp ≤ 0), co-op revive marker drop, isPlayerDying flag flip, timer

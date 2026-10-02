@@ -13,7 +13,7 @@
 
 require('./loader');
 const GameSession = require('./GameSession');
-const { BASE_HERO_STATS, TICK_FRAMES } = require('./constants');
+const { BASE_HERO_STATS, TICK_FRAMES, ARENA_WIDTH: ARENA_W } = require('./constants');
 
 // ─── Assertion helpers ────────────────────────────────────────────────────────
 
@@ -258,29 +258,67 @@ function testDlcHeroSmoke() {
 function testLevelUpFlow() {
     console.log('\n── 8  Level-up flow ──────────────────────────────────────');
 
-    const { gs } = makeSession('fire', 'water');
-    clearInterval(gs._tickInterval);
-    gs._tickInterval = null;
+    // Through the real path: a kill in a tick → Player.gainXp → levelUp()
+    // (used to hit the server's null level-up screen stub: level up, nobody asked).
+    const gs = _makeProjectileFeatureSession();
+    const sent = [];
+    gs._send = (ws, msg) => { if (msg.type !== 'SNAPSHOT') sent.push({ ws, ...msg }); };
+    const { p1: player } = _injectKillScenario(gs);
+    const levelBefore = player.level;
+    const maxXpBefore = player.maxXp;
+    player.xp = player.maxXp - 1; // the kill's XP crosses the threshold
 
-    const player = gs.players[0];
-    const levelBefore = player.level; // capture before _giveXP increments it
-    const neededXp = player.maxXp - player.xp;
+    let ticks = 0;
+    for (; ticks < 5 && !gs.isLevelingUp; ticks++) gs._tick();
+    assert(gs.isLevelingUp && gs._levelUpFor === 0, `kill → level-up pauses the session for the host (after ${ticks} ticks)`);
+    assertEqual(player.level, levelBefore + 1, 'level incremented by Player.levelUp()');
+    assertEqual(player.maxXp, Math.floor(maxXpBefore * 1.2), 'maxXp grows like singleplayer (floor × 1.2)');
+    const options = player._levelUpOptions || [];
+    assert(options.length === 2 && options.every(o => o && o.id), `singleplayer option roll (2 options: ${options.map(o => o.id).join(', ')})`);
+    const lu = sent.find(m => m.type === 'LEVEL_UP');
+    assert(lu && lu.ws === 'WS_HOST' && lu.player === 'host' && lu.options.length === options.length, 'LEVEL_UP with the options sent to the leveling player');
+    assert(sent.some(m => m.type === 'PARTNER_LEVELING' && m.ws === 'WS_GUEST'), 'PARTNER_LEVELING sent to the partner');
 
-    let levelUpSent = false;
-    gs._send = (ws, msg) => { if (msg.type === 'LEVEL_UP') levelUpSent = true; };
+    const f = gs._frame;
+    gs._tick();
+    assert(gs._frame === f, 'simulation holds while the upgrade is being picked');
 
-    gs._giveXP(player, 0, neededXp); // increments level + sets isLevelingUp
+    // The pick goes through the singleplayer upgrade code (core/upgrades.js):
+    // Swiftness is +0.1 speed (the old server switch did ×1.1).
+    player._levelUpOptions = [{ id: 'speed' }, { id: 'defense' }];
+    const speed0 = player.speedMultiplier, dr0 = player.damageReduction;
+    sent.length = 0;
+    gs.applyLevelUpChoice('guest', 'speed');
+    assert(gs.isLevelingUp && player.speedMultiplier === speed0, "the partner can't answer someone else's level-up");
+    gs.applyLevelUpChoice('host', 'speed');
+    assert(Math.abs(player.speedMultiplier - (speed0 + 0.1)) < 1e-9 && player.damageReduction === dr0,
+        `Swiftness applied like singleplayer (${speed0} → ${player.speedMultiplier})`);
+    assert(!gs.isLevelingUp && gs._levelUpFor === -1, 'isLevelingUp cleared after choice');
+    assert(sent.some(m => m.type === 'LEVEL_UP_DONE' && m.ws === 'WS_GUEST'), 'LEVEL_UP_DONE sent to the partner');
+    gs._tick();
+    assert(gs._frame > f, 'simulation resumes after the pick');
 
-    assert(gs.isLevelingUp, 'isLevelingUp set after XP threshold reached');
-    assert(player._levelUpOptions && player._levelUpOptions.length > 0, 'Level-up options generated');
-    assert(levelUpSent, 'LEVEL_UP message sent to client');
-    assert(player.level > levelBefore, `Level incremented by _giveXP (${levelBefore} → ${player.level})`);
-
-    // Resolve the level-up — clears pause state, applies upgrade
-    const choiceId = player._levelUpOptions[0].id;
-    gs.applyLevelUpChoice('host', choiceId);
-    assert(!gs.isLevelingUp, 'isLevelingUp cleared after choice');
-    assert(player.level > levelBefore, `Player level increased (${levelBefore} → ${player.level})`);
+    // Both players level in the same frame: offered one after the other.
+    const bridge = require('./RendererBridge');
+    sent.length = 0;
+    const [h, g] = gs.players;
+    bridge.syncWorldToGlobals(gs);
+    h.gainXp(h.maxXp); g.gainXp(g.maxXp);
+    bridge.syncGlobalsToWorld(gs);
+    assert(gs.isLevelingUp && gs._levelUpFor === -1 && gs._levelUpQueue.length === 2, 'two level-ups in one frame are both queued');
+    gs._tick(); // holds (leveling) — offers the first queued level-up
+    assert(gs._levelUpFor === 0 && sent.some(m => m.type === 'LEVEL_UP' && m.ws === 'WS_HOST'), 'host offered first');
+    sent.length = 0;
+    gs.applyLevelUpChoice('host', h._levelUpOptions[0].id);
+    assert(gs.isLevelingUp && gs._levelUpFor === 1, 'then the guest, still paused');
+    assert(sent.some(m => m.type === 'LEVEL_UP' && m.ws === 'WS_GUEST') && sent.some(m => m.type === 'PARTNER_LEVELING' && m.ws === 'WS_HOST')
+        && !sent.some(m => m.type === 'LEVEL_UP_DONE'), "guest asked, host waits (no LEVEL_UP_DONE between)");
+    sent.length = 0;
+    gs.resendLevelUpPrompt('guest');
+    assert(sent.length === 1 && sent[0].type === 'LEVEL_UP' && sent[0].ws === 'WS_GUEST', 'a reconnecting chooser gets its prompt again');
+    gs.applyLevelUpChoice('guest', g._levelUpOptions[0].id);
+    assert(!gs.isLevelingUp, 'resumes after both picks');
+    gs.stop();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -409,6 +447,7 @@ function testBridgeVsLegacyDamageParity() {
 
     function makeIdenticalSession() {
         const { gs } = makeSession('fire', 'water');
+        for (const p of gs.players) p.critChance = 0; // no on-hit crit rolls
         // Stays in coop mode (default `_isVersusMode=false`). The leaf
         // module's `+40% maxHp` coop bump at
         // `core/updateGameplayPre.js:591-598` skips any enemy carrying
@@ -555,14 +594,11 @@ function testCoopHpScaling() {
         `coop enemies have hp === maxHp after bump (got ${coopSpawned.map(e => `${e.hp.toFixed(1)}/${e.maxHp.toFixed(1)}`).slice(0, 3).join(', ')})`);
     gsCoop.stop();
 
-    // Versus session: bump must NOT fire. Leaf-module gates the bump on
-    // `runState.isCoopMode || runState.isAICompanionMode`; both go false
-    // when `_isVersusMode = true` because `_syncWorld()` writes
-    // `w.isCoopMode = !_isVersusMode`.
+    // Versus session: like local 2P versus (co-op flag on for its PvP), the
+    // trash spawner stays off — nothing spawns to scale.
     const { gs: gsVs } = makeSession('fire', 'water');
     gsVs._isVersusMode = true;
     gsVs._world.isVersusMode = true;
-    gsVs._world.isCoopMode = false;
     for (let i = 0; i < 80 && gsVs._frame < 50; i++) gsVs._tick();
     const vsSpawned = [];
     for (let i = 0; i < gsVs.enemies.length; i++) {
@@ -571,9 +607,7 @@ function testCoopHpScaling() {
         if (global.Boss && e instanceof global.Boss) continue;
         vsSpawned.push(e);
     }
-    const vsScaled = vsSpawned.filter(e => e._coopScaled === true);
-    assert(vsScaled.length === 0,
-        `versus-spawned enemies do NOT get coop bump (${vsScaled.length} unexpectedly scaled out of ${vsSpawned.length})`);
+    assert(vsSpawned.length === 0, `versus spawns no trash enemies (got ${vsSpawned.length})`);
     gsVs.stop();
 }
 
@@ -595,6 +629,9 @@ function testCoopHpScaling() {
 
 function _makeProjectileFeatureSession() {
     const { gs } = makeSession('fire', 'water');
+    // Exact damage numbers: no on-hit crit rolls (the shooter's crit chance
+    // applies on the server too since the collection-bonus stub was fixed).
+    for (const p of gs.players) p.critChance = 0;
     return gs;
 }
 
@@ -1247,7 +1284,7 @@ function testArenaLayout() {
                 if (input.host)  gs.applyInput('host',  input.host);
                 if (input.guest) gs.applyInput('guest', input.guest);
             }
-            gs.isLevelingUp = false; gs._levelUpFor = -1;
+            gs.isLevelingUp = false; gs._levelUpFor = -1; gs._levelUpQueue.length = 0;
             gs._tick();
         }
     };
@@ -1362,7 +1399,7 @@ function testOnlineWaveFlowAndLoadouts() {
     console.log('\n── 29 N12 A — Online wave flow + player progression ───────');
     const keep = (gs) => {
         for (const p of gs.players) if (p && !p.isDead) { p.hp = p.maxHp; p.xp = 0; }
-        gs.isLevelingUp = false; gs._levelUpFor = -1;
+        gs.isLevelingUp = false; gs._levelUpFor = -1; gs._levelUpQueue.length = 0;
     };
 
     // ── Boss death: 3 s cinematic hold → wave 2, field cleared, fallen revived ──
@@ -1376,10 +1413,10 @@ function testOnlineWaveFlowAndLoadouts() {
         const rs = global.runState;
         rs.enemiesKilledInWave = 26;                 // wave 1 cleared → boss spawns
         for (let i = 0; i < 4; i++) { keep(gs); gs._tick(); }
-        let boss = null;
-        for (let i = 0; i < gs.enemies.length; i++) if (gs.enemies[i] instanceof global.Boss) boss = gs.enemies[i];
-        assert(!!boss && gs.bossActive, 'boss spawns once the wave-1 kill target (26) is met');
-        if (boss) boss.hp = 0;
+        const bosses = [];
+        for (let i = 0; i < gs.enemies.length; i++) if (gs.enemies[i] instanceof global.Boss) bosses.push(gs.enemies[i]);
+        assert(bosses.length > 0 && gs.bossActive, 'boss spawns once the wave-1 kill target (26) is met');
+        for (const b of bosses) b.hp = 0; // twin bosses (5 % roll) too
         gs.players[1].isDead = true; gs.players[1].hp = 0;   // guest fell during the boss fight
         keep(gs); gs._tick();
         assert(events.some(e => e.type === 'boss_defeated'), 'boss kill emits boss_defeated');
@@ -1452,7 +1489,7 @@ function testOnlineWaveFlowAndLoadouts() {
         const dealt = global.applyDamage(h, 5, { label: 'LAVA' });
         bridge.syncGlobalsToWorld(gs);
         assert(dealt === 5 && h.hp === -2 && !h.isDead, `hazard damage only lowers HP, as singleplayer (hp ${h.hp}, dead ${h.isDead})`);
-        const keepGuest = () => { const g = gs.players[1]; g.hp = g.maxHp; g.xp = 0; h.xp = 0; gs.isLevelingUp = false; gs._levelUpFor = -1; };
+        const keepGuest = () => { const g = gs.players[1]; g.hp = g.maxHp; g.xp = 0; h.xp = 0; gs.isLevelingUp = false; gs._levelUpFor = -1; gs._levelUpQueue.length = 0; };
         keepGuest(); gs._tick();
         assert(h.isDead && !!gs._runState.p1RevivalMarker && !ended,
             'host downed by a hazard drops a revive marker while the guest lives (no instant game over)');
@@ -1499,6 +1536,442 @@ function testOnlineWaveFlowAndLoadouts() {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 30 — N12 B: hazards hit the guest too, server-side versus
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function _gameOverEvents(gs) {
+    const evs = [];
+    const send = gs._send;
+    gs._send = (ws, m) => {
+        if (m.type === 'SNAPSHOT') for (const e of m.events || []) if (e.type === 'game_over') evs.push({ ws, ...e });
+        send(ws, m);
+    };
+    return evs;
+}
+
+function testHazardsAndVersus() {
+    console.log('\n── 30 N12 B — Hazards hit the guest, online versus ────────');
+    const calm = (gs) => { gs.isLevelingUp = false; gs._levelUpFor = -1; gs._levelUpQueue.length = 0; for (const p of gs.players) p.xp = 0; };
+
+    // ── Lava zone under the guest (it used to burn P1 only) ──
+    {
+        const { gs } = makeSession('fire', 'water');
+        const g = gs.players[1], h = gs.players[0];
+        gs.setArenaLayout({ biomeType: 'fire', obstacles: [], traps: [],
+            biomeZones: [{ x: g.x - 100, y: g.y - 100, w: 200, h: 200, type: 'LAVA' }] }, 1);
+        const gx = g.x, gy = g.y;
+        const hp0 = g.hp, hHp0 = h.hp;
+        for (let i = 0; i < 70; i++) { g.x = gx; g.y = gy; g.isInvincible = false; g.invincibleTimer = 0; calm(gs); gs._tick(); }
+        assert(g.hp < hp0, `lava burns the guest (${hp0} → ${Math.round(g.hp)})`);
+        assertEqual(h.hp, hHp0, 'host outside the lava is untouched');
+        g.hp = 1;
+        for (let i = 0; i < 70 && !g.isDead; i++) { g.x = gx; g.y = gy; g.isInvincible = false; calm(gs); gs._tick(); }
+        assert(g.isDead && !!gs._runState.p2RevivalMarker, 'guest killed by lava goes down with a revive marker');
+        gs.stop();
+    }
+
+    // ── Elite exploder blast reaches the guest ──
+    {
+        const { gs } = makeSession('fire', 'water');
+        const g = gs.players[1];
+        gs._tick();
+        const e = new global.Enemy(false, 'BASIC');
+        e.x = g.x + 60; e.y = g.y; e.hp = 0; e._coopScaled = true; e.speed = 0;
+        e.isElite = true; e.eliteType = { id: 'EXPLODER', color: '#e74c3c' };
+        gs.enemies.push(e);
+        g.isInvincible = false; g.invincibleTimer = 0;
+        const hp0 = g.hp;
+        calm(gs); gs._tick();
+        assert(g.hp <= hp0 - 30 * (1 - (g.damageReduction || 0)) + 1e-6, `exploder blast hits the guest (${hp0} → ${Math.round(g.hp)})`);
+        gs.stop();
+    }
+
+    // ── Versus: spawns, PvP on the server, the winner per role ──
+    {
+        const gs = new GameSession({ host: { ws: 'H' }, guest: { ws: 'G' } }, () => {});
+        gs.init('fire', 'water', 'VERSUS');
+        clearTimeout(gs._tickInterval); gs._tickInterval = null;
+        const [h, g] = gs.players;
+        assert(h.x === ARENA_W / 2 - 800 && g.x === ARENA_W / 2 + 800, `versus spawns host left / guest right at ±800 (${h.x}, ${g.x})`);
+        const evs = _gameOverEvents(gs);
+        gs._tick();
+        g.isInvincible = false; g.invincibleTimer = 0;
+        const proj = global.Projectile.acquire(g.x - 30, g.y, { x: 20, y: 0 }, 9999, '#fff', 6, 'fire', 0, false);
+        proj.owner = h;
+        gs.projectiles.push(proj);
+        calm(gs); gs._tick();
+        assert(g.isDead, 'host shot knocks the guest out on the server (PvP used to be off there)');
+        let ticks = 0;
+        for (; ticks < 300 && !evs.length; ticks++) { calm(gs); gs._tick(); }
+        assert(evs.length && evs[0].winner === 'host', `KO → game_over naming the host as winner after the 2 s beat (${ticks} ticks, ${JSON.stringify(evs[0] || null)})`);
+        gs.stop();
+    }
+    {
+        const gs = new GameSession({ host: { ws: 'H' }, guest: { ws: 'G' } }, () => {});
+        gs.init('fire', 'water', 'VERSUS');
+        clearTimeout(gs._tickInterval); gs._tickInterval = null;
+        const [h, g] = gs.players;
+        const evs = _gameOverEvents(gs);
+        gs._tick();
+        h.isInvincible = false; h.invincibleTimer = 0;
+        const proj = global.Projectile.acquire(h.x + 30, h.y, { x: -20, y: 0 }, 9999, '#fff', 6, 'water', 0, false);
+        proj.owner = g;
+        gs.projectiles.push(proj);
+        let ticks = 0;
+        for (; ticks < 400 && !evs.length; ticks++) { calm(gs); gs._tick(); }
+        assert(evs.length && evs[0].winner === 'guest', `guest KOs the host → game_over names the guest (${ticks} ticks)`);
+        gs.stop();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 31 — N12 B: the server owns the weather
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testServerWeather() {
+    console.log('\n── 31 N12 B — Server-owned weather ────────────────────────');
+    const calm = (gs) => { gs.isLevelingUp = false; gs._levelUpFor = -1; gs._levelUpQueue.length = 0; for (const p of gs.players) p.xp = 0; };
+    const { gs, snapsHost, snapsGuest } = makeSession('fire', 'water');
+    gs.setArenaLayout({ biomeType: 'ice', obstacles: [], biomeZones: [], traps: [] }, 1);
+    const rs = gs._runState;
+    assertEqual(rs.currentBiomeType, 'ice', 'uploaded arena sets the wave biome');
+    rs.weatherTimer = 1;
+    calm(gs); gs._tick(); calm(gs); gs._tick();
+    const w = rs.currentWeather;
+    assert(!!w && rs.weatherDuration > 0, `weather rolled on the server and it lasts (${w && w.id}, ${rs.weatherDuration} frames)`);
+    assert(gs._world.currentWeather === w, 'world mirrors it (player / enemy speed effects read the world)');
+    const hs = snapsHost[snapsHost.length - 1], gsn = snapsGuest[snapsGuest.length - 1];
+    assert(hs.weather && gsn.weather && hs.weather.id === w.id && gsn.weather.id === w.id && hs.weather.left > 0,
+        `both clients get the same weather in snapshots (${JSON.stringify(hs.weather)})`);
+
+    // Acid fog reaches the guest (it only ever hurt P1)
+    rs.currentWeather = global.WEATHER_TYPES.find(t => t.id === 'ACIDIC_FOG');
+    rs.weatherDuration = rs.currentWeather.duration - 200; // faded in
+    const g = gs.players[1];
+    g.hp = g.maxHp; g.isInvincible = false; g.invincibleTimer = 0;
+    let ticks = 0;
+    for (; ticks < 300 && g.hp === g.maxHp; ticks++) { g.isInvincible = false; calm(gs); gs._tick(); }
+    assert(g.hp < g.maxHp, `acid fog eats the guest's HP too (${Math.round(g.hp)}/${g.maxHp} after ${ticks} ticks)`);
+
+    // A wave change clears it, as singleplayer's advanceWave does
+    gs.wave = 2; gs._onWaveAdvanced();
+    assert(!rs.currentWeather && rs.weatherTimer === 3600, 'wave change stops the weather');
+    calm(gs); gs._tick();
+    assert(!snapsHost[snapsHost.length - 1].weather, 'snapshot carries no weather once it ended');
+    gs.stop();
+
+    // ── Power-ups: server-spawned, in snapshots, the guest picks one up ──
+    {
+        const { gs: s2, snapsGuest: sg } = makeSession('fire', 'water');
+        const r2 = s2._runState;
+        let ticks = 0;
+        for (; ticks < 700 && r2.powerUpCount === 0; ticks++) { calm(s2); s2._tick(); }
+        assert(r2.powerUpCount === 1, `server spawns a power-up every 600 frames (after ${ticks} ticks)`);
+        calm(s2); s2._tick();
+        const pu = sg[sg.length - 1].pu;
+        assert(Array.isArray(pu) && pu.length === 1 && pu[0][0] === r2.powerUpId[0], `snapshot lists it by id ${JSON.stringify(pu)}`);
+        const guest = s2.players[1];
+        r2.powerUpType[0] = 2; // SPEED
+        guest.x = r2.powerUpX[0]; guest.y = r2.powerUpY[0];
+        calm(s2); s2._tick();
+        assert(r2.powerUpCount === 0 && guest.buffs.speed > 0, `guest picks it up on the server (speed buff ${guest.buffs.speed})`);
+        const last = sg[sg.length - 1];
+        assert(!last.pu && last.p2.bf && last.p2.bf[0] > 0, `guest's snapshot: power-up gone, own speed buff shipped (${JSON.stringify(last.p2.bf)})`);
+        s2.stop();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 32 — N12 B: each player's collector cards count for their own shots
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testPerPlayerCollection() {
+    console.log('\n── 32 N12 B — Per-player collector-card bonuses ───────────');
+    const { gs } = makeSession('fire', 'water');
+    assert(gs.setPlayerLoadout('guest', { water: {}, collection: ['BASIC_1', 'NOT_A_CARD'] }), 'loadout with a collection accepted');
+    const [h, g] = gs.players;
+    assert(g._save.collection.length === 1 && g._save.collection[0] === 'BASIC_1', 'unknown card ids dropped');
+    gs._tick();
+    const hits = [];
+    for (const [shooter, dy] of [[h, -400], [g, 400]]) {
+        shooter.critChance = 0;
+        const e = new global.Enemy(false, 'BASIC');
+        e.x = 1500; e.y = 1500 + dy; e.hp = e.maxHp = 1000; e._coopScaled = true; e.speed = 0;
+        gs.enemies.push(e);
+        const p = global.Projectile.acquire(e.x - 30, e.y, { x: 20, y: 0 }, 25, '#fff', 4, shooter.type, 0, false);
+        p.owner = shooter; p.isCrit = false;
+        gs.projectiles.push(p);
+        hits.push(e);
+    }
+    gs._tick();
+    const dmgH = 1000 - hits[0].hp, dmgG = 1000 - hits[1].hp;
+    assert(Math.abs(dmgH - 25) < 1e-6 && Math.abs(dmgG - 27.5) < 1e-6,
+        `guest's Grunt Bronze card: +10 % on the guest's shots only (host ${dmgH}, guest ${dmgG})`);
+    gs.stop();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 33 — N12 B: kill credit, kill events, per-player loot
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testKillCreditAndLoot() {
+    console.log('\n── 33 N12 B — Kill credit + per-player loot ────────────────');
+    const { gs, snapsHost, snapsGuest } = makeSession('fire', 'water');
+    const [h, g] = gs.players;
+    gs._tick();
+    const rs = gs._runState;
+    h.maskChance = 1; g.maskChance = 1; // a mask would drop on every kill
+    const e = new global.Enemy(false, 'BASIC');
+    e.x = g.x + 60; e.y = g.y; e.hp = 1; e.maxHp = 1; e._coopScaled = true; e.speed = 0;
+    gs.enemies.push(e);
+    const p = global.Projectile.acquire(g.x + 30, g.y, { x: 20, y: 0 }, 25, '#fff', 4, 'water', 0, false);
+    p.owner = g;
+    gs.projectiles.push(p);
+    let ticks = 0;
+    for (; ticks < 5 && gs.enemies.length; ticks++) gs._tick();
+    const kills = snapsHost.flatMap(s => s.events || []).filter(ev => ev.type === 'kill');
+    assert(kills.length === 1 && kills[0].by === 'guest' && kills[0].sub === 'BASIC',
+        `kill → 'kill' event naming the killer (${JSON.stringify(kills[0] || null)})`);
+    assert(snapsGuest.flatMap(s => s.events || []).some(ev => ev.type === 'kill'), 'both clients get it');
+    assert(g.combo === 1 && h.combo === 0, `the guest's kill feeds the guest's combo (guest ${g.combo}, host ${h.combo})`);
+    assert(snapsGuest[snapsGuest.length - 1].p2.combo === 1, 'combo shipped in the snapshot');
+    assert(rs.holyMaskCount === 0, 'no holy masks on the server — each client rolls its own from the kill event');
+
+    // Gold: a server drop, shipped to the clients; the guest walks over it
+    const { spawnGoldDrop } = require('../../core/systems/goldDropSystem.js');
+    const gi = spawnGoldDrop(rs, g.x + 400, g.y);
+    const gid = rs.goldDropId[gi];
+    gs._tick();
+    const gd1 = snapsGuest[snapsGuest.length - 1].gd;
+    assert(Array.isArray(gd1) && gd1.some(d => d[0] === gid), `gold drop set shipped when it changes (${JSON.stringify(gd1)})`);
+    const gold0 = g.gold;
+    const slot = [...rs.goldDropId.slice(0, rs.goldDropCount)].indexOf(gid);
+    g.x = rs.goldDropX[slot]; g.y = rs.goldDropY[slot];
+    gs._tick();
+    const live = [...rs.goldDropId.slice(0, rs.goldDropCount)];
+    assert(g.gold > gold0 && !live.includes(gid), `the guest collects gold on the server (${gold0} → ${g.gold})`);
+    const gd2 = snapsGuest[snapsGuest.length - 1].gd;
+    assert(Array.isArray(gd2) && !gd2.some(d => d[0] === gid), 'the changed set is shipped without it');
+    gs._tick();
+    assert(snapsGuest[snapsGuest.length - 1].gd === undefined, 'an unchanged set is not re-sent');
+    gs.stop();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 34 — N12 B: bosses reach clients as bosses
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testBossSnapshots() {
+    console.log('\n── 34 N12 B — Boss identity + visuals in snapshots ─────────');
+    const { gs, snapsGuest } = makeSession('fire', 'water');
+    gs._tick();
+    const b1 = new global.Boss('TANK'), b2 = new global.Boss('TANK');
+    b1.x = 1000; b2.x = 2000; b1.y = b2.y = 1000;
+    b1.speed = b2.speed = 0; b1.attackCooldown = b2.attackCooldown = 1e6;
+    gs.enemies.unshift(b1, b2);
+    assert(Number.isInteger(b1._id) && b1._id !== b2._id, `bosses get distinct ids (${b1._id}, ${b2._id})`);
+    b1.phase = 2; b1.immune = true;
+    b1.telegraphTimer = 30; b1.telegraphData = { x: 1000, y: 1000, radius: 150, type: 'CIRCLE' };
+    gs._tick();
+    const ents = snapsGuest[snapsGuest.length - 1].enemies;
+    const e1 = ents.find(e => e._id === b1._id), e2 = ents.find(e => e._id === b2._id);
+    assert(e1 && e2 && e1.boss === 'TANK' && e2.boss === 'TANK', 'both twins shipped, typed as bosses');
+    assert(e1.ph === 2 && e1.im === 1 && Array.isArray(e1.tg) && e1.tg[2] === 150 && e1.tg[3] === 'CIRCLE',
+        `phase, shield and slam telegraph shipped (${JSON.stringify({ ph: e1.ph, im: e1.im, tg: e1.tg })})`);
+    assert(e2.ph === undefined && e2.tg === undefined, 'defaults omitted');
+    gs.stop();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 35 — N12 B: DLC biome logic runs on the server, for both players
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testServerBiomes() {
+    console.log('\n── 35 N12 B — DLC biomes on the server ─────────────────────');
+    const calm = (gs) => { gs.isLevelingUp = false; gs._levelUpFor = -1; gs._levelUpQueue.length = 0; for (const p of gs.players) { p.xp = 0; p.hp = p.maxHp; } };
+    const layout = (biomeType, zones = []) => ({ biomeType, obstacles: [], biomeZones: zones, traps: [] });
+
+    // Gravity (void dimension): both players pulled, direction shipped
+    {
+        const { gs, snapsGuest } = makeSession('fire', 'water');
+        gs.setArenaLayout(layout('gravity'), 1);
+        const bl = gs._biomes.gravity;
+        bl.gravityDir = { x: 0.5, y: 0 }; bl.gravityShiftTimer = 0; bl.netRev = 7;
+        const [h, g] = gs.players;
+        const hx = h.x, gx = g.x;
+        calm(gs); gs._tick();
+        assert(h.x > hx && g.x > gx, `gravity pulls the host and the guest (${(h.x - hx).toFixed(2)}, ${(g.x - gx).toFixed(2)} px)`);
+        const bs = snapsGuest[snapsGuest.length - 1].bs;
+        assert(Array.isArray(bs) && bs[0] === 'gravity' && bs[1].gd[0] === 0.5, `gravity direction shipped to clients (${JSON.stringify(bs)})`);
+        calm(gs); gs._tick();
+        assert(snapsGuest[snapsGuest.length - 1].bs === undefined, 'not re-sent until it changes');
+        gs.stop();
+    }
+
+    // Per-session biome state (Cloud keeps its wind on the class statically)
+    {
+        const { gs: a } = makeSession('fire', 'water');
+        const { gs: b } = makeSession('fire', 'water');
+        a.setArenaLayout(layout('cloud'), 1); b.setArenaLayout(layout('cloud'), 1);
+        a._biomes.cloud.windDirection = { x: -0.5, y: 0 };
+        assert(b._biomes.cloud.windDirection.x !== -0.5 && global.CloudBiome.windDirection.x !== -0.5,
+            'one match turning its wind leaves the other match (and the shared class) alone');
+        const g = a.players[1], gx = g.x;
+        calm(a); a._tick();
+        assert(g.x < gx, `cloud wind pushes the guest (${(g.x - gx).toFixed(2)} px)`);
+        a.stop(); b.stop();
+    }
+
+    // Rock: a falling rock lands on the guest; sludge slows only while inside
+    {
+        const { gs, snapsGuest } = makeSession('fire', 'water');
+        gs.setArenaLayout(layout('rock'), 1);
+        gs._tick();
+        const g = gs.players[1];
+        g.isInvincible = false; g.invincibleTimer = 0;
+        gs._world.arena.hazards = [{ x: g.x, y: g.y, timer: 2, radius: 60 }];
+        global.RockBiome.netRev = 0; gs._biomes.rock.netRev = 3;
+        calm(gs);
+        g.hp = 100; g.maxHp = 100;
+        gs._tick(); gs._tick();
+        assert(g.hp < 100, `a falling rock hits the guest (${Math.round(g.hp)})`);
+        const bs = snapsGuest.map(s => s.bs).filter(Boolean)[0];
+        assert(bs && bs[0] === 'rock' && Array.isArray(bs[1].h), 'falling rocks shipped to clients');
+        gs.stop();
+    }
+    {
+        const { gs } = makeSession('fire', 'water');
+        const g = gs.players[1];
+        gs.setArenaLayout(layout('poison', [{ x: g.x - 100, y: g.y - 100, w: 200, h: 200, type: 'SLUDGE' }]), 1);
+        const gx = g.x, gy = g.y, sm0 = g.speedMultiplier;
+        for (let i = 0; i < 5; i++) { g.x = gx; g.y = gy; calm(gs); gs._tick(); }
+        assert(g.biomeSpeedMod === 0.7 && g.speedMultiplier === sm0,
+            `sludge slows the guest while inside, speed multiplier untouched (mod ${g.biomeSpeedMod}, mult ${g.speedMultiplier})`);
+        g.x = gx + 600; calm(gs); gs._tick();
+        assert(g.biomeSpeedMod === 1, `slow ends on leaving (mod ${g.biomeSpeedMod})`);
+        gs.stop();
+    }
+
+    // Dream pockets: the host's generated pockets arrive with its arena
+    {
+        const { gs } = makeSession('fire', 'water');
+        const ok = gs.setArenaLayout(layout('dream', [{ x: 850, y: 850, w: 300, h: 300, type: 'DREAM_POCKET' }]), 1,
+            { p: [[1000, 1000, 150, 400]] });
+        const pk = gs._biomes.dream.pockets;
+        assert(ok && pk.length === 1 && pk[0].x === 1000 && pk[0].blinkTimer === 400, `host's dream pockets installed (${JSON.stringify(pk[0])})`);
+        assert(gs.setArenaLayout(layout('dream'), 2, { p: 'junk' }), 'malformed biome state is ignored, the arena still installs');
+        gs.stop();
+    }
+
+    // Online biome pool: the DLC biomes both players have, in canonical order
+    {
+        const evs = [];
+        const gs = new GameSession({ host: { ws: 'H' }, guest: { ws: 'G' } }, (ws, m) => {
+            if (ws === 'G' && m.type === 'SNAPSHOT') evs.push(...(m.events || []));
+        });
+        gs.init('fire', 'water');
+        clearTimeout(gs._tickInterval); gs._tickInterval = null;
+        gs.setPlayerLoadout('host', { fire: {} }, ['dream', 'earth', 'gravity', 'bogus']);
+        gs.setPlayerLoadout('guest', { water: {} }, ['gravity', 'earth', 'light']);
+        assertEqual(JSON.stringify(gs.sharedBiomes()), JSON.stringify(['earth', 'gravity']), 'shared DLC biomes = both clients have them (canonical order)');
+        gs._tick();
+        gs.wave = 2; gs._onWaveAdvanced(); gs._layoutReady = true; gs._tick();
+        const ws2 = evs.find(e => e.type === 'wave_start');
+        assert(ws2 && JSON.stringify(ws2.biomes) === '["earth","gravity"]', `wave_start carries the pool (${JSON.stringify(ws2 && ws2.biomes)})`);
+        const { pickSeededBiome, buildBiomePool } = require('../../Wave.js');
+        const pool = buildBiomePool(false, 'fire', ws2.biomes);
+        const picks = new Set();
+        for (let w = 2; w < 60; w++) picks.add(pickSeededBiome(w, 12345, pool));
+        assert([...picks].every(b => pool.includes(b)) && picks.has('earth') && picks.has('gravity'),
+            `seeded picks cover base + shared DLC biomes (${[...picks].sort().join(', ')})`);
+        gs.stop();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test 36 — N12 B: story mode on the server
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testServerStory() {
+    console.log('\n── 36 N12 B — Story mode online (server half) ─────────────');
+    const calm = (gs) => { gs.isLevelingUp = false; gs._levelUpFor = -1; gs._levelUpQueue.length = 0; for (const p of gs.players) { p.xp = 0; p.hp = p.maxHp; } };
+    const layout = { biomeType: 'fire', obstacles: [], biomeZones: [], traps: [] };
+    const mk = () => {
+        const events = [];
+        const gs = new GameSession({ host: { ws: 'H' }, guest: { ws: 'G' } }, (ws, m) => {
+            if (ws === 'G' && m.type === 'SNAPSHOT') events.push(...(m.events || []));
+        }, { awaitLayoutMs: 5000 });
+        gs.init('fire', 'water', 'STORY');
+        clearTimeout(gs._tickInterval); gs._tickInterval = null;
+        return { gs, events };
+    };
+
+    // Story boss chapter: spawned when the wave's arena lands, intro holds the fight
+    {
+        const { gs, events } = mk();
+        assert(gs._awaitLayoutMs >= 15 * 60 * 1000, 'story waits for the next arena while the chapter is read (no 5 s timeout)');
+        assert(gs._world.saveData.story.enabled === true, 'match-wide save is a story run (no twin-boss roll)');
+        assert(!gs.setStoryEvent(1, null), 'malformed chapter rejected');
+        assert(gs.setStoryEvent(1, { id: 'x', type: 'BOSS_FIGHT', title: 'T', text: 'long text', data: { bossId: 'GREEN_GOBLIN', evil: { nested: 1 } } }), 'host chapter accepted');
+        assert(gs._storyEvent.event.data.bossId === 'GREEN_GOBLIN' && gs._storyEvent.event.data.evil === undefined && gs._storyEvent.event.text === undefined,
+            'only its gameplay part is kept');
+        gs.setArenaLayout(layout, 1);
+        calm(gs); gs._tick();
+        const boss = gs.enemies[0];
+        assert(boss instanceof global.Boss && boss.type === 'GREEN_GOBLIN' && gs.bossActive, 'story boss spawns with the wave');
+        assert(events.some(e => e.type === 'boss_intro' && e.boss === 'GREEN_GOBLIN'), 'clients are told to play its intro');
+        const f0 = gs._frame, bx = boss.x, by = boss.y;
+        for (let i = 0; i < 60; i++) { calm(gs); gs._tick(); }
+        assert(gs._frame === f0 && boss.x === bx && boss.y === by, 'the fight holds during the intro, as on the clients');
+        for (let i = 0; i < 200; i++) { calm(gs); gs._tick(); }
+        assert(gs._frame > f0, 'and resumes after it');
+        gs.stop();
+    }
+
+    // Objective chapter: the server runs it, ships it, and a finished objective ends the wave
+    {
+        const { gs, events } = mk();
+        gs.setStoryEvent(1, { id: 'o', type: 'OBJECTIVE_WAVE', data: {} });
+        gs.setArenaLayout(layout, 1);
+        let snap = null;
+        gs._send = ((send) => (ws, m) => { if (ws === 'G' && m.type === 'SNAPSHOT') snap = m; send(ws, m); })(gs._send);
+        calm(gs); gs._tick();
+        const obj = gs._runState.currentObjective;
+        assert(obj && obj.type === 'INFERNO' && obj.state === 'ACTIVE', `fire host's objective started on the server (${obj && obj.type})`);
+        assert(snap && snap.obj && snap.obj.type === 'INFERNO' && snap.obj.target === 30, `objective shipped (${JSON.stringify(snap && snap.obj)})`);
+        obj.current = obj.target;
+        calm(gs); gs._tick();
+        assert(gs.wave === 2 && events.some(e => e.type === 'wave_start' && e.wave === 2), 'completed objective → next wave (the chapter is the clients\')');
+        assert(gs._runState.currentObjective === null, 'objective cleared for the new wave');
+        gs.stop();
+    }
+
+    // Makuta at wave 50 without a chapter naming him; the golden mask at 90
+    {
+        const { gs, events } = mk();
+        gs.setArenaLayout(layout, 1);
+        calm(gs); gs._tick();
+        gs.wave = 50; gs._runState.wave = 50; gs._onWaveAdvanced();
+        gs.setArenaLayout(layout, 50);
+        calm(gs); gs._tick();
+        assert(gs.enemies[0] instanceof global.Boss && gs.enemies[0].type === 'MAKUTA', 'story run: Makuta rises at wave 50');
+        gs.enemies.length = 0; gs.bossActive = false; gs._runState.bossActive = false; gs._runState.bossIntroTimer = 0;
+        gs.wave = 90; gs._runState.wave = 90; gs._onWaveAdvanced();
+        let snap = null;
+        gs._send = ((send) => (ws, m) => { if (ws === 'G' && m.type === 'SNAPSHOT') snap = m; send(ws, m); })(gs._send);
+        gs.setArenaLayout(layout, 90);
+        calm(gs); gs._tick();
+        assert(snap && Array.isArray(snap.gm), `True Golden Mask on the server at wave 90, shipped (${JSON.stringify(snap && snap.gm)})`);
+        const g = gs.players[1], dm = g.damageMultiplier;
+        g.x = snap.gm[0]; g.y = snap.gm[1];
+        calm(gs); gs._tick();
+        assert(g.damageMultiplier === dm + 0.5 && events.some(e => e.type === 'golden_mask' && e.by === 'guest'),
+            'the guest picks it up: boost on the server, golden_mask event names the guest');
+        gs.stop();
+    }
+}
+
 // ─── Run all tests ─────────────────────────────────────────────────────────────
 
 testSessionIsolation();
@@ -1529,6 +2002,13 @@ testBridgeWaveAdvance();
 testConcurrentSessionIsolation();
 testArenaLayout();
 testOnlineWaveFlowAndLoadouts();
+testHazardsAndVersus();
+testServerWeather();
+testPerPlayerCollection();
+testKillCreditAndLoot();
+testBossSnapshots();
+testServerBiomes();
+testServerStory();
 
 const total = passed + failed;
 console.log(`\n${'─'.repeat(56)}`);

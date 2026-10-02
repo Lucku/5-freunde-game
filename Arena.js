@@ -550,6 +550,10 @@ class Arena {
             if (zone.type === 'DARK_ENERGY') this._applyZoneToPlayer(zone, player);
         });
         this.biomeZones = this.biomeZones.filter(z => !z.depleted);
+        // The biome's per-player effects (gravity, wind, rubble, sludge, …)
+        // — update() applies them to the player it is given.
+        const bl = this.biomeType && window.BIOME_LOGIC && window.BIOME_LOGIC[this.biomeType];
+        if (bl && typeof bl.applyToPlayer === 'function') bl.applyToPlayer(this, player);
     }
 
     _applyTrapToPlayer(trap, player) {

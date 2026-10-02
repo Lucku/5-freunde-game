@@ -195,25 +195,7 @@ class Player {
         const wasAlreadyLeveling = isLevelingUp;
         isLevelingUp = true;
 
-        // End-of-run breakdown — note the level-up moment for the local player.
-        if (this === window.player && typeof currentRunStats !== 'undefined' && currentRunStats.keyMoments) {
-            const _t = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
-            currentRunStats.keyMoments.push({ wave: (typeof wave !== 'undefined') ? wave : 0, timeSec: _t, kind: 'level_up', label: `Lv ${this.level}` });
-        }
-        // Level-up — soft upward pulse
-        if (typeof triggerImpact !== 'undefined') triggerImpact(2, 8, 0.05, 0.22, 280);
-
-        if (window.spawnLevelUpAura) {
-            const heroColor = (typeof BASE_HERO_STATS !== 'undefined' && BASE_HERO_STATS[this.type])
-                ? BASE_HERO_STATS[this.type].color : '#ffffff';
-            window.spawnLevelUpAura(this.x, this.y, heroColor);
-        }
-
-        // 60% chance to play a level-up exclamation (skips if another line is already playing)
-        if (Math.random() < 0.6) {
-            const _wLU = this._world ?? window._world;
-            _wLU?.audioManager?.playHeroExclamation(this.type, 'level_up');
-        }
+        this.playLevelUpFx();
 
         let options = [];
 
@@ -279,6 +261,31 @@ class Player {
             window.levelUpUI.showLevelUp(this, options);
         } else {
             console.error("LevelUpUI not initialized");
+        }
+    }
+
+    // Level-up presentation (run breakdown entry, rumble, aura, voice line).
+    // Separate from levelUp() so an online client can play it when the
+    // server, which runs levelUp(), says this player leveled.
+    playLevelUpFx() {
+        // End-of-run breakdown — note the level-up moment for the local player.
+        if (this === window.player && typeof currentRunStats !== 'undefined' && currentRunStats.keyMoments) {
+            const _t = Math.floor((Date.now() - (currentRunStats.startTime || Date.now())) / 1000);
+            currentRunStats.keyMoments.push({ wave: (typeof wave !== 'undefined') ? wave : 0, timeSec: _t, kind: 'level_up', label: `Lv ${this.level}` });
+        }
+        // Level-up — soft upward pulse
+        if (typeof triggerImpact !== 'undefined') triggerImpact(2, 8, 0.05, 0.22, 280);
+
+        if (window.spawnLevelUpAura) {
+            const heroColor = (typeof BASE_HERO_STATS !== 'undefined' && BASE_HERO_STATS[this.type])
+                ? BASE_HERO_STATS[this.type].color : '#ffffff';
+            window.spawnLevelUpAura(this.x, this.y, heroColor);
+        }
+
+        // 60% chance to play a level-up exclamation (skips if another line is already playing)
+        if (Math.random() < 0.6) {
+            const _wLU = this._world ?? window._world;
+            _wLU?.audioManager?.playHeroExclamation(this.type, 'level_up');
         }
     }
 

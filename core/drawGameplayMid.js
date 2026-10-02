@@ -176,7 +176,8 @@ export function _drawGameplayMid() {
     for (let _ei = 0, _en = enemies.length; _ei < _en; _ei++) {
         const enemy = enemies[_ei];
         if (enemy._netHidden) continue; // online ghost not yet spawned at render time
-        enemy.draw();
+        if (enemy._ghost && enemy.drawGhost) enemy.drawGhost(); // online boss
+        else enemy.draw();
         if (enemy._ghost && enemy._hitFlash > 0) {
             ctx.save();
             ctx.globalAlpha = (enemy._hitFlash / 6) * 0.55;

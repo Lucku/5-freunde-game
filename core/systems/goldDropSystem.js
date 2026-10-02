@@ -24,6 +24,11 @@ export function initGoldDrops(rs) {
     rs.goldDropTier      = new Uint8Array(MAX_GOLDDROPS);
     rs.goldDropAngle     = new Float32Array(MAX_GOLDDROPS);
     rs.goldDropBobOffset = new Float32Array(MAX_GOLDDROPS);
+    // Stable id per drop + a change counter: the online server ships the set
+    // (by id) only when it changed.
+    rs.goldDropId        = new Int32Array(MAX_GOLDDROPS);
+    rs.goldDropNextId    = 1;
+    rs.goldDropVersion   = 0;
     rs.goldDropCount     = 0;
 }
 
@@ -39,7 +44,9 @@ export function spawnGoldDrop(rs, x, y) {
     rs.goldDropTier[i]      = value >= 12 ? 2 : value >= 8 ? 1 : 0;
     rs.goldDropAngle[i]     = Math.random() * Math.PI * 2;
     rs.goldDropBobOffset[i] = Math.random() * Math.PI * 2;
+    rs.goldDropId[i]        = rs.goldDropNextId++;
     rs.goldDropCount        = i + 1;
+    rs.goldDropVersion++;
     return i;
 }
 
@@ -52,12 +59,34 @@ export function killGoldDrop(rs, i) {
         rs.goldDropTier[i]      = rs.goldDropTier[last];
         rs.goldDropAngle[i]     = rs.goldDropAngle[last];
         rs.goldDropBobOffset[i] = rs.goldDropBobOffset[last];
+        rs.goldDropId[i]        = rs.goldDropId[last];
     }
     rs.goldDropCount = last;
+    rs.goldDropVersion++;
 }
 
 export function clearGoldDrops(rs) {
     rs.goldDropCount = 0;
+    rs.goldDropVersion++;
+}
+
+// Online client: mirror the server's drops — `list` = [[id, x, y, value], …] —
+// except ids in `skip` (picked up here, server not caught up yet).
+export function syncGoldDrops(rs, list, skip) {
+    let n = 0;
+    for (const e of list) {
+        if (n >= MAX_GOLDDROPS) break;
+        if (skip && skip.has(e[0])) continue;
+        const value = e[3];
+        rs.goldDropId[n]        = e[0];
+        rs.goldDropX[n]         = e[1];
+        rs.goldDropY[n]         = e[2];
+        rs.goldDropValue[n]     = value;
+        rs.goldDropTier[n]      = value >= 12 ? 2 : value >= 8 ? 1 : 0;
+        rs.goldDropBobOffset[n] = (e[0] * 1.3) % (Math.PI * 2); // stable per id
+        n++;
+    }
+    rs.goldDropCount = n;
 }
 
 // Per-tier color palettes (lifted from the original GoldDrop.draw).

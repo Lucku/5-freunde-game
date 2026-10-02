@@ -103,6 +103,10 @@ function getDrawPost()   { return _tryLoadHelpers().drawPost; }
  */
 function syncWorldToGlobals(session) {
     const w = session._world;
+    // Entities read `this._world ?? window._world`, and the shared update
+    // code mirrors frame / wave / weather into `window._world` — this
+    // session's, not whichever session created a player last.
+    global._world        = w;
     global.arena         = w.arena;
     global.player        = session.players[0];
     global.player2       = session.players[1];
@@ -113,11 +117,27 @@ function syncWorldToGlobals(session) {
     global.saveData      = w.saveData || { global: {} };
     global.HERO_LOGIC    = w.HERO_LOGIC  || global.HERO_LOGIC  || {};
     global.ENEMY_LOGIC   = w.ENEMY_LOGIC || global.ENEMY_LOGIC || {};
+    // This session's DLC biome instances (see biomes.js); restored after.
+    _prevBiomeLogic = global.BIOME_LOGIC;
+    global.BIOME_LOGIC   = session._biomes || global.BIOME_LOGIC;
 
     // Session-aware game over (both players down after the singleplayer death
     // cinematic): the loader's no-op stub left online runs going forever.
     _prevGameOver = global.gameOver;
     global.gameOver = (isVictory = false) => session._onGameOver(!!isVictory);
+
+    // A finished objective wave calls triggerStory (singleplayer: chapter,
+    // then advanceWave). Online the next chapter is the clients' (at
+    // wave_start); the server just ends the wave.
+    _prevTriggerStory = global.triggerStory;
+    global.triggerStory = () => global.advanceWave();
+
+    // Player.levelUp() hands its options to the level-up screen; online that
+    // screen is the player's client — the session pauses and asks it. (The
+    // loader's null stub only logged "LevelUpUI not initialized".)
+    _prevLevelUpUI = global.levelUpUI;
+    global.levelUpUI = { showLevelUp: (player, options) => session._queueLevelUp(player, options) };
+    global.isLevelingUp = false; // ticks never run while a level-up is open
 
     // Singleplayer applyDamage() (game.js) minus its presentation (sound,
     // damage number): i-frame check, damage reduction, shield hook, HP, combo
@@ -158,8 +178,14 @@ function syncWorldToGlobals(session) {
         rs.bossActive   = !!w.bossActive;
         rs.player       = session.players[0];
         rs.player2      = session.players[1];
-        rs.currentWeather = w.currentWeather || null;
-        rs.currentObjective = w.currentObjective || null;
+        // Player.levelUp() reads the bare global: no level-ups during the
+        // death cinematic, as in singleplayer.
+        global.isPlayerDying = !!rs.isPlayerDying;
+        // Weather is runState-owned (rolled and ended by the shared update
+        // code); the world copy is what Player / Enemy speed effects read.
+        // Resetting it from the world here every sub-step meant online
+        // weather never lasted a frame.
+        w.currentWeather = rs.currentWeather || null;
         rs.activeMutators = w.activeMutators || [];
     }
 }
@@ -177,6 +203,10 @@ function syncGlobalsToWorld(session) {
         w.wave         = rs.wave;
         w.score        = rs.score;
         w.bossActive   = !!rs.bossActive;
+        w.currentWeather = rs.currentWeather || null;
+        // Weather particles are screen-space visuals (clients make their own);
+        // on the server's 3000 px "screen" they would pile up into the thousands.
+        if (rs.weatherParticles && rs.weatherParticles.length) rs.weatherParticles.length = 0;
     }
     // Restore the loader.js smoke-grade `applyDamage` stub so the global
     // doesn't stay session-bound after the tick completes. Any non-bridge
@@ -190,10 +220,25 @@ function syncGlobalsToWorld(session) {
         global.gameOver = _prevGameOver;
         _prevGameOver = null;
     }
+    if (_prevLevelUpUI !== undefined) {
+        global.levelUpUI = _prevLevelUpUI;
+        _prevLevelUpUI = undefined;
+    }
+    if (_prevTriggerStory) {
+        global.triggerStory = _prevTriggerStory;
+        _prevTriggerStory = null;
+    }
+    if (_prevBiomeLogic !== undefined) {
+        global.BIOME_LOGIC = _prevBiomeLogic;
+        _prevBiomeLogic = undefined;
+    }
 }
 
 let _prevApplyDamage = null;
 let _prevGameOver = null;
+let _prevLevelUpUI = undefined; // the loader's stub is null
+let _prevBiomeLogic = undefined;
+let _prevTriggerStory = null;
 
 /**
  * Run one tick of the extracted renderer update halves against a session's
@@ -217,11 +262,15 @@ function runUpdate(session, dt) {
     const mid = getUpdateMid();
     if (!pre || !mid) return false;
     syncWorldToGlobals(session);
-    const cinematicTookOver = pre(dt);
-    if (!cinematicTookOver) {
-        mid(dt, !!session._isHitStopped);
+    try {
+        const cinematicTookOver = pre(dt);
+        if (!cinematicTookOver) {
+            mid(dt, !!session._isHitStopped);
+        }
+    } finally {
+        // Also after a throw: the session-bound swaps must not leak.
+        syncGlobalsToWorld(session);
     }
-    syncGlobalsToWorld(session);
     return true;
 }
 

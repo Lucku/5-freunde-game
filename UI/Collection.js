@@ -1,28 +1,8 @@
+import { computeCollectionBonuses } from '../core/collectionBonuses.js';
+
 class CollectionUI {
     getCollectionBonuses(targetType) {
-        const bonuses = {
-            damageMult: 1,
-            defenseMult: 1,
-            xpMult: 1,
-            critChance: 0,
-            specials: []
-        };
-
-        if (window.gameContext.saveData && window.gameContext.saveData.collection) {
-            window.gameContext.saveData.collection.forEach(key => {
-                const card = COLLECTOR_CARDS[key];
-                if (!card || !card.bonus) return;
-
-                if (card.bonus.target === targetType || card.bonus.type === 'special') {
-                    if (card.bonus.type === 'damage_vs')  bonuses.damageMult  += card.bonus.val;
-                    if (card.bonus.type === 'defense_vs') bonuses.defenseMult -= card.bonus.val;
-                    if (card.bonus.type === 'xp_vs')      bonuses.xpMult      += card.bonus.val;
-                    if (card.bonus.type === 'crit_vs')    bonuses.critChance  += card.bonus.val;
-                    if (card.bonus.type === 'special')    bonuses.specials.push(card.bonus.id);
-                }
-            });
-        }
-        return bonuses;
+        return computeCollectionBonuses(_localCollection(), targetType);
     }
 
     openCollection() {
@@ -130,11 +110,20 @@ function parseBonusDesc(bonus) {
 
 const collectionUI = new CollectionUI();
 
+function _localCollection() {
+    const sd = window.gameContext.saveData;
+    return (sd && sd.collection) || [];
+}
+
 // Per-frame memoization: collection data never changes mid-frame, so cache results
 // by [frame, targetType] to avoid re-scanning saveData.collection on every collision.
 let _gcbFrame = -1;
 const _gcbCache = {};
-window.getCollectionBonuses = (t) => {
+// `player` (whose cards count — the attacker or the one hit) only matters on
+// the online server, where each player brings their own collection; here
+// every local player shares this save's.
+window.getPlayerCollection = (_player) => _localCollection();
+window.getCollectionBonuses = (t, _player) => {
     if (typeof frame !== 'undefined' && frame !== _gcbFrame) {
         _gcbFrame = frame;
         for (const k in _gcbCache) delete _gcbCache[k];

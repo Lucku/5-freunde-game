@@ -121,10 +121,10 @@ global.UPGRADE_POOL    = UPGRADE_POOL;
 global.ARENA_WIDTH     = ARENA_WIDTH;
 global.ARENA_HEIGHT    = ARENA_HEIGHT;
 
-// Additional stubs Player constructor touches but aren't needed on server:
-global.CHAOS_EFFECTS   = [];
-global.ELITE_TYPES     = [];
-global.ACHIEVEMENTS    = [];
+// CHAOS_EFFECTS / ELITE_TYPES / ACHIEVEMENTS / COLLECTOR_CARDS are the real
+// tables: requiring ./constants ran Constants.js, whose window shim put them
+// on `global`. (Empty stubs here used to overwrite them: no chaos gold bonus,
+// and from wave 16 every elite roll threw `undefined.id` inside the tick.)
 
 // ── 3. Per-session game-state globals (stubs; synced from world each tick) ────
 // Player constructor reads these globals — they're overwritten before each
@@ -178,7 +178,13 @@ global.isWeeklyMode     = false;
 global.isVersusMode     = false;
 global.activeMutators   = [];
 global.forcedEnemyType  = null;
-global.currentObjective = null;
+// The active session's story objective (enemies read the bare name: sapling
+// damage, untouchable hits) — like the browser's window getter onto runState.
+Object.defineProperty(global, 'currentObjective', {
+    get: () => (global.runState ? global.runState.currentObjective : null),
+    set: (v) => { if (global.runState) global.runState.currentObjective = v; },
+    configurable: true,
+});
 global.currentWeather   = null;
 global.currentRunStats  = {
     missilesFired: 0, meleeHits: 0, damageDealt: 0,
@@ -288,9 +294,15 @@ global._drawGameplayPost = () => {};
 // damage authority); the rest are visual / non-authoritative.
 const _noop = () => {};
 const _false = () => false;
-// Boss cinematic helpers — return false so the helper falls through to the
-// normal update path (true would mean "cinematic owns this frame, bail out").
-global._renderBossIntroCinematic   = _false;
+// Boss cinematic helpers — true means "cinematic owns this frame, bail out".
+// Story boss intro: the clients play it with their frame frozen, so the sim
+// holds for its 150 frames too (the boss used to attack frozen players).
+global._renderBossIntroCinematic   = () => {
+    const rs = global.runState;
+    if (!rs || !(rs.bossIntroTimer > 0)) return false;
+    rs.bossIntroTimer--;
+    return true;
+};
 // Boss death: count down the singleplayer cinematic's 3 s with the sim frozen
 // (returning true = "cinematic owns this frame"), then go on to the next wave.
 // Online has no Continue / Save & Quit screen (runs aren't saved). The stub
@@ -364,10 +376,22 @@ global.applyDamage                 = (target, dmg) => {
 };
 global.createExplosion             = _noop;
 global.recordPlayerDamage          = _noop;
-// Neutral collection bonuses — same shape as UI/Collection.js with no cards.
-// `defenseMult` was missing, so every enemy-projectile / speedster hit on the
-// server computed `damage * undefined` = NaN player damage.
-global.getCollectionBonuses        = () => ({ damageMult: 1, defenseMult: 1, xpMult: 1, specials: [] });
+// Collector-card bonuses per player: the cards that player uploaded with
+// their loadout (GameSession `_save.collection`), through the same code as
+// UI/Collection.js — `player` is the shooter for damage, the one hit for
+// defense. Cached per player per frame like the client's (callers mutate the
+// returned object within a frame, and must see the same thing they do).
+const { computeCollectionBonuses: _computeCollectionBonuses } = require('../../core/collectionBonuses.js');
+global.getPlayerCollection         = (player) => (player && player._save && player._save.collection) || [];
+global.getCollectionBonuses        = (targetType, player) => {
+    if (!player) return _computeCollectionBonuses([], targetType);
+    let c = player._cardBonusCache;
+    if (!c || c.frame !== global.frame) c = player._cardBonusCache = { frame: global.frame, byType: {} };
+    if (c.byType[targetType] === undefined) {
+        c.byType[targetType] = _computeCollectionBonuses(global.getPlayerCollection(player), targetType);
+    }
+    return c.byType[targetType];
+};
 global._recordPhase                = _noop;
 global.bumpDamageSource            = _noop;
 global.logUpgradePick              = _noop;
@@ -421,6 +445,10 @@ global.masksDroppedInWave    = 0;
 global.checkAchievements     = _noop;
 global.unlockAchievement     = _noop;
 global.checkDrop             = _noop;
+// Pickups that write the save (holy mask, card, memory shard) call
+// saveGame(). The server has no save — undefined, it threw inside the tick
+// every frame a player stood on a mask (no snapshots, bridge swaps leaked).
+global.saveGame              = _noop;
 // `window.DLC_STORY_ACHIEVEMENTS` — bare-name map read by `:1303`.
 global.DLC_STORY_ACHIEVEMENTS = {};
 global.window.DLC_STORY_ACHIEVEMENTS = global.DLC_STORY_ACHIEVEMENTS;

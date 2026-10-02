@@ -19,14 +19,20 @@ function _mulberry32(seed) {
 
 const World = global.World;
 const NetworkInputController = require('./NetworkInputController');
+const { createSessionBiomes, SERVER_BIOMES } = require('./biomes');
+const { DLC_BIOMES, isStoryBossWave: _isStoryBossWave } = require(require('path').join(__dirname, '..', '..', 'Wave.js'));
+const { startObjective: _startObjective } = require(require('path').join(__dirname, '..', '..', 'core', 'objectives.js'));
+const { spawnHolyMask: _spawnHolyMask } = require(require('path').join(__dirname, '..', '..', 'core', 'systems', 'holyMaskSystem.js'));
 const { performance } = require('perf_hooks'); // monotonic clock for the tick scheduler
 const {
     ARENA_WIDTH,
     ARENA_HEIGHT,
     TICK_MS,
     TICK_FRAMES,
-    UPGRADE_POOL,
 } = require('./constants');
+// Level-up picks change stats through the same code as singleplayer's
+// level-up screen (UI/LevelUp.js).
+const { applyUpgrade: _applyUpgradeShared } = require(require('path').join(__dirname, '..', '..', 'core', 'upgrades.js'));
 // WaveManager retired (phase 3h.2 closed step 3; bridge owns spawn).
 // Tests poke `gs._waveManager._lastSpawnMs` removed in this commit.
 
@@ -69,10 +75,13 @@ const SERVER_VIEW_H = 800;
 // client now sends that slice of its save; it is validated here and the
 // player is built through the same Player / getHeroStats code with it.
 const {
-    ACHIEVEMENTS: _ACHIEVEMENTS, CHAOS_EFFECTS: _CHAOS_EFFECTS,
+    ACHIEVEMENTS: _ACHIEVEMENTS, CHAOS_EFFECTS: _CHAOS_EFFECTS, COLLECTOR_CARDS: _COLLECTOR_CARDS,
     PERM_UPGRADES: _PERM_UPGRADES, SKILL_TREE_SIZE: _SKILL_TREE_SIZE,
 } = require(require('path').join(__dirname, '..', '..', 'Constants.js'));
 const { ALTAR_TREE: _ALTAR_TREE } = require(require('path').join(__dirname, '..', '..', 'AltarData.js'));
+// Story mode: the next wave starts once the host's arena arrives, which is
+// after both players read the chapter — wait for that, not the 5 s default.
+const STORY_HOLD_MS = 15 * 60 * 1000;
 const LOADOUT_PRESTIGE_MAX = 50;   // sanity bounds, not balance limits
 const LOADOUT_META_MAX     = 200;
 const _DEFAULT_SAVE = global.saveData; // loader's default-save Proxy
@@ -86,10 +95,11 @@ function _sanitizeLoadout(hero, raw) {
     const knownAch   = new Set(_ACHIEVEMENTS.map(a => a.id));
     const knownChaos = new Set(_CHAOS_EFFECTS.map(e => e.id));
     const knownAltar = new Set(Object.values(_ALTAR_TREE).flat().map(n => n.id));
+    const knownCards = new Set(Object.keys(_COLLECTOR_CARDS));
     const rec  = (raw[hero] && typeof raw[hero] === 'object') ? raw[hero] : {};
     const meta = {};
     for (const k of Object.keys(_PERM_UPGRADES)) meta[k] = int(raw.metaUpgrades && raw.metaUpgrades[k], 0, LOADOUT_META_MAX);
-    // Unknown keys (other heroes, collection, …) fall through to the defaults.
+    // Unknown keys (other heroes, …) fall through to the defaults.
     return Object.assign(Object.create(_DEFAULT_SAVE), {
         [hero]: {
             level:    int(rec.level, 0, 1e7),
@@ -100,7 +110,7 @@ function _sanitizeLoadout(hero, raw) {
         global:  { unlockedAchievements: ids(raw.global && raw.global.unlockedAchievements, knownAch, 2000), totalDamage: 0 },
         chaos:   { active: ids(raw.chaos && raw.chaos.active, knownChaos, 50) },
         altar:   { active: ids(raw.altar && raw.altar.active, knownAltar, 100) },
-        collection: [],
+        collection: ids(raw.collection, knownCards, 1000),
         story:   { enabled: false },
     });
 }
@@ -153,6 +163,50 @@ function _sanitizeArenaLayout(raw, W, H) {
         out.traps.push(e);
     }
     return out;
+}
+
+// A boss's state the client draws (phase look, shield, attack telegraphs,
+// goblin bombs, Makuta's channel) — omitted while at the default.
+function _bossVisuals(b) {
+    const v = {};
+    if (b.phase && b.phase !== 1) v.ph = b.phase;
+    if (b.immune) v.im = 1;
+    if (b.state) v.st = b.state;
+    if (b.telegraphTimer > 0 && b.telegraphData) {
+        const t = b.telegraphData;
+        v.tg = [Math.round(t.x), Math.round(t.y), Math.round(t.radius || 0), t.type, b.telegraphTimer];
+    }
+    if (b.pendingBombs && b.pendingBombs.length) {
+        v.bb = b.pendingBombs.map(k => [Math.round(k.x), Math.round(k.y), k.timer, k.maxTimer, k.radius]);
+    }
+    if (b.mkState && b.mkState !== 'IDLE') v.ms = b.mkState;
+    return v;
+}
+
+// The gameplay part of a story chapter the host sent (STORY_EVENT): which
+// boss, biome, layout, spawn overrides. Text and art stay on the clients.
+// Returns null if malformed.
+function _sanitizeStoryEvent(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const tag = (v) => (typeof v === 'string' && v.length > 0 && v.length <= 64) ? v : undefined;
+    const ev = { id: tag(raw.id), type: tag(raw.type) || 'NARRATIVE', hero: tag(raw.hero), data: {} };
+    const d = (raw.data && typeof raw.data === 'object') ? raw.data : {};
+    for (const k of ['biome', 'layout', 'trap', 'bossId', 'forcedEnemyType', 'mazeNodeId']) {
+        if (tag(d[k]) !== undefined) ev.data[k] = d[k];
+    }
+    if (d.suppressMinions) ev.data.suppressMinions = true;
+    if (typeof d.spawnRateMod === 'number' && d.spawnRateMod > 0 && d.spawnRateMod <= 10) ev.data.spawnRateMod = d.spawnRateMod;
+    return ev;
+}
+
+// The objective HUD the clients draw (type, progress, sapling / storm eye).
+function _objectiveView(o) {
+    if (!o) return null;
+    const v = { type: o.type, state: o.state, current: Math.round((o.current || 0) * 10) / 10, target: o.target };
+    const d = o.data || {};
+    if (d.sapling) v.sapling = { x: d.sapling.x, y: d.sapling.y, hp: Math.round(d.sapling.hp), maxHp: d.sapling.maxHp, radius: d.sapling.radius };
+    if (d.stormEye) v.stormEye = { x: Math.round(d.stormEye.x), y: Math.round(d.stormEye.y), radius: d.stormEye.radius };
+    return v;
 }
 
 function _useVirtualViewport(arena) {
@@ -212,6 +266,7 @@ class GameSession {
         // awaitLayoutMs) so neither hero is simulated at base stats first.
         this._awaitLoadouts       = !!opts.awaitLoadouts;
         this._loadoutsIn          = [false, false];
+        this._clientBiomes        = [null, null]; // DLC biomes each client can play
         this._layoutReady         = false;
 
         // ── World instance ─────────────────────────────────────────────────────
@@ -269,6 +324,7 @@ class GameSession {
 
         this._events             = []; // flushed each snapshot
         this._levelUpFor         = -1; // index of player currently choosing upgrade
+        this._levelUpQueue       = []; // level-ups waiting to be offered: { idx, options }
         this._nextEnemyId        = 1;
         this._nextProjId         = 1;
         this._frame              = 0;  // virtual 60-fps frame counter
@@ -315,6 +371,29 @@ class GameSession {
         // `setActiveRunState`; the leaf-module Proxy read from
         // RunState.js forwards to whichever session is currently active.
         this._runState = _createRunState();
+        // This match's own DLC biome logic (timers, hazards, wind — never
+        // shared with another match); the bridge installs it as BIOME_LOGIC.
+        this._biomes = createSessionBiomes();
+        // Two players with their own saves and wallets: both pick up gold,
+        // and save-side kill rewards (achievements, cards, masks) are each
+        // client's — the shared update code leaves those to them.
+        this._runState.perPlayerLoot = true;
+        // Every kill → a `kill` event (who killed it, what it was): clients
+        // play the death burst and grant their own save-side rewards.
+        // Loot that changes the simulation and must be granted on one
+        // player's screen (the True Golden Mask's stat boost).
+        this._runState.lootListener = (kind, player) => {
+            const by = this.players.indexOf(player);
+            if (by >= 0) this._events.push({ type: kind, by: by === 0 ? 'host' : 'guest' });
+        };
+        this._runState.killListener = (enemy, killer, k) => {
+            const by = this.players.indexOf(killer);
+            const ev = { type: 'kill', x: Math.round(enemy.x), y: Math.round(enemy.y), sub: k.subType, color: enemy.color };
+            if (k.isBoss)  { ev.boss = k.type; if (k.bossLabel) ev.label = k.bossLabel; }
+            if (k.eliteId) ev.elite = k.eliteId;
+            if (by >= 0)   ev.by = by === 0 ? 'host' : 'guest';
+            this._events.push(ev);
+        };
     }
 
     // 60 fps frames one tick simulates at the current tier (16 ms → 1,
@@ -352,7 +431,16 @@ class GameSession {
     init(hostHero, guestHero, mode = 'NORMAL') {
         this._isVersusMode = (mode === 'VERSUS');
         this._world.isVersusMode = this._isVersusMode;
-        this._world.isCoopMode   = !this._isVersusMode;
+        // Story mode: chapters between waves (clients), story bosses /
+        // objectives / overrides (here). The match-wide save says so, which
+        // also turns the twin-boss roll off, as in a singleplayer story run.
+        this._isStoryMode = (mode === 'STORY');
+        this._storyEvent = null;        // { wave, event } — the host's chapter for that wave
+        this._storyWavePending = false; // set up the story wave on the next tick
+        if (this._isStoryMode) {
+            this._world.saveData = Object.assign(Object.create(_DEFAULT_SAVE), { story: { enabled: true } });
+            if (this._awaitLayoutMs > 0) this._awaitLayoutMs = Math.max(this._awaitLayoutMs, STORY_HOLD_MS);
+        }
 
         // Activate this session's runState for the duration of init().
         // Player constructor + DLC hero init hooks read `runState.X` during
@@ -372,8 +460,9 @@ class GameSession {
         // Sync canvas dimensions so Player constructor gets correct spawn coords
         global.canvas = { width: ARENA_WIDTH, height: ARENA_HEIGHT };
 
-        const p1 = this._createPlayer(hostHero, ARENA_WIDTH / 2 - 300, ARENA_HEIGHT / 2);
-        const p2 = this._createPlayer(guestHero, ARENA_WIDTH / 2 + 300, ARENA_HEIGHT / 2);
+        const s1 = this._spawnPoint(0), s2 = this._spawnPoint(1);
+        const p1 = this._createPlayer(hostHero, s1.x, s1.y);
+        const p2 = this._createPlayer(guestHero, s2.x, s2.y);
 
         this._world.player  = p1;
         this._world.player2 = p2;
@@ -420,6 +509,14 @@ class GameSession {
         void _prevRunState;
     }
 
+    // Match-start spot of player `i` (0 = host, left; 1 = guest, right):
+    // ±300 px in co-op, ±800 px in versus as local 2P versus. The clients
+    // place themselves the same way (game.js _placeOnlineSpawn).
+    _spawnPoint(i) {
+        const off = this._isVersusMode ? 800 : 300;
+        return { x: ARENA_WIDTH / 2 + (i === 0 ? -off : off), y: ARENA_HEIGHT / 2 };
+    }
+
     /**
      * Create a real Player instance for server-side simulation.
      * isCPU = true suppresses DOM access in setupSpecial().
@@ -435,7 +532,7 @@ class GameSession {
         let p;
         try { p = new global.Player(heroType, true); } // isCPU = true → no DOM writes
         finally { global.saveData = _prevSave; }
-        if (save) this._bindPlayerSave(p, save);
+        if (save) { p._save = save; this._bindPlayerSave(p, save); }
         p._world    = this._world;
         p.x         = x;
         p.y         = y;
@@ -470,17 +567,23 @@ class GameSession {
      * Only before the simulation has started — returns false otherwise or if
      * the upload is malformed.
      */
-    setPlayerLoadout(role, rawSave) {
+    setPlayerLoadout(role, rawSave, biomes) {
         const idx = role === 'host' ? 0 : 1;
         const old = this.players[idx];
         if (!old || this._frame > 0) return false;
+        if (Array.isArray(biomes)) this._clientBiomes[idx] = new Set(biomes.filter(b => typeof b === 'string'));
         const save = _sanitizeLoadout(old.type, rawSave);
         if (!save) return false;
+        if (this._isStoryMode) save.story = { enabled: true };
         const _prevRunState = _setActiveRunState(this._runState);
         try {
             const p = this._createPlayer(old.type, old.x, old.y, save);
             this.players[idx] = p;
             if (idx === 0) this._world.player = p; else this._world.player2 = p;
+            // The match-wide save the shared code reads (enemy / boss prestige
+            // scaling, enemy card nerfs) is P1's, as in local co-op — it was
+            // the empty default, so online enemies ignored the host's prestige.
+            if (idx === 0) this._world.saveData = save;
         } finally {
             _setActiveRunState(_prevRunState);
         }
@@ -511,21 +614,39 @@ class GameSession {
 
         const player  = this.players[idx];
         const options = player._levelUpOptions || [];
-        const chosen  = options.find(o => o.id === choiceId) || options[0];
-        if (chosen) this._applyUpgrade(player, chosen);
+        const chosen  = options.find(o => o && o.id === choiceId) || options[0];
+        const _prevRunState = _setActiveRunState(this._runState);
+        try {
+            if (chosen) this._applyUpgrade(player, chosen.id);
 
-        player._levelUpOptions = null;
-        this._levelUpFor       = -1;
-        this.isLevelingUp      = false;
+            player._levelUpOptions = null;
+            this._levelUpFor       = -1;
 
-        // Clear queued action latches across both players so a held shoot/melee
-        // pressed during the level-up modal does not auto-fire on resume.
-        for (const p of [this._world.player, this._world.player2].filter(Boolean)) {
-            p._pendingShoot   = false;
-            p._pendingMelee   = false;
-            p._pendingDash    = false;
-            p._pendingSpecial = false;
+            // Clear queued action latches across both players so a held shoot/melee
+            // pressed during the level-up modal does not auto-fire on resume.
+            for (const p of [this._world.player, this._world.player2].filter(Boolean)) {
+                p._pendingShoot   = false;
+                p._pendingMelee   = false;
+                p._pendingDash    = false;
+                p._pendingSpecial = false;
+            }
+
+            // Next queued level-up (the partner's, or another of this
+            // player's), else resume and release the partner's wait overlay.
+            if (!this._offerNextLevelUp()) {
+                this.isLevelingUp = false;
+                const other = this._lobby[idx === 0 ? 'guest' : 'host'];
+                if (other) this._send(other.ws, { type: 'LEVEL_UP_DONE' });
+            }
+        } finally {
+            _setActiveRunState(_prevRunState);
         }
+    }
+
+    // A reconnecting client missed the level-up prompt it is due (or the
+    // partner's wait overlay) — send it again.
+    resendLevelUpPrompt(role) {
+        if (this._levelUpFor >= 0) this._sendLevelUpPrompt(role);
     }
 
     stop() {
@@ -542,7 +663,7 @@ class GameSession {
      * Returns false if the upload is malformed. The server simulation then
      * collides with the same walls, zones and traps the clients draw.
      */
-    setArenaLayout(raw, wave = 1) {
+    setArenaLayout(raw, wave = 1, biomeState = null) {
         const layout = _sanitizeArenaLayout(raw, ARENA_WIDTH, ARENA_HEIGHT);
         if (!layout) return false;
         const _prevRunState = _setActiveRunState(this._runState);
@@ -551,21 +672,30 @@ class GameSession {
             arena.generateFromMap(layout);
             _useVirtualViewport(arena);
             this._world.arena    = arena;
+            // The wave's biome (the host generated the arena for it): weather
+            // locks and boosts read it, and its DLC logic runs on it.
+            if (layout.biomeType) this._runState.currentBiomeType = layout.biomeType;
+            // Biome features its generate() made (bloom patches, light
+            // shafts, dream pockets) — the server never runs generate, so the
+            // host sends them. Each biome validates what it takes.
+            const bl = layout.biomeType && this._biomes[layout.biomeType];
+            if (bl && typeof bl.applyLayoutState === 'function' && biomeState && typeof biomeState === 'object') {
+                try { bl.applyLayoutState(biomeState, arena); }
+                catch (err) { console.warn(`[GameSession ${this._lobby.code}] bad ${layout.biomeType} biome state:`, err.message); }
+            }
             this.arenaLayout     = layout;
             this.arenaLayoutHash = global.Arena.layoutHash(layout);
             this.arenaLayoutWave = wave;
 
             // Players: before the match starts, take the same deterministic
-            // spawn the clients use (role offset ∓300 px, nudged out of walls —
+            // spawn the clients use (_spawnPoint, nudged out of walls —
             // game.js resumeWaveGeneration). Later, only rescue a player the
             // new walls would trap.
             const starting = this._awaitingLayoutUntil > 0 || this._frame === 0;
             this.players.forEach((p, i) => {
                 if (!p) return;
                 const r = p.radius || 20;
-                const from = starting
-                    ? { x: ARENA_WIDTH / 2 + (i === 0 ? -300 : 300), y: ARENA_HEIGHT / 2 }
-                    : { x: p.x, y: p.y };
+                const from = starting ? this._spawnPoint(i) : { x: p.x, y: p.y };
                 const pos = arena.nearestFreePosition(from.x, from.y, r);
                 p.x = pos.x; p.y = pos.y;
             });
@@ -580,6 +710,8 @@ class GameSession {
                 }
             }
             this._layoutReady = true; // _isAwaitingLayout releases the hold
+            // Story: the wave's chapter takes effect now that its arena is here.
+            if (this._isStoryMode) this._storyWavePending = true;
         } finally {
             _setActiveRunState(_prevRunState);
         }
@@ -605,20 +737,75 @@ class GameSession {
         }
         this._runState.p1RevivalMarker = null;
         this._runState.p2RevivalMarker = null;
-        this._events.push({ type: 'wave_start', wave: this.wave });
+        // Singleplayer's advanceWave stops the weather (game.js _stopWeather).
+        const rs = this._runState;
+        rs.currentObjective = null;
+        if (this._isStoryMode) rs.currentStoryEvent = null; // the next chapter sets it
+        rs.currentWeather = null; rs.weatherTimer = 3600; rs.weatherDuration = 0;
+        rs.currentWeather2 = null; rs.weatherDuration2 = 0;
+        rs.weatherParticles = []; rs._weatherBolts = []; rs._weatherFlash = 0;
+        this._events.push({ type: 'wave_start', wave: this.wave, biomes: this.sharedBiomes() });
         if (this.arenaLayout && this._awaitLayoutMs > 0) {
             this._layoutReady = false;
             this._awaitingLayoutUntil = performance.now() + this._awaitLayoutMs;
         }
     }
 
+    /**
+     * The host's story chapter for `wave` (STORY_EVENT). Its gameplay part
+     * applies when that wave's arena is installed. Returns false if ignored.
+     */
+    setStoryEvent(wave, raw) {
+        if (!this._isStoryMode || !Number.isInteger(wave) || wave < this.wave) return false;
+        const event = _sanitizeStoryEvent(raw);
+        if (!event) return false;
+        this._storyEvent = { wave, event };
+        return true;
+    }
+
+    // Story wave set-up — the server half of singleplayer's
+    // resumeWaveGeneration: the chapter's spawn overrides, a story boss
+    // (BOSS_FIGHT, Makuta at 50 / 100) with its intro, an objective wave.
+    // Runs inside the tick with this session's globals bound.
+    _beginStoryWave() {
+        this._storyWavePending = false;
+        const rs = this._runState;
+        const ev = (this._storyEvent && this._storyEvent.wave === this.wave) ? this._storyEvent.event : null;
+        rs.currentStoryEvent = ev;
+        rs.currentObjective = null;
+        let bossId = (ev && ev.type === 'BOSS_FIGHT' && ev.data.bossId) || null;
+        if (!bossId && _isStoryBossWave(this.wave, this._world.saveData)) bossId = 'MAKUTA';
+        if (bossId) {
+            rs.bossActive = true;
+            global.enemies.unshift(new global.Boss(bossId));
+            // The clients play the intro; the sim holds for it as theirs does
+            // (loader _renderBossIntroCinematic).
+            rs.bossIntroTimer = global.GAMEPLAY.BOSS_INTRO_FRAMES;
+            this._events.push({ type: 'boss_intro', boss: bossId });
+        }
+        if (ev && ev.type === 'OBJECTIVE_WAVE') _startObjective();
+        // The True Golden Mask appears mid-arena (singleplayer: resumeWaveGeneration)
+        if (this.wave === 90) _spawnHolyMask(rs, ARENA_WIDTH / 2, ARENA_HEIGHT / 2, true);
+    }
+
+    // DLC biomes the online wave pool may use: those both clients have (and
+    // the server simulates), in the canonical order both clients build from.
+    sharedBiomes() {
+        const [a, b] = this._clientBiomes;
+        return DLC_BIOMES.filter(id => SERVER_BIOMES.includes(id) && a && a.has(id) && b && b.has(id));
+    }
+
     // Singleplayer gameOver(), server half: both players stayed down through
     // the death cinematic (the shared update code calls gameOver()). Tell the
     // clients via the snapshot that is sent at the end of this tick, then stop.
+    // Versus: the shared code calls gameOver from P1's (the host's) side —
+    // victory = host won. Each client reads its own result from `winner`.
     _onGameOver(isVictory) {
         if (this._ended) return;
         this._ended = true;
-        this._events.push({ type: 'game_over', victory: !!isVictory });
+        const ev = { type: 'game_over', victory: !!isVictory };
+        if (this._isVersusMode) ev.winner = isVictory ? 'host' : 'guest';
+        this._events.push(ev);
     }
 
     // Start / wave-start hold: wait for the host's arena (and, at match start
@@ -635,6 +822,13 @@ class GameSession {
     }
 
     _tick() {
+        // A queued level-up nobody was asked about yet (normally offered at the
+        // end of the tick that queued it) — offer it now rather than stall.
+        if (this.isLevelingUp && this._levelUpFor < 0 && !this._ended) {
+            const _prev = _setActiveRunState(this._runState);
+            try { if (!this._offerNextLevelUp()) this.isLevelingUp = false; }
+            finally { _setActiveRunState(_prev); }
+        }
         if (this._ended || this.isLevelingUp || this.paused || this._isAwaitingLayout()) return;
 
         if (this._inputTimeoutMs > 0) {
@@ -673,11 +867,16 @@ class GameSession {
             // + next tick observe the authoritative count.
             this._syncWorld();
             const bridge = require('./RendererBridge');
+            if (this._storyWavePending) {
+                bridge.syncWorldToGlobals(this);
+                try { this._beginStoryWave(); } finally { bridge.syncGlobalsToWorld(this); }
+            }
             const SUB_STEPS = this._subSteps();
             const _waveBefore = this.wave;
             const _bossDeathBefore = this._runState.bossDeathTimer || 0;
             for (let s = 0; s < SUB_STEPS; s++) {
                 bridge.runUpdate(this, 1000 / 60);
+                if (this.isLevelingUp) break; // a level-up pauses the game here
             }
             // Read back everything the shared update code may change. Only
             // `frame` used to be read back, so the next tick's `_syncWorld`
@@ -710,6 +909,9 @@ class GameSession {
                 if (this._onGameOverCb) this._onGameOverCb();
                 return;
             }
+            // After the snapshot, so the client already has the state the
+            // level-up happened in when its level-up screen opens.
+            if (this._levelUpFor < 0) this._offerNextLevelUp();
             this._adjustTickRate();
             if (this._onTickStats) {
                 const elapsedSec = Math.round((Date.now() - this._startedAt) / 1000);
@@ -783,84 +985,86 @@ class GameSession {
         w.enemies      = this.enemies;
         w.projectiles  = this.projectiles;
         w.isVersusMode = this._isVersusMode;
-        w.isCoopMode   = !this._isVersusMode;
+        // Two humans on one field: local 2P versus runs with co-op on too
+        // (game.js startGame), which is what enables its PvP hits. With it
+        // off the server never applied a single PvP hit.
+        w.isCoopMode   = true;
     }
 
-    // ─── XP & level-up ───────────────────────────────────────────────────────────
+    // ─── Level-up ────────────────────────────────────────────────────────────────
+    // Kills run singleplayer's Player.gainXp → levelUp(), which rolls the
+    // options and hands them to the level-up screen. On the server that screen
+    // is the player's client (RendererBridge routes `levelUpUI` here). As in
+    // singleplayer the game pauses until the pick: the rest of the tick's
+    // sub-steps are skipped and ticks hold while `isLevelingUp`. Several
+    // level-ups (both players, or one player twice) are offered one by one.
+    // (Before, `levelUpUI` was a null stub: the level went up, but nobody was
+    // ever asked, nothing paused and no upgrade was ever applied.)
 
-    _giveXP(player, playerIdx, amount) {
-        player.xp += amount;
-        if (player.xp < player.maxXp) return;
-
-        // Drain enough levels to consume queued XP — avoids losing a level on big XP gains
-        let levelsGained = 0;
-        while (player.xp >= player.maxXp) {
-            player.xp -= player.maxXp;
-            player.level++;
-            player.maxXp = Math.round(player.maxXp * 1.2);
-            levelsGained++;
-            if (levelsGained > 20) break; // Safety
-        }
-
+    _queueLevelUp(player, options) {
+        // levelUp() set the bare `isLevelingUp` global; the session owns that
+        // state here. Left set, a second level-up in the same frame would take
+        // levelUp()'s local co-op "queue P2 behind P1's screen" path, which
+        // only exists in game.js — and be lost.
+        global.isLevelingUp = false;
+        const idx = this.players.indexOf(player);
+        if (idx < 0) return;
+        this._levelUpQueue.push({ idx, options: Array.isArray(options) ? options : [] });
         this.isLevelingUp = true;
-        this._levelUpFor  = playerIdx;
+    }
 
-        const pool    = [...(this._world.HERO_LOGIC[player.type]?.upgradePool || UPGRADE_POOL)];
-        const options = [];
-        while (options.length < 3 && pool.length > 0) {
-            const i = Math.floor(Math.random() * pool.length);
-            options.push(pool.splice(i, 1)[0]);
+    // Offer the next queued level-up to its player (partner waits). Runs with
+    // this session's runState active. Returns false if none is queued.
+    _offerNextLevelUp() {
+        const next = this._levelUpQueue.shift();
+        if (!next) return false;
+        const player = this.players[next.idx];
+        // Hero-specific option lists (Time: Fast Forward / Reverse), built the
+        // way the level-up screen builds them — the pick is checked against these.
+        let options = next.options;
+        const hl = this._world.HERO_LOGIC[player.type];
+        if (hl && typeof hl.getCustomLevelUpOptions === 'function') {
+            const custom = hl.getCustomLevelUpOptions(player, options);
+            if (custom !== undefined) options = custom;
         }
         player._levelUpOptions = options;
-
-        const hostConn  = this._lobby.host;
-        const guestConn = this._lobby.guest;
-
-        if (playerIdx === 0) {
-            if (hostConn)  this._send(hostConn.ws,  { type: 'LEVEL_UP', player: 'host', options });
-            if (guestConn) this._send(guestConn.ws, { type: 'PARTNER_LEVELING' });
-        } else {
-            if (guestConn) this._send(guestConn.ws, { type: 'LEVEL_UP', player: 'guest', options });
-            if (hostConn)  this._send(hostConn.ws,  { type: 'PARTNER_LEVELING' });
-        }
+        this._levelUpFor  = next.idx;
+        this.isLevelingUp = true;
+        this._sendLevelUpPrompt();
+        return true;
     }
 
-    _applyUpgrade(player, upgrade) {
-        // Delegate to DLC hero applyUpgrade hook if available
-        const hl = this._world.HERO_LOGIC[player.type];
-        if (hl && typeof hl.applyUpgrade === 'function') {
-            hl.applyUpgrade(player, upgrade.id, this._world);
-            return;
+    // LEVEL_UP to the choosing player, PARTNER_LEVELING to the other
+    // (only to `onlyRole` when given).
+    _sendLevelUpPrompt(onlyRole = null) {
+        const idx = this._levelUpFor;
+        if (idx < 0) return;
+        const role = idx === 0 ? 'host' : 'guest', otherRole = idx === 0 ? 'guest' : 'host';
+        const chooser = this._lobby[role], other = this._lobby[otherRole];
+        if (chooser && (!onlyRole || onlyRole === role)) {
+            this._send(chooser.ws, { type: 'LEVEL_UP', player: role, options: this.players[idx]._levelUpOptions });
         }
+        if (other && (!onlyRole || onlyRole === otherRole)) this._send(other.ws, { type: 'PARTNER_LEVELING' });
+    }
 
-        // Generic upgrade application for non-DLC heroes
-        switch (upgrade.id) {
-            case 'health':
-                player.maxHp += 25;
-                player.hp     = Math.min(player.maxHp, player.hp + player.maxHp * 0.2);
-                break;
-            case 'radius':
-                player.meleeRadius = (player.meleeRadius || 80) * 1.25;
-                break;
-            case 'projectile':
-                player.extraProjectiles = (player.extraProjectiles || 0) + 1;
-                break;
-            case 'speed':
-                player.speedMultiplier = (player.speedMultiplier || 1) * 1.1;
-                break;
-            case 'cooldown':
-                player.cooldownMultiplier = (player.cooldownMultiplier || 1) * 0.9;
-                break;
-            case 'defense':
-                player.damageReduction = Math.min(0.8, (player.damageReduction || 0) + 0.05);
-                break;
-            case 'damage':
-                player.damageMultiplier = (player.damageMultiplier || 1) * 1.1;
-                break;
-            case 'crit':
-                player.critChance     = Math.min(0.75, (player.critChance || 0.05) + 0.05);
-                player.critMultiplier = (player.critMultiplier || 1.5) + 0.2;
-                break;
+    _applyUpgrade(player, type) {
+        const w = this._world;
+        // The picking client applies the same pick to its own predicted hero
+        // and shows its notification / burst; a server copy would reach that
+        // client a second time as a relayed event.
+        const notify = w.showNotification, explode = w.createExplosion;
+        const prevSave = global.saveData, prevWorldSave = w.saveData;
+        w.showNotification = () => {};
+        w.createExplosion  = () => {};
+        global._world = w;
+        if (player._save) { global.saveData = player._save; w.saveData = player._save; }
+        try {
+            _applyUpgradeShared(player, type, { heroLogic: w.HERO_LOGIC[player.type], world: w });
+        } finally {
+            w.showNotification = notify;
+            w.createExplosion  = explode;
+            global.saveData = prevSave;
+            w.saveData = prevWorldSave;
         }
     }
 
@@ -877,10 +1081,17 @@ class GameSession {
             xp:           Math.round(pl.xp),
             maxXp:        pl.maxXp,
             gold:         Math.round(pl.gold),
+            ...(pl.combo > 0 ? { combo: pl.combo } : {}),
             aimAngle:     Math.round((pl.aimAngle || 0) * 100) / 100,
             isInvincible: !!pl.isInvincible,
             mx:           Math.round((pl.moveInput?.x || 0) * 100) / 100,
             my:           Math.round((pl.moveInput?.y || 0) * 100) / 100,
+            // Power-up buffs (frames left: speed, multi, autoaim) — omitted
+            // when none. The owner's client predicts its pickups and is
+            // corrected from this.
+            ...(pl.buffs && (pl.buffs.speed > 0 || pl.buffs.multi > 0 || pl.buffs.autoaim > 0)
+                ? { bf: [Math.max(0, pl.buffs.speed | 0), Math.max(0, pl.buffs.multi | 0), Math.max(0, pl.buffs.autoaim | 0)] }
+                : {}),
             objective:    pl.currentObjective ? {
                 type:      pl.currentObjective.type,
                 text:      pl.currentObjective.text,
@@ -903,6 +1114,27 @@ class GameSession {
 
         const events = this._events.splice(0);
         const t = Date.now();
+        // World state both clients share. Weather (server-rolled, one for
+        // both players): { id, left } frames left; omitted when clear.
+        // `weather2` = the wave-30+ stacked one.
+        const rs = this._runState, shared = {};
+        // Story objective (runs here; the clients draw it).
+        if (rs.currentObjective) shared.obj = _objectiveView(rs.currentObjective);
+        // The True Golden Mask lying in the arena: [x, y]
+        for (let i = 0; i < rs.holyMaskCount; i++) {
+            if (rs.holyMaskIsTrueGolden[i]) { shared.gm = [Math.round(rs.holyMaskX[i]), Math.round(rs.holyMaskY[i])]; break; }
+        }
+        if (rs.currentWeather)  shared.weather  = { id: rs.currentWeather.id,  left: Math.round(rs.weatherDuration) };
+        if (rs.currentWeather2) shared.weather2 = { id: rs.currentWeather2.id, left: Math.round(rs.weatherDuration2) };
+        const biomeNet = this._biomeNetState();
+        // Power-ups (server-spawned, picked up here): [[id, x, y, type], …];
+        // omitted when there are none.
+        if (rs.powerUpCount > 0) {
+            shared.pu = [];
+            for (let i = 0; i < rs.powerUpCount; i++) {
+                shared.pu.push([rs.powerUpId[i], Math.round(rs.powerUpX[i]), Math.round(rs.powerUpY[i]), rs.powerUpType[i]]);
+            }
+        }
         const { host, guest } = this._lobby;
 
         // Delta state is per connection: a socket that joined late (rejoin) or
@@ -932,6 +1164,24 @@ class GameSession {
             // Safe because deltas are relative to this client's own last send.
             if ((ws.bufferedAmount || 0) > SNAPSHOT_BACKPRESSURE_BYTES) continue;
 
+            // Gold drops (server-spawned, both players collect): the whole set
+            // [[id, x, y, value], …], only when it changed since this client's
+            // last snapshot.
+            const perClient = {};
+            if (st.goldVer !== rs.goldDropVersion) {
+                st.goldVer = rs.goldDropVersion;
+                perClient.gd = [];
+                for (let i = 0; i < rs.goldDropCount; i++) {
+                    perClient.gd.push([rs.goldDropId[i], Math.round(rs.goldDropX[i]), Math.round(rs.goldDropY[i]), rs.goldDropValue[i]]);
+                }
+            }
+            // DLC biome state the clients mirror (gravity / wind direction,
+            // falling rocks, floor tiles, …): on every change, plus a refresh
+            // every 30 snapshots for the timers both sides count down.
+            if (biomeNet && (st.bsRev !== biomeNet.rev || st.bsType !== biomeNet.type || ++st.sinceBs >= 30)) {
+                perClient.bs = [biomeNet.type, biomeNet.state];
+                st.bsRev = biomeNet.rev; st.bsType = biomeNet.type; st.sinceBs = 0;
+            }
             const msg = {
                 type:         'SNAPSHOT',
                 t,
@@ -940,6 +1190,8 @@ class GameSession {
                 bossActive:   this.bossActive,
                 killed:       this._runState.enemiesKilledInWave || 0,
                 isLevelingUp: this.isLevelingUp,
+                ...shared,
+                ...perClient,
                 events:       st.events,
                 p1:           roundP(viewP1),
                 p2:           roundP(viewP2),
@@ -948,6 +1200,15 @@ class GameSession {
             st.events = [];
             this._emitSnapshot(ws, msg);
         }
+    }
+
+    // The current biome's net state (if it has one) with its revision.
+    _biomeNetState() {
+        const type = this._world.arena && this._world.arena.biomeType;
+        const bl = type && this._biomes[type];
+        if (!bl || typeof bl.netState !== 'function') return null;
+        try { return { type, rev: bl.netRev || 0, state: bl.netState(this._world.arena) }; }
+        catch (err) { return null; }
     }
 
     _clientSnapState(ws) {
@@ -959,6 +1220,10 @@ class GameSession {
                 lastEnemyHp:   new Map(), // id → last hp shipped
                 knownProjIds:  new Set(),
                 lastProjXY:    new Map(),
+                goldVer:       -1, // gold-drop set version this client has
+                bsRev:         -1, // biome net-state revision this client has
+                bsType:        null,
+                sinceBs:       0,
                 sinceKeyframe: 0,
                 events:        [],
             };
@@ -1018,7 +1283,9 @@ class GameSession {
                 entry.color   = e.color;
                 entry.sides   = e.sides;
                 entry.radius  = e.radius;
+                if (e.isBoss) entry.boss = e.type; // client builds a Boss ghost (art, music, HP bar)
             }
+            if (e.isBoss) Object.assign(entry, _bossVisuals(e));
             return entry;
         });
         st.knownEnemyIds = nextKnownEnemyIds;

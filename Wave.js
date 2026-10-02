@@ -9,9 +9,9 @@
 //   enemiesNeededForWave(wave)         — count required to advance
 //   isWaveCleared(wave, killed)        — boolean check
 //   getDLCBiomePool()                  — DLC-registered biome ids
-//   buildBiomePool(isStoryRun, hero)   — full type[] for biome roll
+//   buildBiomePool(isStoryRun, hero, dlc) — full type[] for biome roll
 //   pickRandomBiome(types)             — uniform random pick
-//   pickSeededBiome(wave, seed)        — deterministic for online co-op
+//   pickSeededBiome(wave, seed, types) — deterministic for online co-op
 //   isStoryBossWave(wave, saveData, modes) — MAKUTA at 50/100
 //
 // Wave.js emits no events itself; advanceWave() in game.js stays the single
@@ -20,7 +20,8 @@
 import { eventBus } from './Managers/EventBus.js';
 
 const BASE_BIOMES = ['fire', 'water', 'ice', 'plant', 'metal'];
-const DLC_BIOMES  = [
+// Canonical order — online clients must build the same pool from it.
+export const DLC_BIOMES  = [
     'earth', 'lightning', 'air', 'gravity', 'void', 'spirit',
     'chance', 'time', 'love', 'psycho', 'mirror', 'smoke',
     'light', 'thorn', 'dream',
@@ -45,10 +46,12 @@ export function getDLCBiomePool() {
     return DLC_BIOMES.filter(b => !!reg[b]);
 }
 
-export function buildBiomePool(isStoryRun, heroType) {
+// `dlcPool` defaults to this client's registered DLC biomes; online it is the
+// set both players have (the server sends it).
+export function buildBiomePool(isStoryRun, heroType, dlcPool = getDLCBiomePool()) {
     if (heroType === 'black') return ['black'];
     if (isStoryRun) return BASE_BIOMES.slice();
-    return BASE_BIOMES.concat(getDLCBiomePool());
+    return BASE_BIOMES.concat(dlcPool);
 }
 
 export function pickRandomBiome(types) {
@@ -57,11 +60,14 @@ export function pickRandomBiome(types) {
 }
 
 // Deterministic biome pick for online co-op. Both clients derive the same
-// result from a shared seed + the wave number with no client-side randomness.
-const ONLINE_BIOMES = ['fire', 'water', 'ice', 'plant', 'metal', 'rock', 'cloud', 'chaos'];
-export function pickSeededBiome(wave, seed) {
+// result from a shared seed + the wave number + the same pool (singleplayer's
+// buildBiomePool over the DLC biomes both players have) with no client-side
+// randomness. Online used a fixed 8 (incl. an unregistered 'chaos'), narrower
+// than singleplayer's base + DLC pool.
+export function pickSeededBiome(wave, seed, types = BASE_BIOMES) {
+    if (!types || types.length === 0) return 'fire';
     const h = ((wave * 2654435761) ^ (seed * 40503)) >>> 0;
-    return ONLINE_BIOMES[h % ONLINE_BIOMES.length];
+    return types[h % types.length];
 }
 
 export function isStoryBossWave(wave, saveData, modes = {}) {

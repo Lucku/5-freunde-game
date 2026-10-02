@@ -179,6 +179,18 @@ class ReliquaryBiome {
         };
     }
 
+    // The light shafts (made in generate) for the server, which never runs
+    // generate — the host uploads them with its arena.
+    layoutState() {
+        return { s: this.shafts.map(s => [Math.round(s.x), Math.round(s.y), s.radius]) };
+    }
+
+    applyLayoutState(st) {
+        if (!st || !Array.isArray(st.s)) return;
+        this.shafts = st.s.filter(Array.isArray).slice(0, 10)
+            .map(e => ({ x: Number(e[0]) || 0, y: Number(e[1]) || 0, radius: Number(e[2]) || 120, brightness: 0.5, height: 600 }));
+    }
+
     update(arena, player, enemies) {
         this.t++;
         this.pulseTimer++;

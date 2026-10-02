@@ -10,24 +10,24 @@
   },
   "fingerprint": {
     "wave": 1,
-    "score": 40,
+    "score": 70,
     "frame": 901,
     "enemies": 10,
     "projectiles": 12,
     "host": {
       "hp": 50,
-      "x": 2772.84,
-      "y": 952.14,
+      "x": 2584.39,
+      "y": 2306.87,
       "level": 1,
-      "xp": 0,
+      "xp": 40,
       "dead": false
     },
     "guest": {
       "hp": 70,
-      "x": 2724.49,
-      "y": 987.28,
-      "level": 1,
-      "xp": 80,
+      "x": 2735.5,
+      "y": 2415.73,
+      "level": 2,
+      "xp": 0,
       "dead": false
     }
   }

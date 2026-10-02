@@ -1,3 +1,5 @@
+import { runState } from '../../RunState.js';
+
 class PoisonBiome {
     constructor() {
         this.name = "Poison";
@@ -13,7 +15,6 @@ class PoisonBiome {
 
     update(arena, player, enemies) {
         const cam = arena.camera;
-        const frame = window.frame || 0;
 
         // --- Spawn rising gas clouds from random ground positions within view ---
         if (Math.random() < 0.35) {
@@ -61,14 +62,15 @@ class PoisonBiome {
             if (this.bubbles[i].life <= 0) this.bubbles.splice(i, 1);
         }
 
-        // --- Flask spawning ---
-        if (Math.random() < 0.002) {
+        // --- Flask spawning --- (online: the server's, via net state)
+        if (!runState.isOnlineMode && Math.random() < 0.002) {
             const flasks = arena.obstacles.filter(o => o instanceof PoisonFlask);
             if (flasks.length < 3) {
                 const x = Math.random() * (arena.width - 100) + 50;
                 const y = Math.random() * (arena.height - 100) + 50;
                 if (!arena.checkCollision(x, y, 30)) {
                     arena.obstacles.push(new PoisonFlask(x, y));
+                    this.netRev = (this.netRev || 0) + 1;
                 }
             }
         }
@@ -78,9 +80,23 @@ class PoisonBiome {
             const obs = arena.obstacles[i];
             if (obs instanceof PoisonFlask) {
                 obs.update();
-                if (obs.checkCollision(player) || obs.life <= 0) {
-                    arena.obstacles.splice(i, 1);
-                }
+                if (obs.life <= 0) arena.obstacles.splice(i, 1);
+            }
+        }
+
+        this.applyToPlayer(arena, player);
+    }
+
+    // Flask pickup + sludge on one player — P1 from update; co-op P2 / the
+    // online guest through Arena.applyToPlayer.
+    applyToPlayer(arena, player) {
+        if (!player) return;
+        const frame = window.frame || 0;
+        for (let i = arena.obstacles.length - 1; i >= 0; i--) {
+            const obs = arena.obstacles[i];
+            if (obs instanceof PoisonFlask && obs.checkCollision(player)) {
+                arena.obstacles.splice(i, 1);
+                this.netRev = (this.netRev || 0) + 1;
             }
         }
 
@@ -93,12 +109,35 @@ class PoisonBiome {
                         if (player.type === 'poison') {
                             if (frame % 60 === 0) player.hp = Math.min(player.maxHp, player.hp + 1);
                         } else {
-                            player.speedMultiplier = (player.speedMultiplier || 1) * 0.7;
+                            // 30 % slower while inside. Was `speedMultiplier *= 0.7`
+                            // every frame: a permanent slow that compounded until
+                            // the hero could barely move, long after leaving.
+                            player.biomeSpeedMod = Math.min(player.biomeSpeedMod ?? 1, 0.7);
                             if (frame % 60 === 0) player.hp -= 1;
                         }
                     }
                 }
             });
+        }
+    }
+
+    // Online: the server's flasks for the clients.
+    netState(arena) {
+        const COLORS = ['RED', 'BLUE', 'GREEN'];
+        return { f: arena.obstacles.filter(o => o instanceof PoisonFlask)
+            .map(o => [Math.round(o.x), Math.round(o.y), COLORS.indexOf(o.type), o.life]) };
+    }
+
+    applyNetState(s, arena) {
+        if (!s || !Array.isArray(s.f) || !arena) return;
+        const COLORS = ['RED', 'BLUE', 'GREEN'];
+        arena.obstacles = arena.obstacles.filter(o => !(o instanceof PoisonFlask));
+        for (const e of s.f.slice(0, 10)) {
+            if (!Array.isArray(e)) continue;
+            const f = new PoisonFlask(Number(e[0]) || 0, Number(e[1]) || 0);
+            if (COLORS[e[2]]) f.type = COLORS[e[2]];
+            f.life = Number(e[3]) || 0;
+            arena.obstacles.push(f);
         }
     }
 

@@ -10,7 +10,7 @@ import { FloatingText } from './Entities/FloatingText.js';
 import { Particle } from './Entities/Particle.js';
 import { Projectile } from './Entities/Projectile.js';
 import { shadeColor } from './Utils.js';
-import { runState } from './RunState.js';
+import { runState, hazardTargets } from './RunState.js';
 import {
     allocEnemySlot, copyToEnemySlot, registerEnemyPrototype, acquireEnemySlot, MAX_ENEMIES,
 } from './core/systems/enemySystem.js';
@@ -131,7 +131,7 @@ class Enemy {
             }
 
             // Apply Card Nerfs
-            if (this.eliteType.id === 'AURA_SPEED' && getCollectionBonuses('ELITE_AURA_SPEED').damageMult > 1) {
+            if (this.eliteType.id === 'AURA_SPEED' && getCollectionBonuses('ELITE_AURA_SPEED', runState.player).damageMult > 1) {
                 this.hp *= 0.9; // 10% less HP
             }
         } else {
@@ -320,15 +320,16 @@ class Enemy {
                 // Explode
                 this.hp = 0;
                 createExplosion(this.x, this.y, '#e74c3c');
-                // Explosion damage area
-                if (Math.hypot(player.x - this.x, player.y - this.y) < 100) {
-                    if (!player.isInvincible) {
-                        player.hp -= 40 * (1 - player.damageReduction);
-                        if (typeof window.recordPlayerDamage === 'function') window.recordPlayerDamage(player, 'BOMBER', 40);
-                        floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, "40", "#e74c3c", 20));
+                // Explosion damage area — every player in it (was P1 only)
+                for (const _bp of hazardTargets()) {
+                    if (Math.hypot(_bp.x - this.x, _bp.y - this.y) >= 100) continue;
+                    if (!_bp.isInvincible) {
+                        _bp.hp -= 40 * (1 - _bp.damageReduction);
+                        if (typeof window.recordPlayerDamage === 'function') window.recordPlayerDamage(_bp, 'BOMBER', 40);
+                        floatingTexts.push(FloatingText.acquire(_bp.x, _bp.y - 20, "40", "#e74c3c", 20));
                     }
-                    // Track hits for Untouchable objective
-                    if (currentObjective && currentObjective.type === 'UNTOUCHABLE') {
+                    // Track hits for Untouchable objective (P1's objective)
+                    if (_bp === player && currentObjective && currentObjective.type === 'UNTOUCHABLE') {
                         currentObjective.current++;
                         showNotification(`HIT! ${currentObjective.current}/${currentObjective.target}`);
                     }

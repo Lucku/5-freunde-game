@@ -1,4 +1,5 @@
 // Explicit renderer imports (was: window-shim lookup).
+import { runState } from '../../RunState.js';
 
 // Madness Biome Logic
 // Associated with Chance Hero
@@ -49,8 +50,11 @@ class MadnessBiome {
 
         // Drop Logic
         this.dropTimer++;
+        // Online the server picks the tiles (net state brings them here).
+        if (this.dropTimer > 60 && runState.isOnlineMode) this.dropTimer = 0;
         if (this.dropTimer > 60) { // Check every second
             this.dropTimer = 0;
+            this.netRev = (this.netRev || 0) + 1;
 
             // Pick random tile to drop
             // Chance increases with difficulty/time? 
@@ -135,38 +139,7 @@ class MadnessBiome {
         };
 
         // Check Player
-        if (player) {
-            // Check Safe Zones first
-            let safe = false;
-            // Access arena from window or passed context (we rely on window.arena here)
-            if (_arena && _arena.biomeZones) {
-                for (const z of _arena.biomeZones) {
-                    if (z.type === 'SAFE_ZONE' &&
-                        player.x > z.x && player.x < z.x + z.w &&
-                        player.y > z.y && player.y < z.y + z.h) {
-                        safe = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!safe) {
-                const t = getTile(player.x, player.y);
-                if (t && t.state === 'VOID') {
-                    if (!player.invincibleTimer && !player.isFlying) {
-                        // Nerf: Instead of instant death (9999), take heavy damage
-                        // 60 dmg is significant (approx 25-30% HP) but survivable
-                        const voidDmg = 60;
-
-                        player.takeDamage(voidDmg);
-                        player.invincibleTimer = 90; // 1.5s invincibility to escape
-
-                        if (typeof showNotification === 'function') showNotification("VOID DAMAGE!", "#ff00ff");
-                        createExplosion(player.x, player.y, "#ff00ff");
-                    }
-                }
-            }
-        }
+        if (player) this.applyToPlayer(_arena, player);
 
         // Check Enemies
         if (enemies) {
@@ -189,13 +162,67 @@ class MadnessBiome {
 
                 const t = getTile(e.x, e.y);
                 if (t && t.state === 'VOID') {
-                    if (!e.isFlying && !e.isBoss) {
+                    if (!e.isFlying && !e.isBoss && !e._ghost) { // online ghosts: the server's call
                         e.hp = 0;
                         createExplosion(e.x, e.y, "#ff00ff");
                     }
                 }
             }
         }
+    }
+
+    // A player standing on a void tile (outside safe zones) takes heavy
+    // damage. P1 from update; co-op P2 / the online guest through
+    // Arena.applyToPlayer.
+    applyToPlayer(arena, player) {
+        if (!player || !this.initialized || !this.tiles.length || !arena) return;
+        if (arena.biomeZones) {
+            for (const z of arena.biomeZones) {
+                if (z.type === 'SAFE_ZONE' &&
+                    player.x > z.x && player.x < z.x + z.w &&
+                    player.y > z.y && player.y < z.y + z.h) return;
+            }
+        }
+        const rows = Math.ceil(arena.height / this.tileSize);
+        const c = Math.floor(player.x / this.tileSize), r = Math.floor(player.y / this.tileSize);
+        const t = this.tiles[c * rows + r];
+        if (!t || t.c !== c || t.r !== r || t.state !== 'VOID') return;
+        if (!player.invincibleTimer && !player.isFlying) {
+            // Nerf: Instead of instant death (9999), take heavy damage
+            // 60 dmg is significant (approx 25-30% HP) but survivable
+            const voidDmg = 60;
+
+            player.takeDamage(voidDmg);
+            player.invincibleTimer = 90; // 1.5s invincibility to escape
+
+            if (typeof showNotification === 'function') showNotification("VOID DAMAGE!", "#ff00ff");
+            createExplosion(player.x, player.y, "#ff00ff");
+        }
+    }
+
+    // Online: the server's falling floor (tiles not STABLE) for the clients.
+    netState() {
+        const STATE = { STABLE: 0, WARNING: 1, FALLING: 2, VOID: 3 };
+        const t = [];
+        this.tiles.forEach((tile, i) => {
+            if (tile.state !== 'STABLE') t.push([i, STATE[tile.state], tile.timer, Math.round(tile.offsetY)]);
+        });
+        return { t, dt: this.dropTimer };
+    }
+
+    applyNetState(s, arena) {
+        if (!s || !Array.isArray(s.t) || !arena) return;
+        if (!this.initialized || !this.tiles.length) this.initTiles(arena);
+        const NAMES = ['STABLE', 'WARNING', 'FALLING', 'VOID'];
+        for (const tile of this.tiles) { tile.state = 'STABLE'; tile.timer = 0; tile.offsetY = 0; }
+        for (const e of s.t) {
+            const tile = Array.isArray(e) && this.tiles[e[0]];
+            if (!tile || !NAMES[e[1]]) continue;
+            tile.state = NAMES[e[1]];
+            tile.timer = Number(e[2]) || 0;
+            tile.offsetY = Number(e[3]) || 0;
+        }
+        if (Number.isFinite(s.dt)) this.dropTimer = s.dt;
     }
 
     // Removed per-tile collision method

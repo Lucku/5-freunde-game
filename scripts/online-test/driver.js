@@ -93,8 +93,15 @@
             const rs = window.runState;
             if (!rs || !rs.gameRunning) return;
             const enemies = window.enemies ? window.enemies.length : '?';
-            const me = rs.player ? ` lvl=${rs.player.level} xp=${Math.round(rs.player.xp)}` : '';
-            log(`wave=${rs.wave} kills=${rs.enemiesKilledInWave} enemies=${enemies} me=${pos(rs.player)}${me} partner=${pos(rs.player2)} rtt=${Math.round(nm().latencyMs)}ms`);
+            const p = rs.player;
+            const me = p ? ` lvl=${p.level} xp=${Math.round(p.xp)} gold=${p.gold} combo=${p.combo || 0}` +
+                (p.buffs && (p.buffs.speed || p.buffs.multi || p.buffs.autoaim) ? ` buffs=${p.buffs.speed}/${p.buffs.multi}/${p.buffs.autoaim}` : '') : '';
+            const world = ` weather=${rs.currentWeather ? rs.currentWeather.id : '-'} pu=${rs.powerUpCount} gd=${rs.goldDropCount}` +
+                ` runKills=${rs.currentRunStats ? rs.currentRunStats.enemiesKilled : '?'}` +
+                (rs.currentStoryEvent ? ` story=${rs.currentStoryEvent.id}${rs.isStoryOpen ? '(open)' : ''}` : '') +
+                (rs.currentObjective ? ` obj=${rs.currentObjective.type}:${rs.currentObjective.state}` : '') +
+                ` biome=${rs.currentBiomeType}`;
+            log(`wave=${rs.wave} kills=${rs.enemiesKilledInWave} enemies=${enemies} me=${pos(rs.player)}${me} partner=${pos(rs.player2)}${world} rtt=${Math.round(nm().latencyMs)}ms`);
         }, 2000);
     }
 

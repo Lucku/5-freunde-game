@@ -198,18 +198,24 @@ class WindBiome {
             });
         }
 
-        // Check Updrafts
-        if (player && arena.biomeZones) {
-            for (const zone of arena.biomeZones) {
-                if (zone.type === 'UPDRAFT') {
-                    if (player.x > zone.x && player.x < zone.x + zone.w &&
-                        player.y > zone.y && player.y < zone.y + zone.h) {
+        this.applyToPlayer(arena, player);
+    }
 
-                        // Effect: Speed + Flow
-                        player.speedMultiplier = Math.max(player.speedMultiplier, 1.5); // Boost
-                        if (player.type === 'air' && player.flow < player.maxFlow) {
-                            player.flow += 0.5;
-                        }
+    // Updrafts on one player — P1 from update; co-op P2 / the online guest
+    // through Arena.applyToPlayer.
+    applyToPlayer(arena, player) {
+        if (!player || !arena.biomeZones) return;
+        for (const zone of arena.biomeZones) {
+            if (zone.type === 'UPDRAFT') {
+                if (player.x > zone.x && player.x < zone.x + zone.w &&
+                    player.y > zone.y && player.y < zone.y + zone.h) {
+
+                    // Effect: Speed + Flow. At least 1.5× speed while inside —
+                    // it raised `speedMultiplier` itself, which stayed for the
+                    // rest of the run after a single updraft.
+                    player.biomeSpeedMod = Math.max(player.biomeSpeedMod ?? 1, 1.5 / Math.max(0.01, player.speedMultiplier));
+                    if (player.type === 'air' && player.flow < player.maxFlow) {
+                        player.flow += 0.5;
                     }
                 }
             }

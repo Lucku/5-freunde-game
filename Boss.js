@@ -3,12 +3,16 @@ import { Enemy } from './Enemy.js';
 import { FloatingText } from './Entities/FloatingText.js';
 import { Projectile } from './Entities/Projectile.js';
 import { shadeColor } from './Utils.js';
-import { runState } from './RunState.js';
+import { runState, hazardTargets } from './RunState.js';
 
 
 class Boss {
     constructor(type) {
         this.isBoss = true; // Flag for special interactions (e.g. Void Biome)
+        // Same id space as enemies: online snapshots, melee hit lists and
+        // pierce lists name entities by it (bosses had none — twin bosses
+        // collided as `undefined`).
+        this._id = ++Enemy._nextId;
         this.type = type || BOSS_TYPES[Math.floor(runState.rng() * BOSS_TYPES.length)];
         const cam = arena.camera;
         // Spawn near player but ensure inside map
@@ -137,6 +141,53 @@ class Boss {
         } else if (window._DLC_BOSS_REGISTRY && window._DLC_BOSS_REGISTRY[this.type]) {
             window._DLC_BOSS_REGISTRY[this.type].init(this);
         }
+    }
+
+    // Online client: a server-simulated boss, drawn with this class (body,
+    // phase, shield, telegraphs) and recognised as a boss (music, HP bar, intro
+    // camera) — the ghost never updates; snapshots move it. Only the per-type
+    // visual state the constructor sets, without stats, spawn or RNG.
+    static createGhost(type) {
+        const b = Object.create(Boss.prototype);
+        Object.assign(b, {
+            isBoss: true, type, _ghost: true, radius: 60, color: '#c0392b',
+            hp: 1, maxHp: 1, state: 0, phase: 1, immune: false,
+            telegraphTimer: 0, telegraphDuration: 60, telegraphData: null,
+            frame: 0, dead: false,
+        });
+        if (type === 'NOVA') b.color = '#8e44ad';
+        else if (type === 'RHINO') b.color = '#7f8c8d';
+        else if (type === 'HYDRA') b.color = '#27ae60';
+        else if (type === 'MAKUTA') {
+            Object.assign(b, { color: '#000000', radius: 85, mkState: 'IDLE', mkChannelTimer: 0, mkSweepAngle: 0,
+                mkEyeFlare: 0, mkBodyPulse: 0, mkHornSway: 0 });
+            b.mkOrbs = Array.from({ length: 3 }, (_, i) => ({ angle: (Math.PI * 2 / 3) * i, speed: 0.022, dist: 115 }));
+        } else if (type === 'GREEN_GOBLIN') {
+            Object.assign(b, { color: '#1d8a2e', radius: 52, pendingBombs: [], magnetTimer: 0, goblinState: 'HOVER',
+                diveTarget: null, wiggle: 0, eyeGlow: 0 });
+        } else if (type === 'DARK_GOLEM') { b.color = '#212121'; b.radius = 90; }
+        else if (type === 'ZEUS') { Object.assign(b, { color: '#ffffff', radius: 80, state: 'IDLE', stormTimer: 0 }); }
+        else {
+            // DLC bosses set their visual state in their init hook.
+            try {
+                if (typeof WindBosses !== 'undefined' && WindBosses.isWindBoss(type)) WindBosses.init(b);
+                else if (window._DLC_BOSS_REGISTRY && window._DLC_BOSS_REGISTRY[type]) window._DLC_BOSS_REGISTRY[type].init(b);
+            } catch (e) { b._plainDraw = true; } // missing DLC state: plain boss body
+        }
+        return b;
+    }
+
+    // Draw a ghost boss. If its type's art needs state the ghost lacks (a DLC
+    // boss this client can't fully build), switch it to the plain boss body
+    // for good — once, so a throwing draw can't unbalance the canvas each frame.
+    drawGhost() {
+        if (!this._plainDraw) {
+            try { this.draw(); return; }
+            catch (e) { this._plainDraw = true; ctx.restore(); } // the throwing draw's own save()
+        }
+        const t = this.type;
+        this.type = '_PLAIN';
+        try { this.draw(); } finally { this.type = t; }
     }
 
     update() {
@@ -669,13 +720,15 @@ class Boss {
                     if (this.telegraphData.type === 'CIRCLE') {
                         if (typeof audioManager !== 'undefined') audioManager.play('boss_stomp');
                         createExplosion(this.telegraphData.x, this.telegraphData.y, '#e74c3c');
-                        // Damage player if in range
-                        const dist = Math.hypot(player.x - this.telegraphData.x, player.y - this.telegraphData.y);
-                        if (dist < this.telegraphData.radius) {
-                            const _dmg = this.damage * 2;
-                            player.hp -= _dmg;
-                            if (typeof window.recordPlayerDamage === 'function') window.recordPlayerDamage(player, this.name || 'BOSS', _dmg);
-                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.ceil(_dmg), "#e74c3c", 20));
+                        // Damage every player in range (was P1 only)
+                        for (const _sp of hazardTargets()) {
+                            const dist = Math.hypot(_sp.x - this.telegraphData.x, _sp.y - this.telegraphData.y);
+                            if (dist < this.telegraphData.radius) {
+                                const _dmg = this.damage * 2;
+                                _sp.hp -= _dmg;
+                                if (typeof window.recordPlayerDamage === 'function') window.recordPlayerDamage(_sp, this.name || 'BOSS', _dmg);
+                                floatingTexts.push(FloatingText.acquire(_sp.x, _sp.y - 20, Math.ceil(_dmg), "#e74c3c", 20));
+                            }
                         }
                     }
                     this.telegraphData = null;

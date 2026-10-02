@@ -11,6 +11,7 @@
 //   updatePowerUps(rs)            — ticks timers + kills expired
 //   drawPowerUps(ctx, rs)         — renders all live entries
 //   getPowerUpType(rs, i)         — returns POWERUP_TYPES[type] string for slot i
+//   syncPowerUps(rs, list, skip)  — online client: mirror the server's live set
 //   POWERUP_TYPES, MAX_POWERUPS   — re-exported for consumers
 
 import { POWERUP_TYPES } from '../../Constants.js';
@@ -32,6 +33,10 @@ export function initPowerUps(rs) {
     rs.powerUpType     = new Uint8Array(MAX_POWERUPS);
     rs.powerUpTimer    = new Int32Array(MAX_POWERUPS);
     rs.powerUpOscill   = new Float32Array(MAX_POWERUPS);
+    // Stable id per spawn — online snapshots name power-ups by it (slots move
+    // on swap-with-last).
+    rs.powerUpId       = new Int32Array(MAX_POWERUPS);
+    rs.powerUpNextId   = 1;
     rs.powerUpCount    = 0;
 }
 
@@ -60,6 +65,7 @@ export function spawnPowerUp(rs) {
     rs.powerUpType[i]     = Math.floor(rs.rng() * POWERUP_TYPES.length);
     rs.powerUpTimer[i]    = POWERUP_TIMER_INIT;
     rs.powerUpOscill[i]   = Math.random() * Math.PI;
+    rs.powerUpId[i]       = rs.powerUpNextId++;
     rs.powerUpCount       = i + 1;
     return i;
 }
@@ -72,8 +78,29 @@ export function killPowerUp(rs, i) {
         rs.powerUpType[i]   = rs.powerUpType[last];
         rs.powerUpTimer[i]  = rs.powerUpTimer[last];
         rs.powerUpOscill[i] = rs.powerUpOscill[last];
+        rs.powerUpId[i]     = rs.powerUpId[last];
     }
     rs.powerUpCount = last;
+}
+
+// Online client: the server owns power-ups (spawn, expiry, who picks one up).
+// Mirror its live set — `list` = [[id, x, y, typeIndex], …] — except ids in
+// `skip` (picked up here, server not caught up yet). Local expiry never fires
+// first: the server removes them.
+export function syncPowerUps(rs, list, skip) {
+    let n = 0;
+    for (const e of list) {
+        if (n >= MAX_POWERUPS) break;
+        if (skip && skip.has(e[0])) continue;
+        rs.powerUpId[n]     = e[0];
+        rs.powerUpX[n]      = e[1];
+        rs.powerUpY[n]      = e[2];
+        rs.powerUpType[n]   = e[3];
+        rs.powerUpTimer[n]  = POWERUP_TIMER_INIT;
+        rs.powerUpOscill[n] = (e[0] * 0.7) % Math.PI; // stable bob phase per id
+        n++;
+    }
+    rs.powerUpCount = n;
 }
 
 export function clearPowerUps(rs) {

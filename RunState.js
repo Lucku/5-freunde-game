@@ -181,6 +181,7 @@ import { initEnemies } from './core/systems/enemySystem.js';
  * @property {Object}  _bossChoiceGpPrev
  * @property {boolean} isPlayerDying
  * @property {number}  playerDeathTimer
+ * @property {number}  versusWinTimer       frames until a versus KO shows the victory screen
  *
  * Phase 7 — players + revival + stats:
  * @property {Object|null} player
@@ -283,6 +284,7 @@ export function createRunState() {
         _bossChoiceGpPrev:   {},
         isPlayerDying:       false,
         playerDeathTimer:    0,
+        versusWinTimer:      0,
 
         // Phase 7 — players + revival + stats.
         player:          null,
@@ -343,6 +345,16 @@ export const runState = new Proxy({}, {
     deleteProperty(_t, prop) { return delete _activeState[prop]; },
 });
 if (typeof window !== 'undefined') window.runState = runState;
+
+// Players an area hazard (lava, acid fog, exploders, slams, …) can hit: P1,
+// plus a living second player simulated on this machine — the local co-op /
+// AI companion / versus P2, or the online guest on the server. Hazards used to
+// target `runState.player` only, so P2 and the online guest were immune. The
+// online partner ghost on a client is skipped: the server applies its hazards.
+export function hazardTargets(rs = runState) {
+    const p2 = rs.player2;
+    return (p2 && !p2._ghost && !p2.isDead) ? [rs.player, p2] : [rs.player];
+}
 
 if (typeof window !== 'undefined') {
     window.RunState = {

@@ -1,5 +1,6 @@
 // Explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
 import { BiomeZone, Obstacle } from '../../Arena.js';
+import { runState } from '../../RunState.js';
 
 // Explicit renderer imports (was: window-shim lookup).
 
@@ -13,6 +14,41 @@ class ChaosBiome {
         this.particles = [];
         this.gravityShiftTimer = 0;
         this.gravityDir = { x: 0, y: 0 };
+    }
+
+    // Gravity pull on one player (P1 from update; co-op P2 / the online guest
+    // through Arena.applyToPlayer).
+    applyToPlayer(arena, player) {
+        if (!player || (this.gravityDir.x === 0 && this.gravityDir.y === 0)) return;
+        const dx = this.gravityDir.x * player.speedMultiplier;
+        const dy = this.gravityDir.y * player.speedMultiplier;
+        const nextX = player.x + dx;
+        const nextY = player.y + dy;
+
+        // Check full move
+        if (!arena.checkCollision(nextX, nextY, player.radius)) {
+            player.x = nextX;
+            player.y = nextY;
+        } else {
+            // Try separate axes to allow sliding
+            if (!arena.checkCollision(nextX, player.y, player.radius)) {
+                player.x = nextX;
+            } else if (!arena.checkCollision(player.x, nextY, player.radius)) {
+                player.y = nextY;
+            }
+        }
+    }
+
+    // Online: the server's gravity (direction + shift timer) for the clients.
+    netState() {
+        return { gd: [this.gravityDir.x, this.gravityDir.y], gt: this.gravityShiftTimer };
+    }
+
+    applyNetState(s) {
+        if (!s || !Array.isArray(s.gd)) return;
+        const x = Number(s.gd[0]), y = Number(s.gd[1]);
+        if (Number.isFinite(x) && Number.isFinite(y)) this.gravityDir = { x, y };
+        if (Number.isFinite(s.gt)) this.gravityShiftTimer = s.gt;
     }
 
     generate(arena) {
@@ -52,33 +88,19 @@ class ChaosBiome {
         this.gravityShiftTimer++;
 
         if (this.gravityShiftTimer > 600) {
-            // Change direction
-            const angle = Math.random() * Math.PI * 2;
-            this.gravityDir = { x: Math.cos(angle) * 0.5, y: Math.sin(angle) * 0.5 };
+            // Change direction. Online the server rolls it — one direction for
+            // both players, sent as net state; a client's own roll would pull
+            // its predicted hero another way.
+            if (!runState.isOnlineMode) {
+                const angle = Math.random() * Math.PI * 2;
+                this.gravityDir = { x: Math.cos(angle) * 0.5, y: Math.sin(angle) * 0.5 };
+                this.netRev = (this.netRev || 0) + 1;
+            }
             this.gravityShiftTimer = 0;
             if (typeof showNotification === 'function') showNotification("GRAVITY SHIFT!", "#8e44ad");
         }
 
-        // Apply Gravity Force to Player (with Collision Check)
-        if (this.gravityDir.x !== 0 || this.gravityDir.y !== 0) {
-            const dx = this.gravityDir.x * player.speedMultiplier;
-            const dy = this.gravityDir.y * player.speedMultiplier;
-            const nextX = player.x + dx;
-            const nextY = player.y + dy;
-
-            // Check full move
-            if (!arena.checkCollision(nextX, nextY, player.radius)) {
-                player.x = nextX;
-                player.y = nextY;
-            } else {
-                // Try separate axes to allow sliding
-                if (!arena.checkCollision(nextX, player.y, player.radius)) {
-                    player.x = nextX;
-                } else if (!arena.checkCollision(player.x, nextY, player.radius)) {
-                    player.y = nextY;
-                }
-            }
-        }
+        this.applyToPlayer(arena, player);
 
         // Visuals 1: Ambient Particles (Orbiting dust)
         if (Math.random() < 0.2) {

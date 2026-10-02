@@ -1,5 +1,6 @@
 // Explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
 import { BiomeZone, Obstacle } from '../../Arena.js';
+import { runState } from '../../RunState.js';
 
 class CloudBiome {
     // Static State
@@ -63,9 +64,13 @@ class CloudBiome {
         }
 
         if (this.windTimer > 600) {
-            const angle = Math.random() * Math.PI * 2;
-            this.windDirection.x = Math.cos(angle) * 0.5;
-            this.windDirection.y = Math.sin(angle) * 0.5;
+            // Online the server turns the wind (net state brings it here).
+            if (!runState.isOnlineMode) {
+                const angle = Math.random() * Math.PI * 2;
+                this.windDirection.x = Math.cos(angle) * 0.5;
+                this.windDirection.y = Math.sin(angle) * 0.5;
+                this.netRev = (this.netRev || 0) + 1;
+            }
             this.windTimer = 0;
 
             // Visual feedback
@@ -99,6 +104,33 @@ class CloudBiome {
             }
         }
 
+        this.applyToPlayer(arena, player);
+
+        // Enemies (online ghosts move by snapshot — the server pushes them)
+        enemies.forEach(e => {
+            if (e._ghost) return;
+            // Flying enemies might drift more
+            let eRes = 1;
+            if (e.type && (e.type === 'CLOUD_BAT' || e.type.includes('GHOST'))) eRes = 1.5;
+            if (e.type && (e.type.includes('GOLEM') || e.type.includes('TANK'))) eRes = 0.1;
+
+            const edx = this.windDirection.x * eRes;
+            const edy = this.windDirection.y * eRes;
+            if (!arena.checkCollision(e.x + edx, e.y + edy, e.radius)) {
+                e.x += edx;
+                e.y += edy;
+            } else {
+                if (!arena.checkCollision(e.x + edx, e.y, e.radius)) e.x += edx;
+                else if (!arena.checkCollision(e.x, e.y + edy, e.radius)) e.y += edy;
+            }
+        });
+
+    }
+
+    // Wind push + storm zones on one player — P1 from update; co-op P2 / the
+    // online guest through Arena.applyToPlayer.
+    static applyToPlayer(arena, player) {
+        if (!player) return;
         // Apply Wind Force
         // Lightning hero (and maybe others with heavy armor?) are resistant
         let resistance = 1;
@@ -116,32 +148,14 @@ class CloudBiome {
             else if (!arena.checkCollision(player.x, player.y + pdy, player.radius)) player.y += pdy;
         }
 
-        // Enemies
-        enemies.forEach(e => {
-            // Flying enemies might drift more
-            let eRes = 1;
-            if (e.type && (e.type === 'CLOUD_BAT' || e.type.includes('GHOST'))) eRes = 1.5;
-            if (e.type && (e.type.includes('GOLEM') || e.type.includes('TANK'))) eRes = 0.1;
-
-            const edx = this.windDirection.x * eRes;
-            const edy = this.windDirection.y * eRes;
-            if (!arena.checkCollision(e.x + edx, e.y + edy, e.radius)) {
-                e.x += edx;
-                e.y += edy;
-            } else {
-                if (!arena.checkCollision(e.x + edx, e.y, e.radius)) e.x += edx;
-                else if (!arena.checkCollision(e.x, e.y + edy, e.radius)) e.y += edy;
-            }
-        });
-
         // Handle Zones
         if (arena.biomeZones) {
             arena.biomeZones.forEach(zone => {
                 if (player.x > zone.x && player.x < zone.x + zone.w &&
                     player.y > zone.y && player.y < zone.y + zone.h) {
 
-                    if (zone.type === 'STORM') {
-                        // Storm Logic
+                    // Storm Logic — a random chip, rolled by the server online
+                    if (zone.type === 'STORM' && !runState.isOnlineMode) {
                         if (player.type !== 'lightning' && Math.random() < 0.01) {
                             player.hp -= 1; // Minor chip damage to non-natives
                         }
@@ -149,6 +163,18 @@ class CloudBiome {
                 }
             });
         }
+    }
+
+    // Online: the server's wind for the clients.
+    static netState() {
+        return { wd: [this.windDirection.x, this.windDirection.y], wt: this.windTimer };
+    }
+
+    static applyNetState(s) {
+        if (!s || !Array.isArray(s.wd)) return;
+        const x = Number(s.wd[0]), y = Number(s.wd[1]);
+        if (Number.isFinite(x) && Number.isFinite(y)) this.windDirection = { x, y };
+        if (Number.isFinite(s.wt)) this.windTimer = s.wt;
     }
 
     static generateBoltSegments() {

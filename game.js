@@ -56,23 +56,24 @@ import {
 } from './Camera.js';
 import { createExplosion, spawnLevelUpAura } from './Spawner.js';
 import {
-    isWaveCleared, buildBiomePool, pickRandomBiome,
+    isWaveCleared, buildBiomePool, pickRandomBiome, getDLCBiomePool,
     pickSeededBiome, isStoryBossWave, notifyWaveAdvance,
 } from './Wave.js';
 import { createRunStats, runState } from './RunState.js';
 import { createGameLoop } from './GameLoop.js';
 import { _drawGameplayPost } from './core/drawGameplayPost.js';
 import { _drawGameplayMid } from './core/drawGameplayMid.js';
-import { _updateGameplayPre } from './core/updateGameplayPre.js';
-import { _updateGameplayMid } from './core/updateGameplayMid.js';
+import { _updateGameplayPre, showWeatherStart, endWeather, hideWeatherHud } from './core/updateGameplayPre.js';
+import { _updateGameplayMid, grantKillRewards, applyTrueGoldenMask } from './core/updateGameplayMid.js';
+import { startObjective } from './core/objectives.js';
 import { renderPostFX, hidePostFX } from './core/postProcess.js';
-import { clearPowerUps } from './core/systems/powerUpSystem.js';
+import { clearPowerUps, syncPowerUps } from './core/systems/powerUpSystem.js';
 import { spawnCardDrop, clearCardDrops } from './core/systems/cardDropSystem.js';
 import { spawnParticle, clearParticles } from './core/systems/particleSystem.js';
 import { clearFloatingTexts } from './core/systems/floatingTextSystem.js';
 import { clearMemoryShards } from './core/systems/memoryShardSystem.js';
-import { spawnGoldDrop, clearGoldDrops } from './core/systems/goldDropSystem.js';
-import { spawnHolyMask, clearHolyMasks } from './core/systems/holyMaskSystem.js';
+import { clearGoldDrops, syncGoldDrops } from './core/systems/goldDropSystem.js';
+import { spawnHolyMask, killHolyMask, clearHolyMasks } from './core/systems/holyMaskSystem.js';
 import {
     spawnCompanion, clearCompanions, serializeCompanions,
 } from './core/systems/companionSystem.js';
@@ -2048,7 +2049,10 @@ function startOnlineGame(msg) {
             global: { unlockedAchievements: [...(saveData.global?.unlockedAchievements || [])] },
             chaos: { active: [...(saveData.chaos?.active || [])] },
             altar: { active: [...(saveData.altar?.active || [])] },
+            collection: [...(saveData.collection || [])], // collector-card bonuses
         },
+        // DLC biomes this client can play — the online pool is the shared set.
+        biomes: getDLCBiomePool(),
     });
 
     coopP2HeroType = partnerHero;
@@ -2088,7 +2092,7 @@ function startOnlineGame(msg) {
     const sub = (type, fn) => _onlineGameSubs.push(nm.on(type, fn));
     sub('SNAPSHOT',        (s)  => { if (runState.isOnlineMode) _onlineHandleSnapshot(s); });
     sub('LEVEL_UP',        (ev) => { if (runState.isOnlineMode) _onlineShowLevelUpForGuest(ev); });
-    sub('PARTNER_LEVELING',()   => { if (runState.isOnlineMode) _onlineShowPartnerLevelingOverlay(true); });
+    sub('PARTNER_LEVELING',()   => { if (runState.isOnlineMode) _onlinePartnerLeveledUp(); });
     sub('LEVEL_UP_DONE',   ()   => { if (runState.isOnlineMode) _onlineShowPartnerLevelingOverlay(false); });
     sub('ARENA_LAYOUT',    (m)  => {
         if (!runState.isOnlineMode || !m || !m.layout) return;
@@ -2101,6 +2105,11 @@ function startOnlineGame(msg) {
     sub('PARTNER_RECONNECTED',  () => _onlineShowReconnectOverlay(false));
     sub('GAME_OVER', () => { if (runState.isOnlineMode) gameOver(false); });
     sub('STORY_CONTINUE', () => { if (runState.isOnlineMode && runState.isStoryOpen) _onlinePartnerContinueStory(); });
+    sub('STORY_EVENT', (m) => {
+        if (!runState.isOnlineMode || !m || !m.event) return;
+        _onlinePendingStory = m;
+        if (m.wave === _onlineStoryAwaitWave) _onlineOpenRelayedStory();
+    });
     sub('MAZE_NODE_SELECTED', (msg) => {
         if (!runState.isOnlineMode) return;
         // Close the read-only spectator maze UI
@@ -2110,13 +2119,7 @@ function startOnlineGame(msg) {
             MazeOfTime.selectNode(msg.nodeId);
             MazeOfTime.clearEnemyPool();
         }
-        // Proceed with the same storyEvent the host built
-        if (msg.storyEvent && window.openStory) {
-            window.currentStoryEvent = msg.storyEvent;
-            window.openStory(msg.storyEvent);
-        } else if (typeof advanceWave === 'function') {
-            advanceWave();
-        }
+        // The chapter itself follows as STORY_EVENT (all chapters go that way).
     });
 
     const _gameMode = isVersusOnline ? 'VERSUS' : (msg.mode === 'SHUFFLE' ? 'SHUFFLE' : 'NORMAL');
@@ -2140,7 +2143,11 @@ function _onlineShareArenaLayout() {
     const layout = arena.serializeLayout();
     _onlineLocalLayoutHash = Arena.layoutHash(layout);
     _onlineLocalLayoutWave = runState.wave;
-    if (nm.isHost()) nm.send({ type: 'ARENA_LAYOUT', wave: runState.wave, layout });
+    // Biome features generate() made (bloom patches, light shafts, dream
+    // pockets) go along — the server never runs generate.
+    const _bl = window.BIOME_LOGIC && arena.biomeType && window.BIOME_LOGIC[arena.biomeType];
+    const biome = (_bl && typeof _bl.layoutState === 'function') ? _bl.layoutState(arena) : undefined;
+    if (nm.isHost()) nm.send({ type: 'ARENA_LAYOUT', wave: runState.wave, layout, biome });
     else _onlineReconcileLayout();
 }
 
@@ -2164,6 +2171,12 @@ function _onlineCleanup() {
     _onlineAwaitingServer = false;
     _onlineHostLayout = null;
     _onlineLocalLayoutHash = 0;
+    runState.predictedPickups = null;
+    runState.predictedGold = null;
+    window._onlineSharedBiomes = null;
+    _onlineStoryWave = 0;
+    _onlineStoryAwaitWave = 0;
+    _onlinePendingStory = null;
     runState.isOnlineMode  = false;
     runState.isOnlineHost  = false;
     runState.isOnlineGuest = false;
@@ -2321,6 +2334,102 @@ function _stopWeather() {
             audioManager.stopLoop('weather_' + w.id.toLowerCase());
         });
     }
+    // The tint, label and bar stayed up after a wave change / new run.
+    hideWeatherHud();
+}
+
+// Online power-ups: the server spawns them and decides who gets one. Mirror
+// its set. Our own pickups are predicted (Mid applies the buff at once) —
+// keep those hidden until the server drops them (or 2 s pass), and take the
+// server's buff timers, except a just-predicted buff it hasn't confirmed yet.
+// Buff arrays are [speed, multi, autoaim] frames left (absent = none).
+const _ONLINE_BUFF_KEYS = ['speed', 'multi', 'autoaim'];
+function _onlineSyncPowerUps(list, myBuffs, partnerBuffs) {
+    const now = Date.now();
+    const picked = runState.predictedPickups;
+    const grace = 300 + (window.networkManager?.latencyMs || 0);
+    if (picked) {
+        for (const [id, p] of picked) {
+            if (now - p.at > 2000 || !list.some(e => e[0] === id)) picked.delete(id);
+        }
+    }
+    syncPowerUps(runState, list, picked);
+
+    const me = runState.player;
+    if (me && me.buffs) {
+        _ONLINE_BUFF_KEYS.forEach((k, i) => {
+            const srv = myBuffs ? myBuffs[i] : 0;
+            if (srv > 0) { me.buffs[k] = srv; return; }
+            let justPicked = false;
+            if (picked) for (const p of picked.values()) if (p.type === k.toUpperCase() && now - p.at < grace) justPicked = true;
+            if (!justPicked) me.buffs[k] = 0;
+        });
+    }
+    const partner = runState.player2;
+    if (partner && partner.buffs) _ONLINE_BUFF_KEYS.forEach((k, i) => { partner.buffs[k] = partnerBuffs ? partnerBuffs[i] : 0; });
+}
+
+// Online gold drops: server-spawned, either player collects (the server
+// credits the gold, snapshots carry it). Our own pickups are predicted —
+// hidden until the server drops them (or 2 s pass).
+function _onlineSyncGold(list) {
+    const picked = runState.predictedGold;
+    const now = Date.now();
+    if (picked) {
+        for (const [id, at] of picked) {
+            if (now - at > 2000 || !list.some(e => e[0] === id)) picked.delete(id);
+        }
+    }
+    syncGoldDrops(runState, list, picked);
+}
+
+// Online: the server's True Golden Mask ([x, y] while it lies there) mirrored
+// as this client's one golden mask entity (its regular masks are its own).
+function _onlineSyncGoldenMask(gm) {
+    let idx = -1;
+    for (let i = 0; i < runState.holyMaskCount; i++) if (runState.holyMaskIsTrueGolden[i]) { idx = i; break; }
+    if (gm && idx < 0) spawnHolyMask(runState, gm[0], gm[1], true);
+    else if (!gm && idx >= 0) killHolyMask(runState, idx);
+}
+
+// Online kill (server event): the death burst, then the save-side rewards a
+// singleplayer kill grants — achievements, kill stats, run summary, card and
+// holy-mask drops — to this client's own save (each player keeps their own).
+function _onlineOnKill(ev) {
+    if (ev.boss) {
+        createExplosion(ev.x, ev.y, '#c0392b');
+    } else {
+        createDeathBurst(ev.x, ev.y, ev.color || '#e74c3c', ev.sub);
+        createExplosion(ev.x, ev.y, '#aaa');
+    }
+    grantKillRewards({ x: ev.x, y: ev.y, subType: ev.sub, isBoss: !!ev.boss, type: ev.boss || null, bossLabel: ev.label, eliteId: ev.elite || null });
+}
+
+// Online: weather is rolled by the server simulation (one roll for both
+// players, effects applied there); clients show what the snapshot says.
+// `cur` / `cur2` = { id, left } or null (primary / wave-30+ stacked weather).
+function _onlineSyncWeather(cur, cur2) {
+    const id = cur ? cur.id : null;
+    if ((runState.currentWeather ? runState.currentWeather.id : null) !== id) {
+        endWeather();
+        const w = id ? WEATHER_TYPES.find(t => t.id === id) : null; // unknown id: a DLC this client lacks
+        if (w) {
+            runState.currentWeather = w;
+            showWeatherStart(w);
+        }
+    }
+    if (runState.currentWeather && cur) runState.weatherDuration = cur.left;
+
+    const id2 = cur2 ? cur2.id : null;
+    if ((runState.currentWeather2 ? runState.currentWeather2.id : null) !== id2) {
+        if (runState.currentWeather2 && typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + runState.currentWeather2.id.toLowerCase());
+        runState.currentWeather2 = id2 ? (WEATHER_TYPES.find(t => t.id === id2) || null) : null;
+        if (runState.currentWeather2) {
+            if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + id2.toLowerCase());
+            if (runState.currentWeather) showNotification(`⚠ ${runState.currentWeather2.name} STACKS WITH ${runState.currentWeather.name}!`);
+        }
+    }
+    runState.weatherDuration2 = (runState.currentWeather2 && cur2) ? cur2.left : 0;
 }
 
 function _resetGameState() {
@@ -2357,6 +2466,7 @@ function _resetGameState() {
     p2LevelUpPending = false;
     runState.isPlayerDying = false;
     runState.playerDeathTimer = 0;
+    runState.versusWinTimer = 0;
     enemies.length = 0;
     projectiles.length = 0;
     clearPowerUps(runState);
@@ -2614,6 +2724,7 @@ const storyManager = new StoryManager();
 // isStoryOpen + currentStoryEvent migrated to runState.
 let _onlineLocalContinuedStory  = false;
 let _onlinePartnerContinuedStory = false;
+let _onlineStoryWave = 0; // host: the wave whose chapter it is about to show (STORY_EVENT)
 
 // Input
 const inputManager = new InputManager(); // Handles keys, mouse, and lastInputType
@@ -3858,11 +3969,14 @@ function triggerStory(completedWave) {
             if (_mazeIsHost) MazeOfTime.completeNode(window.mazeCurrentNodeId);
         }
 
-        // Online guest: open read-only map and wait for MAZE_NODE_SELECTED relay
+        // Online guest: open read-only map and wait for the host's pick
+        // (MAZE_NODE_SELECTED, then its chapter as STORY_EVENT)
         if (runState.isOnlineMode && !window.networkManager?.isHost()) {
             window.mazeUI.open(_mazeTriggerHero, null, true);
+            _onlineAwaitStory(completedWave + 1);
             return;
         }
+        if (runState.isOnlineMode) _onlineStoryWave = completedWave + 1;
 
         // Host / single-player: check for next available nodes
         const _mazeState = MazeOfTime.getState();
@@ -3881,6 +3995,13 @@ function triggerStory(completedWave) {
         ? window._onlineStoryHero.toUpperCase()
         : (runState.player ? runState.player.type.toUpperCase() : 'ALL');
     const nextWave = completedWave + 1;
+    // Online the host picks the chapter and the server passes it on
+    // (STORY_EVENT) — the guest's own pick could differ (DLC chapters it lacks).
+    if (runState.isOnlineMode && !window.networkManager?.isHost()) {
+        _onlineAwaitStory(nextWave);
+        return;
+    }
+    if (runState.isOnlineMode) _onlineStoryWave = nextWave;
     const story = storyManager.getEventForWave(nextWave, heroType);
 
     if (story) {
@@ -3956,6 +4077,12 @@ function openStory(story) {
     runState.isStoryOpen = true;
     _onlineLocalContinuedStory  = false;
     _onlinePartnerContinuedStory = false;
+    // Online host: the server applies the chapter's gameplay part when the
+    // wave starts and shows the guest the same chapter.
+    if (runState.isOnlineMode && window.networkManager?.isHost() && _onlineStoryWave) {
+        window.networkManager.send({ type: 'STORY_EVENT', wave: _onlineStoryWave, event: story });
+        _onlineStoryWave = 0;
+    }
 
     // Apply hero theme
     const heroKey = (story.hero || 'ALL').toLowerCase();
@@ -4083,6 +4210,16 @@ function _finishStoryEvent(event) {
         return;
     }
 
+    // Online: the wave the server already started gets set up now (biome,
+    // arena, spawn — the chapter's overrides included). No hero swap (the
+    // chapter is the host's hero's; the server keeps each player's own hero)
+    // and no shop between waves online.
+    if (runState.isOnlineMode) {
+        if (runState.wave === 0) advanceWave();
+        else resumeWaveGeneration();
+        return;
+    }
+
     // Force Hero Swap to match Narrative (Generic Logic for Chaos/Fortune/etc)
     // Skip in Evil Mode — villain hero is managed exclusively by EvilMode.setupWave()
     if (!runState.isEvilMode && event && event.hero) {
@@ -4186,60 +4323,6 @@ Object.defineProperties(window, {
     //   holyMasks, goldDrops — handled by plain `window.X = X` at init.
     waveTimer:           { get: () => waveTimer,           set: v => { waveTimer           = v; }, configurable: true, enumerable: true },
 });
-
-function startObjective() {
-    runState.currentObjective = {
-        type: 'NONE',
-        target: 0,
-        current: 0,
-        state: 'ACTIVE',
-        data: {}
-    };
-
-    if (runState.player.type === 'fire') {
-        runState.currentObjective.type = 'INFERNO';
-        runState.currentObjective.target = 30; // 30 seconds
-        runState.currentObjective.current = 0;
-        showNotification("OBJECTIVE: MAINTAIN COMBO x10!");
-    } else if (runState.player.type === 'plant') {
-        runState.currentObjective.type = 'DEFENSE';
-        runState.currentObjective.data.sapling = {
-            x: arena.width / 2,
-            y: arena.height / 2,
-            hp: 500,
-            maxHp: 500,
-            radius: 30
-        };
-        showNotification("OBJECTIVE: PROTECT THE SAPLING!");
-    } else if (runState.player.type === 'ice') {
-        runState.currentObjective.type = 'EYE_OF_STORM';
-        runState.currentObjective.target = 45; // Accumulate 45 seconds inside the eye
-        runState.currentObjective.current = 0;
-        runState.currentObjective.data.stormEye = {
-            x: arena.width / 2,
-            y: arena.height / 2,
-            radius: 150,
-            tx: arena.width / 2,
-            ty: arena.height / 2
-        };
-        showNotification("OBJECTIVE: STAY IN THE EYE OF THE STORM!");
-    } else if (runState.player.type === 'water') {
-        runState.currentObjective.type = 'UNTOUCHABLE';
-        runState.currentObjective.target = 5; // Max 5 hits
-        runState.currentObjective.current = 0;
-        showNotification("OBJECTIVE: AVOID DAMAGE!");
-    } else if (runState.player.type === 'metal') {
-        runState.currentObjective.type = 'IRON_WILL';
-        runState.currentObjective.target = 60; // Survive 60 seconds
-        runState.currentObjective.current = 0;
-        showNotification("OBJECTIVE: SURVIVE THE DECAY!");
-    }
-
-    // DLC Hook: Start Objective
-    if (window.HERO_LOGIC && window.HERO_LOGIC[runState.player.type] && window.HERO_LOGIC[runState.player.type].startObjective) {
-        window.HERO_LOGIC[runState.player.type].startObjective(runState.currentObjective);
-    }
-}
 
 // --- CHAOS MODE 2.0 LOGIC ---
 // Moved to ChaosMode.js
@@ -4445,8 +4528,11 @@ function _generateWaveArena(layoutOverride = null, trapOverride = null) {
 // agreement.
 function _placeOnlineSpawn() {
     if (!runState.player) return;
+    // Host left, guest right — ±300 in co-op, ±800 in versus (local versus
+    // spawns P1 / P2 there). Must match GameSession._spawnPoint.
     const _side = window.networkManager?.isHost() ? -1 : 1;
-    const _sp = arena.nearestFreePosition(arena.width / 2 + _side * 300, arena.height / 2, runState.player.radius);
+    const _off = runState.isVersusMode ? 800 : 300;
+    const _sp = arena.nearestFreePosition(arena.width / 2 + _side * _off, arena.height / 2, runState.player.radius);
     runState.player.x = _sp.x;
     runState.player.y = _sp.y;
 }
@@ -4456,7 +4542,7 @@ function resumeWaveGeneration() {
     const isStoryMode = (saveData.story && saveData.story.enabled !== false) &&
         !runState.isDailyMode && !runState.isWeeklyMode && !runState.isChaosShuffleMode && !runState.isVersusMode;
 
-    if (isStoryMode && runState.wave === 90) {
+    if (isStoryMode && runState.wave === 90 && !runState.isOnlineMode) { // online: the server's (snapshot gm)
         // Spawn in center
         spawnHolyMask(runState, arena.width / 2, arena.height / 2, true);
         showNotification("THE GOLDEN MASK APPEARS!");
@@ -4475,17 +4561,19 @@ function resumeWaveGeneration() {
     // Randomize Biome (Skip in Versus Mode) — biome-pool & roll moved to Wave.js.
     if (!runState.isVersusMode && !runState.isWorkshopMode) {
         const isStoryRun = (saveData.story && saveData.story.enabled !== false) && !runState.isDailyMode && !runState.isWeeklyMode;
-        const heroType = (runState.player && runState.player.type) || 'fire';
+        // Online, P1 is the host on both clients (its hero picks wave 1 / the
+        // 'HERO' story biome) — the guest used its own hero here.
+        const heroType = (runState.isOnlineMode && window._onlineStoryHero)
+            || (runState.player && runState.player.type) || 'fire';
         const types = buildBiomePool(isStoryRun, heroType);
 
-        if (runState.wave === 1 && runState.player && runState.player.type !== 'black') {
-            runState.currentBiomeType = (runState.isOnlineMode && window._onlineStoryHero)
-                ? window._onlineStoryHero : runState.player.type;
+        if (runState.wave === 1 && runState.player && heroType !== 'black') {
+            runState.currentBiomeType = heroType;
         } else if (runState.currentStoryEvent && runState.currentStoryEvent.data && runState.currentStoryEvent.data.biome) {
             runState.currentBiomeType = runState.currentStoryEvent.data.biome === 'HERO'
-                ? runState.player.type : runState.currentStoryEvent.data.biome;
+                ? heroType : runState.currentStoryEvent.data.biome;
         } else if (runState.isOnlineMode && window._onlineBiomeSeed !== undefined) {
-            runState.currentBiomeType = pickSeededBiome(runState.wave, window._onlineBiomeSeed);
+            runState.currentBiomeType = _onlineBiomeForWave(runState.wave);
         } else {
             runState.currentBiomeType = pickRandomBiome(types);
         }
@@ -4530,43 +4618,13 @@ function resumeWaveGeneration() {
     }
 
     if (storyBossId) {
-        runState.bossActive = true;
-        triggerImpact(9, 22, 0.45, 0.90, 550);
-        let pName = storyBossId;
-        if (storyBossId === 'MAKUTA') {
-            showNotification("MAKUTA HAS AWAKENED!");
-            pName = "MAKUTA";
-            // Force Shadow Realm Biome for Makuta
-            runState.currentBiomeType = 'black';
-        } else if (storyBossId === 'GREEN_GOBLIN') {
-            showNotification("THE GREEN GOBLIN ATTACKS!");
-            pName = "GREEN GOBLIN";
-        } else if (storyBossId === 'DARK_GOLEM') {
-            showNotification("THE DARK GOLEM AWAKENS!");
-            pName = "DARK GOLEM";
-        } else if (storyBossId === 'ZEUS') {
-            showNotification("THE THUNDER LORD DECENDS!");
-            pName = "ZEUS";
-        } else {
-            showNotification(`BOSS WARNING: ${storyBossId}!`);
-        }
-        enemies.unshift(new Boss(storyBossId));
-        runState.bossIntroTimer = GAMEPLAY.BOSS_INTRO_FRAMES;
-        runState.bossIntroName = pName;
-        // Only allow skip if this boss has been seen before on this save.
-        // Stamp the flag AFTER reading it so the first encounter always plays full.
-        if (!saveData.global.bossesSeen) saveData.global.bossesSeen = {};
-        runState.bossIntroSkippable = !!saveData.global.bossesSeen[storyBossId];
-        saveData.global.bossesSeen[storyBossId] = true;
-        if (typeof audioManager !== 'undefined') {
-            // Villain taunts when they spawn as a boss; hero reacts otherwise
-            if (storyBossId === 'GREEN_GOBLIN') {
-                audioManager.playHeroExclamation('green_goblin', 'boss_moment');
-            } else if (storyBossId === 'MAKUTA') {
-                audioManager.playHeroExclamation('makuta', 'boss_moment');
-            } else if (runState.player) {
-                audioManager.playHeroExclamation(runState.player.type, 'boss_moment');
-            }
+        // Force Shadow Realm Biome for Makuta
+        if (storyBossId === 'MAKUTA') runState.currentBiomeType = 'black';
+        // Online the server spawns it and announces it (boss_intro).
+        if (!runState.isOnlineMode) {
+            runState.bossActive = true;
+            enemies.unshift(new Boss(storyBossId));
+            _startStoryBossIntro(storyBossId);
         }
     }
 
@@ -4577,8 +4635,8 @@ function resumeWaveGeneration() {
 
     // Reset Player Position to Center
     if (runState.player) {
-        if (runState.isOnlineMode && !runState.isVersusMode) {
-            _placeOnlineSpawn();
+        if (runState.isOnlineMode) {
+            _placeOnlineSpawn(); // online versus too: both clients used to put themselves left
         } else if (runState.isVersusMode) {
             runState.player.x = arena.width / 2 - 800; // Left Spawn
             runState.player.y = arena.height / 2;
@@ -4597,8 +4655,8 @@ function resumeWaveGeneration() {
     // Reset Objective
     runState.currentObjective = null;
 
-    // Check for Objective Wave
-    if (runState.currentStoryEvent && runState.currentStoryEvent.type === 'OBJECTIVE_WAVE') {
+    // Check for Objective Wave (online: the server runs it, snapshots show it)
+    if (!runState.isOnlineMode && runState.currentStoryEvent && runState.currentStoryEvent.type === 'OBJECTIVE_WAVE') {
         startObjective();
     }
 
@@ -4665,10 +4723,57 @@ function resumeWaveGeneration() {
         }
     }
 
-    // Save Run State at start of wave
-    saveRunState();
+    // Save Run State at start of wave (online runs can't be resumed)
+    if (!runState.isOnlineMode) saveRunState();
 
     setUIState('GAME');
+    // Online: hold local prediction until the server, waiting for this
+    // wave's arena, resumes.
+    if (runState.isOnlineMode && runState.wave > 1) {
+        _onlineAwaitingServer = true;
+        const _waitEl = document.getElementById('online-wait-overlay');
+        if (_waitEl) _waitEl.style.display = 'block';
+    }
+}
+
+// A story boss arrives: rumble, banner, intro cinematic, villain taunt.
+// Singleplayer on spawn; online when the server spawns it (boss_intro) — not
+// skippable there, the server holds the fight for the whole intro.
+function _startStoryBossIntro(storyBossId) {
+    triggerImpact(9, 22, 0.45, 0.90, 550);
+    let pName = storyBossId;
+    if (storyBossId === 'MAKUTA') {
+        showNotification("MAKUTA HAS AWAKENED!");
+        pName = "MAKUTA";
+    } else if (storyBossId === 'GREEN_GOBLIN') {
+        showNotification("THE GREEN GOBLIN ATTACKS!");
+        pName = "GREEN GOBLIN";
+    } else if (storyBossId === 'DARK_GOLEM') {
+        showNotification("THE DARK GOLEM AWAKENS!");
+        pName = "DARK GOLEM";
+    } else if (storyBossId === 'ZEUS') {
+        showNotification("THE THUNDER LORD DECENDS!");
+        pName = "ZEUS";
+    } else {
+        showNotification(`BOSS WARNING: ${storyBossId}!`);
+    }
+    runState.bossIntroTimer = GAMEPLAY.BOSS_INTRO_FRAMES;
+    runState.bossIntroName = pName;
+    // Only allow skip if this boss has been seen before on this save.
+    // Stamp the flag AFTER reading it so the first encounter always plays full.
+    if (!saveData.global.bossesSeen) saveData.global.bossesSeen = {};
+    runState.bossIntroSkippable = !runState.isOnlineMode && !!saveData.global.bossesSeen[storyBossId];
+    saveData.global.bossesSeen[storyBossId] = true;
+    if (typeof audioManager !== 'undefined') {
+        // Villain taunts when they spawn as a boss; hero reacts otherwise
+        if (storyBossId === 'GREEN_GOBLIN') {
+            audioManager.playHeroExclamation('green_goblin', 'boss_moment');
+        } else if (storyBossId === 'MAKUTA') {
+            audioManager.playHeroExclamation('makuta', 'boss_moment');
+        } else if (runState.player) {
+            audioManager.playHeroExclamation(runState.player.type, 'boss_moment');
+        }
+    }
 }
 
 function unlockAchievement(id) {
@@ -5033,6 +5138,7 @@ async function startGame(mode = 'NORMAL') {
     clearCompanions(runState);
     runState.isPlayerDying = false;
     runState.playerDeathTimer = 0;
+    runState.versusWinTimer = 0;
     forcedEnemyType = null;
     runState.currentObjective = null; // Reset Objective
     runState.currentStoryEvent = null; // Reset Story Event to prevent leaks
@@ -5870,6 +5976,10 @@ function _onlineApplySnapshot(s) {
         runState.player.xp     = s.p2.xp;
         runState.player.maxXp  = s.p2.maxXp;
         runState.player.gold   = s.p2.gold;
+        // Combo (kills credit their killer on the server); the HUD and the
+        // run's best combo read it.
+        runState.player.combo  = s.p2.combo || 0;
+        if (runState.player.combo > (runState.currentRunStats.maxCombo || 0)) runState.currentRunStats.maxCombo = runState.player.combo;
         // Server-authoritative target position; per-frame reconciliation loop
         // pulls the local predicted position toward this each frame instead of
         // applying a single per-snapshot jerk.
@@ -5900,7 +6010,11 @@ function _onlineApplySnapshot(s) {
     _replaceArrInPlace(enemies, s.enemies.map(ed => {
         // Reuse existing ghost object if possible (avoids GC churn)
         let e = _prevMap.get(ed._id);
-        if (!e) {
+        if (!e && ed.boss !== undefined) {
+            e = Boss.createGhost(ed.boss); // real boss art, music hooks, HP bar, intro camera
+            e.targetAngle = 0; e.isAttacking = false; e.isElite = false;
+            e.isSummonedMinion = false; e.eliteType = null; e.sides = 0;
+        } else if (!e) {
             e = Object.create(Enemy.prototype);
             e._ghost = true;
             e.frame = 0; e.targetAngle = 0; e.isAttacking = false;
@@ -5944,6 +6058,17 @@ function _onlineApplySnapshot(s) {
         if (ed.color   !== undefined) e.color   = ed.color;
         if (ed.sides   !== undefined) e.sides   = ed.sides;
         if (ed.radius  !== undefined) { if (e.radius !== ed.radius) e._bodyGradient = null; e.radius = ed.radius; }
+        if (e.isBoss) {
+            // Server boss state Boss.draw shows (see GameSession _bossVisuals)
+            if (e._baseState === undefined) e._baseState = e.state;
+            e.phase  = ed.ph || 1;
+            e.immune = !!ed.im;
+            e.state  = ed.st !== undefined ? ed.st : e._baseState;
+            e.telegraphTimer = ed.tg ? ed.tg[4] : 0;
+            e.telegraphData  = ed.tg ? { x: ed.tg[0], y: ed.tg[1], radius: ed.tg[2], type: ed.tg[3] } : null;
+            if (e.pendingBombs) e.pendingBombs = ed.bb ? ed.bb.map(k => ({ x: k[0], y: k[1], timer: k[2], maxTimer: k[3], radius: k[4] })) : [];
+            if (e.mkState !== undefined) e.mkState = ed.ms || 'IDLE';
+        }
         return e;
     }));
 
@@ -6057,6 +6182,18 @@ function _onlineApplySnapshot(s) {
     if (s.wave     !== undefined) runState.wave      = s.wave;
     if (s.score    !== undefined) runState.score     = s.score;
     if (s.bossActive !== undefined) runState.bossActive = s.bossActive;
+    // Story objective — the server runs it; HUD / sapling / storm eye drawn from this
+    runState.currentObjective = s.obj ? { ...s.obj, data: { sapling: s.obj.sapling, stormEye: s.obj.stormEye } } : null;
+    _onlineSyncGoldenMask(s.gm);
+    _onlineSyncWeather(s.weather || null, s.weather2 || null);
+    // DLC biome state the server decides (gravity / wind direction, falling
+    // rocks, floor tiles, sanctuaries, …) — [biomeType, state].
+    if (s.bs) {
+        const _bl = window.BIOME_LOGIC && window.BIOME_LOGIC[s.bs[0]];
+        if (_bl && typeof _bl.applyNetState === 'function') _bl.applyNetState(s.bs[1], arena);
+    }
+    _onlineSyncPowerUps(s.pu || [], s.p2 && s.p2.bf, s.p1 && s.p1.bf);
+    if (s.gd !== undefined) _onlineSyncGold(s.gd);
 
     // Process events
     if (s.events) s.events.forEach(_onlineProcessGuestEvent);
@@ -6097,6 +6234,16 @@ function _onlineTwinOwnShot(ghost) {
 // generation as wave 1 (identical on both clients), the host uploads the
 // arena, the own player goes to its spawn, and local prediction is held until
 // the server — which waits for that arena — resumes.
+// Online: the wave's biome, identical on both clients — singleplayer's pool
+// rules (story run → base biomes, 'black' hero → black) with the host as P1
+// and the DLC biomes both players have (sent by the server with wave_start).
+function _onlineBiomeForWave(wave) {
+    const isStoryRun = !!(saveData.story && saveData.story.enabled !== false);
+    const hero = window._onlineStoryHero || (runState.player && runState.player.type) || 'fire';
+    return pickSeededBiome(wave, window._onlineBiomeSeed,
+        buildBiomePool(isStoryRun, hero, window._onlineSharedBiomes || []));
+}
+
 function _onlineBeginWave(wave) {
     if (!wave || wave <= 1) return;
     runState.wave = wave;
@@ -6105,14 +6252,30 @@ function _onlineBeginWave(wave) {
     runState.bossDeathTimer = 0;   // end a still-running death cinematic
     masksDroppedInWave = 0;
     notifyWaveAdvance(wave);
-    runState.currentBiomeType = pickSeededBiome(wave, window._onlineBiomeSeed);
-    showNotification(`BIOME SHIFT: ${runState.currentBiomeType.toUpperCase()}`);
-    _generateWaveArena();
-    _onlineShareArenaLayout();
-    _placeOnlineSpawn();
-    _onlineAwaitingServer = true;
-    const _waitEl = document.getElementById('online-wait-overlay');
-    if (_waitEl) _waitEl.style.display = 'block';
+    runState.currentStoryEvent = null;
+    runState.currentObjective = null;
+    // Story: the chapter first (both read it; the server waits), then the
+    // wave set-up when it closes (_finishStoryEvent). Otherwise set up now —
+    // singleplayer's resumeWaveGeneration either way.
+    if (saveData.story && saveData.story.enabled) triggerStory(wave - 1);
+    else resumeWaveGeneration();
+}
+
+// Online guest: show the host's chapter for `wave` as soon as both the wave
+// and the chapter (STORY_EVENT) are here, in either order.
+let _onlineStoryAwaitWave = 0;
+let _onlinePendingStory = null;
+function _onlineAwaitStory(wave) {
+    _onlineStoryAwaitWave = wave;
+    if (_onlinePendingStory && _onlinePendingStory.wave === wave) _onlineOpenRelayedStory();
+}
+function _onlineOpenRelayedStory() {
+    const m = _onlinePendingStory;
+    _onlinePendingStory = null;
+    _onlineStoryAwaitWave = 0;
+    if (window.mazeIsOpen && window.mazeUI) window.mazeUI.close();
+    runState.currentStoryEvent = m.event;
+    openStory(m.event);
 }
 
 /** GUEST: handle one-shot events relayed from the host. */
@@ -6121,9 +6284,6 @@ function _onlineProcessGuestEvent(ev) {
     switch (ev.type) {
         case 'enemy_death':
             createExplosion(ev.x, ev.y, ev.color || '#fff');
-            break;
-        case 'gold_drop':
-            spawnGoldDrop(runState, ev.x, ev.y);
             break;
         case 'boss_defeated':
             // The server finished the wave's boss and holds its sim for the
@@ -6135,14 +6295,39 @@ function _onlineProcessGuestEvent(ev) {
             if (typeof audioManager !== 'undefined') audioManager.play('wave_completed');
             break;
         case 'wave_start':
+            if (Array.isArray(ev.biomes)) window._onlineSharedBiomes = ev.biomes;
             _onlineBeginWave(ev.wave);
             break;
+        case 'kill':
+            _onlineOnKill(ev);
+            break;
+        case 'boss_intro':
+            _startStoryBossIntro(ev.boss);
+            break;
+        case 'golden_mask': {
+            // The server's True Golden Mask was picked up — the boost is
+            // this client's own hero's if it was us.
+            const _mine = ev.by === (window.networkManager?.isHost() ? 'host' : 'guest');
+            if (_mine && runState.player) {
+                applyTrueGoldenMask(runState.player);
+                createExplosion(runState.player.x, runState.player.y, '#fff');
+                if (typeof audioManager !== 'undefined') {
+                    audioManager.play('pickup_mask');
+                    audioManager.playHeroExclamation(runState.player.type, 'found');
+                }
+            }
+            showNotification(_mine ? "TRUE GOLDEN MASK! ALL STATS BOOSTED!" : "PARTNER FOUND THE TRUE GOLDEN MASK!");
+            break;
+        }
         case 'notification':
             showNotification(ev.msg, ev.color);
             break;
-        case 'game_over':
-            gameOver(ev.victory || false);
+        case 'game_over': {
+            // Versus names the winning role; co-op wins / loses together.
+            const _myRole = window.networkManager?.isHost() ? 'host' : 'guest';
+            gameOver(ev.winner ? ev.winner === _myRole : !!ev.victory);
             break;
+        }
     }
 }
 
@@ -6156,8 +6341,22 @@ function _onlineHandleLevelUpChoice(_choice) {}
 /** GUEST: display the level-up screen for their own character (choice relayed to host via LevelUp.js). */
 function _onlineShowLevelUpForGuest(ev) {
     if (!ev.options || !runState.player) return;
+    // The server ran Player.levelUp() (level, options); play its presentation
+    // and open the singleplayer level-up screen. A partner pick just before
+    // ours is over — drop its wait overlay.
+    _onlineShowPartnerLevelingOverlay(false);
     runState.isLevelingUp = true;
+    window.levelingUpPlayer = runState.player;
+    runState.player.playLevelUpFx();
+    if (typeof window._syncSoundBiomeMusic === 'function') window._syncSoundBiomeMusic();
     if (window.levelUpUI) window.levelUpUI.showLevelUp(runState.player, ev.options);
+}
+
+/** The partner leveled up (server) — the aura / voice local co-op shows for P2. */
+function _onlinePartnerLeveledUp() {
+    const p2 = runState.player2;
+    if (p2 && typeof p2.playLevelUpFx === 'function') p2.playLevelUpFx();
+    _onlineShowPartnerLevelingOverlay(true);
 }
 
 /** GUEST: remove the "waiting for partner to level up" dimming. */

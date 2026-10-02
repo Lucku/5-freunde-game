@@ -3,6 +3,7 @@ import { BiomeZone, Obstacle } from '../../Arena.js';
 
 // Explicit renderer imports (was: window-shim lookup).
 import { FloatingText } from '../../Entities/FloatingText.js';
+import { runState, hazardTargets } from '../../RunState.js';
 
 class RockBiome {
     static generate(arena) {
@@ -268,8 +269,10 @@ class RockBiome {
         ctx.restore();
     }
 
-    static update(arena, player, enemies) {
-        // 1. Handle Zone Effects
+    // 1. Zone effects on one player — P1 from update; co-op P2 / the online
+    // guest through Arena.applyToPlayer.
+    static applyToPlayer(arena, player) {
+        if (!player) return;
         arena.biomeZones.forEach(zone => {
             if (player.x > zone.x && player.x < zone.x + zone.w &&
                 player.y > zone.y && player.y < zone.y + zone.h) {
@@ -289,10 +292,27 @@ class RockBiome {
                 }
             }
         });
+    }
+
+    // Online: the server's falling rocks for the clients.
+    static netState(arena) {
+        return { h: (arena.hazards || []).map(h => [Math.round(h.x), Math.round(h.y), h.timer, h.radius]) };
+    }
+
+    static applyNetState(s, arena) {
+        if (!s || !Array.isArray(s.h) || !arena) return;
+        arena.hazards = s.h.filter(Array.isArray).slice(0, 50)
+            .map(e => ({ x: Number(e[0]) || 0, y: Number(e[1]) || 0, timer: Number(e[2]) || 0, radius: Number(e[3]) || 60 }));
+    }
+
+    static update(arena, player, enemies) {
+        this.applyToPlayer(arena, player);
 
         // 2. Global Hazard: Falling Rocks
-        // Randomly spawn falling rock indicators
-        if (Math.random() < 0.005) { // 0.5% chance per frame (~once every 3-4 seconds)
+        // Randomly spawn falling rock indicators. Online the server drops them
+        // (net state brings them here).
+        if (!runState.isOnlineMode && Math.random() < 0.005) { // 0.5% chance per frame (~once every 3-4 seconds)
+            this.netRev = (this.netRev || 0) + 1;
             if (!arena.hazards) arena.hazards = [];
             arena.hazards.push({
                 x: player.x + (Math.random() - 0.5) * 600,
@@ -312,19 +332,19 @@ class RockBiome {
                     // Impact!
                     createExplosion(h.x, h.y, '#795548'); // Brown explosion
 
-                    // Damage Player
-                    const dist = Math.hypot(player.x - h.x, player.y - h.y);
-                    if (dist < h.radius) {
-                        if (!player.isInvincible) {
-                            const dmg = 30 * (1 - player.damageReduction);
-                            player.hp -= dmg;
-                            floatingTexts.push(FloatingText.acquire(player.x, player.y - 20, Math.floor(dmg), "#795548", 20));
+                    // Damage every player under it (was P1 only)
+                    for (const p of hazardTargets()) {
+                        const dist = Math.hypot(p.x - h.x, p.y - h.y);
+                        if (dist < h.radius && !p.isInvincible) {
+                            const dmg = 30 * (1 - p.damageReduction);
+                            p.hp -= dmg;
+                            floatingTexts.push(FloatingText.acquire(p.x, p.y - 20, Math.floor(dmg), "#795548", 20));
                         }
                     }
 
-                    // Damage Enemies (Friendly Fire)
+                    // Damage Enemies (Friendly Fire) — online ghosts: the server's
                     enemies.forEach(e => {
-                        if (Math.hypot(e.x - h.x, e.y - h.y) < h.radius) {
+                        if (!e._ghost && Math.hypot(e.x - h.x, e.y - h.y) < h.radius) {
                             e.hp -= 100;
                             floatingTexts.push(FloatingText.acquire(e.x, e.y - 20, "100", "#795548", 20));
                         }

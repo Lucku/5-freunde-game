@@ -133,6 +133,20 @@ class CrimsonGreenhouseBiome {
         }
     }
 
+    // The bloom patches (made in generate) for the server, which never runs
+    // generate — the host uploads them with its arena.
+    layoutState() {
+        return { b: this.blooms.map(b => [Math.round(b.x), Math.round(b.y), b.baseRadius, Math.round(b.pulseTimer)]) };
+    }
+
+    applyLayoutState(s) {
+        if (!s || !Array.isArray(s.b)) return;
+        this.blooms = s.b.filter(Array.isArray).slice(0, 30).map(e => {
+            const r = Number(e[2]) || 80;
+            return { x: Number(e[0]) || 0, y: Number(e[1]) || 0, radius: r, baseRadius: r, pulseTimer: Number(e[3]) || 0 };
+        });
+    }
+
     update(arena, player, enemies) {
         this.t++;
 
@@ -191,7 +205,7 @@ class CrimsonGreenhouseBiome {
         // Apply Bleed-style DPS to enemies inside Bloom Patches (5 DPS)
         if (enemies && (this.t % 30) === 0) {
             enemies.forEach(e => {
-                if (e.hp <= 0) return;
+                if (e.hp <= 0 || e._ghost) return; // online ghosts: the server's
                 this.blooms.forEach(b => {
                     if (Math.hypot(e.x - b.x, e.y - b.y) < b.radius) {
                         e.hp -= 2.5; // 5 DPS at 30-frame tick rate (2 ticks/sec)

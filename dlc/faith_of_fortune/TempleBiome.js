@@ -1,3 +1,4 @@
+import { runState } from '../../RunState.js';
 // Temple of Balance Biome Logic
 // Associated with Spirit Hero
 // Theme: Peaceful, Sacred Geometry, Lanterns, Sanctuaries
@@ -48,7 +49,9 @@ class TempleBiome {
 
         // 2. Sanctuary Zones (Safe Havens)
         // Similar to Madness zones, but they HEAL or provide buffs
-        if (window.frame % 600 === 0) { // Rare: Every 10 seconds
+        // Online the server places them (net state brings them here).
+        if (window.frame % 600 === 0 && !runState.isOnlineMode) { // Rare: Every 10 seconds
+            this.netRev = (this.netRev || 0) + 1;
             const spawnW = arena.width || 2000;
             const spawnH = arena.height || 2000;
             this.sanctuaries.push({
@@ -59,29 +62,42 @@ class TempleBiome {
             });
         }
 
+        this.applyToPlayer(arena, player);
         for (let i = this.sanctuaries.length - 1; i >= 0; i--) {
             const s = this.sanctuaries[i];
             s.life--;
-
-            // Effect: Heal / Peace gain — Spirit hero only (like Fire hero immunity to lava)
-            if (typeof player !== 'undefined' && player.type === 'spirit') {
-                const dist = Math.hypot(player.x - (s.x + s.r), player.y - (s.y + s.r));
-                if (dist < s.r) {
-                    if (window.frame % 60 === 0) {
-                        if (player.hp < player.maxHp) {
-                            player.hp += 5;
-                            if (typeof createTextEffect !== 'undefined') createTextEffect(player.x, player.y - 20, "+5 HP", "#00ff00");
-                        }
-                        // Spirit Hero Synergy
-                        if (player.innerPeace !== undefined && player.innerPeace < player.maxInnerPeace) {
-                            player.innerPeace += 5;
-                        }
-                    }
-                }
-            }
-
             if (s.life <= 0) this.sanctuaries.splice(i, 1);
         }
+    }
+
+    // Effect: Heal / Peace gain — Spirit hero only (like Fire hero immunity
+    // to lava). P1 from update; co-op P2 / the online guest through
+    // Arena.applyToPlayer.
+    applyToPlayer(arena, player) {
+        if (!player || player.type !== 'spirit' || window.frame % 60 !== 0) return;
+        for (const s of this.sanctuaries) {
+            const dist = Math.hypot(player.x - (s.x + s.r), player.y - (s.y + s.r));
+            if (dist >= s.r) continue;
+            if (player.hp < player.maxHp) {
+                player.hp += 5;
+                if (typeof createTextEffect !== 'undefined') createTextEffect(player.x, player.y - 20, "+5 HP", "#00ff00");
+            }
+            // Spirit Hero Synergy
+            if (player.innerPeace !== undefined && player.innerPeace < player.maxInnerPeace) {
+                player.innerPeace += 5;
+            }
+        }
+    }
+
+    // Online: the server's sanctuaries for the clients.
+    netState() {
+        return { s: this.sanctuaries.map(s => [Math.round(s.x), Math.round(s.y), s.r, s.life]) };
+    }
+
+    applyNetState(st) {
+        if (!st || !Array.isArray(st.s)) return;
+        this.sanctuaries = st.s.filter(Array.isArray).slice(0, 20)
+            .map(e => ({ x: Number(e[0]) || 0, y: Number(e[1]) || 0, r: Number(e[2]) || 100, life: Number(e[3]) || 0 }));
     }
 
     draw(ctx, arena) {

@@ -13,21 +13,21 @@
     "score": 120,
     "frame": 721,
     "enemies": 4,
-    "projectiles": 8,
+    "projectiles": 5,
     "host": {
       "hp": 100,
-      "x": 1023.73,
-      "y": 2448.91,
+      "x": 1171.33,
+      "y": 2577.02,
       "level": 1,
-      "xp": 80,
+      "xp": 60,
       "dead": false
     },
     "guest": {
-      "hp": 110.4,
-      "x": 2161.97,
-      "y": 1077.42,
+      "hp": 137.4,
+      "x": 2794.25,
+      "y": 1668.62,
       "level": 2,
-      "xp": 60,
+      "xp": 80,
       "dead": false
     }
   }

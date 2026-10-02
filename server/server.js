@@ -1678,6 +1678,9 @@ wss.on('connection', (ws, req) => {
                 if (role === 'guest' && s && s.arenaLayout) {
                     send(ws, { type: 'ARENA_LAYOUT', wave: s.arenaLayoutWave, layout: s.arenaLayout, hash: s.arenaLayoutHash });
                 }
+                if (s) s.resendLevelUpPrompt(role); // a level-up waiting on this player (or its partner)
+                // A chapter the guest may not have seen (story screen open across the drop)
+                if (role === 'guest' && s && lobby._lastStoryEvent && lobby._lastStoryEvent.wave >= s.wave) send(ws, lobby._lastStoryEvent);
                 const p = partner(lobby, role);
                 if (p) {
                     send(p.ws, { type: 'PARTNER_RECONNECTED' });
@@ -1896,7 +1899,7 @@ function handleMessage(ws, msg) {
             // instead of base stats. Accepted before the simulation starts.
             const lobby = lobbies.get(ws.lobbyCode);
             if (!lobby || lobby.phase !== 'in_game' || !lobby.session) return;
-            if (!lobby.session.setPlayerLoadout(ws.role, msg.save)) {
+            if (!lobby.session.setPlayerLoadout(ws.role, msg.save, msg.biomes)) {
                 console.warn(`[PLAYER_LOADOUT] ignored from ${ws.username} (lobby ${lobby.code}): malformed or match already running`);
             }
             break;
@@ -1911,7 +1914,7 @@ function handleMessage(ws, msg) {
             if (!lobby || lobby.phase !== 'in_game' || !lobby.session || ws.role !== 'host') return;
             const wave = Number.isInteger(msg.wave) ? msg.wave : 1;
             if (wave <= lobby.session.arenaLayoutWave) return; // one layout per wave
-            if (!lobby.session.setArenaLayout(msg.layout, wave)) {
+            if (!lobby.session.setArenaLayout(msg.layout, wave, msg.biome)) {
                 console.warn(`[ARENA_LAYOUT] rejected malformed layout from ${ws.username} (lobby ${lobby.code})`);
                 return;
             }
@@ -1920,12 +1923,11 @@ function handleMessage(ws, msg) {
         }
 
         case 'LEVEL_UP_CHOICE': {
+            // The session applies the pick, then offers the next queued
+            // level-up or resumes (and sends the partner LEVEL_UP_DONE).
             const lobby = lobbies.get(ws.lobbyCode);
             if (!lobby || !lobby.session) return;
             lobby.session.applyLevelUpChoice(ws.role, msg.choice);
-            // Notify partner that level-up is done
-            const p = partner(lobby, ws.role);
-            if (p) send(p.ws, { type: 'LEVEL_UP_DONE' });
             break;
         }
 
@@ -1996,6 +1998,19 @@ function handleMessage(ws, msg) {
             if (!lobby || lobby.phase !== 'in_game') return;
             const p = partner(lobby, ws.role);
             if (p) send(p.ws, { type: 'STORY_CONTINUE' });
+            break;
+        }
+
+        case 'STORY_EVENT': {
+            // Story mode: the host picked the next wave's chapter (its hero's
+            // story, or a Maze of Time node). The session applies its gameplay
+            // part; the guest gets the whole chapter to show the same screen.
+            const lobby = lobbies.get(ws.lobbyCode);
+            if (!lobby || lobby.phase !== 'in_game' || !lobby.session || ws.role !== 'host') return;
+            if (JSON.stringify(msg.event || null).length > 16384) return;
+            if (!lobby.session.setStoryEvent(msg.wave, msg.event)) return;
+            lobby._lastStoryEvent = { type: 'STORY_EVENT', wave: msg.wave, event: msg.event };
+            if (lobby.guest) send(lobby.guest.ws, lobby._lastStoryEvent);
             break;
         }
 

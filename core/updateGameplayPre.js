@@ -9,12 +9,51 @@
 // `_renderBossChoiceScreen`, `applyDamage`, `createExplosion`, `showNotification`,
 // `_replaceArrInPlace`) resolve via bare-name global lookup — `window.X`
 // bridges in the renderer, `global.X` stubs in `server/simulation/loader.js`.
-import { runState } from '../RunState.js';
+import { runState, hazardTargets } from '../RunState.js';
 import { isPhotoMode } from '../Camera.js';
 import { spawnPowerUp } from './systems/powerUpSystem.js';
 // Explicit import replaces the retired `window.FloatingText`
 // shim. Binding is identical to the former global (named export === shim value).
 import { FloatingText } from '../Entities/FloatingText.js';
+
+const _WEATHER_HUD_COLOR = { HEATWAVE: '#e74c3c', THUNDERSTORM: '#9b59b6', SANDSTORM: '#c8922a', ACIDIC_FOG: '#2ecc71', GALE: '#a8d8f0', TEMPORAL_RIFT: '#b8a0ff', PETAL_STORM: '#ff80c0' };
+
+// A weather starts: screen tint, HUD label + duration bar, audio loop.
+// Shared by the local roll below and online clients applying the server's.
+export function showWeatherStart(w) {
+    document.getElementById('weather-overlay').style.backgroundColor = w.color;
+    const wDisplay = document.getElementById('weather-display');
+    wDisplay.innerText = `⚠ ${w.name}`;
+    const _wColor = _WEATHER_HUD_COLOR[w.id] || '#3498db';
+    wDisplay.style.color = _wColor;
+    wDisplay.style.display = 'block';
+    const wBarWrap = document.getElementById('weather-bar-wrap');
+    const wBarFill = document.getElementById('weather-bar-fill');
+    if (wBarWrap && wBarFill) {
+        wBarWrap.style.display = 'block';
+        wBarFill.style.background = _wColor;
+        wBarFill.style.width = '100%';
+    }
+    if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + w.id.toLowerCase());
+}
+
+// The current weather ends: state, particles, tint, HUD and audio loop.
+export function endWeather() {
+    if (!runState.currentWeather) return;
+    if (typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + runState.currentWeather.id.toLowerCase());
+    runState.currentWeather = null;
+    runState.weatherParticles = [];
+    runState._weatherBolts = [];
+    runState._weatherFlash = 0;
+    hideWeatherHud();
+}
+
+export function hideWeatherHud() {
+    document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
+    document.getElementById('weather-display').style.display = 'none';
+    const _wbw = document.getElementById('weather-bar-wrap');
+    if (_wbw) _wbw.style.display = 'none';
+}
 
 export
 function _updateGameplayPre(deltaTime) {
@@ -60,6 +99,10 @@ function _updateGameplayPre(deltaTime) {
         arena.camera.y += wobbleY;
     }
 
+    // Zone / biome speed effects (mud, rubble, sludge, updrafts) hold only
+    // while a player stands in one: reset each frame, then this frame's
+    // biome hooks and base zones set them.
+    for (const _sp of hazardTargets()) _sp.biomeSpeedMod = 1;
     arena.update(runState.player);
     // Co-op / AI companion: traps + hazard zones hit the second player too
     // (they only ever applied to P1). The online partner ghost is skipped —
@@ -69,8 +112,8 @@ function _updateGameplayPre(deltaTime) {
         arena.applyToPlayer(runState.player2);
     }
 
-    // --- OBJECTIVE LOGIC ---
-    if (runState.currentObjective && runState.currentObjective.state === 'ACTIVE') {
+    // --- OBJECTIVE LOGIC --- (online: the server runs it; snapshots show it)
+    if (!runState.isOnlineMode && runState.currentObjective && runState.currentObjective.state === 'ACTIVE') {
         if (runState.currentObjective.type === 'INFERNO') {
             if (runState.player.combo >= 10) {
                 runState.currentObjective.current += 1 / 60; // Add 1 second per 60 frames
@@ -201,17 +244,12 @@ function _updateGameplayPre(deltaTime) {
             if (_wbf) _wbf.style.width = Math.max(0, (runState.weatherDuration / runState.currentWeather.duration) * 100) + '%';
         }
         if (runState.weatherDuration <= 0) {
-            // Weather ending
-            if (typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + runState.currentWeather.id.toLowerCase());
-            runState.currentWeather = null;
-            runState.weatherParticles = [];
-            runState._weatherBolts = [];
-            runState._weatherFlash = 0;
-            document.getElementById('weather-overlay').style.backgroundColor = 'transparent';
-            document.getElementById('weather-display').style.display = 'none';
-            const _wbw = document.getElementById('weather-bar-wrap');
-            if (_wbw) _wbw.style.display = 'none';
-            runState.weatherTimer = 3600 + runState.rng() * 2400;
+            // Weather ending. Online clients don't decide that: the server's
+            // snapshot ends it (_onlineSyncWeather) — hold until then.
+            if (!runState.isOnlineMode) {
+                endWeather();
+                runState.weatherTimer = 3600 + runState.rng() * 2400;
+            }
         } else {
             const wProg = runState.weatherDuration / runState.currentWeather.duration; // 1→0 as weather fades
             const wFadeIn = Math.min(1, (runState.currentWeather.duration - runState.weatherDuration) / 120);
@@ -344,8 +382,10 @@ function _updateGameplayPre(deltaTime) {
                 }
                 // DoT: 1% max HP every 4s
                 if (runState.frame % 240 === 0 && wFadeIn >= 1) {
-                    const acidDmg = Math.ceil(runState.player.maxHp * 0.01);
-                    applyDamage(runState.player, acidDmg, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null });
+                    for (const _ap of hazardTargets()) {
+                        const acidDmg = Math.ceil(_ap.maxHp * 0.01);
+                        applyDamage(_ap, acidDmg, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null });
+                    }
                 }
 
             } else if (runState.currentWeather.id === 'GALE') {
@@ -385,7 +425,7 @@ function _updateGameplayPre(deltaTime) {
                 if (p.y > canvas.height + 10 || p.y < -10 || p.x > canvas.width + 60) runState.weatherParticles.splice(_pi, 1);
             }
         }
-    } else {
+    } else if (!runState.isOnlineMode) { // online: the server rolls, snapshots carry it
         runState.weatherTimer--;
         if (runState.weatherTimer <= 0) {
             // Helper: returns true if weather w is eligible for the current biome + loaded DLCs
@@ -421,32 +461,19 @@ function _updateGameplayPre(deltaTime) {
             // Wave scaling: +1% duration per wave, capped at 2×
             const _waveDurationMult = Math.min(2.0, 1 + runState.wave * 0.01);
             runState.weatherDuration = Math.floor(runState.currentWeather.duration * _waveDurationMult);
-            document.getElementById('weather-overlay').style.backgroundColor = runState.currentWeather.color;
-            const wDisplay = document.getElementById('weather-display');
-            wDisplay.innerText = `⚠ ${runState.currentWeather.name}`;
-            const _wColor = { HEATWAVE: '#e74c3c', THUNDERSTORM: '#9b59b6', SANDSTORM: '#c8922a', ACIDIC_FOG: '#2ecc71', GALE: '#a8d8f0', TEMPORAL_RIFT: '#b8a0ff', PETAL_STORM: '#ff80c0' }[runState.currentWeather.id] || '#3498db';
-            wDisplay.style.color = _wColor;
-            wDisplay.style.display = 'block';
-            const wBarWrap = document.getElementById('weather-bar-wrap');
-            const wBarFill = document.getElementById('weather-bar-fill');
-            if (wBarWrap && wBarFill) {
-                wBarWrap.style.display = 'block';
-                wBarFill.style.background = _wColor;
-                wBarFill.style.width = '100%';
-            }
-            if (typeof audioManager !== 'undefined') audioManager.startLoop('weather_' + runState.currentWeather.id.toLowerCase());
+            showWeatherStart(runState.currentWeather);
         }
     }
     // ── Weather stacking (wave 30+): run a second concurrent weather ──
     if (runState.wave >= 30) {
         if (runState.currentWeather2) {
             runState.weatherDuration2--;
-            if (runState.weatherDuration2 <= 0) {
+            if (runState.weatherDuration2 <= 0 && !runState.isOnlineMode) {
                 if (typeof audioManager !== 'undefined') audioManager.stopLoop('weather_' + runState.currentWeather2.id.toLowerCase());
                 runState.currentWeather2 = null;
                 runState.weatherDuration2 = 0;
             }
-        } else if (runState.currentWeather && runState.rng() < 0.0003) {
+        } else if (runState.currentWeather && !runState.isOnlineMode && runState.rng() < 0.0003) {
             // Small chance each frame to stack a second weather (different from first, biome/DLC eligible)
             const _stackPool = WEATHER_TYPES.filter(w => {
                 if (w.id === runState.currentWeather.id) return false;
@@ -480,8 +507,10 @@ function _updateGameplayPre(deltaTime) {
                 if (runState.rng() < 0.5 * _wFI2) runState.weatherParticles.push({ x: runState.rng() * canvas.width, y: -8, vx: (runState.rng() - 0.5) * 1.2 - 0.5, vy: 1.2 + runState.rng() * 2.0, r: 1.0 + runState.rng() * 2.2, alpha: 0.55 + runState.rng() * 0.4, wobble: runState.rng() * Math.PI * 2 });
             } else if (runState.currentWeather2.id === 'ACIDIC_FOG') {
                 if (runState.frame % 240 === 0 && _wFI2 >= 1) {
-                    const _ad2 = Math.ceil(runState.player.maxHp * 0.01);
-                    applyDamage(runState.player, _ad2, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null });
+                    for (const _ap of hazardTargets()) {
+                        const _ad2 = Math.ceil(_ap.maxHp * 0.01);
+                        applyDamage(_ap, _ad2, { label: 'ACID FOG', color: '#2ecc71', size: 16, prefix: '☠', sfx: null });
+                    }
                 }
             }
             void _wProg2; // suppress unused warning
@@ -670,7 +699,8 @@ function _updateGameplayPre(deltaTime) {
         }
     }
 
-    if (runState.frame % 600 === 0) spawnPowerUp(runState);
+    // Online: the server spawns them for both players (snapshots carry them).
+    if (runState.frame % 600 === 0 && !runState.isOnlineMode) spawnPowerUp(runState);
     return false;
 }
 // — end leaf module —

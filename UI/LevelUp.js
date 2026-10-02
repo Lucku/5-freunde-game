@@ -1,5 +1,6 @@
 // Explicit imports for symbols previously read off window shims.
 import { iconHTML } from '../Icons.js'; // Cross-platform vector icons
+import { applyUpgrade } from '../core/upgrades.js';
 
 class LevelUpUI {
     constructor() {
@@ -76,47 +77,17 @@ class LevelUpUI {
             currentRunStats.upgradesPicked.push({ wave: _wave, timeSec: _t, id: type, title: _title });
         }
 
-        // 1. Try Hero Specific Upgrade Logic
-        // Defined in Hero Class (e.g. SpiritHero.applyUpgrade)
-        const _hlApplied = window.gameContext.registries.callHero(player.type, 'applyUpgrade', player, type);
-        if (_hlApplied) {
-            window.isLevelingUp = false;
-            document.getElementById('levelup-screen').style.display = 'none';
-            if (typeof window._afterUpgradeChosen === 'function') window._afterUpgradeChosen();
-            else if (window.setUIState) window.setUIState('GAME');
-            return;
-        }
-
-        if (type === 'health') {
-            player.maxHp += 25;
-            player.hp = Math.min(player.maxHp, player.hp + (player.maxHp * 0.2));
-            player.runBuffs.maxHp += 25;
-        }
-        else if (type === 'radius') {
-            player.meleeRadius *= 1.25;
-        }
-        else if (type === 'projectile') {
-            player.extraProjectiles += 1;
-            player.runBuffs.projectiles += 1;
-            // Balance: -20% Damage (Additive divisor) per split, similar to Skill Tree
-            player.stats.rangeDmg /= 1.2;
-        }
-        else if (type === 'speed') { player.speedMultiplier += 0.1; player.runBuffs.speed += 0.1; }
-        else if (type === 'cooldown') { player.cooldownMultiplier *= 0.9; player.runBuffs.cooldown += 0.1; }
-        else if (type === 'defense') { player.damageReduction = Math.min(0.5, player.damageReduction + 0.05); player.runBuffs.defense += 0.05; }
-        else if (type === 'damage') { player.damageMultiplier += 0.1; player.runBuffs.damage += 0.1; }
-        else if (type === 'luck') { player.maskChance += 0.005; player.runBuffs.luck += 0.005; }
-        else if (type === 'crit') { player.critChance += 0.05; player.critMultiplier += 0.2; }
-        else if (type === 'transform') {
-            player.transformActive = true;
-            player.currentForm = player.getFormName();
-            if (window.showNotification) window.showNotification(`${player.currentForm} ACTIVATED!`);
-            if (window.createExplosion) window.createExplosion(player.x, player.y, '#fff');
-            if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(player.type, 'ultimate');
-        }
-        else {
-            console.log("Unknown Upgrade Type: " + type);
-        }
+        // Hero-specific upgrade logic (e.g. SpiritHero.applyUpgrade) first, then
+        // the built-in table — the same code the online server applies.
+        const applied = applyUpgrade(player, type, {
+            heroLogic: window.gameContext.registries.getHero(player.type),
+            onTransform: (p) => {
+                if (window.showNotification) window.showNotification(`${p.currentForm} ACTIVATED!`);
+                if (window.createExplosion) window.createExplosion(p.x, p.y, '#fff');
+                if (typeof audioManager !== 'undefined') audioManager.playHeroExclamation(p.type, 'ultimate');
+            },
+        });
+        if (!applied) console.log("Unknown Upgrade Type: " + type);
 
         window.isLevelingUp = false;
         document.getElementById('levelup-screen').style.display = 'none';

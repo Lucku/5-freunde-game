@@ -1,5 +1,6 @@
 // Explicit BiomeZone/Obstacle/Trap imports (were bare-name lookups via window shim).
 import { BiomeZone, Obstacle } from '../../Arena.js';
+import { runState } from '../../RunState.js';
 
 // Explicit renderer imports (was: window-shim lookup).
 
@@ -127,6 +128,29 @@ class DreamspaceBiome {
         }
     }
 
+    // Online: the pockets (where they sit, when they next blink) — uploaded by
+    // the host after generating the arena (the server never runs generate),
+    // then sent by the server as they relocate.
+    netState() {
+        return { p: this.pockets.map(p => [Math.round(p.x), Math.round(p.y), p.radius, Math.round(p.blinkTimer)]) };
+    }
+
+    applyNetState(s, arena) {
+        if (!s || !Array.isArray(s.p)) return;
+        const zones = arena ? arena.biomeZones.filter(z => z.type === 'DREAM_POCKET') : [];
+        this.pockets = s.p.filter(Array.isArray).slice(0, 8).map((e, i) => {
+            const old = this.pockets[i];
+            const p = { x: Number(e[0]) || 0, y: Number(e[1]) || 0, radius: Number(e[2]) || 150,
+                blinkTimer: Number(e[3]) || 0, rotation: old ? old.rotation : 0, lastTeleportFrame: {} };
+            p._lastX = p.x;
+            if (zones[i]) { zones[i].x = p.x - p.radius; zones[i].y = p.y - p.radius; }
+            return p;
+        });
+    }
+
+    layoutState() { return this.netState(); }
+    applyLayoutState(s, arena) { this.applyNetState(s, arena); }
+
     update(arena, player, enemies) {
         this.t++;
         this.starPulsePhase += 0.014;
@@ -180,7 +204,9 @@ class DreamspaceBiome {
         this.pockets.forEach((p, idx) => {
             p.blinkTimer--;
             p.rotation += 0.012;
-            if (p.blinkTimer <= 0) {
+            // Online the server relocates them (net state brings them here).
+            if (p.blinkTimer <= 0 && !runState.isOnlineMode) {
+                this.netRev = (this.netRev || 0) + 1;
                 p.blinkTimer = 300 + Math.random() * 120;
                 // Pick new random position
                 const w = arena.width, h = arena.height;
@@ -203,7 +229,7 @@ class DreamspaceBiome {
         // Enemy teleport on entering a pocket (20% per entry)
         if (enemies) {
             enemies.forEach(e => {
-                if (e.hp <= 0) return;
+                if (e.hp <= 0 || e._ghost) return; // online ghosts: the server teleports them
                 this.pockets.forEach((p, idx) => {
                     const inside = Math.hypot(e.x - p.x, e.y - p.y) < p.radius;
                     const wasInside = e._dpInside && e._dpInside === idx;
